@@ -5341,10 +5341,9 @@ class Fparser2ASTProcessor(object):
                         "Could not process {0}. Character length "
                         "specifications are not supported."
                         "".format(decl.items))
-
-                parent.symbol_table.declare(
-                    str(name), datatype, entity_shape, scope, is_input,
-                    is_output)
+                parent.symbol_table.add(Symbol(
+                    str(name), datatype, shape=entity_shape, scope=scope,
+                    is_input=is_input, is_output=is_output))
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5808,9 +5807,8 @@ class Fparser2ASTProcessor(object):
 
 
 class Symbol(object):
-    '''
-    Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in column-major order), the scope and for
+    '''Symbol item for the Symbol Table. It contains information about: the
+    name, the datatype, the shape (in column-major order), the scope and for
     global-scoped symbols whether the data is already defined and/or survives
     after the kernel.
 
@@ -5830,30 +5828,41 @@ class Symbol(object):
                       mechanism, at the moment just 'global_argument' is \
                       available for variables passed in/out of the kernel \
                       by argument.
+    :param constant_value: Sets a fixed known value for this \
+                           Symbol. If the value is None (the default) \
+                           then this symbol is not a constant. The \
+                           datatype of the constant value must be \
+                           compatible with the datatype of the symbol.
+    :type constant_value: int, str or bool
     :param bool is_input: Whether the symbol represents data that exists \
                           before the kernel is entered and that is passed \
                           into the kernel.
     :param bool is_output: Whether the symbol represents data that is passed \
                            outside the kernel upon exit.
+
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
+
     '''
 
     # Tuple with the valid values for the access attribute.
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character', 'boolean')
+    # Mapping from supported data types for constant values to
+    # internal Python types
+    mapping = {'integer': int, 'character': str, 'boolean': bool}
 
     def __init__(self, name, datatype, shape=[], scope='local',
-                 is_input=False, is_output=False):
+                 constant_value=None, is_input=False, is_output=False):
 
         self._name = name
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes."
-                "".format(str(Symbol.valid_data_types)))
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
         self._datatype = datatype
 
         if not isinstance(shape, list):
@@ -5874,9 +5883,11 @@ class Symbol(object):
 
         # The following attributes have setter methods (with error checking)
         self._scope = None
+        self._constant_value = None
         self._is_input = None
         self._is_output = None
         self.scope = scope
+        self.constant_value = constant_value
         self.is_input = is_input
         self.is_output = is_output
 
@@ -5884,7 +5895,7 @@ class Symbol(object):
     def name(self):
         '''
         :returns: Name of the Symbol.
-        :rtype: string
+        :rtype: str
         '''
         return self._name
 
@@ -5892,7 +5903,7 @@ class Symbol(object):
     def datatype(self):
         '''
         :returns: Datatype of the Symbol.
-        :rtype: string
+        :rtype: str
         '''
         return self._datatype
 
@@ -5993,6 +6004,92 @@ class Symbol(object):
 
         self._scope = new_scope
 
+    @property
+    def is_constant(self):
+        '''
+        :returns: Whether the symbol is a constant with a fixed known \
+        value (True) or not (False).
+        :rtype: bool
+
+        '''
+        return self._constant_value is not None
+
+    @property
+    def is_scalar(self):
+        '''
+        :returns: True if this symbol is a scalar and False otherwise.
+        :rtype: bool
+
+        '''
+        # If the shape variable is an empty list then this symbol is a
+        # scalar.
+        return self.shape == []
+
+    @property
+    def is_array(self):
+        '''
+        :returns: True if this symbol is an array and False otherwise.
+        :rtype: bool
+
+        '''
+        # The assumption in this method is that if this symbol is not
+        # a scalar then it is an array. If this assumption becomes
+        # invalid then this logic will need to be changed
+        # appropriately.
+        return not self.is_scalar
+
+    @property
+    def constant_value(self):
+        '''
+        :returns: The fixed known value for this symbol if one has \
+        been set or None if not.
+        :rtype: int, str, bool or NoneType
+
+        '''
+        return self._constant_value
+
+    @constant_value.setter
+    def constant_value(self, new_value):
+        '''
+        :param constant_value: Set or change the fixed known value of \
+        the constant for this Symbol. If the value is None then this \
+        symbol does not have a fixed constant. The datatype of \
+        new_value must be compatible with the datatype of the symbol.
+        :type constant_value: int, str or bool
+
+        :raises ValueError: If a non-None value is provided and 1) \
+        this Symbol instance does not have local scope, or 2) this \
+        Symbol instance is not a scalar (as the shape attribute is not \
+        empty), or 3) a constant value is provided but the type of the \
+        value does not support this, or 4) the type of the value \
+        provided is not compatible with the datatype of this Symbol \
+        instance.
+
+        '''
+        if new_value is not None:
+            if self.scope != "local":
+                raise ValueError(
+                    "Symbol with a constant value is currently limited to "
+                    "having local scope but found '{0}'.".format(self.scope))
+            if self.is_array:
+                raise ValueError(
+                    "Symbol with a constant value must be a scalar but the "
+                    "shape attribute is not empty.")
+            try:
+                lookup = Symbol.mapping[self.datatype]
+            except KeyError:
+                raise ValueError(
+                    "A constant value is not currently supported for "
+                    "datatype '{0}'.".format(self.datatype))
+            if not isinstance(new_value, lookup):
+                raise ValueError(
+                    "This Symbol instance's datatype is '{0}' which means "
+                    "the constant value is expected to be '{1}' but found "
+                    "'{2}'.".format(self.datatype,
+                                    Symbol.mapping[self.datatype],
+                                    type(new_value)))
+        self._constant_value = new_value
+
     def gen_c_definition(self):
         '''
         Generates string representing the C language definition of the symbol.
@@ -6019,7 +6116,7 @@ class Symbol(object):
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
-        if self.shape:
+        if self.is_array:
             code += "* restrict "
 
         code += self.name
@@ -6027,7 +6124,7 @@ class Symbol(object):
 
     def __str__(self):
         ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
-        if self.shape:
+        if self.is_array:
             ret += "Array["
             for dimension in self.shape:
                 if isinstance(dimension, Symbol):
@@ -6045,12 +6142,50 @@ class Symbol(object):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
+        if self.is_constant:
+            ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+        symbol object.
+        :rtype: :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        return Symbol(self.name, self.datatype, shape=self.shape[:],
+                      scope=self.scope, constant_value=self.constant_value,
+                      is_input=self.is_input, is_output=self.is_output)
+
+    def copy_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name which is immutable.
+
+        :param symbol_in: The symbol from which the properties are \
+        copied from.
+        :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: If the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, Symbol):
+            raise TypeError("Argument should be of type 'Symbol' but found "
+                            "'{0}'.".format(type(symbol_in).__name__))
+
+        self._datatype = symbol_in.datatype
+        self._shape = symbol_in.shape[:]
+        self._scope = symbol_in.scope
+        self._constant_value = symbol_in.constant_value
+        self._is_input = symbol_in.is_input
+        self._is_output = symbol_in.is_output
 
 
 class SymbolTable(object):
     '''
-    Encapsulates the symbol table and provides methods to declare new symbols
+    Encapsulates the symbol table and provides methods to add new symbols
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
 
@@ -6068,50 +6203,71 @@ class SymbolTable(object):
         # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
-    def declare(self, name, datatype, shape=[], scope='local',
-                is_input=False, is_output=False):
-        '''
-        Declare a new symbol in the symbol table.
+    def add(self, new_symbol):
+        '''Add a new symbol to the symbol table.
 
-        :param str name: Name of the symbol.
-        :param str datatype: Datatype of the symbol.
-        :param list shape: Shape of the symbol in column-major order \
-                           (leftmost index is contiguous in memory). Each \
-                           entry represents an array dimension. If it is \
-                           'None' the extent of that dimension is unknown, \
-                           otherwise it holds an integer literal or a \
-                           reference to an integer symbol with the extent. \
-                           If it is an empty list then the symbol represents \
-                           a scalar.
-        :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global_*' if the data survives \
-                          outside of the kernel scope. Note that \
-                          global-scoped symbols also have postfixed \
-                          information about the sharing mechanism, at the \
-                          moment just 'global_argument' is available for \
-                          variables passed in/out of the kernel by argument.
-        :param bool is_input: Whether the symbol represents data that exists \
-                              before the kernel is entered and that is passed \
-                              into the kernel.
-        :param bool is_output: Whether the symbol represents data that is \
-                               survives outside the kernel upon exit.
-        :raises KeyError: The provided name can not be used as key in the
-                          table.
+        :param new_symbol: The symbol to add to the symbol table.
+        :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If the symbol name is already in use.
+
         '''
-        if name in self._symbols:
+        if new_symbol.name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
-                           " name '{0}'.".format(name))
+                           " name '{0}'.".format(new_symbol.name))
+        self._symbols[new_symbol.name] = new_symbol
 
-        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
-                                     is_output)
+    def swap_symbol_properties(self, symbol1, symbol2):
+        '''Swaps the properties of symbol1 and symbol2 apart from the symbol
+        name. Argument list positions are also updated appropriately.
+
+        :param symbol1: The first symbol.
+        :type symbol1: :py:class:`psyclone.psyGen.Symbol`
+        :param symbol2: The second symbol.
+        :type symbol2: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If either of the supplied symbols are not in \
+        the symbol table.
+        :raises TypeError: If the supplied arguments are not symbols, \
+        or the names of the symbols are the same in the SymbolTable \
+        instance.
+
+        '''
+        for symbol in [symbol1, symbol2]:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Arguments should be of type 'Symbol' but "
+                                "found '{0}'.".format(type(symbol).__name__))
+            if symbol.name not in self._symbols:
+                raise KeyError("Symbol '{0}' is not in the symbol table."
+                               "".format(symbol.name))
+        if symbol1.name == symbol2.name:
+            raise ValueError("The symbols should have different names, but "
+                             "found '{0}' for both.".format(symbol1.name))
+
+        tmp_symbol = symbol1.copy()
+        symbol1.copy_properties(symbol2)
+        symbol2.copy_properties(tmp_symbol)
+
+        # Update argument list if necessary
+        index1 = None
+        if symbol1 in self._argument_list:
+            index1 = self._argument_list.index(symbol1)
+        index2 = None
+        if symbol2 in self._argument_list:
+            index2 = self._argument_list.index(symbol2)
+        if index1 is not None:
+            self._argument_list[index1] = symbol2
+        if index2 is not None:
+            self._argument_list[index2] = symbol1
 
     def specify_argument_list(self, argument_name_list):
         '''
         Keep track of the order of the arguments and provide the scope,
-        is_input and is_ouput information if it was not available on the
+        is_input and is_output information if it was not available on the
         variable declaration.
 
         :param list argument_name_list: Ordered list of the argument names.
+
         '''
         self._argument_list = []
         for name in argument_name_list:
@@ -6131,6 +6287,7 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
+
         '''
         try:
             return self._symbols[name]

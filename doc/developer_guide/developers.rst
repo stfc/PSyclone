@@ -303,6 +303,7 @@ extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
 (`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
 
 .. autoclass:: psyclone.psyGen.Symbol
+    :members:
 
 
 The Symbol Table has the following interface:
