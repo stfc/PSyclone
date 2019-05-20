@@ -313,6 +313,8 @@ class Config(object):
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
+                elif api == "nemo":
+                    self._api_conf[api] = NemoConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
                         "Configuration file contains a {0} section but no "
@@ -780,3 +782,41 @@ class GOceanConfig(APISpecificConfig):
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
                                                            config.filename))
+
+
+# =============================================================================
+class NemoConfig(APISpecificConfig):
+    '''Nemo-specific Config sub-class. Holds configuration options
+    specific to the Nemo API.
+
+    :param config: The 'parent' Config object.
+    :type config: :py:class:`psyclone.configuration.Config`
+    :param section: The entry for the gocean1.0 section of \
+                    the configuration file, as produced by ConfigParser.
+    :type section:  :py:class:`configparser.SectionProxy`
+
+    '''
+
+    # pylint: disable=too-few-public-methods
+    def __init__(self, config, section):
+        super(NemoConfig, self).__init__(section)
+        self._loop_type_mapping = {}
+        for key in section.keys():
+            # Do not handle any keys from the DEFAULT section
+            # since they are handled by Config(), not this class.
+            if key in config.get_default_keys():
+                continue
+            if key == "loop_type_mapping":
+                self._loop_type_mapping = \
+                    self.create_dict_from_string(section[key])
+            else:
+                raise ConfigurationError("Invalid key \"{0}\" found in "
+                                         "\"{1}\".".format(key,
+                                                           config.filename))
+
+    def get_loop_type_mapping(self):
+        '''Returns the mapping of variable names to loop type.
+        :returns: Returns the mapping of variable names to loop type.
+        :rtype : Dictonary of strings.
+        '''
+        return self._loop_type_mapping

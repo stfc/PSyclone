@@ -42,6 +42,7 @@
 
 from __future__ import print_function, absolute_import
 import copy
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, Kern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
@@ -60,11 +61,6 @@ VALID_LOOP_TYPES = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
                     # TODO what is the upper bound of tracer loops?
                     "tracers": {"var": "jt", "start": "1", "stop": ""},
                     "unknown": {"var": "", "start": "1", "stop": ""}}
-
-# Mapping from loop variable to loop type. This is how we identify each
-# explicit do loop we encounter.
-NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
-                          "jt": "tracers", "jn": "tracers"}
 
 # Mapping from loop type to array index. NEMO uses an "i, j, k" data
 # layout.
@@ -417,8 +413,10 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         self._variable_name = str(loop_var)
 
         # Identify the type of loop
-        if self._variable_name in NEMO_LOOP_TYPE_MAPPING:
-            self.loop_type = NEMO_LOOP_TYPE_MAPPING[self._variable_name]
+        loop_type_mapping = Config.get().api_conf("nemo")\
+            .get_loop_type_mapping()
+        if self._variable_name in loop_type_mapping:
+            self.loop_type = loop_type_mapping[self._variable_name]
         else:
             self.loop_type = "unknown"
 
