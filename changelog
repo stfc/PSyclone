@@ -136,8 +136,6 @@
 	42) #369 and PR #347. Adds support for constant values (fixed compile-time
 	known values) in the PSyIR Symbol representation.
 
-        43) PR #383. Fixes to various pylint errors.
-
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
