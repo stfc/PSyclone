@@ -2568,19 +2568,20 @@ class Dynamo0p3KernelConstTrans(Transformation):
             'value'.
 
             :param symbol_table: The symbol table for the kernel \
-            holding the argument that is going to be modified.
+                         holding the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
             :param int arg_position: The argument's position in the \
-            argument list.
+                                     argument list.
             :param value: The constant value that this argument is \
-            going to be give. Its type depends on the type of the \
-            argument.
+                   going to be given. Its type depends on the type of the \
+                   argument.
             :type value: int, str or bool.
             :type str function_space: the name of the function space \
-            if there is a function space associated with this \
-            argument. Defaults to None.
+                        if there is a function space associated with this \
+                        argument. Defaults to None.
 
             '''
+            from psyclone.psyGen import Symbol
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -2592,12 +2593,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Perform some basic checks on the argument to make sure
             # it is the expected type
             if symbol.datatype != "integer" or \
-               symbol.scope != "global_argument" or symbol.shape or \
-               symbol.is_constant:
-                # Do not check for 'is_input' being 'False' and
-                # 'is_output' being 'True' as some kernel declarations
-                # might not set intent which results in both
-                # 'is_input' and 'is_output' being set to 'True'.
+               not isinstance(symbol.interface, Symbol.Argument) or \
+               symbol.shape or symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
                     "but found '{0}'.".format(symbol))
@@ -2607,9 +2604,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # TODO: Temporarily use unsafe name change until the name
             # space manager is introduced into the SymbolTable (Issue
             # #321).
-            from psyclone.psyGen import Symbol
             orig_name = symbol.name
-            local_symbol = Symbol(orig_name+"_dummy", "integer", scope="local",
+            local_symbol = Symbol(orig_name+"_dummy", "integer",
                                   constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)

@@ -3130,13 +3130,16 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
     assert isinstance(Symbol('a', 'real', []), Symbol)
-    assert isinstance(Symbol('a', 'real', [], Symbol.Argument()), Symbol)
-    assert isinstance(Symbol('a', 'real', [],
-                             Symbol.Argument(access=Symbol.Access.READWRITE)),
+    assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
                       Symbol)
-    assert isinstance(Symbol('a', 'real', [],
-                             Symbol.Argument(access=Symbol.Access.READ)),
-                      Symbol)
+    assert isinstance(
+        Symbol('a', 'real', [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol)
+    assert isinstance(
+        Symbol('a', 'real', [],
+               interface=Symbol.Argument(access=Symbol.Access.READ)),
+        Symbol)
     assert isinstance(
         Symbol('a', 'deferred',
                interface=Symbol.FortranGlobal(access=Symbol.Access.READ,
@@ -3158,12 +3161,6 @@ def test_symbol_initialisation():
         Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
             "'real'.") in str(error)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', [], 'invalidscope')
-    assert ("Symbol scope attribute can only be one of " +
-            str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', shape=dim)
@@ -3187,9 +3184,9 @@ def test_symbol_initialisation():
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', scope='global_argument', constant_value=9)
+        Symbol('a', 'integer', interface=Symbol.Argument(), constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global_argument'.") in str(error)
+            "local scope but found 'global'.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', shape=[None], constant_value=9)
@@ -3224,11 +3221,11 @@ def test_symbol_map():
     the Symbol class.
 
     '''
-    # "real" is not supported in the mapping so we expect it to have 1
-    # less entry than there are valid data types.
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
+    # "real" and "deferred" are not supported in the mapping so we expect
+    # it to have 2 fewer entries than there are valid data types
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 2
     for data_type in Symbol.valid_data_types:
-        if data_type not in ["real"]:
+        if data_type not in ["real", "deferred"]:
             assert data_type in Symbol.mapping
 
 
@@ -3347,7 +3344,7 @@ def test_fortranglobal_modname():
     assert "module_name must be a str but got" in str(err)
 
     sym3 = Symbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, local, Scalar, constant_value=12>" in str(sym3)
+    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
 
 def test_symbol_copy():
@@ -3355,8 +3352,8 @@ def test_symbol_copy():
     of the original symbol.
 
     '''
-    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
-                    constant_value=None, is_input=True, is_output=True)
+    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
+                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
     new_symbol = symbol.copy()
 
     # Check the new symbol has the same properties as the original
@@ -3365,8 +3362,7 @@ def test_symbol_copy():
     assert symbol.shape == new_symbol.shape
     assert symbol.scope == new_symbol.scope
     assert symbol.constant_value == new_symbol.constant_value
-    assert symbol.is_input == new_symbol.is_input
-    assert symbol.is_output == new_symbol.is_output
+    assert symbol.interface == new_symbol.interface
 
     # Change the properties of the new symbol and check the original
     # is not affected. Can't check constant_value yet as we have a
@@ -3375,17 +3371,13 @@ def test_symbol_copy():
     new_symbol._datatype = "integer"
     new_symbol.shape[0] = 3
     new_symbol.shape[1] = 4
-    new_symbol.scope = "local"
-    new_symbol.is_input = False
-    new_symbol.is_output = False
+    new_symbol._interface = None
 
     assert symbol.name == "myname"
     assert symbol.datatype == "real"
     assert symbol.shape == [1, 2]
-    assert symbol.scope == "global_argument"
+    assert symbol.scope == "global"
     assert not symbol.constant_value
-    assert symbol.is_input
-    assert symbol.is_output
 
     # Now check constant_value
     new_symbol._shape = []
@@ -3398,8 +3390,8 @@ def test_symbol_copy():
 def test_symbol_copy_properties():
     '''Test that the Symbol copy_properties method works as expected.'''
 
-    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
-                    constant_value=None, is_input=True, is_output=True)
+    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
+                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
 
     # Check an exception is raised if an incorrect argument is passed
     # in
@@ -3408,8 +3400,7 @@ def test_symbol_copy_properties():
     assert ("Argument should be of type 'Symbol' but found 'NoneType'."
             "") in str(excinfo.value)
 
-    new_symbol = Symbol("other_name", "integer", shape=[], scope="local",
-                        constant_value=7, is_input=False, is_output=False)
+    new_symbol = Symbol("other_name", "integer", shape=[], constant_value=7)
 
     symbol.copy_properties(new_symbol)
 
@@ -3418,8 +3409,6 @@ def test_symbol_copy_properties():
     assert symbol.shape == []
     assert symbol.scope == "local"
     assert symbol.constant_value == 7
-    assert not symbol.is_input
-    assert not symbol.is_output
 
 
 def test_symbol_gen_c_definition():
@@ -3476,15 +3465,13 @@ def test_symboltable_declare():
 def test_symboltable_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
-    symbol1 = Symbol("var1", "integer", shape=[], scope="local",
-                     constant_value=7, is_input=False, is_output=False)
-    symbol2 = Symbol("dim1", "integer", scope="global_argument", is_input=True,
-                     is_output=False)
-    symbol3 = Symbol("dim2", "integer", scope="global_argument", is_input=True,
-                     is_output=False)
+    symbol1 = Symbol("var1", "integer", shape=[], constant_value=7)
+    symbol2 = Symbol("dim1", "integer",
+                     interface=Symbol.Argument(access=Symbol.Access.READ))
+    symbol3 = Symbol("dim2", "integer",
+                     interface=Symbol.Argument(access=Symbol.Access.READ))
     symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
-                     scope="global_argument", is_input=True, is_output=True)
-
+                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
     sym_table = SymbolTable()
     sym_table.add(symbol1)
 
@@ -3519,7 +3506,7 @@ def test_symboltable_swap_symbol_properties():
     sym_table.add(symbol2)
     sym_table.add(symbol3)
     sym_table.add(symbol4)
-    sym_table.specify_argument_list([symbol2.name, symbol3.name, symbol4.name])
+    sym_table.specify_argument_list([symbol2, symbol3, symbol4])
 
     # Check that properties are swapped
     sym_table.swap_symbol_properties(symbol1, symbol4)
@@ -3527,18 +3514,16 @@ def test_symboltable_swap_symbol_properties():
     assert symbol1.name == "var1"
     assert symbol1.datatype == "real"
     assert symbol1.shape == [symbol2, symbol3]
-    assert symbol1.scope == "global_argument"
+    assert symbol1.scope == "global"
     assert symbol1.constant_value is None
-    assert symbol1.is_input
-    assert symbol1.is_output
+    assert symbol1.interface.access == Symbol.Access.READWRITE
 
     assert symbol4.name == "var2"
     assert symbol4.datatype == "integer"
     assert not symbol4.shape
     assert symbol4.scope == "local"
     assert symbol4.constant_value == 7
-    assert not symbol4.is_input
-    assert not symbol4.is_output
+    assert not symbol4.interface
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
@@ -3593,7 +3578,7 @@ def test_symboltable_can_be_printed():
     sym_table.add(Symbol("var1", "real"))
     sym_table.add(Symbol("var2", "integer"))
     sym_table.add(Symbol("var3", "deferred",
-                         interface=Symbol.FortranGlobal(module_use="my_mod"))
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
     sym_table_text = str(sym_table)
     assert "Symbol Table:\n" in sym_table_text
     assert "var1" in sym_table_text
@@ -3606,7 +3591,7 @@ def test_symboltable_specify_argument_list():
     with references to each Symbol and updates the Symbol attributes when
     needed.'''
     sym_table = SymbolTable()
-    sym_v1 = Symbol("var1", "real", []))
+    sym_v1 = Symbol("var1", "real", [])
     sym_table.add(sym_v1)
     sym_table.add(Symbol("var2", "real", []))
     sym_v1.interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
@@ -3636,8 +3621,8 @@ def test_symboltable_specify_argument_list_errors():
     don't have the correct Interface information raises the expected
     errors. '''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [])
-    sym_table.declare("var2", "real", [])
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
     sym_v1 = sym_table.lookup("var1")
     # Attempt to say the argument list consists of "var1" which at this
     # point is just a local variable.
@@ -3657,10 +3642,10 @@ def test_symboltable_argument_list_errors():
     ''' Tests the internal sanity checks of the SymbolTable.argument_list
     property. '''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [])
-    sym_table.declare("var2", "real", [])
-    sym_table.declare("var3", "real",
-                      interface=Symbol.FortranGlobal("some_mod"))
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real",
+                         interface=Symbol.FortranGlobal("some_mod")))
     # Manually put a local symbol into the internal list of arguments
     sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(InternalError) as err:
@@ -3713,8 +3698,8 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
 
-    sym_table.declare("var4", "real", [],
-                      interface=Symbol.FortranGlobal(module_use="my_mod"))
+    sym_table.add(Symbol("var4", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
     assert len(sym_table.local_symbols) == 2
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 

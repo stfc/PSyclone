@@ -5282,9 +5282,9 @@ class Fparser2ASTProcessor(object):
             for name in iterateitems(decl.items[4]):
                 # Create an entry in the SymbolTable for each symbol named
                 # in the ONLY clause.
-                parent.symbol_table.declare(
-                    str(name), datatype='deferred',
-                    interface=Symbol.FortranGlobal(mod_name))
+                parent.symbol_table.add(
+                    Symbol(str(name), datatype='deferred',
+                           interface=Symbol.FortranGlobal(mod_name)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -6139,14 +6139,15 @@ class Symbol(object):
         Setter for the Interface associated with this Symbol.
 
         :param value: an Interface object describing how the Symbol is \
-                      accessed by the code.
-        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
+                      accessed by the code or None if it is local.
+        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` \
+                     or NoneType.
 
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
-        if not isinstance(value, SymbolInterface):
+        if value is not None and not isinstance(value, SymbolInterface):
             raise TypeError("The interface to a Symbol must be a "
-                            "SymbolInterface but got '{0}'".
+                            "SymbolInterface or None but got '{0}'".
                             format(type(value)))
         self._interface = value
 
@@ -6302,20 +6303,20 @@ class Symbol(object):
         to by any other object.
 
         :returns: A symbol object with the same properties as this \
-        symbol object.
+                  symbol object.
         :rtype: :py:class:`psyclone.psyGen.Symbol`
 
         '''
         return Symbol(self.name, self.datatype, shape=self.shape[:],
-                      scope=self.scope, constant_value=self.constant_value,
-                      is_input=self.is_input, is_output=self.is_output)
+                      constant_value=self.constant_value,
+                      interface=self.interface)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
         :param symbol_in: The symbol from which the properties are \
-        copied from.
+                          copied from.
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
 
         :raises TypeError: If the argument is not the expected type.
@@ -6327,10 +6328,8 @@ class Symbol(object):
 
         self._datatype = symbol_in.datatype
         self._shape = symbol_in.shape[:]
-        self._scope = symbol_in.scope
         self._constant_value = symbol_in.constant_value
-        self._is_input = symbol_in.is_input
-        self._is_output = symbol_in.is_output
+        self._interface = symbol_in.interface
 
 
 class SymbolTable(object):

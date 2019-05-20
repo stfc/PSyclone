@@ -331,7 +331,7 @@ def test_opencl_kernel_gen_wrong_kernel():
 
     # Test gen_ocl with 1 kernel argument
     arg1 = Symbol("arg1", "integer", [],
-                  Symbol.Argument(access=Symbol.Access.READ))
+                  interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg1)
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
@@ -344,7 +344,7 @@ def test_opencl_kernel_gen_wrong_kernel():
     arg2 = Symbol("arg2", "integer", shape=[],
                   interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg2)
-    kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
+    kschedule.symbol_table.specify_argument_list([arg1, arg2])
     kschedule.gen_ocl()
 
     # Test gen_ocl with wrong iteration indices types and shapes.
