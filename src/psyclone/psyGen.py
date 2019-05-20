@@ -41,7 +41,6 @@
 
 from __future__ import print_function, absolute_import
 import abc
-from enum import Enum
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -355,9 +354,12 @@ class PSy(object):
         return "psy_"+self._name
 
     @property
+    @abc.abstractmethod
     def gen(self):
-        raise NotImplementedError("Error: PSy.gen() must be implemented "
-                                  "by subclass")
+        '''Abstract base class for code generation function.
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        '''
 
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
@@ -1261,9 +1263,11 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def view(self):
-        raise NotImplementedError("BaseClass of a Node must implement the "
-                                  "view method")
+    @abc.abstractmethod
+    def view(self, indent=0):
+        '''Abstract function to prints a text representation of the node.
+        :param int indent: depth of indent for output text.
+        '''
 
     @staticmethod
     def indent(count, indent=INDENTATION_STRING):
@@ -1509,7 +1513,11 @@ class Node(object):
             return True
         return False
 
-    def gen_code(self):
+    def gen_code(self, parent):
+        '''Abstract base class for code generation function.
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        '''
         raise NotImplementedError("Please implement me")
 
     def gen_c_code(self, indent=0):

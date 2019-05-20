@@ -1,4 +1,3 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2019, Science and Technology Facilities Council.
@@ -78,14 +77,14 @@ def teardown_function():
 
 
 def test_non_existant_filename():
-    ''' checks that algGen raises appropriate error when a
+    ''' checks that alg_gen raises appropriate error when a
     non-existant filename is supplied '''
     with pytest.raises(IOError):
         generate("non_existant_file.f90")
 
 
 def test_invalid_api():
-    ''' checks that algGen raises appropriate error when an invalid
+    ''' checks that alg_gen raises appropriate error when an invalid
         api is supplied '''
     with pytest.raises(GenerationError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
@@ -93,7 +92,7 @@ def test_invalid_api():
 
 
 def test_invalid_kernel_path():
-    ''' checks that algGen raises appropriate error when an invalid
+    ''' checks that alg_gen raises appropriate error when an invalid
         search path for kernel source files is supplied '''
     with pytest.raises(IOError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
@@ -103,7 +102,7 @@ def test_invalid_kernel_path():
 
 
 def test_wrong_kernel_path():
-    ''' checks that algGen raises appropriate error when the kernel
+    ''' checks that alg_gen raises appropriate error when the kernel
         code cannot be found in the specified search path '''
     with pytest.raises(ParseError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
@@ -113,7 +112,7 @@ def test_wrong_kernel_path():
 
 
 def test_correct_kernel_path():
-    ''' checks that algGen succeeds when the location of the kernel
+    ''' checks that alg_gen succeeds when the location of the kernel
         source code is *not* the same as that of the algorithm code '''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                                  "1_single_function.f90"),
@@ -141,7 +140,6 @@ def test_similar_kernel_name():
 
 
 def test_recurse_correct_kernel_path():
-    # pylint: disable=invalid-name
     '''checks that the generator succeeds when the location of the kernel
        source code is *not* the same as that of the algorithm code and
        recursion through subdirectories is required'''
@@ -163,7 +161,6 @@ def test_script_file_not_found():
 
 
 def test_script_file_not_found_relative():
-    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a script
         file is supplied that can't be found in the Python path. In
         this case the script path is not supplied so must be found via the
@@ -197,7 +194,6 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
-    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file does not have the '.py' extension'''
     with pytest.raises(GenerationError):
@@ -220,7 +216,6 @@ def test_script_invalid_content():
 
 
 def test_script_invalid_content_runtime():
-    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file contains valid python syntactically but produces a
         runtime exception. '''
@@ -359,7 +354,6 @@ def test_alg_lines_too_long_tested():
 
 
 def test_alg_lines_too_long_not_tested():
-    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when the algorithm file has lines longer than 132 characters. We
@@ -380,7 +374,6 @@ def test_kern_lines_too_long_tested():
 
 
 def test_kern_lines_too_long_not_tested():
-    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when a kernel file has lines longer than 132 characters. We
@@ -622,7 +615,6 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
-    # pylint: disable=invalid-name
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function.'''
