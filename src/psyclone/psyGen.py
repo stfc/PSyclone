@@ -5855,14 +5855,13 @@ class SymbolInterface(object):
     represent data that exists outside the section of code being represented
     in the PSyIR.
 
-    :param bool argument: True if the symbol is passed as a routine argument \
-                          (the default).
     :param access: How the symbol is accessed within the section of code or \
                    None (if unknown).
     :type access: :py:class:`psyclone.psyGen.SymbolAccess`
     '''
     def __init__(self, access=None):
         self._access = None
+        # Use the setter as that has error checking
         if not access:
             self.access = Symbol.Access.UNKNOWN
         else:
@@ -5902,12 +5901,13 @@ class SymbolInterface(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in column-major order) and, for symbols
+    the datatype, the shape (in column-major order) and, for a symbol
     representing data that exists outside of the local scope, the interface
-    to those symbols (i.e. the mechanism by which they are accessed).
+    to that symbol (i.e. the mechanism by which it is accessed).
 
     :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol.
+    :param str datatype: Data type of the symbol. (One of \
+                     :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
     :param list shape: Shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
@@ -5947,15 +5947,15 @@ class Symbol(object):
         permitted to have.
 
         '''
-        # The symbol is only ever read within the current scoping block.
+        ## The symbol is only ever read within the current scoping block.
         READ = 1
-        # The first access of the symbol in the scoping block is a write and
+        ## The first access of the symbol in the scoping block is a write and
         # therefore any value that it may have had upon entry is discarded.
         WRITE = 2
-        # The first access of the symbol in the scoping block is a read but
+        ## The first access of the symbol in the scoping block is a read but
         # it is subsequently written to.
         READWRITE = 3
-        # The way in which the symbol is accessed in the scoping block is
+        ## The way in which the symbol is accessed in the scoping block is
         # unknown
         UNKNOWN = 4
 
@@ -6138,7 +6138,8 @@ class Symbol(object):
         '''
         :returns: the an object describing the external interface to \
                   this Symbol or None (if it is local).
-        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
+        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` or \
+                NoneType.
         '''
         return self._interface
 
@@ -6420,7 +6421,8 @@ class SymbolTable(object):
 
     def specify_argument_list(self, argument_symbols):
         '''
-        Keep track of the order of the arguments to this kernel.
+        Sets-up the internal list storing the order of the arguments to this
+        kernel.
 
         :param list argumentssymbols: Ordered list of the Symbols representing\
                                       the arguments.
