@@ -3638,7 +3638,7 @@ def test_symboltable_argument_list_errors():
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
     pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
-               r"interface of type \'.*\.Symbol\.FortranGlobal")
+               r"interface of type \'.*\.FortranGlobal\'>")
     assert re.search(pattern, str(err)) is not None
 
 
