@@ -49,14 +49,28 @@ from psyclone_test_utils import Compile, get_invoke
 API = "gocean1.0"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
 
 
+@pytest.fixture
+def outputdir(tmpdir, monkeypatch):
+    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    return tmpdir
+
+
+def teardown_function():
+    ''' This function is called automatically after every test in this
+    file. It ensures that any existing configuration object is deleted. '''
+    Config._instance = None
+
+
 # ----------------------------------------------------------------------------
-def test_opencl_compiler_works(tmpdir):
+def test_opencl_compiler_works(outputdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
     that all compiles tests are skipped if only the '--compile'
@@ -69,11 +83,11 @@ program hello
   write (*,*) "Hello"
 end program hello
 '''
-    old_pwd = tmpdir.chdir()
+    old_pwd = outputdir.chdir()
     try:
         with open("hello_world_opencl.f90", "w") as ffile:
             ffile.write(example_ocl_code)
-        GOcean1p0OpenCLBuild(tmpdir).\
+        GOcean1p0OpenCLBuild(outputdir).\
             compile_file("hello_world_opencl.f90",
                          link=True)
     finally:
@@ -81,7 +95,7 @@ end program hello
 
 
 # ----------------------------------------------------------------------------
-def test_use_stmts(tmpdir):
+def test_use_stmts(outputdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -97,10 +111,10 @@ def test_use_stmts(tmpdir):
       use iso_c_binding'''
     assert expected in generated_code
     assert "if (first_time) then" in generated_code
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_psy_init(tmpdir):
+def test_psy_init(outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -108,7 +122,7 @@ def test_psy_init(tmpdir):
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    expected_part1 = (
+    expected = (
         "    SUBROUTINE psy_init()\n"
         "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
         "      CHARACTER(LEN=30) kernel_names(1)\n"
@@ -119,8 +133,7 @@ def test_psy_init(tmpdir):
         "        ! Initialise the OpenCL environment/device\n"
         "        CALL ocl_env_init\n"
         "        ! The kernels this PSy layer module requires\n"
-        "        kernel_names(1) = ")
-    expected_part2 = (
+        "        kernel_names(1) = \"compute_cu_0_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
@@ -128,12 +141,11 @@ def test_psy_init(tmpdir):
         "      END IF \n"
         "    END SUBROUTINE psy_init\n")
 
-    assert expected_part1 in generated_code
-    assert expected_part2 in generated_code
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_set_kern_args(tmpdir):
+def test_set_kern_args(outputdir, monkeypatch):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -141,12 +153,11 @@ def test_set_kern_args(tmpdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine
-    import pdb; pdb.set_trace()
-    assert generated_code.count("SUBROUTINE compute_cu_code_set_args("
+    assert generated_code.count("SUBROUTINE compute_cu_0_code_set_args("
                                 "kernel_obj, nx, cu_fld, p_fld, u_fld)") == 1
     # Declarations
     expected = '''\
-    SUBROUTINE compute_cu_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
+    SUBROUTINE compute_cu_0_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
@@ -155,26 +166,26 @@ def test_set_kern_args(tmpdir):
       INTEGER(KIND=c_intptr_t), target :: kernel_obj'''
     assert expected in generated_code
     expected = '''\
-      ! Set the arguments for the compute_cu_code OpenCL Kernel
+      ! Set the arguments for the compute_cu_0_code OpenCL Kernel
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
       ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(cu_fld), C_LOC(cu_fld))
-      CALL check_status('clSetKernelArg: arg 1 of compute_cu_code', ierr)
+      CALL check_status('clSetKernelArg: arg 1 of compute_cu_0_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(p_fld), C_LOC(p_fld))
-      CALL check_status('clSetKernelArg: arg 2 of compute_cu_code', ierr)
+      CALL check_status('clSetKernelArg: arg 2 of compute_cu_0_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(u_fld), C_LOC(u_fld))
-      CALL check_status('clSetKernelArg: arg 3 of compute_cu_code', ierr)
-    END SUBROUTINE compute_cu_code_set_args'''
+      CALL check_status('clSetKernelArg: arg 3 of compute_cu_0_code', ierr)
+    END SUBROUTINE compute_cu_0_code_set_args'''
     assert expected in generated_code
-    assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
+    assert generated_code.count("SUBROUTINE time_smooth_0_code_set_args("
                                 "kernel_obj, nx, u_fld, "
                                 "unew_fld, uold_fld)") == 1
-    assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
+    assert ("CALL compute_cu_0_code_set_args(kernel_compute_cu_0_code, "
             "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg(tmpdir):
+def test_set_kern_float_arg(outputdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -183,7 +194,7 @@ def test_set_kern_float_arg(tmpdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, tmask)
+    SUBROUTINE bc_ssh_0_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, tmask)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
@@ -195,17 +206,17 @@ def test_set_kern_float_arg(tmpdir):
 '''
     assert expected in generated_code
     expected = '''\
-      ! Set the arguments for the bc_ssh_code OpenCL Kernel
+      ! Set the arguments for the bc_ssh_0_code OpenCL Kernel
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
       ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(a_scalar), C_LOC(a_scalar))
-      CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
+      CALL check_status('clSetKernelArg: arg 1 of bc_ssh_0_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
-      CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
+      CALL check_status('clSetKernelArg: arg 2 of bc_ssh_0_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
-      CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
-    END SUBROUTINE bc_ssh_code_set_args'''
+      CALL check_status('clSetKernelArg: arg 3 of bc_ssh_0_code', ierr)
+    END SUBROUTINE bc_ssh_0_code_set_args'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -232,17 +243,6 @@ def test_opencl_kernel_code_generation():
     kernel = sched.children[0].children[0].children[0]  # compute_cu kernel
     kschedule = kernel.get_kernel_schedule()
 
-    # TODO: At the moment, due to fparser/171, the body of compute_cu
-    # is not generated, so I provisionally create a simple assignment statement
-    # for testing that the body of the kernel is properly generated.
-    from psyclone.psyGen import Assignment, Reference, Literal
-    assignment = Assignment(parent=kschedule)
-    kschedule.addchild(assignment)
-    ref = Reference("i", assignment)
-    lit = Literal("1", assignment)
-    assignment.addchild(ref)
-    assignment.addchild(lit)
-
     expected_code = (
         "__kernel void compute_cu_code(\n"
         "    __global double * restrict cu,\n"
@@ -257,7 +257,8 @@ def test_opencl_kernel_code_generation():
         "    int uLEN2 = get_global_size(1);\n"
         "    int i = get_global_id(0);\n"
         "    int j = get_global_id(1);\n"
-        "    i = 1;\n"
+        "    cu[j * cuLEN1 + i] = ((0.5D0 * (p[j * pLEN1 + (i + 1)]"
+        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
         "}\n"
         )
 
