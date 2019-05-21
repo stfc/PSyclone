@@ -7550,7 +7550,9 @@ def test_kern_const_invalid_make_constant1():
 
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
-    # Make the symbol table's argument list empty.
+    # Make the symbol table's argument list empty. We have to make sure
+    # that the interface of any existing argument Symbols is set to None
+    # first otherwise we fall foul of our internal-consistency checks.
     for symbol in symbol_table.argument_list:
         symbol.interface = None
     symbol_table._argument_list = []
