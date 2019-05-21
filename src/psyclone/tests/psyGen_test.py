@@ -135,23 +135,6 @@ def test_psyfactory_valid_dm_flag():
     _ = PSyFactory(distributed_memory=False)
 
 
-# PSy class unit tests
-
-def test_psy_base_err(monkeypatch):
-    ''' Check that we cannot call gen or psy_module on the base class
-    directly '''
-    # We have no easy way to create the extra information which
-    # the PSy constructor requires. Therefore, we use a PSyFactory
-    # object and monkey-patch it so that it has a name attribute.
-    factory = PSyFactory()
-    monkeypatch.setattr(factory, "name",
-                        value="fred", raising=False)
-    psy = PSy(factory)
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = psy.gen
-    assert "must be implemented by subclass" in str(excinfo)
-
-
 # Transformation class unit tests
 
 def test_base_class_not_callable():
@@ -886,7 +869,6 @@ def test_haloexchange_unknown_halo_depth():
     '''test the case when the halo exchange base class is called without
     a halo depth'''
     halo_exchange = HaloExchange(None)
-    # pylint: disable=protected-access
     assert halo_exchange._halo_depth is None
 
 
@@ -2555,14 +2537,11 @@ def test_node_abstract_methods():
     sched = invoke.schedule
     loop = sched.children[0].children[0]
     with pytest.raises(NotImplementedError) as err:
-        Node.gen_code(loop)
+        Node.gen_code(loop, parent=None)
     assert "Please implement me" in str(err)
     with pytest.raises(NotImplementedError) as err:
         Node.gen_c_code(loop)
     assert "Please implement me" in str(err)
-    with pytest.raises(NotImplementedError) as err:
-        Node.view(loop)
-    assert "BaseClass of a Node must implement the view method" in str(err)
 
 
 def test_kern_ast():

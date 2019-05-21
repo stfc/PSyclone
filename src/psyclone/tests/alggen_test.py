@@ -34,12 +34,12 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Tests for the algorithm generation (re-writing) as implemented
-    in algGen.py '''
+    in alg_gen.py '''
 
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.algGen import NoInvokesError, adduse
+from psyclone.alg_gen import NoInvokesError, adduse
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
 from psyclone.psyGen import InternalError

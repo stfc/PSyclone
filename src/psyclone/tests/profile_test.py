@@ -141,6 +141,19 @@ def test_profile_errors2():
 
 
 # -----------------------------------------------------------------------------
+def test_c_code_creation():
+    '''Tests the handling when trying to create C code, which is not supported
+    at this stage.
+    '''
+
+    profile_node = ProfileNode()
+    with pytest.raises(NotImplementedError) as excinfo:
+        profile_node.gen_c_code()
+    assert "Generation of C code is not supported for profiling" \
+        in str(excinfo)
+
+
+# -----------------------------------------------------------------------------
 def test_profile_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''

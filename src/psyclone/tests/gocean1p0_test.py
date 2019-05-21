@@ -1159,7 +1159,7 @@ def test00p1_kernel_wrong_meta_arg_count():
               api="gocean1.0")
 
 
-def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
+def test00p1_invoke_kernel_using_const_scalar():
     '''Check that using a const scalar as parameter works.'''
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "gocean1p0",
