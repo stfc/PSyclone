@@ -3740,7 +3740,7 @@ class Kern(Call):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified:
+        if not self.modified and not self.root.opencl:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -3760,7 +3760,11 @@ class Kern(Call):
         while not fdesc:
             name_idx += 1
             new_suffix = "_{0}".format(name_idx)
-            new_name = old_base_name + new_suffix + "_mod.f90"
+            if self.root.opencl:
+                new_name = old_base_name + new_suffix + ".cl"
+            else:
+                new_name = old_base_name + new_suffix + "_mod.f90"
+
             try:
                 # Atomically attempt to open the new kernel file (in case
                 # this is part of a parallel build)
@@ -3792,10 +3796,13 @@ class Kern(Call):
             raise NotImplementedError("Cannot module-inline a transformed "
                                       "kernel ({0})".format(self.name))
 
-        # Generate the Fortran for this transformed kernel, ensuring that
-        # we limit the line lengths
-        fll = FortLineLength()
-        new_kern_code = fll.process(str(self.ast))
+        if self.root.opencl:
+            new_kern_code = self.get_kernel_schedule().gen_ocl()
+        else:
+            # Generate the Fortran for this transformed kernel, ensuring that
+            # we limit the line lengths
+            fll = FortLineLength()
+            new_kern_code = fll.process(str(self.ast))
 
         if not fdesc:
             # If we've not got a file descriptor at this point then that's
@@ -5345,6 +5352,35 @@ class Fparser2ASTProcessor(object):
                                 "list '{0}' does not match the variable "
                                 "declarations for fparser nodes {1}."
                                 "".format(str(arg_list), nodes))
+
+        for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
+            (fn_name, arg_list, scalar_expr) = stmtfn.items
+            try:
+                symbol = parent.symbol_table.lookup(fn_name.string)
+                if symbol.is_array:
+                    # This is an array assignment worngly categorized as a
+                    # statement_function by fparser2.
+                    array_name = fn_name
+                    array_subscript = arg_list
+                    assignment_rhs = scalar_expr
+
+                    # Create assingment node
+                    assignment = Assignment(parent=parent)
+                    parent.addchild(assignment)
+
+                    # Build lhs
+                    lhs = Array(array_name.string, parent=assignment)
+                    self.process_nodes(parent=lhs, nodes=array_subscript.items,
+                                       nodes_parent=array_subscript)
+                    assignment.addchild(lhs)
+
+                    # Build rhs
+                    self.process_nodes(parent=assignment, nodes=[scalar_expr],
+                                       nodes_parent=scalar_expr)
+                else:
+                    raise GenerationError("")
+            except KeyError:
+                raise GenerationError("")
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).

@@ -108,7 +108,7 @@ def test_psy_init(tmpdir):
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    expected = (
+    expected_part1 = (
         "    SUBROUTINE psy_init()\n"
         "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
         "      CHARACTER(LEN=30) kernel_names(1)\n"
@@ -119,7 +119,8 @@ def test_psy_init(tmpdir):
         "        ! Initialise the OpenCL environment/device\n"
         "        CALL ocl_env_init\n"
         "        ! The kernels this PSy layer module requires\n"
-        "        kernel_names(1) = \"compute_cu_code\"\n"
+        "        kernel_names(1) = ")
+    expected_part2 = (
         "        ! Create the OpenCL kernel objects. Expects to find all of "
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
@@ -127,7 +128,8 @@ def test_psy_init(tmpdir):
         "      END IF \n"
         "    END SUBROUTINE psy_init\n")
 
-    assert expected in generated_code
+    assert expected_part1 in generated_code
+    assert expected_part2 in generated_code
     assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
@@ -139,6 +141,7 @@ def test_set_kern_args(tmpdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine
+    import pdb; pdb.set_trace()
     assert generated_code.count("SUBROUTINE compute_cu_code_set_args("
                                 "kernel_obj, nx, cu_fld, p_fld, u_fld)") == 1
     # Declarations
