@@ -7563,8 +7563,8 @@ def test_kern_const_invalid_make_constant2():
     '''Check that the expected exception is raised when the make_constant
     utility function (found in the apply method) encounters a Symbol
     at the specified index that is not a scalar integer argument.
-    This is done by modifying one of the Symbol entries to be local
-    rather than an argument.
+    This is done by modifying one of the Symbol entries to be a real
+    rather than an integer.
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
@@ -7572,10 +7572,10 @@ def test_kern_const_invalid_make_constant2():
     kctrans = Dynamo0p3KernelConstTrans()
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
-    symbol = symbol_table.argument_list[7]
-    # Change the symbol to being local i.e. not an argument
-    symbol.scope = "local"
+    symbol = symbol_table._argument_list[7]
+    symbol._datatype = "real"
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, element_order=0)
     assert ("Expected entry to be a scalar integer argument but found "
-            "'ndf_w1: <integer, local, Scalar>'.") in str(excinfo.value)
+            "'ndf_w1: <real, Scalar, global=Argument("
+            "pass-by-value=False)>'.") in str(excinfo.value)

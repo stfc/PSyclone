@@ -2593,14 +2593,14 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Perform some basic checks on the argument to make sure
             # it is the expected type
             if symbol.datatype != "integer" or \
-               not isinstance(symbol.interface, Symbol.Argument) or \
                symbol.shape or symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
                     "but found '{0}'.".format(symbol))
 
             # Create a new symbol with a known constant value then swap
-            # it with the argument.
+            # it with the argument. The argument then becomes xxx_dummy
+            # and is unused within the kernel body.
             # TODO: Temporarily use unsafe name change until the name
             # space manager is introduced into the SymbolTable (Issue
             # #321).

@@ -3297,7 +3297,8 @@ def test_symbol_invalid_interface():
     sym = Symbol("some_var", "real")
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
-    assert "interface to a Symbol must be a SymbolInterface but" in str(err)
+    assert ("interface to a Symbol must be a SymbolInterface or None but"
+            in str(err))
 
 
 def test_symbol_interface():
