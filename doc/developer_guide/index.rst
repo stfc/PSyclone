@@ -42,6 +42,7 @@
    :maxdepth: 3
 
    developers
+   new_api
    system_specific_setup
    zz_bibliography
 
