@@ -40,6 +40,7 @@
     particular API and implementation. '''
 
 from __future__ import print_function, absolute_import
+from enum import Enum
 import abc
 import six
 from psyclone.configuration import Config
