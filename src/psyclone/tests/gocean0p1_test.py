@@ -56,7 +56,6 @@ def setup():
     Config.get().api = "gocean0.1"
 
 
-# pylint: disable=invalid-name
 def test_loop_bounds_gen_multiple_loops():
     ''' Test that we only generate one assignment for a loop-bounds
     variable when we have multiple loops '''
@@ -85,7 +84,6 @@ def test_loop_bounds_gen_multiple_loops():
         "        END DO \n"
         "      END DO ")
     assert expected in gen
-# pylint: enable=invalid-name
 
 
 def test_gobuiltin_call_factory():

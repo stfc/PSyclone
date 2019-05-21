@@ -31,10 +31,10 @@ The psyGen module
 .. autoclass:: PSy
     :members:
 
-The algGen module
+The alg_gen module
 -----------------
 
-.. automodule:: psyclone.algGen
+.. automodule:: psyclone.alg_gen
 
 .. autoclass:: Alg
     :members:
