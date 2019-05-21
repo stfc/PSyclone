@@ -3220,6 +3220,19 @@ def test_symbol_can_be_printed():
     sym2 = Symbol("s2", "real", [None, 2, sym1])
     assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
 
+    sym3 = Symbol("s3", "real",
+                  interface=Symbol.FortranGlobal(module_use="my_mod"))
+    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
+            in str(sym3))
+
+    sym2._shape.append('invalid')
+    with pytest.raises(InternalError) as error:
+        _ = str(sym2)
+    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
+            "'None', but found") in str(error.value)
+
+    sym3 = Symbol("s3", "integer", constant_value=12)
+    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
 def test_symbol_constant_value_setter():
     '''Test that a Symbol constant value can be set if given a new valid
@@ -3257,17 +3270,6 @@ def test_symbol_scalar_array():
     assert not sym1.is_array
     assert not sym2.is_scalar
     assert sym2.is_array
-
-    sym3 = Symbol("s3", "real",
-                  interface=Symbol.FortranGlobal(module_use="my_mod"))
-    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
-            in str(sym3))
-
-    sym2._shape.append('invalid')
-    with pytest.raises(InternalError) as error:
-        _ = str(sym2)
-    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
-            "'None', but found") in str(error.value)
 
 
 def test_symbol_invalid_interface():
@@ -3322,9 +3324,6 @@ def test_fortranglobal_modname():
     with pytest.raises(TypeError) as err:
         _ = Symbol.FortranGlobal(1)
     assert "module_name must be a str but got" in str(err)
-
-    sym3 = Symbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
 
 def test_symbol_copy():
@@ -4146,7 +4145,7 @@ def test_fparser2astprocessor_use(f2008_parser):
         assert fake_parent.symbol_table.lookup(var).name == var
         assert fake_parent.symbol_table.lookup(var).scope == "global"
     assert fake_parent.symbol_table.lookup("some_var").interface.module_name \
-            == "my_mod"
+        == "my_mod"
     assert fake_parent.symbol_table.lookup("var2").interface.module_name == \
         "other_mod"
 

@@ -5242,7 +5242,7 @@ class Fparser2ASTProcessor(object):
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
         :raises NotImplementedError: The provided declarations contain
                                      attributes which are not supported yet.
-        :raises GenerationError: if the parse tree for a USE statement does \
+        :raises GenerationError: If the parse tree for a USE statement does \
                                  not have the expected structure.
         '''
         from fparser.two.utils import walk_ast
@@ -6067,14 +6067,12 @@ class Symbol(object):
                 raise TypeError("Symbol shape list elements can only be "
                                 "'Symbol', 'integer' or 'None'.")
         self._shape = shape
-        self._interface = None
-
-        if interface:
-            # If an interface is specified for this symbol then the data with
-            # which it is associated must exist outside of this kernel.
-            self.interface = interface
-        # The following attribute has a setter method (with error checking)
+        # The following attributes have setter methods (with error checking)
         self._constant_value = None
+        self._interface = None
+        # If an interface is specified for this symbol then the data with
+        # which it is associated must exist outside of this kernel.
+        self.interface = interface
         self.constant_value = constant_value
 
     @property
@@ -6424,7 +6422,7 @@ class SymbolTable(object):
         Sets-up the internal list storing the order of the arguments to this
         kernel.
 
-        :param list argumentssymbols: Ordered list of the Symbols representing\
+        :param list argument_symbols: Ordered list of the Symbols representing\
                                       the arguments.
 
         :raises InternalError: if any of the supplied Symbols do not have a \
