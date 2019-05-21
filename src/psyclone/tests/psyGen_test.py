@@ -3589,10 +3589,10 @@ def test_symboltable_specify_argument_list():
     # the argument is accessed
     sym_v2 = sym_table.lookup("var2")
     sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
-    sym_table.specify_argument_list([sym_v2])
-    assert sym_table.argument_list[0].scope == 'global'
-    assert sym_table.argument_list[0].interface.is_argument
-    assert sym_table.argument_list[0].access == Symbol.Access.READWRITE
+    sym_table.specify_argument_list([sym_v1, sym_v2])
+    assert sym_table.argument_list[1].scope == 'global'
+    assert sym_table.argument_list[1].interface.is_argument
+    assert sym_table.argument_list[1].access == Symbol.Access.READWRITE
 
 
 def test_symboltable_specify_argument_list_errors():
@@ -3608,7 +3608,8 @@ def test_symboltable_specify_argument_list_errors():
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
     assert "Symbol 'var1:" in str(err)
-    assert "has no associated Interface but in order to be a" in str(err)
+    assert ("is listed as a kernel argument but has no associated "
+            "Interface" in str(err))
     # Now add an Interface for "var1" but of the wrong type
     sym_v1.interface = Symbol.FortranGlobal("some_mod")
     with pytest.raises(ValueError) as err:
@@ -4018,35 +4019,39 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     specifications of variable attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Specification_Part, Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    arg_list = [Name("arg1")]
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg1").access == Symbol.Access.READ
     assert fake_parent.symbol_table.lookup("arg1").interface.is_argument
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
+    arg_list.append(Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg2").access == Symbol.Access.READ
     assert fake_parent.symbol_table.lookup("arg2").interface.is_argument
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
+    arg_list.append(Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg3").access == \
         Symbol.Access.WRITE
     assert fake_parent.symbol_table.lookup("arg3").interface.is_argument
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
+    arg_list.append(Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg4").access is \
         Symbol.Access.READWRITE
@@ -4059,7 +4064,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     of array attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Specification_Part, Name
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
@@ -4120,7 +4125,8 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec],
+                                   [Name("array3")])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]

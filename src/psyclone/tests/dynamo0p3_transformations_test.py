@@ -7551,7 +7551,9 @@ def test_kern_const_invalid_make_constant1():
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
     # Make the symbol table's argument list empty.
-    symbol_table.specify_argument_list([])
+    for symbol in symbol_table.argument_list:
+        symbol.interface = None
+    symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, element_order=0)
