@@ -4167,7 +4167,7 @@ def test_fp2astproc_case_default(f2008_parser):
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
     # Loop over the 3 possible locations for the 'default' clause
-    for idx1, idx2, idx3 in [(0,1,2), (1,0,2), (1,2,0)]:
+    for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
         fortran_text = (
             "SELECT CASE (selector)\n"
             "{0}{1}{2}"

@@ -5585,15 +5585,16 @@ class Fparser2ASTProcessor(object):
         # statement.
         clause_indices = []
         selector = None
-        default_clause_idx = -1
+        # The position of the 'case default' clause, if any
+        default_clause_idx = None
         for idx, child in enumerate(node.content):
             child._parent = node  # Retrofit parent info
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
-                # Case Default and value Ranges not supported yet, if found
-                # we raise a NotImplementedError that the process_node() will
-                # catch and generate a CodeBlock instead.
+                # Case value Ranges not supported yet, if found we
+                # raise a NotImplementedError that the process_node()
+                # will catch and generate a CodeBlock instead.
                 case_expression = child.items[0].items[0]
                 if isinstance(case_expression,
                               (Fortran2003.Case_Value_Range,
@@ -5661,7 +5662,7 @@ class Fparser2ASTProcessor(object):
 
                     currentparent = ifblock
 
-        if default_clause_idx > -1:
+        if default_clause_idx:
             # Finally, add the content of the 'default' clause as a last
             # 'else' clause.
             elsebody = Schedule(parent=currentparent)
