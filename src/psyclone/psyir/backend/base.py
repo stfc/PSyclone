@@ -137,7 +137,7 @@ class PSyIRVisitor(object):
         # Make a list of the node's ancestor classes (including
         # itself) in method resolution order (mro).
         import inspect
-        possible_method_names = [curr_class.__name__.lower() for curr_class \
+        possible_method_names = [curr_class.__name__.lower() for curr_class
                                  in inspect.getmro(type(node))]
 
         if "return" in possible_method_names:
@@ -148,8 +148,15 @@ class PSyIRVisitor(object):
         for method_name in possible_method_names:
             try:
                 return eval("self.{0}(node)".format(method_name))
-            except AttributeError:
-                pass
+            except AttributeError as excinfo:
+                if "attribute '{0}'".format(method_name) in str(excinfo):
+                    # This attribute error is because the method we are
+                    # trying to call does not exist.
+                    pass
+                else:
+                    # The method does exist but it has raised an
+                    # attribute error so re-raise it here.
+                    raise AttributeError(excinfo)
 
         if self._skip_nodes:
             for child in node.children:

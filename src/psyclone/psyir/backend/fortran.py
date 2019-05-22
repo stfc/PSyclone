@@ -124,9 +124,7 @@ def get_kind(symbol):
 class FortranPSyIRVisitor(PSyIRVisitor):
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
-    generating Fortran). Specialises the PSyIRVisitor class so only
-    needs to implement the start and end methods for the PSyIR
-    nodes.
+    generating Fortran).
 
     '''
     def get_declaration(self, symbol):
@@ -167,7 +165,8 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = "{0}[ {1} start ]\n".format(self._nindent, type(node).__name__)
+        result = "{0}[ {1} start ]\n".format(self._nindent,
+                                             type(node).__name__)
         self._depth += 1
         for child in node.children:
             result += self.visit(child)
@@ -207,6 +206,9 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
+        if not node.name:
+            raise VisitorError("Expected node name to have a value.")
+
         result = (
             "{0}module {1}\n"
             "".format(self._nindent, node.name+"_mod"))

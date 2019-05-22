@@ -43,6 +43,8 @@ from psyclone.psyir.backend.fortran import get_intent, get_dims, get_kind, \
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
+import fparser.two.Fortran2003 as Fortran2003
+from fparser.api import get_reader
 
 
 def test_get_intent():
@@ -167,7 +169,7 @@ def test_FortranPSyIRVisitor_node():
     binary_operation = assignment.children[1]
     assignment.children[1] = unsupported
     unsupported.children = binary_operation.children
-    
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
@@ -175,7 +177,7 @@ def test_FortranPSyIRVisitor_node():
     assert ("    a=    [ Unsupported start ]\n"
             "bc    [ Unsupported end ]\n" in result)
 
-    
+
 def test_FortranPSyIRVisitor_nemokern():
     '''Check the FortranPSyIRVisitor class nemokern method prints the
     class information and calls any children. This method is used to
@@ -210,12 +212,13 @@ def test_FortranPSyIRVisitor_nemokern():
         "  end subroutine tmp\n") in result
 
 
-def test_FortranPSyIRVisitor_kenelschedule():
+def test_FortranPSyIRVisitor_kernelschedule(monkeypatch):
     '''Check the FortranPSyIRVisitor class nemokern method prints the
     class information and calls any children. This method is used to
     output nothing for a NemoKern object and simply call its children
     as NemoKern is a collection of PSyIR nodes so needs no
-    output itself.
+    output itself. Also check that the visitor raises an exception if
+    the name of the node has no value.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -230,11 +233,10 @@ def test_FortranPSyIRVisitor_kenelschedule():
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
-    print result
     assert (
         "  subroutine tmp(a,b,c)\n"
         "    real(r_def), dimension(:), intent(out) :: a\n"
@@ -244,6 +246,11 @@ def test_FortranPSyIRVisitor_kenelschedule():
         "    a=b/c\n"
         "\n"
         "  end subroutine tmp\n") in result
+
+    monkeypatch.setattr(schedule, "_name", None)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fvisitor.visit(schedule)
+    assert "Expected node name to have a value." in str(excinfo)
 
 # assignment and binaryoperation are already checked within previous
 # tests
@@ -270,7 +277,7 @@ def test_FortranPSyIRVisitor_reference():
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
@@ -293,7 +300,7 @@ def test_FortranPSyIRVisitor_reference():
     # Now add a child to the reference node
     reference = schedule.children[1].children[0].children[0]
     reference.children = ["hello"]
-    
+
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = fvisitor.visit(schedule)
@@ -317,7 +324,7 @@ def test_FortranPSyIRVisitor_array():
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
@@ -325,7 +332,44 @@ def test_FortranPSyIRVisitor_array():
 
 # literal is already checked within previous tests
 
-# TODO IFBLOCK
+
+def test_FortranPSyIRVisitor_ifblock():
+    '''Check the FortranPSyIRVisitor class ifblock method
+    correctly prints out the Fortran representation.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(inout) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    if (n.gt.2) then\n"
+        "      n=n+1\n"
+        "    end if\n"
+        "    if (n.gt.4) then\n"
+        "      a = -1\n"
+        "    else\n"
+        "      a = 1\n"
+        "    end if\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    assert (
+        "    if (n.GT.2) then\n"
+        "      n=n+1\n"
+        "    end if\n"
+        "    if (n.GT.4) then\n"
+        "      a=-1\n"
+        "    else\n"
+        "      a=1\n"
+        "    end if\n") in result
+
 
 def test_FortranPSyIRVisitor_unaryoperation():
     '''Check the FortranPSyIRVisitor class unary_operation method
@@ -344,7 +388,7 @@ def test_FortranPSyIRVisitor_unaryoperation():
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
@@ -365,7 +409,7 @@ def test_FortranPSyIRVisitor_return():
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
@@ -387,16 +431,13 @@ def test_FortranPSyIRVisitor_codeblock():
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    
+
     code1 = (
         "print *, 'I am a code block'\n"
         "print *, 'with more than one line'\n")
-    from fparser.two.parser import ParserFactory
-    import fparser.two.Fortran2003 as Fortran2003
-    from fparser.api import get_reader
     _ = ParserFactory().create(std="f2003")
     reader = get_reader(code1)
-    statements = Fortran2003.Execution_Part(reader)    
+    statements = Fortran2003.Execution_Part(reader)
     code_block = CodeBlock([statements], parent=schedule)
     schedule.addchild(code_block)
 
@@ -408,4 +449,3 @@ def test_FortranPSyIRVisitor_codeblock():
         "    a=1\n"
         "PRINT *, 'I am a code block'\n"
         "    PRINT *, 'with more than one line'\n" in result)
-

@@ -36,9 +36,9 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.base module'''
 
+import pytest
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Node
-import pytest
 
 
 def test_psyirvisitor_defaults():
@@ -123,7 +123,7 @@ def test_psyirvisitor_visit_arg_error():
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
             "'str'." in str(excinfo.value))
 
-    
+
 def test_psyirvisitor_visit_no_method1():
     '''Check that an exception is raised if the method for the Node class
     does not exist.
@@ -145,6 +145,28 @@ def test_psyirvisitor_visit_no_method2():
     visitor = PSyIRVisitor(skip_nodes=True)
     result = visitor.visit(Node())
     assert result is None
+
+
+def test_psyirvisitor_visit_attribute_error():
+    '''Check that an Attribute Error is raised if the method for the Node
+    class does exist and the method itself raises an Attribute
+    Error. This is checked because AttributeError is used to catch a
+    method not existing. Therefore an AttributeError raised by a
+    method that does exist could be mistaken as meaning that the
+    method does not exist.
+
+    '''
+    class MyPSyIRVisitor(PSyIRVisitor):
+        '''Subclass PSyIRVisitor to make the node method exist but it itself
+        raises an attribute error.'''
+        def node(self, _):
+            ''' Raise an AttributeError for testing purposes '''
+            raise AttributeError("Error")
+
+    visitor = MyPSyIRVisitor()
+    with pytest.raises(AttributeError) as excinfo:
+        _ = visitor.visit(Node())
+    assert str(excinfo.value) == "Error"
 
 
 def test_psyirvisitor_visit_all_parents():
