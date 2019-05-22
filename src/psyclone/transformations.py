@@ -3317,12 +3317,16 @@ class NemoExplicitLoopTrans(Transformation):
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
         nsm = invoke._name_space_manager
-        loop_type = nemo.NEMO_INDEX_ORDERING[outermost_dim]
-        base_name = nemo.VALID_LOOP_TYPES[loop_type]["var"]
+        config = Config.get().api_conf("nemo")
+        index_order = config.get_index_order()
+        valid_loop_types = config.get_valid_loop_types()
+
+        loop_type = valid_loop_types[index_order[outermost_dim]]
+        base_name = loop_type["var"]
         loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
                                    label=base_name)
-        loop_start = nemo.VALID_LOOP_TYPES[loop_type]["start"]
-        loop_stop = nemo.VALID_LOOP_TYPES[loop_type]["stop"]
+        loop_start = loop_type["start"]
+        loop_stop = loop_type["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
         # TODO #255 we need some sort of type/declarations table to check that

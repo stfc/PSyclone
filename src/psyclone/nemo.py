@@ -54,18 +54,6 @@ from fparser.two import Fortran2003
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
-# The valid types of loop and associated loop variable and bounds
-VALID_LOOP_TYPES = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
-                    "lat": {"var": "jj", "start": "1", "stop": "jpj"},
-                    "levels": {"var": "jk", "start": "1", "stop": "jpk"},
-                    # TODO what is the upper bound of tracer loops?
-                    "tracers": {"var": "jt", "start": "1", "stop": ""},
-                    "unknown": {"var": "", "start": "1", "stop": ""}}
-
-# Mapping from loop type to array index. NEMO uses an "i, j, k" data
-# layout.
-NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
-
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     '''
@@ -389,8 +377,9 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
     '''
     def __init__(self, ast, parent=None):
         from fparser.two.Fortran2003 import Loop_Control
+        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=valid_loop_types)
         NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the parse tree
         self._ast = ast
@@ -517,8 +506,9 @@ class NemoImplicitLoop(NemoLoop):
 
     '''
     def __init__(self, ast, parent=None):
+        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 

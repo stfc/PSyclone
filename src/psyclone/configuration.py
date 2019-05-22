@@ -39,7 +39,7 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 
 
@@ -800,19 +800,61 @@ class NemoConfig(APISpecificConfig):
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
         super(NemoConfig, self).__init__(section)
+
+        # Maps a variable name to lon, lat etc. to determine the loop type
+        # (e.g. lon, lat, ...)
         self._loop_type_mapping = {}
+
+        # Maps a loop type (lon, ...) to a dictionary containing the
+        # corresponding variable name and start/stop values.
+        self._valid_loop_types = {}
+
+        # The order in which loops should be created in NemoExplicitLoopTrans
+        self._index_order = []
+
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
             if key in config.get_default_keys():
                 continue
-            if key == "loop_type_mapping":
-                self._loop_type_mapping = \
-                    self.create_dict_from_string(section[key])
+
+            # Handle the definition of variables
+            if key[:8] == "mapping-":
+                loop_type = key[8:]
+                data = self.create_dict_from_string(section[key])
+                # Make sure the required keys exist"
+                for subkey in ["var", "start", "stop"]:
+                    if subkey not in data:
+                        raise ConfigurationError("mapping-'{0}' does not "
+                                                 "contain key '{1}' "
+                                                 "in file '{2}'."
+                                                 .format(loop_type, subkey,
+                                                         config.filename))
+
+                var = data['var']
+                # Update the mapping of variable to loop type
+                self._loop_type_mapping[var] = loop_type
+                # And the mapping of loop type to the remaining data
+                self._valid_loop_types[loop_type] = data
+
+            elif key == "index-order":
+                self._index_order = [loop.strip() for
+                                     loop in section[key].split(",")]
+
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
                                                            config.filename))
+        # Consistency test: any value in index-order must have a
+        # corresponding key in valid_loop_types:
+        for loop_type in self._index_order:
+            if loop_type not in self._valid_loop_types:
+                valid = str(list(self._valid_loop_types.keys()))
+                raise ConfigurationError("Invalid loop type \"{0}\" found in "
+                                         "index-order in \"{1}\".\n"
+                                         "Must be one of {2}."
+                                         .format(loop_type, config.filename,
+                                                 valid))
 
     def get_loop_type_mapping(self):
         '''Returns the mapping of variable names to loop type.
@@ -820,3 +862,21 @@ class NemoConfig(APISpecificConfig):
         :rtype : Dictonary of strings.
         '''
         return self._loop_type_mapping
+
+    def get_valid_loop_types(self):
+        ''':returns: the mapping of a loop type (lon, ...) to a dictionary
+        containing the corresponding variable name and start/stop values.
+        Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
+-                    "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
+
+        :rtype: dictionary with str keys, with each value being a
+        dictionary mapping 'var', 'start', and 'stop' to str.
+        '''
+        return self._valid_loop_types
+
+    def get_index_order(self):
+        ''':returns: the order in which loops should be created in
+        NemoExplicitLoopTrans.
+        :rtype: list of str.
+        '''
+        return self._index_order
