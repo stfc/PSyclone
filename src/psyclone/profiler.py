@@ -238,3 +238,15 @@ class ProfileNode(Node):
         prof_end = CallGen(parent, "ProfileEnd",
                            [self._var_name])
         parent.add(prof_end)
+
+    # -------------------------------------------------------------------------
+    def gen_c_code(self, indent=0):
+        '''
+        Generates a string representation of this Node using C language
+        (currently not supported).
+
+        :param int indent: Depth of indent for the output string.
+        :raises NotImplementedError: Not yet supported for profiling.
+        '''
+        raise NotImplementedError("Generation of C code is not supported "
+                                  "for profiling")
