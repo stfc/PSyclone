@@ -181,3 +181,45 @@ iteration-spaces        This contains definitions of additional iteration spaces
                         in the :ref:`gocean1.0-configuration` section of the
                         GOcean1.0 chapter.
 ======================= =======================================================
+
+``NEMO`` Section
+^^^^^^^^^^^^^^^^^^^^^
+This section contains configuration options that are only applicable when
+using the NEMO API.
+
+.. tabularcolumns:: |l|L|
+
+======================= =======================================================
+Entry                   Description
+======================= =======================================================
+mapping-TYPE            This declares a mapping for a certain loop level,
+                        specified as TYPE. Each value must have three key:value
+                        pairs. A value can be empty if it is not required or
+                        not known, but the key must still be specified. 
+                        The required keys are:
+
+                        ``var``: the variable name that indicates
+                        the loop level,
+
+                        ``start``: the first loop iteration, and
+
+                        ``stop``: the last loop iteration.
+
+
+index-order             Specifies the order in which loops are created when
+                        converting an implicit loop to an explicit loop.
+                        All values in this comma-separated list must have a
+                        corresponding ``mapping-TYPE`` value defined.
+======================= =======================================================
+
+Here an example of the NEMO section of a PSyclone configuration file.
+Note how the values in ``index-order`` have corresponding mapping entries, e.g.
+``mapping-lon``, ``mapping-lat`` etc.::
+
+    mapping-lon = var: ji, start: 1, stop: jpi
+    mapping-lat = var: jj, start: 1, stop: jpj
+    mapping-levels = var: jk, start: 1, stop: jpk
+    mapping-tracers = var: jt, start: 1, stop:
+    mapping-unknown = var: , start: 1, stop:
+
+    index-order = lon, lat, levels, tracers
