@@ -4498,7 +4498,7 @@ def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
     assert nested_if2.children[1].children[0].children[0].name == 'found'
 
 
-def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
+def test_fparser2astprocessor_handling_case_construct(f2008_parser):
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
@@ -4539,7 +4539,44 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
-def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
+def test_fp2astproc_case_default(f2008_parser):
+    ''' Check that the fparser2ASTProcessor handles SELECT blocks with
+    a default clause. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
+    case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
+                    "CASE (label1)\nbranch1 = 1\n",
+                    "CASE (label2)\nbranch2 = 1\n"]
+    # Loop over the 3 possible locations for the 'default' clause
+    for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
+        fortran_text = (
+            "SELECT CASE (selector)\n"
+            "{0}{1}{2}"
+            "END SELECT\n".format(case_clauses[idx1], case_clauses[idx2],
+                                  case_clauses[idx3]))
+        reader = FortranStringReader(fortran_text)
+        fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+        fake_parent = Node()
+        processor = Fparser2ASTProcessor()
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+        assigns = fake_parent.walk(fake_parent.children, Assignment)
+        # Check that the assignment to 'branch 3' (in the default clause) is
+        # the deepest in the tree
+        assert "branch3" in str(assigns[2])
+        assert isinstance(assigns[2].ast, Assignment_Stmt)
+        assert isinstance(assigns[2].parent, Schedule)
+        assert isinstance(assigns[2].parent.ast, Assignment_Stmt)
+        assert "branch3 * 2" in str(assigns[2].parent.ast_end)
+        assert isinstance(assigns[2].parent.parent, IfBlock)
+        # Check that the if-body of the parent IfBlock also contains
+        # an Assignment
+        assert isinstance(assigns[2].parent.parent.children[1], Schedule)
+        assert isinstance(assigns[2].parent.parent.children[1].children[0],
+                          Assignment)
+
+
+def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
@@ -4559,20 +4596,7 @@ def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
     processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
-    # CASE DEFAULT Statment not supported
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE DEFAULT
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-    # but CASE (default) is just a regular symbol named default
+    # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
         '''SELECT CASE (selector)
             CASE (default)
