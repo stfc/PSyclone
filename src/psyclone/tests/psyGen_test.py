@@ -3234,6 +3234,7 @@ def test_symbol_can_be_printed():
     sym3 = Symbol("s3", "integer", constant_value=12)
     assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
+
 def test_symbol_constant_value_setter():
     '''Test that a Symbol constant value can be set if given a new valid
     constant value. Also test that is_constant returns True
@@ -3415,8 +3416,8 @@ def test_symbol_gen_c_definition():
 
 # Test SymbolTable Class
 
-def test_symboltable_declare():
-    '''Test that the declare method inserts new symbols in the symbol
+def test_symboltable_add():
+    '''Test that the add method inserts new symbols in the symbol
     table, but raises appropiate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
@@ -3628,17 +3629,53 @@ def test_symboltable_argument_list_errors():
                          interface=Symbol.FortranGlobal("some_mod")))
     # Manually put a local symbol into the internal list of arguments
     sym_table._argument_list = [sym_table.lookup("var1")]
-    with pytest.raises(InternalError) as err:
-        _ = sym_table.argument_list
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_arg_list(sym_table._argument_list)
     pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
                "no associated Interface")
     assert re.search(pattern, str(err)) is not None
-    # Manually put a symbol imported from a module into the argument list
-    sym_table._argument_list = [sym_table.lookup("var3")]
+    # Check that the argument_list property converts this error into an
+    # InternalError
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
+    # Check that we reject a symbol imported from a module
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_arg_list([sym_table.lookup("var3")])
+    # Manually put that symbol into the argument list
+    sym_table._argument_list = [sym_table.lookup("var3")]
     pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
                r"interface of type \'.*\.FortranGlobal\'>")
+    assert re.search(pattern, str(err)) is not None
+    # Check that the argument_list property converts this error into an
+    # InternalError
+    with pytest.raises(InternalError) as err:
+        _ = sym_table.argument_list()
+    # Check that we get the expected TypeError if we provide a list containing
+    # objects that are not Symbols
+    with pytest.raises(TypeError) as err:
+        sym_table._validate_arg_list(["Not a symbol"])
+    assert "Expected a list of Symbols but found an object of type" in str(err)
+
+
+def test_symboltable_validate_non_args():
+    ''' Checks for the validation of non-argument entries in the
+    SymbolTable. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real",
+                         interface=Symbol.FortranGlobal("some_mod")))
+    # Everything should be fine so far
+    sym_table._validate_non_args()
+    # Add an entry with an Argument interface
+    sym_table.add(Symbol("var4", "real",
+                         interface=Symbol.Argument()))
+    # Since this symbol isn't in the argument list, the SymbolTable
+    # is no longer valid
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_non_args()
+    pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
+               "has a Symbol.Argument interface")
     assert re.search(pattern, str(err)) is not None
 
 
@@ -3653,7 +3690,7 @@ def test_symboltable_contains():
     assert "var1" in sym_table
     assert "var2" in sym_table
     assert "var3" not in sym_table
-
+    
 
 def test_symboltable_local_symbols():
     '''Test that the local_symbols property returns a list with the

@@ -6429,18 +6429,8 @@ class SymbolTable(object):
                             the existing entries in the SymbolTable.
 
         '''
-        orig_argument_list = self._argument_list[:]
-        # Set the new argument list
+        self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
-        try:
-            # Check that all of our SymbolTable entries are consistent
-            self._validate()
-        except InternalError as err:
-            # Return the stored argument_list to its original state and
-            # Raise a ValueError on the assumption that this error is
-            # due to the user-supplied inputs to this routine.
-            self._argument_list = orig_argument_list[:]
-            raise ValueError(str(err.args))
 
     def lookup(self, name):
         '''
@@ -6473,41 +6463,67 @@ class SymbolTable(object):
 
         :returns: Ordered list of arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+
+        :raises InternalError: If the entries of the SymbolTable are not \
+                               self-consistent.
+
         '''
-        self._validate()
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args))
         return self._argument_list
 
-    def _validate(self):
+    @staticmethod
+    def _validate_arg_list(arg_list):
+        '''
+        Checks that the supplied list of Symbols are valid kernel arguments.
+
+        :param arg_list: the proposed kernel arguments.
+        :type param_list: list of :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: if any item in the supplied list is not a Symbol.
+        :raises ValueError: if any of the symbols has no Interface.
+        :raises ValueError: if any of the symbols has an Interface that is \
+                            not a :py:class:`psyclone.psyGen.Symbol.Argument`.
+
+        '''
+        for symbol in arg_list:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Expected a list of Symbols but found an "
+                                "object of type '{0}'.".format(type(symbol)))
+            # All symbols in the argument list must have a
+            # 'Symbol.Argument' interface
+            if symbol.scope == 'local':
+                raise ValueError(
+                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "no associated Interface.".format(str(symbol)))
+            if not isinstance(symbol.interface, Symbol.Argument):
+                raise ValueError(
+                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "an interface of type '{1}' rather than "
+                    "Symbol.Argument".format(str(symbol),
+                                             type(symbol.interface)))
+
+    def _validate_non_args(self):
         '''
         Performs internal consistency checks on the current entries in the
-        SymbolTable.
+        SymbolTable that do not represent kernel arguments.
 
-        :raises InternalError: If a symbol in the argument list does not \
-                               have a Symbol.Argument interface.
-        :raises InternalError: If a symbol that is not in the argument list \
-                               has a Symbol.Argument interface.
+        :raises ValueError: If a symbol that is not in the argument list \
+                            has a Symbol.Argument interface.
 
         '''
         for symbol in self._symbols.values():
-            if symbol in self._argument_list:
-                # All symbols in the argument list must have a
-                # 'Symbol.Argument' interface
-                if symbol.scope == 'local':
-                    raise InternalError(
-                        "Symbol '{0}' is listed as a kernel argument but has "
-                        "no associated Interface.".format(str(symbol)))
-                if not isinstance(symbol.interface, Symbol.Argument):
-                    raise InternalError(
-                        "Symbol '{0}' is listed as a kernel argument but has "
-                        "an interface of type '{1}' rather than "
-                        "Symbol.Argument".format(str(symbol),
-                                                 type(symbol.interface)))
-            else:
+            if symbol not in self._argument_list:
                 # Symbols not in the argument list must not have a
                 # Symbol.Argument interface
                 if symbol.interface and isinstance(symbol.interface,
                                                    Symbol.Argument):
-                    raise InternalError(
+                    raise ValueError(
                         "Symbol '{0}' is not listed as a kernel argument and "
                         "yet has a Symbol.Argument interface.".format(
                             str(symbol)))
