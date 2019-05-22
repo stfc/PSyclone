@@ -53,7 +53,7 @@ import traceback
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.algGen import NoInvokesError
+from psyclone.alg_gen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
@@ -147,7 +147,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     compiling with the specified kernel(s) and support
     infrastructure. Uses the :func:`parse.algorithm.parse` function to
     parse the algorithm specification, the :class:`psyGen.PSy` class
-    to generate the PSy code and the :class:`algGen.Alg` class to
+    to generate the PSy code and the :class:`alg_gen.Alg` class to
     generate the modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
@@ -216,7 +216,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     if kernel_path and not os.access(kernel_path, os.R_OK):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from psyclone.algGen import Alg
+        from psyclone.alg_gen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
