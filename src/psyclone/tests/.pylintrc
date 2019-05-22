@@ -18,4 +18,8 @@ enable=import-star-module-level,old-octal-literal,oct-method,unpacking-in-except
 # --disable=W"
 disable=print-statement,suppressed-message,duplicate-code,no-self-use,too-many-locals,too-many-lines,protected-access,locally-disabled,locally-enabled
 
-
+# Longest test name atm has 64 letters:
+# test_fparser2astprocessor_generate_schedule_unmatching_arguments
+# This will limit the names to 80 characters, at which stage we
+# will also hit the line length limit anyway :)
+function-rgx=[a-z_][a-z0-9_]{2,80}$

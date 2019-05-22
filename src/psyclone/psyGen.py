@@ -41,7 +41,6 @@
 
 from __future__ import print_function, absolute_import
 import abc
-from enum import Enum
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -355,9 +354,12 @@ class PSy(object):
         return "psy_"+self._name
 
     @property
+    @abc.abstractmethod
     def gen(self):
-        raise NotImplementedError("Error: PSy.gen() must be implemented "
-                                  "by subclass")
+        '''Abstract base class for code generation function.
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        '''
 
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
@@ -1261,9 +1263,11 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def view(self):
-        raise NotImplementedError("BaseClass of a Node must implement the "
-                                  "view method")
+    @abc.abstractmethod
+    def view(self, indent=0):
+        '''Abstract function to prints a text representation of the node.
+        :param int indent: depth of indent for output text.
+        '''
 
     @staticmethod
     def indent(count, indent=INDENTATION_STRING):
@@ -1509,7 +1513,11 @@ class Node(object):
             return True
         return False
 
-    def gen_code(self):
+    def gen_code(self, parent):
+        '''Abstract base class for code generation function.
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        '''
         raise NotImplementedError("Please implement me")
 
     def gen_c_code(self, indent=0):
@@ -5556,12 +5564,15 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
+
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         :raises NotImplementedError: If the fparser2 tree contains an \
             unsupported structure and should be placed in a CodeBlock.
+
         '''
         from fparser.two import Fortran2003
         # Check that the fparser2 parsetree has the expected structure
@@ -5574,24 +5585,33 @@ class Fparser2ASTProcessor(object):
                 "Failed to find closing case statement in: "
                 "{0}".format(str(node)))
 
-        # Search for all the CASE clauses in the Case_Construct
+        # Search for all the CASE clauses in the Case_Construct. We do this
+        # because the fp2 parse tree has a flat structure at this point with
+        # the clauses being siblings of the contents of the clauses. The
+        # final index in this list will hold the position of the end-select
+        # statement.
         clause_indices = []
         selector = None
+        # The position of the 'case default' clause, if any
+        default_clause_idx = None
         for idx, child in enumerate(node.content):
             child._parent = node  # Retrofit parent info
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
-                # Case Default and value Ranges not supported yet, if found
-                # we raise a NotImplementedError that the process_node() will
-                # catch and generate a CodeBlock instead.
+                # Case value Ranges not supported yet, if found we
+                # raise a NotImplementedError that the process_node()
+                # will catch and generate a CodeBlock instead.
                 case_expression = child.items[0].items[0]
                 if isinstance(case_expression,
                               (Fortran2003.Case_Value_Range,
                                Fortran2003.Case_Value_Range_List)):
                     raise NotImplementedError("Case Value Range Statement")
-                elif case_expression is None:
-                    raise NotImplementedError("Case Default Statement")
+                if case_expression is None:
+                    # This is a 'case default' clause - store its position.
+                    # We do this separately as this clause is special and
+                    # will be added as a final 'else'.
+                    default_clause_idx = idx
                 clause_indices.append(idx)
             if isinstance(child, Fortran2003.End_Select_Stmt):
                 clause_indices.append(idx)
@@ -5601,6 +5621,9 @@ class Fparser2ASTProcessor(object):
         currentparent = parent
         num_clauses = len(clause_indices) - 1
         for idx in range(num_clauses):
+            # Skip the 'default' clause for now because we handle it last
+            if clause_indices[idx] == default_clause_idx:
+                continue
             start_idx = clause_indices[idx]
             end_idx = clause_indices[idx+1]
             clause = node.content[start_idx]
@@ -5639,13 +5662,32 @@ class Fparser2ASTProcessor(object):
                         elsebody = Schedule(parent=currentparent)
                         currentparent.addchild(elsebody)
                         elsebody.addchild(ifblock)
-                        elsebody.ast = node.content[start_idx]
-                        elsebody.ast_end = node.content[end_idx]
+                        elsebody.ast = node.content[start_idx + 1]
+                        elsebody.ast_end = node.content[end_idx - 1]
                     else:
                         rootif = ifblock
 
                     currentparent = ifblock
 
+        if default_clause_idx:
+            # Finally, add the content of the 'default' clause as a last
+            # 'else' clause.
+            elsebody = Schedule(parent=currentparent)
+            start_idx = default_clause_idx
+            # Find the next 'case' clause that occurs after 'case default'
+            # (if any)
+            end_idx = -1
+            for idx in clause_indices:
+                if idx > default_clause_idx:
+                    end_idx = idx
+                    break
+            self.process_nodes(parent=elsebody,
+                               nodes=node.content[start_idx + 1:
+                                                  end_idx],
+                               nodes_parent=node)
+            currentparent.addchild(elsebody)
+            elsebody.ast = node.content[start_idx + 1]
+            elsebody.ast_end = node.content[end_idx - 1]
         return rootif
 
     def _return_handler(self, _, parent):
@@ -5837,7 +5879,6 @@ class Symbol(object):
     :raises ValueError: Provided parameters contain invalid values.
 
     '''
-
     # Tuple with the valid values for the access attribute.
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.

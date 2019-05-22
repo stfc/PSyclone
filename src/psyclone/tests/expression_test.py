@@ -29,9 +29,7 @@ def my_test(name, parser, test_string, names=None):
         'NamedArg': psyclone.expression.NamedArg,
         'Slicing': psyclone.expression.Slicing,
     }
-    # pylint: disable=exec-used
     six.exec_("pstr="+repr(pstr[0]), context)
-    # pylint: enable=exec-used
     pstr = context['pstr']
 
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
