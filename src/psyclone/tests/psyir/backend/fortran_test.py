@@ -281,7 +281,6 @@ def test_FortranPSyIRVisitor_reference():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
-    print result
     assert (
         "module tmp_mod\n"
         "  use constants_mod, only : r_def, i_def\n"
