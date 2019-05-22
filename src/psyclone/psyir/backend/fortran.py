@@ -156,6 +156,42 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         result += "\n"
         return result
 
+    def node(self, node):
+        '''Catch any unsupported nodes, output their class names and continue
+        down the node hierarchy.
+
+        :param node: an unsupported PSyIR node.
+        :type node: subclass of :py:class:`psyclone.psyGen.Node`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = "{0}[ {1} start ]\n".format(self._nindent, type(node).__name__)
+        self._depth += 1
+        for child in node.children:
+            result += self.visit(child)
+        self._depth -= 1
+        result += "{0}[ {1} end ]\n".format(self._nindent, type(node).__name__)
+        return result
+
+    def nemokern(self, node):
+        '''NEMO kernels are a group of nodes collected into a schedule
+        so simply call the nodes in the schedule.
+
+        :param node: a NemoKern PSyIR node.
+        :type node: :py:class:`psyclone.nemo.NemoKern`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = ""
+        schedule = node.get_kernel_schedule()
+        for child in schedule.children:
+            result += self.visit(child)
+        return result
+
     def kernelschedule(self, node):
         '''This method is called when a KernelSchedule instance is found in
         the PSyIR tree.
@@ -371,6 +407,4 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = self._nindent
-        result += self._nindent.join(str(node.ast).splitlines(True))
-        return result
+        return self._nindent.join(str(node.ast).splitlines(True))
