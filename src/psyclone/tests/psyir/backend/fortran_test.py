@@ -37,9 +37,10 @@
 '''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
 
 import pytest
+from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import get_intent, get_dims, get_kind, \
     FortranPSyIRVisitor
-from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node
+from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 
@@ -121,6 +122,26 @@ def test_FortranPSyIRVisitor_get_declaration():
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
 
 
+def create_schedule(code):
+    '''Utility function that returns a PSyIR tree from Fortran
+    code using fparser2 and Fparser2ASTProcessor.
+
+    :param str code: Fortran code.
+
+    :returns: PSyIR tree representing the Fortran code.
+    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    reader = FortranStringReader(code)
+    f2003_parser = ParserFactory().create(std="f2003")
+    parse_tree = f2003_parser(reader)
+
+    # Generate PSyIR schedule from fparser2 parse tree
+    processor = Fparser2ASTProcessor()
+    schedule = processor.generate_schedule("tmp", parse_tree)
+
+    return schedule
+
 def test_FortranPSyIRVisitor_node():
     '''Check the FortranPSyIRVisitor class node method prints the class
     information and calls any children. This method is used to output
@@ -135,14 +156,7 @@ def test_FortranPSyIRVisitor_node():
         "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
-    reader = FortranStringReader(code)
-    f2003_parser = ParserFactory().create(std="f2003")
-    parse_tree = f2003_parser(reader)
-
-    # Generate PSyIR schedule from fparser2 parse tree
-    processor = Fparser2ASTProcessor()
-    schedule = processor.generate_schedule("tmp", parse_tree)
-    schedule.view()
+    schedule = create_schedule(code)
 
     # modify the reference to b to be something unsupported
     class Unsupported(Node):
@@ -160,4 +174,238 @@ def test_FortranPSyIRVisitor_node():
 
     assert ("    a=    [ Unsupported start ]\n"
             "bc    [ Unsupported end ]\n" in result)
+
+    
+def test_FortranPSyIRVisitor_nemokern():
+    '''Check the FortranPSyIRVisitor class nemokern method prints the
+    class information and calls any children. This method is used to
+    output nothing for a NemoKern object and simply call its children
+    as NemoKern is a collection of PSyIR nodes so needs no
+    output itself.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  a = b/c\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # add a NemoKern object to the tree
+    from psyclone.nemo import NemoKern
+    nemo_kern = NemoKern(schedule.children, None, parent=schedule)
+    schedule.children = [nemo_kern]
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    assert (
+        "  subroutine tmp()\n"
+        "\n"
+        "    a=b/c\n"
+        "\n"
+        "  end subroutine tmp\n") in result
+
+
+def test_FortranPSyIRVisitor_kenelschedule():
+    '''Check the FortranPSyIRVisitor class nemokern method prints the
+    class information and calls any children. This method is used to
+    output nothing for a NemoKern object and simply call its children
+    as NemoKern is a collection of PSyIR nodes so needs no
+    output itself.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,b,c)\n"
+        "  real, intent(out) :: a(:)\n"
+        "  real, intent(in) :: b(:)\n"
+        "  integer, intent(in) :: c\n"
+        "  a = b/c\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    print result
+    assert (
+        "  subroutine tmp(a,b,c)\n"
+        "    real(r_def), dimension(:), intent(out) :: a\n"
+        "    integer(i_def), intent(in) :: c\n"
+        "    real(r_def), dimension(:), intent(in) :: b\n"
+        "\n"
+        "    a=b/c\n"
+        "\n"
+        "  end subroutine tmp\n") in result
+
+# assignment and binaryoperation are already checked within previous
+# tests
+
+
+def test_FortranPSyIRVisitor_reference():
+    '''Check the FortranPSyIRVisitor class reference method prints the
+    appropriate information (the name of the reference it points to).
+    Also check the method raises an exception if it has children as
+    this is not expected.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code. The line of
+    # interest is a(n) = 0.0. The additional a=1 line is added to get
+    # round a bug in the parser.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    a = 1\n"
+        "    a(n) = 0.0\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    print result
+    assert (
+        "module tmp_mod\n"
+        "  use constants_mod, only : r_def, i_def\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine tmp(a,n)\n"
+        "    real(r_def), dimension(n), intent(out) :: a\n"
+        "    integer(i_def), intent(in) :: n\n"
+        "\n"
+        "    a=1\n"
+        "    a(n)=0.0\n"
+        "\n"
+        "  end subroutine tmp\n"
+        "end module tmp_mod") in result
+
+    # Now add a child to the reference node
+    reference = schedule.children[1].children[0].children[0]
+    reference.children = ["hello"]
+    
+    # Generate Fortran from the PSyIR schedule
+    with pytest.raises(VisitorError) as excinfo:
+        result = fvisitor.visit(schedule)
+    assert "PSyIR Reference node should not have any children." in str(excinfo)
+
+
+def test_FortranPSyIRVisitor_array():
+    '''Check the FortranPSyIRVisitor class array method correctly prints
+    out the Fortran representation of an array
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n,n,n)\n"
+        "    a = 1\n"
+        "    a(2,n,:) = 0.0\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    assert "a(2,n,:)=0.0" in result
+
+# literal is already checked within previous tests
+
+# TODO IFBLOCK
+
+def test_FortranPSyIRVisitor_unaryoperation():
+    '''Check the FortranPSyIRVisitor class unary_operation method
+    correctly prints out the Fortran representation. Uses -1 as the
+    example.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    a = -1\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    assert "a=-1" in result
+
+
+def test_FortranPSyIRVisitor_return():
+    '''Check the FortranPSyIRVisitor class return method
+    correctly prints out the Fortran representation.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  return\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+    assert "    return\n" in result
+
+
+def test_FortranPSyIRVisitor_codeblock():
+    '''Check the FortranPSyIRVisitor class codeblock method correctly
+    prints out the Fortran code contained within it.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  integer :: a\n"
+        "  a=1\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    
+    code1 = (
+        "print *, 'I am a code block'\n"
+        "print *, 'with more than one line'\n")
+    from fparser.two.parser import ParserFactory
+    import fparser.two.Fortran2003 as Fortran2003
+    from fparser.api import get_reader
+    _ = ParserFactory().create(std="f2003")
+    reader = get_reader(code1)
+    statements = Fortran2003.Execution_Part(reader)    
+    code_block = CodeBlock([statements], parent=schedule)
+    schedule.addchild(code_block)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranPSyIRVisitor()
+    result = fvisitor.visit(schedule)
+
+    assert (
+        "    a=1\n"
+        "PRINT *, 'I am a code block'\n"
+        "    PRINT *, 'with more than one line'\n" in result)
 

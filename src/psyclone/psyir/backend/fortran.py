@@ -39,7 +39,7 @@ already has a gen() method to generate Fortran.
 
 '''
 
-from psyclone.psyir.backend.base import PSyIRVisitor
+from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 
 
 def get_intent(symbol):
@@ -217,7 +217,7 @@ class FortranPSyIRVisitor(PSyIRVisitor):
             "{0}use constants_mod, only : r_def, i_def\n"
             "{0}implicit none\n"
             "{0}contains\n"
-            "{0}subroutine {1}({2})\n\n"
+            "{0}subroutine {1}({2})\n"
             "".format(self._nindent, node.name, ",".join(args)))
 
         self._depth += 1
@@ -289,10 +289,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = node._reference
-        for child in node.children:
-            result += self.visit(child)
-        return result
+        if node.children:
+            raise VisitorError(
+                "PSyIR Reference node should not have any children.")
+        return node._reference
 
     def array(self, node):
         '''This method is called when an Array instance is found in the PSyIR
