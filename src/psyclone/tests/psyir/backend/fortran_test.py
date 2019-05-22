@@ -37,7 +37,8 @@
 '''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
 
 import pytest
-from psyclone.psyir.backend.fortran import get_intent, get_dims, get_kind, FortranPSyIRVisitor
+from psyclone.psyir.backend.fortran import get_intent, get_dims, get_kind, \
+    FortranPSyIRVisitor
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader

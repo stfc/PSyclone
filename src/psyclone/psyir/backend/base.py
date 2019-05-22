@@ -140,11 +140,12 @@ class PSyIRVisitor(object):
         possible_method_names = [curr_class.__name__.lower() for curr_class \
                                  in inspect.getmro(type(node))]
 
+        if "return" in possible_method_names:
+            possible_method_names[possible_method_names.index("return")] \
+                = "return_node"
         # Try to call methods using the class names in the order of
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
-            if method_name == "return":
-                method_name = "return_node"
             try:
                 return eval("self.{0}(node)".format(method_name))
             except AttributeError:

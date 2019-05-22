@@ -212,3 +212,19 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
     # been visited.
     output, _ = capsys.readouterr()
     assert output == "testnode2 called\n"
+
+
+def test_psyirvisitor_visit_return_node(capsys):
+    '''Check that when a return PSyIR node is found the actual method
+    called is 'return_node'. This is done to avoid clashing with the
+    Python keyword.
+
+    '''
+    from psyclone.psyGen import Return
+    return_node = Return()
+    test_visitor = PSyIRVisitor()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = test_visitor.visit(return_node)
+    assert ("Visitor Error: Unsupported node 'Return' found: method names "
+            "attempted were ['return_node', 'node', 'object']."
+            ""in str(excinfo))
