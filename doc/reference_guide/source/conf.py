@@ -92,7 +92,9 @@ html_theme = 'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# We specify the directory containing the doxygen output (as configured in
+# ../doxygen.config) so that we can link to it from index.rst.
+html_static_path = ['doxygen']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -185,4 +187,6 @@ epub_exclude_files = ['search.html']
 # Use Doxygen to generate the documentation
 import subprocess
 subprocess.call('cd ..; doxygen doxygen.config', shell=True)
-html_extra_path = ['../build/html/']
+# If we want to completely replace the Sphinx-generated documentation
+# with that constructed by Doxgen then we uncomment the line below.
+#html_extra_path = ['doxgygen/html/']
