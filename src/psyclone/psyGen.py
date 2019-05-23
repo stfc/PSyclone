@@ -5901,13 +5901,6 @@ class SymbolInterface(object):
         else:
             self.access = access
 
-    @abc.abstractmethod
-    def is_argument(self):
-        '''
-        Getter for whether or not this Interface represents data that is
-        passed by argument. Must be implemented by sub-class.
-        '''
-
     @property
     def access(self):
         '''
@@ -6005,22 +5998,14 @@ class Symbol(object):
             super(Symbol.Argument, self).__init__(access=access)
             self._pass_by_value = False
 
-        @property
-        def is_argument(self):
-            '''
-            :returns: Whether or not this symbol is a routine argument.
-            :rtype: bool
-            '''
-            return True
-
         def __str__(self):
             return "Argument(pass-by-value={0})".format(self._pass_by_value)
 
     class FortranGlobal(SymbolInterface):
         '''
         Describes the interface to a Fortran Symbol representing data that
-        exists outside of the local scope but is not supplied as a routine
-        argument.
+        is supplied as some sort of global variable. Currently only supports
+        data accessed via a module 'USE' statement.
 
         :param str module_use: the name of the Fortran module from which the \
                                symbol is imported.
@@ -6065,14 +6050,6 @@ class Symbol(object):
                 raise ValueError("module_name must be one or more characters "
                                  "long")
             self._module_name = value
-
-        @property
-        def is_argument(self):
-            '''
-            :returns: Whether or not this symbol is a routine argument.
-            :rtype: bool
-            '''
-            return False
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
                  interface=None):

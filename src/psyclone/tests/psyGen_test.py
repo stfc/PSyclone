@@ -3432,7 +3432,6 @@ def test_symboltable_add():
     assert sym_table._symbols["var1"].shape == [5, 1]
     assert sym_table._symbols["var1"].scope == "global"
     assert sym_table._symbols["var1"].access is Symbol.Access.READWRITE
-    assert not sym_table._symbols["var1"].interface.is_argument
     assert sym_table._symbols["var1"].interface.module_name == "some_mod"
 
     # Declare a duplicate name symbol
@@ -3579,7 +3578,6 @@ def test_symboltable_specify_argument_list():
 
     assert len(sym_table.argument_list) == 1
     assert sym_table.argument_list[0].scope == 'global'
-    assert sym_table.argument_list[0].interface.is_argument
     assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
@@ -3592,7 +3590,6 @@ def test_symboltable_specify_argument_list():
     sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1, sym_v2])
     assert sym_table.argument_list[1].scope == 'global'
-    assert sym_table.argument_list[1].interface.is_argument
     assert sym_table.argument_list[1].access == Symbol.Access.READWRITE
 
 
@@ -4066,7 +4063,6 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg1").access == Symbol.Access.READ
-    assert fake_parent.symbol_table.lookup("arg1").interface.is_argument
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     arg_list.append(Name("arg2"))
@@ -4074,7 +4070,6 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg2").access == Symbol.Access.READ
-    assert fake_parent.symbol_table.lookup("arg2").interface.is_argument
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
     arg_list.append(Name("arg3"))
@@ -4083,7 +4078,6 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg3").access == \
         Symbol.Access.WRITE
-    assert fake_parent.symbol_table.lookup("arg3").interface.is_argument
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
     arg_list.append(Name("arg4"))
@@ -4092,7 +4086,6 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg4").access is \
         Symbol.Access.READWRITE
-    assert fake_parent.symbol_table.lookup("arg4").interface.is_argument
 
 
 def test_fparser2astprocessor_parse_array_dimensions_attributes(
