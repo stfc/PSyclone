@@ -2958,7 +2958,7 @@ def test_literal_gen_c_code():
 
 # Test BinaryOperation class
 def test_binaryoperation_initialization(capsys):
-    ''' Check the initialization method of the BiaryOperation class works
+    ''' Check the initialization method of the BinaryOperation class works
     as expected.'''
 
     with pytest.raises(TypeError) as err:
@@ -2989,11 +2989,14 @@ def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
     op1 = Literal("1", parent=binary_operation)
-    op2 = Literal("1", parent=binary_operation)
+    op2 = Literal("2", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
-    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
+    # Check the node children are also printed
+    assert "Literal[value:'1']\n" in str(binary_operation)
+    assert "Literal[value:'2']\n" in str(binary_operation)
 
 
 def test_binaryoperation_gen_c_code():
@@ -3034,7 +3037,6 @@ def test_binaryoperation_gen_c_code():
     # Test that an unsupported operator raises a error
     class Unsupported():
         '''Dummy class'''
-        pass
     binary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = binary_operation.gen_c_code()
@@ -3050,7 +3052,7 @@ def test_unaryoperation_initialization(capsys):
     with pytest.raises(TypeError) as err:
         _ = UnaryOperation("not an operator")
     assert "UnaryOperation operator argument must be of type " \
-           "UnaryOpertion.Operator but found" in str(err)
+           "UnaryOperation.Operator but found" in str(err)
     uop = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert uop._operator is UnaryOperation.Operator.MINUS
 
@@ -3073,9 +3075,11 @@ def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
+    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
-    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
+    # Check the node children are also printed
+    assert "Literal[value:'1']\n" in str(unary_operation)
 
 
 def test_unaryoperation_gen_c_code():
@@ -3093,7 +3097,7 @@ def test_unaryoperation_gen_c_code():
     test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
                  (UnaryOperation.Operator.MINUS, '(-a)'),
                  (UnaryOperation.Operator.SQRT, 'sqrt(a)'),
-                 (UnaryOperation.Operator.NOT, '(.not.a)'),
+                 (UnaryOperation.Operator.NOT, '(!a)'),
                  (UnaryOperation.Operator.COS, 'cos(a)'),
                  (UnaryOperation.Operator.SIN, 'sin(a)'),
                  (UnaryOperation.Operator.TAN, 'tan(a)'),
@@ -3111,7 +3115,6 @@ def test_unaryoperation_gen_c_code():
     # Test that an unsupported operator raises a error
     class Unsupported():
         '''Dummy class'''
-        pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = unary_operation.gen_c_code()
@@ -4142,8 +4145,6 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
         class UnrecognizedType(object):
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
-            pass
-
         fparser2spec.items[1].items[1].__class__ = UnrecognizedType
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
@@ -4178,7 +4179,6 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
         class invalid(object):
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
-            pass
         newobject = invalid()
         return [newobject]
 
@@ -4321,7 +4321,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
     ''' Test that fparser2 Part_Ref nodes that in reality are Fortran
-    Intrinsics are handled appropietly.
+    Intrinsics are handled approprietly.
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -4344,6 +4344,18 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], expected_type), \
             "Fails when parsing '" + code + "'"
+
+    # Test unexpected fparser2 node in the real instrinsic.
+    fake_parent = Node()
+    reader = FortranStringReader("x = real(a)")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    # Manipulate fp2node to insert an unexpected structure
+    fp2node.items = (fp2node.items[0], fp2node.items[1], fp2node.items[0])
+
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [fp2node], None)
+    assert "Unexpected fparser2 node when parsing the real() intrinsic, 2 " \
+           "items were expected but found" in str(error.value)
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
@@ -4693,9 +4705,12 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
                 )
 
     for opstring, expected in testlist:
-        fake_parent = Node()
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
         fp2binaryop.items = (fp2binaryop.items[0], opstring,
                              fp2binaryop.items[2])
+        # And then translate it to PSyIR again.
+        fake_parent = Node()
         processor.process_nodes(fake_parent, [fp2binaryop], None)
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], BinaryOperation), \
@@ -4740,8 +4755,11 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
                 )
 
     for opstring, expected in testlist:
-        fake_parent = Node()
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
         fp2unaryop.items = (opstring, fp2unaryop.items[1])
+        # And then translate it to PSyIR again.
+        fake_parent = Node()
         processor.process_nodes(fake_parent, [fp2unaryop], None)
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], UnaryOperation), \

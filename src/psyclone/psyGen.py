@@ -5837,12 +5837,17 @@ class Fparser2ASTProcessor(object):
             self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
                                nodes_parent=node)
             return bop
-        elif reference_name == 'sin':
+        if reference_name == 'sin':
             uop = UnaryOperation(UnaryOperation.Operator.SIN, parent)
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
-        elif reference_name == 'real':
+        if reference_name == 'real':
+            if len(node.items) != 2:
+                raise GenerationError(
+                    "Unexpected fparser2 node when parsing the real() "
+                    "intrinsic, 2 items were expected but found '{0}'."
+                    "".format(repr(node)))
             if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
                 # If it has more than a single argument create a CodeBlock
                 raise NotImplementedError()
@@ -5850,7 +5855,7 @@ class Fparser2ASTProcessor(object):
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
-        elif reference_name == 'sqrt':
+        if reference_name == 'sqrt':
             uop = UnaryOperation(UnaryOperation.Operator.SQRT, parent)
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
@@ -6715,7 +6720,7 @@ class UnaryOperation(Node):
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
         'ABS',
-        # Casting Opertors
+        # Casting Operators
         'REAL'
         ])
 
@@ -6725,7 +6730,7 @@ class UnaryOperation(Node):
         if not isinstance(operator, self.Operator):
             raise TypeError(
                 "UnaryOperation operator argument must be of type "
-                "UnaryOpertion.Operator but found {0}."
+                "UnaryOperation.Operator but found {0}."
                 "".format(type(operator).__name__))
 
         self._operator = operator
@@ -6766,7 +6771,8 @@ class UnaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
         '''
         if len(self.children) != 1:
             raise GenerationError("UnaryOperation malformed or "
@@ -6794,10 +6800,12 @@ class UnaryOperation(Node):
             '''
             return function_str + "(" + expr_str + ")"
 
+        # Define a map with the operator string and the formatter function
+        # associated with each UnaryOperation.Operator
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
-            UnaryOperation.Operator.NOT: (".not.", operator_format),
+            UnaryOperation.Operator.NOT: ("!", operator_format),
             UnaryOperation.Operator.SIN: ("sin", function_format),
             UnaryOperation.Operator.COS: ("cos", function_format),
             UnaryOperation.Operator.TAN: ("tan", function_format),
@@ -6808,6 +6816,10 @@ class UnaryOperation(Node):
             UnaryOperation.Operator.REAL: ("float", function_format),
             UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
         try:
             opstring, formatter = opmap[self._operator]
         except KeyError:
@@ -6821,7 +6833,7 @@ class UnaryOperation(Node):
 class BinaryOperation(Node):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
-    as children 0 and 1, and a attribute with the operator type.
+    as children 0 and 1, and an attribute with the operator type.
 
     :param operator: node in the fparser2 AST representing the binary operator.
     :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
@@ -6886,7 +6898,8 @@ class BinaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :returns: C language code representing the node.
         :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
         '''
 
         if len(self.children) != 2:
@@ -6917,6 +6930,8 @@ class BinaryOperation(Node):
             '''
             return function_str + "(" + expr1 + ", " + expr2 + ")"
 
+        # Define a map with the operator string and the formatter function
+        # associated with each BinaryOperation.Operator
         opmap = {
                 BinaryOperation.Operator.ADD: ("+", operator_format),
                 BinaryOperation.Operator.SUB: ("-", operator_format),
@@ -6935,6 +6950,9 @@ class BinaryOperation(Node):
                 BinaryOperation.Operator.SIGN: ("copysign", function_format),
             }
 
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
         try:
             opstring, formatter = opmap[self._operator]
         except KeyError:
