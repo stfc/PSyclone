@@ -3635,6 +3635,7 @@ def test_symboltable_argument_list_errors():
     # InternalError
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
+    assert re.search(pattern, str(err)) is not None
     # Check that we reject a symbol imported from a module
     with pytest.raises(ValueError) as err:
         sym_table._validate_arg_list([sym_table.lookup("var3")])
@@ -3646,7 +3647,8 @@ def test_symboltable_argument_list_errors():
     # Check that the argument_list property converts this error into an
     # InternalError
     with pytest.raises(InternalError) as err:
-        _ = sym_table.argument_list()
+        _ = sym_table.argument_list
+    assert re.search(pattern, str(err)) is not None
     # Check that we get the expected TypeError if we provide a list containing
     # objects that are not Symbols
     with pytest.raises(TypeError) as err:
@@ -3687,7 +3689,7 @@ def test_symboltable_contains():
     assert "var1" in sym_table
     assert "var2" in sym_table
     assert "var3" not in sym_table
-    
+
 
 def test_symboltable_local_symbols():
     '''Test that the local_symbols property returns a list with the

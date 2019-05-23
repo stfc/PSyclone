@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -265,7 +264,6 @@ def test_opencl_kernel_variables_definitions():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL argument/variable declarations.
     '''
-    from psyclone.psyGen import Symbol
     kschedule = GOKernelSchedule('test')
     symtable = kschedule.symbol_table
     # Create Symbols for all of the routine arguments
@@ -318,8 +316,6 @@ def test_opencl_kernel_gen_wrong_kernel():
     ''' Tests that gen_ocl method raises the proper error when the
     GOKernelSchedule does not represent a proper GOcean kernel.
     '''
-    from psyclone.psyGen import Symbol
-
     kschedule = GOKernelSchedule('test')
 
     # Test gen_ocl without any kernel argument
