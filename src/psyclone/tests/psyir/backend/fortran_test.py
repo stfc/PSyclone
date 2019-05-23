@@ -237,11 +237,14 @@ def test_FortranPSyIRVisitor_kernelschedule(monkeypatch):
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
+
+    # The asserts need to be split as the declaration order can change
+    # between different versions of Psython.
+    assert "  subroutine tmp(a,b,c)\n" in result
+    assert "    real(r_def), dimension(:), intent(out) :: a\n" in result
+    assert "    integer(i_def), intent(in) :: c\n" in result
+    assert "    real(r_def), dimension(:), intent(in) :: b\n" in result
     assert (
-        "  subroutine tmp(a,b,c)\n"
-        "    real(r_def), dimension(:), intent(out) :: a\n"
-        "    integer(i_def), intent(in) :: c\n"
-        "    real(r_def), dimension(:), intent(in) :: b\n"
         "\n"
         "    a=b/c\n"
         "\n"
@@ -281,14 +284,18 @@ def test_FortranPSyIRVisitor_reference():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
+
+    # The asserts need to be split as the declaration order can change
+    # between different versions of Psython.
     assert (
         "module tmp_mod\n"
         "  use constants_mod, only : r_def, i_def\n"
         "  implicit none\n"
         "  contains\n"
-        "  subroutine tmp(a,n)\n"
-        "    real(r_def), dimension(n), intent(out) :: a\n"
-        "    integer(i_def), intent(in) :: n\n"
+        "  subroutine tmp(a,n)\n") in result
+    assert "    real(r_def), dimension(n), intent(out) :: a\n" in result
+    assert "    integer(i_def), intent(in) :: n\n" in result
+    assert (
         "\n"
         "    a=1\n"
         "    a(n)=0.0\n"
