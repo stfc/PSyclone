@@ -19,9 +19,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'PSyclone Reference Guide'
-copyright = '2019, R. W. Ford, J. Henrichs, I. Kavcic, S. Siso, A. R. Porter'
-author = 'R. W. Ford, J. Henrichs, I. Kavcic, S. Siso, A. R. Porter'
+project = 'Reference Guide'
+copyright = '2019, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
+author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
 # The short X.Y version
 version = ''
@@ -106,12 +106,13 @@ html_static_path = ['doxygen']
 #
 # html_sidebars = {}
 
+html_logo = '../../logo/psyclone_v1.0_small.png'
+
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'PSycloneReferenceGuidedoc'
-
 
 # -- Options for LaTeX output ------------------------------------------------
 
@@ -190,3 +191,4 @@ subprocess.call('cd ..; doxygen doxygen.config', shell=True)
 # If we want to completely replace the Sphinx-generated documentation
 # with that constructed by Doxgen then we uncomment the line below.
 #html_extra_path = ['doxgygen/html/']
+
