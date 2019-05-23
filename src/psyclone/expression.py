@@ -17,6 +17,8 @@ pparse.ParserElement.enablePackrat()
 
 class ExpressionNode(object):
     '''Base class for all expression tree nodes'''
+
+    # pylint: disable=too-few-public-methods
     def __init__(self, toks):
         ''' The recursive collection of names enables the dependencies of
         expressions to be analysed. '''
@@ -342,6 +344,8 @@ OPERATOR = pparse.operatorPrecedence(
      (pparse.Literal("+") | pparse.Literal("-"), 2, pparse.opAssoc.LEFT,
       lambda strg, loc, toks: [BinaryOperator(toks)]),))
 
+# pylint: disable=pointless-statement
 EXPR << (OPERATOR | OPERAND)
+# pylint: enable=pointless-statement
 
 FORT_EXPRESSION = pparse.StringStart() + EXPR + pparse.StringEnd()

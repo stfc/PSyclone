@@ -3,7 +3,7 @@
 System-specific Developer Set-up
 ================================
 
-Section :ref:`setup_user` in the PSyclone User Guide
+Section :ref:`user_guide:system_specific_setup` in the PSyclone User Guide
 describes the setup for a user of PSyclone. It includes all steps necessary
 to be able to use PSyclone. And while you could obviously do
 some development, none of the required tools for testing or
@@ -12,7 +12,7 @@ documentation creation will be installed.
 This section adds software that is used to develop and test
 PSyclone. It includes all packages for testing and creation of
 documentation in html and pdf. We assume you have already installed
-the software described in the :ref:`setup_user` section.
+the software described in the :ref:`user_guide:system_specific_setup` section.
 
 It contains detailed instructions for Ubuntu 16.04.2 and 
 OpenSUSE 42.2 - if you are working with a different Linux
