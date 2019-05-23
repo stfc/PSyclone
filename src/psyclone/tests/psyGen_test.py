@@ -56,10 +56,11 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Schedule, Symbol, SymbolTable, UnaryOperation, Return
+    KernelSchedule, Schedule, UnaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
+from psyclone.psyGen import Symbol, SymbolTable
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -3107,15 +3108,25 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'global_argument'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             None, True, True), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             None, True, False), Symbol)
+    assert isinstance(Symbol('a', 'real', []), Symbol)
+    assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
+                      Symbol)
+    assert isinstance(
+        Symbol('a', 'real', [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol)
+    assert isinstance(
+        Symbol('a', 'real', [],
+               interface=Symbol.Argument(access=Symbol.Access.READ)),
+        Symbol)
+    assert isinstance(
+        Symbol('a', 'deferred',
+               interface=Symbol.FortranGlobal(access=Symbol.Access.READ,
+                                              module_use='some_mod')),
+        Symbol)
     dim = Symbol('dim', 'integer', [])
-    assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [dim]), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
@@ -3130,18 +3141,12 @@ def test_symbol_initialisation():
     assert ("A constant value is not currently supported for datatype "
             "'real'.") in str(error)
 
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', [], 'invalidscope')
-    assert ("Symbol scope attribute can only be one of " +
-            str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error)
-
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', None, 'local')
+        Symbol('a', 'real', shape=dim)
     assert "Symbol shape attribute must be a list." in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', ['invalidshape'], 'local')
+        Symbol('a', 'real', ['invalidshape'])
     assert ("Symbol shape list elements can only be 'Symbol', "
             "'integer' or 'None'.") in str(error.value)
 
@@ -3158,9 +3163,9 @@ def test_symbol_initialisation():
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', scope='global_argument', constant_value=9)
+        Symbol('a', 'integer', interface=Symbol.Argument(), constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global_argument'.") in str(error)
+            "local scope but found 'global'.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', shape=[None], constant_value=9)
@@ -3195,30 +3200,39 @@ def test_symbol_map():
     the Symbol class.
 
     '''
-    # "real" is not supported in the mapping so we expect it to have 1
-    # less entry than there are valid data types.
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
+    # "real" and "deferred" are not supported in the mapping so we expect
+    # it to have 2 fewer entries than there are valid data types
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 2
     for data_type in Symbol.valid_data_types:
-        if data_type not in ["real"]:
+        if data_type not in ["real", "deferred"]:
             assert data_type in Symbol.mapping
 
 
-def test_symbol_scope_setter():
-    '''Test that a Symbol scope can be set if given a new valid scope
-    value, otherwise it raises a relevant exception'''
+def test_symbol_can_be_printed():
+    '''Test that a Symbol instance can always be printed. (i.e. is
+    initialised fully.)'''
+    symbol = Symbol("sname", "real")
+    assert "sname: <real, Scalar, local>" in str(symbol)
 
-    # Test with valid scope value
-    sym = Symbol('a', 'real', [], 'local')
-    assert sym.scope == 'local'
-    sym.scope = 'global_argument'
-    assert sym.scope == 'global_argument'
+    sym1 = Symbol("s1", "integer")
+    assert "s1: <integer, Scalar, local>" in str(sym1)
 
-    # Test with invalid scope value
-    with pytest.raises(ValueError) as error:
-        sym.scope = 'invalidscope'
-    assert ("Symbol scope attribute can only be one of " +
-            str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error)
+    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
+
+    sym3 = Symbol("s3", "real",
+                  interface=Symbol.FortranGlobal(module_use="my_mod"))
+    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
+            in str(sym3))
+
+    sym2._shape.append('invalid')
+    with pytest.raises(InternalError) as error:
+        _ = str(sym2)
+    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
+            "'None', but found") in str(error.value)
+
+    sym3 = Symbol("s3", "integer", constant_value=12)
+    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
 
 def test_symbol_constant_value_setter():
@@ -3259,64 +3273,58 @@ def test_symbol_scalar_array():
     assert sym2.is_array
 
 
-def test_symbol_is_input_setter():
-    '''Test that a Symbol's is_input method can be set if given a new
-    valid value, otherwise it raises a relevant exception.'''
-
-    sym = Symbol('a', 'real', shape=[], scope='global_argument',
-                 is_input=False, is_output=False)
-    sym.is_input = True
-    assert sym.is_input is True
-
-    with pytest.raises(TypeError) as error:
-        sym.is_input = 3
-    assert "Symbol 'is_input' attribute must be a boolean." in \
-           str(error.value)
-
-    sym = Symbol('a', 'real', [], 'local')
-    with pytest.raises(ValueError) as error:
-        sym.is_input = True
-    assert ("Symbol with 'local' scope can not have 'is_input' attribute"
-            " set to True.") in str(error)
+def test_symbol_invalid_interface():
+    ''' Check that the Symbol.interface setter rejects the supplied value if
+    it is not a SymbolInterface. '''
+    sym = Symbol("some_var", "real")
+    with pytest.raises(TypeError) as err:
+        sym.interface = "invalid interface spec"
+    assert ("interface to a Symbol must be a SymbolInterface or None but"
+            in str(err))
 
 
-def test_symbol_is_output_setter():
-    '''Test that a Symbol's is_output method can be set if given a new
-    valid value, otherwise it raises a relevant exception.'''
-    sym = Symbol('a', 'real', shape=[], scope='global_argument',
-                 is_input=False, is_output=False)
-    sym.is_output = True
-    assert sym.is_output is True
-
-    with pytest.raises(TypeError) as error:
-        sym.is_output = 3
-    assert "Symbol 'is_output' attribute must be a boolean." in \
-           str(error.value)
-
-    sym = Symbol('a', 'real', [], 'local')
-    with pytest.raises(ValueError) as error:
-        sym.is_output = True
-    assert ("Symbol with 'local' scope can not have 'is_output' attribute"
-            " set to True.") in str(error)
+def test_symbol_interface():
+    ''' Check the interface getter on a Symbol. '''
+    symbol = Symbol("some_var", "real",
+                    interface=Symbol.FortranGlobal(module_use="my_mod"))
+    assert symbol.interface.module_name == "my_mod"
 
 
-def test_symbol_can_be_printed():
-    '''Test that a Symbol instance can always be printed. (i.e. is
-    initialised fully)'''
-    sym1 = Symbol("s1", "integer")
-    assert "s1: <integer, local, Scalar>" in str(sym1)
+def test_symbol_interface_access():
+    ''' Tests for the SymbolInterface.access setter. '''
+    symbol = Symbol("some_var", "real",
+                    interface=Symbol.FortranGlobal(module_use="my_mod"))
+    symbol.interface.access = Symbol.Access.READ
+    assert symbol.interface.access == Symbol.Access.READ
+    # Force the error by supplying a string instead of a SymbolAccess type.
+    with pytest.raises(TypeError) as err:
+        symbol.interface.access = "read"
+    assert "must be a 'Symbol.Access' but got " in str(err)
 
-    sym2 = Symbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
 
-    sym2._shape.append('invalid')
-    with pytest.raises(InternalError) as error:
-        _ = str(sym2)
-    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
-            "'None', but found") in str(error.value)
+def test_symbol_argument_str():
+    ''' Check the __str__ method of the Symbol.Argument class. '''
+    # A Symbol.Argument represents a routine argument by default.
+    interface = Symbol.Argument()
+    assert str(interface) == "Argument(pass-by-value=False)"
 
-    sym3 = Symbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, local, Scalar, constant_value=12>" in str(sym3)
+
+def test_fortranglobal_str():
+    ''' Test the __str__ method of Symbol.FortranGlobal. '''
+    # If it's not an argument then we have nothing else to say about it (since
+    # other options are language specific and are implemented in sub-classes).
+    interface = Symbol.FortranGlobal("my_mod")
+    assert str(interface) == "FortranModule(my_mod)"
+
+
+def test_fortranglobal_modname():
+    ''' Test the FortranGlobal.module_name setter error conditions. '''
+    with pytest.raises(ValueError) as err:
+        _ = Symbol.FortranGlobal("")
+    assert "module_name must be one or more characters long" in str(err)
+    with pytest.raises(TypeError) as err:
+        _ = Symbol.FortranGlobal(1)
+    assert "module_name must be a str but got" in str(err)
 
 
 def test_symbol_copy():
@@ -3324,8 +3332,8 @@ def test_symbol_copy():
     of the original symbol.
 
     '''
-    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
-                    constant_value=None, is_input=True, is_output=True)
+    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
+                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
     new_symbol = symbol.copy()
 
     # Check the new symbol has the same properties as the original
@@ -3334,8 +3342,7 @@ def test_symbol_copy():
     assert symbol.shape == new_symbol.shape
     assert symbol.scope == new_symbol.scope
     assert symbol.constant_value == new_symbol.constant_value
-    assert symbol.is_input == new_symbol.is_input
-    assert symbol.is_output == new_symbol.is_output
+    assert symbol.interface == new_symbol.interface
 
     # Change the properties of the new symbol and check the original
     # is not affected. Can't check constant_value yet as we have a
@@ -3344,17 +3351,13 @@ def test_symbol_copy():
     new_symbol._datatype = "integer"
     new_symbol.shape[0] = 3
     new_symbol.shape[1] = 4
-    new_symbol.scope = "local"
-    new_symbol.is_input = False
-    new_symbol.is_output = False
+    new_symbol._interface = None
 
     assert symbol.name == "myname"
     assert symbol.datatype == "real"
     assert symbol.shape == [1, 2]
-    assert symbol.scope == "global_argument"
+    assert symbol.scope == "global"
     assert not symbol.constant_value
-    assert symbol.is_input
-    assert symbol.is_output
 
     # Now check constant_value
     new_symbol._shape = []
@@ -3367,8 +3370,8 @@ def test_symbol_copy():
 def test_symbol_copy_properties():
     '''Test that the Symbol copy_properties method works as expected.'''
 
-    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
-                    constant_value=None, is_input=True, is_output=True)
+    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
+                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
 
     # Check an exception is raised if an incorrect argument is passed
     # in
@@ -3377,8 +3380,7 @@ def test_symbol_copy_properties():
     assert ("Argument should be of type 'Symbol' but found 'NoneType'."
             "") in str(excinfo.value)
 
-    new_symbol = Symbol("other_name", "integer", shape=[], scope="local",
-                        constant_value=7, is_input=False, is_output=False)
+    new_symbol = Symbol("other_name", "integer", shape=[], constant_value=7)
 
     symbol.copy_properties(new_symbol)
 
@@ -3387,8 +3389,6 @@ def test_symbol_copy_properties():
     assert symbol.shape == []
     assert symbol.scope == "local"
     assert symbol.constant_value == 7
-    assert not symbol.is_input
-    assert not symbol.is_output
 
 
 def test_symbol_gen_c_definition():
@@ -3416,22 +3416,23 @@ def test_symbol_gen_c_definition():
 
 # Test SymbolTable Class
 
-def test_symboltable_declare():
-    '''Test that the declare method inserts new symbols in the symbol
+def test_symboltable_add():
+    '''Test that the add method inserts new symbols in the symbol
     table, but raises appropiate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
 
     # Declare a symbol
     sym_table.add(Symbol("var1", "real", shape=[5, 1],
-                         scope="global_argument",
-                         is_input=True, is_output=True))
+                         interface=Symbol.FortranGlobal(
+                             access=Symbol.Access.READWRITE,
+                             module_use="some_mod")))
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
-    assert sym_table._symbols["var1"].scope == "global_argument"
-    assert sym_table._symbols["var1"].is_input is True
-    assert sym_table._symbols["var1"].is_output is True
+    assert sym_table._symbols["var1"].scope == "global"
+    assert sym_table._symbols["var1"].access is Symbol.Access.READWRITE
+    assert sym_table._symbols["var1"].interface.module_name == "some_mod"
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
@@ -3443,15 +3444,13 @@ def test_symboltable_declare():
 def test_symboltable_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
-    symbol1 = Symbol("var1", "integer", shape=[], scope="local",
-                     constant_value=7, is_input=False, is_output=False)
-    symbol2 = Symbol("dim1", "integer", scope="global_argument", is_input=True,
-                     is_output=False)
-    symbol3 = Symbol("dim2", "integer", scope="global_argument", is_input=True,
-                     is_output=False)
+    symbol1 = Symbol("var1", "integer", shape=[], constant_value=7)
+    symbol2 = Symbol("dim1", "integer",
+                     interface=Symbol.Argument(access=Symbol.Access.READ))
+    symbol3 = Symbol("dim2", "integer",
+                     interface=Symbol.Argument(access=Symbol.Access.READ))
     symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
-                     scope="global_argument", is_input=True, is_output=True)
-
+                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
     sym_table = SymbolTable()
     sym_table.add(symbol1)
 
@@ -3486,7 +3485,7 @@ def test_symboltable_swap_symbol_properties():
     sym_table.add(symbol2)
     sym_table.add(symbol3)
     sym_table.add(symbol4)
-    sym_table.specify_argument_list([symbol2.name, symbol3.name, symbol4.name])
+    sym_table.specify_argument_list([symbol2, symbol3, symbol4])
 
     # Check that properties are swapped
     sym_table.swap_symbol_properties(symbol1, symbol4)
@@ -3494,18 +3493,16 @@ def test_symboltable_swap_symbol_properties():
     assert symbol1.name == "var1"
     assert symbol1.datatype == "real"
     assert symbol1.shape == [symbol2, symbol3]
-    assert symbol1.scope == "global_argument"
+    assert symbol1.scope == "global"
     assert symbol1.constant_value is None
-    assert symbol1.is_input
-    assert symbol1.is_output
+    assert symbol1.interface.access == Symbol.Access.READWRITE
 
     assert symbol4.name == "var2"
     assert symbol4.datatype == "integer"
     assert not symbol4.shape
     assert symbol4.scope == "local"
     assert symbol4.constant_value == 7
-    assert not symbol4.is_input
-    assert not symbol4.is_output
+    assert not symbol4.interface
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
@@ -3559,9 +3556,13 @@ def test_symboltable_can_be_printed():
     sym_table = SymbolTable()
     sym_table.add(Symbol("var1", "real"))
     sym_table.add(Symbol("var2", "integer"))
-    assert "Symbol Table:\n" in str(sym_table)
-    assert "var1" in str(sym_table)
-    assert "var2" in str(sym_table)
+    sym_table.add(Symbol("var3", "deferred",
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    sym_table_text = str(sym_table)
+    assert "Symbol Table:\n" in sym_table_text
+    assert "var1" in sym_table_text
+    assert "var2" in sym_table_text
+    assert "FortranModule(my_mod)" in sym_table_text
 
 
 def test_symboltable_specify_argument_list():
@@ -3569,17 +3570,112 @@ def test_symboltable_specify_argument_list():
     with references to each Symbol and updates the Symbol attributes when
     needed.'''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = Symbol("var1", "real", [])
+    sym_table.add(sym_v1)
+    sym_table.add(Symbol("var2", "real", []))
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
+    sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.argument_list) == 1
-    assert sym_table.argument_list[0].scope == 'global_argument'
-    assert sym_table.argument_list[0].is_input is True
-    assert sym_table.argument_list[0].is_output is True
+    assert sym_table.argument_list[0].scope == 'global'
+    assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
-    sym_table.specify_argument_list(['var1'])
+    sym_table.specify_argument_list([sym_v1])
     assert len(sym_table.argument_list) == 1
+
+    # Check that specifying the Interface allows us to specify how
+    # the argument is accessed
+    sym_v2 = sym_table.lookup("var2")
+    sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1, sym_v2])
+    assert sym_table.argument_list[1].scope == 'global'
+    assert sym_table.argument_list[1].access == Symbol.Access.READWRITE
+
+
+def test_symboltable_specify_argument_list_errors():
+    ''' Check that supplying specify_argument_list() with Symbols that
+    don't have the correct Interface information raises the expected
+    errors. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_v1 = sym_table.lookup("var1")
+    # Attempt to say the argument list consists of "var1" which at this
+    # point is just a local variable.
+    with pytest.raises(ValueError) as err:
+        sym_table.specify_argument_list([sym_v1])
+    assert "Symbol 'var1:" in str(err)
+    assert ("is listed as a kernel argument but has no associated "
+            "Interface" in str(err))
+    # Now add an Interface for "var1" but of the wrong type
+    sym_v1.interface = Symbol.FortranGlobal("some_mod")
+    with pytest.raises(ValueError) as err:
+        sym_table.specify_argument_list([sym_v1])
+    assert "Symbol 'var1:" in str(err)
+    assert "has an interface of type '" in str(err)
+
+
+def test_symboltable_argument_list_errors():
+    ''' Tests the internal sanity checks of the SymbolTable.argument_list
+    property. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real",
+                         interface=Symbol.FortranGlobal("some_mod")))
+    # Manually put a local symbol into the internal list of arguments
+    sym_table._argument_list = [sym_table.lookup("var1")]
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_arg_list(sym_table._argument_list)
+    pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
+               "no associated Interface")
+    assert re.search(pattern, str(err)) is not None
+    # Check that the argument_list property converts this error into an
+    # InternalError
+    with pytest.raises(InternalError) as err:
+        _ = sym_table.argument_list
+    assert re.search(pattern, str(err)) is not None
+    # Check that we reject a symbol imported from a module
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_arg_list([sym_table.lookup("var3")])
+    # Manually put that symbol into the argument list
+    sym_table._argument_list = [sym_table.lookup("var3")]
+    pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
+               r"interface of type \'.*\.FortranGlobal\'>")
+    assert re.search(pattern, str(err)) is not None
+    # Check that the argument_list property converts this error into an
+    # InternalError
+    with pytest.raises(InternalError) as err:
+        _ = sym_table.argument_list
+    assert re.search(pattern, str(err)) is not None
+    # Check that we get the expected TypeError if we provide a list containing
+    # objects that are not Symbols
+    with pytest.raises(TypeError) as err:
+        sym_table._validate_arg_list(["Not a symbol"])
+    assert "Expected a list of Symbols but found an object of type" in str(err)
+
+
+def test_symboltable_validate_non_args():
+    ''' Checks for the validation of non-argument entries in the
+    SymbolTable. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real",
+                         interface=Symbol.FortranGlobal("some_mod")))
+    # Everything should be fine so far
+    sym_table._validate_non_args()
+    # Add an entry with an Argument interface
+    sym_table.add(Symbol("var4", "real",
+                         interface=Symbol.Argument()))
+    # Since this symbol isn't in the argument list, the SymbolTable
+    # is no longer valid
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_non_args()
+    pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
+               "has a Symbol.Argument interface")
+    assert re.search(pattern, str(err)) is not None
 
 
 def test_symboltable_contains():
@@ -3609,13 +3705,19 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var1") in sym_table.local_symbols
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
-
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = sym_table.lookup("var1")
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.local_symbols) == 2
     assert sym_table.lookup("var1") not in sym_table.local_symbols
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
+
+    sym_table.add(Symbol("var4", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    assert len(sym_table.local_symbols) == 2
+    assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
 def test_symboltable_gen_c_local_variables():
@@ -3626,7 +3728,9 @@ def test_symboltable_gen_c_local_variables():
     sym_table.add(Symbol("var1", "real", []))
     sym_table.add(Symbol("var2", "real", []))
     sym_table.add(Symbol("var3", "real", [None]))
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = sym_table.lookup('var1')
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1])
 
     c_local_vars = sym_table.gen_c_local_variables()
     assert sym_table.lookup("var1").gen_c_definition() not in c_local_vars
@@ -3735,9 +3839,8 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     assert isinstance(schedule, KernelSchedule)
 
     # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').scope == 'global_argument'
-    assert schedule.symbol_table.lookup('f3').is_input is True
-    assert schedule.symbol_table.lookup('f3').is_output is True
+    assert schedule.symbol_table.lookup('f3').scope == 'global'
+    assert schedule.symbol_table.lookup('f3').access is Symbol.Access.READWRITE
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
@@ -3842,8 +3945,8 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("l1").shape == []
     assert fake_parent.symbol_table.lookup("l1").scope == 'local'
-    assert fake_parent.symbol_table.lookup("l1").is_input is False
-    assert fake_parent.symbol_table.lookup("l1").is_output is False
+    assert not fake_parent.symbol_table.lookup("l1").access
+    assert not fake_parent.symbol_table.lookup("l1").interface
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -3952,37 +4055,39 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     specifications of variable attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Specification_Part, Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg1").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg1").is_input is True
-    assert fake_parent.symbol_table.lookup("arg1").is_output is False
+    arg_list = [Name("arg1")]
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg1").access == Symbol.Access.READ
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
+    arg_list.append(Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg2").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg2").is_input is True
-    assert fake_parent.symbol_table.lookup("arg2").is_output is False
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg2").access == Symbol.Access.READ
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
+    arg_list.append(Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg3").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg3").is_input is False
-    assert fake_parent.symbol_table.lookup("arg3").is_output is True
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg3").access == \
+        Symbol.Access.WRITE
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
+    arg_list.append(Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg4").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg4").is_input is True
-    assert fake_parent.symbol_table.lookup("arg4").is_output is True
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg4").access is \
+        Symbol.Access.READWRITE
 
 
 def test_fparser2astprocessor_parse_array_dimensions_attributes(
@@ -3991,7 +4096,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     of array attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Specification_Part, Name
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
@@ -4040,7 +4145,6 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
         class UnrecognizedType(object):
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
-            pass
 
         fparser2spec.items[1].items[1].__class__ = UnrecognizedType
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
@@ -4053,12 +4157,54 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec],
+                                   [Name("array3")])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
-    assert fake_parent.symbol_table.lookup("array3").scope == "global_argument"
-    assert fake_parent.symbol_table.lookup("array3").is_input is True
+    assert fake_parent.symbol_table.lookup("array3").scope == "global"
+    assert fake_parent.symbol_table.lookup("array3").access is \
+        Symbol.Access.READ
+
+
+def test_fparser2astprocessor_use(f2008_parser):
+    ''' Check that SymbolTable entries are correctly created from
+    module use statements. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use this_mod\n"
+                                 "use other_mod, only: var1, var2\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    for var in ["some_var", "var1", "var2"]:
+        assert fake_parent.symbol_table.lookup(var).name == var
+        assert fake_parent.symbol_table.lookup(var).scope == "global"
+    assert fake_parent.symbol_table.lookup("some_var").interface.module_name \
+        == "my_mod"
+    assert fake_parent.symbol_table.lookup("var2").interface.module_name == \
+        "other_mod"
+
+
+def test_fp2astproc_use_error(f2008_parser, monkeypatch):
+    ''' Check that we raise the expected error if the parse tree representing
+    a USE statement doesn't have the expected structure. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use this_mod\n"
+                                 "use other_mod, only: var1, var2\n")
+    fparser2spec = Specification_Part(reader)
+    monkeypatch.setattr(fparser2spec.content[0], "items",
+                        [None, "hello", None])
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("Expected the parse tree for a USE statement to contain 5 items "
+            "but found 3 for 'hello'" in str(err))
 
 
 def test_fparser2astprocessor_parse_array_dimensions_unhandled(
@@ -4073,11 +4219,10 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     def walk_ast_return(_1, _2):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk_ast method caller.'''
-        class invalid(object):
+        class Invalid(object):
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
-            pass
-        newobject = invalid()
+        newobject = Invalid()
         return [newobject]
 
     monkeypatch.setattr(fparser.two.utils, 'walk_ast', walk_ast_return)
