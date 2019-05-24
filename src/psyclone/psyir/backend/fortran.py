@@ -50,7 +50,7 @@ def get_intent(symbol):
     :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
     :returns: the Fortran intent of the symbol instance in lower case, \
-    or None if this is a local variable.
+    or None if the access is unknown or if this is a local variable.
     :rtype: str or NoneType
 
     '''
@@ -60,6 +60,9 @@ def get_intent(symbol):
                Symbol.Access.READ: "in",
                Symbol.Access.WRITE: "out",
                Symbol.Access.READWRITE: "inout"}
+    if not symbol.interface:
+        # This is a local variable
+        return None
     try:
         return mapping[symbol.interface.access]
     except KeyError as excinfo:
@@ -277,8 +280,9 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
+        mapping = {"DIV": "/", "GT": ".GT.", "ADD": "+"}
         lhs = self.visit(node.children[0])
-        oper = node._operator
+        oper = mapping[node._operator.name]
         rhs = self.visit(node.children[1])
         result = "{0}{1}{2}".format(lhs, oper, rhs)
         return result
@@ -379,8 +383,11 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
+        mapping = {"MINUS": "-"}
+        lhs = self.visit(node.children[0])
+        oper = mapping[node._operator.name]
         content = self.visit(node.children[0])
-        result = "{0}{1}".format(node._operator, content)
+        result = "{0}{1}".format(oper, content)
         return result
 
     def return_node(self, _):

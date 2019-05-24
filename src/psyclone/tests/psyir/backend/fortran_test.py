@@ -126,9 +126,15 @@ def test_FortranPSyIRVisitor_get_declaration():
 
     # Array with intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    scope="global_argument", is_input=True)
+                    interface=Symbol.Argument(access=Symbol.Access.READ))
     result = fvisitor.get_declaration(symbol)
     assert result == "integer(i_def), dimension(2,:,2), intent(in) :: dummy2\n"
+
+    # Array with unknown intent
+    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
+                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    result = fvisitor.get_declaration(symbol)
+    assert result == "integer(i_def), dimension(2,:,2) :: dummy2\n"
 
     # Constant
     symbol = Symbol("dummy3", "integer", constant_value=10)
@@ -167,6 +173,7 @@ def test_FortranPSyIRVisitor_node():
         "module test\n"
         "contains\n"
         "subroutine tmp()\n"
+        "  integer :: a,b,c\n"
         "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
@@ -203,6 +210,7 @@ def test_FortranPSyIRVisitor_nemokern():
         "module test\n"
         "contains\n"
         "subroutine tmp()\n"
+        "  integer :: a,b,c\n"
         "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
@@ -216,8 +224,12 @@ def test_FortranPSyIRVisitor_nemokern():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
+    print (result)
+    assert "  subroutine tmp()\n" in result
+    assert "    integer(i_def) :: a\n" in result
+    assert "    integer(i_def) :: c\n" in result
+    assert "    integer(i_def) :: b\n" in result
     assert (
-        "  subroutine tmp()\n"
         "\n"
         "    a=b/c\n"
         "\n"
