@@ -3518,7 +3518,7 @@ class ExtractRegionTrans(RegionTrans):
                     "a thread parallel region is not allowed."
                     .format(str(self.name)))
 
-    def apply(self, nodes):
+    def apply(self, nodes, api_extract_node):
         # pylint: disable=arguments-differ
         ''' Apply this transformation to a subset of the Nodes within
         a Schedule - i.e. enclose the specified Nodes in the Schedule
@@ -3526,6 +3526,9 @@ class ExtractRegionTrans(RegionTrans):
 
         :param nodes: a single Node or a list of Nodes.
         :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :param api_extract_node: API-specific (child class) or general \
+                                 (base class) instance of an ExtractNode.
+        :type nodes: :py:class:`psyclone.extractor.ExtractNode`.
         :returns: tuple of the modified Schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
@@ -3567,8 +3570,8 @@ class ExtractRegionTrans(RegionTrans):
 
         keep = Memento(schedule, self)
 
-        from psyclone.extractor import ExtractNode
-        extract_node = ExtractNode(parent=node_parent, children=node_list[:])
+        extract_node = api_extract_node(parent=node_parent,
+                                        children=node_list[:])
 
         # Change all of the affected children so that they have the
         # ExtractNode as their parent. Use a slice of the list of Nodes
@@ -3643,6 +3646,26 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
                     "over cells in a colour without its ancestor Loop over "
                     "colours is not allowed.".format(str(self.name)))
 
+    def apply(self, nodes):
+        # pylint: disable=arguments-differ
+        ''' Apply this transformation to a subset of the Nodes within
+        a Dynamo0.3 API Schedule by passing an instance of
+        DynamoExtractNode to the base class ExtractRegionTrans.
+
+        :param nodes: a single Node or a list of Nodes.
+        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :returns: tuple of the modified Schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                 :py:class:`psyclone.undoredo.Memento`).
+        '''
+
+        from psyclone.extractor import DynamoExtractNode
+
+        # Return modified Schedule by applying the base class method
+        return super(DynamoExtractRegionTrans, self).apply(nodes,
+                                                           DynamoExtractNode)
+
 
 class GOceanExtractRegionTrans(ExtractRegionTrans):
     ''' GOcean1.0 API application of ExtractRegionTrans transformation \
@@ -3698,3 +3721,23 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
                     "Error in {0} for GOcean1.0 API: Extraction of an "
                     "inner Loop without its ancestor outer Loop is not "
                     "allowed.".format(str(self.name)))
+
+    def apply(self, nodes):
+        # pylint: disable=arguments-differ
+        ''' Apply this transformation to a subset of the Nodes within
+        a GOcean1.0 API Schedule by passing an instance of
+        ExtractNode to the base class ExtractRegionTrans.
+
+        :param nodes: a single Node or a list of Nodes.
+        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :returns: tuple of the modified Schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                 :py:class:`psyclone.undoredo.Memento`).
+        '''
+
+        from psyclone.extractor import ExtractNode
+
+        # Return modified Schedule by applying the base class method
+        return super(GOceanExtractRegionTrans, self).apply(nodes,
+                                                           ExtractNode)
