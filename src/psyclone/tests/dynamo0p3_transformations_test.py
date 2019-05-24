@@ -3736,7 +3736,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+    call = colored("Kernel", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     for distmem in [False, True]:
         _, invoke_info = parse(

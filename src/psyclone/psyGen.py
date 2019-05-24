@@ -110,7 +110,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "HaloExchangeStart": "yellow",
                        "HaloExchangeEnd": "yellow",
                        "BuiltIn": "magenta",
-                       "KernCall": "magenta",
+                       "CodedKern": "magenta",
                        "Profile": "green",
                        "Extract": "green",
                        "If": "red",
@@ -1479,7 +1479,7 @@ class Node(object):
 
     def kern_calls(self):
         '''Return all user-supplied kernel calls in this schedule.'''
-        return self.walk(self._children, Kern)
+        return self.walk(self._children, CodedKern)
 
     def loops(self):
         '''Return all loops currently in this schedule.'''
@@ -3323,7 +3323,7 @@ class Kern(Node):
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node
         type '''
-        return colored("Kernel", SCHEDULE_COLOUR_MAP["KernCall"])
+        return colored("Kernel", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     @property
     def is_reduction(self):
@@ -3505,19 +3505,19 @@ class Kern(Node):
         return self._iterates_over
 
     def local_vars(self):
-        raise NotImplementedError("Call.local_vars should be implemented")
+        raise NotImplementedError("Kern.local_vars should be implemented")
 
     def __str__(self):
-        raise NotImplementedError("Call.__str__ should be implemented")
+        raise NotImplementedError("Kern.__str__ should be implemented")
 
     def gen_code(self, parent):
-        raise NotImplementedError("Call.gen_code should be implemented")
+        raise NotImplementedError("Kern.gen_code should be implemented")
 
 
 class CodedKern(Kern):
     '''
     Class representing a call to a PSyclone Kernel with a user-provided
-    implementation.
+    implementation. The kernel may or may not be in-lined.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -3644,7 +3644,7 @@ class CodedKern(Kern):
                   for colour
         :rtype: string
         '''
-        return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+        return colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     def gen_code(self, parent):
         '''
@@ -4374,7 +4374,7 @@ class Argument(object):
 
         '''
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Call, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
