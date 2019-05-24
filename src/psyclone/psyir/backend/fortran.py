@@ -280,9 +280,14 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
-        mapping = {"DIV": "/", "GT": ".GT.", "ADD": "+"}
+        # reverse the fortran2psyir mapping to make a psyir2fortran
+        # mapping
+        from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
+        mapping = {}
+        for operator in f2psyir.binary_operators:
+            mapping[f2psyir.binary_operators[operator]] = operator
         lhs = self.visit(node.children[0])
-        oper = mapping[node._operator.name]
+        oper = mapping[node._operator]
         rhs = self.visit(node.children[1])
         result = "{0}{1}{2}".format(lhs, oper, rhs)
         return result
@@ -383,9 +388,14 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :rtype: str
 
         '''
-        mapping = {"MINUS": "-"}
+        # reverse the fortran2psyir mapping to make a psyir2fortran
+        # mapping
+        from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
+        mapping = {}
+        for operator in f2psyir.unary_operators:
+            mapping[f2psyir.unary_operators[operator]] = operator
         lhs = self.visit(node.children[0])
-        oper = mapping[node._operator.name]
+        oper = mapping[node._operator]
         content = self.visit(node.children[0])
         result = "{0}{1}".format(oper, content)
         return result

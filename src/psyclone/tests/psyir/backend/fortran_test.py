@@ -391,10 +391,10 @@ def test_FortranPSyIRVisitor_ifblock():
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
     assert (
-        "    if (n.GT.2) then\n"
+        "    if (n>2) then\n"
         "      n=n+1\n"
         "    end if\n"
-        "    if (n.GT.4) then\n"
+        "    if (n>4) then\n"
         "      a=-1\n"
         "    else\n"
         "      a=1\n"
