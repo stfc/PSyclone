@@ -368,7 +368,7 @@ class PSy(object):
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
-            for kernel in schedule.walk(schedule.children, Kern):
+            for kernel in schedule.walk(schedule.children, CodedKern):
                 if kernel.module_inline:
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
