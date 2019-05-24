@@ -53,10 +53,10 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess
+    FORTRAN_INTENT_NAMES, DataAccess, CodedKern
 
 # First section : Parser specialisations and classes
 
@@ -6125,7 +6125,7 @@ class DynLoop(Loop):
                 parent.add(CommentGen(parent, ""))
 
 
-class DynKern(Kern):
+class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
@@ -6252,9 +6252,9 @@ class DynKern(Kern):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
         from psyclone.parse.algorithm import KernelCall
-        Kern.__init__(self, DynKernelArguments,
-                      KernelCall(module_name, ktype, args),
-                      parent, check=False)
+        CodedKern.__init__(self, DynKernelArguments,
+                           KernelCall(module_name, ktype, args),
+                           parent, check=False)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine

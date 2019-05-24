@@ -109,7 +109,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "HaloExchange": "blue",
                        "HaloExchangeStart": "yellow",
                        "HaloExchangeEnd": "yellow",
-                       "Call": "magenta",
+                       "BuiltIn": "magenta",
                        "KernCall": "magenta",
                        "Profile": "green",
                        "Extract": "green",
@@ -1106,7 +1106,7 @@ class Node(object):
     def args(self):
         '''Return the list of arguments associated with this Node. The default
         implementation assumes the Node has no directly associated
-        arguments (i.e. is not a Call class or subclass). Arguments of
+        arguments (i.e. is not a Kern class or subclass). Arguments of
         any of this nodes descendants are considered to be
         associated. '''
         args = []
@@ -1196,7 +1196,7 @@ class Node(object):
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
             raise GenerationError(
-                "In the psyGen Call class is_valid_location() method the "
+                "In the psyGen.Node.is_valid_location() method the "
                 "supplied argument is not a Node, it is a '{0}'.".
                 format(type(new_node).__name__))
 
@@ -1204,14 +1204,14 @@ class Node(object):
         valid_positions = ["before", "after"]
         if position not in valid_positions:
             raise GenerationError(
-                "The position argument in the psyGen Call class "
-                "is_valid_location() method must be one of {0} but "
-                "found '{1}'".format(valid_positions, position))
+                "The position argument in the psyGenNode.is_valid_location() "
+                "method must be one of {0} but found '{1}'".format(
+                    valid_positions, position))
 
         # 3: check self and new_node have the same parent
         if not self.sameParent(new_node):
             raise GenerationError(
-                "In the psyGen Call class is_valid_location() method "
+                "In the psyGen.Node.is_valid_location() method "
                 "the node and the location do not have the same parent")
 
         # 4: check proposed new position is not the same as current position
@@ -1223,7 +1223,7 @@ class Node(object):
 
         if self.position == new_position:
             raise GenerationError(
-                "In the psyGen Call class is_valid_location() method, the "
+                "In the psyGen.Node.is_valid_location() method, the "
                 "node and the location are the same so this transformation "
                 "would have no effect.")
 
@@ -1430,7 +1430,7 @@ class Node(object):
 
     def calls(self):
         '''Return all calls that are descendants of this node.'''
-        return self.walk(self.children, Call)
+        return self.walk(self.children, Kern)
 
     def following(self):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
@@ -1493,7 +1493,7 @@ class Node(object):
         builtins that are set to reproducible are returned.'''
 
         call_reduction_list = []
-        for call in self.walk(self.children, Call):
+        for call in self.walk(self.children, Kern):
             if call.is_reduction:
                 if reprod is None:
                     call_reduction_list.append(call)
@@ -1720,7 +1720,7 @@ class InvokeSchedule(Schedule):
             if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
                                    rhs="get_cmd_queues()"))
             # Kernel pointers
-            kernels = self.walk(self._children, Call)
+            kernels = self.walk(self._children, Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
                 kernel = self._name_space_manager.create_name(
@@ -3243,9 +3243,11 @@ class Loop(Node):
             parent.add(my_decl)
 
 
-class Call(Node):
+class Kern(Node):
     '''
-    Represents a call to a sub-program unit from within the PSy layer.
+    Base class representing a call to a sub-program unit from within the
+    PSy layer. It is possible for this unit to be in-lined within the
+    PSy layer.
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
@@ -3306,7 +3308,7 @@ class Call(Node):
 
     def view(self, indent=0):
         '''
-        Write out a textual summary of this Call node to stdout
+        Write out a textual summary of this Kern node to stdout
         and then call the view() method of any children.
 
         :param indent: Depth of indent for output text
@@ -3321,7 +3323,7 @@ class Call(Node):
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node
         type '''
-        return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+        return colored("Kernel", SCHEDULE_COLOUR_MAP["KernCall"])
 
     @property
     def is_reduction(self):
@@ -3476,7 +3478,7 @@ class Call(Node):
     @property
     def name(self):
         '''
-        :returns: the name of the kernel associated with this call.
+        :returns: the name of the kernel.
         :rtype: str
         '''
         return self._name
@@ -3484,11 +3486,19 @@ class Call(Node):
     @name.setter
     def name(self, value):
         '''
-        Set the name of the kernel that this call is for.
+        Set the name of the kernel.
 
         :param str value: The name of the kernel.
         '''
         self._name = value
+
+    def is_coloured(self):
+        '''
+        :returns: True if this kernel is being called from within a \
+                  coloured loop.
+        :rtype: bool
+        '''
+        return self.parent.loop_type == "colour"
 
     @property
     def iterates_over(self):
@@ -3504,9 +3514,10 @@ class Call(Node):
         raise NotImplementedError("Call.gen_code should be implemented")
 
 
-class Kern(Call):
+class CodedKern(Kern):
     '''
-    Class representing a call to a PSyclone Kernel.
+    Class representing a call to a PSyclone Kernel with a user-provided
+    implementation.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -3518,12 +3529,15 @@ class Kern(Call):
     :param bool check: Whether or not to check that the number of arguments \
                        specified in the kernel meta-data matches the number \
                        provided by the call in the Algorithm layer.
+
     :raises GenerationError: if(check) and the number of arguments in the \
                              call does not match that in the meta-data.
+
     '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
-        Call.__init__(self, parent, call, call.ktype.procedure.name,
-                      KernelArguments(call, self))
+        super(CodedKern, self).__init__(parent, call,
+                                        call.ktype.procedure.name,
+                                        KernelArguments(call, self))
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
@@ -3680,11 +3694,6 @@ class Kern(Call):
                                  "{1} access".
                                  format(self.name,
                                         AccessType.INC.api_specific_name()))
-
-    def is_coloured(self):
-        ''' Returns true if this kernel is being called from within a
-        coloured loop '''
-        return self.parent.loop_type == "colour"
 
     @property
     def ast(self):
@@ -3916,9 +3925,11 @@ class Kern(Call):
         self._modified = value
 
 
-class BuiltIn(Call):
-    ''' Parent class for all built-ins (field operations for which the user
-    does not have to provide a kernel). '''
+class BuiltIn(Kern):
+    '''
+    Parent class for all built-ins (field operations for which the user
+    does not have to provide an implementation).
+    '''
     def __init__(self):
         # We cannot call Call.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
@@ -3936,7 +3947,7 @@ class BuiltIn(Call):
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
-        Call.__init__(self, parent, call, name, arguments)
+        super(BuiltIn, self).__init__(parent, call, name, arguments)
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
@@ -4387,7 +4398,7 @@ class Argument(object):
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Call, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -4426,7 +4437,7 @@ class Argument(object):
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Call, GlobalSum)) or
+                           isinstance(x, (Kern, GlobalSum)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
