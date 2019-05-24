@@ -54,19 +54,22 @@ def get_intent(symbol):
     :rtype: str or NoneType
 
     '''
-    intent = None
-    if symbol.is_input and symbol.is_output:
-        intent = "inout"
-    elif symbol.is_input:
-        intent = "in"
-    elif symbol.is_output:
-        intent = "out"
-    return intent
+    from psyclone.psyGen import Symbol
+
+    mapping = {Symbol.Access.UNKNOWN: None,
+               Symbol.Access.READ: "in",
+               Symbol.Access.WRITE: "out",
+               Symbol.Access.READWRITE: "inout"}
+    try:
+        return mapping[symbol.interface.access]
+    except KeyError as excinfo:
+        raise VisitorError("Unsupported access '{0}' found"
+                           "".format(str(excinfo)))
 
 
 def get_dims(symbol):
     '''Given a Symbol instance as input, return a list of strings
-    representing the symbols array dimensions.
+    representing the symbol's array dimensions.
 
     :param symbol: The symbol instance.
     :type symbol: :py:class:`psyclone.psyGen.Symbol`

@@ -52,14 +52,18 @@ def test_get_intent():
     strings.
 
     '''
-    symbol = Symbol("dummy", "integer", scope="global_argument")
+    symbol = Symbol("dummy", "integer",
+                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     assert get_intent(symbol) is None
-    symbol.is_input = True
+    symbol = Symbol("dummy", "integer",
+                    interface=Symbol.Argument(Symbol.Access.READ))
     assert get_intent(symbol) == "in"
-    symbol.is_output = True
-    assert get_intent(symbol) == "inout"
-    symbol.is_input = False
+    symbol = Symbol("dummy", "integer",
+                    interface=Symbol.Argument(Symbol.Access.WRITE))
     assert get_intent(symbol) == "out"
+    symbol = Symbol("dummy", "integer",
+                    interface=Symbol.Argument(Symbol.Access.READWRITE))
+    assert get_intent(symbol) == "inout" 
 
 
 def test_get_dims():
@@ -67,9 +71,10 @@ def test_get_dims():
     strings.
 
     '''
-    arg = Symbol("arg", "integer", scope="global_argument")
+    arg = Symbol("arg", "integer",
+                 interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     symbol = Symbol("dummy", "integer", shape=[arg, 2, None],
-                    scope="global_argument")
+                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     assert get_dims(symbol) == ["arg", "2", ":"]
 
 
@@ -78,7 +83,8 @@ def test_get_dims_error(monkeypatch):
     entry is not supported.
 
     '''
-    symbol = Symbol("dummy", "integer", scope="global_argument")
+    symbol = Symbol("dummy", "integer",
+                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     monkeypatch.setattr(symbol, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = get_dims(symbol)
@@ -91,9 +97,15 @@ def test_get_kind():
     captures this problem.
 
     '''
-    int_symbol = Symbol("dummy1", "integer", scope="global_argument")
-    real_symbol = Symbol("dummy2", "real", scope="global_argument")
-    logical_symbol = Symbol("dummy3", "boolean", scope="global_argument")
+    int_symbol = Symbol(
+        "dummy1", "integer",
+        interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    real_symbol = Symbol(
+        "dummy2", "real",
+    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    logical_symbol = Symbol(
+        "dummy3", "boolean",
+    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
 
     assert get_kind(int_symbol) == "i_def"
     assert get_kind(real_symbol) == "r_def"
