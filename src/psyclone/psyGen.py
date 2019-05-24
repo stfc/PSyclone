@@ -5690,7 +5690,9 @@ class Fparser2ASTProcessor(object):
                     ifblock.ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
-                    bop = BinaryOperation(parent=ifblock, operator='==')
+                    bop = BinaryOperation(BinaryOperation.Operator.EQ,
+                                          parent=ifblock)
+
                     self.process_nodes(parent=bop,
                                        nodes=[selector],
                                        nodes_parent=node)
@@ -5785,11 +5787,23 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.utils.UnaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
-        # Get the operator
-        operator = node.items[0]
+
+        fortranoperators = {
+            '+': UnaryOperation.Operator.PLUS,
+            '-': UnaryOperation.Operator.MINUS,
+            '.not.': UnaryOperation.Operator.NOT
+            }
+
+        operator_str = node.items[0].lower()
+        try:
+            operator = fortranoperators[operator_str]
+        except KeyError:
+            # Operator not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
 
         unary_op = UnaryOperation(operator, parent=parent)
         self.process_nodes(parent=unary_op, nodes=[node.items[1]],
@@ -5808,8 +5822,35 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
-        # Get the operator
-        operator = node.items[1]
+
+        fortranoperators = {
+            '+': BinaryOperation.Operator.ADD,
+            '-': BinaryOperation.Operator.SUB,
+            '*': BinaryOperation.Operator.MUL,
+            '/': BinaryOperation.Operator.DIV,
+            '**': BinaryOperation.Operator.POW,
+            '==': BinaryOperation.Operator.EQ,
+            '.eq.': BinaryOperation.Operator.EQ,
+            '/=': BinaryOperation.Operator.NE,
+            '.ne.': BinaryOperation.Operator.NE,
+            '<=': BinaryOperation.Operator.LE,
+            '.le.': BinaryOperation.Operator.LE,
+            '<': BinaryOperation.Operator.LT,
+            '.lt.': BinaryOperation.Operator.LT,
+            '>=': BinaryOperation.Operator.GE,
+            '.ge.': BinaryOperation.Operator.GE,
+            '>': BinaryOperation.Operator.GT,
+            '.gt.': BinaryOperation.Operator.GT,
+            '.and.': BinaryOperation.Operator.AND,
+            '.or.': BinaryOperation.Operator.OR,
+            }
+
+        operator_str = node.items[1].lower()
+        try:
+            operator = fortranoperators[operator_str]
+        except KeyError:
+            # Operator not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
 
         binary_op = BinaryOperation(operator, parent=parent)
         self.process_nodes(parent=binary_op, nodes=[node.items[0]],
@@ -5821,7 +5862,9 @@ class Fparser2ASTProcessor(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation.
+        Transforms an fparser2 Name to the PSyIR representation. If the node
+        is connected to a SymbolTable, it checks the reference has been
+        previously declared.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Name`
@@ -5830,6 +5873,16 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
+        if hasattr(parent.root, 'symbol_table'):
+            symbol_table = parent.root.symbol_table
+            try:
+                symbol_table.lookup(node.string)
+            except KeyError:
+                raise GenerationError(
+                    "Undeclared reference '{0}' found when parsing fparser2 "
+                    "node '{1}' inside '{2}'."
+                    "".format(str(node.string), repr(node), parent.root.name))
+
         return Reference(node.string, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -5852,7 +5905,11 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation.
+        Transforms an fparser2 Part_Ref to the PSyIR representation. It also
+        resolves Fortran intrinsics parsed as array references. If the node
+        is connected to a SymbolTable, it checks the reference has been
+        previously declared.
+
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -5863,7 +5920,61 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two import Fortran2003
 
-        reference_name = node.items[0].string
+        reference_name = node.items[0].string.lower()
+
+        # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
+        # #189), we can fix the issue here and convert them to appropiate PSyIR
+        # nodes.
+        if reference_name == 'sign':
+            bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
+            self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
+                               nodes_parent=node)
+            self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
+                               nodes_parent=node)
+            return bop
+        if reference_name == 'sin':
+            uop = UnaryOperation(UnaryOperation.Operator.SIN, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
+                               nodes_parent=node)
+            return uop
+        if reference_name == 'real':
+            if len(node.items) != 2:
+                raise GenerationError(
+                    "Unexpected fparser2 node when parsing the real() "
+                    "intrinsic, 2 items were expected but found '{0}'."
+                    "".format(repr(node)))
+            # The single argument will be 'node.items[1]' in current fparser2
+            # implementation or node.items[1].items[0] in the future (see
+            # fparser#170).
+            argument = None
+            if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
+                argument = node.items[1].items[0]
+                if len(node.items[1].items) > 1:
+                    # If it has more than a single argument create a CodeBlock
+                    raise NotImplementedError()
+            else:
+                argument = node.items[1]
+            uop = UnaryOperation(UnaryOperation.Operator.REAL, parent)
+            self.process_nodes(parent=uop, nodes=[argument],
+                               nodes_parent=node)
+            return uop
+        if reference_name == 'sqrt':
+            uop = UnaryOperation(UnaryOperation.Operator.SQRT, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
+                               nodes_parent=node)
+            return uop
+
+        if hasattr(parent.root, 'symbol_table'):
+            symbol_table = parent.root.symbol_table
+            try:
+                symbol_table.lookup(reference_name)
+            except KeyError:
+                raise GenerationError(
+                    "Undeclared reference '{0}' found when parsing fparser2 "
+                    "node '{1}' inside '{2}'."
+                    "".format(str(reference_name), repr(node),
+                              parent.root.name))
+
         array = Array(reference_name, parent)
 
         if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
@@ -6854,10 +6965,28 @@ class UnaryOperation(Node):
     :param parent: the parent node of this UnaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'MINUS', 'PLUS', 'SQRT',
+        # Logical Operators
+        'NOT',
+        # Trigonometric Operators
+        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
+        # Other Maths Operators
+        'ABS',
+        # Casting Operators
+        'REAL'
+        ])
+
     def __init__(self, operator, parent=None):
         super(UnaryOperation, self).__init__(parent=parent)
-        # TODO: (Issue #339) Create an Operator entity to have more robust
-        # operators than the current string.
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "UnaryOperation operator argument must be of type "
+                "UnaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
+
         self._operator = operator
 
     @property
@@ -6879,12 +7008,12 @@ class UnaryOperation(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator + "']")
+              self._operator.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "UnaryOperation[operator:'" + self._operator + "']\n"
+        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
         for entity in self._children:
             result += str(entity)
         return result
@@ -6894,9 +7023,12 @@ class UnaryOperation(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
+
         :return: C language code representing the node.
         :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
+
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
         '''
         if len(self.children) != 1:
             raise GenerationError("UnaryOperation malformed or "
@@ -6904,23 +7036,86 @@ class UnaryOperation(Node):
                                   "child, but found {0}."
                                   "".format(len(self.children)))
 
-        return "(" + self._operator + " " \
-            + self._children[0].gen_c_code() + ")"
+        def operator_format(operator_str, expr_str):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + operator_str + expr_str + ")"
+
+        def function_format(function_str, expr_str):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr_str + ")"
+
+        # Define a map with the operator string and the formatter function
+        # associated with each UnaryOperation.Operator
+        opmap = {
+            UnaryOperation.Operator.MINUS: ("-", operator_format),
+            UnaryOperation.Operator.PLUS: ("+", operator_format),
+            UnaryOperation.Operator.NOT: ("!", operator_format),
+            UnaryOperation.Operator.SIN: ("sin", function_format),
+            UnaryOperation.Operator.COS: ("cos", function_format),
+            UnaryOperation.Operator.TAN: ("tan", function_format),
+            UnaryOperation.Operator.ASIN: ("asin", function_format),
+            UnaryOperation.Operator.ACOS: ("acos", function_format),
+            UnaryOperation.Operator.ATAN: ("atan", function_format),
+            UnaryOperation.Operator.ABS: ("abs", function_format),
+            UnaryOperation.Operator.REAL: ("float", function_format),
+            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
+            }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code())
 
 
 class BinaryOperation(Node):
     '''
-    Node representing a BinaryOperator expression. As such it has two operands
-    as children 0 and 1, and a attribute with the operator type.
+    Node representing a BinaryOperation expression. As such it has two operands
+    as children 0 and 1, and an attribute with the operator type.
 
     :param operator: node in the fparser2 AST representing the binary operator.
     :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
-    :param parent: the parent node of this BinaryOperator in the PSyIR.
+    :param parent: the parent node of this BinaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+        # Relational Operators
+        'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
+        # Logical Operators
+        'AND', 'OR',
+        # Other Maths Operators
+        'SIGN'
+        ])
+
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
-        self.ast = operator
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "BinaryOperation operator argument must be of type "
+                "BinaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
+
         self._operator = operator
 
     @property
@@ -6942,12 +7137,12 @@ class BinaryOperation(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator + "']")
+              self._operator.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "BinaryOperation[operator:'" + self._operator + "']\n"
+        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
         for entity in self._children:
             result += str(entity)
         return result
@@ -6959,7 +7154,8 @@ class BinaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :returns: C language code representing the node.
         :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
         '''
 
         if len(self.children) != 2:
@@ -6968,9 +7164,60 @@ class BinaryOperation(Node):
                                   "children, but found {0}."
                                   "".format(len(self.children)))
 
-        return "(" + self._children[0].gen_c_code() + " " \
-            + self._operator + " " \
-            + self._children[1].gen_c_code() + ")"
+        def operator_format(operator_str, expr1, expr2):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr1: String representation of the LHS operand.
+            :param str expr2: String representation of the RHS operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
+
+        def function_format(function_str, expr1, expr2):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr1: String representation of the first operand.
+            :param str expr2: String representation of the second operand.
+
+            :returns: C language binary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr1 + ", " + expr2 + ")"
+
+        # Define a map with the operator string and the formatter function
+        # associated with each BinaryOperation.Operator
+        opmap = {
+            BinaryOperation.Operator.ADD: ("+", operator_format),
+            BinaryOperation.Operator.SUB: ("-", operator_format),
+            BinaryOperation.Operator.MUL: ("*", operator_format),
+            BinaryOperation.Operator.DIV: ("/", operator_format),
+            BinaryOperation.Operator.REM: ("%", operator_format),
+            BinaryOperation.Operator.POW: ("pow", function_format),
+            BinaryOperation.Operator.EQ: ("==", operator_format),
+            BinaryOperation.Operator.NE: ("!=", operator_format),
+            BinaryOperation.Operator.LT: ("<", operator_format),
+            BinaryOperation.Operator.LE: ("<=", operator_format),
+            BinaryOperation.Operator.GT: (">", operator_format),
+            BinaryOperation.Operator.GE: (">=", operator_format),
+            BinaryOperation.Operator.AND: ("&&", operator_format),
+            BinaryOperation.Operator.OR: ("||", operator_format),
+            BinaryOperation.Operator.SIGN: ("copysign", function_format),
+            }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code(),
+                         self.children[1].gen_c_code())
 
 
 class Array(Reference):
