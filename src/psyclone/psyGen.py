@@ -5932,11 +5932,19 @@ class Fparser2ASTProcessor(object):
                     "Unexpected fparser2 node when parsing the real() "
                     "intrinsic, 2 items were expected but found '{0}'."
                     "".format(repr(node)))
+            # The single argument will be 'node.items[1]' in current fparser2
+            # implementation or node.items[1].items[0] in the future (see
+            # fparser#170).
+            argument = None
             if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
-                # If it has more than a single argument create a CodeBlock
-                raise NotImplementedError()
+                argument = node.items[1].items[0]
+                if len(node.items[1].items) > 1:
+                    # If it has more than a single argument create a CodeBlock
+                    raise NotImplementedError()
+            else:
+                argument = node.items[1]
             uop = UnaryOperation(UnaryOperation.Operator.REAL, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1]],
+            self.process_nodes(parent=uop, nodes=[argument],
                                nodes_parent=node)
             return uop
         if reference_name == 'sqrt':
@@ -7004,8 +7012,10 @@ class UnaryOperation(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
+
         :return: C language code representing the node.
         :rtype: str
+
         :raises GenerationError: If the node or its children are invalid.
         :raises NotImplementedError: If the operator is not supported.
         '''
@@ -7143,7 +7153,7 @@ class BinaryOperation(Node):
                                   "children, but found {0}."
                                   "".format(len(self.children)))
 
-        def operator_format(operator_str,  expr1, expr2):
+        def operator_format(operator_str, expr1, expr2):
             '''
             :param str operator_str: String representing the operator.
             :param str expr1: String representation of the LHS operand.
@@ -7168,21 +7178,21 @@ class BinaryOperation(Node):
         # Define a map with the operator string and the formatter function
         # associated with each BinaryOperation.Operator
         opmap = {
-                BinaryOperation.Operator.ADD: ("+", operator_format),
-                BinaryOperation.Operator.SUB: ("-", operator_format),
-                BinaryOperation.Operator.MUL: ("*", operator_format),
-                BinaryOperation.Operator.DIV: ("/", operator_format),
-                BinaryOperation.Operator.REM: ("%", operator_format),
-                BinaryOperation.Operator.POW: ("pow", function_format),
-                BinaryOperation.Operator.EQ: ("==", operator_format),
-                BinaryOperation.Operator.NE: ("!=", operator_format),
-                BinaryOperation.Operator.LT: ("<", operator_format),
-                BinaryOperation.Operator.LE: ("<=", operator_format),
-                BinaryOperation.Operator.GT: (">", operator_format),
-                BinaryOperation.Operator.GE: (">=", operator_format),
-                BinaryOperation.Operator.AND: ("&&", operator_format),
-                BinaryOperation.Operator.OR: ("||", operator_format),
-                BinaryOperation.Operator.SIGN: ("copysign", function_format),
+            BinaryOperation.Operator.ADD: ("+", operator_format),
+            BinaryOperation.Operator.SUB: ("-", operator_format),
+            BinaryOperation.Operator.MUL: ("*", operator_format),
+            BinaryOperation.Operator.DIV: ("/", operator_format),
+            BinaryOperation.Operator.REM: ("%", operator_format),
+            BinaryOperation.Operator.POW: ("pow", function_format),
+            BinaryOperation.Operator.EQ: ("==", operator_format),
+            BinaryOperation.Operator.NE: ("!=", operator_format),
+            BinaryOperation.Operator.LT: ("<", operator_format),
+            BinaryOperation.Operator.LE: ("<=", operator_format),
+            BinaryOperation.Operator.GT: (">", operator_format),
+            BinaryOperation.Operator.GE: (">=", operator_format),
+            BinaryOperation.Operator.AND: ("&&", operator_format),
+            BinaryOperation.Operator.OR: ("||", operator_format),
+            BinaryOperation.Operator.SIGN: ("copysign", function_format),
             }
 
         # If the instance operator exists in the map, use its associated

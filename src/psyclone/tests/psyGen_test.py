@@ -53,7 +53,7 @@ from fparser import api as fpapi
 from psyclone_test_utils import get_invoke
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, OMPParallelDoDirective, PSy, \
+    NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, Return
@@ -2937,7 +2937,7 @@ def test_literal_gen_c_code():
 
 
 # Test BinaryOperation class
-def test_binaryoperation_initialization(capsys):
+def test_binaryoperation_initialization():
     ''' Check the initialization method of the BinaryOperation class works
     as expected.'''
 
@@ -3025,7 +3025,7 @@ def test_binaryoperation_gen_c_code():
 
 
 # Test UnaryOperation class
-def test_unaryoperation_initialization(capsys):
+def test_unaryoperation_initialization():
     ''' Check the initialization method of the UnaryOperation class works
     as expected.'''
 
@@ -4447,7 +4447,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
     ''' Test that fparser2 Part_Ref nodes that in reality are Fortran
-    Intrinsics are handled approprietly.
+    Intrinsics are handled appropriately.
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
