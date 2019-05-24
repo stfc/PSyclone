@@ -58,7 +58,7 @@ section e.g.:
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
 
-and a an optional API specific section, for example for 
+and an optional API specific section, for example for
 ``dynamo0.3`` section:
 ::
 
@@ -205,6 +205,9 @@ mapping-TYPE            This declares a mapping for a certain loop level,
 
                         ``stop``: the last loop iteration.
 
+                        Each loop detected by the NEMO API will be given one of
+                        the TYPE values specified in the configuration file.
+                        See the example below for more details.
 
 index-order             Specifies the order in which loops are created when
                         converting an implicit loop to an explicit loop.
@@ -212,7 +215,7 @@ index-order             Specifies the order in which loops are created when
                         corresponding ``mapping-TYPE`` value defined.
 ======================= =======================================================
 
-Here an example of the NEMO section of a PSyclone configuration file.
+Below we show an example of the NEMO section of a PSyclone configuration file.
 Note how the values in ``index-order`` have corresponding mapping entries, e.g.
 ``mapping-lon``, ``mapping-lat`` etc.::
 
@@ -223,3 +226,13 @@ Note how the values in ``index-order`` have corresponding mapping entries, e.g.
     mapping-unknown = var: , start: 1, stop:
 
     index-order = lon, lat, levels, tracers
+
+If a NEMO loop then uses ``Do jj=...``, PSyclone will give this loop the type
+'lat', because the loop uses the variable name specified in the configuration file
+for a loop of type 'lat'.
+The loop type can be accessed using ``loop.loop_type``, i.e. in this example
+it will be ``loop.loop_type == 'lat'``.
+
+The entry ``mapping-unknown`` has an empty value for the key 'var'. This means
+that the type 'unknown'  will be used for any loop that can not be mapped
+using any of the other variable names in the configuration file.
