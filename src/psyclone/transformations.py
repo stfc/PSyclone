@@ -3319,9 +3319,9 @@ class NemoExplicitLoopTrans(Transformation):
         nsm = invoke._name_space_manager
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
-        valid_loop_types = config.get_valid_loop_types()
+        loop_type_data = config.get_loop_type_data()
 
-        loop_type = valid_loop_types[index_order[outermost_dim]]
+        loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
         loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
                                    label=base_name)

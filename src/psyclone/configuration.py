@@ -806,7 +806,7 @@ class NemoConfig(APISpecificConfig):
 
         # Maps a loop type (lon, ...) to a dictionary containing the
         # corresponding variable name and start/stop values.
-        self._valid_loop_types = {}
+        self._loop_type_data = {}
 
         # The order in which loops should be created in NemoExplicitLoopTrans
         self._index_order = []
@@ -845,7 +845,7 @@ class NemoConfig(APISpecificConfig):
                 # Update the mapping of variable to loop type
                 self._loop_type_mapping[var] = loop_type
                 # And the mapping of loop type to the remaining data
-                self._valid_loop_types[loop_type] = data
+                self._loop_type_data[loop_type] = data
 
             elif key == "index-order":
                 self._index_order = [loop.strip() for
@@ -859,8 +859,8 @@ class NemoConfig(APISpecificConfig):
         # Consistency test: any value in index-order must have a
         # corresponding key in valid_loop_types:
         for loop_type in self._index_order:
-            if loop_type not in self._valid_loop_types:
-                valid = str(list(self._valid_loop_types.keys()))
+            if loop_type not in self._loop_type_data:
+                valid = str(list(self._loop_type_data.keys()))
                 raise ConfigurationError("Invalid loop type \"{0}\" found in "
                                          "index-order in \"{1}\".\n"
                                          "Must be one of {2}."
@@ -874,7 +874,7 @@ class NemoConfig(APISpecificConfig):
         '''
         return self._loop_type_mapping
 
-    def get_valid_loop_types(self):
+    def get_loop_type_data(self):
         '''
         :returns: the mapping of a loop type (lon, ...) to a dictionary \
             containing the corresponding variable name and start/stop values.\
@@ -884,7 +884,14 @@ class NemoConfig(APISpecificConfig):
         :rtype: dictionary with str keys, with each value being a \
             dictionary mapping 'var', 'start', and 'stop' to str.
         '''
-        return self._valid_loop_types
+        return self._loop_type_data
+
+    def get_valid_loop_types(self):
+        '''
+        :returns: a list of valid loop types.
+        :rtype: list of str.
+        '''
+        return list(self._loop_type_data)
 
     def get_index_order(self):
         '''
