@@ -875,7 +875,6 @@ def test_two_eval_diff_space(tmpdir):
 
 
 def test_two_eval_same_var_same_space(tmpdir):
-    # pylint: disable=invalid-name
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
     same space '''
