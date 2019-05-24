@@ -42,42 +42,29 @@ PSyclone has been designed to support multiple APIs and to allow new
 APIs to be added. This section explains how to support a new, or
 updated, API in PSyclone.
 
-Support can be split into two main parts. Firstly, the parser code
+Support can be split into two main parts. First, the parser code
 needs to be extended to allow it to parse the new kernel metadata
-structure. Secondly, the PSy generation code needs to be extended so
+structure. Second, the PSy generation code needs to be extended so
 that appropriate PSy-layer code is generated to conform to the new API
 when making use of the new kernel metadata.
 
 The parser code extensions and PSy-generation code extensions are
-treated in the sections below. However, before discussing these two
-main extensions, there is a small section which details how to modify
-the config file which determines which APIs are available and which
-API is the default.
-
-Modifying config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>_
-
-The names of the supported APIs and the default API are specified in
-config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>_. When
-adding a new API you must add the name you would like to use to the
-SUPPORTEDAPIS list (and change the DEFAULTAPI if required).
-
-For example, if we would like to add a new API called dynamo0.3 and
-make it the default, the appopriate lines of config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>_
-would look like this::
-
-SUPPORTEDAPIS=["gunghoproto","dynamo0.1","gocean","dynamo0.3"]
-DEFAULTAPI="dynamo0.3"
+treated in the sections below.
 
 Modifying the parser code
-+++++++++++++++++++++++++
+=========================
 
-The parser code, parse.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>_,
-takes an algorithm code as input. It parses the algorithm code and
-finds and parses any kernels that are referenced by the algorithm
-code. It returns the parsed algorithm code as an ast and an object
-containing all the required algorithm invocation information and its
-associated kernel information. The parser can be run in the following
-way::
+parser code is contained in the parser submodule of psyclone and
+itself contains two submodules, `kernel.py
+<https://github.com/stfc/PSyclone/blob/master/src/psyclone/parse/kernel.py>`_
+and `algorithm.py
+<https://github.com/stfc/PSyclone/blob/master/src/psyclone/parse/algorithm.py>`_.
+The latter takes an algorithm code as input. It parses the algorithm
+code and finds and parses any kernels that are referenced by the
+algorithm code. It returns the parsed algorithm code as an ast and an
+object containing all the required algorithm invocation information
+and its associated kernel information. The parser can be run in the
+following way::
 
     from parse import parse
     ast, info = parse("example.F90")
@@ -101,7 +88,7 @@ modifications and/or additions for each class are detailed in the
 following three sections.
 
 Modifying the :py:class:`psyclone.psyGen.KernelTypeFactory` Class
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+-----------------------------------------------------------------
 
 Kernel metadata, is likely to be different from one API to another. To
 parse this kernel-API-specific metadata a :class:KernelTypeFactory is
@@ -151,7 +138,7 @@ dynamo0.3 APIs.::
     Should not be possible.".format(self._type))
 
 Sub-classing the :class:`psyclone.parse.kernel.KernelType` Class
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----------------------------------------------------------------
 
 The role of the API-specific :class:KernelType subclass is to capture
 all the required Kernel metadata and code for a Kernel using a
@@ -168,7 +155,7 @@ will be stored within a Fortran module (which contains the Kernel
 code) as a Fortran type with a defined structure.
 
 Required structure
-##################
+++++++++++++++++++
 
 Below outlines the required structure of the Fortran type from the
 KernelType class' perspective. XML-style brackets (<.../>) are used
@@ -196,7 +183,7 @@ integer iterates_over which is set to an API-specific value. Finally
 the type also contains the name of the kernel code procedure.
 
 An Example
-##########
+++++++++++
 
 As an example, consider an algorithm code which specifies it wants to
 the rhs_v3_code kernel code by including an invoke() call and
@@ -232,7 +219,7 @@ Algorithm layer has the following list of metadata describing it
 "gh_rw,v3,fe,.true.,.false.,.true.".
 
 Conforming to the Required Structure
-####################################
+++++++++++++++++++++++++++++++++++++
 
 If the new API provides metadata in the above format then the
 :class:KernelType sub-class can use the :class:KernelType class to
@@ -322,7 +309,7 @@ value of iterates_over is recognised by the API and raise a
 ParseError error if not.
 
 Extending the Required Structure
-################################
+++++++++++++++++++++++++++++++++
 
 For simplicitity it is recommended that new APIs try to conform to
 the supported structure. However, in some cases additional information
@@ -342,7 +329,7 @@ for more details) with the optional var_name being set to the
 appropriate name to parse the metadata.
 
 Supporting a non-conformant Structure
-#####################################
+-------------------------------------
 
 .. warning::
 TBD: what hierarchy is expected/required?
