@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,13 +44,15 @@ from psyclone.configuration import Config, ConfigurationError
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use nemo API, and that to clean
-    the config file at the end of the tests.'''
+    '''Make sure that all tests here use the nemo API, and that we clean
+    up the config file at the end of the tests.'''
+
     Config.get().api = "nemo"
     yield()
     # At the end of all tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
+    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -77,7 +79,9 @@ def test_invalid_nemo_config_files(tmpdir):
                         ("start", "var: ji, stop: jpi"),
                         ("stop", "var: ji, start: 1")]:
         content = _CONFIG_CONTENT + "mapping-lon = " + data
+        # pylint: disable=protected-access
         Config._instance = None
+        # pylint: enable=protected-access
         config_file = tmpdir.join("config1")
         with config_file.open(mode="w") as new_cfg:
             new_cfg.write(content)
@@ -91,7 +95,7 @@ def test_invalid_nemo_config_files(tmpdir):
     # Add an invalid index-order
     content = _CONFIG_CONTENT + \
         '''mapping-lon = var: i, start: 1, stop:2
-    mapping-lat = var: i, start: 1, stop:2
+    mapping-lat = var: j, start: 1, stop:2
     index-order = invalid'''
     config_file = tmpdir.join("config2")
     with config_file.open(mode="w") as new_cfg:
@@ -114,8 +118,9 @@ def test_invalid_nemo_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid key \"invalid-key\" found in \"{0}\".".\
-            format(str(config_file)) in str(err)
+        assert "Invalid key \"invalid-key\" found in the \"nemo\" section " \
+               "of the configuration file \"{0}\".". format(str(config_file)) \
+               in str(err)
 
 
 # =============================================================================

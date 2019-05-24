@@ -791,12 +791,11 @@ class NemoConfig(APISpecificConfig):
 
     :param config: The 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the gocean1.0 section of \
+    :param section: The entry for the NEMO section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
 
     '''
-
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
         super(NemoConfig, self).__init__(section)
@@ -822,7 +821,7 @@ class NemoConfig(APISpecificConfig):
             if key[:8] == "mapping-":
                 loop_type = key[8:]
                 data = self.create_dict_from_string(section[key])
-                # Make sure the required keys exist"
+                # Make sure the required keys exist:
                 for subkey in ["var", "start", "stop"]:
                     if subkey not in data:
                         raise ConfigurationError("mapping-'{0}' does not "
@@ -843,8 +842,9 @@ class NemoConfig(APISpecificConfig):
 
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
-                                         "\"{1}\".".format(key,
-                                                           config.filename))
+                                         "the \"nemo\" section of the "
+                                         "configuration file \"{1}\"."
+                                         .format(key, config.filename))
         # Consistency test: any value in index-order must have a
         # corresponding key in valid_loop_types:
         for loop_type in self._index_order:
@@ -857,26 +857,28 @@ class NemoConfig(APISpecificConfig):
                                                  valid))
 
     def get_loop_type_mapping(self):
-        '''Returns the mapping of variable names to loop type.
-        :returns: Returns the mapping of variable names to loop type.
-        :rtype : Dictonary of strings.
+        '''
+        :returns: the mapping of variable names to loop type.
+        :rtype: Dictionary of strings.
         '''
         return self._loop_type_mapping
 
     def get_valid_loop_types(self):
-        ''':returns: the mapping of a loop type (lon, ...) to a dictionary
-        containing the corresponding variable name and start/stop values.
-        Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
--                    "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
+        '''
+        :returns: the mapping of a loop type (lon, ...) to a dictionary \
+            containing the corresponding variable name and start/stop values.\
+            Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"}, \
+-                       "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
 
-        :rtype: dictionary with str keys, with each value being a
-        dictionary mapping 'var', 'start', and 'stop' to str.
+        :rtype: dictionary with str keys, with each value being a \
+            dictionary mapping 'var', 'start', and 'stop' to str.
         '''
         return self._valid_loop_types
 
     def get_index_order(self):
-        ''':returns: the order in which loops should be created in
-        NemoExplicitLoopTrans.
+        '''
+        :returns: the order in which loops should be created in \
+            NemoExplicitLoopTrans.
         :rtype: list of str.
         '''
         return self._index_order
