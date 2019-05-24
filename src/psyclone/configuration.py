@@ -811,6 +811,9 @@ class NemoConfig(APISpecificConfig):
         # The order in which loops should be created in NemoExplicitLoopTrans
         self._index_order = []
 
+        # This is used to detect if a variable name is duplicated in
+        # mapping-* keys:
+        var_defined = []
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -831,6 +834,14 @@ class NemoConfig(APISpecificConfig):
                                                          config.filename))
 
                 var = data['var']
+                if var in var_defined:
+                    raise ConfigurationError("mapping-{0} defines variable "
+                                             "\"{1}\" again in the \"nemo\" "
+                                             "section of the file \"{2}\"."
+                                             .format(loop_type, var,
+                                                     config.filename))
+                var_defined.append(var)
+
                 # Update the mapping of variable to loop type
                 self._loop_type_mapping[var] = loop_type
                 # And the mapping of loop type to the remaining data

@@ -110,7 +110,7 @@ def test_invalid_nemo_config_files(tmpdir):
 
     # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
-    config_file = tmpdir.join("config5")
+    config_file = tmpdir.join("config3")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
@@ -122,5 +122,21 @@ def test_invalid_nemo_config_files(tmpdir):
                "of the configuration file \"{0}\".". format(str(config_file)) \
                in str(err)
 
+    # Use a variable name more than once:
+    content = _CONFIG_CONTENT + \
+        '''mapping-lon = var: i, start: 1, stop:2
+    mapping-lat = var: i, start: 1, stop:2
+    index-order = lon, lat'''
+    config_file = tmpdir.join("config4")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "mapping-lat defines variable \"i\" again in the \"nemo\" "\
+               "section of the file \"{0}\".".format(str(config_file)) \
+               in str(err)
 
 # =============================================================================
