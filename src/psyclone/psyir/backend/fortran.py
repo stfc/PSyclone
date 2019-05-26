@@ -285,7 +285,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
         mapping = {}
         for operator in f2psyir.binary_operators:
-            mapping[f2psyir.binary_operators[operator]] = operator
+            mapping_key = f2psyir.binary_operators[operator]
+            mapping_value = operator
+            if mapping_key not in mapping:
+                mapping[mapping_key] = mapping_value
         lhs = self.visit(node.children[0])
         oper = mapping[node._operator]
         rhs = self.visit(node.children[1])
@@ -393,7 +396,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
         mapping = {}
         for operator in f2psyir.unary_operators:
-            mapping[f2psyir.unary_operators[operator]] = operator
+            mapping_key = f2psyir.unary_operators[operator]
+            mapping_value = operator
+            if mapping_key not in mapping:
+                mapping[mapping_key] = mapping_value
         lhs = self.visit(node.children[0])
         oper = mapping[node._operator]
         content = self.visit(node.children[0])

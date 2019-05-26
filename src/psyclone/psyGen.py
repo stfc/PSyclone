@@ -45,6 +45,7 @@ import abc
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from collections import OrderedDict
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -5391,8 +5392,10 @@ class SymbolTable(object):
     # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
     # NameSpace class functionality.
     def __init__(self, kernel=None):
-        # Dict of Symbol objects with the symbol names as keys.
-        self._symbols = {}
+        # Dict of Symbol objects with the symbol names as keys. Make
+        # this ordered so that different versions of Python always
+        # produce code with declarations in the same order.
+        self._symbols = OrderedDict()
         # Ordered list of the arguments.
         self._argument_list = []
         # Reference to KernelSchedule to which this symbol table belongs.
@@ -6293,33 +6296,31 @@ class Fparser2ASTProcessor(object):
     convert the nodes to PSyIR.
     '''
 
-    unary_operators = {
-        '+': UnaryOperation.Operator.PLUS,
-        '-': UnaryOperation.Operator.MINUS,
-        '.not.': UnaryOperation.Operator.NOT
-    }
+    unary_operators = OrderedDict([
+        ('+', UnaryOperation.Operator.PLUS),
+        ('-', UnaryOperation.Operator.MINUS),
+        ('.not.', UnaryOperation.Operator.NOT)])
 
-    binary_operators = {
-        '+': BinaryOperation.Operator.ADD,
-        '-': BinaryOperation.Operator.SUB,
-        '*': BinaryOperation.Operator.MUL,
-        '/': BinaryOperation.Operator.DIV,
-        '**': BinaryOperation.Operator.POW,
-        '==': BinaryOperation.Operator.EQ,
-        '.eq.': BinaryOperation.Operator.EQ,
-        '/=': BinaryOperation.Operator.NE,
-        '.ne.': BinaryOperation.Operator.NE,
-        '<=': BinaryOperation.Operator.LE,
-        '.le.': BinaryOperation.Operator.LE,
-        '<': BinaryOperation.Operator.LT,
-        '.lt.': BinaryOperation.Operator.LT,
-        '>=': BinaryOperation.Operator.GE,
-        '.ge.': BinaryOperation.Operator.GE,
-        '>': BinaryOperation.Operator.GT,
-        '.gt.': BinaryOperation.Operator.GT,
-        '.and.': BinaryOperation.Operator.AND,
-        '.or.': BinaryOperation.Operator.OR
-    }
+    binary_operators = OrderedDict([
+        ('+', BinaryOperation.Operator.ADD),
+        ('-', BinaryOperation.Operator.SUB),
+        ('*', BinaryOperation.Operator.MUL),
+        ('/', BinaryOperation.Operator.DIV),
+        ('**', BinaryOperation.Operator.POW),
+        ('==', BinaryOperation.Operator.EQ),
+        ('.eq.', BinaryOperation.Operator.EQ),
+        ('/=', BinaryOperation.Operator.NE),
+        ('.ne.', BinaryOperation.Operator.NE),
+        ('<=', BinaryOperation.Operator.LE),
+        ('.le.', BinaryOperation.Operator.LE),
+        ('<', BinaryOperation.Operator.LT),
+        ('.lt.', BinaryOperation.Operator.LT),
+        ('>=', BinaryOperation.Operator.GE),
+        ('.ge.', BinaryOperation.Operator.GE),
+        ('>', BinaryOperation.Operator.GT),
+        ('.gt.', BinaryOperation.Operator.GT),
+        ('.and.', BinaryOperation.Operator.AND),
+        ('.or.', BinaryOperation.Operator.OR)])
 
     def __init__(self):
         from fparser.two import Fortran2003, utils
