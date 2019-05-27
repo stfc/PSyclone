@@ -66,6 +66,19 @@ def test_get_intent():
     assert get_intent(symbol) == "inout" 
 
 
+def test_get_intent_error(monkeypatch):
+    '''Check the get_intent function raises an exception if an unsupported
+    access type is found.
+
+    '''
+    symbol = Symbol("dummy", "integer",
+                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = get_intent(symbol)
+    assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo)
+
+
 def test_get_dims():
     '''Check the get_dims function produces the expected dimension
     strings.

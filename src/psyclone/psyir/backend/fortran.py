@@ -66,7 +66,7 @@ def get_intent(symbol):
     try:
         return mapping[symbol.interface.access]
     except KeyError as excinfo:
-        raise VisitorError("Unsupported access '{0}' found"
+        raise VisitorError("Unsupported access '{0}' found."
                            "".format(str(excinfo)))
 
 
