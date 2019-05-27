@@ -45,7 +45,6 @@ from psyclone.psyir.backend.fortran import FortranPSyIRVisitor
 def trans(psy):
     '''Print out Fortran versions of all kernels found in this file.'''
     fortran_psyir_visitor = FortranPSyIRVisitor()
-    nkern = 0
 
     # Loop over all of the Invokes in the PSy object.
     for invoke in psy.invokes.invoke_list:
@@ -53,10 +52,8 @@ def trans(psy):
 
         # Loop over all of the Kernels in this Schedule.
         for kernel in schedule.kern_calls():
-            nkern += 1
             kernel_schedule = kernel.get_kernel_schedule()
             kern = fortran_psyir_visitor.visit(kernel_schedule)
             print(kern)
 
-    print("transformed {0} kernels".format(nkern))
     return psy

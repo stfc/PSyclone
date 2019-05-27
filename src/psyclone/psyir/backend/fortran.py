@@ -138,7 +138,7 @@ class FortranPSyIRVisitor(PSyIRVisitor):
 
         :param symbol: The symbol instance.
         :type symbol: :py:class:`psyclone.psyGen.Symbol`
-        :returns: the Fortran declaration as a string.
+        :returns: The Fortran declaration as a string.
         :rtype: str
 
         '''
@@ -164,10 +164,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''Catch any unsupported nodes, output their class names and continue
         down the node hierarchy.
 
-        :param node: an unsupported PSyIR node.
+        :param node: An unsupported PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyGen.Node`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -184,10 +184,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
 
-        :param node: a NemoKern PSyIR node.
+        :param node: A NemoKern PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoKern`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -205,10 +205,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         output as it is required for LFRic code. When issue #375 has
         been addressed this module can be added only when required.
 
-        :param node: a KernelSchedule PSyIR node.
+        :param node: A KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -257,10 +257,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when an Assignment instance is found in the
         PSyIR tree.
 
-        :param node: an Assignment PSyIR node.
+        :param node: An Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Assigment`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -273,10 +273,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when a BinaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: a BinaryOperation PSyIR node.
+        :param node: A BinaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -287,6 +287,8 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         for operator in f2psyir.binary_operators:
             mapping_key = f2psyir.binary_operators[operator]
             mapping_value = operator
+            # Only choose the first mapping value when there is more
+            # than one.
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
         lhs = self.visit(node.children[0])
@@ -299,11 +301,13 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
-        :param node: a Reference PSyIR node.
+        :param node: A Reference PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Reference`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
+
+        :raises VisitorError: If this node has children.
 
         '''
         if node.children:
@@ -315,10 +319,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
 
-        :param node: an Array PSyIR node.
+        :param node: An Array PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Array`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -332,10 +336,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
-        :param node: a Literal PSyIR node.
+        :param node: A Literal PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Literal`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -346,10 +350,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
 
-        :param node: an IfBlock PSyIR node.
+        :param node: An IfBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.IfBlock`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -384,23 +388,24 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: a UnaryOperation PSyIR node.
+        :param node: A UnaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
-        # reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping
+        # Reverse the fortran2psyir mapping to make a psyir2fortran
+        # mapping.
         from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
         mapping = {}
         for operator in f2psyir.unary_operators:
             mapping_key = f2psyir.unary_operators[operator]
             mapping_value = operator
+            # Only choose the first mapping value when there is more
+            # than one.
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
-        lhs = self.visit(node.children[0])
         oper = mapping[node._operator]
         content = self.visit(node.children[0])
         result = "{0}{1}".format(oper, content)
@@ -414,10 +419,10 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         is done by the base class to avoid a name clash with the
         Python `return` keyword.
 
-        :param node: a Return PSyIR node.
+        :param node: A Return PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Return`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''
@@ -426,12 +431,12 @@ class FortranPSyIRVisitor(PSyIRVisitor):
     def codeblock(self, node):
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. It returns the content of the CodeBlock as a
-        Fortran string.
+        Fortran string, indenting as appropriate.
 
-        :param node: a CodeBlock PSyIR node.
+        :param node: A CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.CodeBlock`
 
-        :returns: the Fortran code as a string.
+        :returns: The Fortran code as a string.
         :rtype: str
 
         '''

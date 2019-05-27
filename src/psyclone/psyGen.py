@@ -42,10 +42,10 @@
 from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
+from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from collections import OrderedDict
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not

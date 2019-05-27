@@ -74,7 +74,7 @@ class PSyIRVisitor(object):
     with. This is an optional argument that defaults to 0.
 
     :raises TypeError: if skip_nodes is not a boolean, indent is not a \
-    string or start_depth is not an integer.
+    string, start_depth is not an integer, or star_depth is negative.
 
     '''
     def __init__(self, skip_nodes=False, indent=None, start_depth=0):
@@ -127,6 +127,8 @@ class PSyIRVisitor(object):
 
         :raises VisitorError: if a node is found that does not have \
         associated call back methods (and skip_nodes is not set).
+        :raises AttributeError: if a call back method is found but it \
+        raises an AttributeError.
 
         '''
         if not isinstance(node, Node):
@@ -150,8 +152,8 @@ class PSyIRVisitor(object):
                 return eval("self.{0}(node)".format(method_name))
             except AttributeError as excinfo:
                 if "attribute '{0}'".format(method_name) in str(excinfo):
-                    # This attribute error is because the method we are
-                    # trying to call does not exist.
+                    # This attribute error is because the method that
+                    # was tried does not exist.
                     pass
                 else:
                     # The method does exist but it has raised an

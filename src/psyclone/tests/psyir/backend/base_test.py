@@ -36,6 +36,7 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.base module'''
 
+from __future__ import print_function
 import pytest
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Node
@@ -199,7 +200,7 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
         works as expected.
 
         '''
-        def testnode2(self, node):
+        def testnode2(self, _):
             '''Match with class TestNode2. The print is used to check that this
             method is called.
 
@@ -236,7 +237,7 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
     assert output == "testnode2 called\n"
 
 
-def test_psyirvisitor_visit_return_node(capsys):
+def test_psyirvisitor_visit_return_node():
     '''Check that when a return PSyIR node is found the actual method
     called is 'return_node'. This is done to avoid clashing with the
     Python keyword.

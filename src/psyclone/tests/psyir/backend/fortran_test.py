@@ -63,7 +63,7 @@ def test_get_intent():
     assert get_intent(symbol) == "out"
     symbol = Symbol("dummy", "integer",
                     interface=Symbol.Argument(Symbol.Access.READWRITE))
-    assert get_intent(symbol) == "inout" 
+    assert get_intent(symbol) == "inout"
 
 
 def test_get_intent_error(monkeypatch):
@@ -115,10 +115,10 @@ def test_get_kind():
         interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     real_symbol = Symbol(
         "dummy2", "real",
-    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+        interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     logical_symbol = Symbol(
         "dummy3", "boolean",
-    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+        interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
 
     assert get_kind(int_symbol) == "i_def"
     assert get_kind(real_symbol) == "r_def"
@@ -174,6 +174,7 @@ def create_schedule(code):
     schedule = processor.generate_schedule("tmp", parse_tree)
 
     return schedule
+
 
 def test_FortranPSyIRVisitor_node():
     '''Check the FortranPSyIRVisitor class node method prints the class
@@ -237,7 +238,6 @@ def test_FortranPSyIRVisitor_nemokern():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranPSyIRVisitor()
     result = fvisitor.visit(schedule)
-    print (result)
     assert(
         "  subroutine tmp()\n"
         "    integer(i_def) :: a\n"
