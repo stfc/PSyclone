@@ -240,3 +240,28 @@ def test_omp_do_within_if():
         "      !$omp end parallel do\n"
         "    END IF\n")
     assert expected in gen
+
+
+@pytest.mark.xfail(readson="bug: two loops in if statements do not work")
+def test_two_loops_in_if():
+    ''' Check that openmp transformations can be inserted in two
+    consecutive loops inside an if-statement (#).'''
+    from psyclone.transformations import OMPParallelTrans
+    otrans = OMPParallelTrans()
+    _, invoke_info = parse(os.path.join(BASE_PATH, "two_loops_in_if.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('two_loops_in_if').schedule
+    schedule.view()
+
+    for loop in schedule.loops():
+        kernel = loop.kernel
+        if kernel and loop.loop_type == "lat":
+            _, _ = otrans.apply(loop)
+
+    schedule.view()
+
+    # This triggers an exception atm:
+    # ValueError: Item 'DO jj = 1, m...' not found in list
+    # psyGen.py:151
+    str(psy.gen).lower()
