@@ -48,7 +48,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
-    DynamoExtractRegionTrans, GOceanExtractRegionTrans
+    DynamoExtractRegionTrans
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -64,11 +64,16 @@ def test_dynamoextract_node():
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
                            api=DYNAMO_API)
+    # _, invoke_info = parse(
+        # os.path.join(DYNAMO_BASE_PATH,
+                     # "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        # api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
  
-    schedule, _ = etrans.apply(schedule.children[1:3])
+    schedule, _ = etrans.apply(schedule.children[2])
+#    schedule, _ = etrans.apply(schedule.children[2:4])
     code = str(psy.gen)
     print(code)
     output = (
@@ -77,3 +82,54 @@ def test_dynamoextract_node():
         "      !\n"
         "      ! ExtractEnd\n")
     assert output in code
+
+
+# def test_extract_colouring_omp():
+    # ''' Test that extraction of a Kernel in an Invoke after applying
+    # colouring and OpenMP optimisations produces the correct result
+    # in Dynamo0.3 API. '''
+    # from psyclone.transformations import Dynamo0p3ColourTrans, \
+        # DynamoOMPParallelLoopTrans
+    # from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+
+    # etrans = DynamoExtractRegionTrans()
+    # ctrans = Dynamo0p3ColourTrans()
+    # otrans = DynamoOMPParallelLoopTrans()
+
+    # _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        # "4.8_multikernel_invokes.f90"),
+                           # api=DYNAMO_API)
+    # psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    # invoke = psy.invokes.invoke_list[0]
+    # schedule = invoke.schedule
+
+    # # First colour all of the loops over cells unless they are on
+    # # discontinuous spaces
+    # cschedule = schedule
+    # for child in schedule.children:
+        # if isinstance(child, Loop) and child.field_space.orig_name \
+           # not in DISCONTINUOUS_FUNCTION_SPACES \
+           # and child.iteration_space == "cells":
+            # cschedule, _ = ctrans.apply(child)
+    # # Then apply OpenMP to each of the colour loops
+    # schedule = cschedule
+    # for child in schedule.children:
+        # if isinstance(child, Loop):
+            # if child.loop_type == "colours":
+                # schedule, _ = otrans.apply(child.children[0])
+            # else:
+                # schedule, _ = otrans.apply(child)
+
+    # # Extract the second instance of ru_kernel_type after colouring
+    # # and OpenMP are applied
+    # child = schedule.children[2]
+    # schedule, _ = etrans.apply(child)
+
+    # code = str(psy.gen)
+    # print(code)
+    # output = (
+        # "      ! ExtractStart\n"
+        # "      ! CALL write_extract_arguments(argument_list)\n"
+        # "      !\n"
+        # "      ! ExtractEnd\n")
+    # assert output in code
