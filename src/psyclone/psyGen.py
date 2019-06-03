@@ -3859,9 +3859,6 @@ class Kern(Call):
         new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
         new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
 
-        # Update PSyIR kernel Schedule name
-        self.get_kernel_schedule().name = new_kern_name
-
         # Query the fparser2 AST to determine the name of the type that
         # contains the kernel subroutine as a type-bound procedure
         orig_type_name = ""
