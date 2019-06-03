@@ -138,6 +138,18 @@
 
         43) PR #383. Fixes to various pylint errors.
 
+        44) PR #384 (working towards #354) Adds support for CASE constructs with
+        a DEFAULT clause when translating Fortran fparser2 to PSyIR.
+
+        45) PR #366 (working towards #323) Improves the Symbol interface
+        infrastructure with Arguments and FortranGlobals. The Fortran-to-PSyIR
+        front-end parses the 'use module only' statements.
+
+        46) PR #370 for #339. Makes the support for operators in the PSyIR
+        more robust by using an enumerator. Adds support for some intrinsics.
+        47) PR #389 for #386. Variable names and associated loop-types
+	for the NEMO API are now stored in the configuration file.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

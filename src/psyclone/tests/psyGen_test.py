@@ -53,13 +53,14 @@ from fparser import api as fpapi
 from psyclone_test_utils import get_invoke
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, OMPParallelDoDirective, PSy, \
+    NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Schedule, Symbol, SymbolTable, UnaryOperation, Return
+    KernelSchedule, Schedule, UnaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
+from psyclone.psyGen import Symbol, SymbolTable
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -2946,12 +2947,23 @@ def test_literal_gen_c_code():
 
 
 # Test BinaryOperation class
+def test_binaryoperation_initialization():
+    ''' Check the initialization method of the BinaryOperation class works
+    as expected.'''
+
+    with pytest.raises(TypeError) as err:
+        _ = BinaryOperation("not an operator")
+    assert "BinaryOperation operator argument must be of type " \
+           "BinaryOperation.Operator but found" in str(err)
+    bop = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert bop._operator is BinaryOperation.Operator.ADD
+
 
 def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    binary_operation = BinaryOperation("+")
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
@@ -2960,71 +2972,144 @@ def test_binaryoperation_view(capsys):
                           SCHEDULE_COLOUR_MAP["BinaryOperation"])
     binary_operation.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'+']" in output
+    assert coloredtext+"[operator:'ADD']" in output
 
 
 def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
-    binary_operation = BinaryOperation("+")
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
     op1 = Literal("1", parent=binary_operation)
-    op2 = Literal("1", parent=binary_operation)
+    op2 = Literal("2", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
-    assert "BinaryOperation[operator:'+']\n" in str(binary_operation)
+    # Check the node children are also printed
+    assert "Literal[value:'1']\n" in str(binary_operation)
+    assert "Literal[value:'2']\n" in str(binary_operation)
 
 
 def test_binaryoperation_gen_c_code():
     '''Test that a BinaryOperation node can generate its C representation'''
-
-    binary_operation = BinaryOperation("+")
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
            "exactly 2 children, but found 0." in str(err.value))
-    lit1 = Literal("1", binary_operation)
-    lit2 = Literal("2", binary_operation)
-    binary_operation.addchild(lit1)
-    binary_operation.addchild(lit2)
-    assert binary_operation.gen_c_code() == '(1 + 2)'
+    ref1 = Reference("a", binary_operation)
+    ref2 = Reference("b", binary_operation)
+    binary_operation.addchild(ref1)
+    binary_operation.addchild(ref2)
+    assert binary_operation.gen_c_code() == '(a + b)'
+
+    # Test all supported Operators
+    test_list = ((BinaryOperation.Operator.ADD, '(a + b)'),
+                 (BinaryOperation.Operator.SUB, '(a - b)'),
+                 (BinaryOperation.Operator.MUL, '(a * b)'),
+                 (BinaryOperation.Operator.DIV, '(a / b)'),
+                 (BinaryOperation.Operator.REM, '(a % b)'),
+                 (BinaryOperation.Operator.POW, 'pow(a, b)'),
+                 (BinaryOperation.Operator.EQ, '(a == b)'),
+                 (BinaryOperation.Operator.NE, '(a != b)'),
+                 (BinaryOperation.Operator.GT, '(a > b)'),
+                 (BinaryOperation.Operator.GE, '(a >= b)'),
+                 (BinaryOperation.Operator.LT, '(a < b)'),
+                 (BinaryOperation.Operator.LE, '(a <= b)'),
+                 (BinaryOperation.Operator.AND, '(a && b)'),
+                 (BinaryOperation.Operator.OR, '(a || b)'),
+                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'),
+                 )
+
+    for operator, expected in test_list:
+        binary_operation._operator = operator
+        assert binary_operation.gen_c_code() == expected
+
+    # Test that an unsupported operator raises a error
+    class Unsupported():
+        '''Dummy class'''
+    binary_operation._operator = Unsupported
+    with pytest.raises(NotImplementedError) as err:
+        _ = binary_operation.gen_c_code()
+    assert "The gen_c_code backend does not support the '" in str(err)
+    assert "' operator." in str(err)
 
 
 # Test UnaryOperation class
+def test_unaryoperation_initialization():
+    ''' Check the initialization method of the UnaryOperation class works
+    as expected.'''
+
+    with pytest.raises(TypeError) as err:
+        _ = UnaryOperation("not an operator")
+    assert "UnaryOperation operator argument must be of type " \
+           "UnaryOperation.Operator but found" in str(err)
+    uop = UnaryOperation(UnaryOperation.Operator.MINUS)
+    assert uop._operator is UnaryOperation.Operator.MINUS
+
 
 def test_unaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the UnaryOperation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    unary_operation = UnaryOperation("-")
-    op1 = Literal("1", parent=unary_operation)
-    unary_operation.addchild(op1)
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
+    ref1 = Reference("a", parent=unary_operation)
+    unary_operation.addchild(ref1)
     coloredtext = colored("UnaryOperation",
                           SCHEDULE_COLOUR_MAP["UnaryOperation"])
     unary_operation.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'-']" in output
+    assert coloredtext+"[operator:'MINUS']" in output
 
 
 def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
-    unary_operation = UnaryOperation("-")
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
+    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
-    assert "UnaryOperation[operator:'-']\n" in str(unary_operation)
+    # Check the node children are also printed
+    assert "Literal[value:'1']\n" in str(unary_operation)
 
 
 def test_unaryoperation_gen_c_code():
     '''Test that a UnaryOperation node can generate its C representation'''
-
-    unary_operation = UnaryOperation("-")
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     with pytest.raises(GenerationError) as err:
         _ = unary_operation.gen_c_code()
     assert("UnaryOperation malformed or incomplete. It should have "
            "exactly 1 child, but found 0." in str(err.value))
-    lit1 = Literal("1", unary_operation)
-    unary_operation.addchild(lit1)
-    assert unary_operation.gen_c_code() == '(- 1)'
+    ref1 = Literal("a", unary_operation)
+    unary_operation.addchild(ref1)
+    assert unary_operation.gen_c_code() == '(-a)'
+
+    # Test all supported Operators
+    test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
+                 (UnaryOperation.Operator.MINUS, '(-a)'),
+                 (UnaryOperation.Operator.SQRT, 'sqrt(a)'),
+                 (UnaryOperation.Operator.NOT, '(!a)'),
+                 (UnaryOperation.Operator.COS, 'cos(a)'),
+                 (UnaryOperation.Operator.SIN, 'sin(a)'),
+                 (UnaryOperation.Operator.TAN, 'tan(a)'),
+                 (UnaryOperation.Operator.ACOS, 'acos(a)'),
+                 (UnaryOperation.Operator.ASIN, 'asin(a)'),
+                 (UnaryOperation.Operator.ATAN, 'atan(a)'),
+                 (UnaryOperation.Operator.ABS, 'abs(a)'),
+                 (UnaryOperation.Operator.REAL, 'float(a)'),
+                 )
+
+    for operator, expected in test_list:
+        unary_operation._operator = operator
+        assert unary_operation.gen_c_code() == expected
+
+    # Test that an unsupported operator raises a error
+    class Unsupported():
+        '''Dummy class'''
+    unary_operation._operator = Unsupported
+    with pytest.raises(NotImplementedError) as err:
+        _ = unary_operation.gen_c_code()
+    assert "The gen_c_code backend does not support the '" in str(err)
+    assert "' operator." in str(err)
 
 
 # Test Return class
@@ -3117,15 +3202,25 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'global_argument'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             None, True, True), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             None, True, False), Symbol)
+    assert isinstance(Symbol('a', 'real', []), Symbol)
+    assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
+                      Symbol)
+    assert isinstance(
+        Symbol('a', 'real', [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol)
+    assert isinstance(
+        Symbol('a', 'real', [],
+               interface=Symbol.Argument(access=Symbol.Access.READ)),
+        Symbol)
+    assert isinstance(
+        Symbol('a', 'deferred',
+               interface=Symbol.FortranGlobal(access=Symbol.Access.READ,
+                                              module_use='some_mod')),
+        Symbol)
     dim = Symbol('dim', 'integer', [])
-    assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [dim]), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
@@ -3140,18 +3235,12 @@ def test_symbol_initialisation():
     assert ("A constant value is not currently supported for datatype "
             "'real'.") in str(error)
 
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', [], 'invalidscope')
-    assert ("Symbol scope attribute can only be one of " +
-            str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error)
-
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', None, 'local')
+        Symbol('a', 'real', shape=dim)
     assert "Symbol shape attribute must be a list." in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', ['invalidshape'], 'local')
+        Symbol('a', 'real', ['invalidshape'])
     assert ("Symbol shape list elements can only be 'Symbol', "
             "'integer' or 'None'.") in str(error.value)
 
@@ -3168,9 +3257,9 @@ def test_symbol_initialisation():
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', scope='global_argument', constant_value=9)
+        Symbol('a', 'integer', interface=Symbol.Argument(), constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global_argument'.") in str(error)
+            "local scope but found 'global'.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', shape=[None], constant_value=9)
@@ -3205,30 +3294,39 @@ def test_symbol_map():
     the Symbol class.
 
     '''
-    # "real" is not supported in the mapping so we expect it to have 1
-    # less entry than there are valid data types.
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
+    # "real" and "deferred" are not supported in the mapping so we expect
+    # it to have 2 fewer entries than there are valid data types
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 2
     for data_type in Symbol.valid_data_types:
-        if data_type not in ["real"]:
+        if data_type not in ["real", "deferred"]:
             assert data_type in Symbol.mapping
 
 
-def test_symbol_scope_setter():
-    '''Test that a Symbol scope can be set if given a new valid scope
-    value, otherwise it raises a relevant exception'''
+def test_symbol_can_be_printed():
+    '''Test that a Symbol instance can always be printed. (i.e. is
+    initialised fully.)'''
+    symbol = Symbol("sname", "real")
+    assert "sname: <real, Scalar, local>" in str(symbol)
 
-    # Test with valid scope value
-    sym = Symbol('a', 'real', [], 'local')
-    assert sym.scope == 'local'
-    sym.scope = 'global_argument'
-    assert sym.scope == 'global_argument'
+    sym1 = Symbol("s1", "integer")
+    assert "s1: <integer, Scalar, local>" in str(sym1)
 
-    # Test with invalid scope value
-    with pytest.raises(ValueError) as error:
-        sym.scope = 'invalidscope'
-    assert ("Symbol scope attribute can only be one of " +
-            str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error)
+    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
+
+    sym3 = Symbol("s3", "real",
+                  interface=Symbol.FortranGlobal(module_use="my_mod"))
+    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
+            in str(sym3))
+
+    sym2._shape.append('invalid')
+    with pytest.raises(InternalError) as error:
+        _ = str(sym2)
+    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
+            "'None', but found") in str(error.value)
+
+    sym3 = Symbol("s3", "integer", constant_value=12)
+    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
 
 def test_symbol_constant_value_setter():
@@ -3269,64 +3367,58 @@ def test_symbol_scalar_array():
     assert sym2.is_array
 
 
-def test_symbol_is_input_setter():
-    '''Test that a Symbol's is_input method can be set if given a new
-    valid value, otherwise it raises a relevant exception.'''
-
-    sym = Symbol('a', 'real', shape=[], scope='global_argument',
-                 is_input=False, is_output=False)
-    sym.is_input = True
-    assert sym.is_input is True
-
-    with pytest.raises(TypeError) as error:
-        sym.is_input = 3
-    assert "Symbol 'is_input' attribute must be a boolean." in \
-           str(error.value)
-
-    sym = Symbol('a', 'real', [], 'local')
-    with pytest.raises(ValueError) as error:
-        sym.is_input = True
-    assert ("Symbol with 'local' scope can not have 'is_input' attribute"
-            " set to True.") in str(error)
+def test_symbol_invalid_interface():
+    ''' Check that the Symbol.interface setter rejects the supplied value if
+    it is not a SymbolInterface. '''
+    sym = Symbol("some_var", "real")
+    with pytest.raises(TypeError) as err:
+        sym.interface = "invalid interface spec"
+    assert ("interface to a Symbol must be a SymbolInterface or None but"
+            in str(err))
 
 
-def test_symbol_is_output_setter():
-    '''Test that a Symbol's is_output method can be set if given a new
-    valid value, otherwise it raises a relevant exception.'''
-    sym = Symbol('a', 'real', shape=[], scope='global_argument',
-                 is_input=False, is_output=False)
-    sym.is_output = True
-    assert sym.is_output is True
-
-    with pytest.raises(TypeError) as error:
-        sym.is_output = 3
-    assert "Symbol 'is_output' attribute must be a boolean." in \
-           str(error.value)
-
-    sym = Symbol('a', 'real', [], 'local')
-    with pytest.raises(ValueError) as error:
-        sym.is_output = True
-    assert ("Symbol with 'local' scope can not have 'is_output' attribute"
-            " set to True.") in str(error)
+def test_symbol_interface():
+    ''' Check the interface getter on a Symbol. '''
+    symbol = Symbol("some_var", "real",
+                    interface=Symbol.FortranGlobal(module_use="my_mod"))
+    assert symbol.interface.module_name == "my_mod"
 
 
-def test_symbol_can_be_printed():
-    '''Test that a Symbol instance can always be printed. (i.e. is
-    initialised fully)'''
-    sym1 = Symbol("s1", "integer")
-    assert "s1: <integer, local, Scalar>" in str(sym1)
+def test_symbol_interface_access():
+    ''' Tests for the SymbolInterface.access setter. '''
+    symbol = Symbol("some_var", "real",
+                    interface=Symbol.FortranGlobal(module_use="my_mod"))
+    symbol.interface.access = Symbol.Access.READ
+    assert symbol.interface.access == Symbol.Access.READ
+    # Force the error by supplying a string instead of a SymbolAccess type.
+    with pytest.raises(TypeError) as err:
+        symbol.interface.access = "read"
+    assert "must be a 'Symbol.Access' but got " in str(err)
 
-    sym2 = Symbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
 
-    sym2._shape.append('invalid')
-    with pytest.raises(InternalError) as error:
-        _ = str(sym2)
-    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
-            "'None', but found") in str(error.value)
+def test_symbol_argument_str():
+    ''' Check the __str__ method of the Symbol.Argument class. '''
+    # A Symbol.Argument represents a routine argument by default.
+    interface = Symbol.Argument()
+    assert str(interface) == "Argument(pass-by-value=False)"
 
-    sym3 = Symbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, local, Scalar, constant_value=12>" in str(sym3)
+
+def test_fortranglobal_str():
+    ''' Test the __str__ method of Symbol.FortranGlobal. '''
+    # If it's not an argument then we have nothing else to say about it (since
+    # other options are language specific and are implemented in sub-classes).
+    interface = Symbol.FortranGlobal("my_mod")
+    assert str(interface) == "FortranModule(my_mod)"
+
+
+def test_fortranglobal_modname():
+    ''' Test the FortranGlobal.module_name setter error conditions. '''
+    with pytest.raises(ValueError) as err:
+        _ = Symbol.FortranGlobal("")
+    assert "module_name must be one or more characters long" in str(err)
+    with pytest.raises(TypeError) as err:
+        _ = Symbol.FortranGlobal(1)
+    assert "module_name must be a str but got" in str(err)
 
 
 def test_symbol_copy():
@@ -3334,8 +3426,8 @@ def test_symbol_copy():
     of the original symbol.
 
     '''
-    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
-                    constant_value=None, is_input=True, is_output=True)
+    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
+                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
     new_symbol = symbol.copy()
 
     # Check the new symbol has the same properties as the original
@@ -3344,8 +3436,7 @@ def test_symbol_copy():
     assert symbol.shape == new_symbol.shape
     assert symbol.scope == new_symbol.scope
     assert symbol.constant_value == new_symbol.constant_value
-    assert symbol.is_input == new_symbol.is_input
-    assert symbol.is_output == new_symbol.is_output
+    assert symbol.interface == new_symbol.interface
 
     # Change the properties of the new symbol and check the original
     # is not affected. Can't check constant_value yet as we have a
@@ -3354,17 +3445,13 @@ def test_symbol_copy():
     new_symbol._datatype = "integer"
     new_symbol.shape[0] = 3
     new_symbol.shape[1] = 4
-    new_symbol.scope = "local"
-    new_symbol.is_input = False
-    new_symbol.is_output = False
+    new_symbol._interface = None
 
     assert symbol.name == "myname"
     assert symbol.datatype == "real"
     assert symbol.shape == [1, 2]
-    assert symbol.scope == "global_argument"
+    assert symbol.scope == "global"
     assert not symbol.constant_value
-    assert symbol.is_input
-    assert symbol.is_output
 
     # Now check constant_value
     new_symbol._shape = []
@@ -3377,8 +3464,8 @@ def test_symbol_copy():
 def test_symbol_copy_properties():
     '''Test that the Symbol copy_properties method works as expected.'''
 
-    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
-                    constant_value=None, is_input=True, is_output=True)
+    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
+                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
 
     # Check an exception is raised if an incorrect argument is passed
     # in
@@ -3387,8 +3474,7 @@ def test_symbol_copy_properties():
     assert ("Argument should be of type 'Symbol' but found 'NoneType'."
             "") in str(excinfo.value)
 
-    new_symbol = Symbol("other_name", "integer", shape=[], scope="local",
-                        constant_value=7, is_input=False, is_output=False)
+    new_symbol = Symbol("other_name", "integer", shape=[], constant_value=7)
 
     symbol.copy_properties(new_symbol)
 
@@ -3397,8 +3483,6 @@ def test_symbol_copy_properties():
     assert symbol.shape == []
     assert symbol.scope == "local"
     assert symbol.constant_value == 7
-    assert not symbol.is_input
-    assert not symbol.is_output
 
 
 def test_symbol_gen_c_definition():
@@ -3426,22 +3510,23 @@ def test_symbol_gen_c_definition():
 
 # Test SymbolTable Class
 
-def test_symboltable_declare():
-    '''Test that the declare method inserts new symbols in the symbol
+def test_symboltable_add():
+    '''Test that the add method inserts new symbols in the symbol
     table, but raises appropiate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
 
     # Declare a symbol
     sym_table.add(Symbol("var1", "real", shape=[5, 1],
-                         scope="global_argument",
-                         is_input=True, is_output=True))
+                         interface=Symbol.FortranGlobal(
+                             access=Symbol.Access.READWRITE,
+                             module_use="some_mod")))
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
-    assert sym_table._symbols["var1"].scope == "global_argument"
-    assert sym_table._symbols["var1"].is_input is True
-    assert sym_table._symbols["var1"].is_output is True
+    assert sym_table._symbols["var1"].scope == "global"
+    assert sym_table._symbols["var1"].access is Symbol.Access.READWRITE
+    assert sym_table._symbols["var1"].interface.module_name == "some_mod"
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
@@ -3453,15 +3538,13 @@ def test_symboltable_declare():
 def test_symboltable_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
-    symbol1 = Symbol("var1", "integer", shape=[], scope="local",
-                     constant_value=7, is_input=False, is_output=False)
-    symbol2 = Symbol("dim1", "integer", scope="global_argument", is_input=True,
-                     is_output=False)
-    symbol3 = Symbol("dim2", "integer", scope="global_argument", is_input=True,
-                     is_output=False)
+    symbol1 = Symbol("var1", "integer", shape=[], constant_value=7)
+    symbol2 = Symbol("dim1", "integer",
+                     interface=Symbol.Argument(access=Symbol.Access.READ))
+    symbol3 = Symbol("dim2", "integer",
+                     interface=Symbol.Argument(access=Symbol.Access.READ))
     symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
-                     scope="global_argument", is_input=True, is_output=True)
-
+                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
     sym_table = SymbolTable()
     sym_table.add(symbol1)
 
@@ -3496,7 +3579,7 @@ def test_symboltable_swap_symbol_properties():
     sym_table.add(symbol2)
     sym_table.add(symbol3)
     sym_table.add(symbol4)
-    sym_table.specify_argument_list([symbol2.name, symbol3.name, symbol4.name])
+    sym_table.specify_argument_list([symbol2, symbol3, symbol4])
 
     # Check that properties are swapped
     sym_table.swap_symbol_properties(symbol1, symbol4)
@@ -3504,18 +3587,16 @@ def test_symboltable_swap_symbol_properties():
     assert symbol1.name == "var1"
     assert symbol1.datatype == "real"
     assert symbol1.shape == [symbol2, symbol3]
-    assert symbol1.scope == "global_argument"
+    assert symbol1.scope == "global"
     assert symbol1.constant_value is None
-    assert symbol1.is_input
-    assert symbol1.is_output
+    assert symbol1.interface.access == Symbol.Access.READWRITE
 
     assert symbol4.name == "var2"
     assert symbol4.datatype == "integer"
     assert not symbol4.shape
     assert symbol4.scope == "local"
     assert symbol4.constant_value == 7
-    assert not symbol4.is_input
-    assert not symbol4.is_output
+    assert not symbol4.interface
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
@@ -3569,9 +3650,13 @@ def test_symboltable_can_be_printed():
     sym_table = SymbolTable()
     sym_table.add(Symbol("var1", "real"))
     sym_table.add(Symbol("var2", "integer"))
-    assert "Symbol Table:\n" in str(sym_table)
-    assert "var1" in str(sym_table)
-    assert "var2" in str(sym_table)
+    sym_table.add(Symbol("var3", "deferred",
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    sym_table_text = str(sym_table)
+    assert "Symbol Table:\n" in sym_table_text
+    assert "var1" in sym_table_text
+    assert "var2" in sym_table_text
+    assert "FortranModule(my_mod)" in sym_table_text
 
 
 def test_symboltable_specify_argument_list():
@@ -3579,17 +3664,112 @@ def test_symboltable_specify_argument_list():
     with references to each Symbol and updates the Symbol attributes when
     needed.'''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = Symbol("var1", "real", [])
+    sym_table.add(sym_v1)
+    sym_table.add(Symbol("var2", "real", []))
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
+    sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.argument_list) == 1
-    assert sym_table.argument_list[0].scope == 'global_argument'
-    assert sym_table.argument_list[0].is_input is True
-    assert sym_table.argument_list[0].is_output is True
+    assert sym_table.argument_list[0].scope == 'global'
+    assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
-    sym_table.specify_argument_list(['var1'])
+    sym_table.specify_argument_list([sym_v1])
     assert len(sym_table.argument_list) == 1
+
+    # Check that specifying the Interface allows us to specify how
+    # the argument is accessed
+    sym_v2 = sym_table.lookup("var2")
+    sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1, sym_v2])
+    assert sym_table.argument_list[1].scope == 'global'
+    assert sym_table.argument_list[1].access == Symbol.Access.READWRITE
+
+
+def test_symboltable_specify_argument_list_errors():
+    ''' Check that supplying specify_argument_list() with Symbols that
+    don't have the correct Interface information raises the expected
+    errors. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_v1 = sym_table.lookup("var1")
+    # Attempt to say the argument list consists of "var1" which at this
+    # point is just a local variable.
+    with pytest.raises(ValueError) as err:
+        sym_table.specify_argument_list([sym_v1])
+    assert "Symbol 'var1:" in str(err)
+    assert ("is listed as a kernel argument but has no associated "
+            "Interface" in str(err))
+    # Now add an Interface for "var1" but of the wrong type
+    sym_v1.interface = Symbol.FortranGlobal("some_mod")
+    with pytest.raises(ValueError) as err:
+        sym_table.specify_argument_list([sym_v1])
+    assert "Symbol 'var1:" in str(err)
+    assert "has an interface of type '" in str(err)
+
+
+def test_symboltable_argument_list_errors():
+    ''' Tests the internal sanity checks of the SymbolTable.argument_list
+    property. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real",
+                         interface=Symbol.FortranGlobal("some_mod")))
+    # Manually put a local symbol into the internal list of arguments
+    sym_table._argument_list = [sym_table.lookup("var1")]
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_arg_list(sym_table._argument_list)
+    pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
+               "no associated Interface")
+    assert re.search(pattern, str(err)) is not None
+    # Check that the argument_list property converts this error into an
+    # InternalError
+    with pytest.raises(InternalError) as err:
+        _ = sym_table.argument_list
+    assert re.search(pattern, str(err)) is not None
+    # Check that we reject a symbol imported from a module
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_arg_list([sym_table.lookup("var3")])
+    # Manually put that symbol into the argument list
+    sym_table._argument_list = [sym_table.lookup("var3")]
+    pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
+               r"interface of type \'.*\.FortranGlobal\'>")
+    assert re.search(pattern, str(err)) is not None
+    # Check that the argument_list property converts this error into an
+    # InternalError
+    with pytest.raises(InternalError) as err:
+        _ = sym_table.argument_list
+    assert re.search(pattern, str(err)) is not None
+    # Check that we get the expected TypeError if we provide a list containing
+    # objects that are not Symbols
+    with pytest.raises(TypeError) as err:
+        sym_table._validate_arg_list(["Not a symbol"])
+    assert "Expected a list of Symbols but found an object of type" in str(err)
+
+
+def test_symboltable_validate_non_args():
+    ''' Checks for the validation of non-argument entries in the
+    SymbolTable. '''
+    sym_table = SymbolTable()
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real",
+                         interface=Symbol.FortranGlobal("some_mod")))
+    # Everything should be fine so far
+    sym_table._validate_non_args()
+    # Add an entry with an Argument interface
+    sym_table.add(Symbol("var4", "real",
+                         interface=Symbol.Argument()))
+    # Since this symbol isn't in the argument list, the SymbolTable
+    # is no longer valid
+    with pytest.raises(ValueError) as err:
+        sym_table._validate_non_args()
+    pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
+               "has a Symbol.Argument interface")
+    assert re.search(pattern, str(err)) is not None
 
 
 def test_symboltable_contains():
@@ -3619,13 +3799,19 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var1") in sym_table.local_symbols
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
-
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = sym_table.lookup("var1")
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.local_symbols) == 2
     assert sym_table.lookup("var1") not in sym_table.local_symbols
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
+
+    sym_table.add(Symbol("var4", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    assert len(sym_table.local_symbols) == 2
+    assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
 def test_symboltable_gen_c_local_variables():
@@ -3636,7 +3822,9 @@ def test_symboltable_gen_c_local_variables():
     sym_table.add(Symbol("var1", "real", []))
     sym_table.add(Symbol("var2", "real", []))
     sym_table.add(Symbol("var3", "real", [None]))
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = sym_table.lookup('var1')
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1])
 
     c_local_vars = sym_table.gen_c_local_variables()
     assert sym_table.lookup("var1").gen_c_definition() not in c_local_vars
@@ -3745,9 +3933,8 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     assert isinstance(schedule, KernelSchedule)
 
     # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').scope == 'global_argument'
-    assert schedule.symbol_table.lookup('f3').is_input is True
-    assert schedule.symbol_table.lookup('f3').is_output is True
+    assert schedule.symbol_table.lookup('f3').scope == 'global'
+    assert schedule.symbol_table.lookup('f3').access is Symbol.Access.READWRITE
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
@@ -3852,8 +4039,8 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("l1").shape == []
     assert fake_parent.symbol_table.lookup("l1").scope == 'local'
-    assert fake_parent.symbol_table.lookup("l1").is_input is False
-    assert fake_parent.symbol_table.lookup("l1").is_output is False
+    assert not fake_parent.symbol_table.lookup("l1").access
+    assert not fake_parent.symbol_table.lookup("l1").interface
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -3962,37 +4149,39 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     specifications of variable attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Specification_Part, Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg1").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg1").is_input is True
-    assert fake_parent.symbol_table.lookup("arg1").is_output is False
+    arg_list = [Name("arg1")]
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg1").access == Symbol.Access.READ
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
+    arg_list.append(Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg2").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg2").is_input is True
-    assert fake_parent.symbol_table.lookup("arg2").is_output is False
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg2").access == Symbol.Access.READ
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
+    arg_list.append(Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg3").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg3").is_input is False
-    assert fake_parent.symbol_table.lookup("arg3").is_output is True
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg3").access == \
+        Symbol.Access.WRITE
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
+    arg_list.append(Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg4").scope == 'global_argument'
-    assert fake_parent.symbol_table.lookup("arg4").is_input is True
-    assert fake_parent.symbol_table.lookup("arg4").is_output is True
+    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
+    assert fake_parent.symbol_table.lookup("arg4").access is \
+        Symbol.Access.READWRITE
 
 
 def test_fparser2astprocessor_process_declarations_stmt_functions(
@@ -4050,7 +4239,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     of array attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Specification_Part, Name
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
@@ -4099,8 +4288,6 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
         class UnrecognizedType(object):
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
-            pass
-
         fparser2spec.items[1].items[1].__class__ = UnrecognizedType
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
@@ -4112,12 +4299,54 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    processor.process_declarations(fake_parent, [fparser2spec],
+                                   [Name("array3")])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
-    assert fake_parent.symbol_table.lookup("array3").scope == "global_argument"
-    assert fake_parent.symbol_table.lookup("array3").is_input is True
+    assert fake_parent.symbol_table.lookup("array3").scope == "global"
+    assert fake_parent.symbol_table.lookup("array3").access is \
+        Symbol.Access.READ
+
+
+def test_fparser2astprocessor_use(f2008_parser):
+    ''' Check that SymbolTable entries are correctly created from
+    module use statements. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use this_mod\n"
+                                 "use other_mod, only: var1, var2\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    for var in ["some_var", "var1", "var2"]:
+        assert fake_parent.symbol_table.lookup(var).name == var
+        assert fake_parent.symbol_table.lookup(var).scope == "global"
+    assert fake_parent.symbol_table.lookup("some_var").interface.module_name \
+        == "my_mod"
+    assert fake_parent.symbol_table.lookup("var2").interface.module_name == \
+        "other_mod"
+
+
+def test_fp2astproc_use_error(f2008_parser, monkeypatch):
+    ''' Check that we raise the expected error if the parse tree representing
+    a USE statement doesn't have the expected structure. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use this_mod\n"
+                                 "use other_mod, only: var1, var2\n")
+    fparser2spec = Specification_Part(reader)
+    monkeypatch.setattr(fparser2spec.content[0], "items",
+                        [None, "hello", None])
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("Expected the parse tree for a USE statement to contain 5 items "
+            "but found 3 for 'hello'" in str(err))
 
 
 def test_fparser2astprocessor_parse_array_dimensions_unhandled(
@@ -4132,11 +4361,10 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     def walk_ast_return(_1, _2):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk_ast method caller.'''
-        class invalid(object):
+        class Invalid(object):
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
-            pass
-        newobject = invalid()
+        newobject = Invalid()
         return [newobject]
 
     monkeypatch.setattr(fparser.two.utils, 'walk_ast', walk_ast_return)
@@ -4177,10 +4405,27 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
+    # Check a new node is generated and connected to parent
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2name], None)
-    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Reference)
+    assert new_node._reference == "x"
+
+    # If the parent root has a symbol table it checks if the symbol
+    # is declared.
+    fake_parent = KernelSchedule('kernel')
+    processor = Fparser2ASTProcessor()
+
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [fparser2name], None)
+    assert "Undeclared reference 'x' found when parsing fparser2 node " \
+           "'Name('x')' inside 'kernel'." in str(error)
+
+    fake_parent.symbol_table.add(Symbol('x', 'integer'))
+    processor.process_nodes(fake_parent, [fparser2name], None)
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
@@ -4212,7 +4457,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x(i)=1")
+    reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
@@ -4225,6 +4470,27 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     assert new_node._reference == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
+    # If the parent root has a symbol table it checks if the symbol
+    # is declared.
+    fake_parent = KernelSchedule('kernel')
+    processor = Fparser2ASTProcessor()
+
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    assert "Undeclared reference 'x' found when parsing fparser2 " \
+           "node " in str(error)
+    assert " inside 'kernel'." in str(error)
+
+    fake_parent.symbol_table.add(Symbol('x', 'integer'))
+    processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Array)
+    assert new_node._reference == "x"
+    assert len(new_node.children) == 1  # Array dimensions
+
+    # Parse a complex array expression
+    fake_parent = Node()
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
@@ -4236,6 +4502,45 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     assert isinstance(new_node, Array)
     assert new_node._reference == "x"
     assert len(new_node.children) == 3  # Array dimensions
+
+
+def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
+    ''' Test that fparser2 Part_Ref nodes that in reality are Fortran
+    Intrinsics are handled appropriately.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    processor = Fparser2ASTProcessor()
+
+    # Test parsing all supported binary operators.
+    testlist = (('x = sign(a, b)', BinaryOperation,
+                 BinaryOperation.Operator.SIGN),
+                ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
+                ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
+                ('x = real(a, 8)', CodeBlock, None),
+                ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+                )
+
+    for code, expected_type, expected_op in testlist:
+        fake_parent = Node()
+        reader = FortranStringReader(code)
+        fp2node = Execution_Part.match(reader)[0][0].items[2]
+        processor.process_nodes(fake_parent, [fp2node], None)
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent.children[0], expected_type), \
+            "Fails when parsing '" + code + "'"
+
+    # Test unexpected fparser2 node in the real instrinsic.
+    fake_parent = Node()
+    reader = FortranStringReader("x = real(a)")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    # Manipulate fp2node to insert an unexpected structure
+    fp2node.items = (fp2node.items[0], fp2node.items[1], fp2node.items[0])
+
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [fp2node], None)
+    assert "Unexpected fparser2 node when parsing the real() intrinsic, 2 " \
+           "items were expected but found" in str(error.value)
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
@@ -4407,7 +4712,7 @@ def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
     assert nested_if2.children[1].children[0].children[0].name == 'found'
 
 
-def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
+def test_fparser2astprocessor_handling_case_construct(f2008_parser):
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
@@ -4448,7 +4753,44 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
-def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
+def test_fp2astproc_case_default(f2008_parser):
+    ''' Check that the fparser2ASTProcessor handles SELECT blocks with
+    a default clause. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
+    case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
+                    "CASE (label1)\nbranch1 = 1\n",
+                    "CASE (label2)\nbranch2 = 1\n"]
+    # Loop over the 3 possible locations for the 'default' clause
+    for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
+        fortran_text = (
+            "SELECT CASE (selector)\n"
+            "{0}{1}{2}"
+            "END SELECT\n".format(case_clauses[idx1], case_clauses[idx2],
+                                  case_clauses[idx3]))
+        reader = FortranStringReader(fortran_text)
+        fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+        fake_parent = Node()
+        processor = Fparser2ASTProcessor()
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+        assigns = fake_parent.walk(fake_parent.children, Assignment)
+        # Check that the assignment to 'branch 3' (in the default clause) is
+        # the deepest in the tree
+        assert "branch3" in str(assigns[2])
+        assert isinstance(assigns[2].ast, Assignment_Stmt)
+        assert isinstance(assigns[2].parent, Schedule)
+        assert isinstance(assigns[2].parent.ast, Assignment_Stmt)
+        assert "branch3 * 2" in str(assigns[2].parent.ast_end)
+        assert isinstance(assigns[2].parent.parent, IfBlock)
+        # Check that the if-body of the parent IfBlock also contains
+        # an Assignment
+        assert isinstance(assigns[2].parent.parent.children[1], Schedule)
+        assert isinstance(assigns[2].parent.parent.children[1].children[0],
+                          Assignment)
+
+
+def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
@@ -4468,20 +4810,7 @@ def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
     processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
-    # CASE DEFAULT Statment not supported
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE DEFAULT
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-    # but CASE (default) is just a regular symbol named default
+    # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
         '''SELECT CASE (selector)
             CASE (default)
@@ -4549,17 +4878,62 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1+4")
-    fparser2binary_operation = Execution_Part.match(reader)[0][0].items[2]
+    fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2binary_operation], None)
+    processor.process_nodes(fake_parent, [fp2binaryop], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
-    assert new_node._operator == '+'
+    assert new_node._operator == BinaryOperation.Operator.ADD
+
+    # Test parsing all supported binary operators.
+    testlist = (('+', BinaryOperation.Operator.ADD),
+                ('-', BinaryOperation.Operator.SUB),
+                ('*', BinaryOperation.Operator.MUL),
+                ('/', BinaryOperation.Operator.DIV),
+                ('**', BinaryOperation.Operator.POW),
+                ('==', BinaryOperation.Operator.EQ),
+                ('.eq.', BinaryOperation.Operator.EQ),
+                ('.EQ.', BinaryOperation.Operator.EQ),
+                ('/=', BinaryOperation.Operator.NE),
+                ('.ne.', BinaryOperation.Operator.NE),
+                ('>', BinaryOperation.Operator.GT),
+                ('.GT.', BinaryOperation.Operator.GT),
+                ('<', BinaryOperation.Operator.LT),
+                ('.lt.', BinaryOperation.Operator.LT),
+                ('>=', BinaryOperation.Operator.GE),
+                ('.ge.', BinaryOperation.Operator.GE),
+                ('<=', BinaryOperation.Operator.LE),
+                ('.LE.', BinaryOperation.Operator.LE),
+                ('.and.', BinaryOperation.Operator.AND),
+                ('.or.', BinaryOperation.Operator.OR),
+                )
+
+    for opstring, expected in testlist:
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
+        fp2binaryop.items = (fp2binaryop.items[0], opstring,
+                             fp2binaryop.items[2])
+        # And then translate it to PSyIR again.
+        fake_parent = Node()
+        processor.process_nodes(fake_parent, [fp2binaryop], None)
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent.children[0], BinaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent.children[0]._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test that an unsupported binary operator creates a CodeBlock
+    fake_parent = Node()
+    fp2binaryop.items = (fp2binaryop.items[0], 'unsupported',
+                         fp2binaryop.items[2])
+    processor.process_nodes(fake_parent, [fp2binaryop], None)
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
@@ -4569,18 +4943,47 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
     reader = FortranStringReader("x=-4")
-    fparser2unary_operation = Execution_Part.match(reader)[0][0].items[2]
-    assert isinstance(fparser2unary_operation, UnaryOpBase)
+    fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
+    assert isinstance(fp2unaryop, UnaryOpBase)
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2unary_operation], None)
+    processor.process_nodes(fake_parent, [fp2unaryop], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, UnaryOperation)
     assert len(new_node.children) == 1
-    assert new_node._operator == '-'
+    assert new_node._operator == UnaryOperation.Operator.MINUS
+
+    # Test parsing all supported unary operators.
+    testlist = (('+', UnaryOperation.Operator.PLUS),
+                ('-', UnaryOperation.Operator.MINUS),
+                ('.not.', UnaryOperation.Operator.NOT),
+                ('.NOT.', UnaryOperation.Operator.NOT),
+                )
+
+    for opstring, expected in testlist:
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
+        fp2unaryop.items = (opstring, fp2unaryop.items[1])
+        # And then translate it to PSyIR again.
+        fake_parent = Node()
+        processor.process_nodes(fake_parent, [fp2unaryop], None)
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent.children[0], UnaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent.children[0]._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test that an unsupported unary operator creates a CodeBlock
+    fp2unaryop.items = ('unsupported', fp2unaryop.items[1])
+    fake_parent = Node()
+    processor.process_nodes(fake_parent, [fp2unaryop], None)
+
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, CodeBlock)
 
 
 def test_fparser2astprocessor_handling_return_stmt(f2008_parser):

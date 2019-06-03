@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -265,19 +264,29 @@ def test_opencl_kernel_variables_definitions():
     the expected OpenCL argument/variable declarations.
     '''
     kschedule = GOKernelSchedule('test')
-    kschedule.symbol_table.add(Symbol("i", "integer", []))
-    kschedule.symbol_table.add(Symbol("j", "integer", []))
-    kschedule.symbol_table.add(Symbol("intarg", "integer", []))
-    kschedule.symbol_table.add(Symbol("realarg", "real", []))
-    kschedule.symbol_table.add(Symbol("chararg", "character", []))
-    kschedule.symbol_table.add(Symbol("arrayarg", "real", [3, 4, 5, 3]))
-    kschedule.symbol_table.add(Symbol("intvar", "integer", []))
-    kschedule.symbol_table.add(Symbol("realvar", "real", []))
-    kschedule.symbol_table.add(Symbol("charvar", "character", []))
-    kschedule.symbol_table.add(Symbol("arrayvar", "real", [3, 4, 5, 3]))
-    kschedule.symbol_table.specify_argument_list(["i", "j", "intarg",
-                                                  "realarg", "chararg",
-                                                  "arrayarg"])
+    symtable = kschedule.symbol_table
+    # Create Symbols for all of the routine arguments
+    arg_symbols = [
+        Symbol("i", "integer", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("j", "integer", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("intarg", "integer", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("realarg", "real", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("chararg", "character", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("arrayarg", "real", [3, 4, 5, 3],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE))]
+    for symbol in arg_symbols:
+        symtable.add(symbol)
+    symtable.add(Symbol("intvar", "integer", []))
+    symtable.add(Symbol("realvar", "real", []))
+    symtable.add(Symbol("charvar", "character", []))
+    symtable.add(Symbol("arrayvar", "real", [3, 4, 5, 3]))
+    symtable.specify_argument_list(arg_symbols)
+
     opencl = kschedule.gen_ocl()
 
     # Check Arguments are part (or not) of the generated opencl
@@ -306,7 +315,6 @@ def test_opencl_kernel_gen_wrong_kernel():
     ''' Tests that gen_ocl method raises the proper error when the
     GOKernelSchedule does not represent a proper GOcean kernel.
     '''
-
     kschedule = GOKernelSchedule('test')
 
     # Test gen_ocl without any kernel argument
@@ -317,10 +325,10 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
     # Test gen_ocl with 1 kernel argument
-    kschedule.symbol_table.add(Symbol("arg1", "integer", shape=[],
-                                      scope="global_argument",
-                                      is_input=True, is_output=False))
-    kschedule.symbol_table.specify_argument_list(["arg1"])
+    arg1 = Symbol("arg1", "integer", [],
+                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    kschedule.symbol_table.add(arg1)
+    kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels should always have at least two "
@@ -328,35 +336,35 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
     # Test gen_ocl with 2 kernel argument
-    kschedule.symbol_table.add(Symbol("arg2", "integer", shape=[],
-                                      scope="global_argument",
-                                      is_input=True, is_output=False))
-    kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
+    arg2 = Symbol("arg2", "integer", shape=[],
+                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    kschedule.symbol_table.add(arg2)
+    kschedule.symbol_table.specify_argument_list([arg1, arg2])
     kschedule.gen_ocl()
 
     # Test gen_ocl with wrong iteration indices types and shapes.
-    kschedule.symbol_table.lookup("arg1")._datatype = "real"
+    arg1._datatype = "real"
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
             " but got a scalar of type 'real' for kernel 'test'.")\
         in str(err)
-    kschedule.symbol_table.lookup("arg1")._datatype = "integer"  # restore
+    arg1._datatype = "integer"  # restore
 
-    kschedule.symbol_table.lookup("arg2")._shape = [None]
+    arg2._shape = [None]
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
             " but got an array of type 'integer' for kernel 'test'.")\
         in str(err)
-    kschedule.symbol_table.lookup("arg2")._shape = []  # restore
+    arg2._shape = []  # restore
 
     # Test gen_ocl with clashing variable names for array lengths.
-    kschedule.symbol_table.add(Symbol("array", "integer", shape=[None],
-                                      scope="global_argument",
-                                      is_input=True, is_output=True))
+    array = Symbol("array", "integer", shape=[None],
+                   interface=Symbol.Argument(access=Symbol.Access.READWRITE))
+    kschedule.symbol_table.add(array)
     kschedule.symbol_table.add(Symbol("arrayLEN1", "integer", []))
-    kschedule.symbol_table.specify_argument_list(["arg1", "arg2", "array"])
+    kschedule.symbol_table.specify_argument_list([arg1, arg2, array])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
     assert ("Unable to declare the variable 'arrayLEN1' to store the length"

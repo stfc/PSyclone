@@ -2568,19 +2568,20 @@ class Dynamo0p3KernelConstTrans(Transformation):
             'value'.
 
             :param symbol_table: The symbol table for the kernel \
-            holding the argument that is going to be modified.
+                         holding the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
             :param int arg_position: The argument's position in the \
-            argument list.
+                                     argument list.
             :param value: The constant value that this argument is \
-            going to be give. Its type depends on the type of the \
-            argument.
+                   going to be given. Its type depends on the type of the \
+                   argument.
             :type value: int, str or bool.
             :type str function_space: the name of the function space \
-            if there is a function space associated with this \
-            argument. Defaults to None.
+                        if there is a function space associated with this \
+                        argument. Defaults to None.
 
             '''
+            from psyclone.psyGen import Symbol
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -2592,24 +2593,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Perform some basic checks on the argument to make sure
             # it is the expected type
             if symbol.datatype != "integer" or \
-               symbol.scope != "global_argument" or symbol.shape or \
-               symbol.is_constant:
-                # Do not check for 'is_input' being 'False' and
-                # 'is_output' being 'True' as some kernel declarations
-                # might not set intent which results in both
-                # 'is_input' and 'is_output' being set to 'True'.
+               symbol.shape or symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
                     "but found '{0}'.".format(symbol))
 
             # Create a new symbol with a known constant value then swap
-            # it with the argument.
+            # it with the argument. The argument then becomes xxx_dummy
+            # and is unused within the kernel body.
             # TODO: Temporarily use unsafe name change until the name
             # space manager is introduced into the SymbolTable (Issue
             # #321).
-            from psyclone.psyGen import Symbol
             orig_name = symbol.name
-            local_symbol = Symbol(orig_name+"_dummy", "integer", scope="local",
+            local_symbol = Symbol(orig_name+"_dummy", "integer",
                                   constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -3092,6 +3088,12 @@ class ACCKernelsTrans(RegionTrans):
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
 
+        # TODO #315 Check that the SymbolTable associated with the
+        # KernelSchedule does not have any symbols with `deferred` type (as
+        # that indicates that we haven't yet worked out what they are). We
+        # can't do that yet as we can't create the PSyIR for our test kernels.
+        # That's the subject of #256.
+
 
 class ACCDataTrans(RegionTrans):
     '''
@@ -3317,12 +3319,16 @@ class NemoExplicitLoopTrans(Transformation):
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
         nsm = invoke._name_space_manager
-        loop_type = nemo.NEMO_INDEX_ORDERING[outermost_dim]
-        base_name = nemo.VALID_LOOP_TYPES[loop_type]["var"]
+        config = Config.get().api_conf("nemo")
+        index_order = config.get_index_order()
+        loop_type_data = config.get_loop_type_data()
+
+        loop_type = loop_type_data[index_order[outermost_dim]]
+        base_name = loop_type["var"]
         loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
                                    label=base_name)
-        loop_start = nemo.VALID_LOOP_TYPES[loop_type]["start"]
-        loop_stop = nemo.VALID_LOOP_TYPES[loop_type]["stop"]
+        loop_start = loop_type["start"]
+        loop_stop = loop_type["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
         # TODO #255 we need some sort of type/declarations table to check that
@@ -3375,9 +3381,10 @@ class NemoExplicitLoopTrans(Transformation):
             subsec.items = tuple(indices)
 
         # Create the fparser AST for an explicit loop
-        text = ("do {0}=1,{1},{2}\n"
+        text = ("do {0}={1},{2},{3}\n"
                 "  replace = me\n"
-                "end do\n".format(loop_var, loop_stop, loop_step))
+                "end do\n".format(loop_var, loop_start, loop_stop,
+                                  loop_step))
         new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
 
