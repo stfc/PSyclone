@@ -4207,6 +4207,7 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     # If 'a' is declared in the symbol table as an array, it is an array
     # assignment which belongs in the execution part.
     fake_parent.symbol_table.add(Symbol('a', 'real', shape=[None]))
+    fake_parent.symbol_table.add(Symbol('x', 'real', shape=[]))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -4215,9 +4216,11 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
 
     # Test that it works with multi-dimensional arrays
     fake_parent = KernelSchedule("dummy_schedule")
-    reader = FortranStringReader("b(i, j) = 1")
+    reader = FortranStringReader("b(x, y) = 1")
     fparser2spec = Specification_Part(reader).content[0]
     fake_parent.symbol_table.add(Symbol('b', 'real', shape=[None, None]))
+    fake_parent.symbol_table.add(Symbol('x', 'real', shape=[]))
+    fake_parent.symbol_table.add(Symbol('y', 'real', shape=[]))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
