@@ -5372,7 +5372,10 @@ class Fparser2ASTProcessor(object):
                     # This is an array assignment worngly categorized as a
                     # statement_function by fparser2.
                     array_name = fn_name
-                    array_subscript = arg_list
+                    if hasattr(arg_list, 'items'):
+                        array_subscript = arg_list.items
+                    else:
+                        array_subscript = [arg_list]
                     assignment_rhs = scalar_expr
 
                     # Create assingment node
@@ -5381,17 +5384,22 @@ class Fparser2ASTProcessor(object):
 
                     # Build lhs
                     lhs = Array(array_name.string, parent=assignment)
-                    self.process_nodes(parent=lhs, nodes=array_subscript.items,
-                                       nodes_parent=array_subscript)
+                    self.process_nodes(parent=lhs, nodes=array_subscript,
+                                       nodes_parent=arg_list)
                     assignment.addchild(lhs)
 
                     # Build rhs
                     self.process_nodes(parent=assignment, nodes=[scalar_expr],
                                        nodes_parent=scalar_expr)
                 else:
-                    raise GenerationError("")
+                    raise GenerationError(
+                        "Could not process '{0}'. Symbol '{1}' is not "
+                        "declared as an array on the SymbolTable."
+                        "".format(str(stmtfn), symbol.name))
             except KeyError:
-                raise GenerationError("")
+                raise NotImplementedError(
+                    "Could not process '{0}'. Statement Function declarations "
+                    "are not supported.".format(str(stmtfn)))
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
