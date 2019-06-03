@@ -3381,9 +3381,10 @@ class NemoExplicitLoopTrans(Transformation):
             subsec.items = tuple(indices)
 
         # Create the fparser AST for an explicit loop
-        text = ("do {0}=1,{1},{2}\n"
+        text = ("do {0}={1},{2},{3}\n"
                 "  replace = me\n"
-                "end do\n".format(loop_var, loop_stop, loop_step))
+                "end do\n".format(loop_var, loop_start, loop_stop,
+                                  loop_step))
         new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
 
