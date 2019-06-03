@@ -49,10 +49,12 @@ from psyclone_test_utils import Compile, get_invoke
 API = "gocean1.0"
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
+    yield()
+    Config._instance = None
 
 
 @pytest.fixture
@@ -60,13 +62,6 @@ def outputdir(tmpdir, monkeypatch):
     '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-    return tmpdir
-
-
-def teardown_function():
-    ''' This function is called automatically after every test in this
-    file. It ensures that any existing configuration object is deleted. '''
-    Config._instance = None
 
 
 # ----------------------------------------------------------------------------
@@ -257,7 +252,7 @@ def test_opencl_kernel_code_generation():
         "    int uLEN2 = get_global_size(1);\n"
         "    int i = get_global_id(0);\n"
         "    int j = get_global_id(1);\n"
-        "    cu[j * cuLEN1 + i] = ((0.5D0 * (p[j * pLEN1 + (i + 1)]"
+        "    cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
         " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
         "}\n"
         )
