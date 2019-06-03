@@ -42,6 +42,7 @@
 
 from __future__ import print_function, absolute_import
 import copy
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, Kern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
@@ -52,23 +53,6 @@ from fparser.two import Fortran2003
 # a NEMO-API-specific entity.
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
-
-# The valid types of loop and associated loop variable and bounds
-VALID_LOOP_TYPES = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
-                    "lat": {"var": "jj", "start": "1", "stop": "jpj"},
-                    "levels": {"var": "jk", "start": "1", "stop": "jpk"},
-                    # TODO what is the upper bound of tracer loops?
-                    "tracers": {"var": "jt", "start": "1", "stop": ""},
-                    "unknown": {"var": "", "start": "1", "stop": ""}}
-
-# Mapping from loop variable to loop type. This is how we identify each
-# explicit do loop we encounter.
-NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
-                          "jt": "tracers", "jn": "tracers"}
-
-# Mapping from loop type to array index. NEMO uses an "i, j, k" data
-# layout.
-NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
@@ -393,8 +377,9 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
     '''
     def __init__(self, ast, parent=None):
         from fparser.two.Fortran2003 import Loop_Control
+        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=valid_loop_types)
         NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the parse tree
         self._ast = ast
@@ -417,8 +402,10 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         self._variable_name = str(loop_var)
 
         # Identify the type of loop
-        if self._variable_name in NEMO_LOOP_TYPE_MAPPING:
-            self.loop_type = NEMO_LOOP_TYPE_MAPPING[self._variable_name]
+        loop_type_mapping = Config.get().api_conf("nemo")\
+            .get_loop_type_mapping()
+        if self._variable_name in loop_type_mapping:
+            self.loop_type = loop_type_mapping[self._variable_name]
         else:
             self.loop_type = "unknown"
 
@@ -519,8 +506,9 @@ class NemoImplicitLoop(NemoLoop):
 
     '''
     def __init__(self, ast, parent=None):
+        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
