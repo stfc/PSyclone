@@ -3002,7 +3002,9 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
-    '''Represents a loop in the PSyIR.
+    '''Represents a loop in the PSyIR. (Note: currently this loop only
+    represents the equivalent to Fortran do loops. This means the loop is
+    bounded by start/stop/step expressions evaluated before the loop starts.)
 
     :param parent: Parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
@@ -3038,11 +3040,73 @@ class Loop(Node):
         Node.__init__(self, parent=parent)
 
         self._variable_name = variable_name
-
-        self._start = ""
-        self._stop = ""
-        self._step = ""
         self._id = ""
+
+        #self._start = ""
+        #self._stop = ""
+        #self._step = ""
+
+    @property
+    def start_expr(self):
+        ''' Return the PSyIR Node representing the Loop start expression.
+
+        :return: Loop start expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the Loop node does not have the correct \
+            number of children.
+        '''
+        if len(self.children) < 4:
+            raise InternalError(
+                "Loop malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
+        return self._children[0]
+
+    @property
+    def stop_expr(self):
+        ''' Return the PSyIR Node representing the Loop stop expression.
+
+        :return: Loop stop expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the Loop node does not have the correct \
+            number of children.
+        '''
+        if len(self.children) < 4:
+            raise InternalError(
+                "Loop malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
+        return self._children[1]
+
+    @property
+    def step_expr(self):
+        ''' Return the PSyIR Node representing the Loop step expression.
+
+        :return: Loop step expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the Loop node does not have the correct \
+            number of children.
+        '''
+        if len(self.children) < 4:
+            raise InternalError(
+                "Loop malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
+        return self._children[2]
+
+    @property
+    def loop_body(self):
+        ''' Return children of the Schedule executed in each loop iteration.
+
+        :return: Statements to be executed in a Loop iteration.
+        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the Loop node does not have the correct \
+            number of children.
+        '''
+
+        if len(self.children) < 4:
+            raise InternalError(
+                "Loop malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
+
+        return self._children[3]._children
 
     @property
     def dag_name(self):
@@ -3159,12 +3223,10 @@ class Loop(Node):
         return self._variable_name
 
     def __str__(self):
-        result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \
-            self._id + " lower=" + self._start + "," + self._stop + "," + \
-            self._step + "\n"
+        result = "Loop[id:'" + self._id + "', variable:'"
+        result += self._variable_name + "']\n"
         for entity in self._children:
-            result += str(entity) + "\n"
-        result += "EndLoop"
+            result += str(entity)
         return result
 
     def has_inc_arg(self):
@@ -4932,6 +4994,8 @@ class Fparser2ASTProcessor(object):
             Fortran2003.Case_Construct: self._case_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
+            Fortran2003.Block_Nonlabel_Do_Construct:
+                self._do_construct_handler,
         }
 
     @staticmethod
@@ -5476,6 +5540,76 @@ class Fparser2ASTProcessor(object):
         :rtype: NoneType
         '''
         return None
+
+    def _do_construct_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Do Construct to the PSyIR representation.
+
+        :param node: node in fparser2 tree.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        :raises InternalError: If the fparser2 tree has an unexpected \
+            structure.
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
+        if not ctrl:
+            # If there is no Control expression, put in a CodeBlock
+            raise NotImplementedError()
+        if ctrl[0].items[0]:
+            # If this is a DO WHILE then the first element of items will not
+            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
+            # TODO #359 DO WHILE's are currently just put into CodeBlocks
+            # rather than being properly described in the PSyIR.
+            raise NotImplementedError()
+
+        loop = Loop(parent=parent)
+        # Second element of items member of Loop Control is itself a tuple
+        # containing:
+        #   Loop variable, [start value expression, end value expression, step
+        #   expression]
+        # Loop variable will be an instance of Fortran2003.Name
+        loop_var = str(ctrl[0].items[1][0])
+        variable_name = str(loop_var)
+
+        # Get the loop limits. These are given in a list which is the second
+        # element of a tuple which is itself the second element of the items
+        # tuple:
+        # (None, (Name('jk'), [Int_Literal_Constant('1', None), Name('jpk'),
+        #                      Int_Literal_Constant('1', None)]), None)
+        limits_list = ctrl[0].items[1][1]
+
+        # Start expression child
+        self.process_nodes(parent=loop, nodes=[limits_list[0]],
+                           nodes_parent=ctrl)
+
+        # Stop expression child
+        self.process_nodes(parent=loop, nodes=[limits_list[1]],
+                           nodes_parent=ctrl)
+
+        # Step expression child
+        if len(limits_list) == 3:
+            self.process_nodes(parent=loop, nodes=[limits_list[2]],
+                               nodes_parent=ctrl)
+        else:
+            # Default loop increment is 1
+            default_step = Literal(parent=loop, value=1)
+            loop.addchild(default_step)
+
+        # Process the loop body
+        loop_body = Schedule(parent=loop)
+        self.process_nodes(parent=loop_body, nodes=[node.content[1]],
+                           nodes_parent=node)
+        loop.addchild(loop_body)
+
+        return loop
 
     def _if_construct_handler(self, node, parent):
         '''
