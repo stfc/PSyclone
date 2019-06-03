@@ -6906,7 +6906,11 @@ class Literal(Node):
         :returns: C language code representing the node.
         :rtype: str
         '''
-        return self._value
+        str_value = self._value
+        # C Scientific notation is always an 'e' letter
+        str_value = str_value.replace('d', 'e')
+        str_value = str_value.replace('D', 'e')
+        return str_value
 
 
 class Return(Node):

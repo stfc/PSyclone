@@ -2934,6 +2934,16 @@ def test_literal_gen_c_code():
     lit = Literal("1", None)
     assert lit.gen_c_code() == '1'
 
+    # Test that D scientific notation is replaced by 'e'
+    lit = Literal("3e5", None)
+    assert lit.gen_c_code() == '3e5'
+    lit = Literal("3d5", None)
+    assert lit.gen_c_code() == '3e5'
+    lit = Literal("3D5", None)
+    assert lit.gen_c_code() == '3e5'
+    lit = Literal("3D+5", None)
+    assert lit.gen_c_code() == '3e+5'
+
 
 # Test BinaryOperation class
 
