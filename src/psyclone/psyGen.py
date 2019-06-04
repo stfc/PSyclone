@@ -5975,6 +5975,8 @@ class Fparser2ASTProcessor(object):
             return uop
         if reference_name == 'real':
             if len(node.items) != 2:
+                # TODO: Note that real(var, kind) expressions are not supported
+                # because Fortran kinds are still not caputred (Issue #375)
                 raise GenerationError(
                     "Unexpected fparser2 node when parsing the real() "
                     "intrinsic, 2 items were expected but found '{0}'."
