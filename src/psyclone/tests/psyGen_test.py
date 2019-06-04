@@ -3185,6 +3185,14 @@ def test_kernelschedule_abstract_methods():
         in str(error.value)
 
 
+def test_kernelschedule_name_setter():
+    '''Test that the name setter changes the kernel name attribute.'''
+    kschedule = KernelSchedule("kname")
+    assert kschedule.name == "kname"
+    kschedule.name = "newname"
+    assert kschedule.name == "newname"
+
+
 # Test Symbol Class
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are

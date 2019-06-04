@@ -991,8 +991,6 @@ class GOKern(Kern):
                              rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
 
-        
-
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
