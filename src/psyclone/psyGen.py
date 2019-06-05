@@ -3226,7 +3226,8 @@ class Loop(Node):
         result = "Loop[id:'" + self._id + "', variable:'"
         result += self._variable_name + "']\n"
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
+        result += "EndLoop"
         return result
 
     def has_inc_arg(self):
@@ -5603,9 +5604,9 @@ class Fparser2ASTProcessor(object):
             default_step = Literal(parent=loop, value=1)
             loop.addchild(default_step)
 
-        # Process the loop body
+        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
         loop_body = Schedule(parent=loop)
-        self.process_nodes(parent=loop_body, nodes=[node.content[1]],
+        self.process_nodes(parent=loop_body, nodes=[node.content[1:-1]],
                            nodes_parent=node)
         loop.addchild(loop_body)
 
@@ -7198,10 +7199,10 @@ class Literal(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "["
-              + "value:'"+self._value + "']")
+              + "value:'" + str(self._value) + "']")
 
     def __str__(self):
-        return "Literal[value:'" + self._value + "']\n"
+        return "Literal[value:'" + str(self._value) + "']\n"
 
     def gen_c_code(self, indent=0):
         '''

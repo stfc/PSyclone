@@ -763,8 +763,9 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string describing this Loop object '''
-        step = self._step
-        if not step:
+        try:
+            step = str(self.step_expr)
+        except InternalError:
             step = "1"
 
         result = ("Loop[" + self._id + "]: " + self._variable_name +

@@ -427,21 +427,21 @@ def test_extract_node_representation(capsys):
 
     # Test __str__ method
     correct = ("""Schedule:
-Loop[]: cell= lower=,,
+Loop[id:'', variable:'cell']
 kern call: testkern_code
 EndLoop
 ExtractStart
-Loop[]: cell= lower=,,
+Loop[id:'', variable:'cell']
 kern call: testkern_code
 EndLoop
-Loop[]: cell= lower=,,
+Loop[id:'', variable:'cell']
 kern call: ru_code
 EndLoop
 ExtractEnd
-Loop[]: cell= lower=,,
+Loop[id:'', variable:'cell']
 kern call: ru_code
 EndLoop
-Loop[]: cell= lower=,,
+Loop[id:'', variable:'cell']
 kern call: testkern_code
 EndLoop
 End Schedule""")
