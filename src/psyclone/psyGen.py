@@ -5606,7 +5606,7 @@ class Fparser2ASTProcessor(object):
 
         # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
         loop_body = Schedule(parent=loop)
-        self.process_nodes(parent=loop_body, nodes=[node.content[1:-1]],
+        self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
                            nodes_parent=node)
         loop.addchild(loop_body)
 
