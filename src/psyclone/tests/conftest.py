@@ -75,8 +75,12 @@ def have_graphviz():
     ''' Whether or not the system has graphviz installed. Note that this
     only checks for the Python bindings. The underlying library must
     also have been installed for dag generation to work correctly. '''
-    import sys
-    return "graphviz" in sys.modules
+    try:
+        # pylint: disable=unused-variable
+        import graphviz
+    except ImportError:
+        return False
+    return True
 
 
 @pytest.fixture(scope="session", autouse=True)
