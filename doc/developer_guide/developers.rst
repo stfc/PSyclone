@@ -1893,7 +1893,8 @@ OpenCL
 ======
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
-PSy-layer code for the GOcean 1.0 API. Such code may then be executed
+PSy-layer code for the GOcean 1.0 API and its associated kernels.
+Such code may then be executed
 on devices such as GPUs and FPGAs (Field-Programmable Gate
 Arrays). Since OpenCL code is very different to that which PSyclone
 normally generates, its creation is handled by ``gen_ocl`` methods
@@ -1994,15 +1995,6 @@ of this setup is done, the kernel itself is launched by calling
 
 Limitations
 -----------
-
-Currently PSyclone can only generate the OpenCL version of the PSy
-layer.  Execution of the resulting code requires that the kernels
-themselves be converted from Fortran to OpenCL (a dialect of C) and at
-present this must be done manually. Since all data accessed by an
-OpenCL kernel must be passed as an argument, this conversion must also
-convert any accesses to module data into routine arguments. 
-Work is in progress to support kernel transformation and this will be
-made available in a future PSyclone release.
 
 In OpenCL, all tasks to be performed (whether copying data or kernel
 execution) are associated with a command queue. Tasks submitted to
