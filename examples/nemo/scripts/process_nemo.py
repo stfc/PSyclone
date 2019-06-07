@@ -32,6 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+from __future__ import print_function
 import os
 import sys
 
@@ -74,8 +75,7 @@ if __name__ == "__main__":
         exit(1)
 
     # Find all Fortran90 files
-    files = [os.path.basename(ffile) for ffile in
-             glob.glob(os.path.join(args.input_dir, "*90"))]
+    files = glob.glob(os.path.join(args.input_dir, "*90"))
 
     if not files:
         print("Failed to find any Fortran90 files (*90) in the supplied "
@@ -86,12 +86,14 @@ if __name__ == "__main__":
     failed_files = []
     
     for ffile in files:
-        if ffile in EXCLUDED_FILES:
+        file_name = os.path.basename(ffile)
+        if file_name in EXCLUDED_FILES:
             continue
-        print("Processing {0}...".format(ffile))
+        print("Processing {0}...".format(file_name))
+        out_file = os.path.join(args.out_dir, file_name)
         extra_args = ["-api", 'nemo', "-s", args.script_file,
                       "-oalg", "/dev/null",
-                      "-opsy", os.path.join(args.out_dir, ffile), ffile]
+                      "-opsy", out_file, ffile]
         try:
             main(extra_args)
         except SystemExit as err:
