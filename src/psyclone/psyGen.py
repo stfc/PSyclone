@@ -5403,12 +5403,16 @@ class Fparser2ASTProcessor(object):
                                 "declarations for fparser nodes {1}."
                                 "".format(str(arg_list), nodes))
 
+        # fparser2 does not always handle Statement Functions correctly, this
+        # loop checks for Stmt_Functions that should be an array statement
+        # and recovers them, otherwise it raises an error as currently
+        # Statement Functions are not supported in PSyIR.
         for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
                 symbol = parent.symbol_table.lookup(fn_name.string)
                 if symbol.is_array:
-                    # This is an array assignment worngly categorized as a
+                    # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
                     array_name = fn_name
                     if hasattr(arg_list, 'items'):
@@ -5431,9 +5435,10 @@ class Fparser2ASTProcessor(object):
                     self.process_nodes(parent=assignment, nodes=[scalar_expr],
                                        nodes_parent=scalar_expr)
                 else:
-                    raise GenerationError(
-                        "Could not process '{0}'. Symbol '{1}' is not "
-                        "declared as an array on the SymbolTable."
+                    raise InternalError(
+                        "Could not process '{0}'. Symbol '{1}' is in the"
+                        " SymbolTable but it is not an array as expected, so"
+                        " it can not be recovered as an array assignment."
                         "".format(str(stmtfn), symbol.name))
             except KeyError:
                 raise NotImplementedError(

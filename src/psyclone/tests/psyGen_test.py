@@ -4227,8 +4227,8 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     reader = FortranStringReader("b(x, y) = 1")
     fparser2spec = Specification_Part(reader).content[0]
     fake_parent.symbol_table.add(Symbol('b', 'real', shape=[None, None]))
-    fake_parent.symbol_table.add(Symbol('x', 'real', shape=[]))
-    fake_parent.symbol_table.add(Symbol('y', 'real', shape=[]))
+    fake_parent.symbol_table.add(Symbol('x', 'integer', shape=[]))
+    fake_parent.symbol_table.add(Symbol('y', 'integer', shape=[]))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -4237,10 +4237,11 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
 
     # Test that if symbol is not an array, it raises GenerationError
     fake_parent.symbol_table.lookup('b')._shape = []
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process '" in str(error.value)
-    assert "'. Symbol 'b' is not declared as an array on the SymbolTable." \
+    assert "'. Symbol 'b' is in the SymbolTable but it is not an array as " \
+        "expected, so it can not be recovered as an array assignment." \
         in str(error.value)
 
 
