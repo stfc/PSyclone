@@ -40,6 +40,7 @@
     particular API and implementation. '''
 
 from __future__ import print_function, absolute_import
+from enum import Enum
 import abc
 import six
 from psyclone.configuration import Config
@@ -5241,6 +5242,8 @@ class Fparser2ASTProcessor(object):
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
         :raises NotImplementedError: The provided declarations contain
                                      attributes which are not supported yet.
+        :raises GenerationError: If the parse tree for a USE statement does \
+                                 not have the expected structure.
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
@@ -5261,6 +5264,36 @@ class Fparser2ASTProcessor(object):
             if type(nodes).__name__.endswith("_List"):
                 return nodes.items
             return [nodes]
+
+        # Look at any USE statments
+        for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
+
+            # Check that the parse tree is what we expect
+            if len(decl.items) != 5:
+                # We can't just do str(decl) as that also checks that items
+                # is of length 5
+                text = ""
+                for item in decl.items:
+                    if item:
+                        text += str(item)
+                raise GenerationError(
+                    "Expected the parse tree for a USE statement to contain "
+                    "5 items but found {0} for '{1}'".format(len(decl.items),
+                                                             text))
+            if not isinstance(decl.items[4],
+                              (Fortran2003.Name, Fortran2003.Only_List)):
+                # This USE doesn't have an ONLY clause so we skip it. We
+                # don't raise an error as this will only become a problem if
+                # this Schedule represents a kernel that is the target of a
+                # transformation. See #315.
+                continue
+            mod_name = str(decl.items[2])
+            for name in iterateitems(decl.items[4]):
+                # Create an entry in the SymbolTable for each symbol named
+                # in the ONLY clause.
+                parent.symbol_table.add(
+                    Symbol(str(name), datatype='deferred',
+                           interface=Symbol.FortranGlobal(mod_name)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -5289,22 +5322,17 @@ class Fparser2ASTProcessor(object):
             # 2) If no intent attribute is provided, it is provisionally
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
-            scope = 'local'
-            is_input = False
-            is_output = False
+            interface = None
             for attr in iterateitems(attr_specs):
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if "intent(in)" in normalized_string:
-                        scope = 'global_argument'
-                        is_input = True
+                        interface = Symbol.Argument(access=Symbol.Access.READ)
                     elif "intent(out)" in normalized_string:
-                        scope = 'global_argument'
-                        is_output = True
+                        interface = Symbol.Argument(access=Symbol.Access.WRITE)
                     elif "intent(inout)" in normalized_string:
-                        scope = 'global_argument'
-                        is_input = True
-                        is_output = True
+                        interface = Symbol.Argument(
+                            access=Symbol.Access.READWRITE)
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
@@ -5341,13 +5369,27 @@ class Fparser2ASTProcessor(object):
                         "Could not process {0}. Character length "
                         "specifications are not supported."
                         "".format(decl.items))
-                parent.symbol_table.add(Symbol(
-                    str(name), datatype, shape=entity_shape, scope=scope,
-                    is_input=is_input, is_output=is_output))
+
+                parent.symbol_table.add(Symbol(str(name), datatype,
+                                               shape=entity_shape,
+                                               interface=interface))
 
         try:
-            arg_strings = [x.string for x in arg_list]
-            parent.symbol_table.specify_argument_list(arg_strings)
+            arg_symbols = []
+            # Ensure each associated symbol has the correct interface info.
+            for arg_name in [x.string for x in arg_list]:
+                symbol = parent.symbol_table.lookup(arg_name)
+                if symbol.scope == 'local':
+                    # We didn't previously know that this Symbol was an
+                    # argument (as it had no 'intent' qualifier). Mark
+                    # that it is an argument by specifying its interface.
+                    # A Fortran argument has intent(inout) by default
+                    symbol.interface = Symbol.Argument(
+                        access=Symbol.Access.READWRITE)
+                arg_symbols.append(symbol)
+            # Now that we've updated the Symbols themselves, set the
+            # argument list
+            parent.symbol_table.specify_argument_list(arg_symbols)
         except KeyError:
             raise InternalError("The kernel argument "
                                 "list '{0}' does not match the variable "
@@ -5637,7 +5679,9 @@ class Fparser2ASTProcessor(object):
                     ifblock.ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
-                    bop = BinaryOperation(parent=ifblock, operator='==')
+                    bop = BinaryOperation(BinaryOperation.Operator.EQ,
+                                          parent=ifblock)
+
                     self.process_nodes(parent=bop,
                                        nodes=[selector],
                                        nodes_parent=node)
@@ -5732,11 +5776,23 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.utils.UnaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
-        # Get the operator
-        operator = node.items[0]
+
+        fortranoperators = {
+            '+': UnaryOperation.Operator.PLUS,
+            '-': UnaryOperation.Operator.MINUS,
+            '.not.': UnaryOperation.Operator.NOT
+            }
+
+        operator_str = node.items[0].lower()
+        try:
+            operator = fortranoperators[operator_str]
+        except KeyError:
+            # Operator not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
 
         unary_op = UnaryOperation(operator, parent=parent)
         self.process_nodes(parent=unary_op, nodes=[node.items[1]],
@@ -5755,8 +5811,35 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
-        # Get the operator
-        operator = node.items[1]
+
+        fortranoperators = {
+            '+': BinaryOperation.Operator.ADD,
+            '-': BinaryOperation.Operator.SUB,
+            '*': BinaryOperation.Operator.MUL,
+            '/': BinaryOperation.Operator.DIV,
+            '**': BinaryOperation.Operator.POW,
+            '==': BinaryOperation.Operator.EQ,
+            '.eq.': BinaryOperation.Operator.EQ,
+            '/=': BinaryOperation.Operator.NE,
+            '.ne.': BinaryOperation.Operator.NE,
+            '<=': BinaryOperation.Operator.LE,
+            '.le.': BinaryOperation.Operator.LE,
+            '<': BinaryOperation.Operator.LT,
+            '.lt.': BinaryOperation.Operator.LT,
+            '>=': BinaryOperation.Operator.GE,
+            '.ge.': BinaryOperation.Operator.GE,
+            '>': BinaryOperation.Operator.GT,
+            '.gt.': BinaryOperation.Operator.GT,
+            '.and.': BinaryOperation.Operator.AND,
+            '.or.': BinaryOperation.Operator.OR,
+            }
+
+        operator_str = node.items[1].lower()
+        try:
+            operator = fortranoperators[operator_str]
+        except KeyError:
+            # Operator not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
 
         binary_op = BinaryOperation(operator, parent=parent)
         self.process_nodes(parent=binary_op, nodes=[node.items[0]],
@@ -5768,7 +5851,9 @@ class Fparser2ASTProcessor(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation.
+        Transforms an fparser2 Name to the PSyIR representation. If the node
+        is connected to a SymbolTable, it checks the reference has been
+        previously declared.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Name`
@@ -5777,6 +5862,16 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
+        if hasattr(parent.root, 'symbol_table'):
+            symbol_table = parent.root.symbol_table
+            try:
+                symbol_table.lookup(node.string)
+            except KeyError:
+                raise GenerationError(
+                    "Undeclared reference '{0}' found when parsing fparser2 "
+                    "node '{1}' inside '{2}'."
+                    "".format(str(node.string), repr(node), parent.root.name))
+
         return Reference(node.string, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -5799,7 +5894,11 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation.
+        Transforms an fparser2 Part_Ref to the PSyIR representation. It also
+        resolves Fortran intrinsics parsed as array references. If the node
+        is connected to a SymbolTable, it checks the reference has been
+        previously declared.
+
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -5810,7 +5909,61 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two import Fortran2003
 
-        reference_name = node.items[0].string
+        reference_name = node.items[0].string.lower()
+
+        # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
+        # #189), we can fix the issue here and convert them to appropiate PSyIR
+        # nodes.
+        if reference_name == 'sign':
+            bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
+            self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
+                               nodes_parent=node)
+            self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
+                               nodes_parent=node)
+            return bop
+        if reference_name == 'sin':
+            uop = UnaryOperation(UnaryOperation.Operator.SIN, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
+                               nodes_parent=node)
+            return uop
+        if reference_name == 'real':
+            if len(node.items) != 2:
+                raise GenerationError(
+                    "Unexpected fparser2 node when parsing the real() "
+                    "intrinsic, 2 items were expected but found '{0}'."
+                    "".format(repr(node)))
+            # The single argument will be 'node.items[1]' in current fparser2
+            # implementation or node.items[1].items[0] in the future (see
+            # fparser#170).
+            argument = None
+            if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
+                argument = node.items[1].items[0]
+                if len(node.items[1].items) > 1:
+                    # If it has more than a single argument create a CodeBlock
+                    raise NotImplementedError()
+            else:
+                argument = node.items[1]
+            uop = UnaryOperation(UnaryOperation.Operator.REAL, parent)
+            self.process_nodes(parent=uop, nodes=[argument],
+                               nodes_parent=node)
+            return uop
+        if reference_name == 'sqrt':
+            uop = UnaryOperation(UnaryOperation.Operator.SQRT, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
+                               nodes_parent=node)
+            return uop
+
+        if hasattr(parent.root, 'symbol_table'):
+            symbol_table = parent.root.symbol_table
+            try:
+                symbol_table.lookup(reference_name)
+            except KeyError:
+                raise GenerationError(
+                    "Undeclared reference '{0}' found when parsing fparser2 "
+                    "node '{1}' inside '{2}'."
+                    "".format(str(reference_name), repr(node),
+                              parent.root.name))
+
         array = Array(reference_name, parent)
 
         if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
@@ -5840,14 +5993,59 @@ class Fparser2ASTProcessor(object):
         return Literal(str(node.items[0]), parent=parent)
 
 
+@six.add_metaclass(abc.ABCMeta)
+class SymbolInterface(object):
+    '''
+    Abstract base class for capturing the access mechanism for symbols that
+    represent data that exists outside the section of code being represented
+    in the PSyIR.
+
+    :param access: How the symbol is accessed within the section of code or \
+                   None (if unknown).
+    :type access: :py:class:`psyclone.psyGen.SymbolAccess`
+    '''
+    def __init__(self, access=None):
+        self._access = None
+        # Use the setter as that has error checking
+        if not access:
+            self.access = Symbol.Access.UNKNOWN
+        else:
+            self.access = access
+
+    @property
+    def access(self):
+        '''
+        :returns: the access-type for this symbol.
+        :rtype: :py:class:`psyclone.psyGen.Symbol.Access`
+        '''
+        return self._access
+
+    @access.setter
+    def access(self, value):
+        '''
+        Setter for the access type of this symbol.
+
+        :param value: the new access type.
+        :type value: :py:class:`psyclon.psyGen.SymbolAccess`
+
+        :raises TypeError: if the supplied value is not of the correct type.
+        '''
+        if not isinstance(value, Symbol.Access):
+            raise TypeError("SymbolInterface.access must be a 'Symbol.Access' "
+                            "but got '{0}'.".format(type(value)))
+        self._access = value
+
+
 class Symbol(object):
-    '''Symbol item for the Symbol Table. It contains information about: the
-    name, the datatype, the shape (in column-major order), the scope and for
-    global-scoped symbols whether the data is already defined and/or survives
-    after the kernel.
+    '''
+    Symbol item for the Symbol Table. It contains information about: the name,
+    the datatype, the shape (in column-major order) and, for a symbol
+    representing data that exists outside of the local scope, the interface
+    to that symbol (i.e. the mechanism by which it is accessed).
 
     :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol.
+    :param str datatype: Data type of the symbol. (One of \
+                     :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
     :param list shape: Shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
@@ -5855,40 +6053,117 @@ class Symbol(object):
                        literal or a reference to an integer symbol with the \
                        extent. If it is an empty list then the symbol \
                        represents a scalar.
-    :param str scope: It is 'local' if the symbol just exists inside the \
-                      kernel scope or 'global_*' if the data survives outside \
-                      of the kernel scope. Note that global-scoped symbols \
-                      also have postfixed information about the sharing \
-                      mechanism, at the moment just 'global_argument' is \
-                      available for variables passed in/out of the kernel \
-                      by argument.
+    :param interface: Object describing the interface to this symbol (i.e. \
+                      whether it is passed as a routine argument or accessed \
+                      in some other way) or None if the symbol is local.
+    :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
     :param constant_value: Sets a fixed known value for this \
                            Symbol. If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
-    :param bool is_input: Whether the symbol represents data that exists \
-                          before the kernel is entered and that is passed \
-                          into the kernel.
-    :param bool is_output: Whether the symbol represents data that is passed \
-                           outside the kernel upon exit.
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
 
     '''
-    # Tuple with the valid values for the access attribute.
-    valid_scope_types = ('local', 'global_argument')
-    # Tuple with the valid datatypes.
-    valid_data_types = ('real', 'integer', 'character', 'boolean')
-    # Mapping from supported data types for constant values to
-    # internal Python types
+    ## Tuple with the valid datatypes.
+    valid_data_types = ('real',  # Floating point
+                        'integer',
+                        'character',
+                        'boolean',
+                        'deferred')  # Type of this symbol not yet determined
+    ## Mapping from supported data types for constant values to
+    #  internal Python types
     mapping = {'integer': int, 'character': str, 'boolean': bool}
 
-    def __init__(self, name, datatype, shape=[], scope='local',
-                 constant_value=None, is_input=False, is_output=False):
+    class Access(Enum):
+        '''
+        Enumeration for the different types of access that a Symbol is
+        permitted to have.
+
+        '''
+        ## The symbol is only ever read within the current scoping block.
+        READ = 1
+        ## The first access of the symbol in the scoping block is a write and
+        # therefore any value that it may have had upon entry is discarded.
+        WRITE = 2
+        ## The first access of the symbol in the scoping block is a read but
+        # it is subsequently written to.
+        READWRITE = 3
+        ## The way in which the symbol is accessed in the scoping block is
+        # unknown
+        UNKNOWN = 4
+
+    class Argument(SymbolInterface):
+        '''
+        Captures the interface to a symbol that is accessed as a routine
+        argument.
+
+        :param access: how the symbol is accessed within the local scope.
+        :type access: :py:class:`psyclone.psyGen.Symbol.Access`
+        '''
+        def __init__(self, access=None):
+            super(Symbol.Argument, self).__init__(access=access)
+            self._pass_by_value = False
+
+        def __str__(self):
+            return "Argument(pass-by-value={0})".format(self._pass_by_value)
+
+    class FortranGlobal(SymbolInterface):
+        '''
+        Describes the interface to a Fortran Symbol representing data that
+        is supplied as some sort of global variable. Currently only supports
+        data accessed via a module 'USE' statement.
+
+        :param str module_use: the name of the Fortran module from which the \
+                               symbol is imported.
+        :param access: the manner in which the Symbol is accessed in the \
+                       associated code section. If None is supplied then the \
+                       access is Symbol.Access.UNKNOWN.
+        :type access: :py:class:`psyclone.psyGen.Symbol.Access` or None.
+        '''
+        def __init__(self, module_use, access=None):
+            self._module_name = ""
+            super(Symbol.FortranGlobal, self).__init__(access=access)
+            self.module_name = module_use
+
+        def __str__(self):
+            return "FortranModule({0})".format(self.module_name)
+
+        @property
+        def module_name(self):
+            '''
+            :returns: the name of the Fortran module from which the symbol is \
+                      imported or None if it is not a module variable.
+            :rtype: str or None
+            '''
+            return self._module_name
+
+        @module_name.setter
+        def module_name(self, value):
+            '''
+            Setter for the name of the Fortran module from which this symbol
+            is imported.
+
+            :param str value: the name of the Fortran module.
+
+            :raises TypeError: if the supplied value is not a str.
+            :raises ValueError: if the supplied string is not at least one \
+                                character long.
+            '''
+            if not isinstance(value, str):
+                raise TypeError("module_name must be a str but got '{0}'".
+                                format(type(value)))
+            if not value:
+                raise ValueError("module_name must be one or more characters "
+                                 "long")
+            self._module_name = value
+
+    def __init__(self, name, datatype, shape=None, constant_value=None,
+                 interface=None):
 
         self._name = name
 
@@ -5898,7 +6173,9 @@ class Symbol(object):
                 "'{1}'.".format(str(Symbol.valid_data_types), datatype))
         self._datatype = datatype
 
-        if not isinstance(shape, list):
+        if shape is None:
+            shape = []
+        elif not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")
 
         for dimension in shape:
@@ -5911,18 +6188,14 @@ class Symbol(object):
             elif not isinstance(dimension, (type(None), int)):
                 raise TypeError("Symbol shape list elements can only be "
                                 "'Symbol', 'integer' or 'None'.")
-
         self._shape = shape
-
         # The following attributes have setter methods (with error checking)
-        self._scope = None
         self._constant_value = None
-        self._is_input = None
-        self._is_output = None
-        self.scope = scope
+        self._interface = None
+        # If an interface is specified for this symbol then the data with
+        # which it is associated must exist outside of this kernel.
+        self.interface = interface
         self.constant_value = constant_value
-        self.is_input = is_input
-        self.is_output = is_output
 
     @property
     def name(self):
@@ -5941,54 +6214,16 @@ class Symbol(object):
         return self._datatype
 
     @property
-    def is_input(self):
+    def access(self):
         '''
-        :returns: Whether the symbol represents data that already exists \
-                  before kernel and is passed into upon entry.
-        :rtype: bool
+        :returns: How this symbol is accessed (read, readwrite etc.) within \
+                  the local scope.
+        :rtype: :py:class:`psyclone.psyGen.Symbol.Access` or NoneType.
         '''
-        return self._is_input
-
-    @is_input.setter
-    def is_input(self, new_is_input):
-        '''
-        :param bool new_is_input: Whether the symbol represents data that \
-                                  exists before the kernel is entered and \
-                                  that is passed into the kernel.
-        :raises TypeError: Provided parameters have invalid error type.
-        :raises ValueError: 'new_is_input' contains an invalid value.
-        '''
-        if not isinstance(new_is_input, bool):
-            raise TypeError("Symbol 'is_input' attribute must be a boolean.")
-        if self.scope == 'local' and new_is_input is True:
-            raise ValueError("Symbol with 'local' scope can not have "
-                             "'is_input' attribute set to True.")
-        self._is_input = new_is_input
-
-    @property
-    def is_output(self):
-        '''
-        :returns: Whether the variable respresented by this symbol survives \
-                  outside the kernel upon exit.
-        :rtype: bool
-        '''
-        return self._is_output
-
-    @is_output.setter
-    def is_output(self, new_is_output):
-        '''
-        :param bool new_is_output: Whether the variable represented by this \
-                                   symbol survives outside the kernel \
-                                   upon exit.
-        :raises TypeError: Provided parameters have invalid error type.
-        :raises ValueError: 'new_is_output' contains an invalid value.
-        '''
-        if not isinstance(new_is_output, bool):
-            raise TypeError("Symbol 'is_output' attribute must be a boolean.")
-        if self.scope == 'local' and new_is_output is True:
-            raise ValueError("Symbol with 'local' scope can not have "
-                             "'is_output' attribute set to True.")
-        self._is_output = new_is_output
+        if self._interface:
+            return self._interface.access
+        # This symbol has no interface info and therefore is local
+        return None
 
     @property
     def shape(self):
@@ -6008,34 +6243,43 @@ class Symbol(object):
     def scope(self):
         '''
         :returns: Whether the symbol is 'local' (just exists inside the \
-                  kernel scope) or 'global_*' (data also lives outside the \
-                  kernel). Global-scoped symbols also have postfixed \
-                  information about the sharing mechanism, at the moment \
-                  just 'global_argument' is available for variables passed \
-                  in/out of the kernel by argument.
+                  kernel scope) or 'global' (data also lives outside the \
+                  kernel). Global-scoped symbols must have an associated \
+                  'interface' that specifies the mechanism by which the \
+                  kernel accesses the associated data.
         :rtype: str
         '''
-        return self._scope
+        if self._interface:
+            return "global"
+        return "local"
 
-    @scope.setter
-    def scope(self, new_scope):
+    @property
+    def interface(self):
         '''
-        :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global_*' if the data survives \
-                          outside of the kernel scope. Note that \
-                          global-scoped symbols also have postfixed \
-                          information about the sharing mechanism, at the \
-                          moment just 'global_argument' is available for \
-                          variables passed in/out of the kernel by argument.
-        :raises ValueError: New scope parameter has an invalid value.
+        :returns: the an object describing the external interface to \
+                  this Symbol or None (if it is local).
+        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` or \
+                NoneType.
         '''
-        if new_scope not in Symbol.valid_scope_types:
-            raise ValueError("Symbol scope attribute can only be one of {0}"
-                             " but got '{1}'."
-                             "".format(str(Symbol.valid_scope_types),
-                                       str(new_scope)))
+        return self._interface
 
-        self._scope = new_scope
+    @interface.setter
+    def interface(self, value):
+        '''
+        Setter for the Interface associated with this Symbol.
+
+        :param value: an Interface object describing how the Symbol is \
+                      accessed by the code or None if it is local.
+        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` \
+                     or NoneType.
+
+        :raises TypeError: if the supplied `value` is of the wrong type.
+        '''
+        if value is not None and not isinstance(value, SymbolInterface):
+            raise TypeError("The interface to a Symbol must be a "
+                            "SymbolInterface or None but got '{0}'".
+                            format(type(value)))
+        self._interface = value
 
     @property
     def is_constant(self):
@@ -6156,7 +6400,7 @@ class Symbol(object):
         return code
 
     def __str__(self):
-        ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
+        ret = self.name + ": <" + self.datatype + ", "
         if self.is_array:
             ret += "Array["
             for dimension in self.shape:
@@ -6175,6 +6419,10 @@ class Symbol(object):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
+        if self.interface:
+            ret += ", global=" + str(self.interface)
+        else:
+            ret += ", local"
         if self.is_constant:
             ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"
@@ -6185,20 +6433,20 @@ class Symbol(object):
         to by any other object.
 
         :returns: A symbol object with the same properties as this \
-        symbol object.
+                  symbol object.
         :rtype: :py:class:`psyclone.psyGen.Symbol`
 
         '''
         return Symbol(self.name, self.datatype, shape=self.shape[:],
-                      scope=self.scope, constant_value=self.constant_value,
-                      is_input=self.is_input, is_output=self.is_output)
+                      constant_value=self.constant_value,
+                      interface=self.interface)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
         :param symbol_in: The symbol from which the properties are \
-        copied from.
+                          copied from.
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
 
         :raises TypeError: If the argument is not the expected type.
@@ -6210,10 +6458,8 @@ class Symbol(object):
 
         self._datatype = symbol_in.datatype
         self._shape = symbol_in.shape[:]
-        self._scope = symbol_in.scope
         self._constant_value = symbol_in.constant_value
-        self._is_input = symbol_in.is_input
-        self._is_output = symbol_in.is_output
+        self._interface = symbol_in.interface
 
 
 class SymbolTable(object):
@@ -6260,10 +6506,10 @@ class SymbolTable(object):
         :type symbol2: :py:class:`psyclone.psyGen.Symbol`
 
         :raises KeyError: If either of the supplied symbols are not in \
-        the symbol table.
+                          the symbol table.
         :raises TypeError: If the supplied arguments are not symbols, \
-        or the names of the symbols are the same in the SymbolTable \
-        instance.
+                 or the names of the symbols are the same in the SymbolTable \
+                 instance.
 
         '''
         for symbol in [symbol1, symbol2]:
@@ -6293,26 +6539,20 @@ class SymbolTable(object):
         if index2 is not None:
             self._argument_list[index2] = symbol1
 
-    def specify_argument_list(self, argument_name_list):
+    def specify_argument_list(self, argument_symbols):
         '''
-        Keep track of the order of the arguments and provide the scope,
-        is_input and is_output information if it was not available on the
-        variable declaration.
+        Sets-up the internal list storing the order of the arguments to this
+        kernel.
 
-        :param list argument_name_list: Ordered list of the argument names.
+        :param list argument_symbols: Ordered list of the Symbols representing\
+                                      the kernel arguments.
+
+        :raises ValueError: If the new argument_list is not consistent with \
+                            the existing entries in the SymbolTable.
 
         '''
-        self._argument_list = []
-        for name in argument_name_list:
-            symbol = self.lookup(name)
-            # Declarations without explicit intent are provisionally identified
-            # as 'local', but if they appear in the argument list the scope and
-            # input/output attributes need to be updated.
-            if symbol.scope == 'local':
-                symbol.scope = 'global_argument'
-                symbol.is_input = True
-                symbol.is_output = True
-            self._argument_list.append(symbol)
+        self._validate_arg_list(argument_symbols)
+        self._argument_list = argument_symbols[:]
 
     def lookup(self, name):
         '''
@@ -6340,10 +6580,75 @@ class SymbolTable(object):
     @property
     def argument_list(self):
         '''
+        Checks that the contents of the SymbolTable are self-consistent
+        and then returns the list of kernel arguments.
+
         :returns: Ordered list of arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+
+        :raises InternalError: If the entries of the SymbolTable are not \
+                               self-consistent.
+
         '''
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args))
         return self._argument_list
+
+    @staticmethod
+    def _validate_arg_list(arg_list):
+        '''
+        Checks that the supplied list of Symbols are valid kernel arguments.
+
+        :param arg_list: the proposed kernel arguments.
+        :type param_list: list of :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: if any item in the supplied list is not a Symbol.
+        :raises ValueError: if any of the symbols has no Interface.
+        :raises ValueError: if any of the symbols has an Interface that is \
+                            not a :py:class:`psyclone.psyGen.Symbol.Argument`.
+
+        '''
+        for symbol in arg_list:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Expected a list of Symbols but found an "
+                                "object of type '{0}'.".format(type(symbol)))
+            # All symbols in the argument list must have a
+            # 'Symbol.Argument' interface
+            if symbol.scope == 'local':
+                raise ValueError(
+                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "no associated Interface.".format(str(symbol)))
+            if not isinstance(symbol.interface, Symbol.Argument):
+                raise ValueError(
+                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "an interface of type '{1}' rather than "
+                    "Symbol.Argument".format(str(symbol),
+                                             type(symbol.interface)))
+
+    def _validate_non_args(self):
+        '''
+        Performs internal consistency checks on the current entries in the
+        SymbolTable that do not represent kernel arguments.
+
+        :raises ValueError: If a symbol that is not in the argument list \
+                            has a Symbol.Argument interface.
+
+        '''
+        for symbol in self._symbols.values():
+            if symbol not in self._argument_list:
+                # Symbols not in the argument list must not have a
+                # Symbol.Argument interface
+                if symbol.interface and isinstance(symbol.interface,
+                                                   Symbol.Argument):
+                    raise ValueError(
+                        "Symbol '{0}' is not listed as a kernel argument and "
+                        "yet has a Symbol.Argument interface.".format(
+                            str(symbol)))
 
     @property
     def local_symbols(self):
@@ -6649,10 +6954,28 @@ class UnaryOperation(Node):
     :param parent: the parent node of this UnaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'MINUS', 'PLUS', 'SQRT',
+        # Logical Operators
+        'NOT',
+        # Trigonometric Operators
+        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
+        # Other Maths Operators
+        'ABS',
+        # Casting Operators
+        'REAL'
+        ])
+
     def __init__(self, operator, parent=None):
         super(UnaryOperation, self).__init__(parent=parent)
-        # TODO: (Issue #339) Create an Operator entity to have more robust
-        # operators than the current string.
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "UnaryOperation operator argument must be of type "
+                "UnaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
+
         self._operator = operator
 
     @property
@@ -6674,12 +6997,12 @@ class UnaryOperation(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator + "']")
+              self._operator.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "UnaryOperation[operator:'" + self._operator + "']\n"
+        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
         for entity in self._children:
             result += str(entity)
         return result
@@ -6689,9 +7012,12 @@ class UnaryOperation(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
+
         :return: C language code representing the node.
         :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
+
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
         '''
         if len(self.children) != 1:
             raise GenerationError("UnaryOperation malformed or "
@@ -6699,23 +7025,86 @@ class UnaryOperation(Node):
                                   "child, but found {0}."
                                   "".format(len(self.children)))
 
-        return "(" + self._operator + " " \
-            + self._children[0].gen_c_code() + ")"
+        def operator_format(operator_str, expr_str):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + operator_str + expr_str + ")"
+
+        def function_format(function_str, expr_str):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr_str + ")"
+
+        # Define a map with the operator string and the formatter function
+        # associated with each UnaryOperation.Operator
+        opmap = {
+            UnaryOperation.Operator.MINUS: ("-", operator_format),
+            UnaryOperation.Operator.PLUS: ("+", operator_format),
+            UnaryOperation.Operator.NOT: ("!", operator_format),
+            UnaryOperation.Operator.SIN: ("sin", function_format),
+            UnaryOperation.Operator.COS: ("cos", function_format),
+            UnaryOperation.Operator.TAN: ("tan", function_format),
+            UnaryOperation.Operator.ASIN: ("asin", function_format),
+            UnaryOperation.Operator.ACOS: ("acos", function_format),
+            UnaryOperation.Operator.ATAN: ("atan", function_format),
+            UnaryOperation.Operator.ABS: ("abs", function_format),
+            UnaryOperation.Operator.REAL: ("float", function_format),
+            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
+            }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code())
 
 
 class BinaryOperation(Node):
     '''
-    Node representing a BinaryOperator expression. As such it has two operands
-    as children 0 and 1, and a attribute with the operator type.
+    Node representing a BinaryOperation expression. As such it has two operands
+    as children 0 and 1, and an attribute with the operator type.
 
     :param operator: node in the fparser2 AST representing the binary operator.
     :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
-    :param parent: the parent node of this BinaryOperator in the PSyIR.
+    :param parent: the parent node of this BinaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+        # Relational Operators
+        'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
+        # Logical Operators
+        'AND', 'OR',
+        # Other Maths Operators
+        'SIGN'
+        ])
+
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
-        self.ast = operator
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "BinaryOperation operator argument must be of type "
+                "BinaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
+
         self._operator = operator
 
     @property
@@ -6737,12 +7126,12 @@ class BinaryOperation(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator + "']")
+              self._operator.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "BinaryOperation[operator:'" + self._operator + "']\n"
+        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
         for entity in self._children:
             result += str(entity)
         return result
@@ -6754,7 +7143,8 @@ class BinaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :returns: C language code representing the node.
         :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
         '''
 
         if len(self.children) != 2:
@@ -6763,9 +7153,60 @@ class BinaryOperation(Node):
                                   "children, but found {0}."
                                   "".format(len(self.children)))
 
-        return "(" + self._children[0].gen_c_code() + " " \
-            + self._operator + " " \
-            + self._children[1].gen_c_code() + ")"
+        def operator_format(operator_str, expr1, expr2):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr1: String representation of the LHS operand.
+            :param str expr2: String representation of the RHS operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
+
+        def function_format(function_str, expr1, expr2):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr1: String representation of the first operand.
+            :param str expr2: String representation of the second operand.
+
+            :returns: C language binary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr1 + ", " + expr2 + ")"
+
+        # Define a map with the operator string and the formatter function
+        # associated with each BinaryOperation.Operator
+        opmap = {
+            BinaryOperation.Operator.ADD: ("+", operator_format),
+            BinaryOperation.Operator.SUB: ("-", operator_format),
+            BinaryOperation.Operator.MUL: ("*", operator_format),
+            BinaryOperation.Operator.DIV: ("/", operator_format),
+            BinaryOperation.Operator.REM: ("%", operator_format),
+            BinaryOperation.Operator.POW: ("pow", function_format),
+            BinaryOperation.Operator.EQ: ("==", operator_format),
+            BinaryOperation.Operator.NE: ("!=", operator_format),
+            BinaryOperation.Operator.LT: ("<", operator_format),
+            BinaryOperation.Operator.LE: ("<=", operator_format),
+            BinaryOperation.Operator.GT: (">", operator_format),
+            BinaryOperation.Operator.GE: (">=", operator_format),
+            BinaryOperation.Operator.AND: ("&&", operator_format),
+            BinaryOperation.Operator.OR: ("||", operator_format),
+            BinaryOperation.Operator.SIGN: ("copysign", function_format),
+            }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code(),
+                         self.children[1].gen_c_code())
 
 
 class Array(Reference):
