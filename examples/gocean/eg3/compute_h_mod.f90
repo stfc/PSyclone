@@ -41,7 +41,6 @@ module compute_h_mod
 
   private
 
-  !public invoke_compute_h
   public compute_h, compute_h_code
 
   type, extends(kernel_type) :: compute_h

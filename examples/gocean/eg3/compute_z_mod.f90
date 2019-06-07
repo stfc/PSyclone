@@ -44,7 +44,6 @@ module compute_z_mod
 
   private
 
-  !public invoke_compute_z
   public compute_z, compute_z_code
 
   type, extends(kernel_type) :: compute_z
@@ -58,7 +57,7 @@ module compute_z_mod
            /)
      !> This kernel operates on fields that live on an
      !! orthogonal, regular grid.
-     !integer :: GRID_TYPE = GO_ORTHOGONAL_REGULAR
+     integer :: GRID_TYPE = GO_ORTHOGONAL_REGULAR
 
      !> This kernel writes only to internal points of the
      !! simulation domain.

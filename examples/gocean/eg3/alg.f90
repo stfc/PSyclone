@@ -66,13 +66,13 @@ program simple
   z_fld = r2d_field(model_grid, F_POINTS)
   h_fld = r2d_field(model_grid, T_POINTS)
 
+  write(*,*) "Simulation start"
   do ncycle=1, 100
-    
     call invoke( compute_cu(CU_fld, p_fld, u_fld),      &
                  compute_cv(CV_fld, p_fld, v_fld),      &
                  compute_z(z_fld, p_fld, u_fld, v_fld), &
                  compute_h(h_fld, p_fld, u_fld, v_fld) )
-
   end do
+  write(*,*) "Simulation end"
 
 end program simple
