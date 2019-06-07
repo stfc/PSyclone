@@ -59,6 +59,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process all NEMO source files in the current directory "
         "using PSyclone")
+    parser.add_argument('input_dir',
+                        help="Location of the NEMO pre-processed source files")
     parser.add_argument('-o', dest='out_dir',
                         help="Destination directory for processed source "
                         "files")
@@ -66,10 +68,19 @@ if __name__ == "__main__":
                         help="PSyclone transformation script")
     args = parser.parse_args()
 
+    if not os.path.isdir(args.input_dir):
+        print("Supplied input directory '{0}' cannot be found or is not "
+              "a directory.".format(args.input_dir), file=sys.stderr)
+        exit(1)
+
     # Find all Fortran90 files
-    pwd = os.getcwd()
     files = [os.path.basename(ffile) for ffile in
-             glob.glob(os.path.join(pwd, "*90"))]
+             glob.glob(os.path.join(args.input_dir, "*90"))]
+
+    if not files:
+        print("Failed to find any Fortran90 files (*90) in the supplied "
+              "input directory '{0}'.".format(args.input_dir), file=sys.stderr)
+        exit(1)
 
     # Keep a list of files for which PSyclone fails
     failed_files = []
