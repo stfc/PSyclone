@@ -1,0 +1,22 @@
+The SIR and its dawn back-end come with three examples which create
+SIR using its Python Interface.
+
+I have written a PSyIR to SIR back end which prints out the calls to
+the Python interface.
+
+I have written Fortran code that is the equivalent of the examples and
+running this through PSyclone to try to produce the same (or
+equivalent) SIR as is in the examples (so we know it works). The
+Fortran codes are in copy_stencil.f90, hori_diff.f90,
+tridiagonal_solve.f90. The names reflect the names of the SIR/Dawn
+examples.
+
+To test this run:
+
+> psyclone -s ./sir_trans.py -api nemo <filename>
+
+Issues/limitations:
+
+Loop bounds are analysed yet so it is not possible to add in offset
+and loop ordering for the vertical. There are also no checks that the
+loops conform to NEMO lat.lon.levs and
