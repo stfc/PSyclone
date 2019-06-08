@@ -72,9 +72,10 @@ def test_from_string():
     assert AccessType.from_string("write") == AccessType.WRITE
     assert AccessType.from_string("read") == AccessType.READ
     assert AccessType.from_string("readwrite") == AccessType.READWRITE
+    assert AccessType.from_string("unknown") == AccessType.UNKNOWN
     assert AccessType.from_string("sum") == AccessType.SUM
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
     assert "Unknown access type 'invalid'. Valid values are ['inc', 'read',"\
-        " 'readwrite', 'sum', 'write']" in str(err)
+        " 'readwrite', 'sum', 'unknown', 'write']" in str(err)
