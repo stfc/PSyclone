@@ -175,11 +175,15 @@ class VariableAccessInfo(object):
 # =============================================================================
 class VariablesAccessInfo(object):
     '''This class stores all VariableAccessInfo instances for all variables
-    in the corresponding code section.
+    in the corresponding code section. It maintains a 'location' information,
+    which is an integer number that is increased for each new statement. It
+    can be used to easily determine if one access is before another.
+    :param int location: The index for the first statement, default is 0.
     '''
 
-    def __init__(self):
+    def __init__(self, location=0):
         self._var_to_varinfo = {}
+        self._location = location
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables
@@ -198,22 +202,30 @@ class VariablesAccessInfo(object):
             output_list.append("{0}: {1}".format(var_name, mode))
         return ", ".join(output_list)
 
-    def add_access(self, var_name, access_type, location=None, indices=None):
+    def get_location(self):
+        ''':returns" the current location.
+        :rtype: int'''
+        return self._location
+
+    def next_location(self):
+        '''Increases the location number.
+        '''
+        self._location = self._location + 1
+
+    def add_access(self, var_name, access_type, indices=None):
         '''Adds access information to this variable.
         :param access_type: The type of access (READ, WRITE, ....)
         :type access_type :py:class:`psyclone.core.access_type.AccessType`
-        :param location: Location information.
-        :type location: int
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None.
         :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
         '''
         if var_name in self._var_to_varinfo:
             self._var_to_varinfo[var_name].add_access(access_type,
-                                                      location, indices)
+                                                      self._location, indices)
         else:
             var_info = VariableAccessInfo(var_name)
-            var_info.add_access(access_type, location, indices)
+            var_info.add_access(access_type, self._location, indices)
             self._var_to_varinfo[var_name] = var_info
 
     def get_all_vars(self):
@@ -240,7 +252,6 @@ class VariablesAccessInfo(object):
             var_info = other_access_info.get_varinfo(var_name)
             for access_info in var_info.get_all_accesses():
                 self.add_access(var_name, access_info.get_access_type(),
-                                access_info.get_location(),
                                 access_info.get_indices())
 
     def is_written(self, var_name):

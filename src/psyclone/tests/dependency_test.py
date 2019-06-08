@@ -82,8 +82,8 @@ def test_assignment(parser):
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo()
     array_assignment.reference_accesses(var_accesses)
-    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, i: READ, "\
-                            "j: READ, x: READ, y: READ"
+    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
+                                "i: READ, j: READ, x: READ, y: READ"
 
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
@@ -136,7 +136,7 @@ def test_if_statement(parser):
     var_accesses = VariablesAccessInfo()
     if_stmt.reference_accesses(var_accesses)
     assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
-                            "q: READWRITE, r: READ"
+                                "q: READWRITE, r: READ"
 
 
 @pytest.mark.xfail(reason="Calls in nemo not yet supported")
@@ -177,7 +177,8 @@ def test_do_loop(parser):
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, s: WRITE, t: READ"
+    assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, s: WRITE, "\
+                                "t: READ"
 
 
 @pytest.mark.xfail(reason="Nemo converts all loop limits to strings")
@@ -204,7 +205,7 @@ def test_do_loop_not_working_yet(parser):
     do_loop.reference_accesses(var_accesses)
     # TODO: n is not reported at the moment
     assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, n: READ, "\
-                            "s: WRITE, t: READ"
+                                "s: WRITE, t: READ"
 
 
 @pytest.mark.xfail(reason="Gocean loops boundaries are also strings")
@@ -228,3 +229,62 @@ def test_goloop():
     do_loop.reference_accesses(var_accesses)
     print(var_accesses)
 
+
+def test_location(parser):
+    '''Test if the location assignment is working, esp. if each new statement
+    gets a new location, but accesses in the same statement have the same
+    location.
+    '''
+
+    reader = FortranStringReader('''program test_prog
+                                 a = b
+                                 if (a .eq. b) then
+                                    p(i) = q(i)
+                                 else
+                                   q(i) = r(i)
+                                 endif
+                                 a = b
+                                 do jj=1, n
+                                    do ji=1, 10
+                                       s(ji, jj)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 a = b
+                                 end program test_prog''')
+    ast = parser(reader)
+    psy = PSyFactory(API).create(ast)
+    schedule = psy.invokes.get("test_prog").schedule
+
+    var_accesses = VariablesAccessInfo()
+    schedule.reference_accesses(var_accesses)
+    print(var_accesses)
+    # Test accesses for a:
+    a_accesses = var_accesses.get_varinfo("a").get_all_accesses()
+    assert a_accesses[0].get_location() == 0
+    assert a_accesses[1].get_location() == 1
+    assert a_accesses[2].get_location() == 6
+    assert a_accesses[3].get_location() == 12
+
+    # b should have the same locations as a:
+    b_accesses = var_accesses.get_varinfo("b").get_all_accesses()
+    assert len(a_accesses) == len(b_accesses)
+    for (index, access) in enumerate(a_accesses):
+        assert b_accesses[index].get_location() == access.get_location()
+
+    q_accesses = var_accesses.get_varinfo("q").get_all_accesses()
+    assert q_accesses[0].get_location() == 2
+    assert q_accesses[1].get_location() == 4
+
+    # Test jj for the loop statement. Note that 'jj' has one read and
+    # one write access for the DO statement
+    jj_accesses = var_accesses.get_varinfo("jj").get_all_accesses()
+    assert jj_accesses[0].get_location() == 7
+    assert jj_accesses[1].get_location() == 7
+    assert jj_accesses[2].get_location() == 9
+    assert jj_accesses[3].get_location() == 9
+
+    ji_accesses = var_accesses.get_varinfo("ji").get_all_accesses()
+    assert ji_accesses[0].get_location() == 8
+    assert ji_accesses[1].get_location() == 8
+    assert ji_accesses[2].get_location() == 9
+    assert ji_accesses[3].get_location() == 9

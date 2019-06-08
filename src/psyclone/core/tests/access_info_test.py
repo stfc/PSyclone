@@ -89,29 +89,39 @@ def test_variables_access_info():
     '''Test the implementation of VariablesAccessInfo, a class that manages
     a list of variables, each with a list of accesses.
     '''
-    vars_info = VariablesAccessInfo()
-    vars_info.add_access("read", AccessType.READ, 1)
-    vars_info.add_access("written", AccessType.WRITE, 2)
-    assert str(vars_info) == "read: READ, written: WRITE"
-    vars_info.add_access("written", AccessType.WRITE, 3)
-    vars_info.add_access("read_written", AccessType.WRITE, 4)
-    vars_info.add_access("read_written", AccessType.READ, 5)
-    assert str(vars_info) == "read: READ, read_written: READWRITE, "\
-                             "written: WRITE"
-    assert set(vars_info.get_all_vars()) == set(["read", "written",
-                                                 "read_written"])
+    var_accesses = VariablesAccessInfo()
+    var_accesses.add_access("read", AccessType.READ)
+    var_accesses.add_access("written", AccessType.WRITE)
+    assert str(var_accesses) == "read: READ, written: WRITE"
 
-    vars_info2 = VariablesAccessInfo()
-    vars_info2.add_access("new_var", AccessType.READ, 1)
-    vars_info2.add_access("written", AccessType.READ, 2)
+    var_accesses.next_location()
+    var_accesses.add_access("written", AccessType.WRITE)
+    var_accesses.next_location()
+    var_accesses.add_access("read_written", AccessType.WRITE)
+    var_accesses.add_access("read_written", AccessType.READ)
+    assert str(var_accesses) == "read: READ, read_written: READWRITE, "\
+                                "written: WRITE"
+    assert set(var_accesses.get_all_vars()) == set(["read", "written",
+                                                    "read_written"])
+    written_accesses = var_accesses.get_varinfo("written").get_all_accesses()
+    assert written_accesses[0].get_location() == 0
+    assert written_accesses[1].get_location() == 1
 
-    vars_info.merge(vars_info2)
-    assert str(vars_info) == "new_var: READ, read: READ, " \
-                             "read_written: READWRITE, written: READWRITE"
+    # Create a new instance, which starts with statement number 999
+    var_accesses2 = VariablesAccessInfo(999)
+    var_accesses2.add_access("new_var", AccessType.READ)
+    var_accesses2.add_access("written", AccessType.READ)
+    new_var_accesses = var_accesses2.get_varinfo("new_var").get_all_accesses()
+    assert new_var_accesses[0].get_location() == 999
+
+    # Now merge the new instance with the previous instance:
+    var_accesses.merge(var_accesses2)
+    assert str(var_accesses) == "new_var: READ, read: READ, " \
+                                "read_written: READWRITE, written: READWRITE"
 
     with pytest.raises(KeyError):
-        vars_info.get_varinfo("does_not_exist")
+        var_accesses.get_varinfo("does_not_exist")
     with pytest.raises(KeyError):
-        vars_info.is_read("does_not_exist")
+        var_accesses.is_read("does_not_exist")
     with pytest.raises(KeyError):
-        vars_info.is_written("does_not_exist")
+        var_accesses.is_written("does_not_exist")

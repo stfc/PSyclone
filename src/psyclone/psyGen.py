@@ -3182,7 +3182,11 @@ class Loop(Node):
         var_accesses.add_access(self._start, AccessType.READ)
         var_accesses.add_access(self._stop, AccessType.READ)
         var_accesses.add_access(self._step, AccessType.READ)
-        super(Loop, self).reference_accesses(var_accesses)
+        var_accesses.next_location()
+
+        for child in self._children:
+            child.reference_accesses(var_accesses)
+            var_accesses.next_location()
 
     def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
@@ -3345,6 +3349,7 @@ class Kern(Node):
         for arg in self.arguments:
             var_accesses.add_access(arg, AccessType.UNKNOWN)
         super(Call, self).reference_accesseses(var_accesses)
+        var_accesses.next_location()
 
     @property
     def coloured_text(self):
@@ -4839,10 +4844,13 @@ class IfBlock(Node):
 
         # The first child is the if condition - all variables are read-only
         self._children[0].reference_accesses(var_accesses)
+        var_accesses.next_location()
         self._children[1].reference_accesses(var_accesses)
+        var_accesses.next_location()
 
         if len(self._children) > 2:
             self._children[2].reference_accesses(var_accesses)
+            var_accesses.next_location()
 
     def gen_c_code(self, indent=0):
         '''
@@ -7015,7 +7023,7 @@ class Assignment(Node):
         # It is important that a new instance is used to handle the LHS,
         # since an assert in 'change_read_to_write' makes sure that there
         # is only one access to the variable!
-        accesses_left = VariablesAccessInfo()
+        accesses_left = VariablesAccessInfo(var_accesses.get_location())
         self.children[0].reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
@@ -7026,6 +7034,7 @@ class Assignment(Node):
         # parameter to this function:
         var_accesses.merge(accesses_left)
         self.children[1].reference_accesses(var_accesses)
+        var_accesses.next_location()
 
     def gen_c_code(self, indent=0):
         '''

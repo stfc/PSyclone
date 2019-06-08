@@ -493,6 +493,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
 
         var_accesses.add_access(self._variable_name, AccessType.READ)
         var_accesses.add_access(self._variable_name, AccessType.WRITE)
+        var_accesses.next_location()
         # TODO: atm start, stop and step are just strings, so we can't
         # get any variable information
         # self._start.reference_accesses(var_accesses)
@@ -503,6 +504,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         # super(NemoLoop, self).reference_accesses(var_accesses)
         for child in self.children:
             child.reference_accesses(var_accesses)
+            var_accesses.next_location()
 
     @property
     def kernel(self):
