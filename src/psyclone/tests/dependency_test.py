@@ -69,35 +69,35 @@ def test_assignment(parser):
     # Simple scalar assignment:  a = b
     scalar_assignment = schedule.children[0]
     assert isinstance(scalar_assignment, Assignment)
-    var_info = VariablesAccessInfo()
-    scalar_assignment.reference_accesses(var_info)
+    var_accesses = VariablesAccessInfo()
+    scalar_assignment.reference_accesses(var_accesses)
     # Test some test functions explicitly:
-    assert var_info.is_written("a")
-    assert not var_info.is_read("a")
-    assert not var_info.is_written("b")
-    assert var_info.is_read("b")
+    assert var_accesses.is_written("a")
+    assert not var_accesses.is_read("a")
+    assert not var_accesses.is_written("b")
+    assert var_accesses.is_read("b")
 
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
-    var_info = VariablesAccessInfo()
-    array_assignment.reference_accesses(var_info)
-    assert str(var_info) == "c: WRITE, d: READ, e: READ, f: READ, i: READ, "\
+    var_accesses = VariablesAccessInfo()
+    array_assignment.reference_accesses(var_accesses)
+    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, i: READ, "\
                             "j: READ, x: READ, y: READ"
 
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
-    var_info = VariablesAccessInfo()
-    increment_access.reference_accesses(var_info)
-    assert str(var_info) == "c: READWRITE, i: READ"
+    var_accesses = VariablesAccessInfo()
+    increment_access.reference_accesses(var_accesses)
+    assert str(var_accesses) == "c: READWRITE, i: READ"
 
     # Using an intrinsic (looks like an array access): d(i, j) = sqrt(e(i, j))
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
-    var_info = VariablesAccessInfo()
-    sqrt_access.reference_accesses(var_info)
-    assert str(var_info) == "d: WRITE, e: READ, i: READ, j: READ"
+    var_accesses = VariablesAccessInfo()
+    sqrt_access.reference_accesses(var_accesses)
+    assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
 
 
 def test_indirect_addressing(parser):
@@ -112,9 +112,9 @@ def test_indirect_addressing(parser):
 
     indirect_addressing = schedule.children[0]
     assert isinstance(indirect_addressing, Assignment)
-    var_info = VariablesAccessInfo()
-    indirect_addressing.reference_accesses(var_info)
-    assert str(var_info) == "a: READ, g: WRITE, h: READ, i: READ"
+    var_accesses = VariablesAccessInfo()
+    indirect_addressing.reference_accesses(var_accesses)
+    assert str(var_accesses) == "a: READ, g: WRITE, h: READ, i: READ"
 
 
 def test_if_statement(parser):
@@ -133,9 +133,9 @@ def test_if_statement(parser):
 
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
-    var_info = VariablesAccessInfo()
-    if_stmt.reference_accesses(var_info)
-    assert str(var_info) == "a: READ, b: READ, i: READ, p: WRITE, "\
+    var_accesses = VariablesAccessInfo()
+    if_stmt.reference_accesses(var_accesses)
+    assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
                             "q: READWRITE, r: READ"
 
 
@@ -151,9 +151,9 @@ def test_call(parser):
 
     code_block = schedule.children[0]
     call_stmt = code_block.statements[0]
-    var_info = VariablesAccessInfo()
-    call_stmt.reference_accesses(var_info)
-    assert str(var_info) == "a: UNKNOWN, b: UNKNOWN"
+    var_accesses = VariablesAccessInfo()
+    call_stmt.reference_accesses(var_accesses)
+    assert str(var_accesses) == "a: UNKNOWN, b: UNKNOWN"
 
 
 def test_do_loop(parser):
@@ -175,9 +175,9 @@ def test_do_loop(parser):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
-    var_info = VariablesAccessInfo()
-    do_loop.reference_accesses(var_info)
-    assert str(var_info) == "ji: READWRITE, jj: READWRITE, s: WRITE, t: READ"
+    var_accesses = VariablesAccessInfo()
+    do_loop.reference_accesses(var_accesses)
+    assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, s: WRITE, t: READ"
 
 
 @pytest.mark.xfail(reason="Nemo converts all loop limits to strings")
@@ -200,10 +200,10 @@ def test_do_loop_not_working_yet(parser):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
-    var_info = VariablesAccessInfo()
-    do_loop.reference_accesses(var_info)
+    var_accesses = VariablesAccessInfo()
+    do_loop.reference_accesses(var_accesses)
     # TODO: n is not reported at the moment
-    assert str(var_info) == "ji: READWRITE, jj: READWRITE, n: READ, "\
+    assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, n: READ, "\
                             "s: WRITE, t: READ"
 
 
@@ -224,6 +224,7 @@ def test_goloop():
     psy = PSyFactory("gocean1.0").create(invoke_info)
     do_loop = psy.invokes.get("invoke_0").schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_info = VariablesAccessInfo()
-    do_loop.reference_accesses(var_info)
-    print(var_info)
+    var_accesses = VariablesAccessInfo()
+    do_loop.reference_accesses(var_accesses)
+    print(var_accesses)
+
