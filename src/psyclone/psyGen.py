@@ -44,7 +44,7 @@ from enum import Enum
 import abc
 import six
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core.access_info import VariablesAccessInfo, AccessType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -1530,6 +1530,15 @@ class Node(object):
         method of any children. '''
         for child in self._children:
             child.update()
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The default implementation
+        just recurses down to all children.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for child in self._children:
+            child.reference_accesses(var_accesses)
 
 
 class Schedule(Node):
@@ -3162,6 +3171,19 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It combines the data from
+        the loop bounds (start, stop, end step), as well as the loop body.
+        The loop variable is marked as READWRITE, start, stop, step as READ.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        var_accesses.add_access(self._variable_name, AccessType.READWRITE)
+        var_accesses.add_access(self._start, AccessType.READ)
+        var_accesses.add_access(self._stop, AccessType.READ)
+        var_accesses.add_access(self._step, AccessType.READ)
+        super(Loop, self).reference_accesses(var_accesses)
+
     def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
@@ -3313,6 +3335,16 @@ class Kern(Node):
               self.name + "(" + self.arguments.names + ")")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked as
+        UNKNOWN for now.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments:
+            var_accesses.add_access(arg, AccessType.UNKNOWN)
+        super(Call, self).reference_accesseses(var_accesses)
 
     @property
     def coloured_text(self):
@@ -4795,6 +4827,22 @@ class IfBlock(Node):
         for entity in self._children:
             result += str(entity)
         return result
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It combines the data from
+        the condition, if-body and (if available) else-body. This could
+        later be extended to handle cases where a variable is only written
+        in of the two branches.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # The first child is the if condition - all variables are read-only
+        self._children[0].reference_accesses(var_accesses)
+        self._children[1].reference_accesses(var_accesses)
+
+        if len(self._children) > 2:
+            self._children[2].reference_accesses(var_accesses)
 
     def gen_c_code(self, indent=0):
         '''
@@ -6957,6 +7005,28 @@ class Assignment(Node):
             result += str(entity)
         return result
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node. The assigned-to
+        variable will be set to 'WRITE'.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # It is important that a new instance is used to handle the LHS,
+        # since an assert in 'change_read_to_write' makes sure that there
+        # is only one access to the variable!
+        accesses_left = VariablesAccessInfo()
+        self.children[0].reference_accesses(accesses_left)
+
+        # Now change the (one) access to the assigned variable to be WRITE:
+        var_info = accesses_left.get_varinfo(self.children[0].name)
+        var_info.change_read_to_write()
+
+        # Merge the data (that shows now WRITE for the variable) with the
+        # parameter to this function:
+        var_accesses.merge(accesses_left)
+        self.children[1].reference_accesses(var_accesses)
+
     def gen_c_code(self, indent=0):
         '''
         Generate a string representation of this node using C language.
@@ -7020,6 +7090,14 @@ class Reference(Node):
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked as
+        'read', in case of an assignment this needs to be adjusted later.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        var_accesses.add_access(self._reference, AccessType.READ)
 
     def gen_c_code(self, indent=0):
         '''
@@ -7335,6 +7413,28 @@ class Array(Reference):
         for entity in self._children:
             result += str(entity)
         return result
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All variables used as indices
+        in the access of the array will be added as READ.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # This will set the array-name as READ
+        super(Array, self).reference_accesses(var_accesses)
+
+        # Now add all children: Note that the class Reference
+        # does not recurse to the children, so at this stage no
+        # index information has been stored:
+        list_indices = []
+        for child in self._children:
+            child.reference_accesses(var_accesses)
+            list_indices.append(child)
+
+        if list_indices:
+            var_info = var_accesses.get_varinfo(self._reference)
+            var_info.get_all_accesses()[0].set_indices(list_indices)
 
     def gen_c_code(self, indent=0):
         '''
