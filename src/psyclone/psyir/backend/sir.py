@@ -1,0 +1,329 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2019, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author R. W. Ford, STFC Daresbury Lab.
+
+'''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
+limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
+gen() method to generate Fortran.
+
+'''
+
+from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyGen import Reference, BinaryOperation, Literal, \
+    Fparser2ASTProcessor as f2psyir
+from psyclone.nemo import NemoLoop, NemoKern
+
+def get_stencil(node):
+    ''' xxx '''
+    dims = []
+    for child in node.children:
+        if isinstance(child, Reference):
+            dims.append("0")
+        elif isinstance(child, BinaryOperation):
+            if isinstance(child.children[0], Reference) and \
+               isinstance(child.children[1], Literal):
+                if child._operator.name == "SUB":
+                    dims.append("-"+child.children[1]._value)
+                else:
+                    # assumed to be ADD
+                    dims.append(child.children[1]._value)
+
+    return "[{0}]".format(",".join(dims))
+
+
+class SIRPSyIRVisitor(PSyIRVisitor):
+    '''Implements a PSyIR-to-SIR back end for PSyIR kernel code (not
+    currently PSyIR algorithm code which has its own gen method for
+    generating Fortran).
+
+    '''
+    def __init__(self, skip_nodes=False, indent=None, start_depth=0):
+        super(SIRPSyIRVisitor, self).__init__(skip_nodes, indent, start_depth)
+        self._field_names = set()
+
+        
+    def node(self, node):
+        '''Catch any unsupported nodes, output their class names and continue
+        down the node hierarchy.
+
+        :param node: An unsupported PSyIR node.
+        :type node: subclass of :py:class:`psyclone.psyGen.Node`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = "{0}[ {1} start ]\n".format(self._nindent,
+                                             type(node).__name__)
+        self._depth += 1
+        for child in node.children:
+            result += self.visit(child)
+        self._depth -= 1
+        result += "{0}[ {1} end ]\n".format(self._nindent, type(node).__name__)
+        return result
+
+    def nemoloop(self, node):
+        '''Supported NEMO loops are triply nested with expected indices (not
+        yet checked) and should contain a nemokern. If this is not the
+        case then we are not able to translate so raise an
+        exception.
+
+        '''
+        if not (len(node.children) == 1 and
+                isinstance(node.children[0], NemoLoop)):
+            raise VisitorError("Child of loop should be a loop")
+
+        if not (len(node.children[0].children) == 1 and
+                isinstance(node.children[0].children[0], NemoLoop)):
+            raise VisitorError("Child of child of loop should be a loop")
+
+        if not isinstance(node.children[0].children[0].children[0],
+                          NemoKern):
+            raise VisitorError(
+                "Child of child of child of loop should be a NemoKern")
+
+        result = ("{0}interval = makeInterval(Interval.Start, Interval.End, "
+                  "0, 0)\n".format(self._nindent))
+        result += ("{0}bodyAST = makeAST([\n".format(self._nindent))
+        self._depth += 1
+        result += self.nemokern(node.children[0].children[0].children[0])
+        self._depth -= 1
+        result += "{0}])\n".format(self._nindent)
+        result += ("{0}verticalRegionStmt = makeVerticalRegionDeclStmt("
+                   "bodyAST, interval, VerticalRegion.Forward)\n"
+                   "".format(self._nindent))
+        return result
+
+    def nemokern(self, node):
+        '''NEMO kernels are a group of nodes collected into a schedule
+        so simply call the nodes in the schedule.
+
+        :param node: A NemoKern PSyIR node.
+        :type node: :py:class:`psyclone.nemo.NemoKern`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = ""
+        schedule = node.get_kernel_schedule()
+        for child in schedule.children:
+            result += self.visit(child)
+        return result
+
+    def nemoinvokeschedule(self, node):
+        '''This method is called when a NemoInvokeSchedule instance is found
+        in the PSyIR tree.
+
+        The constants_mod module is currently hardcoded into the
+        output as it is required for LFRic code. When issue #375 has
+        been addressed this module can be added only when required.
+
+        :param node: A KernelSchedule PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = "# PSyclone autogenerated SIR Python\n"
+
+        exec_statements = ""
+        for child in node.children:
+            exec_statements += self.visit(child)
+        result += (
+            "{0}\n"
+            "".format(exec_statements))
+        result += (
+            "{0}hir = makeSIR(\"psyclone.cpp\", [\n"
+            "{0}{1}makeStencil(\n"
+            "{0}{1}{1}\"psyclone\",\n"
+            "{0}{1}{1}makeAST([verticalRegionStmt()]),\n"
+            "{0}{1}{1}[".format(self._nindent, self._indent))
+        functions = []
+        for name in self._field_names:
+            functions.append("makefield(\"{0}\")".format(name))
+        result += ",".join(functions)
+        result += "]\n"
+        result += (
+            "{0}{1})\n"
+            "{0}])\n".format(self._nindent, self._indent))
+        return result
+
+    def assignment(self, node):
+        '''This method is called when an Assignment instance is found in the
+        PSyIR tree.
+
+        :param node: An Assignment PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Assigment`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        self._depth += 1
+        lhs = self.visit(node.children[0])
+        rhs = self.visit(node.children[1])
+        self._depth -= 1
+        result = "{0}makeAssignmentStmt(\n{1},\n{2}".format(self._nindent, lhs, rhs)
+        if result[-1] == '\n':
+            result = result[:-1] + ",\n"
+        else:
+            result += ",\n"
+        result += "{0}{1}\"=\")\n".format(self._nindent, self._indent)
+        return result
+
+    def binaryoperation(self, node):
+        '''This method is called when a BinaryOperation instance is found in
+        the PSyIR tree.
+
+        :param node: A BinaryOperation PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        # reverse the fortran2psyir mapping to make a psyir2fortran
+        # mapping
+        mapping = {}
+        for operator in f2psyir.binary_operators:
+            mapping_key = f2psyir.binary_operators[operator]
+            mapping_value = operator
+            # Only choose the first mapping value when there is more
+            # than one.
+            if mapping_key not in mapping:
+                mapping[mapping_key] = mapping_value
+        self._depth += 1
+        lhs = self.visit(node.children[0])
+        oper = mapping[node._operator]
+        rhs = self.visit(node.children[1])
+        self._depth -= 1
+        result = "{0}makeBinaryOperator(\n{2},\n{0}{1}\"{3}\",\n{4}\n{0}{1})\n".format(self._nindent, self._indent, lhs, oper, rhs)
+        return result
+
+    def reference(self, node):
+        '''This method is called when a Reference instance is found in the
+        PSyIR tree.
+
+        :param node: A Reference PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Reference`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: If this node has children.
+
+        '''
+        if node.children:
+            raise VisitorError(
+                "PSyIR Reference node should not have any children.")
+        return "{0}makeVarAccessExpr(\"{1}\")".format(self._nindent, node._reference)
+
+    def array(self, node):
+        '''This method is called when an Array instance is found in the PSyIR
+        tree.
+
+        :param node: An Array PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Array`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        stencil = get_stencil(node)
+        result = "{0}makeFieldAccessExpr(\"{1}\",{2})".format(self._nindent, node.name, stencil)
+        self._field_names.add(node.name)
+        return result
+
+    def literal(self, node):
+        '''This method is called when a Literal instance is found in the PSyIR
+        tree.
+
+        :param node: A Literal PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Literal`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = node._value
+        return "{0}makeLiteralAccessExpr(\"{1}\", BuiltinType.Float)".format(self._nindent, result) 
+
+    def unaryoperation(self, node):
+        '''This method is called when a UnaryOperation instance is found in
+        the PSyIR tree.
+
+        :param node: A UnaryOperation PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        # Reverse the fortran2psyir mapping to make a psyir2fortran
+        # mapping.
+        mapping = {}
+        for operator in f2psyir.unary_operators:
+            mapping_key = f2psyir.unary_operators[operator]
+            mapping_value = operator
+            # Only choose the first mapping value when there is more
+            # than one.
+            if mapping_key not in mapping:
+                mapping[mapping_key] = mapping_value
+        oper = mapping[node._operator]
+        if not (len(node.children) == 1 and isinstance(node.children[0], Literal)):
+            print (len(node.children))
+            print (type(node.children[0]))
+            print (node)
+            print (node.children[0])
+            exit(1)
+            raise VisitorError("Child of unary operator should be a literal")
+
+        result = node.children[0]._value
+        return "{0}makeLiteralAccessExpr(\"{1}{2}\", BuiltinType.Float)".format(self._nindent, oper, result) 
+
+    def codeblock(self, node):
+        '''This method is called when a CodeBlock instance is found in the
+        PSyIR tree. It returns the content of the CodeBlock as a
+        Fortran string, indenting as appropriate.
+
+        :param node: A CodeBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.CodeBlock`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        return "{0}[ CodeBlock ]".format(self._nindent)
