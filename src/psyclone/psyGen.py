@@ -2727,6 +2727,28 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                 "but this Node has {0} children: {1}".
                 format(len(self._children), self._children))
 
+        # Now determine scalar variables that must be private:
+        var_accesses = VariablesAccessInfo()
+        self.reference_accesses(var_accesses)
+        private_vars = []
+        for var_name in var_accesses.get_all_vars():
+            accesses = var_accesses.get_varinfo(var_name).get_all_accesses()
+            # Ignore variables that have indices, we only look at scalar
+            if accesses[0].get_indices() is not None:
+                continue
+
+            # If a variable is only accesses once, it is either an error
+            # or a shared variable:
+            if len(accesses) == 1:
+                if accesses[0].get_access_type() == AccessType.WRITE:
+                    print("Warning: written but not used", var_name)
+                continue
+
+            # We have at least two accesses. If the first one is a write,
+            # assume the variable should be private:
+            if accesses[0].get_access_type() == AccessType.WRITE:
+                private_vars.append(var_name)
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the child of this node in the AST of our parent node
@@ -2748,8 +2770,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                  self._children[0].ast)
 
         # Create the start directive
+        private_vars = private_vars + self._get_private_list()
         text = ("!$omp parallel do default(shared), private({0}), "
-                "schedule({1})".format(",".join(self._get_private_list()),
+                "schedule({1})".format(",".join(private_vars),
                                        self._omp_schedule))
         startdir = Comment(FortranStringReader(text,
                                                ignore_comments=False))
