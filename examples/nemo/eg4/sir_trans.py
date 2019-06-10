@@ -75,3 +75,5 @@ def trans(psy):
 # 7) ?If statements not supported in SIR.
 # 8) is_temporary=True - how to determine this?
 # 9) name for stencil and cpp file. How to determine/specify?
+#10) local variables (local scoping)
+#11) loop bounds
