@@ -4199,8 +4199,23 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
+
+    # If 'a' is not declared it could be a statement function, which are
+    # unsupported and produce a NotImplementedError.
+    reader = FortranStringReader("a(x) = 1")
+    fparser2spec = Stmt_Function_Stmt(reader)
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process '" in str(error.value)
+    assert "'. Statement Function declarations are not supported." \
+        in str(error.value)
+
+    # The code below checks that misclassified Statment_Functions are
+    # recovered as arrays, this may become unecessary after fparser/#171
+    # is fixed.
 
     # If 'a' is not declared it could be a statement function, which are
     # unsupported and produce a NotImplementedError.

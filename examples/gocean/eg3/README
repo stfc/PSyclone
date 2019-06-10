@@ -56,11 +56,14 @@ transformation to the Schedule of the Invoke. This will generate the OpenCL
 driver layer to stdout and a 'kernel_name'.cl file for each of the kernels
 referenced in alg.f90 traslated to OpenCL.
 
-Each OpenCL kernel needs to be compiled before buidling the driver layer,
-an example of the full workflow using the Intel OpenCL Offline compiler would be:
+Each OpenCL kernel needs to be compiled before buidling the driver layer.
+For example, the steps to generate the code using the Intel OpenCL SDK
+(https://software.intel.com/en-us/opencl-sdk) are::
 
-    psyclone -oalg psyalg.f90 -opsy psylayer.f90 -api "gocean1.0" -s ./ocl_trans.py alg.f90
-    # Pre-build OpenCL kernels, e.g.:
-    ioc64 -cmd=build -device=cpu -input=kernels.cl -spirv64=kernels.spir -bo="-cl-std=CL1.2"
+    psyclone -oalg psyalg.f90 -opsy psylayer.f90 -api "gocean1.0" \
+        -s ./ocl_trans.py alg.f90
+
+    # Pre-build OpenCL kernels
+    ioc64 -cmd=build -device=cpu -input=kernels.cl -spirv64=kernels.spirv \
+        -bo="-cl-std=CL1.2"
     export PSYCLONE_KERNELS_FILE=kernels.spirv
-    # Compile and link driver layer
