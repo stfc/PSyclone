@@ -44,7 +44,6 @@ module compute_cu_mod
 
   private
 
-  !public invoke_compute_cu
   public compute_cu, compute_cu_code
 
   type, extends(kernel_type) :: compute_cu
