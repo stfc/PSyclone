@@ -32,7 +32,7 @@ The psyGen module
     :members:
 
 The alg_gen module
------------------
+------------------
 
 .. automodule:: psyclone.alg_gen
 
