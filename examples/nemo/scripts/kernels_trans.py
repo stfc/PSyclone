@@ -56,14 +56,6 @@ routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel
 region.
 
-Once the Kernels regions have been created, the script then simply
-encloses each of them within an OpenACC Data region (since these have
-already been made as large as possible). In reality, the purpose of a
-data region is to keep data on the remote GPU device for as long as
-possible, ideally between Kernel regions. However, this requires more
-sophisticated dependency analysis than is yet implemented in
-PSyclone. Issue #309 will tackle this limitation.
-
 '''
 
 from __future__ import print_function
@@ -206,7 +198,8 @@ def try_kernels_trans(nodes):
 
 def trans(psy):
     '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' and 'data' directives to NEMO code.
+    OpenACC 'kernels' directives to NEMO code. (Data movement is
+    assumed to be handled through PGI's managed-memory functionality.)
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -227,20 +220,5 @@ def trans(psy):
 
         add_kernels(sched.children)
         sched.view()
-
-        if False:
-            directives = sched.walk(sched.children, ACCDirective)
-            if not directives:
-                # We only need a data region if we've added any directives
-                continue
-
-            # Since we've already taken care to only include recognised code within
-            # 'kernels' directives, we simply put each of those directives inside
-            # a data region. In reality we would want to try and make the data
-            # regions bigger but this is only an example.
-            for directive in directives:
-                sched, _ = ACC_DATA_TRANS.apply([directive])
-
-            sched.view()
 
         invoke.schedule = sched
