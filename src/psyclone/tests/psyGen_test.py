@@ -651,7 +651,7 @@ def test_kern_class_view(capsys):
     my_kern.view()
     out, _ = capsys.readouterr()
     expected_output = (
-        colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) +
+        colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
@@ -664,7 +664,7 @@ def test_kern_coloured_text():
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     ret_str = my_kern.coloured_text
-    assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
+    assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
 
 
 def test_kern_abstract_methods():
@@ -682,9 +682,9 @@ def test_kern_abstract_methods():
 
 
 def test_call_abstract_methods():
-    ''' Check that calling the abstract methods of Call raises
+    ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    from psyclone.psyGen import Call, Arguments
+    from psyclone.psyGen import Kern, Arguments
     my_arguments = Arguments(None)
 
     class KernType(object):  # pylint: disable=too-few-public-methods
@@ -700,18 +700,18 @@ def test_call_abstract_methods():
             self.ktype = ktype
 
     dummy_call = DummyClass(my_ktype)
-    my_call = Call(None, dummy_call, "dummy", my_arguments)
+    my_call = Kern(None, dummy_call, "dummy", my_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
-    assert "Call.local_vars should be implemented" in str(excinfo.value)
+    assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.__str__()
-    assert "Call.__str__ should be implemented" in str(excinfo.value)
+    assert "Kern.__str__ should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
-    assert "Call.gen_code should be implemented" in str(excinfo.value)
+    assert "Kern.gen_code should be implemented" in str(excinfo.value)
 
 
 def test_arguments_abstract():
@@ -733,9 +733,9 @@ def test_arguments_abstract():
 
 def test_incremented_arg():
     ''' Check that we raise the expected exception when
-    Kern.incremented_arg() is called for a kernel that does not have
+    CodedKern.incremented_arg() is called for a kernel that does not have
     an argument that is incremented '''
-    from psyclone.psyGen import Kern
+    from psyclone.psyGen import CodedKern
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     import fparser
@@ -752,7 +752,7 @@ def test_incremented_arg():
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
-        Kern.incremented_arg(my_kern)
+        CodedKern.incremented_arg(my_kern)
     assert ("does not have an argument with gh_inc access"
             in str(excinfo.value))
 
@@ -811,8 +811,8 @@ def test_ompdo_directive_class_view(capsys):
                 "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
                 "[type='',field_space='w1',it_space='cells', "
                 "upper_bound='ncells']\n"
-                "        "+colored("KernCall",
-                                   SCHEDULE_COLOUR_MAP["KernCall"]) +
+                "        "+colored("CodedKern",
+                                   SCHEDULE_COLOUR_MAP["CodedKern"]) +
                 " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
             print(out)
