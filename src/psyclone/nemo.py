@@ -35,7 +35,7 @@
 
 '''This module implements the PSyclone NEMO API by specialising
    the required base classes for both code generation (PSy, Invokes,
-   Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
+   Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument)
    and parsing (Descriptor and KernelType).
 
 '''
@@ -43,7 +43,7 @@
 from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, Kern, InternalError, NameSpaceFactory, \
+    Loop, CodedKern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
@@ -298,7 +298,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
         return result
 
 
-class NemoKern(Kern):
+class NemoKern(CodedKern):
     ''' Stores information about NEMO kernels as extracted from the
     NEMO code. Kernels are leaves in the PSyIR. I.e. they have
     no self._children but they do have a KernelSchedule.
