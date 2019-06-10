@@ -3369,9 +3369,9 @@ class Kern(Node):
         :param var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        for arg in self.arguments:
-            var_accesses.add_access(arg, AccessType.UNKNOWN)
-        super(Call, self).reference_accesseses(var_accesses)
+        for arg in self.arguments.args:
+            var_accesses.add_access(arg.name, AccessType.UNKNOWN)
+        super(Call, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
     @property
