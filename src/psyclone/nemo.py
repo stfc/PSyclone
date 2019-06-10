@@ -491,8 +491,8 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
-        var_accesses.add_access(self._variable_name, AccessType.READ)
         var_accesses.add_access(self._variable_name, AccessType.WRITE)
+        var_accesses.add_access(self._variable_name, AccessType.READ)
         var_accesses.next_location()
         # TODO: atm start, stop and step are just strings, so we can't
         # get any variable information

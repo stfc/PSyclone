@@ -3178,7 +3178,13 @@ class Loop(Node):
         :param var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        var_accesses.add_access(self._variable_name, AccessType.READWRITE)
+
+        # It is important to first add the WRITE access, since this way
+        # the dependency analysis for declaring openmp private variables
+        # will automatically declare the loop variables to be private
+        # (write access before read)
+        var_accesses.add_access(self._variable_name, AccessType.WRITE)
+        var_accesses.add_access(self._variable_name, AccessType.READ)
         var_accesses.add_access(self._start, AccessType.READ)
         var_accesses.add_access(self._stop, AccessType.READ)
         var_accesses.add_access(self._step, AccessType.READ)
