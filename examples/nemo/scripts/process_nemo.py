@@ -36,21 +36,34 @@ from __future__ import print_function
 import os
 import sys
 
+'''
+Python driver script to run PSyclone on (pre-processed) NEMO source files, i.e.
+those produced by the build system in <MY_CONFIG_NAME>/BLD/ppsrc/nemo.
+For example::
+
+>>> process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
+
+Or, if you have Gnu 'parallel':
+
+>>> parallel process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC {} ::: <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
+
+'''
+
 # Files that we won't attempt to process with PSyclone
 EXCLUDED_FILES = ["bdyini.f90", "diaobs.f90",
                   "fldread.f90",
                   "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
                   "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
                   "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
-                  "ice.f90", "icedyn_adv_pra.f90", "icedyn_rdgrft.f90",
+                  "ice.f90", "icecor.f90", "icedyn_adv_pra.f90",
+                  "icedyn_rdgrft.f90",
                   "icedyn_rhg_evp.f90", "icethd_ent.f90", "icethd_zdf.f90",
                   "icethd_dh.f90", "icevar.f90", "iom.f90",
                   "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
                   "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                   "obs_utils.f90",
                   "tide_mod.f90", "sbcblk_algo_ncar.f90", "sbcisf.f90",
-                  "sbcice_cice.f90", "storng.f90",
-                  "stopar.f90"]
+                  "sbcice_cice.f90", "storng.f90", "stopar.f90"]
 
 if __name__ == "__main__":
     import glob
@@ -58,10 +71,11 @@ if __name__ == "__main__":
     from psyclone.generator import main
 
     parser = argparse.ArgumentParser(
-        description="Process all NEMO source files in the current directory "
+        description="Process the specified NEMO source files "
         "using PSyclone")
-    parser.add_argument('input_dir',
-                        help="Location of the NEMO pre-processed source files")
+    parser.add_argument('input_files', metavar='input_file', type=str,
+                        nargs='+',
+                        help="One or more NEMO pre-processed source files")
     parser.add_argument('-o', dest='out_dir',
                         help="Destination directory for processed source "
                         "files")
@@ -69,23 +83,15 @@ if __name__ == "__main__":
                         help="PSyclone transformation script")
     args = parser.parse_args()
 
-    if not os.path.isdir(args.input_dir):
-        print("Supplied input directory '{0}' cannot be found or is not "
-              "a directory.".format(args.input_dir), file=sys.stderr)
-        exit(1)
-
-    # Find all Fortran90 files
-    files = glob.glob(os.path.join(args.input_dir, "*90"))
-
-    if not files:
-        print("Failed to find any Fortran90 files (*90) in the supplied "
-              "input directory '{0}'.".format(args.input_dir), file=sys.stderr)
-        exit(1)
-
     # Keep a list of files for which PSyclone fails
     failed_files = []
     
-    for ffile in files:
+    for ffile in args.input_files:
+
+        if not os.path.isfile(ffile):
+            print("Cannot find file '{0}' - skipping".format(ffile))
+            continue
+
         file_name = os.path.basename(ffile)
         if file_name in EXCLUDED_FILES:
             continue
