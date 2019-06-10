@@ -36,12 +36,12 @@
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
     the required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop,
-    Kern, Arguments and KernelArgument). '''
+    CodedKern, Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
-    Arguments, KernelArgument
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
+    CodedKern, Arguments, KernelArgument
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -316,7 +316,7 @@ class GOKernCallFactory(object):
         return outer_loop
 
 
-class GOKern(Kern):
+class GOKern(CodedKern):
     ''' Stores information about GOcean Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. Specialises the gen_code method to
@@ -327,8 +327,16 @@ class GOKern(Kern):
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
 
     def load(self, call, parent=None):
-        ''' Load this GOKern object with state pulled from the call object '''
-        Kern.__init__(self, GOKernelArguments, call, parent)
+        '''
+        Load this GOKern object with state pulled from the call object.
+
+        :param call: details of the Algorithm-layer call of this Kernel.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: parent of this kernel node in the PSyIR.
+        :type parent: :py:class:`psyclone.gocean0p1.GOLoop` or NoneType.
+
+        '''
+        super(GOKern, self).__init__(GOKernelArguments, call, parent)
 
     def local_vars(self):
         return []
