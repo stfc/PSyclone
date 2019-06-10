@@ -61,7 +61,6 @@ def outputdir(tmpdir, monkeypatch):
     '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-    monkeypatch.setattr(config, "_kernel_naming", "single")
     return tmpdir
 
 
@@ -90,7 +89,6 @@ end program hello
         old_pwd.chdir()
 
 
-# ----------------------------------------------------------------------------
 def test_use_stmts(outputdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
