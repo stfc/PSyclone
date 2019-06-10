@@ -51,9 +51,10 @@ from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, ACCEnterDataDirective, \
+    Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType
+    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType, \
+    ACCEnterDataDirective
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -861,7 +862,7 @@ class GOKernCallFactory(object):
         return outer_loop
 
 
-class GOKern(Kern):
+class GOKern(CodedKern):
     '''
     Stores information about GOcean Kernels as specified by the Kernel
     metadata. Uses this information to generate appropriate PSy layer
@@ -883,8 +884,18 @@ class GOKern(Kern):
         self._name_space_manager = NameSpaceFactory().create()
 
     def load(self, call, parent=None):
-        ''' Populate the state of this GOKern object '''
-        Kern.__init__(self, GOKernelArguments, call, parent, check=False)
+        '''
+        Populate the state of this GOKern object.
+
+        :param call: information on the way in which this kernel is called \
+                     from the Algorithm layer.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: the parent of this Kernel node in the PSyIR.
+        :type parent: :py:class:`psyclone.gocean1p0.GOLoop`
+
+        '''
+        super(GOKern, self).__init__(GOKernelArguments, call, parent,
+                                     check=False)
 
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels

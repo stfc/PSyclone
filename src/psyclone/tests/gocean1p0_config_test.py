@@ -52,12 +52,24 @@ def setup():
     Config.get().api = "gocean1.0"
 
 
-def teardown_function():
-    '''This teardown function is called at the end of all tests and makes
-    sure that we wipe the Config object so we get a fresh/default one
-    for any further test (and not a left-over one from a test here).
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_instance():
+    ''' The tests in this module all assume that there is no pre-existing
+    Config object, so this fixture ensures that the config instance is
+    deleted before and after each test function. The latter makes sure that
+    any other test executed next will automatically reload the default
+    config file.
     '''
+
     # Enforce loading of the default config file
+    # pylint: disable=protected-access
+    Config._instance = None
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default config file
+    # pylint: disable=protected-access
     Config._instance = None
 
 
