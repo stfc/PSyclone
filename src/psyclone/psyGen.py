@@ -3770,7 +3770,7 @@ class Kern(Call):
             name_idx += 1
             new_suffix = "_{0}".format(name_idx)
             if self.root.opencl:
-                new_name = old_base_name + new_suffix + ".cl"
+                new_name = old_base_name + ".cl"
             else:
                 new_name = old_base_name + new_suffix + "_mod.f90"
 
@@ -3787,11 +3787,19 @@ class Kern(Call):
                     # If the kernel-renaming scheme is such that we only ever
                     # create one copy of a transformed kernel then we're done
                     break
+                if (self.root.opencl and
+                   Config.get().kernel_naming == "multiple"):
+                    raise GenerationError(
+                        "The generation of OpenCL kernels just supports the "
+                        "'single' kernel_naming Configuration.")
                 continue
 
         # Use the suffix we have determined to rename all relevant quantities
-        # within the AST of the kernel code
-        self._rename_ast(new_suffix)
+        # within the AST of the kernel code.
+        # We can't rename OpenCL kernels as the Invoke set_args functions
+        # have already been generated.
+        if not self.root.opencl:
+            self._rename_ast(new_suffix)
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False

@@ -307,6 +307,11 @@ class Compile(object):
             # Build the kernels. We allow kernels to also be located in
             # the temporary directory that we have been passed.
             for fort_file in kernel_modules:
+
+                # Skip file if it is not Fortran
+                if fort_file.endswith(".cl"):
+                    continue
+
                 name = self.find_fortran_file([self.base_path,
                                                str(self._tmpdir)], fort_file)
                 self.compile_file(name)
