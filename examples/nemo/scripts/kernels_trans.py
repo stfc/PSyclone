@@ -74,6 +74,14 @@ from psyclone.psyGen import TransInfo
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 
+# Currently fparser has no way of distinguishing array accesses from
+# function calls if the symbol is imported from some other module.
+# We therefore work-around this by keeping a list of known NEMO
+# functions that must be excluded from within KERNELS regions.
+# In future we will either in-line such functions or add ACC ROUTINE
+# directives to them.
+NEMO_FUNCTIONS = set(["solfrac"])
+
 
 def valid_kernel(node):
     '''
@@ -88,7 +96,7 @@ def valid_kernel(node):
 
     '''
     from psyclone.nemo import NemoKern
-    from psyclone.psyGen import IfBlock, CodeBlock, Schedule
+    from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
     excluded_nodes = (CodeBlock, IfBlock)
@@ -107,6 +115,19 @@ def valid_kernel(node):
     # them causes problems.
     if not isinstance(node, NemoKern):
         if walk_ast([node.ast], [Fortran2003.Data_Ref]):
+            return False
+    # Finally, check that we haven't got any 'array accesses' that are in
+    # fact function calls.
+    refs = node.walk([node], Array)
+    # Since kernels are leaves in the PSyIR, we need to separately check
+    # their schedules for array references too.
+    kernels = node.walk([node], NemoKern)
+    for kern in kernels:
+        sched = kern.get_kernel_schedule()
+        refs += sched.walk(sched.children, Array)
+    if refs:
+        ref_names = set([ref.name.lower() for ref in refs])
+        if NEMO_FUNCTIONS.intersection(ref_names):
             return False
     return True
 
