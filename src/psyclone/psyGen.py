@@ -2444,24 +2444,40 @@ class OMPParallelDirective(OMPDirective):
         :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
         '''
-        result = []
-        # get variable names from all loops that are a child of this node
-        for loop in self.loops():
-            # We must allow for implicit loops (e.g. in the NEMO API) that
-            # have no associated variable name
-            if loop.variable_name and \
-               loop.variable_name.lower() not in result:
-                result.append(loop.variable_name.lower())
-        # Get variable names from all kernels that are a child of this node
-        for call in self.kernels():
+        result = set()
+        # get variable names from all calls that are a child of this node
+        for call in self.calls():
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
                         "call '{0}' has a local variable but its "
                         "name is not set.".format(call.name))
-                if variable_name.lower() not in result:
-                    result.append(variable_name.lower())
-        return result
+                result.add(variable_name.lower())
+
+        # Now determine scalar variables that must be private:
+        var_accesses = VariablesAccessInfo()
+        self.reference_accesses(var_accesses)
+        for var_name in var_accesses.get_all_vars():
+            accesses = var_accesses.get_varinfo(var_name).get_all_accesses()
+            # Ignore variables that have indices, we only look at scalar
+            if accesses[0].get_indices() is not None:
+                continue
+
+            # If a variable is only accesses once, it is either an error
+            # or a shared variable - anyway it is not private
+            if len(accesses) == 1:
+                continue
+
+            # We have at least two accesses. If the first one is a write,
+            # assume the variable should be private:
+            if accesses[0].get_access_type() == AccessType.WRITE:
+                result.add(var_name.lower())
+
+        # Convert the set into a list and sort it, so that we get
+        # reproducible results
+        list_result = list(result)
+        list_result.sort()
+        return list_result
 
     def _not_within_omp_parallel_region(self):
         ''' Check that this Directive is not within any other
@@ -2491,7 +2507,7 @@ class OMPParallelDirective(OMPDirective):
         parallel region.
 
         :raises InternalError: if the existing AST doesn't have the \
-                               correct structure to permit the insertion \
+                              s correct structure to permit the insertion \
                                of the OpenMP parallel region.
         '''
         from fparser.common.readfortran import FortranStringReader
@@ -2727,28 +2743,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                 "but this Node has {0} children: {1}".
                 format(len(self._children), self._children))
 
-        # Now determine scalar variables that must be private:
-        var_accesses = VariablesAccessInfo()
-        self.reference_accesses(var_accesses)
-        private_vars = []
-        for var_name in var_accesses.get_all_vars():
-            accesses = var_accesses.get_varinfo(var_name).get_all_accesses()
-            # Ignore variables that have indices, we only look at scalar
-            if accesses[0].get_indices() is not None:
-                continue
-
-            # If a variable is only accesses once, it is either an error
-            # or a shared variable:
-            if len(accesses) == 1:
-                if accesses[0].get_access_type() == AccessType.WRITE:
-                    print("Warning: written but not used", var_name)
-                continue
-
-            # We have at least two accesses. If the first one is a write,
-            # assume the variable should be private:
-            if accesses[0].get_access_type() == AccessType.WRITE:
-                private_vars.append(var_name)
-
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the child of this node in the AST of our parent node
@@ -2770,7 +2764,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                  self._children[0].ast)
 
         # Create the start directive
-        private_vars = private_vars + self._get_private_list()
+        private_vars = self._get_private_list()
         text = ("!$omp parallel do default(shared), private({0}), "
                 "schedule({1})".format(",".join(private_vars),
                                        self._omp_schedule))
