@@ -640,8 +640,8 @@ def test_kern_get_kernel_schedule():
     assert isinstance(schedule, KernelSchedule)
 
 
-def test_kern_class_view(capsys):
-    ''' Tests the view method in the Kern class. The simplest way to
+def test_codedkern_class_view(capsys):
+    ''' Tests the view method in the CodedKern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
@@ -657,14 +657,23 @@ def test_kern_class_view(capsys):
 
 
 def test_kern_coloured_text():
-    ''' Check that the coloured_text method of Kern returns what we expect '''
+    ''' Check that the coloured_text method of both CodedKern and
+    BuiltIn return what we expect. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ret_str = my_kern.coloured_text
+    # Use a Dynamo example that has both a CodedKern and a BuiltIn
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    ckern = schedule.children[0].children[0]
+    bkern = schedule.children[1].children[0]
+    ret_str = ckern.coloured_text
     assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
+    ret_str = bkern.coloured_text
+    assert colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"]) in ret_str
 
 
 def test_kern_abstract_methods():

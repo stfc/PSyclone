@@ -3955,6 +3955,16 @@ class BuiltIn(Kern):
         builtin's do not have any local variables so set to nothing'''
         return []
 
+    @property
+    def coloured_text(self):
+        '''
+        :returns: the name of this node type, possibly with control codes
+                  for colour.
+        :rtype: str
+
+        '''
+        return colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
+
 
 class Arguments(object):
     '''
