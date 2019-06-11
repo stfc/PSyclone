@@ -360,6 +360,7 @@ class NemoKern(CodedKern):
         # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
         # We therefore don't have any children.
         self._children = []
+        self._reduction = False
 
     @staticmethod
     def match(node):
