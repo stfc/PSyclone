@@ -308,7 +308,8 @@ class Compile(object):
             # the temporary directory that we have been passed.
             for fort_file in kernel_modules:
 
-                # Skip file if it is not Fortran
+                # Skip file if it is not Fortran. TODO #372: Add support
+                # for C/OpenCL compiling as part of the test suite.
                 if fort_file.endswith(".cl"):
                     continue
 

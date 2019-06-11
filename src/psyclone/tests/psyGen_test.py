@@ -4217,8 +4217,9 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     # recovered as arrays, this may become unecessary after fparser/#171
     # is fixed.
 
-    # If 'a' is not declared it could be a statement function, which are
-    # unsupported and produce a NotImplementedError.
+    # This Specification part is expected to contain a statment_function
+    # with the current fparser, this may change depending on how
+    # fparser/#171 is fixed.
     reader = FortranStringReader("a(x) = 1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
@@ -4240,7 +4241,7 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     # Test that it works with multi-dimensional arrays
     fake_parent = KernelSchedule("dummy_schedule")
     reader = FortranStringReader("b(x, y) = 1")
-    fparser2spec = Specification_Part(reader).content[0]
+    fparser2spec = Stmt_Function_Stmt(reader)
     fake_parent.symbol_table.add(Symbol('b', 'real', shape=[None, None]))
     fake_parent.symbol_table.add(Symbol('x', 'integer', shape=[]))
     fake_parent.symbol_table.add(Symbol('y', 'integer', shape=[]))

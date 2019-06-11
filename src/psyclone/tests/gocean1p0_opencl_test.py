@@ -105,9 +105,6 @@ def test_use_stmts(outputdir):
       use iso_c_binding'''
     assert expected in generated_code
     assert "if (first_time) then" in generated_code
-
-    generated_code = str(psy.gen).lower()
-    assert expected in generated_code
     assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
