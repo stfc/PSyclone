@@ -2701,6 +2701,79 @@ class OMPDoDirective(OMPDirective):
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
 
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        do.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+                                 correct structure to permit the insertion \
+                                 of the OpenMP parallel do.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
+        # Check that we haven't already been called
+        if self.ast:
+            return
+
+        # Since this is an OpenMP do, it can only be applied
+        # to a single loop.
+        if len(self._children) != 1:
+            raise GenerationError(
+                "An OpenMP DO can only be applied to a single loop "
+                "but this Node has {0} children: {1}".
+                    format(len(self._children), self._children))
+
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the child of this node in the AST of our parent node
+        # TODO make this robust by using the new 'children' method to
+        # be introduced in fparser#105
+        # We have to take care to find a parent node (in the fparser2 AST)
+        # that has 'content'. This is because If-else-if blocks have their
+        # 'content' as siblings of the If-then and else-if nodes.
+        parent = self._parent
+        # This initial loop is necessary in case that the parent is e.g. an
+        # omp parallel node (which has no ast either). So we search up
+        # till we found the first tree to actually have an ast.
+        while not parent.ast:
+            parent = parent._parent
+        parent = parent.ast
+        while parent:
+            if hasattr(parent, "content") and \
+                            parent is not self.children[0].ast:
+                break
+            parent = parent._parent
+        if not parent:
+            raise InternalError("Failed to find parent node in which to "
+                                "insert OpenMP parallel do directive")
+        start_idx = object_index(parent.content,
+                                 self._children[0].ast)
+
+        # Create the start directive
+        text = ("!$omp do schedule({0})".format(self._omp_schedule))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end do",
+                                             ignore_comments=False))
+        if start_idx == len(parent.content) - 1:
+            parent.content.append(enddir)
+        else:
+            parent.content.insert(start_idx + 1, enddir)
+        self.ast_end = enddir
+
+        # Insert the start directive (do this second so we don't have
+        # to correct the location)
+        self.ast = startdir
+        parent.content.insert(start_idx, self.ast)
+
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     ''' Class for the !$OMP PARALLEL DO directive. This inherits from
