@@ -2200,7 +2200,8 @@ class GOLoopSwapTrans(Transformation):
 class OCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
-    InvokeSchedule. For example:
+    InvokeSchedule. Additionally, it will generate OpenCL kernels for
+    each of the kernels referenced by the Invoke. For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
