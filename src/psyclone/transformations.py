@@ -2926,7 +2926,7 @@ class ACCRoutineTrans(Transformation):
         ast = kern.ast
         # Keep a record of this transformation
         keep = Memento(kern, self)
-        # Find the kernel subroutine
+        # Find the kernel subroutine in the fparser2 parse tree
         kern_sub = None
         subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
         for sub in subroutines:
@@ -2937,10 +2937,6 @@ class ACCRoutineTrans(Transformation):
                     break
             if kern_sub:
                 break
-        if not kern_sub:
-            raise TransformationError(
-                "Failed to find subroutine source for kernel {0}".
-                format(kern.name))
         # Find the last declaration statement in the subroutine
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
         posn = -1
@@ -2970,7 +2966,8 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if the target kernel is a built-in.
 
         '''
-        from psyclone.psyGen import BuiltIn
+        from psyclone.psyGen import BuiltIn, GenerationError, SymbolError, \
+            Symbol
         if isinstance(kern, BuiltIn):
             raise TransformationError(
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
@@ -2981,6 +2978,31 @@ class ACCRoutineTrans(Transformation):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
+        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
+        # If this kernel contains symbols that are not captured in the PSyIR
+        # SymbolTable then this raises an exception.
+        try:
+            sched = kern.get_kernel_schedule()
+        except GenerationError:
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
+        except SymbolError:
+            raise TransformationError(
+                "Kernel {0} contains accesses to data that are not captured "
+                "in the PSyIR Symbol Table. Cannot transform such a kernel for"
+                " execution on a GPU.".format(kern.name))
+        # Check that the kernel does not access any data via a module 'use'
+        # statement
+        for symbol in sched.symbol_table.symbols:
+            if symbol.access and isinstance(symbol.access,
+                                            Symbol.FortranGlobal):
+                raise TransformationError(
+                    "The Symbol Table for kernel {0} contains an entry for a "
+                    "symbol ('{1}') accessed via a USE statement. PSyclone "
+                    "cannot currently transform such a kernel for execution "
+                    "on a GPU.".
+                    format(kern.name, symbol.name))
 
 
 class ACCKernelsTrans(RegionTrans):
