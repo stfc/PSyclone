@@ -2580,9 +2580,26 @@ class OMPParallelDirective(OMPDirective):
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
         self.ast_end = enddir
-        # If end_idx+1 takes us beyond the range of the list then the
-        # element is appended to the list
-        self._parent.ast.content.insert(end_idx+1, enddir)
+        # FIXME: In case of:
+        # omp parallel
+        #    omp do
+        #       loop
+        #    omp end do
+        # omp end parallel
+        # the "end parallel" statement will be inserted after the "omp do"
+        # statement!
+        # In order to avoid this problem when an "omp do" is present, test
+        # for this case and if so move the "omp end parallel" two statements
+        # further down, i.e. after the loop and "omp end do" statement.
+        if isinstance(self._parent.ast.content[end_idx], Comment) and \
+                "omp do" in str(self._parent.ast.content[end_idx]):
+            # We need to test for instance, otherwise the string representation
+            # of a loop could somewhere contain an "omp do"
+            self._parent.ast.content.insert(end_idx+3, enddir)
+        else:
+            # If end_idx+1 takes us beyond the range of the list then the
+            # element is appended to the list
+            self._parent.ast.content.insert(end_idx + 1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
