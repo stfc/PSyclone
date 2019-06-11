@@ -2995,8 +2995,8 @@ class ACCRoutineTrans(Transformation):
         # Check that the kernel does not access any data via a module 'use'
         # statement
         for symbol in sched.symbol_table.symbols:
-            if symbol.access and isinstance(symbol.access,
-                                            Symbol.FortranGlobal):
+            if symbol.interface and isinstance(symbol.interface,
+                                               Symbol.FortranGlobal):
                 raise TransformationError(
                     "The Symbol Table for kernel {0} contains an entry for a "
                     "symbol ('{1}') accessed via a USE statement. PSyclone "
