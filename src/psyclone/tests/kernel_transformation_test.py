@@ -94,8 +94,6 @@ def test_accroutine_err(monkeypatch):
             in str(err))
 
 
-@pytest.mark.xfail(reason="fparser incorrectly identifies kernel body as a "
-                   "Statement_Function.")
 def test_accroutine_module_var():
     ''' Check that the ACCRoutineTrans refuses to transform a kernel if
     it accesses module data.'''

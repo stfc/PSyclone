@@ -93,9 +93,13 @@ CONTAINS
     REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field
     REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field_new
     REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: field_old
+    REAL(go_wp) :: const
 
+    const = 2.0d0 ! This assignment simply ensures that fparser identifies
+                  ! the line below as an array access and not a Statement
+                  ! Function.
     field_old(i,j) = field(i,j) + &
-         alpha*(field_new(i,j) - 2.0d0*field(i,j) + field_old(i,j))
+         alpha*(field_new(i,j) - const*field(i,j) + field_old(i,j))
 
   END SUBROUTINE time_smooth_code
 
