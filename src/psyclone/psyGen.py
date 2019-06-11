@@ -262,6 +262,21 @@ class InternalError(Exception):
         return str(self.value)
 
 
+class SymbolError(Exception):
+    '''
+    PSyclone-specific exception for use with errors relating to the SymbolTable
+    in the PSyIR.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone SymbolTable error: "+value
+
+    def __str__(self):
+        return str(self.value)
+
+
 class PSyFactory(object):
     '''
     Creates a specific version of the PSy. If a particular api is not
@@ -5867,7 +5882,7 @@ class Fparser2ASTProcessor(object):
             try:
                 symbol_table.lookup(node.string)
             except KeyError:
-                raise GenerationError(
+                raise SymbolError(
                     "Undeclared reference '{0}' found when parsing fparser2 "
                     "node '{1}' inside '{2}'."
                     "".format(str(node.string), repr(node), parent.root.name))
@@ -6657,6 +6672,14 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
+
+    @property
+    def symbols(self):
+        '''
+        :returns: List of all symbols in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        return self._symbols.values()
 
     def gen_c_local_variables(self, indent=0):
         '''
