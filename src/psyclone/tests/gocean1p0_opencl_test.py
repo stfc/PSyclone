@@ -139,7 +139,7 @@ def test_psy_init(outputdir):
     assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_set_kern_args(outputdir, monkeypatch):
+def test_set_kern_args(outputdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule

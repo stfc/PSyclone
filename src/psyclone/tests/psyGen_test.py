@@ -4236,7 +4236,7 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
     assert isinstance(array, Array)
-    assert array.name is "a"
+    assert array.name == "a"
 
     # Test that it works with multi-dimensional arrays
     fake_parent = KernelSchedule("dummy_schedule")
@@ -4249,7 +4249,7 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
     assert isinstance(array, Array)
-    assert array.name is "b"
+    assert array.name == "b"
 
     # Test that if symbol is not an array, it raises GenerationError
     fake_parent.symbol_table.lookup('b')._shape = []

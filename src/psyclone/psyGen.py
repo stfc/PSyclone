@@ -5437,7 +5437,7 @@ class Fparser2ASTProcessor(object):
                     assignment.addchild(lhs)
 
                     # Build rhs
-                    self.process_nodes(parent=assignment, nodes=[scalar_expr],
+                    self.process_nodes(parent=assignment, nodes=[assignment_rhs],
                                        nodes_parent=scalar_expr)
                 else:
                     raise InternalError(
