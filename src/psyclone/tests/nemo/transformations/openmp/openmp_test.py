@@ -72,7 +72,7 @@ def test_omp_explicit_gen():
         "  integer :: ji, jj, jk\n"
         "  integer :: jpi, jpj, jpk\n"
         "  real, dimension(jpi, jpj, jpk) :: umask\n"
-        "  !$omp parallel do default(shared), private(jk,jj,ji), "
+        "  !$omp parallel do default(shared), private(ji,jj,jk), "
         "schedule(static)\n"
         "  do jk = 1, jpk\n"
         "    do jj = 1, jpj\n"
@@ -100,7 +100,7 @@ def test_omp_parallel():
     schedule = psy.invokes.get('explicit_do').schedule
     schedule, _ = otrans.apply([schedule.children[0]])
     gen_code = str(psy.gen).lower()
-    assert ("  !$omp parallel default(shared), private(jk,jj,ji)\n"
+    assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
             "  do jk = 1, jpk\n"
             "    do jj = 1, jpj\n"
             "      do ji = 1, jpi\n"
@@ -128,7 +128,7 @@ def test_omp_parallel_multi():
     new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
     new_sched.view()
     gen_code = str(psy.gen).lower()
-    assert ("    !$omp parallel default(shared), private(jj,ji)\n"
+    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,zmsku)\n"
             "    do jj = 1, jpjm1\n"
             "      do ji = 1, fs_jpim1\n"
             "        zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * "
@@ -229,7 +229,7 @@ def test_omp_do_within_if():
     gen = str(psy.gen)
     expected = (
         "    ELSE\n"
-        "      !$omp parallel do default(shared), private(jj,ji), "
+        "      !$omp parallel do default(shared), private(ji,jj), "
         "schedule(static)\n"
         "      DO jj = 1, jpj, 1\n"
         "        DO ji = 1, jpi, 1\n"
