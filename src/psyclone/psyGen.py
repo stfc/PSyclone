@@ -5958,6 +5958,10 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :raises NotImplementedError: If the fparser node represents
+            unsupported PSyIR features and should be placed in a CodeBlock.
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
         '''
@@ -5966,8 +5970,8 @@ class Fparser2ASTProcessor(object):
         reference_name = node.items[0].string.lower()
 
         # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
-        # #189), we can fix the issue here and convert them to appropiate PSyIR
-        # nodes.
+        # #189), we can fix the issue here and convert them to appropriate
+        # PSyIR nodes.
         if reference_name == 'sign':
             bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
             self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
