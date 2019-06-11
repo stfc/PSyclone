@@ -160,7 +160,7 @@ Internal Representation of it::
         Loop[type='levels',field_space='None',it_space='None']
             Loop[type='lat',field_space='None',it_space='None']
                 Loop[type='lon',field_space='None',it_space='None']
-                    KernCall[]
+                    CodedKern[]
 
 .. _nemo-transformations:
 
