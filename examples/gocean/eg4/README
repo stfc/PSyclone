@@ -63,17 +63,16 @@ of kernels accessing data/routines via module use statements:
 
 These various forms of kernel only present a problem if a user wishes
 to transform them e.g. for use in either an OpenACC or OpenCL
-application. For instance, although the following:
+application. For instance, the following:
 
     psyclone -api "gocean1.0" -s ./acc_transform.py alg.f90
 
-produces PSy code with suitable OpenACC directives *and* transformed
-versions of the kernels (with `!$acc routine` directives added), it
-is *not* a valid OpenACC application. This is because the data_mod::gravity
-variable read by `kern_use_var` is not available on the remote device.
-This problem is the subject of Issue #323 which proposes to extend PSyclone to
-convert any module data accessed by a kernel into a kernel argument.
-In addition, although the kernels named in the Invoke have been transformed,
-the other kernels that they then call have not and this means that they
-won't be compiled for execution on the OpenACC device. Support for recursive
-kernel transformation is the subject of Issue #342.
+causes PSyclone to raise a TransformationError.  This is because the
+data_mod::gravity variable read by `kern_use_var` is not available on
+the remote device.  This problem is the subject of Issue #323 which
+proposes to extend PSyclone to convert any module data accessed by a
+kernel into a kernel argument.  In addition, although the kernels
+named in the Invoke have been transformed, the other kernels that they
+then call have not and this means that they won't be compiled for
+execution on the OpenACC device. Support for recursive kernel
+transformation is the subject of Issue #342.

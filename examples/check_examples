@@ -153,7 +153,11 @@ cd -
 
 echo "Running gocean/eg4"
 cd gocean/eg4
-${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+${PSYCLONE} -api "gocean1.0" alg.f90
+# The following fails because PSyclone spots that one of the kernels
+# accesses data from a module and therefore cannot be transformed. TODO #323.
+echo "TODO #323"
+#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
 cd -
 
 echo "Running example nemo/eg1"

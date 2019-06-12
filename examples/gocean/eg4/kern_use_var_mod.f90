@@ -54,7 +54,7 @@ contains
     integer, intent(in) :: i, j
     real(go_wp), dimension(:,:), intent(inout) :: fld
 
-    fld(i,j) = gravity * field(i,j)
+    fld(i,j) = gravity * fld(i,j)
 
   end subroutine kern_use_var_code
   
