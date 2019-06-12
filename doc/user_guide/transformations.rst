@@ -528,7 +528,7 @@ of the FortCL library (https://github.com/stfc/FortCL) to access
 OpenCL functionality. It also relies upon the OpenCL support provided
 by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
-At he moment we don't apply additional transformations to OpenCL kernels,
+At the moment we don't apply additional transformations to OpenCL kernels,
 this means that all references to the same kernel will have an indentical
 OpenCL generated output (with identical names). Nevertheless, we can use
 the `--kernel-renaming` psyclone argument to just generate a single output

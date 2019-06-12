@@ -5437,7 +5437,8 @@ class Fparser2ASTProcessor(object):
                     assignment.addchild(lhs)
 
                     # Build rhs
-                    self.process_nodes(parent=assignment, nodes=[assignment_rhs],
+                    self.process_nodes(parent=assignment,
+                                       nodes=[assignment_rhs],
                                        nodes_parent=scalar_expr)
                 else:
                     raise InternalError(
@@ -5959,7 +5960,7 @@ class Fparser2ASTProcessor(object):
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
-        :raises NotImplementedError: If the fparser node represents
+        :raises NotImplementedError: If the fparser node represents \
             unsupported PSyIR features and should be placed in a CodeBlock.
 
         :returns: PSyIR representation of node
