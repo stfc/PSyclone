@@ -3749,7 +3749,7 @@ class Kern(Call):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified:
+        if not self.modified and not self.root.opencl:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -3769,7 +3769,11 @@ class Kern(Call):
         while not fdesc:
             name_idx += 1
             new_suffix = "_{0}".format(name_idx)
-            new_name = old_base_name + new_suffix + "_mod.f90"
+            if self.root.opencl:
+                new_name = old_base_name + new_suffix + ".cl"
+            else:
+                new_name = old_base_name + new_suffix + "_mod.f90"
+
             try:
                 # Atomically attempt to open the new kernel file (in case
                 # this is part of a parallel build)
@@ -3786,8 +3790,13 @@ class Kern(Call):
                 continue
 
         # Use the suffix we have determined to rename all relevant quantities
-        # within the AST of the kernel code
-        self._rename_ast(new_suffix)
+        # within the AST of the kernel code.
+        # We can't rename OpenCL kernels as the Invoke set_args functions
+        # have already been generated. The link to an specific kernel
+        # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
+        # the  PSYCLONE_KERNELS_FILE environment variable)
+        if not self.root.opencl:
+            self._rename_ast(new_suffix)
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
@@ -3801,10 +3810,13 @@ class Kern(Call):
             raise NotImplementedError("Cannot module-inline a transformed "
                                       "kernel ({0})".format(self.name))
 
-        # Generate the Fortran for this transformed kernel, ensuring that
-        # we limit the line lengths
-        fll = FortLineLength()
-        new_kern_code = fll.process(str(self.ast))
+        if self.root.opencl:
+            new_kern_code = self.get_kernel_schedule().gen_ocl()
+        else:
+            # Generate the Fortran for this transformed kernel, ensuring that
+            # we limit the line lengths
+            fll = FortLineLength()
+            new_kern_code = fll.process(str(self.ast))
 
         if not fdesc:
             # If we've not got a file descriptor at this point then that's
@@ -5396,6 +5408,49 @@ class Fparser2ASTProcessor(object):
                                 "declarations for fparser nodes {1}."
                                 "".format(str(arg_list), nodes))
 
+        # fparser2 does not always handle Statement Functions correctly, this
+        # loop checks for Stmt_Functions that should be an array statement
+        # and recovers them, otherwise it raises an error as currently
+        # Statement Functions are not supported in PSyIR.
+        for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
+            (fn_name, arg_list, scalar_expr) = stmtfn.items
+            try:
+                symbol = parent.symbol_table.lookup(fn_name.string)
+                if symbol.is_array:
+                    # This is an array assignment wrongly categorized as a
+                    # statement_function by fparser2.
+                    array_name = fn_name
+                    if hasattr(arg_list, 'items'):
+                        array_subscript = arg_list.items
+                    else:
+                        array_subscript = [arg_list]
+                    assignment_rhs = scalar_expr
+
+                    # Create assingment node
+                    assignment = Assignment(parent=parent)
+                    parent.addchild(assignment)
+
+                    # Build lhs
+                    lhs = Array(array_name.string, parent=assignment)
+                    self.process_nodes(parent=lhs, nodes=array_subscript,
+                                       nodes_parent=arg_list)
+                    assignment.addchild(lhs)
+
+                    # Build rhs
+                    self.process_nodes(parent=assignment,
+                                       nodes=[assignment_rhs],
+                                       nodes_parent=scalar_expr)
+                else:
+                    raise InternalError(
+                        "Could not process '{0}'. Symbol '{1}' is in the"
+                        " SymbolTable but it is not an array as expected, so"
+                        " it can not be recovered as an array assignment."
+                        "".format(str(stmtfn), symbol.name))
+            except KeyError:
+                raise NotImplementedError(
+                    "Could not process '{0}'. Statement Function declarations "
+                    "are not supported.".format(str(stmtfn)))
+
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
     def process_nodes(self, parent, nodes, nodes_parent):
@@ -5904,6 +5959,10 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :raises NotImplementedError: If the fparser node represents \
+            unsupported PSyIR features and should be placed in a CodeBlock.
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
         '''
@@ -5912,8 +5971,8 @@ class Fparser2ASTProcessor(object):
         reference_name = node.items[0].string.lower()
 
         # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
-        # #189), we can fix the issue here and convert them to appropiate PSyIR
-        # nodes.
+        # #189), we can fix the issue here and convert them to appropriate
+        # PSyIR nodes.
         if reference_name == 'sign':
             bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
             self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
@@ -5940,6 +5999,9 @@ class Fparser2ASTProcessor(object):
                 argument = node.items[1].items[0]
                 if len(node.items[1].items) > 1:
                     # If it has more than a single argument create a CodeBlock
+                    # TODO: Note that real(var, kind) expressions are not
+                    # supported because Fortran kinds are still not captured
+                    # (Issue #375)
                     raise NotImplementedError()
             else:
                 argument = node.items[1]
@@ -6731,6 +6793,15 @@ class KernelSchedule(Schedule):
         '''
         return self._name
 
+    @name.setter
+    def name(self, new_name):
+        '''
+        Sets a new name for the kernel.
+
+        :param str new_name: New name for the kernel.
+        '''
+        self._name = new_name
+
     @property
     def symbol_table(self):
         '''
@@ -7324,7 +7395,11 @@ class Literal(Node):
         :returns: C language code representing the node.
         :rtype: str
         '''
-        return self._value
+        str_value = self._value
+        # C Scientific notation is always an 'e' letter
+        str_value = str_value.replace('d', 'e')
+        str_value = str_value.replace('D', 'e')
+        return str_value
 
 
 class Return(Node):
