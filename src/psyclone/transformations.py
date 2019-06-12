@@ -143,6 +143,64 @@ class RegionTrans(Transformation):
                     format(self.name))
 
 
+@six.add_metaclass(abc.ABCMeta)
+class KernelTrans(Transformation):
+    '''
+    Abstract base class for all Kernel transformations.
+
+    '''
+    def validate(self, kern):
+        '''
+        Checks that the supplied node is a Kernel and that we can construct
+        the PSyIR of its contents.
+
+        :param kern: the kernel which is the target of the transformation.
+        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class.
+
+        :raises TransformationError: if the target node is not a sub-class of \
+                                     psyGen.Kern.
+        :raises TransformationError: if the subroutine containing the \
+                                     implementation of the kernel cannot be \
+                                     found in the fparser2 Parse Tree.
+        :raises TransformationError: if the PSyIR cannot be constructed \
+                                     because there are symbols of unknown type.
+        :raises TransformationError: if any of the symbols in the kernel are \
+                                     accessed via a module use statement.
+
+        '''
+        from psyclone.psyGen import GenerationError, SymbolError, Symbol, Kern
+
+        if not isinstance(kern, Kern):
+            raise TransformationError(
+                "Target of a kernel transformation must be a sub-class of "
+                "psyGen.Kern but got '{0}'".format(type(kern).__name__))
+
+        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
+        # If this kernel contains symbols that are not captured in the PSyIR
+        # SymbolTable then this raises an exception.
+        try:
+            sched = kern.get_kernel_schedule()
+        except GenerationError:
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
+        except SymbolError:
+            raise TransformationError(
+                "Kernel {0} contains accesses to data that are not captured "
+                "in the PSyIR Symbol Table. Cannot transform such a kernel.".
+                format(kern.name))
+        # Check that the kernel does not access any data via a module 'use'
+        # statement
+        for symbol in sched.symbol_table.symbols:
+            if symbol.interface and isinstance(symbol.interface,
+                                               Symbol.FortranGlobal):
+                raise TransformationError(
+                    "The Symbol Table for kernel {0} contains an entry for a "
+                    "symbol ('{1}') accessed via a USE statement. PSyclone "
+                    "cannot currently transform such a kernel.".
+                    format(kern.name, symbol.name))
+
+
 # =============================================================================
 def check_intergrid(node):
     '''
@@ -2868,7 +2926,7 @@ class ACCEnterDataTrans(Transformation):
                                       "region - cannot add an enter data.")
 
 
-class ACCRoutineTrans(Transformation):
+class ACCRoutineTrans(KernelTrans):
     '''
     Transform a kernel subroutine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2966,8 +3024,7 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if the target kernel is a built-in.
 
         '''
-        from psyclone.psyGen import BuiltIn, GenerationError, SymbolError, \
-            Symbol
+        from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
             raise TransformationError(
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
@@ -2978,31 +3035,8 @@ class ACCRoutineTrans(Transformation):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
-        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
-        # If this kernel contains symbols that are not captured in the PSyIR
-        # SymbolTable then this raises an exception.
-        try:
-            sched = kern.get_kernel_schedule()
-        except GenerationError:
-            raise TransformationError(
-                "Failed to find subroutine source for kernel {0}".
-                format(kern.name))
-        except SymbolError:
-            raise TransformationError(
-                "Kernel {0} contains accesses to data that are not captured "
-                "in the PSyIR Symbol Table. Cannot transform such a kernel for"
-                " execution on a GPU.".format(kern.name))
-        # Check that the kernel does not access any data via a module 'use'
-        # statement
-        for symbol in sched.symbol_table.symbols:
-            if symbol.interface and isinstance(symbol.interface,
-                                               Symbol.FortranGlobal):
-                raise TransformationError(
-                    "The Symbol Table for kernel {0} contains an entry for a "
-                    "symbol ('{1}') accessed via a USE statement. PSyclone "
-                    "cannot currently transform such a kernel for execution "
-                    "on a GPU.".
-                    format(kern.name, symbol.name))
+
+        super(ACCRoutineTrans, self).validate(kern)
 
 
 class ACCKernelsTrans(RegionTrans):
