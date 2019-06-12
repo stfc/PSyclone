@@ -78,6 +78,7 @@ module ru_kernel_mod
       INTEGER, intent(in) :: undf_w3
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in) :: np_xy, np_z
       REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: field_1_w2
       REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
       INTEGER, intent(in) :: iscalar_3
@@ -94,7 +95,6 @@ module ru_kernel_mod
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) :: basis_w0
       REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) :: diff_basis_w0
-      INTEGER, intent(in) :: np_xy, np_z
       REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy
       REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z
 end subroutine ru_code
