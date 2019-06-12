@@ -51,6 +51,34 @@ from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
 
+def check_intergrid(node):
+    '''
+    Utility function to check that the supplied node does not have
+    an intergrid kernel as a child.
+
+    This is used to ensure that we reject any attempt to apply
+    loop-fusion and redundant-computation transformations to loops containing
+    inter-grid kernels (since support for those is not yet implemented).
+
+    :param node: The PSyIR node to check.
+    :type node: :py:class:`psyGen.Node`
+
+    :raises TransformationError: if the supplied node has an inter-grid \
+                                 kernel as a child.
+
+    '''
+    if not node.children:
+        return
+    from psyclone.dynamo0p3 import DynKern
+    child_kernels = node.walk(node.children, DynKern)
+    for kern in child_kernels:
+        if kern.is_intergrid:
+            raise TransformationError(
+                "This Transformation cannot currently be applied to nodes "
+                "which have inter-grid kernels as children and {0} is such a "
+                "kernel.".format(kern.name))
+
+
 class TransformationError(Exception):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''
@@ -164,11 +192,9 @@ class KernelTrans(Transformation):
                                      found in the fparser2 Parse Tree.
         :raises TransformationError: if the PSyIR cannot be constructed \
                                      because there are symbols of unknown type.
-        :raises TransformationError: if any of the symbols in the kernel are \
-                                     accessed via a module use statement.
 
         '''
-        from psyclone.psyGen import GenerationError, SymbolError, Symbol, Kern
+        from psyclone.psyGen import GenerationError, SymbolError, Kern
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -179,7 +205,7 @@ class KernelTrans(Transformation):
         # If this kernel contains symbols that are not captured in the PSyIR
         # SymbolTable then this raises an exception.
         try:
-            sched = kern.get_kernel_schedule()
+            _ = kern.get_kernel_schedule()
         except GenerationError:
             raise TransformationError(
                 "Failed to find subroutine source for kernel {0}".
@@ -189,46 +215,6 @@ class KernelTrans(Transformation):
                 "Kernel {0} contains accesses to data that are not captured "
                 "in the PSyIR Symbol Table. Cannot transform such a kernel.".
                 format(kern.name))
-        # Check that the kernel does not access any data via a module 'use'
-        # statement
-        for symbol in sched.symbol_table.symbols:
-            if symbol.interface and isinstance(symbol.interface,
-                                               Symbol.FortranGlobal):
-                raise TransformationError(
-                    "The Symbol Table for kernel {0} contains an entry for a "
-                    "symbol ('{1}') accessed via a USE statement. PSyclone "
-                    "cannot currently transform such a kernel.".
-                    format(kern.name, symbol.name))
-
-
-# =============================================================================
-def check_intergrid(node):
-    '''
-    Utility function to check that the supplied node does not have
-    an intergrid kernel as a child.
-
-    This is used to ensure that we reject any attempt to apply
-    transformations to loops containing inter-grid kernels. (This restriction
-    will be lifted in Issue #134 and this routine can then be removed.)
-
-    # TODO remove this routine once #134 is complete.
-
-    :param node: The PSyIR node to check.
-    :type node: :py:class:`psyGen.Node`
-
-    :raises TransformationError: if the supplied node has an inter-grid
-                                 kernel as a child
-    '''
-    if not node.children:
-        return
-    from psyclone.dynamo0p3 import DynKern
-    child_kernels = node.walk(node.children, DynKern)
-    for kern in child_kernels:
-        if kern.is_intergrid:
-            raise TransformationError(
-                "Transformations cannot currently be applied to nodes which "
-                "have inter-grid kernels as children and {0} is such a "
-                "kernel.".format(kern.name))
 
 
 class LoopFuseTrans(Transformation):
@@ -1270,7 +1256,7 @@ class ColourTrans(Transformation):
         return schedule, keep
 
 
-class KernelModuleInlineTrans(Transformation):
+class KernelModuleInlineTrans(KernelTrans):
     '''Switches on, or switches off, the inlining of a Kernel subroutine
     into the PSy layer module. For example:
 
@@ -1337,18 +1323,12 @@ class KernelModuleInlineTrans(Transformation):
         :type node: sub-class of :py:class:`psyclone.psyGen.Node`
         :param bool inline: whether or not the kernel is to be inlined.
 
-        :raises TransformationError: if the supplied node is not a kernel.
         :raises TransformationError: if the supplied kernel has itself been \
                                      transformed (Issue #229).
         '''
-        # check node is a kernel
-        from psyclone.psyGen import Kern
-        if not isinstance(node, Kern):
-            raise TransformationError(
-                "Error in KernelModuleInline transformation. The node is not "
-                "a Kernel")
+        super(KernelModuleInlineTrans, self).validate(node)
 
-        if inline and node._fp2_ast:
+        if inline and node.modified:
             raise TransformationError("Cannot inline kernel {0} because it "
                                       "has previously been transformed.")
 
@@ -3023,9 +3003,11 @@ class ACCRoutineTrans(KernelTrans):
         :type kern: :py:class:`psyclone.psyGen.Call`
 
         :raises TransformationError: if the target kernel is a built-in.
+        :raises TransformationError: if any of the symbols in the kernel are \
+                                     accessed via a module use statement.
 
         '''
-        from psyclone.psyGen import BuiltIn
+        from psyclone.psyGen import BuiltIn, Symbol
         if isinstance(kern, BuiltIn):
             raise TransformationError(
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
@@ -3037,7 +3019,21 @@ class ACCRoutineTrans(KernelTrans):
                                       "it will be module-inlined.".
                                       format(kern.name))
 
+        # Perform general validation checks. In particular this checks that
+        # we can construct the PSyIR of the kernel body.
         super(ACCRoutineTrans, self).validate(kern)
+
+        # Check that the kernel does not access any data via a module 'use'
+        # statement
+        sched = kern.get_kernel_schedule()
+        for symbol in sched.symbol_table.symbols:
+            if symbol.interface and isinstance(symbol.interface,
+                                               Symbol.FortranGlobal):
+                raise TransformationError(
+                    "The Symbol Table for kernel {0} contains an entry for a "
+                    "symbol ('{1}') accessed via a USE statement. PSyclone "
+                    "cannot currently transform such a kernel.".
+                    format(kern.name, symbol.name))
 
 
 class ACCKernelsTrans(RegionTrans):
