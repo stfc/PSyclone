@@ -140,3 +140,12 @@ def parser():
     '''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create()
+
+
+@pytest.fixture
+def kernel_output_dir(tmpdir, monkeypatch):
+    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
+    from psyclone.configuration import Config
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    return tmpdir
