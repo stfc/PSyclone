@@ -3120,6 +3120,16 @@ class ACCKernelsTrans(RegionTrans):
         '''
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
+
+        :param node_list: the proposed list of PSyIR nodes to enclose in the \
+                          kernels region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+
+        :raises NotImplementedError: if the supplied Nodes do not belong to \
+                                     a NemoInvokeSchedule.
+        :raises TransformationError: if there are no Loops within the \
+                                     proposed region.
+
         '''
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.psyGen import Loop
@@ -3140,12 +3150,6 @@ class ACCKernelsTrans(RegionTrans):
         if not found:
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
-
-        # TODO #315 Check that the SymbolTable associated with the
-        # KernelSchedule does not have any symbols with `deferred` type (as
-        # that indicates that we haven't yet worked out what they are). We
-        # can't do that yet as we can't create the PSyIR for our test kernels.
-        # That's the subject of #256.
 
 
 class ACCDataTrans(RegionTrans):

@@ -5312,7 +5312,9 @@ class Fparser2ASTProcessor(object):
                 # This USE doesn't have an ONLY clause so we skip it. We
                 # don't raise an error as this will only become a problem if
                 # this Schedule represents a kernel that is the target of a
-                # transformation. See #315.
+                # transformation. In that case construction of the PSyIR will
+                # fail if the Fortran code makes use of symbols from this
+                # module because they will not be present in the SymbolTable.
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
