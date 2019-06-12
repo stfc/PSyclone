@@ -96,7 +96,7 @@ class RegionTrans(Transformation):
                                      is erroneously included in the region.
 
         '''
-        from psyclone.psyGen import IfBlock
+        from psyclone.psyGen import IfBlock, Literal, Reference
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -119,6 +119,10 @@ class RegionTrans(Transformation):
                          if not isinstance(item, Schedule)]
             for item in flat_list:
                 if not isinstance(item, self.valid_node_types):
+                    # TODO: Quickfix added, look what is the best solution
+                    # for this, are basic PSyIR node going to appear.
+                    if isinstance(item, (Literal, Reference)):
+                        continue
                     raise TransformationError(
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))

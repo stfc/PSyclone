@@ -438,6 +438,12 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+
+        # Initialise loop bounds children
+        self.addchildren(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchildren(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchildren(Literal("1", parent=self))  # step
+
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
@@ -810,9 +816,11 @@ class GOLoop(Loop):
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
         # Generate the upper and lower loop bounds
-        self._start = self._lower_bound()
-        self._stop = self._upper_bound()
+        self.start.children = [Literal(self._lower_bound(), parent=self)]
+        self.stop.children = [Literal(self._upper_bound(), parent=self)]
+
         Loop.gen_code(self, parent)
 
 

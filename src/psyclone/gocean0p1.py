@@ -248,6 +248,10 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
+        self.addchildren(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchildren(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchildren(Literal("1", parent=self))  # step
+
     def gen_code(self, parent):
 
         if self.field_space == "every":
@@ -256,24 +260,31 @@ class GOLoop(Loop):
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
 
-            # loop bounds
-            self._start = "1"
+            # Update start loop bound
+            self.start_expr = Literal("1", parent=self)
+
+            # Update stop loop bound
             if self._loop_type == "inner":
                 index = "1"
             elif self._loop_type == "outer":
                 index = "2"
-            self._stop = ("SIZE(" + self.field_name + ", " +
-                          index + ")")
+            # TODO: Needs to be a binary operation
+            self.stop_expr = Literal("SIZE(" + self.field_name + "," +
+                                     index + ")", parent=self)
 
         else:  # one of our spaces so use values provided by the infrastructure
 
             # loop bounds
             if self._loop_type == "inner":
-                self._start = self.field_space + "%istart"
-                self._stop = self.field_space + "%istop"
+                self.start_expr = Reference(
+                    self.field_space + "%istart", parent=self)
+                self.stop_expr = Reference(
+                    self.field_space + "%istop", parent=self)
             elif self._loop_type == "outer":
-                self._start = self.field_space + "%jstart"
-                self._stop = self.field_space + "%jstop"
+                self.start_expr = Reference(
+                    self.field_space + "%jstart", parent=self)
+                self.stop_expr = Reference(
+                    self.field_space + "%jstop", parent=self)
 
         Loop.gen_code(self, parent)
 

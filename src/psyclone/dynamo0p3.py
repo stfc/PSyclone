@@ -56,7 +56,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference
 
 # First section : Parser specialisations and classes
 
@@ -5498,6 +5498,9 @@ class DynLoop(Loop):
         self._lower_bound_index = None
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
 
     def view(self, indent=0):
         '''Print out a textual representation of this loop. We override this
@@ -6009,9 +6012,10 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
+        # Generate the upper and lower loop bounds
+        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+
         Loop.gen_code(self, parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":

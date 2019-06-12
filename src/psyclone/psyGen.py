@@ -1519,7 +1519,9 @@ class Node(object):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
-        raise NotImplementedError("Please implement me")
+        # raise NotImplementedError("Please implement me")
+        # Need to use new Fortran Backend here
+        return "somestring"
 
     def gen_c_code(self, indent=0):
         '''Abstract method for the generation of C source code
@@ -3042,10 +3044,6 @@ class Loop(Node):
         self._variable_name = variable_name
         self._id = ""
 
-        #self._start = ""
-        #self._stop = ""
-        #self._step = ""
-
     @property
     def start_expr(self):
         ''' Return the PSyIR Node representing the Loop start expression.
@@ -3060,6 +3058,12 @@ class Loop(Node):
                 "Loop malformed or incomplete. It should have at least 2 "
                 "children, but found {0}.".format(len(self.children)))
         return self._children[0]
+
+    @start_expr.setter
+    def start_expr(self, expr):
+        # TODO: Error checking, just works if start children already
+        # initialised
+        self._children[0] = expr
 
     @property
     def stop_expr(self):
@@ -3076,6 +3080,11 @@ class Loop(Node):
                 "children, but found {0}.".format(len(self.children)))
         return self._children[1]
 
+    @stop_expr.setter
+    def stop_expr(self, expr):
+        # TODO: Error checking, just works if stop children already initialised
+        self._children[1] = expr
+
     @property
     def step_expr(self):
         ''' Return the PSyIR Node representing the Loop step expression.
@@ -3090,6 +3099,11 @@ class Loop(Node):
                 "Loop malformed or incomplete. It should have at least 2 "
                 "children, but found {0}.".format(len(self.children)))
         return self._children[2]
+
+    @step_expr.setter
+    def step_expr(self, expr):
+        # TODO: Error checking, just works if step children already initialised
+        self._children[2] = expr
 
     @property
     def loop_body(self):
@@ -3289,13 +3303,17 @@ class Loop(Node):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self.root.opencl or (self._start == "1" and self._stop == "1"):
+        if self.root.opencl or (self.start_expr == Literal("1") and
+                                self.stop_expr == Literal("1")):
             # no need for a loop
             for child in self.children:
                 child.gen_code(parent)
         else:
             from psyclone.f2pygen import DoGen, DeclGen
-            do = DoGen(parent, self._variable_name, self._start, self._stop)
+            # TODO: I need new Fortran Backend for self.start_expr.gen_code
+            do = DoGen(parent, self._variable_name,
+                       self.start_expr.gen_fortran(),
+                       self.stop_expr.gen_fortran())
             # need to add do loop before children as children may want to add
             # info outside of do loop
             parent.add(do)
@@ -6958,6 +6976,9 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
 
+    def gen_fortran(self):
+        return self._reference
+
     def gen_c_code(self, indent=0):
         '''
         Generate a string representation of this node using C language.
@@ -7203,6 +7224,9 @@ class Literal(Node):
 
     def __str__(self):
         return "Literal[value:'" + str(self._value) + "']\n"
+
+    def gen_fortran(self):
+        return self._value
 
     def gen_c_code(self, indent=0):
         '''
