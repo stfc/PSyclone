@@ -139,6 +139,8 @@ def test_psy_init(outputdir):
     assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
+@pytest.mark.xfail(reason="Uses a variable defined in another module."
+                          " Will be fixed with issue #315")
 def test_set_kern_args(outputdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
