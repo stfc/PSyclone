@@ -2166,7 +2166,7 @@ class ACCParallelDirective(ACCDirective):
     @property
     def scalars(self):
         '''
-        Returns a list of the scalar quantities required by the Calls in
+        Returns a list of the scalar quantities required by the Kernels in
         this region.
 
         :returns: list of names of scalar arguments.
@@ -2431,13 +2431,13 @@ class OMPParallelDirective(OMPDirective):
     def _get_private_list(self):
         '''
         Returns the variable names used for any loops within a directive
-        and any variables that have been declared private by a Call
+        and any variables that have been declared private by a Kernel
         within the directive.
 
         :returns: list of variables to declare as thread private.
         :rtype: list of str
 
-        :raises InternalError: if a Call has local variable(s) but they \
+        :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
         '''
         result = []
@@ -3931,7 +3931,7 @@ class BuiltIn(Kern):
     does not have to provide an implementation).
     '''
     def __init__(self):
-        # We cannot call Call.__init__ as don't have necessary information
+        # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
         # that information is available.
         self._arg_descriptors = None
@@ -3970,8 +3970,8 @@ class Arguments(object):
     '''
     Arguments abstract base class.
 
-    :param parent_call: the call with which the arguments are associated.
-    :type parent_call: sub-class of :py:class:`psyclone.psyGen.Call`
+    :param parent_call: kernel call with which the arguments are associated.
+    :type parent_call: sub-class of :py:class:`psyclone.psyGen.Kern`
     '''
     def __init__(self, parent_call):
         self._parent_call = parent_call
@@ -4058,15 +4058,15 @@ class DataAccess(object):
         instance with which the argument is associated.
 
         :param arg: the argument that we are concerned with. An \
-        argument can be found in a `Call` a `HaloExchange` or a \
+        argument can be found in a `Kern` a `HaloExchange` or a \
         `GlobalSum` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
         # the `psyclone.psyGen.Argument` we are concerned with
         self._arg = arg
-        # the call (Call, HaloExchange, or GlobalSum (or subclass)
-        # instance to which the argument is associated
+        # The call (Kern, HaloExchange, GlobalSum or subclass)
+        # instance with which the argument is associated
         self._call = arg.call
         # initialise _covered and _vector_index_access to keep pylint
         # happy
@@ -4204,14 +4204,14 @@ class Argument(object):
 
     def __init__(self, call, arg_info, access):
         '''
-        :param call: the call that this argument is associated with
-        :type call: :py:class:`psyclone.psyGen.Call`
-        :param arg_info: Information about this argument collected by
-        the parser
+        :param call: the call that this argument is associated with.
+        :type call: :py:class:`psyclone.psyGen.Kern`
+        :param arg_info: Information about this argument collected by \
+                         the parser.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param access: the way in which this argument is accessed in
-        the 'Call'. Valid values are specified in the config object
-        of the current API.
+        :param access: the way in which this argument is accessed in \
+                 the 'Kern'. Valid values are specified in the config object \
+                 of the current API.
         :type access: str
 
         '''

@@ -5177,24 +5177,26 @@ class HaloDepth(object):
 
 
 def halo_check_arg(field, access_types):
-    '''Support function which performs checks to ensure the first argument
+    '''
+    Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
     call and that the field is accessed in one of the ways specified
     by the second argument. If no error is reported it returns the
-    call object containing this argument
+    call object containing this argument.
 
     :param field: the argument object we are checking
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
     :param access_types: List of allowed access types.
     :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
     :return: the call containing the argument object
-    :rtype: :py:class:`psyclone.psyGen.Call`
-    :raises GenerationError: if the first argument to this function is
-    the wrong type
-    :raises GenerationError: if the first argument is not accessed in
-    one of the ways specified by the second argument to the function
-    :raises GenerationError: if the first argument is not contained
-    within a call object
+    :rtype: sub-class of :py:class:`psyclone.psyGen.Kern`
+
+    :raises GenerationError: if the first argument to this function is \
+                             the wrong type.
+    :raises GenerationError: if the first argument is not accessed in one of \
+                    the ways specified by the second argument to the function.
+    :raises GenerationError: if the first argument is not contained \
+                             within a call object.
 
     '''
     try:

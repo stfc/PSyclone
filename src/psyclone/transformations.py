@@ -2904,7 +2904,7 @@ class ACCRoutineTrans(Transformation):
         '!$acc routine' OpenACC directive.
 
         :param kern: The kernel object to transform.
-        :type kern: :py:class:`psyclone.psyGen.Call`
+        :type kern: :py:class:`psyclone.psyGen.Kern`
         :returns: (transformed kernel, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
                 :py:class:`psyclone.undoredo.Memento`).
@@ -2965,7 +2965,7 @@ class ACCRoutineTrans(Transformation):
         Perform checks that the supplied kernel can be transformed.
 
         :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Call`
+        :type kern: :py:class:`psyclone.psyGen.Kern`
 
         :raises TransformationError: if the target kernel is a built-in.
 
