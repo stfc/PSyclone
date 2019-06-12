@@ -1266,7 +1266,7 @@ def test_module_inline_with_sub_use(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_same_kernel():
+def test_module_inline_same_kernel(tmpdir):
     '''Tests that correct results are obtained when an invoke that uses
     the same kernel subroutine more than once has that kernel
     inlined'''
@@ -1278,16 +1278,15 @@ def test_module_inline_same_kernel():
     _, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE time_smooth_code(' in gen
+    assert 'SUBROUTINE compute_cu_code(' in gen
     # check that the associated psy "use" does not exist
-    assert 'USE time_smooth_mod, ONLY: time_smooth_code' not in gen
+    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
     # check that the subroutine has only been inlined once
-    count = count_lines(psy.gen, "SUBROUTINE time_smooth_code(")
+    count = count_lines(psy.gen, "SUBROUTINE compute_cu_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
-    # No compilation test here, see test_module_inline_and_compile
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.xfail(reason="Inline function uses a module variable (see #315)")
 def test_module_inline_and_compile(tmpdir):
     '''ATM incorrect code is produced if a kernel is inlined, that
     uses variable from the original module. Proper solution would
@@ -1302,7 +1301,6 @@ def test_module_inline_and_compile(tmpdir):
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
-    # TODO: This fails because of #315
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
