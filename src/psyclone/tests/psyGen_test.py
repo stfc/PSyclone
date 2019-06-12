@@ -4343,6 +4343,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import SymbolError
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -4360,7 +4361,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2ASTProcessor()
 
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2name], None)
     assert "Undeclared reference 'x' found when parsing fparser2 node " \
            "'Name('x')' inside 'kernel'." in str(error)
