@@ -86,7 +86,7 @@ def test_const_loop_bounds_not_schedule():
         _, _ = cbtrans.apply(schedule.children[0])
 
 
-def test_const_loop_bounds_toggle():
+def test_const_loop_bounds_toggle(tmpdir):
     ''' Check that we can toggle constant loop bounds on and off and
     that the default behaviour is "on" '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -127,8 +127,8 @@ def test_const_loop_bounds_toggle():
     assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
     assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
     assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
-    # TODO: can not be compiled because of #315
-    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_const_loop_bounds_invalid_offset():

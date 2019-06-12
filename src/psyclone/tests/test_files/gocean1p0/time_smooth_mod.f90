@@ -1,3 +1,36 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: A. R. Porter, STFC Daresbury Lab
+
 module time_smooth_mod
   use argument_mod
   use field_mod
@@ -8,11 +41,7 @@ module time_smooth_mod
 
   PRIVATE
 
-  PUBLIC time_smooth_init, invoke_time_smooth
   PUBLIC time_smooth, time_smooth_code
-
-  !> Parameter for time smoothing
-  REAL(go_wp), save :: alpha
 
   !> The time smoothing operates in time rather than space
   !! and therefore takes three fields defined on any one
@@ -44,48 +73,6 @@ module time_smooth_mod
 
 CONTAINS
 
-  !===================================================
-
-  !> Initialise the time-smoothing module. Sets parameter
-  !! alpha that is used in the time-smooth kernel.
-  SUBROUTINE time_smooth_init(alpha_tmp)
-    IMPLICIT none
-    REAL(go_wp), INTENT(in) :: alpha_tmp
-
-    alpha = alpha_tmp
-
-  END SUBROUTINE time_smooth_init
-
-  !===================================================
-
-  !> Manual implementation of code to invoke the time-smoothing
-  !! kernel
-  subroutine invoke_time_smooth(field, field_new, field_old)
-    implicit none
-    type(r2d_field), intent(in)    :: field
-    type(r2d_field), intent(in)    :: field_new
-    type(r2d_field), intent(inout) :: field_old
-    ! Locals
-    integer :: i, j
-    integer :: idim1, idim2
-    
-    ! Here we will query what should be field objects to get at
-    ! raw data.
-    idim1 = SIZE(field%data, 1)
-    idim2 = SIZE(field%data, 2)
-
-    ! Loop over 'columns'
-    DO J=1,idim2
-      DO I=1,idim1
-         CALL time_smooth_code(i, j, &
-                               field%data, field_new%data, field_old%data)
-      END DO
-    END DO
-
-  end subroutine invoke_time_smooth
-
-  !===================================================
-
   !> Kernel to smooth supplied field in time
   SUBROUTINE time_smooth_code(i, j, field, field_new, field_old)
     IMPLICIT none
@@ -93,10 +80,13 @@ CONTAINS
     REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field
     REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field_new
     REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: field_old
-    REAL(go_wp) :: const
+    REAL(go_wp) :: alpha
+    ! 'alpha' was originally a module variable but that causes problems
+    ! when transforming kernels so it has been made local to keep
+    ! existing tests happy. There are separate test kernels for
+    ! exercising this aspect of PSyclone (e.g. kernel_with_use_mod.f90).
+    alpha = 1.0d0
 
-    ! TODO: Issue #401 and #315 'alpha' is a global variable not supported
-    ! in PSyIR.
     field_old(i,j) = field(i,j) + &
          alpha*(field_new(i,j) - 2.0d0*field(i,j) + field_old(i,j))
 

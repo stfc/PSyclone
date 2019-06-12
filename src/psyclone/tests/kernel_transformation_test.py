@@ -97,7 +97,7 @@ def test_accroutine_err(monkeypatch):
 def test_accroutine_module_var():
     ''' Check that the ACCRoutineTrans refuses to transform a kernel if
     it accesses module data.'''
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", api="gocean1.0",
+    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
                            idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
@@ -105,9 +105,9 @@ def test_accroutine_module_var():
     # Attempt to transform the second (time_smooth) kernel which uses
     # a variable that is defined in the enclosing module.
     with pytest.raises(TransformationError) as err:
-        _ = rtrans.apply(kernels[1])
-    assert ("Kernel time_smooth_code contains accesses to data that are not "
-            "captured in the PSyIR Symbol Table" in str(err))
+        _ = rtrans.apply(kernels[0])
+    assert ("kernel_with_use_code contains an entry for a symbol ('rdt') "
+            "accessed via a USE statement." in str(err))
 
 
 def test_accroutine_module_use():
