@@ -64,14 +64,7 @@ def setup():
     Config.get().api = "gocean1.0"
     yield()
     Config._instance = None
-
-
-@pytest.fixture
-def outputdir(tmpdir, monkeypatch):
-    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-
+    
 
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
@@ -1447,7 +1440,7 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
 
-def test_ocl_apply(outputdir):
+def test_ocl_apply(kernel_output_dir):
     ''' Check that OCLTrans generates correct code '''
     from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
@@ -1466,8 +1459,12 @@ def test_ocl_apply(outputdir):
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
-    # ATM no support for opencl compilation, see #316
-    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    # Check that the new kernel files have been generated
+    kernel_files = os.listdir(str(kernel_output_dir))
+    assert len(kernel_files) == 2
+    assert "kernel_ne_offset_0.cl" in kernel_files
+    assert "kernel_scalar_int_0.cl" in kernel_files
+    assert GOcean1p0Build(kernel_output_dir).code_compiles(psy)
 
 
 def test_acc_parallel_not_a_loop():
