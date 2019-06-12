@@ -55,9 +55,7 @@ Example 3
 ---------
 
 Illustrates the use of PSyclone to generate an OpenCL driver layer for
-a four-kernel invoke. Currently the kernels themselves must be converted
-from Fortran to OpenCL manually but work is in progress to automate this
-(Issue #249).
+a four-kernel invoke and an OpenCL version of each of the kernels.
 
 Example 4
 ---------

@@ -2200,7 +2200,8 @@ class GOLoopSwapTrans(Transformation):
 class OCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
-    InvokeSchedule. For example:
+    InvokeSchedule. Additionally, it will generate OpenCL kernels for
+    each of the kernels referenced by the Invoke. For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
@@ -3319,12 +3320,16 @@ class NemoExplicitLoopTrans(Transformation):
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
         nsm = invoke._name_space_manager
-        loop_type = nemo.NEMO_INDEX_ORDERING[outermost_dim]
-        base_name = nemo.VALID_LOOP_TYPES[loop_type]["var"]
+        config = Config.get().api_conf("nemo")
+        index_order = config.get_index_order()
+        loop_type_data = config.get_loop_type_data()
+
+        loop_type = loop_type_data[index_order[outermost_dim]]
+        base_name = loop_type["var"]
         loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
                                    label=base_name)
-        loop_start = nemo.VALID_LOOP_TYPES[loop_type]["start"]
-        loop_stop = nemo.VALID_LOOP_TYPES[loop_type]["stop"]
+        loop_start = loop_type["start"]
+        loop_stop = loop_type["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
         # TODO #255 we need some sort of type/declarations table to check that
@@ -3377,9 +3382,10 @@ class NemoExplicitLoopTrans(Transformation):
             subsec.items = tuple(indices)
 
         # Create the fparser AST for an explicit loop
-        text = ("do {0}=1,{1},{2}\n"
+        text = ("do {0}={1},{2},{3}\n"
                 "  replace = me\n"
-                "end do\n".format(loop_var, loop_stop, loop_step))
+                "end do\n".format(loop_var, loop_start, loop_stop,
+                                  loop_step))
         new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
 

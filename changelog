@@ -148,6 +148,17 @@
         46) PR #370 for #339. Makes the support for operators in the PSyIR
         more robust by using an enumerator. Adds support for some intrinsics.
 
+        47) PR #389 for #386. Variable names and associated loop-types
+	for the NEMO API are now stored in the configuration file.
+
+        48) PR #394 for #392. Fixes a bug in the way the test suite checks
+	for whether the graphviz package is available.
+
+        49) PR #387 for #249. Extends OCLTrans() so that all kernels within a
+	transformed Invoke are converted to OpenCL. Also includes a
+	work-around for array accesses incorrectly identified as Statement
+	Functions by fparser2.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
