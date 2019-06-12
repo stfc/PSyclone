@@ -3603,17 +3603,17 @@ class Kern(Call):
         :raises NotImplementedError: if module-inlining is enabled and the \
                                      kernel has been transformed.
         '''
-        # check all kernels in the same invoke as this one and set any
+        # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
-        if value and self._fp2_ast:
-            # TODO #229. We take the existence of an fparser2 AST for
-            # this kernel to mean that it has been transformed. Since
-            # kernel in-lining is currently implemented via
-            # manipulation of the fparser1 AST, there is at present no
-            # way to inline such a kernel.
+        if value and self.modified:
+            # TODO #229. Kernel in-lining is currently implemented via
+            # manipulation of the fparser1 Parse Tree while
+            # transformations work with the fparser2 Parse Tree-derived
+            # PSyIR.  Therefore there is presently no way to inline a
+            # transformed kernel.
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
