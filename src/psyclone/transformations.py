@@ -210,11 +210,11 @@ class KernelTrans(Transformation):
             raise TransformationError(
                 "Failed to find subroutine source for kernel {0}".
                 format(kern.name))
-        except SymbolError:
+        except SymbolError as err:
             raise TransformationError(
-                "Kernel {0} contains accesses to data that are not captured "
-                "in the PSyIR Symbol Table. Cannot transform such a kernel.".
-                format(kern.name))
+                "Kernel '{0}' contains accesses to data that are not captured "
+                "in the PSyIR Symbol Table ({1}). Cannot transform such a "
+                "kernel.".format(kern.name, str(err.args[0])))
 
 
 class LoopFuseTrans(Transformation):

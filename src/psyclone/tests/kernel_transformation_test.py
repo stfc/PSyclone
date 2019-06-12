@@ -450,3 +450,19 @@ def test_no_inline_after_trans(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         _, _ = inline_trans.apply(kernels[1])
     assert "Cannot module-inline a transformed kernel " in str(err)
+
+
+def test_no_inline_global_var():
+    ''' Check that we refuse to in-line a kernel that accesses a global
+    variable from an un-determined source. '''
+    from psyclone.transformations import KernelModuleInlineTrans
+    inline_trans = KernelModuleInlineTrans()
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    with pytest.raises(TransformationError) as err:
+        _, _ = inline_trans.apply(kernels[0])
+    assert ("'kernel_with_global_code' contains accesses to data that are not "
+            "captured in the PSyIR Symbol Table (Undeclared reference 'alpha'"
+            " found" in str(err))
