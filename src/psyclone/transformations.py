@@ -171,13 +171,13 @@ class RegionTrans(Transformation):
                     format(self.name))
 
 
-@six.add_metaclass(abc.ABCMeta)
 class KernelTrans(Transformation):
     '''
-    Abstract base class for all Kernel transformations.
+    Base class for all Kernel transformations.
 
     '''
-    def validate(self, kern):
+    @staticmethod
+    def validate(kern):
         '''
         Checks that the supplied node is a Kernel and that we can construct
         the PSyIR of its contents.
@@ -1272,15 +1272,14 @@ class KernelModuleInlineTrans(KernelTrans):
         For this transformation to work correctly, the Kernel subroutine
         must only use data that is passed in by argument, declared locally
         or included via use association within the subroutine. Two
-        examples where in-lining will not work correctly are:
+        examples where in-lining will not work are:
 
         #. A variable is declared within the module that ``contains`` the
            Kernel subroutine and is then accessed within that Kernel;
         #. A variable is included via use association at the module level
            and accessed within the Kernel subroutine.
 
-        *There are currently no checks that these rules are being followed
-        when in-lining so the onus is on the user to ensure correctness.*
+        The transformation will reject attempts to in-line such kernels.
     '''
 
     def __str__(self):
@@ -1326,7 +1325,7 @@ class KernelModuleInlineTrans(KernelTrans):
         :raises TransformationError: if the supplied kernel has itself been \
                                      transformed (Issue #229).
         '''
-        super(KernelModuleInlineTrans, self).validate(node)
+        KernelTrans.validate(node)
 
         if inline and node.modified:
             raise TransformationError("Cannot inline kernel {0} because it "
@@ -2270,7 +2269,7 @@ class OCLTrans(Transformation):
 
         '''
         if opencl:
-            self._validate(sched)
+            self.validate(sched)
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
@@ -2278,13 +2277,14 @@ class OCLTrans(Transformation):
         sched.opencl = opencl
         return sched, keep
 
-    def _validate(self, sched):
+    def validate(self, sched):
         '''
         Checks that the supplied Schedule is valid and that an OpenCL
         version of it can be generated.
 
         :param sched: Schedule to check.
         :type sched: :py:class:`psyclone.psyGen.Schedule`
+
         :raises TransformationError: if the Schedule is not for the GOcean1.0 \
                                      API.
         :raises NotImplementedError: if any of the kernels have arguments \
@@ -2309,6 +2309,19 @@ class OCLTrans(Transformation):
                 raise NotImplementedError(
                     "Cannot generate OpenCL for Invokes that contain "
                     "kernels with arguments passed by value")
+        # Check that we can construct the PSyIR and SymbolTable of each of
+        # the kernels in this Schedule. Also check that none of them access
+        # any form of global data (that is not a routine argument).
+        for kern in sched.kern_calls():
+            KernelTrans.validate(kern)
+            ksched = kern.get_kernel_schedule()
+            global_symbols = ksched.symbol_table.global_symbols
+            if global_symbols:
+                raise TransformationError(
+                    "The Symbol Table for kernel '{0}' contains the following "
+                    "symbols with 'global' scope: {1}. PSyclone cannot "
+                    "currently transform such a kernel into OpenCL.".
+                    format(kern.name, [sym.name for sym in global_symbols]))
 
 
 class ProfileRegionTrans(RegionTrans):
@@ -3007,7 +3020,7 @@ class ACCRoutineTrans(KernelTrans):
                                      accessed via a module use statement.
 
         '''
-        from psyclone.psyGen import BuiltIn, Symbol
+        from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
             raise TransformationError(
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
@@ -3021,19 +3034,18 @@ class ACCRoutineTrans(KernelTrans):
 
         # Perform general validation checks. In particular this checks that
         # we can construct the PSyIR of the kernel body.
-        super(ACCRoutineTrans, self).validate(kern)
+        KernelTrans.validate(kern)
 
         # Check that the kernel does not access any data via a module 'use'
         # statement
         sched = kern.get_kernel_schedule()
-        for symbol in sched.symbol_table.symbols:
-            if symbol.interface and isinstance(symbol.interface,
-                                               Symbol.FortranGlobal):
-                raise TransformationError(
-                    "The Symbol Table for kernel {0} contains an entry for a "
-                    "symbol ('{1}') accessed via a USE statement. PSyclone "
-                    "cannot currently transform such a kernel.".
-                    format(kern.name, symbol.name))
+        global_symbols = sched.symbol_table.global_symbols
+        if global_symbols:
+            raise TransformationError(
+                "The Symbol Table for kernel '{0}' contains the following "
+                "symbols with 'global' scope: {1}. PSyclone cannot currently"
+                " transform kernels that access data not passed by argument.".
+                format(kern.name, [sym.name for sym in global_symbols]))
 
 
 class ACCKernelsTrans(RegionTrans):

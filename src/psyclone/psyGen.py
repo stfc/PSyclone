@@ -6738,12 +6738,15 @@ class SymbolTable(object):
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
     @property
-    def symbols(self):
+    def global_symbols(self):
         '''
-        :returns: List of all symbols in the Symbol Table.
+        :returns:  List of symbols that are not routine arguments but still
+                   have 'global' scope - i.e. are associated with
+                   data that exists outside the current scope.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
-        return self._symbols.values()
+        return [sym for sym in self._symbols.values() if sym.scope == "global"
+                and not isinstance(sym.interface, Symbol.Argument)]
 
     def gen_c_local_variables(self, indent=0):
         '''
