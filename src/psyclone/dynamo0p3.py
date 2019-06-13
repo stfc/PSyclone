@@ -8542,3 +8542,49 @@ class DynKernCallFactory(object):
 
         # Return the outermost loop
         return cloop
+
+
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = [
+    'FunctionSpace',
+    'DynFuncDescriptor03',
+    'DynArgDescriptor03',
+    'DynKernMetadata',
+    'DynamoPSy',
+    'DynamoInvokes',
+    'DynCollection',
+    'DynStencils',
+    'DynDofmaps',
+    'DynOrientations',
+    'DynFunctionSpaces',
+    'DynFields',
+    'DynProxies',
+    'DynCellIterators',
+    'DynScalarArgs',
+    'DynLMAOperators',
+    'DynCMAOperators',
+    'DynMeshes',
+    'DynInterGrid',
+    'DynBasisFunctions',
+    'DynBoundaryConditions',
+    'DynInvoke',
+    'DynInvokeSchedule',
+    'DynGlobalSum',
+    'DynHaloExchange',
+    'DynHaloExchangeStart',
+    'DynHaloExchangeEnd',
+    'HaloDepth',
+    'HaloWriteAccess',
+    'HaloReadAccess',
+    'DynLoop',
+    'DynKern',
+    'ArgOrdering',
+    'KernCallArgList',
+    'KernStubArgList',
+    'FSDescriptor',
+    'FSDescriptors',
+    'DynStencil',
+    'DynKernelArguments',
+    'DynKernelArgument',
+    'DynKernCallFactory']
