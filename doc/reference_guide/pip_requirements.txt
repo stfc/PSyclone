@@ -38,3 +38,4 @@
 sphinx
 sphinxcontrib.bibtex
 autoapi
+sphinx_rtd_theme

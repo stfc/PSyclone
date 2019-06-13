@@ -101,7 +101,7 @@ if __name__ == '__main__':
         install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
-            'doc': ["sphinx", "sphinxcontrib.bibtex"],
+            'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
             'test': ["pytest"],
         },
         include_package_data=True,
