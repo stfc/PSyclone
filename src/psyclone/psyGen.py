@@ -118,6 +118,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Reference": "yellow",
                        "BinaryOperation": "blue",
                        "UnaryOperation": "blue",
+                       "NaryOperation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
                        "CodeBlock": "red"}
@@ -5947,6 +5948,7 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.NaryOperation`
 
         '''
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
 
         fortranintrinsics = {
             'max': NaryOperation.Operator.MAX,
@@ -5962,8 +5964,15 @@ class Fparser2ASTProcessor(object):
             raise NotImplementedError(operator_str)
 
         nary_op = NaryOperation(operator, parent=parent)
-        self.process_nodes(parent=nary_op, nodes=[node.items[1]],
-                           nodes_parent=node)
+
+        if isinstance(node.items[1], Actual_Arg_Spec_List):
+            # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
+            # to process the `items` of that...
+            self.process_nodes(parent=nary_op, nodes=list(node.items[1].items),
+                               nodes_parent=node.items[1])
+        else:
+            self.process_nodes(parent=nary_op, nodes=node.items[1:],
+                               nodes_parent=node)
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -7404,6 +7413,36 @@ class NaryOperation(Node):
                 "".format(type(operator).__name__))
 
         self._operator = operator
+
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("NaryOperation",
+                       SCHEDULE_COLOUR_MAP["NaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator.name + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "NaryOperation[operator:'" + self._operator.name + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
 
 
 class Array(Reference):
