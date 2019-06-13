@@ -361,3 +361,16 @@ def test_opencl_kernel_gen_wrong_kernel():
     assert ("Unable to declare the variable 'arrayLEN1' to store the length"
             " of 'array' because the kernel 'test' already contains a "
             "symbol with the same name.") in str(err)
+
+
+def test_opencl_kernel_with_use(kernel_output_dir):
+    ''' Check that we refuse to transform a Schedule to use OpenCL if any
+    of the kernels use module data. '''
+    from psyclone.transformations import TransformationError
+    psy, _ = get_invoke("single_invoke_kern_with_use.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched)
+    assert ("'kernel_with_use_code' contains the following symbols with "
+            "'global' scope: ['rdt']. PSyclone cannot currently" in str(err))

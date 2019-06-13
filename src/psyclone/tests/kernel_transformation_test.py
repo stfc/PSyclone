@@ -106,8 +106,9 @@ def test_accroutine_module_var():
     # a variable that is defined in the enclosing module.
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
-    assert ("kernel_with_use_code contains an entry for a symbol ('rdt') "
-            "accessed via a USE statement." in str(err))
+    assert ("'kernel_with_use_code' contains the following symbols with "
+            "'global' scope: ['rdt']. PSyclone cannot currently transform "
+            in str(err))
 
 
 def test_accroutine_module_use():
@@ -120,7 +121,7 @@ def test_accroutine_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
-    assert "symbol ('rdt') accessed via a USE statement" in str(err)
+    assert "'global' scope: ['rdt']. PSyclone cannot currently" in str(err)
 
 
 def test_accroutine():
