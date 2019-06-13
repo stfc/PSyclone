@@ -52,10 +52,20 @@ API = "gocean1.0"
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
+    yield()
+    Config._instance = None
+
+
+@pytest.fixture
+def outputdir(tmpdir, monkeypatch):
+    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    return tmpdir
 
 
 # ----------------------------------------------------------------------------
-def test_opencl_compiler_works(tmpdir):
+def test_opencl_compiler_works(outputdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
     that all compiles tests are skipped if only the '--compile'
@@ -68,19 +78,18 @@ program hello
   write (*,*) "Hello"
 end program hello
 '''
-    old_pwd = tmpdir.chdir()
+    old_pwd = outputdir.chdir()
     try:
         with open("hello_world_opencl.f90", "w") as ffile:
             ffile.write(example_ocl_code)
-        GOcean1p0OpenCLBuild(tmpdir).\
+        GOcean1p0OpenCLBuild(outputdir).\
             compile_file("hello_world_opencl.f90",
                          link=True)
     finally:
         old_pwd.chdir()
 
 
-# ----------------------------------------------------------------------------
-def test_use_stmts(tmpdir):
+def test_use_stmts(outputdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -96,10 +105,10 @@ def test_use_stmts(tmpdir):
       use iso_c_binding'''
     assert expected in generated_code
     assert "if (first_time) then" in generated_code
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_psy_init(tmpdir):
+def test_psy_init(outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -127,10 +136,12 @@ def test_psy_init(tmpdir):
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_set_kern_args(tmpdir):
+@pytest.mark.xfail(reason="Uses a variable defined in another module."
+                          " Will be fixed with issue #315")
+def test_set_kern_args(outputdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -167,10 +178,10 @@ def test_set_kern_args(tmpdir):
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
             "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg(tmpdir):
+def test_set_kern_float_arg(outputdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -201,7 +212,7 @@ def test_set_kern_float_arg(tmpdir):
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -228,17 +239,6 @@ def test_opencl_kernel_code_generation():
     kernel = sched.children[0].children[0].children[0]  # compute_cu kernel
     kschedule = kernel.get_kernel_schedule()
 
-    # TODO: At the moment, due to fparser/171, the body of compute_cu
-    # is not generated, so I provisionally create a simple assignment statement
-    # for testing that the body of the kernel is properly generated.
-    from psyclone.psyGen import Assignment, Reference, Literal
-    assignment = Assignment(parent=kschedule)
-    kschedule.addchild(assignment)
-    ref = Reference("i", assignment)
-    lit = Literal("1", assignment)
-    assignment.addchild(ref)
-    assignment.addchild(lit)
-
     expected_code = (
         "__kernel void compute_cu_code(\n"
         "    __global double * restrict cu,\n"
@@ -253,7 +253,8 @@ def test_opencl_kernel_code_generation():
         "    int uLEN2 = get_global_size(1);\n"
         "    int i = get_global_id(0);\n"
         "    int j = get_global_id(1);\n"
-        "    i = 1;\n"
+        "    cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
+        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
         "}\n"
         )
 

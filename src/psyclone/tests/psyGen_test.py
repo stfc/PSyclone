@@ -2935,6 +2935,16 @@ def test_literal_gen_c_code():
     lit = Literal("1", None)
     assert lit.gen_c_code() == '1'
 
+    # Test that D scientific notation is replaced by 'e'
+    lit = Literal("3e5", None)
+    assert lit.gen_c_code() == '3e5'
+    lit = Literal("3d5", None)
+    assert lit.gen_c_code() == '3e5'
+    lit = Literal("3D5", None)
+    assert lit.gen_c_code() == '3e5'
+    lit = Literal("3D+5", None)
+    assert lit.gen_c_code() == '3e+5'
+
 
 # Test BinaryOperation class
 def test_binaryoperation_initialization():
@@ -3173,6 +3183,14 @@ def test_kernelschedule_abstract_methods():
         kschedule.gen_ocl()
     assert "A generic implementation of this method is not available."\
         in str(error.value)
+
+
+def test_kernelschedule_name_setter():
+    '''Test that the name setter changes the kernel name attribute.'''
+    kschedule = KernelSchedule("kname")
+    assert kschedule.name == "kname"
+    kschedule.name = "newname"
+    assert kschedule.name == "newname"
 
 
 # Test Symbol Class
@@ -4172,6 +4190,75 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg4").access is \
         Symbol.Access.READWRITE
+
+
+def test_fparser2astprocessor_process_declarations_stmt_functions(
+        f2008_parser):
+    '''Test that process_declarations method handles statement functions
+    appropriately.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Stmt_Function_Stmt
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+
+    # If 'a' is not declared it could be a statement function, which are
+    # unsupported and produce a NotImplementedError.
+    reader = FortranStringReader("a(x) = 1")
+    fparser2spec = Stmt_Function_Stmt(reader)
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process '" in str(error.value)
+    assert "'. Statement Function declarations are not supported." \
+        in str(error.value)
+
+    # The code below checks that misclassified Statment_Functions are
+    # recovered as arrays, this may become unecessary after fparser/#171
+    # is fixed.
+
+    # This Specification part is expected to contain a statment_function
+    # with the current fparser, this may change depending on how
+    # fparser/#171 is fixed.
+    reader = FortranStringReader("a(x) = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process '" in str(error.value)
+    assert "'. Statement Function declarations are not supported." \
+        in str(error.value)
+
+    # If 'a' is declared in the symbol table as an array, it is an array
+    # assignment which belongs in the execution part.
+    fake_parent.symbol_table.add(Symbol('a', 'real', shape=[None]))
+    fake_parent.symbol_table.add(Symbol('x', 'real', shape=[]))
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert len(fake_parent.children) == 1
+    array = fake_parent.children[0].children[0]
+    assert isinstance(array, Array)
+    assert array.name == "a"
+
+    # Test that it works with multi-dimensional arrays
+    fake_parent = KernelSchedule("dummy_schedule")
+    reader = FortranStringReader("b(x, y) = 1")
+    fparser2spec = Stmt_Function_Stmt(reader)
+    fake_parent.symbol_table.add(Symbol('b', 'real', shape=[None, None]))
+    fake_parent.symbol_table.add(Symbol('x', 'integer', shape=[]))
+    fake_parent.symbol_table.add(Symbol('y', 'integer', shape=[]))
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert len(fake_parent.children) == 1
+    array = fake_parent.children[0].children[0]
+    assert isinstance(array, Array)
+    assert array.name == "b"
+
+    # Test that if symbol is not an array, it raises GenerationError
+    fake_parent.symbol_table.lookup('b')._shape = []
+    with pytest.raises(InternalError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process '" in str(error.value)
+    assert "'. Symbol 'b' is in the SymbolTable but it is not an array as " \
+        "expected, so it can not be recovered as an array assignment." \
+        in str(error.value)
 
 
 def test_fparser2astprocessor_parse_array_dimensions_attributes(
