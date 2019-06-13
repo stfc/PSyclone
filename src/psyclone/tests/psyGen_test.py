@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Schedule, UnaryOperation, Return
+    KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -4533,21 +4533,31 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
-    ''' Test that fparser2 Part_Ref nodes that in reality are Fortran
-    Intrinsics are handled appropriately.
+    ''' Test that fparser2 Intrinsic_Function_Reference nodes are
+    handled appropriately.
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2ASTProcessor()
 
-    # Test parsing all supported binary operators.
-    testlist = (('x = sign(a, b)', BinaryOperation,
-                 BinaryOperation.Operator.SIGN),
-                ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
-                ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
-                ('x = real(a, 8)', CodeBlock, None),
-                ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-                )
+    # Test parsing all supported intrinsic functions.
+    testlist = (
+        ('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
+        ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
+        ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
+        ('x = real(a, 8)', CodeBlock, None),
+        ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
+        ('x = int(a, 8)', CodeBlock, None),
+        ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.MODULUS),
+        ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
+        ('x = max(a, b)', NaryOperation, NaryOperation.Operator.MAX),
+        ('x = max(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
+        ('x = min(a, b)', NaryOperation, NaryOperation.Operator.MIN),
+        ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
+        ('x = sum(a, b)', NaryOperation, NaryOperation.Operator.SUM),
+        ('x = sum(a, b, c)', NaryOperation, NaryOperation.Operator.SUM),
+    )
 
     for code, expected_type, expected_op in testlist:
         fake_parent = Node()
@@ -4557,18 +4567,9 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], expected_type), \
             "Fails when parsing '" + code + "'"
-
-    # Test unexpected fparser2 node in the real instrinsic.
-    fake_parent = Node()
-    reader = FortranStringReader("x = real(a)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Manipulate fp2node to insert an unexpected structure
-    fp2node.items = (fp2node.items[0], fp2node.items[1], fp2node.items[0])
-
-    with pytest.raises(GenerationError) as error:
-        processor.process_nodes(fake_parent, [fp2node], None)
-    assert "Unexpected fparser2 node when parsing the real() intrinsic, 2 " \
-           "items were expected but found" in str(error.value)
+        if expected_type is not CodeBlock:
+            assert fake_parent.children[0]._operator == expected_op, \
+                "Fails when parsing '" + code + "'"
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):

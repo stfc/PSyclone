@@ -5848,7 +5848,8 @@ class Fparser2ASTProcessor(object):
             "log": UnaryOperation.Operator.LOG,
             "sin": UnaryOperation.Operator.SIN,
             "sqrt": UnaryOperation.Operator.SQRT,
-            "real": UnaryOperation.Operator.REAL
+            "real": UnaryOperation.Operator.REAL,
+            "int": UnaryOperation.Operator.INT
         }
 
         operator_str = str(node.items[0]).lower()
@@ -5857,7 +5858,7 @@ class Fparser2ASTProcessor(object):
         except KeyError:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
-        import pdb; pdb.set_trace()
+
         if isinstance(node.items[1], Actual_Arg_Spec_List) and \
                 len(node.items[1].items) > 1:
             # We have more than one argument - this is possible for e.g. REAL
@@ -5908,6 +5909,7 @@ class Fparser2ASTProcessor(object):
             '.and.': BinaryOperation.Operator.AND,
             '.or.': BinaryOperation.Operator.OR,
             'sign': BinaryOperation.Operator.SIGN,
+            'mod': BinaryOperation.Operator.MODULUS,
             }
 
         if isinstance(node, Intrinsic_Function_Reference):
@@ -5934,11 +5936,22 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation.
+
+        :param node: node in fparser2 Parse Tree.
+        :type node: \
+             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyGen.NaryOperation`
+
         '''
 
         fortranintrinsics = {
             'max': NaryOperation.Operator.MAX,
             'min': NaryOperation.Operator.MIN,
+            'sum': NaryOperation.Operator.SUM,
             }
 
         operator_str = str(node.items[0]).lower()
@@ -5949,7 +5962,7 @@ class Fparser2ASTProcessor(object):
             raise NotImplementedError(operator_str)
 
         nary_op = NaryOperation(operator, parent=parent)
-        self.process_nodes(parent=nary_op, nodes=[node.items[0]],
+        self.process_nodes(parent=nary_op, nodes=[node.items[1]],
                            nodes_parent=node)
         return nary_op
 
@@ -5971,13 +5984,13 @@ class Fparser2ASTProcessor(object):
                 :py:class:`psyclone.psyGen.NaryOperation`
 
         '''
-        # TODO these lists should really come from fparser?
-        # Map from Fortran intrinsic name to PSyIR operator
-        # 'real' can be either unary or binary but we don't yet support the
+        # TODO these lists should really come from fparser?  Map from
+        # Fortran intrinsic name to PSyIR operator. 'real' and 'int'
+        # can be either unary or binary but we don't yet support the
         # binary form.
-        unary_intrinsics = ["exp", "log", "sin", "sqrt", "real"]
+        unary_intrinsics = ["exp", "log", "sin", "sqrt", "real", "int"]
         binary_intrinsics = ["mod", "sign"]
-        nary_intrinsics = ["max", "min"]
+        nary_intrinsics = ["max", "min", "sum"]
 
         name = node.items[0].string.lower()
         if name in unary_intrinsics:
@@ -7119,7 +7132,7 @@ class UnaryOperation(Node):
         # Other Maths Operators
         'ABS',
         # Casting Operators
-        'REAL'
+        'REAL', 'INT'
         ])
 
     def __init__(self, operator, parent=None):
@@ -7236,13 +7249,13 @@ class BinaryOperation(Node):
     as children 0 and 1, and an attribute with the operator type.
 
     :param operator: the binary operator used in the operation.
-    :type operator: :py:class:`psyclone.psyGen.BinaryOpBase.Operator`.
+    :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`.
     :param parent: the parent node of this BinaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'MODULUS',
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
@@ -7382,7 +7395,7 @@ class NaryOperation(Node):
         ])
 
     def __init__(self, operator, parent=None):
-        super(BinaryOperation, self).__init__(parent=parent)
+        super(NaryOperation, self).__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
