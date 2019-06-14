@@ -6085,6 +6085,7 @@ class Fparser2ASTProcessor(object):
         # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
         # #189), we can fix the issue here and convert them to appropriate
         # PSyIR nodes.
+        # TODO rm this once #189 of fparser is on master
         if reference_name == 'sign':
             bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
             self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
@@ -6126,6 +6127,8 @@ class Fparser2ASTProcessor(object):
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
+        if reference_name == 'sum':
+            return self._nary_op_handler(node, parent=parent)
 
         if hasattr(parent.root, 'symbol_table'):
             symbol_table = parent.root.symbol_table
@@ -7128,14 +7131,53 @@ class Reference(Node):
         return self._reference
 
 
-class UnaryOperation(Node):
+@six.add_metaclass(abc.ABCMeta)
+class Operation(Node):
+    '''
+    Abstract base class for PSyIR nodes representing operators.
+
+    :param operator: the operator used in the operation.
+    :type operator: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
+                    :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
+                    :py:class:`psyclone.psyGen.NaryOperation.Operator`
+    :param parent: the parent node of this Operation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, operator, parent=None):
+        super(Operation, self).__init__(parent=parent)
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "{0} operator argument must be of type "
+                "{0}.Operator but found {1}.".format(type(self).__name__,
+                                                     type(operator).__name__))
+        self._operator = operator
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator.name + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "{0}[operator:'{1}']\n".format(type(self).__name__,
+                                                self._operator.name)
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+
+class UnaryOperation(Operation):
     '''
     Node representing a UnaryOperation expression. As such it has one operand
     as child 0, and an attribute with the operator type.
 
-    :param str operator: string representing the unary operator.
-    :param parent: the parent node of this UnaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
@@ -7150,17 +7192,6 @@ class UnaryOperation(Node):
         'REAL', 'INT'
         ])
 
-    def __init__(self, operator, parent=None):
-        super(UnaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "UnaryOperation operator argument must be of type "
-                "UnaryOperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
-
     @property
     def coloured_text(self):
         '''
@@ -7172,23 +7203,6 @@ class UnaryOperation(Node):
         '''
         return colored("UnaryOperation",
                        SCHEDULE_COLOUR_MAP["UnaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
 
     def gen_c_code(self, indent=0):
         '''
@@ -7258,15 +7272,11 @@ class UnaryOperation(Node):
         return formatter(opstring, self.children[0].gen_c_code())
 
 
-class BinaryOperation(Node):
+class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
 
-    :param operator: the binary operator used in the operation.
-    :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`.
-    :param parent: the parent node of this BinaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
@@ -7279,17 +7289,6 @@ class BinaryOperation(Node):
         'SIGN'
         ])
 
-    def __init__(self, operator, parent=None):
-        super(BinaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "BinaryOperation operator argument must be of type "
-                "BinaryOperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
-
     @property
     def coloured_text(self):
         '''
@@ -7301,23 +7300,6 @@ class BinaryOperation(Node):
         '''
         return colored("BinaryOperation",
                        SCHEDULE_COLOUR_MAP["BinaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
 
     def gen_c_code(self, indent=0):
         '''
@@ -7392,34 +7374,17 @@ class BinaryOperation(Node):
                          self.children[1].gen_c_code())
 
 
-class NaryOperation(Node):
+class NaryOperation(Operation):
     '''
     Node representing a n-ary operation expression. The n operands are the
     stored as the 0 - n-1th children of this node and the type of the operator
     is held in an attribute.
-
-    :param operator: node in the fparser2 Parse Tree representing the operator.
-    :type operator: :py:class:`fparser.two.Intrinsic_Function_Reference`
-    :param parent: the parent node of this n-ary operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
         'MAX', 'MIN', 'SUM'
         ])
-
-    def __init__(self, operator, parent=None):
-        super(NaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "NaryOperation operator argument must be of type "
-                "Naryoperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
-
 
     @property
     def coloured_text(self):
@@ -7432,23 +7397,6 @@ class NaryOperation(Node):
         '''
         return colored("NaryOperation",
                        SCHEDULE_COLOUR_MAP["NaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "NaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
 
 
 class Array(Reference):
