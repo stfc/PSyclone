@@ -4572,6 +4572,25 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
                 "Fails when parsing '" + code + "'"
 
 
+def testfp2astproc_handling_nested_intrinsic(f2008_parser):
+    ''' Check that we correctly handle nested intrinsic functions. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import Reference
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    reader = FortranStringReader(
+        "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
+        "tmask_i(:,:) ) &\n"
+        "   &  / MAX( 1.e-20, SUM( e1t(:,:) * e2t(:,:) * wmask (:,:,jk) * "
+        "tmask_i(:,:) ) )")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    processor.process_nodes(fake_parent, [fp2node], None)
+    fake_parent.children[0].view()
+    array_refs = fake_parent.walk(fake_parent.children, Reference)
+    assert "sum" not in [str(ref.name) for ref in array_refs]
+
+
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
