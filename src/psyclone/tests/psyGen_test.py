@@ -4544,6 +4544,11 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
     testlist = (
         ('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
         ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
+        ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
+        ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
+        ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
+        ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
+        ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
         ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
         ('x = real(a, 8)', CodeBlock, None),
         ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),

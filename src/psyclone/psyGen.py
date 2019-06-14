@@ -5848,6 +5848,11 @@ class Fparser2ASTProcessor(object):
             "exp": UnaryOperation.Operator.EXP,
             "log": UnaryOperation.Operator.LOG,
             "sin": UnaryOperation.Operator.SIN,
+            "asin": UnaryOperation.Operator.ASIN,
+            "cos": UnaryOperation.Operator.COS,
+            "acos": UnaryOperation.Operator.ACOS,
+            "tan": UnaryOperation.Operator.TAN,
+            "atan": UnaryOperation.Operator.ATAN,
             "sqrt": UnaryOperation.Operator.SQRT,
             "real": UnaryOperation.Operator.REAL,
             "int": UnaryOperation.Operator.INT
@@ -5997,7 +6002,8 @@ class Fparser2ASTProcessor(object):
         # Fortran intrinsic name to PSyIR operator. 'real' and 'int'
         # can be either unary or binary but we don't yet support the
         # binary form.
-        unary_intrinsics = ["exp", "log", "sin", "sqrt", "real", "int"]
+        unary_intrinsics = ["exp", "log", "sin", "asin", "cos", "acos",
+                            "tan", "atan", "sqrt", "real", "int"]
         binary_intrinsics = ["mod", "sign"]
         nary_intrinsics = ["max", "min", "sum"]
 
