@@ -165,7 +165,7 @@ class GOInvokes(Invokes):
         # kernels in an application. Therefore it is much simpler to
         # do it here where we have easy access to that information.
         for invoke in self.invoke_list:
-            for kern_call in invoke.schedule.kern_calls():
+            for kern_call in invoke.schedule.coded_kernels():
                 # We only care if the index offset is not offset_any (since
                 # that is compatible with any other offset)
                 if kern_call.index_offset != "go_offset_any":
@@ -210,7 +210,7 @@ class GOInvoke(Invoke):
         ''' find unique arguments that are arrays (defined as those that are
             field objects as opposed to scalars or properties of the grid). '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in call.arguments.args:
                 if arg.type == 'field' and arg.name not in result:
                     result.append(arg.name)
@@ -225,7 +225,7 @@ class GOInvoke(Invoke):
 
         '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],
                                    is_literal=False):
                 if arg.space.lower() == "go_r_scalar" and \
@@ -242,7 +242,7 @@ class GOInvoke(Invoke):
 
         '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],
                                    is_literal=False):
                 if arg.space.lower() == "go_i_scalar" and \

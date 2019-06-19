@@ -2776,7 +2776,7 @@ def test_arg_ref_name_method_error1():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     first_argument = first_kernel.arguments.args[1]
     with pytest.raises(GenerationError) as excinfo:
         # the argument is a field and is on "w1"
@@ -2793,7 +2793,7 @@ def test_arg_ref_name_method_error2():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     first_argument = first_kernel.arguments.args[1]
     first_argument._type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
@@ -2809,7 +2809,7 @@ def test_arg_intent_error():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     first_argument = first_kernel.arguments.args[0]
     # Mess with the internal state of this argument object
     first_argument._access = "gh_not_an_intent"
@@ -2832,7 +2832,7 @@ def test_no_arg_on_space(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     kernel_args = first_kernel.arguments
     # Test getting the argument by the meta-data name for the function space
     arg, fspace = kernel_args.get_arg_on_space_name("w2")
@@ -2964,7 +2964,7 @@ def test_mangle_no_space_error():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = mangle_fs_name(first_kernel.arguments.args, "any_space_7")
     assert "No kernel argument found for function space 'any_space_7'" \
@@ -2979,7 +2979,7 @@ def test_mangle_function_space():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     name = mangle_fs_name(first_kernel.arguments.args, "any_space_2")
     assert name == "any_space_2_f2"
 
@@ -2993,7 +2993,7 @@ def test_no_mangle_specified_function_space():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     name = mangle_fs_name(first_kernel.arguments.args, "w2")
     assert name == "w2"
 
@@ -3007,7 +3007,7 @@ def test_fsdescriptors_get_descriptor():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
     fspace = FunctionSpace("w0", None)
     with pytest.raises(GenerationError) as excinfo:
         first_kernel.fs_descriptors.get_descriptor(fspace)

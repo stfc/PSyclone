@@ -1986,7 +1986,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                         "In the Dynamo0p3RedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so this transformation does nothing")
-                for call in node.calls():
+                for call in node.kernels():
                     for arg in call.arguments.args:
                         if arg.stencil:
                             raise TransformationError(
@@ -2484,7 +2484,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>>
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
-    >>> for kernel in schedule.kern_calls():
+    >>> for kernel in schedule.coded_kernels():
     >>>     new_schedule, _ = trans.apply(kernel)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()

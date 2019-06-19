@@ -285,7 +285,7 @@ class Compile(object):
         # Get the names of the modules associated with the kernels.
         # By definition, built-ins do not have associated Fortran modules.
         for invoke in psy_ast.invokes.invoke_list:
-            for call in invoke.schedule.kern_calls():
+            for call in invoke.schedule.coded_kernels():
                 kernel_modules.add(call.module_name)
 
         # Change to the temporary directory passed in to us from

@@ -171,7 +171,7 @@ class GOInvoke(Invoke):
             not rspace). GOcean needs to kow this as we are dealing with
             arrays directly so need to declare them correctly. '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in call.arguments.args:
                 if(not arg.is_literal and
                    not arg.space.lower() == "r" and
@@ -185,7 +185,7 @@ class GOInvoke(Invoke):
             rspace). GOcean needs to kow this as we are dealing with arrays
             directly so need to declare them correctly. '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in call.arguments.args:
                 if(not arg.is_literal and
                    arg.space.lower() == "r" and

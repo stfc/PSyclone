@@ -429,7 +429,7 @@ class Invokes(object):
             # calls. We do it here as this enables us to prevent
             # duplication.
             if invoke.schedule.opencl:
-                for kern in invoke.schedule.kern_calls():
+                for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
@@ -662,7 +662,7 @@ class Invoke(object):
         self._alg_unique_args = []
         self._psy_unique_vars = []
         tmp_arg_names = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if arg.text is not None:
                     if arg.text not in self._alg_unique_args:
@@ -676,7 +676,7 @@ class Invoke(object):
 
         # work out the unique dofs required in this subroutine
         self._dofs = {}
-        for kern_call in self._schedule.kern_calls():
+        for kern_call in self._schedule.coded_kernels():
             dofs = kern_call.arguments.dofs
             for dof in dofs:
                 if dof not in self._dofs:
@@ -738,7 +738,7 @@ class Invoke(object):
                 format(type(access)))
 
         declarations = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
@@ -751,7 +751,7 @@ class Invoke(object):
     def first_access(self, arg_name):
         ''' Returns the first argument with the specified name passed to
         a kernel in our schedule '''
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if arg.text is not None:
                     if arg.declaration_name == arg_name:
@@ -1110,7 +1110,7 @@ class Node(object):
         any of this nodes descendants are considered to be
         associated. '''
         args = []
-        for call in self.calls():
+        for call in self.kernels():
             args.extend(call.args)
         return args
 
@@ -1428,8 +1428,11 @@ class Node(object):
             myparent = myparent.parent
         return None
 
-    def calls(self):
-        '''Return all calls that are descendants of this node.'''
+    def kernels(self):
+        '''
+        :returns: all kernels that are descendants of this node in the PSyIR.
+        :rtype: list of :py:class:`psyclone.psyGen.Kern` sub-classes.
+        '''
         return self.walk(self.children, Kern)
 
     def following(self):
@@ -1466,19 +1469,25 @@ class Node(object):
     @property
     def following_calls(self):
         '''Return all calls after me in the schedule.'''
-        all_calls = self.root.calls()
+        all_calls = self.root.kernels()
         position = all_calls.index(self)
         return all_calls[position+1:]
 
     @property
     def preceding_calls(self):
         '''Return all calls before me in the schedule.'''
-        all_calls = self.root.calls()
+        all_calls = self.root.kernels()
         position = all_calls.index(self)
         return all_calls[:position-1]
 
-    def kern_calls(self):
-        '''Return all user-supplied kernel calls in this schedule.'''
+    def coded_kernels(self):
+        '''
+        Returns a list of all of the user-supplied kernels that are beneath
+        this node in the PSyIR.
+
+        :returns: all user-supplied kernel calls below this node.
+        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        '''
         return self.walk(self._children, CodedKern)
 
     def loops(self):
@@ -2139,8 +2148,8 @@ class ACCParallelDirective(ACCDirective):
         '''
         variables = []
 
-        # Look-up the calls that are children of this node
-        for call in self.calls():
+        # Look-up the kernels that are children of this node
+        for call in self.kernels():
             for arg in call.arguments.acc_args:
                 if arg not in variables:
                     variables.append(arg)
@@ -2155,9 +2164,9 @@ class ACCParallelDirective(ACCDirective):
         :returns: list of names of field arguments.
         :rtype: list of str
         '''
-        # Look-up the calls that are children of this node
+        # Look-up the kernels that are children of this node
         fld_list = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.fields:
                 if arg not in fld_list:
                     fld_list.append(arg)
@@ -2173,7 +2182,7 @@ class ACCParallelDirective(ACCDirective):
         :rtype: list of str
         '''
         scalars = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.scalars:
                 if arg not in scalars:
                     scalars.append(arg)
@@ -2323,7 +2332,7 @@ class OMPDirective(Directive):
         :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
         '''
         result = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.type in MAPPING_SCALARS.values():
                     if arg.descriptor.access == reduction_type:
@@ -2448,8 +2457,8 @@ class OMPParallelDirective(OMPDirective):
             if loop.variable_name and \
                loop.variable_name.lower() not in result:
                 result.append(loop.variable_name.lower())
-        # get variable names from all calls that are a child of this node
-        for call in self.calls():
+        # Get variable names from all kernels that are a child of this node
+        for call in self.kernels():
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
@@ -3170,7 +3179,7 @@ class Loop(Node):
     def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
-        for kern_call in self.kern_calls():
+        for kern_call in self.coded_kernels():
             for arg in kern_call.arguments.args:
                 if arg.access == AccessType.INC:
                     return True
@@ -3187,7 +3196,7 @@ class Loop(Node):
         '''
         arg_names = []
         args = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.type.lower() == arg_type:
                     if arg.access != AccessType.READ:
@@ -3202,7 +3211,7 @@ class Loop(Node):
         True then only return uniquely named arguments'''
         all_args = []
         all_arg_names = []
-        for call in self.calls():
+        for call in self.kernels():
             call_args = args_filter(call.arguments.args, arg_types,
                                     arg_accesses)
             if unique:

@@ -974,7 +974,7 @@ def test_reduction_var_error():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.calls()[0]
+        call = schedule.kernels()[0]
         # args[1] is of type gh_field
         # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
@@ -993,7 +993,7 @@ def test_reduction_sum_error():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.calls()[0]
+        call = schedule.kernels()[0]
         # args[1] is of type gh_field
         # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
@@ -1157,7 +1157,7 @@ def test_argument_find_argument():
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
-    call_nodes = schedule.calls()
+    call_nodes = schedule.kernels()
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
@@ -1209,7 +1209,7 @@ def test_argument_find_read_arguments():
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
     f1_first_read = schedule.children[0].children[0].arguments.args[2]
-    call_nodes = schedule.calls()
+    call_nodes = schedule.kernels()
     assert f1_first_read._find_read_arguments(call_nodes) == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
@@ -1274,7 +1274,7 @@ def test_argument_forward_read_dependencies():
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
     f1_first_read = schedule.children[0].children[0].arguments.args[2]
-    _ = schedule.calls()
+    _ = schedule.kernels()
     assert f1_first_read.forward_read_dependencies() == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)

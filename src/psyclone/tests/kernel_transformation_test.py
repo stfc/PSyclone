@@ -70,7 +70,7 @@ def test_accroutine_err(monkeypatch):
     import fparser
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.kern_calls()
+    kernels = sched.coded_kernels()
     kern = kernels[0]
     assert isinstance(kern, Kern)
     # Edit the fparser1 AST of the kernel so that it does not have a
@@ -127,7 +127,7 @@ def test_accroutine_empty_kernel():
     even when the rest of the kernel is empty. '''
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.kern_calls()
+    kernels = sched.coded_kernels()
     rtrans = ACCRoutineTrans()
     new_kern, _ = rtrans.apply(kernels[0])
     # Check that directive is in correct place (end of declarations)
@@ -244,7 +244,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     old_cwd = tmpdir.chdir()
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.kern_calls()
+    kernels = sched.coded_kernels()
     kern = kernels[0]
     old_mod_name = kern.module_name[:]
     # Create a file with the same name as we would otherwise generate
@@ -281,7 +281,7 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
     # Apply the same transformation to both kernels. This should produce
     # two, identical transformed kernels.
     new_kernels = []
-    for kern in sched.kern_calls():
+    for kern in sched.coded_kernels():
         new_kern, _ = rtrans.apply(kern)
         new_kernels.append(new_kern)
 
@@ -306,7 +306,7 @@ def test_1kern_trans(tmpdir, monkeypatch):
     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
-    kernels = sched.kern_calls()
+    kernels = sched.coded_kernels()
     # We will transform the second kernel but not the first
     kern = kernels[1]
     rtrans = ACCRoutineTrans()

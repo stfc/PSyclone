@@ -174,7 +174,7 @@ def test_multi_kern():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
-    kerns = sched.kern_calls()
+    kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
     loops[0].children.append(kerns[1])
     with pytest.raises(NotImplementedError) as err:
@@ -211,7 +211,7 @@ def test_complex_code():
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 5
-    kerns = sched.kern_calls()
+    kerns = sched.coded_kernels()
     assert len(kerns) == 1
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
@@ -225,7 +225,7 @@ def test_io_not_kernel():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     # We should have only 1 actual kernel
-    kerns = sched.kern_calls()
+    kerns = sched.coded_kernels()
     assert len(kerns) == 1
 
 
@@ -369,7 +369,7 @@ def test_kern_inside_if():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    kerns = sched.kern_calls()
+    kerns = sched.coded_kernels()
     assert len(kerns) == 4
     ifblock = sched.children[0].children[1]
     assert isinstance(ifblock, IfBlock)
