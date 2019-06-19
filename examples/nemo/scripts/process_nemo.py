@@ -50,20 +50,22 @@ Or, if you have Gnu 'parallel':
 '''
 
 # Files that we won't attempt to process with PSyclone
-EXCLUDED_FILES = ["bdyini.f90", "diaobs.f90",
+EXCLUDED_FILES = ["bdyini.f90", "diaobs.f90", "dommsk.f90",
                   "fldread.f90",
                   "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
                   "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
                   "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
-                  "ice.f90", "icecor.f90", "icedyn_adv_pra.f90",
-                  "icedyn_rdgrft.f90",
-                  "icedyn_rhg_evp.f90", "icethd_ent.f90", "icethd_zdf.f90",
-                  "icethd_dh.f90", "icevar.f90", "iom.f90",
+                  "ice.f90", "icealb.f90", "icecor.f90", "icedyn.f90",
+                  "icedyn_adv.f90", "icedyn_adv_pra.f90", "icedyn_adv_umx.f90",
+                  "icedyn_rdgrft.f90", "icedyn_rhg_evp.f90", "iceforcing.f90",
+                  "iceistate.f90", "iceitd.f90", "icestp.f90", "icetab.f90",
+                  "icethd_ent.f90", "icethd_zdf.f90",
+                  "icethd_dh.f90", "icevar.f90", "iom.f90", "lbclnk.f90",
                   "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
                   "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                   "obs_utils.f90",
-                  "tide_mod.f90", "sbcblk_algo_ncar.f90", "sbcisf.f90",
-                  "sbcice_cice.f90", "storng.f90", "stopar.f90"]
+                  "sbcblk.f90", "sbcblk_algo_ncar.f90", "sbcisf.f90",
+                  "sbcice_cice.f90", "storng.f90", "stopar.f90", "tide_mod.f90"]
 
 if __name__ == "__main__":
     import glob
