@@ -572,16 +572,17 @@ instance is created.
 An `InvokeCall` object is created in the `create_invoke_call` method
 by first parsing each of the kernels specified in an invoke call and
 creating a list of `kernel` objects which are then used to create
-an `InvokeCall`.
+an `InvokeCall`. These objects capture information on the way each
+kernel is being called from the Algorithm layer.
 
 A `kernel` object is created in the `create_kernel_call` method which
-extracts the kernel name and kernel arguments, then creates either a
-`BuiltInCall` instance (via the `create_builtin_kernel_call` method)
-or a `KernelCall` instance (via the `create_coded_kernel_call`
-method). `BuiltInCalls` are created if the kernel name is the same as
-one of those specified in the builtin names for this particular API
-(see the variable `_builtin_name_map` which is initialised by the
-`get_builtin_defs` function.
+extracts the kernel name and kernel arguments, then creates either an
+`algorithm.BuiltInCall` instance (via the `create_builtin_kernel_call`
+method) or an `algorithm.KernelCall` instance (via the
+`create_coded_kernel_call` method). `BuiltInCalls` are created if the
+kernel name is the same as one of those specified in the builtin names
+for this particular API (see the variable `_builtin_name_map` which is
+initialised by the `get_builtin_defs` function).
 
 The `create_kernel_call` method uses the `get_kernel` function to find
 out the kernel name and create a list of `Arg` instances representing
@@ -598,34 +599,34 @@ create the appropriate `Arg` instance. Previously we relied on the
           extend if we were to support arithmetic operations in an
           invoke call.
 
-Parsing Kernel Code
-===================
+Parsing Kernel Code (Metadata)
+==============================
 
-A `BuiltInCall` instance is created by being passed a
-`BuiltinKernelType` instance for the particular API via the
-`BuiltInKernelTypeFactory` class which is found in the `kernels.py`
-file. This class parses the Fortran module file which specifies
+An `algorithm.BuiltInCall` instance is created by being passed a
+`kernel.BuiltinKernelType` instance for the particular API via the
+`BuiltInKernelTypeFactory` class which is found in the `parse.kernels`
+module. This class parses the Fortran module file which specifies
 builtin description metadata. Currently `fparser1` is used but we will
 be migrating to `fparser2` in the future. The builtin metadata is
 specified in the same form as coded kernel metadata so the same logic
-can be used (i.e. the `KernelTypeFactory create` method is called)
+can be used (i.e. the `KernelTypeFactory.create` method is called)
 which is why `BuiltInKernelTypeFactory` subclasses
 `KernelTypeFactory`.
 
-A `KernelCall` instance is created by being passed the module name of
-the kernel and a `KernelType` instance for the particular API via the
-`KernelTypeFactory` class which is also found in the `kernels.py`
-file. This class is given the parsed kernel module (via the
-`get_kernel_ast` function - which searches for the kernel file using
-the kernel path information introduced earlier). Again, currently
-`fparser1` is used but we will be migrating to `fparser2` in the
-future.
+An `algorithm.KernelCall` instance is created by being passed the
+module name of the kernel and a `kernel.KernelType` instance for the
+particular API via the `KernelTypeFactory` class which is also found
+in the `parse.kernel` module. This class is given the parsed kernel
+module (via the `get_kernel_ast` function - which searches for the
+kernel file using the kernel path information introduced
+earlier). Again, currently `fparser1` is used but we will be migrating
+to `fparser2` in the future.
 
 The `KernelTypeFactory create` method is used for both coded kernels
 and builtin kernels to specify the API-specific class to use. As an
-example, in the case of the `dynamo0.3` API the class is
+example, in the case of the `dynamo0.3` API, the class is
 `DynKernMetadata` which is found in `psyclone.dynamo0p3`. Once this
-instance has been created (by passing it an `fparser1` AST) it can
+instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from
 `fparser1` to `fparser2` would required changing the parse code logic
 in each of the API-specific classes.
