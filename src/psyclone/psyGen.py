@@ -1466,20 +1466,6 @@ class Node(object):
             nodes.reverse()
         return nodes
 
-    @property
-    def following_calls(self):
-        '''Return all calls after me in the schedule.'''
-        all_calls = self.root.kernels()
-        position = all_calls.index(self)
-        return all_calls[position+1:]
-
-    @property
-    def preceding_calls(self):
-        '''Return all calls before me in the schedule.'''
-        all_calls = self.root.kernels()
-        position = all_calls.index(self)
-        return all_calls[:position-1]
-
     def coded_kernels(self):
         '''
         Returns a list of all of the user-supplied kernels that are beneath
