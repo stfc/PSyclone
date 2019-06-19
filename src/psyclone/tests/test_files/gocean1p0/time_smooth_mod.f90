@@ -94,6 +94,8 @@ CONTAINS
     REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field_new
     REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: field_old
 
+    ! TODO: Issue #401 and #315 'alpha' is a global variable not supported
+    ! in PSyIR.
     field_old(i,j) = field(i,j) + &
          alpha*(field_new(i,j) - 2.0d0*field(i,j) + field_old(i,j))
 

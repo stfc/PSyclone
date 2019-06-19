@@ -71,9 +71,8 @@ installed.
 Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
-Example of the use of PSyclone to generate an OpenCL version of the
-PSy layer. The kernels are not yet transformed automatically (Issue
-#249).
+Example of the use of PSyclone to generate an OpenCL driver version of
+the PSy layer and OpenCL kernels.
 
 Example 4: Kernels containing use statements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

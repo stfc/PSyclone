@@ -189,7 +189,9 @@ contains
     amp_tide   = 0.2_go_wp
     rdt = 1.0
     omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
-    rtime = real(istep,go_wp) * rdt
+    ! TODO: Issue #375, kinds (e.g: go_wp) is not supported in PSyIR
+    ! rtime = real(istep,go_wp) * rdt
+    rtime = real(istep) * rdt
 
     if(tmask(ji,jj) <= 0) return
     IF     (tmask(ji,jj-1) < 0) THEN
