@@ -4560,8 +4560,8 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
         ('x = max(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
         ('x = min(a, b)', NaryOperation, NaryOperation.Operator.MIN),
         ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-        ('x = sum(a, b)', NaryOperation, NaryOperation.Operator.SUM),
-        ('x = sum(a, b, c)', NaryOperation, NaryOperation.Operator.SUM),
+        ('x = sum(a, idim)', NaryOperation, NaryOperation.Operator.SUM),
+        ('x = sum(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
     )
 
     for code, expected_type, expected_op in testlist:
@@ -4594,6 +4594,23 @@ def testfp2astproc_handling_nested_intrinsic(f2008_parser):
     fake_parent.children[0].view()
     array_refs = fake_parent.walk(fake_parent.children, Reference)
     assert "sum" not in [str(ref.name) for ref in array_refs]
+
+
+@pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
+                   "non-NEMO PSyIR")
+def testfp2astproc_handling_array_product(f2008_parser):
+    ''' Check that we correctly handle array products. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import CodeBlock
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    reader = FortranStringReader(
+        "ze_z(:,:) = e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk)")
+    fp2node = Execution_Part.match(reader)
+    processor.process_nodes(fake_parent, [fp2node[0][0]], None)
+    fake_parent.children[0].view()
+    assert not fake_parent.walk(fake_parent.children, CodeBlock)
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
