@@ -42,6 +42,7 @@
 from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
+from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -4937,11 +4938,1430 @@ class ACCDataDirective(ACCDirective):
                          data_movement="analyse")
 
 
+@six.add_metaclass(abc.ABCMeta)
+class SymbolInterface(object):
+    '''
+    Abstract base class for capturing the access mechanism for symbols that
+    represent data that exists outside the section of code being represented
+    in the PSyIR.
+
+    :param access: How the symbol is accessed within the section of code or \
+                   None (if unknown).
+    :type access: :py:class:`psyclone.psyGen.SymbolAccess`
+    '''
+    def __init__(self, access=None):
+        self._access = None
+        # Use the setter as that has error checking
+        if not access:
+            self.access = Symbol.Access.UNKNOWN
+        else:
+            self.access = access
+
+    @property
+    def access(self):
+        '''
+        :returns: the access-type for this symbol.
+        :rtype: :py:class:`psyclone.psyGen.Symbol.Access`
+        '''
+        return self._access
+
+    @access.setter
+    def access(self, value):
+        '''
+        Setter for the access type of this symbol.
+
+        :param value: the new access type.
+        :type value: :py:class:`psyclon.psyGen.SymbolAccess`
+
+        :raises TypeError: if the supplied value is not of the correct type.
+        '''
+        if not isinstance(value, Symbol.Access):
+            raise TypeError("SymbolInterface.access must be a 'Symbol.Access' "
+                            "but got '{0}'.".format(type(value)))
+        self._access = value
+
+
+class Symbol(object):
+    '''
+    Symbol item for the Symbol Table. It contains information about: the name,
+    the datatype, the shape (in column-major order) and, for a symbol
+    representing data that exists outside of the local scope, the interface
+    to that symbol (i.e. the mechanism by which it is accessed).
+
+    :param str name: Name of the symbol.
+    :param str datatype: Data type of the symbol. (One of \
+                     :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
+    :param list shape: Shape of the symbol in column-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If it is 'None' the extent of that \
+                       dimension is unknown, otherwise it holds an integer \
+                       literal or a reference to an integer symbol with the \
+                       extent. If it is an empty list then the symbol \
+                       represents a scalar.
+    :param interface: Object describing the interface to this symbol (i.e. \
+                      whether it is passed as a routine argument or accessed \
+                      in some other way) or None if the symbol is local.
+    :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
+    :param constant_value: Sets a fixed known value for this \
+                           Symbol. If the value is None (the default) \
+                           then this symbol is not a constant. The \
+                           datatype of the constant value must be \
+                           compatible with the datatype of the symbol.
+    :type constant_value: int, str or bool
+
+    :raises NotImplementedError: Provided parameters are not supported yet.
+    :raises TypeError: Provided parameters have invalid error type.
+    :raises ValueError: Provided parameters contain invalid values.
+
+    '''
+    ## Tuple with the valid datatypes.
+    valid_data_types = ('real',  # Floating point
+                        'integer',
+                        'character',
+                        'boolean',
+                        'deferred')  # Type of this symbol not yet determined
+    ## Mapping from supported data types for constant values to
+    #  internal Python types
+    mapping = {'integer': int, 'character': str, 'boolean': bool}
+
+    class Access(Enum):
+        '''
+        Enumeration for the different types of access that a Symbol is
+        permitted to have.
+
+        '''
+        ## The symbol is only ever read within the current scoping block.
+        READ = 1
+        ## The first access of the symbol in the scoping block is a write and
+        # therefore any value that it may have had upon entry is discarded.
+        WRITE = 2
+        ## The first access of the symbol in the scoping block is a read but
+        # it is subsequently written to.
+        READWRITE = 3
+        ## The way in which the symbol is accessed in the scoping block is
+        # unknown
+        UNKNOWN = 4
+
+    class Argument(SymbolInterface):
+        '''
+        Captures the interface to a symbol that is accessed as a routine
+        argument.
+
+        :param access: how the symbol is accessed within the local scope.
+        :type access: :py:class:`psyclone.psyGen.Symbol.Access`
+        '''
+        def __init__(self, access=None):
+            super(Symbol.Argument, self).__init__(access=access)
+            self._pass_by_value = False
+
+        def __str__(self):
+            return "Argument(pass-by-value={0})".format(self._pass_by_value)
+
+    class FortranGlobal(SymbolInterface):
+        '''
+        Describes the interface to a Fortran Symbol representing data that
+        is supplied as some sort of global variable. Currently only supports
+        data accessed via a module 'USE' statement.
+
+        :param str module_use: the name of the Fortran module from which the \
+                               symbol is imported.
+        :param access: the manner in which the Symbol is accessed in the \
+                       associated code section. If None is supplied then the \
+                       access is Symbol.Access.UNKNOWN.
+        :type access: :py:class:`psyclone.psyGen.Symbol.Access` or None.
+        '''
+        def __init__(self, module_use, access=None):
+            self._module_name = ""
+            super(Symbol.FortranGlobal, self).__init__(access=access)
+            self.module_name = module_use
+
+        def __str__(self):
+            return "FortranModule({0})".format(self.module_name)
+
+        @property
+        def module_name(self):
+            '''
+            :returns: the name of the Fortran module from which the symbol is \
+                      imported or None if it is not a module variable.
+            :rtype: str or None
+            '''
+            return self._module_name
+
+        @module_name.setter
+        def module_name(self, value):
+            '''
+            Setter for the name of the Fortran module from which this symbol
+            is imported.
+
+            :param str value: the name of the Fortran module.
+
+            :raises TypeError: if the supplied value is not a str.
+            :raises ValueError: if the supplied string is not at least one \
+                                character long.
+            '''
+            if not isinstance(value, str):
+                raise TypeError("module_name must be a str but got '{0}'".
+                                format(type(value)))
+            if not value:
+                raise ValueError("module_name must be one or more characters "
+                                 "long")
+            self._module_name = value
+
+    def __init__(self, name, datatype, shape=None, constant_value=None,
+                 interface=None):
+
+        self._name = name
+
+        if datatype not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
+        self._datatype = datatype
+
+        if shape is None:
+            shape = []
+        elif not isinstance(shape, list):
+            raise TypeError("Symbol shape attribute must be a list.")
+
+        for dimension in shape:
+            if isinstance(dimension, Symbol):
+                if dimension.datatype != "integer" or dimension.shape:
+                    raise TypeError(
+                        "Symbols that are part of another symbol shape can "
+                        "only be scalar integers, but found '{0}'."
+                        "".format(str(dimension)))
+            elif not isinstance(dimension, (type(None), int)):
+                raise TypeError("Symbol shape list elements can only be "
+                                "'Symbol', 'integer' or 'None'.")
+        self._shape = shape
+        # The following attributes have setter methods (with error checking)
+        self._constant_value = None
+        self._interface = None
+        # If an interface is specified for this symbol then the data with
+        # which it is associated must exist outside of this kernel.
+        self.interface = interface
+        self.constant_value = constant_value
+
+    @property
+    def name(self):
+        '''
+        :returns: Name of the Symbol.
+        :rtype: str
+        '''
+        return self._name
+
+    @property
+    def datatype(self):
+        '''
+        :returns: Datatype of the Symbol.
+        :rtype: str
+        '''
+        return self._datatype
+
+    @property
+    def access(self):
+        '''
+        :returns: How this symbol is accessed (read, readwrite etc.) within \
+                  the local scope.
+        :rtype: :py:class:`psyclone.psyGen.Symbol.Access` or NoneType.
+        '''
+        if self._interface:
+            return self._interface.access
+        # This symbol has no interface info and therefore is local
+        return None
+
+    @property
+    def shape(self):
+        '''
+        :returns: Shape of the symbol in column-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  literal or a reference to an integer symbol with the \
+                  extent. If it is an empty list then the symbol \
+                  represents a scalar.
+        :rtype: list
+        '''
+        return self._shape
+
+    @property
+    def scope(self):
+        '''
+        :returns: Whether the symbol is 'local' (just exists inside the \
+                  kernel scope) or 'global' (data also lives outside the \
+                  kernel). Global-scoped symbols must have an associated \
+                  'interface' that specifies the mechanism by which the \
+                  kernel accesses the associated data.
+        :rtype: str
+        '''
+        if self._interface:
+            return "global"
+        return "local"
+
+    @property
+    def interface(self):
+        '''
+        :returns: the an object describing the external interface to \
+                  this Symbol or None (if it is local).
+        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` or \
+                NoneType.
+        '''
+        return self._interface
+
+    @interface.setter
+    def interface(self, value):
+        '''
+        Setter for the Interface associated with this Symbol.
+
+        :param value: an Interface object describing how the Symbol is \
+                      accessed by the code or None if it is local.
+        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` \
+                     or NoneType.
+
+        :raises TypeError: if the supplied `value` is of the wrong type.
+        '''
+        if value is not None and not isinstance(value, SymbolInterface):
+            raise TypeError("The interface to a Symbol must be a "
+                            "SymbolInterface or None but got '{0}'".
+                            format(type(value)))
+        self._interface = value
+
+    @property
+    def is_constant(self):
+        '''
+        :returns: Whether the symbol is a constant with a fixed known \
+        value (True) or not (False).
+        :rtype: bool
+
+        '''
+        return self._constant_value is not None
+
+    @property
+    def is_scalar(self):
+        '''
+        :returns: True if this symbol is a scalar and False otherwise.
+        :rtype: bool
+
+        '''
+        # If the shape variable is an empty list then this symbol is a
+        # scalar.
+        return self.shape == []
+
+    @property
+    def is_array(self):
+        '''
+        :returns: True if this symbol is an array and False otherwise.
+        :rtype: bool
+
+        '''
+        # The assumption in this method is that if this symbol is not
+        # a scalar then it is an array. If this assumption becomes
+        # invalid then this logic will need to be changed
+        # appropriately.
+        return not self.is_scalar
+
+    @property
+    def constant_value(self):
+        '''
+        :returns: The fixed known value for this symbol if one has \
+        been set or None if not.
+        :rtype: int, str, bool or NoneType
+
+        '''
+        return self._constant_value
+
+    @constant_value.setter
+    def constant_value(self, new_value):
+        '''
+        :param constant_value: Set or change the fixed known value of \
+        the constant for this Symbol. If the value is None then this \
+        symbol does not have a fixed constant. The datatype of \
+        new_value must be compatible with the datatype of the symbol.
+        :type constant_value: int, str or bool
+
+        :raises ValueError: If a non-None value is provided and 1) \
+        this Symbol instance does not have local scope, or 2) this \
+        Symbol instance is not a scalar (as the shape attribute is not \
+        empty), or 3) a constant value is provided but the type of the \
+        value does not support this, or 4) the type of the value \
+        provided is not compatible with the datatype of this Symbol \
+        instance.
+
+        '''
+        if new_value is not None:
+            if self.scope != "local":
+                raise ValueError(
+                    "Symbol with a constant value is currently limited to "
+                    "having local scope but found '{0}'.".format(self.scope))
+            if self.is_array:
+                raise ValueError(
+                    "Symbol with a constant value must be a scalar but the "
+                    "shape attribute is not empty.")
+            try:
+                lookup = Symbol.mapping[self.datatype]
+            except KeyError:
+                raise ValueError(
+                    "A constant value is not currently supported for "
+                    "datatype '{0}'.".format(self.datatype))
+            if not isinstance(new_value, lookup):
+                raise ValueError(
+                    "This Symbol instance's datatype is '{0}' which means "
+                    "the constant value is expected to be '{1}' but found "
+                    "'{2}'.".format(self.datatype,
+                                    Symbol.mapping[self.datatype],
+                                    type(new_value)))
+        self._constant_value = new_value
+
+    def gen_c_definition(self):
+        '''
+        Generates string representing the C language definition of the symbol.
+
+        :returns: The C definition of the symbol.
+        :rtype: str
+        :raises NotImplementedError: if there are some symbol types or nodes \
+                                     which are not implemented yet.
+        '''
+        code = ""
+        if self.datatype == "real":
+            code = code + "double "
+        elif self.datatype == "integer":
+            code = code + "int "
+        elif self.datatype == "character":
+            code = code + "char "
+        elif self.datatype == "boolean":
+            code = code + "bool "
+        else:
+            raise NotImplementedError(
+                "Could not generate the C definition for the variable '{0}', "
+                "type '{1}' is currently not supported."
+                "".format(self.name, self.datatype))
+
+        # If the argument is an array, in C language we define it
+        # as an unaliased pointer.
+        if self.is_array:
+            code += "* restrict "
+
+        code += self.name
+        return code
+
+    def __str__(self):
+        ret = self.name + ": <" + self.datatype + ", "
+        if self.is_array:
+            ret += "Array["
+            for dimension in self.shape:
+                if isinstance(dimension, Symbol):
+                    ret += dimension.name
+                elif isinstance(dimension, int):
+                    ret += str(dimension)
+                elif dimension is None:
+                    ret += "'Unknown bound'"
+                else:
+                    raise InternalError(
+                        "Symbol shape list elements can only be 'Symbol', "
+                        "'integer' or 'None', but found '{0}'."
+                        "".format(type(dimension)))
+                ret += ", "
+            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
+        else:
+            ret += "Scalar"
+        if self.interface:
+            ret += ", global=" + str(self.interface)
+        else:
+            ret += ", local"
+        if self.is_constant:
+            ret += ", constant_value={0}".format(self.constant_value)
+        return ret + ">"
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        return Symbol(self.name, self.datatype, shape=self.shape[:],
+                      constant_value=self.constant_value,
+                      interface=self.interface)
+
+    def copy_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name which is immutable.
+
+        :param symbol_in: The symbol from which the properties are \
+                          copied from.
+        :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: If the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, Symbol):
+            raise TypeError("Argument should be of type 'Symbol' but found "
+                            "'{0}'.".format(type(symbol_in).__name__))
+
+        self._datatype = symbol_in.datatype
+        self._shape = symbol_in.shape[:]
+        self._constant_value = symbol_in.constant_value
+        self._interface = symbol_in.interface
+
+
+class SymbolTable(object):
+    '''
+    Encapsulates the symbol table and provides methods to add new symbols
+    and look up existing symbols. It is implemented as a single scope
+    symbol table (nested scopes not supported).
+
+    :param kernel: Reference to the KernelSchedule to which this symbol table \
+        belongs.
+    :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
+    '''
+    # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
+    # NameSpace class functionality.
+    def __init__(self, kernel=None):
+        # Dict of Symbol objects with the symbol names as keys. Make
+        # this ordered so that different versions of Python always
+        # produce code with declarations in the same order.
+        self._symbols = OrderedDict()
+        # Ordered list of the arguments.
+        self._argument_list = []
+        # Reference to KernelSchedule to which this symbol table belongs.
+        self._kernel = kernel
+
+    def add(self, new_symbol):
+        '''Add a new symbol to the symbol table.
+
+        :param new_symbol: The symbol to add to the symbol table.
+        :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If the symbol name is already in use.
+
+        '''
+        if new_symbol.name in self._symbols:
+            raise KeyError("Symbol table already contains a symbol with"
+                           " name '{0}'.".format(new_symbol.name))
+        self._symbols[new_symbol.name] = new_symbol
+
+    def swap_symbol_properties(self, symbol1, symbol2):
+        '''Swaps the properties of symbol1 and symbol2 apart from the symbol
+        name. Argument list positions are also updated appropriately.
+
+        :param symbol1: The first symbol.
+        :type symbol1: :py:class:`psyclone.psyGen.Symbol`
+        :param symbol2: The second symbol.
+        :type symbol2: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If either of the supplied symbols are not in \
+                          the symbol table.
+        :raises TypeError: If the supplied arguments are not symbols, \
+                 or the names of the symbols are the same in the SymbolTable \
+                 instance.
+
+        '''
+        for symbol in [symbol1, symbol2]:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Arguments should be of type 'Symbol' but "
+                                "found '{0}'.".format(type(symbol).__name__))
+            if symbol.name not in self._symbols:
+                raise KeyError("Symbol '{0}' is not in the symbol table."
+                               "".format(symbol.name))
+        if symbol1.name == symbol2.name:
+            raise ValueError("The symbols should have different names, but "
+                             "found '{0}' for both.".format(symbol1.name))
+
+        tmp_symbol = symbol1.copy()
+        symbol1.copy_properties(symbol2)
+        symbol2.copy_properties(tmp_symbol)
+
+        # Update argument list if necessary
+        index1 = None
+        if symbol1 in self._argument_list:
+            index1 = self._argument_list.index(symbol1)
+        index2 = None
+        if symbol2 in self._argument_list:
+            index2 = self._argument_list.index(symbol2)
+        if index1 is not None:
+            self._argument_list[index1] = symbol2
+        if index2 is not None:
+            self._argument_list[index2] = symbol1
+
+    def specify_argument_list(self, argument_symbols):
+        '''
+        Sets-up the internal list storing the order of the arguments to this
+        kernel.
+
+        :param list argument_symbols: Ordered list of the Symbols representing\
+                                      the kernel arguments.
+
+        :raises ValueError: If the new argument_list is not consistent with \
+                            the existing entries in the SymbolTable.
+
+        '''
+        self._validate_arg_list(argument_symbols)
+        self._argument_list = argument_symbols[:]
+
+    def lookup(self, name):
+        '''
+        Look up a symbol in the symbol table.
+
+        :param str name: Name of the symbol
+        :raises KeyError: If the given name is not in the Symbol Table.
+
+        '''
+        try:
+            return self._symbols[name]
+        except KeyError:
+            raise KeyError("Could not find '{0}' in the Symbol Table."
+                           "".format(name))
+
+    def __contains__(self, key):
+        '''Check if the given key is part of the Symbol Table.
+
+        :param str key: key to check for existance.
+        :returns: Whether the Symbol Table contains the given key.
+        :rtype: bool
+        '''
+        return key in self._symbols
+
+    @property
+    def argument_list(self):
+        '''
+        Checks that the contents of the SymbolTable are self-consistent
+        and then returns the list of kernel arguments.
+
+        :returns: Ordered list of arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+
+        :raises InternalError: If the entries of the SymbolTable are not \
+                               self-consistent.
+
+        '''
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args))
+        return self._argument_list
+
+    @staticmethod
+    def _validate_arg_list(arg_list):
+        '''
+        Checks that the supplied list of Symbols are valid kernel arguments.
+
+        :param arg_list: the proposed kernel arguments.
+        :type param_list: list of :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: if any item in the supplied list is not a Symbol.
+        :raises ValueError: if any of the symbols has no Interface.
+        :raises ValueError: if any of the symbols has an Interface that is \
+                            not a :py:class:`psyclone.psyGen.Symbol.Argument`.
+
+        '''
+        for symbol in arg_list:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Expected a list of Symbols but found an "
+                                "object of type '{0}'.".format(type(symbol)))
+            # All symbols in the argument list must have a
+            # 'Symbol.Argument' interface
+            if symbol.scope == 'local':
+                raise ValueError(
+                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "no associated Interface.".format(str(symbol)))
+            if not isinstance(symbol.interface, Symbol.Argument):
+                raise ValueError(
+                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "an interface of type '{1}' rather than "
+                    "Symbol.Argument".format(str(symbol),
+                                             type(symbol.interface)))
+
+    def _validate_non_args(self):
+        '''
+        Performs internal consistency checks on the current entries in the
+        SymbolTable that do not represent kernel arguments.
+
+        :raises ValueError: If a symbol that is not in the argument list \
+                            has a Symbol.Argument interface.
+
+        '''
+        for symbol in self._symbols.values():
+            if symbol not in self._argument_list:
+                # Symbols not in the argument list must not have a
+                # Symbol.Argument interface
+                if symbol.interface and isinstance(symbol.interface,
+                                                   Symbol.Argument):
+                    raise ValueError(
+                        "Symbol '{0}' is not listed as a kernel argument and "
+                        "yet has a Symbol.Argument interface.".format(
+                            str(symbol)))
+
+    @property
+    def local_symbols(self):
+        '''
+        :returns:  List of local symbols.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        return [sym for sym in self._symbols.values() if sym.scope == "local"]
+
+    def gen_c_local_variables(self, indent=0):
+        '''
+        Generate C code that defines all local symbols in the Symbol Table.
+
+        :param int indent: Indentation level
+        :returns: C languague definition of the local symbols.
+        :rtype: str
+        '''
+        code = ""
+        for symbol in self.local_symbols:
+            code += Node.indent(indent) + symbol.gen_c_definition() + ";\n"
+        return code
+
+    def gen_ocl_argument_list(self, indent=0):
+        '''
+        Generate OpenCL argument list.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
+    def gen_ocl_iteration_indices(self, indent=0):
+        '''
+        Generate OpenCL iteration indices declaration.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
+    def gen_ocl_array_length(self, indent=0):
+        '''
+        Generate OpenCL array length variable declarations.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
+    def view(self):
+        '''
+        Print a representation of this Symbol Table to stdout.
+        '''
+        print(str(self))
+
+    def __str__(self):
+        return ("Symbol Table:\n" +
+                "\n".join(map(str, self._symbols.values())) +
+                "\n")
+
+
+class KernelSchedule(Schedule):
+    '''
+    A kernelSchedule inherits the functionality from Schedule and adds a symbol
+    table to keep a record of the declared variables and their attributes.
+
+    :param str name: Kernel subroutine name
+    '''
+
+    def __init__(self, name):
+        super(KernelSchedule, self).__init__(sequence=None, parent=None)
+        self._name = name
+        self._symbol_table = SymbolTable(self)
+
+    @property
+    def name(self):
+        '''
+        :returns: Name of the Kernel
+        :rtype: str
+        '''
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        '''
+        Sets a new name for the kernel.
+
+        :param str new_name: New name for the kernel.
+        '''
+        self._name = new_name
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the kernel.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
+        return self._symbol_table
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param int indent: Depth of indent for output text
+        '''
+        print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
+              + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_ocl(self, indent=0):
+        '''
+        Generate a string representation of this node in the OpenCL language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: OpenCL language code representing the node.
+        :rtype: str
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
+    def __str__(self):
+        result = "KernelSchedule[name:'" + self._name + "']:\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
+
+class CodeBlock(Node):
+    '''
+    Node representing some generic Fortran code that PSyclone does not attempt
+    to manipulate. As such it is a leaf in the PSyIR and therefore has no
+    children.
+
+    :param statements: list of fparser2 AST nodes representing the Fortran \
+                       code constituting the code block.
+    :type statements: list of :py:class:`fparser.two.utils.Base`
+    :param parent: the parent node of this code block in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, statements, parent=None):
+        super(CodeBlock, self).__init__(parent=parent)
+        # Store a list of the parser objects holding the code associated
+        # with this block. We make a copy of the contents of the list because
+        # the list itself is a temporary product of the process of converting
+        # from the fparser2 AST to the PSyIR.
+        self._statements = statements[:]
+        # Store references back into the fparser2 AST
+        if statements:
+            self.ast = self._statements[0]
+            self.ast_end = self._statements[-1]
+        else:
+            self.ast = None
+            self.ast_end = None
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[" +
+              str(list(map(type, self._statements))) + "]")
+
+    def __str__(self):
+        return "CodeBlock[{0} statements]".format(len(self._statements))
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :raises GenerationError: gen_c_code always fails for CodeBlocks.
+        '''
+        raise GenerationError("CodeBlock can not be translated to C")
+
+
+class Assignment(Node):
+    '''
+    Node representing an Assignment statement. As such it has a LHS and RHS
+    as children 0 and 1 respectively.
+
+    :param ast: node in the fparser2 AST representing the assignment.
+    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
+    :param parent: the parent node of this Assignment in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, ast=None, parent=None):
+        super(Assignment, self).__init__(ast=ast, parent=parent)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "Assignment[]\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        if len(self.children) != 2:
+            raise GenerationError("Assignment malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
+
+        return self.indent(indent) \
+            + self.children[0].gen_c_code() + " = " \
+            + self.children[1].gen_c_code() + ";"
+
+
+class Reference(Node):
+    '''
+    Node representing a Reference Expression.
+
+    :param ast: node in the fparser2 AST representing the reference.
+    :type ast: :py:class:`fparser.two.Fortran2003.Name.
+    :param parent: the parent node of this Reference in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, reference_name, parent):
+        super(Reference, self).__init__(parent=parent)
+        self._reference = reference_name
+
+    @property
+    def name(self):
+        ''' Return the name of the referenced symbol.
+
+        :return: Name of the referenced symbol.
+        :rtype: str
+        '''
+        return self._reference
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[name:'"
+              + self._reference + "']")
+
+    def __str__(self):
+        return "Reference[name:'" + self._reference + "']\n"
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        return self._reference
+
+
+class UnaryOperation(Node):
+    '''
+    Node representing a UnaryOperation expression. As such it has one operand
+    as child 0, and an attribute with the operator type.
+
+    :param str operator: string representing the unary operator.
+    :param parent: the parent node of this UnaryOperation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'MINUS', 'PLUS', 'SQRT',
+        # Logical Operators
+        'NOT',
+        # Trigonometric Operators
+        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
+        # Other Maths Operators
+        'ABS',
+        # Casting Operators
+        'REAL'
+        ])
+
+    def __init__(self, operator, parent=None):
+        super(UnaryOperation, self).__init__(parent=parent)
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "UnaryOperation operator argument must be of type "
+                "UnaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
+
+        self._operator = operator
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("UnaryOperation",
+                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator.name + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+
+        :return: C language code representing the node.
+        :rtype: str
+
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
+        '''
+        if len(self.children) != 1:
+            raise GenerationError("UnaryOperation malformed or "
+                                  "incomplete. It should have exactly 1 "
+                                  "child, but found {0}."
+                                  "".format(len(self.children)))
+
+        def operator_format(operator_str, expr_str):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + operator_str + expr_str + ")"
+
+        def function_format(function_str, expr_str):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr_str + ")"
+
+        # Define a map with the operator string and the formatter function
+        # associated with each UnaryOperation.Operator
+        opmap = {
+            UnaryOperation.Operator.MINUS: ("-", operator_format),
+            UnaryOperation.Operator.PLUS: ("+", operator_format),
+            UnaryOperation.Operator.NOT: ("!", operator_format),
+            UnaryOperation.Operator.SIN: ("sin", function_format),
+            UnaryOperation.Operator.COS: ("cos", function_format),
+            UnaryOperation.Operator.TAN: ("tan", function_format),
+            UnaryOperation.Operator.ASIN: ("asin", function_format),
+            UnaryOperation.Operator.ACOS: ("acos", function_format),
+            UnaryOperation.Operator.ATAN: ("atan", function_format),
+            UnaryOperation.Operator.ABS: ("abs", function_format),
+            UnaryOperation.Operator.REAL: ("float", function_format),
+            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
+            }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code())
+
+
+class BinaryOperation(Node):
+    '''
+    Node representing a BinaryOperation expression. As such it has two operands
+    as children 0 and 1, and an attribute with the operator type.
+
+    :param operator: node in the fparser2 AST representing the binary operator.
+    :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
+    :param parent: the parent node of this BinaryOperation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+        # Relational Operators
+        'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
+        # Logical Operators
+        'AND', 'OR',
+        # Other Maths Operators
+        'SIGN'
+        ])
+
+    def __init__(self, operator, parent=None):
+        super(BinaryOperation, self).__init__(parent=parent)
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "BinaryOperation operator argument must be of type "
+                "BinaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
+
+        self._operator = operator
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("BinaryOperation",
+                       SCHEDULE_COLOUR_MAP["BinaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator.name + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        :raises GenerationError: If the node or its children are invalid.
+        :raises NotImplementedError: If the operator is not supported.
+        '''
+
+        if len(self.children) != 2:
+            raise GenerationError("BinaryOperation malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
+
+        def operator_format(operator_str, expr1, expr2):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr1: String representation of the LHS operand.
+            :param str expr2: String representation of the RHS operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
+
+        def function_format(function_str, expr1, expr2):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr1: String representation of the first operand.
+            :param str expr2: String representation of the second operand.
+
+            :returns: C language binary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr1 + ", " + expr2 + ")"
+
+        # Define a map with the operator string and the formatter function
+        # associated with each BinaryOperation.Operator
+        opmap = {
+            BinaryOperation.Operator.ADD: ("+", operator_format),
+            BinaryOperation.Operator.SUB: ("-", operator_format),
+            BinaryOperation.Operator.MUL: ("*", operator_format),
+            BinaryOperation.Operator.DIV: ("/", operator_format),
+            BinaryOperation.Operator.REM: ("%", operator_format),
+            BinaryOperation.Operator.POW: ("pow", function_format),
+            BinaryOperation.Operator.EQ: ("==", operator_format),
+            BinaryOperation.Operator.NE: ("!=", operator_format),
+            BinaryOperation.Operator.LT: ("<", operator_format),
+            BinaryOperation.Operator.LE: ("<=", operator_format),
+            BinaryOperation.Operator.GT: (">", operator_format),
+            BinaryOperation.Operator.GE: (">=", operator_format),
+            BinaryOperation.Operator.AND: ("&&", operator_format),
+            BinaryOperation.Operator.OR: ("||", operator_format),
+            BinaryOperation.Operator.SIGN: ("copysign", function_format),
+            }
+
+        # If the instance operator exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code(),
+                         self.children[1].gen_c_code())
+
+
+class Array(Reference):
+    '''
+    Node representing an Array reference. As such it has a reference and a
+    subscript list as children 0 and 1, respectively.
+
+    :param ast: node in the fparser2 AST representing array.
+    :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
+    :param parent: the parent node of this Array in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, reference_name, parent):
+        super(Array, self).__init__(reference_name, parent=parent)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        super(Array, self).view(indent)
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "Array" + super(Array, self).__str__()
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        code = super(Array, self).gen_c_code() + "["
+
+        dimensions_remaining = len(self._children)
+        if dimensions_remaining < 1:
+            raise GenerationError("Array must have at least 1 dimension.")
+
+        # In C array expressions should be reversed from the PSyIR order
+        # (column-major to row-major order) and flattened (1D).
+        for child in reversed(self._children):
+            code = code + child.gen_c_code()
+            # For each dimension bigger than one, it needs to write the
+            # appropriate operation to flatten the array. By convention,
+            # the array dimensions are <name>LEN<DIM>.
+            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
+            for dim in reversed(range(1, dimensions_remaining)):
+                dimstring = self._reference + "LEN" + str(dim)
+                code = code + " * " + dimstring
+            dimensions_remaining = dimensions_remaining - 1
+            code = code + " + "
+
+        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
+        return code
+
+
+class Literal(Node):
+    '''
+    Node representing a Literal
+
+    :param str value: String representing the literal value.
+    :param parent: the parent node of this Literal in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, value, parent=None):
+        super(Literal, self).__init__(parent=parent)
+        self._value = value
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "["
+              + "value:'"+self._value + "']")
+
+    def __str__(self):
+        return "Literal[value:'" + self._value + "']\n"
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        str_value = self._value
+        # C Scientific notation is always an 'e' letter
+        str_value = str_value.replace('d', 'e')
+        str_value = str_value.replace('D', 'e')
+        return str_value
+
+
+class Return(Node):
+    '''
+    Node representing a Return statement (subroutine break without return
+    value).
+
+    :param parent: the parent node of this Return in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(Return, self).__init__(parent=parent)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+
+    def __str__(self):
+        return "Return[]\n"
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        '''
+        return self.indent(indent) + "return;"
+
+
 class Fparser2ASTProcessor(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
     convert the nodes to PSyIR.
     '''
+
+    unary_operators = OrderedDict([
+        ('+', UnaryOperation.Operator.PLUS),
+        ('-', UnaryOperation.Operator.MINUS),
+        ('.not.', UnaryOperation.Operator.NOT)])
+
+    binary_operators = OrderedDict([
+        ('+', BinaryOperation.Operator.ADD),
+        ('-', BinaryOperation.Operator.SUB),
+        ('*', BinaryOperation.Operator.MUL),
+        ('/', BinaryOperation.Operator.DIV),
+        ('**', BinaryOperation.Operator.POW),
+        ('==', BinaryOperation.Operator.EQ),
+        ('.eq.', BinaryOperation.Operator.EQ),
+        ('/=', BinaryOperation.Operator.NE),
+        ('.ne.', BinaryOperation.Operator.NE),
+        ('<=', BinaryOperation.Operator.LE),
+        ('.le.', BinaryOperation.Operator.LE),
+        ('<', BinaryOperation.Operator.LT),
+        ('.lt.', BinaryOperation.Operator.LT),
+        ('>=', BinaryOperation.Operator.GE),
+        ('.ge.', BinaryOperation.Operator.GE),
+        ('>', BinaryOperation.Operator.GT),
+        ('.gt.', BinaryOperation.Operator.GT),
+        ('.and.', BinaryOperation.Operator.AND),
+        ('.or.', BinaryOperation.Operator.OR)])
 
     def __init__(self):
         from fparser.two import Fortran2003, utils
@@ -5852,15 +7272,9 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
 
-        fortranoperators = {
-            '+': UnaryOperation.Operator.PLUS,
-            '-': UnaryOperation.Operator.MINUS,
-            '.not.': UnaryOperation.Operator.NOT
-            }
-
         operator_str = node.items[0].lower()
         try:
-            operator = fortranoperators[operator_str]
+            operator = Fparser2ASTProcessor.unary_operators[operator_str]
         except KeyError:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
@@ -5883,31 +7297,9 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
 
-        fortranoperators = {
-            '+': BinaryOperation.Operator.ADD,
-            '-': BinaryOperation.Operator.SUB,
-            '*': BinaryOperation.Operator.MUL,
-            '/': BinaryOperation.Operator.DIV,
-            '**': BinaryOperation.Operator.POW,
-            '==': BinaryOperation.Operator.EQ,
-            '.eq.': BinaryOperation.Operator.EQ,
-            '/=': BinaryOperation.Operator.NE,
-            '.ne.': BinaryOperation.Operator.NE,
-            '<=': BinaryOperation.Operator.LE,
-            '.le.': BinaryOperation.Operator.LE,
-            '<': BinaryOperation.Operator.LT,
-            '.lt.': BinaryOperation.Operator.LT,
-            '>=': BinaryOperation.Operator.GE,
-            '.ge.': BinaryOperation.Operator.GE,
-            '>': BinaryOperation.Operator.GT,
-            '.gt.': BinaryOperation.Operator.GT,
-            '.and.': BinaryOperation.Operator.AND,
-            '.or.': BinaryOperation.Operator.OR,
-            }
-
         operator_str = node.items[1].lower()
         try:
-            operator = fortranoperators[operator_str]
+            operator = Fparser2ASTProcessor.binary_operators[operator_str]
         except KeyError:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
@@ -6069,1394 +7461,3 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(str(node.items[0]), parent=parent)
-
-
-@six.add_metaclass(abc.ABCMeta)
-class SymbolInterface(object):
-    '''
-    Abstract base class for capturing the access mechanism for symbols that
-    represent data that exists outside the section of code being represented
-    in the PSyIR.
-
-    :param access: How the symbol is accessed within the section of code or \
-                   None (if unknown).
-    :type access: :py:class:`psyclone.psyGen.SymbolAccess`
-    '''
-    def __init__(self, access=None):
-        self._access = None
-        # Use the setter as that has error checking
-        if not access:
-            self.access = Symbol.Access.UNKNOWN
-        else:
-            self.access = access
-
-    @property
-    def access(self):
-        '''
-        :returns: the access-type for this symbol.
-        :rtype: :py:class:`psyclone.psyGen.Symbol.Access`
-        '''
-        return self._access
-
-    @access.setter
-    def access(self, value):
-        '''
-        Setter for the access type of this symbol.
-
-        :param value: the new access type.
-        :type value: :py:class:`psyclon.psyGen.SymbolAccess`
-
-        :raises TypeError: if the supplied value is not of the correct type.
-        '''
-        if not isinstance(value, Symbol.Access):
-            raise TypeError("SymbolInterface.access must be a 'Symbol.Access' "
-                            "but got '{0}'.".format(type(value)))
-        self._access = value
-
-
-class Symbol(object):
-    '''
-    Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in column-major order) and, for a symbol
-    representing data that exists outside of the local scope, the interface
-    to that symbol (i.e. the mechanism by which it is accessed).
-
-    :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol. (One of \
-                     :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
-    :param list shape: Shape of the symbol in column-major order (leftmost \
-                       index is contiguous in memory). Each entry represents \
-                       an array dimension. If it is 'None' the extent of that \
-                       dimension is unknown, otherwise it holds an integer \
-                       literal or a reference to an integer symbol with the \
-                       extent. If it is an empty list then the symbol \
-                       represents a scalar.
-    :param interface: Object describing the interface to this symbol (i.e. \
-                      whether it is passed as a routine argument or accessed \
-                      in some other way) or None if the symbol is local.
-    :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
-    :param constant_value: Sets a fixed known value for this \
-                           Symbol. If the value is None (the default) \
-                           then this symbol is not a constant. The \
-                           datatype of the constant value must be \
-                           compatible with the datatype of the symbol.
-    :type constant_value: int, str or bool
-
-    :raises NotImplementedError: Provided parameters are not supported yet.
-    :raises TypeError: Provided parameters have invalid error type.
-    :raises ValueError: Provided parameters contain invalid values.
-
-    '''
-    ## Tuple with the valid datatypes.
-    valid_data_types = ('real',  # Floating point
-                        'integer',
-                        'character',
-                        'boolean',
-                        'deferred')  # Type of this symbol not yet determined
-    ## Mapping from supported data types for constant values to
-    #  internal Python types
-    mapping = {'integer': int, 'character': str, 'boolean': bool}
-
-    class Access(Enum):
-        '''
-        Enumeration for the different types of access that a Symbol is
-        permitted to have.
-
-        '''
-        ## The symbol is only ever read within the current scoping block.
-        READ = 1
-        ## The first access of the symbol in the scoping block is a write and
-        # therefore any value that it may have had upon entry is discarded.
-        WRITE = 2
-        ## The first access of the symbol in the scoping block is a read but
-        # it is subsequently written to.
-        READWRITE = 3
-        ## The way in which the symbol is accessed in the scoping block is
-        # unknown
-        UNKNOWN = 4
-
-    class Argument(SymbolInterface):
-        '''
-        Captures the interface to a symbol that is accessed as a routine
-        argument.
-
-        :param access: how the symbol is accessed within the local scope.
-        :type access: :py:class:`psyclone.psyGen.Symbol.Access`
-        '''
-        def __init__(self, access=None):
-            super(Symbol.Argument, self).__init__(access=access)
-            self._pass_by_value = False
-
-        def __str__(self):
-            return "Argument(pass-by-value={0})".format(self._pass_by_value)
-
-    class FortranGlobal(SymbolInterface):
-        '''
-        Describes the interface to a Fortran Symbol representing data that
-        is supplied as some sort of global variable. Currently only supports
-        data accessed via a module 'USE' statement.
-
-        :param str module_use: the name of the Fortran module from which the \
-                               symbol is imported.
-        :param access: the manner in which the Symbol is accessed in the \
-                       associated code section. If None is supplied then the \
-                       access is Symbol.Access.UNKNOWN.
-        :type access: :py:class:`psyclone.psyGen.Symbol.Access` or None.
-        '''
-        def __init__(self, module_use, access=None):
-            self._module_name = ""
-            super(Symbol.FortranGlobal, self).__init__(access=access)
-            self.module_name = module_use
-
-        def __str__(self):
-            return "FortranModule({0})".format(self.module_name)
-
-        @property
-        def module_name(self):
-            '''
-            :returns: the name of the Fortran module from which the symbol is \
-                      imported or None if it is not a module variable.
-            :rtype: str or None
-            '''
-            return self._module_name
-
-        @module_name.setter
-        def module_name(self, value):
-            '''
-            Setter for the name of the Fortran module from which this symbol
-            is imported.
-
-            :param str value: the name of the Fortran module.
-
-            :raises TypeError: if the supplied value is not a str.
-            :raises ValueError: if the supplied string is not at least one \
-                                character long.
-            '''
-            if not isinstance(value, str):
-                raise TypeError("module_name must be a str but got '{0}'".
-                                format(type(value)))
-            if not value:
-                raise ValueError("module_name must be one or more characters "
-                                 "long")
-            self._module_name = value
-
-    def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None):
-
-        self._name = name
-
-        if datatype not in Symbol.valid_data_types:
-            raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes but found "
-                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
-        self._datatype = datatype
-
-        if shape is None:
-            shape = []
-        elif not isinstance(shape, list):
-            raise TypeError("Symbol shape attribute must be a list.")
-
-        for dimension in shape:
-            if isinstance(dimension, Symbol):
-                if dimension.datatype != "integer" or dimension.shape:
-                    raise TypeError(
-                        "Symbols that are part of another symbol shape can "
-                        "only be scalar integers, but found '{0}'."
-                        "".format(str(dimension)))
-            elif not isinstance(dimension, (type(None), int)):
-                raise TypeError("Symbol shape list elements can only be "
-                                "'Symbol', 'integer' or 'None'.")
-        self._shape = shape
-        # The following attributes have setter methods (with error checking)
-        self._constant_value = None
-        self._interface = None
-        # If an interface is specified for this symbol then the data with
-        # which it is associated must exist outside of this kernel.
-        self.interface = interface
-        self.constant_value = constant_value
-
-    @property
-    def name(self):
-        '''
-        :returns: Name of the Symbol.
-        :rtype: str
-        '''
-        return self._name
-
-    @property
-    def datatype(self):
-        '''
-        :returns: Datatype of the Symbol.
-        :rtype: str
-        '''
-        return self._datatype
-
-    @property
-    def access(self):
-        '''
-        :returns: How this symbol is accessed (read, readwrite etc.) within \
-                  the local scope.
-        :rtype: :py:class:`psyclone.psyGen.Symbol.Access` or NoneType.
-        '''
-        if self._interface:
-            return self._interface.access
-        # This symbol has no interface info and therefore is local
-        return None
-
-    @property
-    def shape(self):
-        '''
-        :returns: Shape of the symbol in column-major order (leftmost \
-                  index is contiguous in memory). Each entry represents \
-                  an array dimension. If it is 'None' the extent of that \
-                  dimension is unknown, otherwise it holds an integer \
-                  literal or a reference to an integer symbol with the \
-                  extent. If it is an empty list then the symbol \
-                  represents a scalar.
-        :rtype: list
-        '''
-        return self._shape
-
-    @property
-    def scope(self):
-        '''
-        :returns: Whether the symbol is 'local' (just exists inside the \
-                  kernel scope) or 'global' (data also lives outside the \
-                  kernel). Global-scoped symbols must have an associated \
-                  'interface' that specifies the mechanism by which the \
-                  kernel accesses the associated data.
-        :rtype: str
-        '''
-        if self._interface:
-            return "global"
-        return "local"
-
-    @property
-    def interface(self):
-        '''
-        :returns: the an object describing the external interface to \
-                  this Symbol or None (if it is local).
-        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` or \
-                NoneType.
-        '''
-        return self._interface
-
-    @interface.setter
-    def interface(self, value):
-        '''
-        Setter for the Interface associated with this Symbol.
-
-        :param value: an Interface object describing how the Symbol is \
-                      accessed by the code or None if it is local.
-        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` \
-                     or NoneType.
-
-        :raises TypeError: if the supplied `value` is of the wrong type.
-        '''
-        if value is not None and not isinstance(value, SymbolInterface):
-            raise TypeError("The interface to a Symbol must be a "
-                            "SymbolInterface or None but got '{0}'".
-                            format(type(value)))
-        self._interface = value
-
-    @property
-    def is_constant(self):
-        '''
-        :returns: Whether the symbol is a constant with a fixed known \
-        value (True) or not (False).
-        :rtype: bool
-
-        '''
-        return self._constant_value is not None
-
-    @property
-    def is_scalar(self):
-        '''
-        :returns: True if this symbol is a scalar and False otherwise.
-        :rtype: bool
-
-        '''
-        # If the shape variable is an empty list then this symbol is a
-        # scalar.
-        return self.shape == []
-
-    @property
-    def is_array(self):
-        '''
-        :returns: True if this symbol is an array and False otherwise.
-        :rtype: bool
-
-        '''
-        # The assumption in this method is that if this symbol is not
-        # a scalar then it is an array. If this assumption becomes
-        # invalid then this logic will need to be changed
-        # appropriately.
-        return not self.is_scalar
-
-    @property
-    def constant_value(self):
-        '''
-        :returns: The fixed known value for this symbol if one has \
-        been set or None if not.
-        :rtype: int, str, bool or NoneType
-
-        '''
-        return self._constant_value
-
-    @constant_value.setter
-    def constant_value(self, new_value):
-        '''
-        :param constant_value: Set or change the fixed known value of \
-        the constant for this Symbol. If the value is None then this \
-        symbol does not have a fixed constant. The datatype of \
-        new_value must be compatible with the datatype of the symbol.
-        :type constant_value: int, str or bool
-
-        :raises ValueError: If a non-None value is provided and 1) \
-        this Symbol instance does not have local scope, or 2) this \
-        Symbol instance is not a scalar (as the shape attribute is not \
-        empty), or 3) a constant value is provided but the type of the \
-        value does not support this, or 4) the type of the value \
-        provided is not compatible with the datatype of this Symbol \
-        instance.
-
-        '''
-        if new_value is not None:
-            if self.scope != "local":
-                raise ValueError(
-                    "Symbol with a constant value is currently limited to "
-                    "having local scope but found '{0}'.".format(self.scope))
-            if self.is_array:
-                raise ValueError(
-                    "Symbol with a constant value must be a scalar but the "
-                    "shape attribute is not empty.")
-            try:
-                lookup = Symbol.mapping[self.datatype]
-            except KeyError:
-                raise ValueError(
-                    "A constant value is not currently supported for "
-                    "datatype '{0}'.".format(self.datatype))
-            if not isinstance(new_value, lookup):
-                raise ValueError(
-                    "This Symbol instance's datatype is '{0}' which means "
-                    "the constant value is expected to be '{1}' but found "
-                    "'{2}'.".format(self.datatype,
-                                    Symbol.mapping[self.datatype],
-                                    type(new_value)))
-        self._constant_value = new_value
-
-    def gen_c_definition(self):
-        '''
-        Generates string representing the C language definition of the symbol.
-
-        :returns: The C definition of the symbol.
-        :rtype: str
-        :raises NotImplementedError: if there are some symbol types or nodes \
-                                     which are not implemented yet.
-        '''
-        code = ""
-        if self.datatype == "real":
-            code = code + "double "
-        elif self.datatype == "integer":
-            code = code + "int "
-        elif self.datatype == "character":
-            code = code + "char "
-        elif self.datatype == "boolean":
-            code = code + "bool "
-        else:
-            raise NotImplementedError(
-                "Could not generate the C definition for the variable '{0}', "
-                "type '{1}' is currently not supported."
-                "".format(self.name, self.datatype))
-
-        # If the argument is an array, in C language we define it
-        # as an unaliased pointer.
-        if self.is_array:
-            code += "* restrict "
-
-        code += self.name
-        return code
-
-    def __str__(self):
-        ret = self.name + ": <" + self.datatype + ", "
-        if self.is_array:
-            ret += "Array["
-            for dimension in self.shape:
-                if isinstance(dimension, Symbol):
-                    ret += dimension.name
-                elif isinstance(dimension, int):
-                    ret += str(dimension)
-                elif dimension is None:
-                    ret += "'Unknown bound'"
-                else:
-                    raise InternalError(
-                        "Symbol shape list elements can only be 'Symbol', "
-                        "'integer' or 'None', but found '{0}'."
-                        "".format(type(dimension)))
-                ret += ", "
-            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
-        else:
-            ret += "Scalar"
-        if self.interface:
-            ret += ", global=" + str(self.interface)
-        else:
-            ret += ", local"
-        if self.is_constant:
-            ret += ", constant_value={0}".format(self.constant_value)
-        return ret + ">"
-
-    def copy(self):
-        '''Create and return a copy of this object. Any references to the
-        original will not be affected so the copy will not be referred
-        to by any other object.
-
-        :returns: A symbol object with the same properties as this \
-                  symbol object.
-        :rtype: :py:class:`psyclone.psyGen.Symbol`
-
-        '''
-        return Symbol(self.name, self.datatype, shape=self.shape[:],
-                      constant_value=self.constant_value,
-                      interface=self.interface)
-
-    def copy_properties(self, symbol_in):
-        '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name which is immutable.
-
-        :param symbol_in: The symbol from which the properties are \
-                          copied from.
-        :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
-
-        :raises TypeError: If the argument is not the expected type.
-
-        '''
-        if not isinstance(symbol_in, Symbol):
-            raise TypeError("Argument should be of type 'Symbol' but found "
-                            "'{0}'.".format(type(symbol_in).__name__))
-
-        self._datatype = symbol_in.datatype
-        self._shape = symbol_in.shape[:]
-        self._constant_value = symbol_in.constant_value
-        self._interface = symbol_in.interface
-
-
-class SymbolTable(object):
-    '''
-    Encapsulates the symbol table and provides methods to add new symbols
-    and look up existing symbols. It is implemented as a single scope
-    symbol table (nested scopes not supported).
-
-    :param kernel: Reference to the KernelSchedule to which this symbol table \
-        belongs.
-    :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
-    '''
-    # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
-    # NameSpace class functionality.
-    def __init__(self, kernel=None):
-        # Dict of Symbol objects with the symbol names as keys.
-        self._symbols = {}
-        # Ordered list of the arguments.
-        self._argument_list = []
-        # Reference to KernelSchedule to which this symbol table belongs.
-        self._kernel = kernel
-
-    def add(self, new_symbol):
-        '''Add a new symbol to the symbol table.
-
-        :param new_symbol: The symbol to add to the symbol table.
-        :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
-
-        :raises KeyError: If the symbol name is already in use.
-
-        '''
-        if new_symbol.name in self._symbols:
-            raise KeyError("Symbol table already contains a symbol with"
-                           " name '{0}'.".format(new_symbol.name))
-        self._symbols[new_symbol.name] = new_symbol
-
-    def swap_symbol_properties(self, symbol1, symbol2):
-        '''Swaps the properties of symbol1 and symbol2 apart from the symbol
-        name. Argument list positions are also updated appropriately.
-
-        :param symbol1: The first symbol.
-        :type symbol1: :py:class:`psyclone.psyGen.Symbol`
-        :param symbol2: The second symbol.
-        :type symbol2: :py:class:`psyclone.psyGen.Symbol`
-
-        :raises KeyError: If either of the supplied symbols are not in \
-                          the symbol table.
-        :raises TypeError: If the supplied arguments are not symbols, \
-                 or the names of the symbols are the same in the SymbolTable \
-                 instance.
-
-        '''
-        for symbol in [symbol1, symbol2]:
-            if not isinstance(symbol, Symbol):
-                raise TypeError("Arguments should be of type 'Symbol' but "
-                                "found '{0}'.".format(type(symbol).__name__))
-            if symbol.name not in self._symbols:
-                raise KeyError("Symbol '{0}' is not in the symbol table."
-                               "".format(symbol.name))
-        if symbol1.name == symbol2.name:
-            raise ValueError("The symbols should have different names, but "
-                             "found '{0}' for both.".format(symbol1.name))
-
-        tmp_symbol = symbol1.copy()
-        symbol1.copy_properties(symbol2)
-        symbol2.copy_properties(tmp_symbol)
-
-        # Update argument list if necessary
-        index1 = None
-        if symbol1 in self._argument_list:
-            index1 = self._argument_list.index(symbol1)
-        index2 = None
-        if symbol2 in self._argument_list:
-            index2 = self._argument_list.index(symbol2)
-        if index1 is not None:
-            self._argument_list[index1] = symbol2
-        if index2 is not None:
-            self._argument_list[index2] = symbol1
-
-    def specify_argument_list(self, argument_symbols):
-        '''
-        Sets-up the internal list storing the order of the arguments to this
-        kernel.
-
-        :param list argument_symbols: Ordered list of the Symbols representing\
-                                      the kernel arguments.
-
-        :raises ValueError: If the new argument_list is not consistent with \
-                            the existing entries in the SymbolTable.
-
-        '''
-        self._validate_arg_list(argument_symbols)
-        self._argument_list = argument_symbols[:]
-
-    def lookup(self, name):
-        '''
-        Look up a symbol in the symbol table.
-
-        :param str name: Name of the symbol
-        :raises KeyError: If the given name is not in the Symbol Table.
-
-        '''
-        try:
-            return self._symbols[name]
-        except KeyError:
-            raise KeyError("Could not find '{0}' in the Symbol Table."
-                           "".format(name))
-
-    def __contains__(self, key):
-        '''Check if the given key is part of the Symbol Table.
-
-        :param str key: key to check for existance.
-        :returns: Whether the Symbol Table contains the given key.
-        :rtype: bool
-        '''
-        return key in self._symbols
-
-    @property
-    def argument_list(self):
-        '''
-        Checks that the contents of the SymbolTable are self-consistent
-        and then returns the list of kernel arguments.
-
-        :returns: Ordered list of arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
-
-        :raises InternalError: If the entries of the SymbolTable are not \
-                               self-consistent.
-
-        '''
-        try:
-            self._validate_arg_list(self._argument_list)
-            self._validate_non_args()
-        except ValueError as err:
-            # If the SymbolTable is inconsistent at this point then
-            # we have an InternalError.
-            raise InternalError(str(err.args))
-        return self._argument_list
-
-    @staticmethod
-    def _validate_arg_list(arg_list):
-        '''
-        Checks that the supplied list of Symbols are valid kernel arguments.
-
-        :param arg_list: the proposed kernel arguments.
-        :type param_list: list of :py:class:`psyclone.psyGen.Symbol`
-
-        :raises TypeError: if any item in the supplied list is not a Symbol.
-        :raises ValueError: if any of the symbols has no Interface.
-        :raises ValueError: if any of the symbols has an Interface that is \
-                            not a :py:class:`psyclone.psyGen.Symbol.Argument`.
-
-        '''
-        for symbol in arg_list:
-            if not isinstance(symbol, Symbol):
-                raise TypeError("Expected a list of Symbols but found an "
-                                "object of type '{0}'.".format(type(symbol)))
-            # All symbols in the argument list must have a
-            # 'Symbol.Argument' interface
-            if symbol.scope == 'local':
-                raise ValueError(
-                    "Symbol '{0}' is listed as a kernel argument but has "
-                    "no associated Interface.".format(str(symbol)))
-            if not isinstance(symbol.interface, Symbol.Argument):
-                raise ValueError(
-                    "Symbol '{0}' is listed as a kernel argument but has "
-                    "an interface of type '{1}' rather than "
-                    "Symbol.Argument".format(str(symbol),
-                                             type(symbol.interface)))
-
-    def _validate_non_args(self):
-        '''
-        Performs internal consistency checks on the current entries in the
-        SymbolTable that do not represent kernel arguments.
-
-        :raises ValueError: If a symbol that is not in the argument list \
-                            has a Symbol.Argument interface.
-
-        '''
-        for symbol in self._symbols.values():
-            if symbol not in self._argument_list:
-                # Symbols not in the argument list must not have a
-                # Symbol.Argument interface
-                if symbol.interface and isinstance(symbol.interface,
-                                                   Symbol.Argument):
-                    raise ValueError(
-                        "Symbol '{0}' is not listed as a kernel argument and "
-                        "yet has a Symbol.Argument interface.".format(
-                            str(symbol)))
-
-    @property
-    def local_symbols(self):
-        '''
-        :returns:  List of local symbols.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
-        '''
-        return [sym for sym in self._symbols.values() if sym.scope == "local"]
-
-    def gen_c_local_variables(self, indent=0):
-        '''
-        Generate C code that defines all local symbols in the Symbol Table.
-
-        :param int indent: Indentation level
-        :returns: C languague definition of the local symbols.
-        :rtype: str
-        '''
-        code = ""
-        for symbol in self.local_symbols:
-            code += Node.indent(indent) + symbol.gen_c_definition() + ";\n"
-        return code
-
-    def gen_ocl_argument_list(self, indent=0):
-        '''
-        Generate OpenCL argument list.
-
-        :raises NotImplementedError: is an abstract method.
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
-    def gen_ocl_iteration_indices(self, indent=0):
-        '''
-        Generate OpenCL iteration indices declaration.
-
-        :raises NotImplementedError: is an abstract method.
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
-    def gen_ocl_array_length(self, indent=0):
-        '''
-        Generate OpenCL array length variable declarations.
-
-        :raises NotImplementedError: is an abstract method.
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
-    def view(self):
-        '''
-        Print a representation of this Symbol Table to stdout.
-        '''
-        print(str(self))
-
-    def __str__(self):
-        return ("Symbol Table:\n" +
-                "\n".join(map(str, self._symbols.values())) +
-                "\n")
-
-
-class KernelSchedule(Schedule):
-    '''
-    A kernelSchedule inherits the functionality from Schedule and adds a symbol
-    table to keep a record of the declared variables and their attributes.
-
-    :param str name: Kernel subroutine name
-    '''
-
-    def __init__(self, name):
-        super(KernelSchedule, self).__init__(sequence=None, parent=None)
-        self._name = name
-        self._symbol_table = SymbolTable(self)
-
-    @property
-    def name(self):
-        '''
-        :returns: Name of the Kernel
-        :rtype: str
-        '''
-        return self._name
-
-    @name.setter
-    def name(self, new_name):
-        '''
-        Sets a new name for the kernel.
-
-        :param str new_name: New name for the kernel.
-        '''
-        self._name = new_name
-
-    @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the kernel.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
-        '''
-        return self._symbol_table
-
-    def view(self, indent=0):
-        '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
-
-        :param int indent: Depth of indent for output text
-        '''
-        print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
-              + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def gen_ocl(self, indent=0):
-        '''
-        Generate a string representation of this node in the OpenCL language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: OpenCL language code representing the node.
-        :rtype: str
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
-    def __str__(self):
-        result = "KernelSchedule[name:'" + self._name + "']:\n"
-        for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
-        return result
-
-
-class CodeBlock(Node):
-    '''
-    Node representing some generic Fortran code that PSyclone does not attempt
-    to manipulate. As such it is a leaf in the PSyIR and therefore has no
-    children.
-
-    :param statements: list of fparser2 AST nodes representing the Fortran \
-                       code constituting the code block.
-    :type statements: list of :py:class:`fparser.two.utils.Base`
-    :param parent: the parent node of this code block in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, statements, parent=None):
-        super(CodeBlock, self).__init__(parent=parent)
-        # Store a list of the parser objects holding the code associated
-        # with this block. We make a copy of the contents of the list because
-        # the list itself is a temporary product of the process of converting
-        # from the fparser2 AST to the PSyIR.
-        self._statements = statements[:]
-        # Store references back into the fparser2 AST
-        if statements:
-            self.ast = self._statements[0]
-            self.ast_end = self._statements[-1]
-        else:
-            self.ast = None
-            self.ast_end = None
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              str(list(map(type, self._statements))) + "]")
-
-    def __str__(self):
-        return "CodeBlock[{0} statements]".format(len(self._statements))
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :raises GenerationError: gen_c_code always fails for CodeBlocks.
-        '''
-        raise GenerationError("CodeBlock can not be translated to C")
-
-
-class Assignment(Node):
-    '''
-    Node representing an Assignment statement. As such it has a LHS and RHS
-    as children 0 and 1 respectively.
-
-    :param ast: node in the fparser2 AST representing the assignment.
-    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
-    :param parent: the parent node of this Assignment in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, ast=None, parent=None):
-        super(Assignment, self).__init__(ast=ast, parent=parent)
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "Assignment[]\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        if len(self.children) != 2:
-            raise GenerationError("Assignment malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
-
-        return self.indent(indent) \
-            + self.children[0].gen_c_code() + " = " \
-            + self.children[1].gen_c_code() + ";"
-
-
-class Reference(Node):
-    '''
-    Node representing a Reference Expression.
-
-    :param ast: node in the fparser2 AST representing the reference.
-    :type ast: :py:class:`fparser.two.Fortran2003.Name.
-    :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, reference_name, parent):
-        super(Reference, self).__init__(parent=parent)
-        self._reference = reference_name
-
-    @property
-    def name(self):
-        ''' Return the name of the referenced symbol.
-
-        :return: Name of the referenced symbol.
-        :rtype: str
-        '''
-        return self._reference
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[name:'"
-              + self._reference + "']")
-
-    def __str__(self):
-        return "Reference[name:'" + self._reference + "']\n"
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        return self._reference
-
-
-class UnaryOperation(Node):
-    '''
-    Node representing a UnaryOperation expression. As such it has one operand
-    as child 0, and an attribute with the operator type.
-
-    :param str operator: string representing the unary operator.
-    :param parent: the parent node of this UnaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    Operator = Enum('Operator', [
-        # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT',
-        # Logical Operators
-        'NOT',
-        # Trigonometric Operators
-        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
-        # Other Maths Operators
-        'ABS',
-        # Casting Operators
-        'REAL'
-        ])
-
-    def __init__(self, operator, parent=None):
-        super(UnaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "UnaryOperation operator argument must be of type "
-                "UnaryOperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :return: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("UnaryOperation",
-                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-
-        :return: C language code representing the node.
-        :rtype: str
-
-        :raises GenerationError: If the node or its children are invalid.
-        :raises NotImplementedError: If the operator is not supported.
-        '''
-        if len(self.children) != 1:
-            raise GenerationError("UnaryOperation malformed or "
-                                  "incomplete. It should have exactly 1 "
-                                  "child, but found {0}."
-                                  "".format(len(self.children)))
-
-        def operator_format(operator_str, expr_str):
-            '''
-            :param str operator_str: String representing the operator.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language operator expression.
-            :rtype: str
-            '''
-            return "(" + operator_str + expr_str + ")"
-
-        def function_format(function_str, expr_str):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr_str + ")"
-
-        # Define a map with the operator string and the formatter function
-        # associated with each UnaryOperation.Operator
-        opmap = {
-            UnaryOperation.Operator.MINUS: ("-", operator_format),
-            UnaryOperation.Operator.PLUS: ("+", operator_format),
-            UnaryOperation.Operator.NOT: ("!", operator_format),
-            UnaryOperation.Operator.SIN: ("sin", function_format),
-            UnaryOperation.Operator.COS: ("cos", function_format),
-            UnaryOperation.Operator.TAN: ("tan", function_format),
-            UnaryOperation.Operator.ASIN: ("asin", function_format),
-            UnaryOperation.Operator.ACOS: ("acos", function_format),
-            UnaryOperation.Operator.ATAN: ("atan", function_format),
-            UnaryOperation.Operator.ABS: ("abs", function_format),
-            UnaryOperation.Operator.REAL: ("float", function_format),
-            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
-            }
-
-        # If the instance operator exists in the map, use its associated
-        # operator and formatter to generate the code, otherwise raise
-        # an Error.
-        try:
-            opstring, formatter = opmap[self._operator]
-        except KeyError:
-            raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
-                "".format(self._operator))
-
-        return formatter(opstring, self.children[0].gen_c_code())
-
-
-class BinaryOperation(Node):
-    '''
-    Node representing a BinaryOperation expression. As such it has two operands
-    as children 0 and 1, and an attribute with the operator type.
-
-    :param operator: node in the fparser2 AST representing the binary operator.
-    :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
-    :param parent: the parent node of this BinaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    Operator = Enum('Operator', [
-        # Arithmetic Operators
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
-        # Relational Operators
-        'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
-        # Logical Operators
-        'AND', 'OR',
-        # Other Maths Operators
-        'SIGN'
-        ])
-
-    def __init__(self, operator, parent=None):
-        super(BinaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "BinaryOperation operator argument must be of type "
-                "BinaryOperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("BinaryOperation",
-                       SCHEDULE_COLOUR_MAP["BinaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        :raises GenerationError: If the node or its children are invalid.
-        :raises NotImplementedError: If the operator is not supported.
-        '''
-
-        if len(self.children) != 2:
-            raise GenerationError("BinaryOperation malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
-
-        def operator_format(operator_str, expr1, expr2):
-            '''
-            :param str operator_str: String representing the operator.
-            :param str expr1: String representation of the LHS operand.
-            :param str expr2: String representation of the RHS operand.
-
-            :returns: C language operator expression.
-            :rtype: str
-            '''
-            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
-
-        def function_format(function_str, expr1, expr2):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr1: String representation of the first operand.
-            :param str expr2: String representation of the second operand.
-
-            :returns: C language binary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr1 + ", " + expr2 + ")"
-
-        # Define a map with the operator string and the formatter function
-        # associated with each BinaryOperation.Operator
-        opmap = {
-            BinaryOperation.Operator.ADD: ("+", operator_format),
-            BinaryOperation.Operator.SUB: ("-", operator_format),
-            BinaryOperation.Operator.MUL: ("*", operator_format),
-            BinaryOperation.Operator.DIV: ("/", operator_format),
-            BinaryOperation.Operator.REM: ("%", operator_format),
-            BinaryOperation.Operator.POW: ("pow", function_format),
-            BinaryOperation.Operator.EQ: ("==", operator_format),
-            BinaryOperation.Operator.NE: ("!=", operator_format),
-            BinaryOperation.Operator.LT: ("<", operator_format),
-            BinaryOperation.Operator.LE: ("<=", operator_format),
-            BinaryOperation.Operator.GT: (">", operator_format),
-            BinaryOperation.Operator.GE: (">=", operator_format),
-            BinaryOperation.Operator.AND: ("&&", operator_format),
-            BinaryOperation.Operator.OR: ("||", operator_format),
-            BinaryOperation.Operator.SIGN: ("copysign", function_format),
-            }
-
-        # If the instance operator exists in the map, use its associated
-        # operator and formatter to generate the code, otherwise raise
-        # an Error.
-        try:
-            opstring, formatter = opmap[self._operator]
-        except KeyError:
-            raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
-                "".format(self._operator))
-
-        return formatter(opstring, self.children[0].gen_c_code(),
-                         self.children[1].gen_c_code())
-
-
-class Array(Reference):
-    '''
-    Node representing an Array reference. As such it has a reference and a
-    subscript list as children 0 and 1, respectively.
-
-    :param ast: node in the fparser2 AST representing array.
-    :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
-    :param parent: the parent node of this Array in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, reference_name, parent):
-        super(Array, self).__init__(reference_name, parent=parent)
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        super(Array, self).view(indent)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "Array" + super(Array, self).__str__()
-        for entity in self._children:
-            result += str(entity)
-        return result
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        code = super(Array, self).gen_c_code() + "["
-
-        dimensions_remaining = len(self._children)
-        if dimensions_remaining < 1:
-            raise GenerationError("Array must have at least 1 dimension.")
-
-        # In C array expressions should be reversed from the PSyIR order
-        # (column-major to row-major order) and flattened (1D).
-        for child in reversed(self._children):
-            code = code + child.gen_c_code()
-            # For each dimension bigger than one, it needs to write the
-            # appropriate operation to flatten the array. By convention,
-            # the array dimensions are <name>LEN<DIM>.
-            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
-            for dim in reversed(range(1, dimensions_remaining)):
-                dimstring = self._reference + "LEN" + str(dim)
-                code = code + " * " + dimstring
-            dimensions_remaining = dimensions_remaining - 1
-            code = code + " + "
-
-        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
-        return code
-
-
-class Literal(Node):
-    '''
-    Node representing a Literal
-
-    :param str value: String representing the literal value.
-    :param parent: the parent node of this Literal in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, value, parent=None):
-        super(Literal, self).__init__(parent=parent)
-        self._value = value
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "["
-              + "value:'"+self._value + "']")
-
-    def __str__(self):
-        return "Literal[value:'" + self._value + "']\n"
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        str_value = self._value
-        # C Scientific notation is always an 'e' letter
-        str_value = str_value.replace('d', 'e')
-        str_value = str_value.replace('D', 'e')
-        return str_value
-
-
-class Return(Node):
-    '''
-    Node representing a Return statement (subroutine break without return
-    value).
-
-    :param parent: the parent node of this Return in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, parent=None):
-        super(Return, self).__init__(parent=parent)
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :return: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-
-    def __str__(self):
-        return "Return[]\n"
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
-        :rtype: str
-        '''
-        return self.indent(indent) + "return;"
