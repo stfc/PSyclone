@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
-        Arguments, Argument, GenerationError, Literal, Reference
+        Arguments, Argument, GenerationError, Literal, Reference, Schedule
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -239,10 +239,6 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
-
     def load(self, kern):
         ''' Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
@@ -288,7 +284,7 @@ class DynKernCallFactory(object):
         kern.load(call, cloop)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.append(kern)
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)

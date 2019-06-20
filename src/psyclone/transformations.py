@@ -227,6 +227,14 @@ class LoopFuseTrans(Transformation):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "At least one of the nodes is not "
                                       "a loop")
+
+        # We expect fully-formed Loops
+        if len(node1.children) != 4:
+            raise TransformationError("")
+
+        if len(node2.children) != 4:
+            raise TransformationError("")
+
         # check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
             raise TransformationError("Error in LoopFuse transformation. "
@@ -237,6 +245,7 @@ class LoopFuseTrans(Transformation):
                                       "nodes are not siblings who are "
                                       "next to each other")
         # Check iteration space is the same
+        # TODO: Do I have to check the start/stop/step_expr now???
         if node1.iteration_space != node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same "
@@ -254,11 +263,11 @@ class LoopFuseTrans(Transformation):
         keep = Memento(schedule, self, [node1, node2])
 
         # add loop contents of node2 to node1
-        node1.children.extend(node2.children)
+        node1.loop_body.extend(node2.loop_body)
 
         # change the parent of the loop contents of node2 to node1
-        for child in node2.children:
-            child.parent = node1
+        for child in node2.loop_body:
+            child.parent = node1.children[3]
 
         # remove node2
         node2.parent.children.remove(node2)
@@ -501,7 +510,7 @@ class ParallelLoopTrans(Transformation):
             while isinstance(cnode, Loop):
                 loop_count += 1
                 # Loops must be tightly nested (no intervening statements)
-                cnode = cnode.children[0]
+                cnode = cnode.loop_body[0]
             if collapse > loop_count:
                 raise TransformationError(
                     "Cannot apply COLLAPSE({0}) clause to a loop nest "

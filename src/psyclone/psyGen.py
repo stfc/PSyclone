@@ -3021,6 +3021,7 @@ class Loop(Node):
     def __init__(self, parent=None,
                  variable_name="",
                  valid_loop_types=None):
+        Node.__init__(self, parent=parent)
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -3039,10 +3040,22 @@ class Loop(Node):
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
-        Node.__init__(self, parent=parent)
-
         self._variable_name = variable_name
         self._id = ""
+
+        # Pre-initialise the Loop children
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
+    def addchild(self, parent):
+        if len(self._children) < 4:
+            super(Loop, self).addchild(parent)
+        else:
+            raise InternalError(
+                "This Loop construct already has 4 children. (Note: to add"
+                "child to the loop body use: node.loop_body.append(child))")
 
     @property
     def start_expr(self):
@@ -3306,7 +3319,7 @@ class Loop(Node):
         if self.root.opencl or (self.start_expr == Literal("1") and
                                 self.stop_expr == Literal("1")):
             # no need for a loop
-            for child in self.children:
+            for child in self.loop_body:
                 child.gen_code(parent)
         else:
             from psyclone.f2pygen import DoGen, DeclGen
@@ -3317,7 +3330,7 @@ class Loop(Node):
             # need to add do loop before children as children may want to add
             # info outside of do loop
             parent.add(do)
-            for child in self.children:
+            for child in self.loop_body:
                 child.gen_code(do)
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self._variable_name])

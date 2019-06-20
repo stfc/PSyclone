@@ -280,7 +280,7 @@ def test_dynbasisfunctions(monkeypatch):
     # a shape it doesn't recognise
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
-    call = sched.children[0].children[0]
+    call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
     with pytest.raises(InternalError) as err:
@@ -297,7 +297,7 @@ def test_dynbasisfns_setup(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    call = sched.children[0].children[0]
+    call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     # Now we've created a DynBasisFunctions object, monkeypatch the call
@@ -373,7 +373,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    call = sched.children[0].children[0]
+    call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
@@ -394,7 +394,7 @@ def test_dynkern_setup(monkeypatch):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     # Get hold of a DynKern object
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[3].children[0]
+    kern = schedule.children[3].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
     # them in the _setup() routine.
     from psyclone.psyGen import Kern

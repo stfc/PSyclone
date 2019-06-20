@@ -53,7 +53,8 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCEnterDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType
+    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType, \
+    Literal, Reference
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -438,11 +439,6 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
-
-        # Initialise loop bounds children
-        self.addchildren(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchildren(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchildren(Literal("1", parent=self))  # step
 
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
@@ -847,14 +843,12 @@ class GOKernCallFactory(object):
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
         looping structure as well as the call to the kernel itself. '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
+        outer_loop = GOLoop(parent=parent, loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop, loop_type="inner")
+        outer_loop.loop_body.append(inner_loop)
         gocall = GOKern()
         gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
+        inner_loop.loop_body.append(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner

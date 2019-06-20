@@ -56,7 +56,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule
 
 # First section : Parser specialisations and classes
 
@@ -5498,9 +5498,6 @@ class DynLoop(Loop):
         self._lower_bound_index = None
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
 
     def view(self, indent=0):
         '''Print out a textual representation of this loop. We override this
@@ -8539,7 +8536,7 @@ class DynKernCallFactory(object):
         kern.load(call, cloop)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.append(kern)
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
