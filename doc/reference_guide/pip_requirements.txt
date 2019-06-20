@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,40 +30,12 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
-# Author A. R. Porter and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-The directory containing this file contains an example of the use of
-PSyclone to generate OpenCL code with the GOcean 1.0 API.
-
-In order to use PSyclone you must first install it, ideally with pip.
-See ../../../README.md for more details.
-
-PSyclone can be run in the directory containing this file by 
-executing, e.g.::
-
-    psyclone -api "gocean1.0" alg.f90
-
-This will generate 'vanilla' PSy-layer code which is output to stdout.
-
-In order to generate an OpenCL PSy layer instead, PSyclone must be
-provided with a transformation script::
-
-    psyclone -api "gocean1.0" -s ./ocl_trans.py alg.f90
-
-where ocl_trans.py simply applies the psyclone.transformations.OCLTrans
-transformation to the Schedule of the Invoke. This will generate the OpenCL
-driver layer to stdout and a 'kernel_name'.cl file for each of the kernels
-referenced in alg.f90 traslated to OpenCL.
-
-Each OpenCL kernel needs to be compiled before buidling the driver layer.
-For example, the steps to generate the code using the Intel OpenCL SDK
-(https://software.intel.com/en-us/opencl-sdk) are::
-
-    psyclone -oalg psyalg.f90 -opsy psylayer.f90 -api "gocean1.0" \
-        -s ./ocl_trans.py alg.f90
-
-    # Pre-build OpenCL kernels
-    ioc64 -cmd=build -device=cpu -input=kernels.cl -spirv64=kernels.spirv \
-        -bo="-cl-std=CL1.2"
-    export PSYCLONE_KERNELS_FILE=kernels.spirv
+# pip requirements file specifying the packages required to build
+# the PSyclone documentation. Used by readthedocs.
+sphinx
+sphinxcontrib.bibtex
+autoapi
+sphinx_rtd_theme
