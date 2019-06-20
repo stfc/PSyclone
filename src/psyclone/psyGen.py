@@ -1519,9 +1519,7 @@ class Node(object):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
-        # raise NotImplementedError("Please implement me")
-        # Need to use new Fortran Backend here
-        return "somestring"
+        raise NotImplementedError("Please implement me")
 
     def gen_c_code(self, indent=0):
         '''Abstract method for the generation of C source code
