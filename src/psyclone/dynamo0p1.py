@@ -31,16 +31,112 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module implements the PSyclone Dynamo 0.1 API by specialising the
-    required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
+    required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern,
     Arguments and Argument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.configuration import Config
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
         Arguments, Argument, GenerationError
+from psyclone.parse.kernel import KernelType, Descriptor
+from psyclone.parse.utils import ParseError
+
+
+class DynDescriptor(Descriptor):
+    '''This class captures the dynamo0.1 api metadata found in an argument
+    descriptor within the kernel metadata.
+
+    :param str access: An access descriptor describing how the \
+    argument is used in the kernel
+    :param str funcspace: A description of the function space that \
+    this argument is assumed to be on.
+    :param str stencil: The type of stencil access performed by the \
+    kernel on this argument. Currently the value is limited to 'fe'.
+    :param str basis: Whether or not basis information is required for \
+    this field. The values can be '.true.' or '.false.'.
+    :param str diff_basis: Whether or not basis information is \
+    required for this field. The value can be '.true.' or '.false.'.
+    :param str gauss_quad: Whether or not gaussian quadrature \
+    information is required for this field. The value can be '.true.' \
+    or '.false.'.
+
+    '''
+    def __init__(self, access, funcspace, stencil, basis, diff_basis,
+                 gauss_quad):
+        Descriptor.__init__(self, access, funcspace, stencil)
+        self._basis = basis
+        self._diff_basis = diff_basis
+        self._gauss_quad = gauss_quad
+
+    @property
+    def basis(self):
+        '''Return whether a basis function is required or not.
+
+        :returns: '.true.' if a basis function is required and \
+        '.false.' if not.
+        :rtype: str
+
+        '''
+        return self._basis
+
+    @property
+    def diff_basis(self):
+        '''Return whether a differential basis function is required or not.
+
+        :returns: '.true.' if a differential basis function is \
+        required and '.false.' if not.
+        :rtype: str
+
+        '''
+        return self._diff_basis
+
+    @property
+    def gauss_quad(self):
+        '''Return whether gaussian quadrature is required or not.
+
+        :returns: '.true.' if a gaussian quadrature is required and \
+        '.false.' if not.
+        :rtype: str
+
+        '''
+        return self._gauss_quad
+
+
+class DynKernelType(KernelType):
+    '''This class captures the dynamo0.1 api kernel metadata by extracting
+    it from the supplied AST.
+
+    :param ast: fparser1 AST for the parsed gocean0.1 kernel \
+    meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param name: name of the Fortran derived type describing the \
+    kernel. This is an optional argument which defaults to `None`
+    :type name: str or NoneType.
+
+    '''
+
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg_type':
+                raise ParseError(
+                    "dynamo0p1.py:DynKernelType:__init__: Each meta_arg "
+                    "value must be of type 'arg_type' for the "
+                    "dynamo0.1 api, but found '{0}'.".format(init.name))
+            access = init.args[0].name
+            funcspace = init.args[1].name
+            stencil = init.args[2].name
+            x1 = init.args[3].name
+            x2 = init.args[4].name
+            x3 = init.args[5].name
+            self._arg_descriptors.append(DynDescriptor(access, funcspace,
+                                                       stencil, x1, x2, x3))
+
 
 class DynamoPSy(PSy):
     '''
@@ -70,7 +166,7 @@ class DynamoPSy(PSy):
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
         # include the lfric module
-        lfric_use = UseGen(psy_module, name = "lfric")
+        lfric_use = UseGen(psy_module, name="lfric")
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
@@ -78,13 +174,15 @@ class DynamoPSy(PSy):
         self.inline(psy_module)
         return psy_module.root
 
+
 class DynamoInvokes(Invokes):
     ''' The Dynamo specific invokes class. This passes the Dynamo specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls):
         if False:
-            self._0_to_n = DynInvoke(None, None) # for pyreverse
+            self._0_to_n = DynInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke)
+
 
 class DynInvoke(Invoke):
     ''' The Dynamo specific invoke class. This passes the Dynamo specific
@@ -93,8 +191,8 @@ class DynInvoke(Invoke):
         specific invocation code. '''
     def __init__(self, alg_invocation, idx):
         if False:
-            self._schedule = DynSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+            self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule)
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
@@ -103,23 +201,24 @@ class DynInvoke(Invoke):
             its arguments.'''
         from psyclone.f2pygen import SubroutineGen, TypeDeclGen
         # create the subroutine
-        invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.psy_unique_var_names)
+        invoke_sub = SubroutineGen(parent, name=self.name,
+                                   args=self.psy_unique_var_names)
         self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
-        my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.psy_unique_var_names,
-                                  intent = "inout")
+        my_typedecl = TypeDeclGen(invoke_sub, datatype="field_type",
+                                  entity_decls=self.psy_unique_var_names,
+                                  intent="inout")
         invoke_sub.add(my_typedecl)
 
 
-class DynSchedule(Schedule):
-    ''' The Dynamo specific schedule class. This passes the Dynamo specific
-        loop and infrastructure classes to the base class so it creates the
-        ones we require. '''
+class DynInvokeSchedule(InvokeSchedule):
+    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo
+        specific loop and infrastructure classes to the base class so it
+        creates the ones we require. '''
     def __init__(self, arg):
-        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
+        InvokeSchedule.__init__(self, DynKernCallFactory,
+                                DynBuiltInCallFactory, arg)
 
 
 class DynLoop(Loop):
@@ -148,7 +247,7 @@ class DynLoop(Loop):
         self._field_name = self._field.name
         self._field_space = self._field.function_space
 
-    def gen_code(self,parent):
+    def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and then call the base
             class to generate the code '''
         self._start = "1"
@@ -158,7 +257,7 @@ class DynLoop(Loop):
             self._stop = "ncp_ncolour(colour)"
         else:
             self._stop = self.field_name+"%get_ncell()"
-        Loop.gen_code(self,parent)
+        Loop.gen_code(self, parent)
 
 
 class DynBuiltInCallFactory(object):
@@ -175,7 +274,6 @@ class DynKernCallFactory(object):
     ''' A Dynamo 0.1 specific kernel call factory. '''
     @staticmethod
     def create(call, parent=None):
-        
         # Loop over cells
         cloop = DynLoop(parent=parent)
 
@@ -185,7 +283,7 @@ class DynKernCallFactory(object):
 
         # Add the kernel as a child of the loop
         cloop.addchild(kern)
-        
+
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
 
@@ -199,13 +297,13 @@ class DynKern(Kern):
         code for the Kernel instance. '''
     def __init__(self):
         if False:
-            self._arguments = DynKernelArguments(None, None) # for pyreverse
+            self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
     def load(self, call, parent=None):
         Kern.__init__(self, DynKernelArguments, call, parent)
 
     def local_vars(self):
-        return ["cell","map"]
+        return ["cell", "map"]
 
     def gen_code(self, parent):
         ''' Generates dynamo version 0.1 specific psy code for a call to
@@ -219,10 +317,10 @@ class DynKern(Kern):
         # TODO: This needs to be generalised to work for multiple dofmaps
         parent.add(CallGen(parent, field_name+"%vspace%get_cell_dofmap",
                            ["cell", "map"]))
-        parent.add(DeclGen(parent, datatype = "integer",
-                           entity_decls = ["cell"]))
-        parent.add(DeclGen(parent, datatype = "integer", pointer = True,
-                           entity_decls = ["map(:)"]))
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=["cell"]))
+        parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                           entity_decls=["map(:)"]))
 
         # create the argument list on the fly so we can also create
         # appropriate variables and lookups
@@ -237,15 +335,15 @@ class DynKern(Kern):
             if arg.requires_basis:
                 basis_name = arg.function_space+"_basis_"+arg.name
                 arglist.append(basis_name)
-                new_parent, position = parent.start_parent_loop() 
+                new_parent, position = parent.start_parent_loop()
                 new_parent.add(CallGen(new_parent,
                                        field_name+"%vspace%get_basis",
                                        [basis_name]),
-                               position = ["before",
-                                           position])
-                parent.add(DeclGen(parent, datatype = "real", kind = "dp",
-                                   pointer = True,
-                                   entity_decls = [basis_name+"(:,:,:,:,:)"]))
+                               position=["before",
+                                         position])
+                parent.add(DeclGen(parent, datatype="real", kind="dp",
+                                   pointer=True,
+                                   entity_decls=[basis_name+"(:,:,:,:,:)"]))
             if arg.requires_diff_basis:
                 raise GenerationError("differential basis has not yet "
                                       "been coded")
@@ -270,15 +368,16 @@ class DynKern(Kern):
 
         # declare and initialise the number of layers and the number
         # of degrees of freedom. Needs to be generalised.
-        parent.add(DeclGen(parent, datatype = "integer",
-                           entity_decls = ["nlayers", "ndf"]))
-        new_parent, position = parent.start_parent_loop() 
-        new_parent.add(AssignGen(new_parent, lhs = "nlayers",
-                                    rhs = field_name+"%get_nlayers()"),
-                          position = ["before", position])
-        new_parent.add(AssignGen(new_parent, lhs = "ndf",
-                                 rhs = field_name+"%vspace%get_ndf()"),
-                       position = ["before", position])
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=["nlayers", "ndf"]))
+        new_parent, position = parent.start_parent_loop()
+        new_parent.add(AssignGen(new_parent, lhs="nlayers",
+                                 rhs=field_name+"%get_nlayers()"),
+                       position=["before", position])
+        new_parent.add(AssignGen(new_parent, lhs="ndf",
+                                 rhs=field_name+"%vspace%get_ndf()"),
+                       position=["before", position])
+
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,
@@ -287,21 +386,13 @@ class DynKernelArguments(Arguments):
         ensuring that initialisation is performed correctly. '''
     def __init__(self, call, parent_call):
         if False:
-            self._0_to_n = DynKernelArgument(None, None, None) # for pyreverse
+            self._0_to_n = DynKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
         self._args = []
-        for (idx, arg) in enumerate (call.ktype.arg_descriptors):
+        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
             self._args.append(DynKernelArgument(arg, call.args[idx],
                                                 parent_call))
         self._dofs = []
-
-    def iteration_space_arg(self, mapping={}):
-        if mapping != {}:
-            my_mapping = mapping
-        else:
-            my_mapping = {"write":"gh_write", "read":"gh_read","readwrite":"gh_rw", "inc":"gh_inc"}
-        arg = Arguments.iteration_space_arg(self,my_mapping)
-        return arg
 
     @property
     def dofs(self):
@@ -310,17 +401,22 @@ class DynKernelArguments(Arguments):
             need for this dofs property (#279). '''
         return self._dofs
 
+
 class DynKernelArgument(Argument):
     ''' Provides information about individual Dynamo kernel call arguments
         as specified by the kernel argument metadata. '''
     def __init__(self, arg, arg_info, call):
         self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
+        api_config = Config.get().api_conf("dynamo0.1")
+        access_mapping = api_config.get_access_mapping()
+        Argument.__init__(self, call, arg_info, access_mapping[arg.access])
+
     @property
     def function_space(self):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
+
     @property
     def requires_basis(self):
         ''' Returns true if the metadata for this argument specifies that
@@ -330,6 +426,7 @@ class DynKernelArgument(Argument):
         if self._arg.basis.lower() == ".false.":
             return False
         raise GenerationError("error: basis is not set to .true. or .false.")
+
     @property
     def requires_diff_basis(self):
         ''' Returns true if the metadata for this argument specifies that
@@ -341,6 +438,7 @@ class DynKernelArgument(Argument):
             return False
         raise GenerationError("error: diff_basis is not set to .true. "
                               "or .false.")
+
     @property
     def requires_gauss_quad(self):
         ''' Returns true if the metadata for this argument specifies that

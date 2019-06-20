@@ -32,13 +32,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
-    Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
+    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType). It adds a
     GOKernelGridArgument class to capture information on kernel arguments
     that supply properties of the grid (and are generated in the PSy
@@ -47,10 +47,13 @@
 '''
 
 from __future__ import print_function
-from psyclone.parse import Descriptor, KernelType, ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError, InternalError, args_filter, NameSpaceFactory
+from psyclone.configuration import Config
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    Loop, Kern, Arguments, Argument, KernelArgument, ACCEnterDataDirective, \
+    GenerationError, InternalError, args_filter, NameSpaceFactory, \
+    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -69,9 +72,6 @@ SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
 
 # The sets of grid points that a kernel may operate on
 VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
-
-# Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["go_read", "go_write", "go_readwrite"]
 
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
@@ -201,8 +201,8 @@ class GOInvoke(Invoke):
     '''
     def __init__(self, alg_invocation, idx):
         if False:  # pylint: disable=using-constant-test
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule)
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
 
     @property
     def unique_args_arrays(self):
@@ -323,23 +323,23 @@ class GOInvoke(Invoke):
                            position=["after", position])
 
 
-class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. We call the base class
+class GOInvokeSchedule(InvokeSchedule):
+    ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+                                alg_calls)
 
-        # Configuration of this Schedule - we default to having
+        # Configuration of this InvokeSchedule - we default to having
         # constant loop bounds. If we end up having a long list
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        '''Print a representation of this GOSchedule.
+        '''Print a representation of this GOInvokeSchedule.
         :param int indent: optional argument indicating the level of
         indentation to add before outputting the class information.'''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
@@ -349,8 +349,8 @@ class GOSchedule(Schedule):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        ''' Returns the string representation of this GOSchedule '''
-        result = "GOSchedule(Constant loop bounds=" + \
+        ''' Returns the string representation of this GOInvokeSchedule '''
+        result = "GOInvokeSchedule(Constant loop bounds=" + \
                  str(self._const_loop_bounds) + "):\n"
         for entity in self._children:
             result += str(entity)+"\n"
@@ -362,7 +362,7 @@ class GOSchedule(Schedule):
         ''' Return the name of this object with control-codes for
         display in terminals that support colour '''
         from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):
@@ -400,7 +400,7 @@ class GOSchedule(Schedule):
 
     @const_loop_bounds.setter
     def const_loop_bounds(self, obj):
-        ''' Set whether the Schedule will use constant loop bounds or
+        ''' Set whether the InvokeSchedule will use constant loop bounds or
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
@@ -632,7 +632,7 @@ class GOLoop(Loop):
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1 depending on
         loop type).'''
-        schedule = self.ancestor(GOSchedule)
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
@@ -707,7 +707,7 @@ class GOLoop(Loop):
         "{stop}+1" will become "istop+1" (or "jstop+1" depending on
         loop type).'''
 
-        schedule = self.ancestor(GOSchedule)
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
@@ -779,11 +779,11 @@ class GOLoop(Loop):
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
-        # Climb up the tree looking for our enclosing Schedule
-        schedule = self.ancestor(GOSchedule)
-        if schedule is None or not isinstance(schedule, GOSchedule):
+        # Climb up the tree looking for our enclosing GOInvokeSchedule
+        schedule = self.ancestor(GOInvokeSchedule)
+        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
             raise GenerationError("Internal error: cannot find parent"
-                                  " GOSchedule for this Do loop")
+                                  " GOInvokeSchedule for this Do loop")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
@@ -973,7 +973,7 @@ class GOKern(Kern):
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
-        # psyGen.Schedule)
+        # psyGen.InvokeSchedule)
         qlist = self._name_space_manager.create_name(
             root_name="cmd_queues", context="PSyVars", label="cmd_queues")
         flag = self._name_space_manager.create_name(
@@ -1125,7 +1125,7 @@ class GOKern(Kern):
                 ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
-                # psyGen.Schedule)
+                # psyGen.InvokeSchedule)
                 qlist = self._name_space_manager.create_name(
                     root_name="cmd_queues", context="PSyVars",
                     label="cmd_queues")
@@ -1150,6 +1150,35 @@ class GOKern(Kern):
                               " Block until data copies have finished"))
         parent.add(AssignGen(parent, lhs=flag,
                              rhs="clFinish(" + qlist + "(1))"))
+
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the GOcean kernel code.
+
+        :return: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
+        '''
+        if self._kern_schedule is None:
+            astp = GOFparser2ASTProcessor()
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+        return self._kern_schedule
+
+
+class GOFparser2ASTProcessor(Fparser2ASTProcessor):
+    '''
+    Sub-classes the Fparser2ASTProcessor with GOcean 1.0 specific
+    functionality.
+    '''
+    @staticmethod
+    def _create_schedule(name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        :returns: New GOKernelSchedule empty object.
+        :rtype: py:class:`psyclone.gocean1p0.GOKernelSchedule`
+        '''
+        return GOKernelSchedule(name)
 
 
 class GOKernelArguments(Arguments):
@@ -1244,9 +1273,10 @@ class GOKernelArguments(Arguments):
         :returns: the argument object from which to get grid properties.
         :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
         '''
-        for access in ["go_read", "go_readwrite", "go_write"]:
+        for access in [AccessType.READ, AccessType.READWRITE,
+                       AccessType.WRITE]:
             for arg in self._args:
-                if arg.type == "field" and arg.access.lower() == access:
+                if arg.type == "field" and arg.access == access:
                     return arg
         # We failed to find any kernel argument which could be used
         # to access the grid properties. This will only be a problem
@@ -1259,20 +1289,6 @@ class GOKernelArguments(Arguments):
             sense for GOcean. Need to refactor the Invoke base class and
             remove the need for this property (#279). '''
         return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            # We provide an empty mapping for inc as it is not supported
-            # in the GOcean 1.0 API. However, the entry has to be there
-            # in the dictionary as a field that has read access causes
-            # the code (that checks that a kernel has at least one argument
-            # that is written to) to attempt to lookup "inc".
-            my_mapping = {"write": "go_write", "read": "go_read",
-                          "readwrite": "go_readwrite", "inc": ""}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
 
     @property
     def acc_args(self):
@@ -1720,14 +1736,19 @@ class GO1p0Descriptor(Descriptor):
                        str(len(kernel_arg.args)),
                        kernel_arg.args))
 
-        if access.lower() not in VALID_ARG_ACCESSES:
+        api_config = Config.get().api_conf("gocean1.0")
+        access_mapping = api_config.get_access_mapping()
+        try:
+            access_type = access_mapping[access]
+        except KeyError:
+            valid_names = api_config.get_valid_accesses_api()
             raise ParseError("Meta-data error in kernel {0}: argument "
                              "access  is given as '{1}' but must be "
                              "one of {2}".
-                             format(kernel_name, access, VALID_ARG_ACCESSES))
+                             format(kernel_name, access, valid_names))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil_info)
+        Descriptor.__init__(self, access_type, funcspace, stencil_info)
 
     def __str__(self):
         return repr(self)
@@ -1839,9 +1860,9 @@ class GOKernelType1p0(KernelType):
         return self._index_offset
 
 
-class GOACCDataDirective(ACCDataDirective):
+class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
-    Sub-classes ACCDataDirective to provide an API-specific implementation
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
     of data_on_device().
 
     '''
@@ -1865,3 +1886,176 @@ class GOACCDataDirective(ACCDataDirective):
                                          rhs=".true."))
                     obj_list.append(var)
         return
+
+
+class GOSymbolTable(SymbolTable):
+    '''
+    Sub-classes SymbolTable to provide an API-specific implementation of the
+    OpenCL generation methods.
+    '''
+
+    def _check_gocean_conformity(self):
+        '''
+        Checks that the Symbol Table has at least 2 arguments which represent
+        the iteration indices (are scalar integers).
+
+        :raises GenerationError: if the Symbol Table does not conform to the \
+                rules for a GOcean 1.0 kernel.
+        '''
+        # Get the kernel name if available for better error messages
+        kname_str = ""
+        if self._kernel:
+            kname_str = " for kernel '{0}'".format(self._kernel.name)
+
+        # Check that there are at least 2 arguments
+        if len(self.argument_list) < 2:
+            raise GenerationError(
+                "GOcean 1.0 API kernels should always have at least two "
+                "arguments representing the iteration indices but the "
+                "Symbol Table{0} has only {1} argument(s)."
+                "".format(kname_str,
+                          str(len(self.argument_list)))
+                )
+
+        # Check that first 2 arguments are scalar integers
+        for pos, posstr in [(0, "first"), (1, "second")]:
+            dtype = self.argument_list[pos].datatype
+            shape_len = len(self.argument_list[pos].shape)
+            if (dtype != "integer" or shape_len != 0):
+                if shape_len == 0:
+                    shape_str = "a scalar"
+                else:
+                    shape_str = "an array"
+                raise GenerationError(
+                    "GOcean 1.0 API kernels {0} argument should be a scalar "
+                    "integer but got {1} of type '{2}'{3}."
+                    "".format(posstr, shape_str, str(dtype), kname_str))
+
+    def gen_ocl_argument_list(self, indent=0):
+        '''
+        Generate kernel arguments: in OpenCL we ignore the iteration
+        indices which in GOcean are the first two arguments.
+
+        :param indent: Depth of indent for the output string.
+        :return: OpenCL argument list for the Symbol Table.
+        :rtype: str
+        '''
+        self._check_gocean_conformity()
+
+        arglist = []
+        for symbol in self.argument_list[2:]:
+            prefix = Node.indent(indent)
+            # If argument is an array, it is allocated to the OpenCL global
+            # address space.
+            if symbol.shape:
+                prefix += "__global "
+            arglist.append(prefix + symbol.gen_c_definition())
+
+        return ",\n".join(arglist)  # Remove last ",\n"
+
+    def gen_ocl_iteration_indices(self, indent=0):
+        '''
+        Generate OpenCL iteration indices using the names of the first 2
+        arguments (e.g. "int i = get_global_id(0);")
+
+        :return: OpenCL iteration indices definition and initialisation.
+        :rtype: str
+        '''
+        self._check_gocean_conformity()
+
+        code = ""
+        for index, symbol in enumerate(self.argument_list[:2]):
+            code += Node.indent(indent) + "int " + symbol.name
+            code += " = get_global_id(" + str(index) + ");\n"
+        return code
+
+    def gen_ocl_array_length(self, indent=0):
+        '''
+        Generate a <name>LEN<DIM> variable for each array dimension of
+        each array argument.
+        In OpenCL the sizes are retrived from the kernel global_work_size
+        (e.g. "int arrayLEN1 = get_global_size(1);")
+
+        :return: OpenCL code to define and initialise variables for all array \
+                lengths.
+        :rtype: str
+        :raises GenerationError: if the array length variable name clashes \
+                with another symbol name.
+        '''
+        self._check_gocean_conformity()
+
+        code = ""
+        for symbol in self.argument_list[2:]:
+            dimensions = len(symbol.shape)
+            for dim in range(1, dimensions + 1):
+                code += Node.indent(indent) + "int "
+                varname = symbol.name + "LEN" + str(dim)
+
+                # Check there is no clash with other variables
+                if varname in self:
+                    kname = ""
+                    if self._kernel:
+                        kname = "'{0}'".format(self._kernel.name)
+                    raise GenerationError(
+                        "Unable to declare the variable '{0}' to store the "
+                        "length of '{1}' because the kernel {2} already "
+                        "contains a symbol with the same name."
+                        "".format(varname, symbol.name, kname))
+
+                code += varname + " = get_global_size("
+                code += str(dim - 1) + ");\n"
+        return code
+
+
+class GOKernelSchedule(KernelSchedule):
+    '''
+    Sub-classes KernelSchedule to provide an API-specific implementation of the
+    OpenCL generation method.
+
+    :param str name: Kernel subroutine name
+    '''
+    def __init__(self, name):
+        super(GOKernelSchedule, self).__init__(name)
+        self._symbol_table = GOSymbolTable(self)
+
+    def gen_ocl(self, indent=0):
+        '''
+        Generate a string representation of this node in the OpenCL language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: OpenCL language code representing the node.
+        :rtype: string
+        '''
+
+        # OpenCL implementation assumptions:
+        # - All array have the same size and it is given by the
+        #   global_work_size argument to clEnqueueNDRangeKernel.
+        # - Assumes no dependencies among kernels called concurrently.
+
+        # TODO: At the moment, the method caller is responsible to ensure
+        # these assumptions. KernelSchedule access to the kernel
+        # meta-arguments could be used to check them and also improve the
+        # generated code. (Issue #288)
+
+        # Start OpenCL kernel definition
+        code = self.indent(indent) + "__kernel void " + self._name + "(\n"
+        code += self.symbol_table.gen_ocl_argument_list(indent + 1)
+        code += "\n" + self.indent(indent + 1) + "){\n"
+
+        # Declare local variables.
+        code += self.symbol_table.gen_c_local_variables(indent + 1)
+
+        # Declare array length
+        code += self.symbol_table.gen_ocl_array_length(indent + 1)
+
+        # Declare iteration indices
+        code += self.symbol_table.gen_ocl_iteration_indices(indent + 1)
+
+        # Generate kernel body
+        for child in self._children:
+            code += child.gen_c_code(indent + 1) + "\n"
+
+        # Close kernel definition
+        code += "}\n"
+
+        return code

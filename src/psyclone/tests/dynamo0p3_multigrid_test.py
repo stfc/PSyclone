@@ -46,11 +46,12 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.parse import ParseError, parse
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.configuration import Config
-from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -75,6 +76,12 @@ contains
   end subroutine restrict_kernel_code
 end module restrict_mod
 '''
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def test_invalid_mesh_type():
@@ -222,7 +229,7 @@ def test_two_grid_types(monkeypatch):
     assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err)
 
 
-def test_field_prolong(tmpdir, f90, f90flags):
+def test_field_prolong(tmpdir):
     ''' Check that we generate correct psy-layer code for an invoke
     containing a kernel that performs a prolongation operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -232,8 +239,7 @@ def test_field_prolong(tmpdir, f90, f90flags):
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         gen_code = str(psy.gen)
 
-        if TEST_COMPILE:
-            assert code_compiles(API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         expected = (
             "      USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
@@ -301,7 +307,7 @@ def test_field_prolong(tmpdir, f90, f90flags):
             assert set_dirty in gen_code
 
 
-def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
+def test_field_restrict(tmpdir, monkeypatch, annexed):
     '''Test that we generate correct code for an invoke containing a
     single restriction operation (read from fine, write to
     coarse). Check when annexed is False and True as we produce a
@@ -321,8 +327,7 @@ def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
         output = str(psy.gen)
         print(output)
 
-        if TEST_COMPILE:
-            assert code_compiles(API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         defs = (
             "      USE restrict_kernel_mod, ONLY: restrict_kernel_code\n"
@@ -337,6 +342,8 @@ def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
             "      INTEGER, pointer :: map_any_space_1_field1(:,:) => null(), "
             "map_any_space_2_field2(:,:) => null()\n"
+            "      INTEGER ndf_any_space_1_field1, undf_any_space_1_field1, "
+            "ndf_any_space_2_field2, undf_any_space_2_field2\n"
             "      INTEGER ncell_field2, ncpc_field2_field1\n"
             "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
@@ -422,7 +429,7 @@ def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
             assert set_dirty in output
 
 
-def test_restrict_prolong_chain(tmpdir, f90, f90flags, dist_mem):
+def test_restrict_prolong_chain(tmpdir, dist_mem):
     ''' Test when we have a single invoke containing a chain of
     restrictions and prolongations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -430,8 +437,7 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     output = str(psy.gen)
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     expected = (
         "      ! Look-up mesh objects and loop limits for inter-grid "
@@ -590,7 +596,7 @@ def test_prolong_with_gp_error():
             "invoke 'invoke_0' are not inter-grid" in str(err))
 
 
-def test_prolong_vector(tmpdir, f90, f90flags):
+def test_prolong_vector(tmpdir):
     ''' Check that we generate correct code when an inter-grid kernel
     takes a field vector as argument '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -599,8 +605,7 @@ def test_prolong_vector(tmpdir, f90, f90flags):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     output = str(psy.gen)
 
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert "TYPE(field_type), intent(inout) :: field1(3)" in output
     assert "TYPE(field_proxy_type) field1_proxy(3)" in output

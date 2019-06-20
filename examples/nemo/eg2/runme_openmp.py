@@ -48,13 +48,13 @@ Fortran.
 '''
 
 from __future__ import print_function
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
     from psyclone.nemo import NemoKern, NemoImplicitLoop
     API = "nemo"
-    _, INVOKEINFO = parse("traldf_iso.F90", api=API)
+    _, INVOKEINFO = parse("../code/traldf_iso.F90", api=API)
     PSY = PSyFactory(API).create(INVOKEINFO)
     print(PSY.gen)
 

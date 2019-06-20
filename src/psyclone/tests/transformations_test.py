@@ -62,12 +62,25 @@ def test_accparallel():
     assert acct.name == "ACCParallelTrans"
 
 
-def test_accdata():
-    ''' Generic tests for the ACCDataTrans class '''
-    from psyclone.transformations import ACCDataTrans
-    acct = ACCDataTrans()
-    assert acct.name == "ACCDataTrans"
+def test_accenterdata():
+    ''' Generic tests for the ACCEnterDataTrans class '''
+    from psyclone.transformations import ACCEnterDataTrans
+    acct = ACCEnterDataTrans()
+    assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
+
+
+def test_accenterdata_internalerr(monkeypatch):
+    ''' Check that the ACCEnterDataTrans.apply() method raises an internal
+    error if the _validate method fails to throw out an invalid type of
+    Schedule. '''
+    from psyclone.transformations import ACCEnterDataTrans
+    from psyclone.psyGen import InternalError
+    acct = ACCEnterDataTrans()
+    monkeypatch.setattr(acct, "_validate", lambda sched: None)
+    with pytest.raises(InternalError) as err:
+        _, _ = acct.apply("Not a schedule")
+    assert "validate() has not rejected an (unsupported) schedule" in str(err)
 
 
 def test_omploop_no_collapse():
@@ -82,3 +95,34 @@ def test_omploop_no_collapse():
         _ = trans._directive(pnode, cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err))
+
+
+def test_ifblock_children_region():
+    ''' Check that we reject attempts to transform the conditional part of
+    an If statement or to include both the if- and else-clauses in a region
+    (without their parent). '''
+    from psyclone.psyGen import IfBlock, Reference, Schedule
+    from psyclone.transformations import ACCParallelTrans, TransformationError
+    acct = ACCParallelTrans()
+    # Construct a valid IfBlock
+    ifblock = IfBlock()
+    # Condition
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+    # If-body
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    # Else-body
+    sch2 = Schedule(parent=ifblock)
+    ifblock.addchild(sch2)
+    # Attempt to put all of the children of the IfBlock into a region. This
+    # is an error because the first child is the conditional part of the
+    # IfBlock.
+    with pytest.raises(TransformationError) as err:
+        super(ACCParallelTrans, acct)._validate(ifblock.children)
+    assert ("transformation to the conditional expression (first child" in
+            str(err))
+    with pytest.raises(TransformationError) as err:
+        super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
+    assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
+            in str(err))

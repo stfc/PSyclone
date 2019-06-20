@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -195,6 +195,74 @@ and manipulated:
 ::
     cd eg11/
     psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
+
+Example 12: Code extraction
+------------------------------------------
+
+The twelfth example demonstrates how to apply code extraction to Nodes in
+an Invoke Schedule or to a Kernel in an Invoke. For now it only inserts an
+`ExtractNode` in appropriate locations. The full support for code
+extraction is being developed (please note that distributed memory will not
+be supported). This example can extract a list of Nodes:
+::
+    cd eg12/
+    ${PSYCLONE} -nodm -s ./extract_nodes.py \
+      gw_mixed_schur_preconditioner_alg_mod.x90
+
+or the specific Kernel from one Invoke which contains the Kernel
+call after applying transformations (here colouring and OpenMP):
+::
+    cd eg12/
+    ${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
+      gw_mixed_schur_preconditioner_alg_mod.x90
+
+This example also contains a Python helper script which displays
+useful information for Kernel extraction: names and Schedules of
+one or more Invokes which contain call to the specified Kernel:
+::
+    cd eg12/
+    python find_kernel.py
+
+For example, looking for `matrix_vector_code` call in
+`gw_mixed_schur_preconditioner_alg_mod.x90` returns:
+::
+    Kernel call 'matrix_vector_code' was found in
+
+    - Invoke 'invoke_0' with the Schedule:
+    Schedule[invoke='invoke_0' dm=False]
+        ...
+        Loop[type='',field_space='any_space_1',it_space='cells', upper_bound='ncells']
+            KernCall matrix_vector_code(m_lumped,ones,mb) [module_inline=False]
+        Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
+            Call x_divideby_y(self_mb_lumped_inv,ones,m_lumped)
+
+    - Invoke 'invoke_1' with the Schedule:
+    Schedule[invoke='invoke_1' dm=False]
+        ...
+        Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
+            Call setval_c(self_rhs_u,0.0_r_def)
+        Loop[type='',field_space='any_space_1',it_space='cells', upper_bound='ncells']
+            KernCall matrix_vector_code(self_rhs_u,self_mb_rb,self_q) [module_inline=False]
+        ...
+
+Example 13: Kernel Constants
+----------------------------
+
+This example shows how LFRic kernels can be modified so that the
+values for the number of degrees of freedom, the number of quadrature
+points and the number of layers can be made constant (as they are
+passed in by argument by default). To run:
+::
+    cd eg13/
+    psyclone -s ./kernel_constants.py \
+    ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+    -oalg alg.f90 -opsy psy.f90
+
+code
+----
+
+Location of LFRic algorithm and kernel code that is used by two or
+more examples.
 
 scripts
 -------

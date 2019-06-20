@@ -41,6 +41,119 @@
 
 	13) PR #302. Fix API's -> APIs typo in documentation.
 
+	14) #292 and PR #293. Add allowed list of nodes to RegionTrans.
+
+	15) #254 and PR #299. Adds methods to generate C and OpenCL
+	code for the Symbol Table and for certain PSyIR nodes.
+
+	16) PR #301. Adds an extras_require section to setup.py to simplify
+	installation of dependencies required for docs and tests.
+
+	17) #281 and PR #313. Adds support for compiling the code
+	generated as part of the GOcean 1.0 tests (including OpenCL
+	code that uses FortCL).
+
+	18) #139 and PR #218. Beginning of implementation of kernel-
+	extraction functionality (PSyKE). Currently only inserts
+	comments into generated Fortran code.
+
+        19) #327 and PR #328. Fix for erroneous xpassing test.
+
+	20) #238 and PR #285. Use fparser2 for parsing the
+	Algorithm layer (instead of fparser1).
+
+	21) #321 and PR #325. Document kernel coding restrictions required
+	for kernel transformations.
+
+        22) #326 PR #335. Alters the use of pytest fixtures to remove the now
+	deprecated use of the global pytest.config.
+
+	23) PR #318. Updates the Schedule hierarchy within the PSyIR.
+	Introduces a new Schedule base class which KernelSchedule and
+	InvokeSchedule then sub-class.
+
+	24) #332 and PR #333. Bug fix for parsing of simple arithmetic
+	expressions in kernel argument lists in the Algorithm layer.
+
+	25) #337 and PR #341. Bug fix to make matching of kernel names
+	in module use statements (in the Algorithm) case insensitive.
+
+	26) #268 and PR #306. Restructure of PSy and stub code generation.
+
+	27) #248 and PR #287. Extends OpenACC transformation support to
+	the nemo api, adds transformations for OpenACC data and kernel
+	directives and adds a sequential option to the OpenACC loop
+	directive transformation.
+
+	28) #319 and PR #331. Bug fix to make matching of kernel names
+	in module use statements (in the Kernel) case insensitive.
+
+	29) #349 Bug fix for unicode characters in comment strings for
+	Python 3 to 3.6.
+
+	30) #320 and PR #334. Remove obsolete GUI-related code.
+
+	31) #322 and PR #343. Add gocean1.0 api example which contains
+	kernels with use statements.
+
+        32) #345 and PR #352. Makes the search for kernels within the parse
+        tree case insensitive.
+
+        33) #350 and PR #351. Bug fix in the stencil lookup for field
+        vectors in the Dynamo0.3 API.
+
+	34) #336 and PR #338. PSyIR Fortran array parsing support (logical
+	type, a(xx) dimension specifications and array size can be an
+	integer variable).
+
+	35) #346 and PR #357. In the nemo api put do-while loops into a
+	code block rather than recognising them as do-loops and make
+	default(present) optional for ACCKernels transformations.
+
+        36) #362 and PR #367. Adds the basics of a transformation for identifying
+	certain LFRic kernel arguments that can be converted to constants.
+	Currently only identifies candidate arguments and prints them to
+	stdout.
+
+        37) PR #347 (working towards #256). Adds support for If and CASE
+	constructs to the PSyIR (superseding and removing the existing, NEMO-
+	specific support for If constructs).
+
+	38) #377 and PR #378. Update fparser submodule to point to latest
+	fparser master (contains bug fix for Python 2 installation).
+
+        39) #329 and PR #371. Removes the global psyGen.MAPPINGS_ACCESSES by
+	moving the functionality into the api-specifc config section of
+	the configuration file.
+
+	40) #361 and PR #365. Identify NemoKernel nodes via the PSyIR
+	rather than the fparser2 parse tree.
+
+	41) #340 and PR #380. Split the documentation into a user-guide
+	and a developer-guide. These will be available separately on
+	read-the-docs.
+
+	42) #369 and PR #347. Adds support for constant values (fixed compile-time
+	known values) in the PSyIR Symbol representation.
+
+        43) PR #383. Fixes to various pylint errors.
+
+        44) PR #384 (working towards #354) Adds support for CASE constructs with
+        a DEFAULT clause when translating Fortran fparser2 to PSyIR.
+
+        45) PR #366 (working towards #323) Improves the Symbol interface
+        infrastructure with Arguments and FortranGlobals. The Fortran-to-PSyIR
+        front-end parses the 'use module only' statements.
+
+        46) PR #370 for #339. Makes the support for operators in the PSyIR
+        more robust by using an enumerator. Adds support for some intrinsics.
+
+        47) PR #389 for #386. Variable names and associated loop-types
+	for the NEMO API are now stored in the configuration file.
+
+        48) PR #394 for #392. Fixes a bug in the way the test suite checks
+	for whether the graphviz package is available.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
@@ -133,6 +246,9 @@ release 1.7.0 20th December 2018
 
         27) #158 and PR #253. Fix to remove unnecessary halo exchanges
 	related to GH_INC updates to kernel arguments.
+
+	28) #317 and PR #330. Fix to allow module use statements to be
+	added to functions.
 
 release 1.6.1 6th December 2018
 

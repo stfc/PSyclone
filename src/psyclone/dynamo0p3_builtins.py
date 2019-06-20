@@ -40,17 +40,17 @@
     The DynBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+from __future__ import absolute_import
 from psyclone import psyGen
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn, NameSpaceFactory
-from psyclone.parse import ParseError
+from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
-# overide the default reduction operator mapping. This is used for
-# reproducible reductions.
-psyGen.REDUCTION_OPERATOR_MAPPING = {"gh_sum": "+"}
+
 # The types of argument that are valid for built-in kernels in the
 # Dynamo 0.3 API
 VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real", "gh_integer"]
@@ -117,11 +117,9 @@ class DynBuiltInCallFactory(object):
 
 
 class DynBuiltIn(BuiltIn):
-    ''' Parent class for a call to a Dynamo Built-in. '''
-
-    def __str__(self):
-        raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
-
+    '''
+    Parent class for a call to a Dynamo Built-in.
+    '''
     def __init__(self):
         self._name_space_manager = NameSpaceFactory().create()
         # Look=up/create the name of the loop variable for the loop over DoFs
@@ -130,6 +128,9 @@ class DynBuiltIn(BuiltIn):
                         context="PSyVars",
                         label="dof_loop_idx")
         BuiltIn.__init__(self)
+
+    def __str__(self):
+        raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
 
     def load(self, call, parent=None):
         ''' Populate the state of this object using the supplied call
@@ -148,7 +149,8 @@ class DynBuiltIn(BuiltIn):
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
         for arg in self.arg_descriptors:
-            if arg.access in ["gh_write", "gh_sum", "gh_inc"]:
+            if arg.access in [AccessType.WRITE, AccessType.SUM,
+                              AccessType.INC]:
                 write_count += 1
             if arg.type == "gh_field":
                 field_count += 1
@@ -209,6 +211,15 @@ class DynBuiltIn(BuiltIn):
         :rtype: bool
         '''
         return False
+
+    @property
+    def fs_descriptors(self):
+        '''
+        :returns: a list of function space descriptor objects which \
+                  contain information about the function spaces.
+        :rtype: list of :py:class:`psyclone.dynamo0p3.FSDescriptor`
+        '''
+        return self._fs_descriptors
 
 # ------------------------------------------------------------------- #
 # ============== Adding (scaled) fields ============================= #

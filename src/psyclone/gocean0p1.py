@@ -31,16 +31,72 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
-    the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Arguments and KernelArgument). '''
+    the required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop,
+    Kern, Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.configuration import Config
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument
+from psyclone.parse.kernel import KernelType, Descriptor
+from psyclone.parse.utils import ParseError
+
+
+class GODescriptor(Descriptor):
+    '''The GOcean specific Descriptor class. This captures kernel
+    argument descriptor information specified in kernel
+    metadata. Currently this class is just a wrapper around the base
+    class.
+
+    :param str access: whether argument is read/write etc.
+    :param str space: which function space/grid-point type argument is \
+    on
+    :param dict stencil: type of stencil access for this \
+    argument. Defaults to None if the argument is not supplied.
+    :param str mesh: which mesh this argument is on. Defaults to \
+    None if the argument is not supplied.
+
+    '''
+    def __init__(self, access, space, stencil=None, mesh=None):
+        api_config = Config.get().api_conf("gocean0.1")
+        access_mapping = api_config.get_access_mapping()
+        access_type = access_mapping[access]
+        super(GODescriptor, self).__init__(access_type, space, stencil, mesh)
+
+
+class GOKernelType(KernelType):
+    '''The GOcean specific KernelType class. This captures kernel metadata
+    for this API.
+
+    :param ast: fparser1 parse tree for the parsed kernel meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param str name: The name of the metadata. This is an optional \
+    argument which defaults to None.
+
+    '''
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError(
+                    "gocean0p1.py:GOKernelType:__init__: Each meta_arg value "
+                    "must be of type 'arg' for the gocean0.1 api, but found "
+                    "'{0}'.".format(init.name))
+            access = init.args[0].name
+            funcspace = init.args[1].name
+            stencil = init.args[2].name
+            if len(init.args) != 3:
+                raise ParseError(
+                    "gocean0p1.py:GOKernelType:__init__: 'arg' type expects "
+                    "3 arguments but found {0} in '{1}'".
+                    format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GODescriptor(access, funcspace,
+                                                      stencil))
 
 
 class GOPSy(PSy):
@@ -105,8 +161,8 @@ class GOInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         # pylint: disable=using-constant-test
         if False:
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule,
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule,
                         reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
@@ -165,13 +221,14 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_scalars)
 
 
-class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. All we have to do is supply our
-    API-specific factories to the base Schedule class constructor. '''
+class GOInvokeSchedule(InvokeSchedule):
+    ''' The GOcean specific InvokeSchedule sub-class. All we have to do is
+    supply our API-specific factories to the base InvokeSchedule class
+    constructor. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory,
+                                GOBuiltInCallFactory, alg_calls)
 
 
 class GOLoop(Loop):
@@ -313,15 +370,6 @@ class GOKernelArguments(Arguments):
             sense for GOcean. Need to refactor the Invoke base class and
             remove the need for this property (#279). '''
         return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            my_mapping = {"write": "write", "read": "read",
-                          "readwrite": "readwrite", "inc": "inc"}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
 
 
 class GOKernelArgument(KernelArgument):

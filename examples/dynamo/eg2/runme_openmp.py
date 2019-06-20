@@ -37,7 +37,7 @@
 dynamo code'''
 
 from __future__ import print_function
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyGen import TransInfo
 API = "dynamo0.1"

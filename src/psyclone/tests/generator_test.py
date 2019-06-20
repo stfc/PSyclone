@@ -1,4 +1,3 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2019, Science and Technology Facilities Council.
@@ -44,10 +43,9 @@ functions.
 from __future__ import absolute_import
 import os
 import re
-import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
-from psyclone.parse import ParseError
+from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -79,14 +77,14 @@ def teardown_function():
 
 
 def test_non_existant_filename():
-    ''' checks that algGen raises appropriate error when a
+    ''' checks that alg_gen raises appropriate error when a
     non-existant filename is supplied '''
     with pytest.raises(IOError):
         generate("non_existant_file.f90")
 
 
 def test_invalid_api():
-    ''' checks that algGen raises appropriate error when an invalid
+    ''' checks that alg_gen raises appropriate error when an invalid
         api is supplied '''
     with pytest.raises(GenerationError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
@@ -94,7 +92,7 @@ def test_invalid_api():
 
 
 def test_invalid_kernel_path():
-    ''' checks that algGen raises appropriate error when an invalid
+    ''' checks that alg_gen raises appropriate error when an invalid
         search path for kernel source files is supplied '''
     with pytest.raises(IOError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
@@ -104,9 +102,9 @@ def test_invalid_kernel_path():
 
 
 def test_wrong_kernel_path():
-    ''' checks that algGen raises appropriate error when the kernel
+    ''' checks that alg_gen raises appropriate error when the kernel
         code cannot be found in the specified search path '''
-    with pytest.raises(IOError):
+    with pytest.raises(ParseError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
                               "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3",
@@ -114,7 +112,7 @@ def test_wrong_kernel_path():
 
 
 def test_correct_kernel_path():
-    ''' checks that algGen succeeds when the location of the kernel
+    ''' checks that alg_gen succeeds when the location of the kernel
         source code is *not* the same as that of the algorithm code '''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                                  "1_single_function.f90"),
@@ -142,7 +140,6 @@ def test_similar_kernel_name():
 
 
 def test_recurse_correct_kernel_path():
-    # pylint: disable=invalid-name
     '''checks that the generator succeeds when the location of the kernel
        source code is *not* the same as that of the algorithm code and
        recursion through subdirectories is required'''
@@ -164,7 +161,6 @@ def test_script_file_not_found():
 
 
 def test_script_file_not_found_relative():
-    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a script
         file is supplied that can't be found in the Python path. In
         this case the script path is not supplied so must be found via the
@@ -198,7 +194,6 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
-    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file does not have the '.py' extension'''
     with pytest.raises(GenerationError):
@@ -221,7 +216,6 @@ def test_script_invalid_content():
 
 
 def test_script_invalid_content_runtime():
-    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file contains valid python syntactically but produces a
         runtime exception. '''
@@ -315,7 +309,7 @@ def test_script_trans():
         transformations correctly. We use loop fusion as an
         example.'''
     # pylint: disable=too-many-locals
-    from psyclone.parse import parse
+    from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
     root_path = os.path.dirname(os.path.abspath(__file__))
@@ -356,11 +350,10 @@ def test_alg_lines_too_long_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
-    assert 'algorithm file does not conform' in str(excinfo.value)
+    assert 'file does not conform' in str(excinfo.value)
 
 
 def test_alg_lines_too_long_not_tested():
-    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when the algorithm file has lines longer than 132 characters. We
@@ -377,12 +370,10 @@ def test_kern_lines_too_long_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
-    assert 'kernel file' in str(excinfo.value)
-    assert 'does not conform' in str(excinfo.value)
+    assert 'file does not conform' in str(excinfo.value)
 
 
 def test_kern_lines_too_long_not_tested():
-    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when a kernel file has lines longer than 132 characters. We
@@ -468,7 +459,7 @@ def test_main_profile(capsys):
     out = out.replace("\n", " ")
 
     warning = ("Error: use of automatic profiling in combination with an "
-               "optimisation script is not recommened since it may not work "
+               "optimisation script is not recommended since it may not work "
                "as expected.")
 
     assert warning in out
@@ -624,7 +615,6 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
-    # pylint: disable=invalid-name
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function.'''
@@ -683,7 +673,7 @@ def test_main_no_invoke_alg_stdout(capsys):
     assert expected_output == out
 
 
-def test_main_write_psy_file(capsys):
+def test_main_write_psy_file(capsys, tmpdir):
     '''Tests that the main() function outputs successfully writes the
     generated psy output to a specified file'''
 
@@ -691,10 +681,7 @@ def test_main_write_psy_file(capsys):
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
 
-    filetemp_psy = tempfile.NamedTemporaryFile()
-    psy_filename = filetemp_psy.name
-    filetemp_psy.close()
-    # no need to delete the file as it has not been created
+    psy_filename = str(tmpdir.join("psy.f90"))
 
     main([alg_filename, '-opsy', psy_filename])
 
@@ -712,7 +699,7 @@ def test_main_write_psy_file(capsys):
     assert psy_str in stdout
 
 
-def test_main_no_invoke_alg_file(capsys):
+def test_main_no_invoke_alg_file(capsys, tmpdir):
     '''Tests that the main() function outputs the original algorithm input
     file to file when the algorithm file does not contain an invoke and that
     it does not produce any psy output.'''
@@ -722,12 +709,8 @@ def test_main_no_invoke_alg_file(capsys):
                                   "test_files", "dynamo0p3",
                                   "testkern.F90"))
 
-    filetemp_alg = tempfile.NamedTemporaryFile()
-    alg_filename = filetemp_alg.name
-    filetemp_psy = tempfile.NamedTemporaryFile()
-    psy_filename = filetemp_psy.name
-    filetemp_alg.close()
-    filetemp_psy.close()
+    alg_filename = str(tmpdir.join("alg.f90"))
+    psy_filename = str(tmpdir.join("psy.f90"))
     # no need to delete the files as they have not been created
 
     main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
@@ -786,7 +769,6 @@ def test_main_kern_output_no_write(tmpdir, capsys):
 
 def test_main_kern_output_dir(tmpdir):
     ''' Test that we can specify a valid kernel output directory. '''
-    from psyclone.configuration import Config
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -796,7 +778,7 @@ def test_main_kern_output_dir(tmpdir):
     assert Config.get().kernel_output_dir == str(tmpdir)
 
 
-def test_invalid_kern_naming(capsys):
+def test_invalid_kern_naming():
     ''' Check that we raise the expected error if an invalid kernel-renaming
     scheme is supplied. '''
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -825,8 +807,8 @@ def test_main_include_nemo_only(capsys):
                 main([alg_filename, '-api', api, '-I', './'])
             assert str(err.value) == "1"
             captured = capsys.readouterr()
-            assert (captured.err.count("is only supported for the 'nemo' API")
-                    == 1)
+            assert captured.err.count("is only supported for the 'nemo' API")\
+                == 1
 
 
 def test_main_include_invalid(capsys, tmpdir):

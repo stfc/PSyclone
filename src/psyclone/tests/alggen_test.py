@@ -34,13 +34,22 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Tests for the algorithm generation (re-writing) as implemented
-    in algGen.py '''
+    in alg_gen.py '''
 
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from psyclone.alg_gen import NoInvokesError, adduse
+from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
-from psyclone.algGen import NoInvokesError
+from psyclone.psyGen import InternalError
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -240,8 +249,8 @@ def test_deref_derived_type_args():
     gen = str(alg)
     print(gen)
     assert (
-        "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag(), "
-        "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
+        "CALL invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
+        "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
         in gen)
 
 
@@ -256,8 +265,8 @@ def test_multi_deref_derived_type_args():
     gen = str(alg)
     print(gen)
     assert (
-        "CALL invoke_0(f1, obj_a%iflag, f2, m1, m2, obj_b%iflag, "
-        "obj_a%obj_b, obj_b%obj_a)"
+        "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
+        "obj_a % obj_b, obj_b % obj_a)"
         in gen)
 
 
@@ -273,7 +282,7 @@ def test_op_and_scalar_and_qr_derived_type_args():
     print(gen)
     assert (
         "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox%my_mapping, box%b(1), qr%get_instance(qr3, 9, 3))" in gen)
+        "opbox % my_mapping, box % b(1), qr % get_instance(qr3, 9, 3))" in gen)
 
 
 def test_vector_field_arg_deref():
@@ -287,7 +296,7 @@ def test_vector_field_arg_deref():
         api="dynamo0.3")
     gen = str(alg)
     print(gen)
-    assert "CALL invoke_0_testkern_chi_type(f1, box%chi, f2)" in gen
+    assert "CALL invoke_0_testkern_chi_type(f1, box % chi, f2)" in gen
 
 
 def test_single_stencil():
@@ -410,6 +419,7 @@ def test_single_invoke_dynamo0p1():
         specified in an invoke call for the dynamo0.1 API. We use the
         generate function as parse and PSyFactory need to be called before
         AlgGen so it is simpler to use this. '''
+
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p1", "algorithm",
@@ -429,3 +439,237 @@ def test_zero_invoke_dynamo0p1():
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p1", "missing_invokes.f90"),
             api="dynamo0.1")
+
+
+# sample code for use in subsequent adduse tests.
+
+
+CODE = ("program test\n"
+        "  integer :: i\n"
+        "  i=0\n"
+        "end program test\n")
+
+# utility function for parsing code, used in subsequent adduse tests.
+
+
+def get_parse_tree(code, parser):
+    '''Utility function that takes Fortran code as a string and returns an
+    fparser2 parse tree of the code. Pass in an instance of the parser
+    so we don't create a new one each time this routine is called.
+
+    :param str code: Fortran code in a string
+
+    :param parser: An fparser2 program class.
+    :type parser: :py:class:`fparser.two.Fortran2003.Program`
+
+    :returns: parse tree of the supplied code.
+    :rtype: :py:class:`fparser.two.utils.Base`
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader(code)
+    return parser(reader)
+
+# function adduse tests These should be moved in #240.
+
+
+def test_adduse_location_none():
+    '''Test that the expected exception is raised when the specified
+    location is None. There is a check for this as the parse tree can
+    contain nodes with the value None.
+
+    '''
+    location = None
+    with pytest.raises(GenerationError) as excinfo:
+        _ = adduse(None, location, None)
+    assert "Location argument must not be None." \
+        in str(excinfo.value)
+
+
+def test_adduse_only_names1(parser):
+    '''Test that the expected output is obtained in a Fortran program when
+    variable/function names are provided for a use statement and only
+    is True.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    new_parse_tree = adduse(parse_tree, location, name, only=True,
+                            funcnames=["a", "b", "c"])
+    assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
+        in str(new_parse_tree)
+
+
+def test_adduse_only_names2(parser):
+    '''Test that the expected output is obtained in a Fortran subroutine
+    when variable/function names are provided for a use statement and
+    only is True.
+
+    '''
+    parse_tree = get_parse_tree(
+        "subroutine test()\n"
+        "  integer :: i\n"
+        "  i=0\n"
+        "end subroutine test\n", parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    new_parse_tree = adduse(parse_tree, location, name, only=True,
+                            funcnames=["a", "b", "c"])
+    assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
+            "  INTEGER :: i\n") in str(new_parse_tree)
+
+
+def test_adduse_only_names3(parser):
+    '''Test that the expected output is obtained in a Fortran function
+    when variable/function names are provided for a use statement and
+    only is True.
+
+    '''
+    parse_tree = get_parse_tree(
+        "integer function test()\n"
+        "  integer :: i\n"
+        "  return i\n"
+        "end function test\n", parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    new_parse_tree = adduse(parse_tree, location, name, only=True,
+                            funcnames=["a", "b", "c"])
+    assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
+            "  INTEGER :: i\n") in str(new_parse_tree)
+
+
+def test_adduse_only_nonames(parser):
+    '''Test that the expected output is obtained when no variable/function
+    names are provided for a use statement and only is True.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    new_parse_tree = adduse(parse_tree, location, name, only=True)
+    assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
+        in str(new_parse_tree)
+
+
+def test_adduse_noonly_names(parser):
+    '''Test that the expected output is obtained when variable/function
+    names are provided for a use statement and the value for the only
+    argument is not provided.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+    new_parse_tree = adduse(parse_tree, location, name,
+                            funcnames=["a", "b", "c"])
+    assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
+            "  INTEGER :: i\n") in str(new_parse_tree)
+
+
+def test_adduse_onlyfalse_names(parser):
+    '''Test that an exception is raised when variable/function names are
+    provided for a use statement and the value for the only argument
+    is set to False.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = adduse(parse_tree, location, name, only=False,
+                   funcnames=["a", "b", "c"])
+    assert ("If the 'funcnames' argument is provided and has content, "
+            "then the 'only' argument must not be set to "
+            "'False'.") in str(excinfo.value)
+
+
+def test_adduse_noonly_nonames(parser):
+    '''Test that the expected output is obtained when no variable/function
+    names are provided for a use statement and only is not explicitly
+    set.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    new_parse_tree = adduse(parse_tree, location, name)
+    assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
+        in str(new_parse_tree)
+
+
+def test_adduse_nolocation(parser):
+    '''Test that the expected exception is raised when the specified
+    location is not in the parse_tree
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    location = "lilliput"
+    name = "my_use"
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = adduse(parse_tree, location, name)
+    assert "The specified location is not in the parse tree." \
+        in str(excinfo.value)
+
+
+def test_adduse_noprogparent(parser):
+    '''Test that the expected exception is raised when the specified
+    location has no parent that is one of main_program, module,
+    subroutine or function.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
+    # location is main_program which is not a child of program.
+    location = parse_tree.content[0]
+    name = "my_use"
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = adduse(parse_tree, location, name)
+    assert ("The specified location is invalid as it has no parent in the "
+            "parse tree that is a program, module, subroutine or "
+            "function.") in str(excinfo.value)
+
+
+def test_adduse_unsupportedparent1(parser):
+    '''Test that the expected exception is raised when the specified
+    location has an ancestor that is a module.
+
+    '''
+    parse_tree = get_parse_tree(
+        "module test\n"
+        "  integer :: i\n"
+        "end module test\n", parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = adduse(parse_tree, location, name)
+    assert ("Currently support is limited to program, subroutine and "
+            "function.") in str(excinfo.value)
+
+
+def test_adduse_nospec(parser):
+    '''Test that the expected exception is raised when the ancestor (a
+    program or a subroutine) does not have a specification part as its
+    second child location has a parent that is a function. This is the
+    case if a program has no content. This could be considered to be a
+    bug but we'll treat it as a feature at the moment.
+
+    '''
+    parse_tree = get_parse_tree(
+        "program test\n"
+        "end program test\n", parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    with pytest.raises(InternalError) as excinfo:
+        _ = adduse(parse_tree, location, name)
+    assert ("The second child of the parent code (content[1]) is expected "
+            "to be a specification part but found 'End_Program_Stmt"
+            "('PROGRAM', Name('test'))'.") in str(excinfo.value)

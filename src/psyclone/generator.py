@@ -50,9 +50,10 @@ import argparse
 import sys
 import os
 import traceback
-from psyclone.parse import parse, ParseError
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.algGen import NoInvokesError
+from psyclone.alg_gen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
@@ -141,13 +142,13 @@ def generate(filename, api="", kernel_path="", script_name=None,
              kern_out_path="",
              kern_naming="multiple"):
     # pylint: disable=too-many-arguments
-    '''Takes a GungHo algorithm specification as input and outputs the
+    '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
-    compiling with the specified kernel(s) and GungHo
-    infrastructure. Uses the :func:`parse.parse` function to parse the
-    algorithm specification, the :class:`psyGen.PSy` class to generate
-    the PSy code and the :class:`algGen.Alg` class to generate the
-    modified algorithm code.
+    compiling with the specified kernel(s) and support
+    infrastructure. Uses the :func:`parse.algorithm.parse` function to
+    parse the algorithm specification, the :class:`psyGen.PSy` class
+    to generate the PSy code and the :class:`alg_gen.Alg` class to
+    generate the modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
     :param str kernel_path: The directory from which to recursively \
@@ -215,7 +216,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     if kernel_path and not os.access(kernel_path, os.R_OK):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from psyclone.algGen import Alg
+        from psyclone.alg_gen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
@@ -309,7 +310,7 @@ def main(args):
 
     if args.script is not None and args.profile is not None:
         print("Error: use of automatic profiling in combination with an\n"
-              "optimisation script is not recommened since it may not work\n"
+              "optimisation script is not recommended since it may not work\n"
               "as expected.\n"
               "You can use --force-profile instead of --profile if you \n"
               "really want to use both options at the same time.",
@@ -417,7 +418,7 @@ def main(args):
         print("Type ...", file=sys.stderr)
         print(exc_type, file=sys.stderr)
         print("Stacktrace ...", file=sys.stderr)
-        traceback.print_tb(exc_tb, limit=10, file=sys.stderr)
+        traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
         exit(1)
     if args.limit:
         fll = FortLineLength()

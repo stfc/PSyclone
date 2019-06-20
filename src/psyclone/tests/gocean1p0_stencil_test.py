@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,12 @@ GOcean 1.0 API.'''
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.parse import parse
+from gocean1p0_build import GOcean1p0Build
+from psyclone.configuration import Config
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.generator import GenerationError, ParseError
+from psyclone.generator import GenerationError
+from psyclone.parse.utils import ParseError
 
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr
@@ -49,6 +52,13 @@ from psyclone import expression as expr
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
+
 
 # Section 1
 # Tests for the case where an object of type GOStencil has not been
@@ -245,7 +255,7 @@ def test_stencil_case_2():
     assert stencil.name == "go_pointwise"
 
 
-def test_stencil_information():
+def test_stencil_information(tmpdir):
     '''Test that the GOStencil class provides the expected stencil
     information. This exercises the "pointwise" name and the stencil
     description
@@ -282,3 +292,5 @@ def test_stencil_information():
             else:
                 expected_depth = 0
             assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth
+
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)

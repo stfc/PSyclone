@@ -66,7 +66,7 @@ and then writes the DAG of the schedule to file.
 
 from __future__ import print_function
 import os
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
 API = "gocean1.0"

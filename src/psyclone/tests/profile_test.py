@@ -41,7 +41,7 @@ import re
 import pytest
 
 from psyclone.generator import GenerationError
-from psyclone.gocean1p0 import GOKern, GOSchedule
+from psyclone.gocean1p0 import GOKern, GOInvokeSchedule
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, NameSpace
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
@@ -77,7 +77,7 @@ def test_profile_basic(capsys):
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
-    coloured_schedule = GOSchedule([]).coloured_text
+    coloured_schedule = GOInvokeSchedule([]).coloured_text
     coloured_loop = Loop().coloured_text
     coloured_kern = GOKern().coloured_text
     coloured_profile = invoke.schedule.children[0].coloured_text
@@ -109,7 +109,7 @@ def test_profile_basic(capsys):
 
     new_sched_str = str(new_sched)
 
-    correct = ("""GOSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop-1,1
 ProfileStart[var=profile_1]
@@ -138,6 +138,19 @@ def test_profile_errors2():
     with pytest.raises(GenerationError) as gen_error:
         Profiler.set_options(["invalid"])
     assert "options must be one of 'invokes', 'kernels'" in str(gen_error)
+
+
+# -----------------------------------------------------------------------------
+def test_c_code_creation():
+    '''Tests the handling when trying to create C code, which is not supported
+    at this stage.
+    '''
+
+    profile_node = ProfileNode()
+    with pytest.raises(NotImplementedError) as excinfo:
+        profile_node.gen_c_code()
+    assert "Generation of C code is not supported for profiling" \
+        in str(excinfo)
 
 
 # -----------------------------------------------------------------------------
@@ -419,7 +432,7 @@ def test_transform(capsys):
     # Try applying it to a list
     sched1, _ = prt.apply(schedule.children)
 
-    correct = ("""OSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
@@ -444,7 +457,7 @@ End Schedule""")
     # Now only wrap a single node - the middle loop:
     sched2, _ = prt.apply(schedule.children[0].children[1])
 
-    correct = ("""GOSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
@@ -475,7 +488,7 @@ End Schedule""")
     out, _ = capsys.readouterr()  # .replace("\n", "")
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
-    correct_re = (".*GOSchedule.*"
+    correct_re = (".*GOInvokeSchedule.*"
                   r"    .*Profile.*"
                   r"        .*Profile.*"
                   r"            .*Loop.*\[type='outer'.*"
@@ -499,7 +512,7 @@ def test_transform_errors(capsys):
 
     with pytest.raises(TransformationError) as excinfo:
         prt.apply([schedule.children[0].children[0], schedule.children[1]])
-    assert "supplied nodes are not children of the same Schedule/parent." \
+    assert "supplied nodes are not children of the same parent." \
            in str(excinfo)
 
     # Supply not a node object:
@@ -546,7 +559,7 @@ def test_transform_errors(capsys):
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
-    correct_re = (".*GOSchedule.*"
+    correct_re = (".*GOInvokeSchedule.*"
                   r"    .*Profile.*"
                   r"        .*Loop.*\[type='outer'.*"
                   r"        .*Loop.*\[type='outer'.*"

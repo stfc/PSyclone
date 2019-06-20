@@ -178,16 +178,16 @@ contains
   !================================================
 
   subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)
-    use model_mod, only: rdt
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
     integer,                  intent(in)    :: istep
     real(go_wp), dimension(:,:), intent(inout) :: ssha
     ! Locals
-    real(go_wp) :: amp_tide, omega_tide, rtime
+    real(go_wp) :: amp_tide, omega_tide, rtime, rdt
 
     amp_tide   = 0.2_go_wp
+    rdt = 1.0
     omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
     rtime = real(istep,go_wp) * rdt
 
