@@ -69,7 +69,7 @@ def trans(psy):
     newschedule, _ = dtrans.apply(schedule)
 
     # Put an 'acc routine' directive inside each kernel
-    for kern in schedule.kern_calls():
+    for kern in schedule.coded_kernels():
         _, _ = ktrans.apply(kern)
         # Ideally we would module-inline the kernel here (to save having to
         # rely on the compiler to do it) but this does not currently work

@@ -84,7 +84,7 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
         print("invoke '{0}'".format(invoke.name))
         schedule = invoke.schedule
-        for kernel in schedule.kern_calls():
+        for kernel in schedule.coded_kernels():
             print("  kernel '{0}'".format(kernel.name.lower()))
             try:
                 const_trans.apply(kernel, number_of_layers=NUMBER_OF_LAYERS,

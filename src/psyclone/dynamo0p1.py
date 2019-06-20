@@ -40,8 +40,8 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
-        Arguments, Argument, GenerationError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
+    CodedKern, Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -291,7 +291,7 @@ class DynKernCallFactory(object):
         return cloop
 
 
-class DynKern(Kern):
+class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. '''
@@ -300,7 +300,16 @@ class DynKern(Kern):
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
     def load(self, call, parent=None):
-        Kern.__init__(self, DynKernelArguments, call, parent)
+        '''
+        Load this DynKern object with state pulled from the call object.
+
+        :param call: details of the Algorithm-layer call of this Kernel.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: parent of this kernel node in the PSyIR.
+        :type parent: :py:class:`psyclone.dynamo0p1.DynLoop` or NoneType.
+
+        '''
+        super(DynKern, self).__init__(DynKernelArguments, call, parent)
 
     def local_vars(self):
         return ["cell", "map"]
