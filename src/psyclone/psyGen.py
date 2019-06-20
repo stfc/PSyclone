@@ -109,8 +109,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "HaloExchange": "blue",
                        "HaloExchangeStart": "yellow",
                        "HaloExchangeEnd": "yellow",
-                       "Call": "magenta",
-                       "KernCall": "magenta",
+                       "BuiltIn": "magenta",
+                       "CodedKern": "magenta",
                        "Profile": "green",
                        "Extract": "green",
                        "If": "red",
@@ -368,7 +368,7 @@ class PSy(object):
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
-            for kernel in schedule.walk(schedule.children, Kern):
+            for kernel in schedule.walk(schedule.children, CodedKern):
                 if kernel.module_inline:
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
@@ -429,7 +429,7 @@ class Invokes(object):
             # calls. We do it here as this enables us to prevent
             # duplication.
             if invoke.schedule.opencl:
-                for kern in invoke.schedule.kern_calls():
+                for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
@@ -662,7 +662,7 @@ class Invoke(object):
         self._alg_unique_args = []
         self._psy_unique_vars = []
         tmp_arg_names = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if arg.text is not None:
                     if arg.text not in self._alg_unique_args:
@@ -676,7 +676,7 @@ class Invoke(object):
 
         # work out the unique dofs required in this subroutine
         self._dofs = {}
-        for kern_call in self._schedule.kern_calls():
+        for kern_call in self._schedule.coded_kernels():
             dofs = kern_call.arguments.dofs
             for dof in dofs:
                 if dof not in self._dofs:
@@ -738,7 +738,7 @@ class Invoke(object):
                 format(type(access)))
 
         declarations = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
@@ -751,7 +751,7 @@ class Invoke(object):
     def first_access(self, arg_name):
         ''' Returns the first argument with the specified name passed to
         a kernel in our schedule '''
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if arg.text is not None:
                     if arg.declaration_name == arg_name:
@@ -1106,11 +1106,11 @@ class Node(object):
     def args(self):
         '''Return the list of arguments associated with this Node. The default
         implementation assumes the Node has no directly associated
-        arguments (i.e. is not a Call class or subclass). Arguments of
+        arguments (i.e. is not a Kern class or subclass). Arguments of
         any of this nodes descendants are considered to be
         associated. '''
         args = []
-        for call in self.calls():
+        for call in self.kernels():
             args.extend(call.args)
         return args
 
@@ -1196,7 +1196,7 @@ class Node(object):
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
             raise GenerationError(
-                "In the psyGen Call class is_valid_location() method the "
+                "In the psyGen.Node.is_valid_location() method the "
                 "supplied argument is not a Node, it is a '{0}'.".
                 format(type(new_node).__name__))
 
@@ -1204,14 +1204,14 @@ class Node(object):
         valid_positions = ["before", "after"]
         if position not in valid_positions:
             raise GenerationError(
-                "The position argument in the psyGen Call class "
-                "is_valid_location() method must be one of {0} but "
-                "found '{1}'".format(valid_positions, position))
+                "The position argument in the psyGenNode.is_valid_location() "
+                "method must be one of {0} but found '{1}'".format(
+                    valid_positions, position))
 
         # 3: check self and new_node have the same parent
         if not self.sameParent(new_node):
             raise GenerationError(
-                "In the psyGen Call class is_valid_location() method "
+                "In the psyGen.Node.is_valid_location() method "
                 "the node and the location do not have the same parent")
 
         # 4: check proposed new position is not the same as current position
@@ -1223,7 +1223,7 @@ class Node(object):
 
         if self.position == new_position:
             raise GenerationError(
-                "In the psyGen Call class is_valid_location() method, the "
+                "In the psyGen.Node.is_valid_location() method, the "
                 "node and the location are the same so this transformation "
                 "would have no effect.")
 
@@ -1428,9 +1428,12 @@ class Node(object):
             myparent = myparent.parent
         return None
 
-    def calls(self):
-        '''Return all calls that are descendants of this node.'''
-        return self.walk(self.children, Call)
+    def kernels(self):
+        '''
+        :returns: all kernels that are descendants of this node in the PSyIR.
+        :rtype: list of :py:class:`psyclone.psyGen.Kern` sub-classes.
+        '''
+        return self.walk(self.children, Kern)
 
     def following(self):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
@@ -1463,23 +1466,15 @@ class Node(object):
             nodes.reverse()
         return nodes
 
-    @property
-    def following_calls(self):
-        '''Return all calls after me in the schedule.'''
-        all_calls = self.root.calls()
-        position = all_calls.index(self)
-        return all_calls[position+1:]
+    def coded_kernels(self):
+        '''
+        Returns a list of all of the user-supplied kernels that are beneath
+        this node in the PSyIR.
 
-    @property
-    def preceding_calls(self):
-        '''Return all calls before me in the schedule.'''
-        all_calls = self.root.calls()
-        position = all_calls.index(self)
-        return all_calls[:position-1]
-
-    def kern_calls(self):
-        '''Return all user-supplied kernel calls in this schedule.'''
-        return self.walk(self._children, Kern)
+        :returns: all user-supplied kernel calls below this node.
+        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        '''
+        return self.walk(self._children, CodedKern)
 
     def loops(self):
         '''Return all loops currently in this schedule.'''
@@ -1493,7 +1488,7 @@ class Node(object):
         builtins that are set to reproducible are returned.'''
 
         call_reduction_list = []
-        for call in self.walk(self.children, Call):
+        for call in self.walk(self.children, Kern):
             if call.is_reduction:
                 if reprod is None:
                     call_reduction_list.append(call)
@@ -1720,7 +1715,7 @@ class InvokeSchedule(Schedule):
             if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
                                    rhs="get_cmd_queues()"))
             # Kernel pointers
-            kernels = self.walk(self._children, Call)
+            kernels = self.walk(self._children, Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
                 kernel = self._name_space_manager.create_name(
@@ -2139,8 +2134,8 @@ class ACCParallelDirective(ACCDirective):
         '''
         variables = []
 
-        # Look-up the calls that are children of this node
-        for call in self.calls():
+        # Look-up the kernels that are children of this node
+        for call in self.kernels():
             for arg in call.arguments.acc_args:
                 if arg not in variables:
                     variables.append(arg)
@@ -2155,9 +2150,9 @@ class ACCParallelDirective(ACCDirective):
         :returns: list of names of field arguments.
         :rtype: list of str
         '''
-        # Look-up the calls that are children of this node
+        # Look-up the kernels that are children of this node
         fld_list = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.fields:
                 if arg not in fld_list:
                     fld_list.append(arg)
@@ -2166,14 +2161,14 @@ class ACCParallelDirective(ACCDirective):
     @property
     def scalars(self):
         '''
-        Returns a list of the scalar quantities required by the Calls in
+        Returns a list of the scalar quantities required by the Kernels in
         this region.
 
         :returns: list of names of scalar arguments.
         :rtype: list of str
         '''
         scalars = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.scalars:
                 if arg not in scalars:
                     scalars.append(arg)
@@ -2323,7 +2318,7 @@ class OMPDirective(Directive):
         :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
         '''
         result = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.type in MAPPING_SCALARS.values():
                     if arg.descriptor.access == reduction_type:
@@ -2431,13 +2426,13 @@ class OMPParallelDirective(OMPDirective):
     def _get_private_list(self):
         '''
         Returns the variable names used for any loops within a directive
-        and any variables that have been declared private by a Call
+        and any variables that have been declared private by a Kernel
         within the directive.
 
         :returns: list of variables to declare as thread private.
         :rtype: list of str
 
-        :raises InternalError: if a Call has local variable(s) but they \
+        :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
         '''
         result = []
@@ -2448,8 +2443,8 @@ class OMPParallelDirective(OMPDirective):
             if loop.variable_name and \
                loop.variable_name.lower() not in result:
                 result.append(loop.variable_name.lower())
-        # get variable names from all calls that are a child of this node
-        for call in self.calls():
+        # Get variable names from all kernels that are a child of this node
+        for call in self.kernels():
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
@@ -3170,7 +3165,7 @@ class Loop(Node):
     def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
-        for kern_call in self.kern_calls():
+        for kern_call in self.coded_kernels():
             for arg in kern_call.arguments.args:
                 if arg.access == AccessType.INC:
                     return True
@@ -3187,7 +3182,7 @@ class Loop(Node):
         '''
         arg_names = []
         args = []
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.type.lower() == arg_type:
                     if arg.access != AccessType.READ:
@@ -3202,7 +3197,7 @@ class Loop(Node):
         True then only return uniquely named arguments'''
         all_args = []
         all_arg_names = []
-        for call in self.calls():
+        for call in self.kernels():
             call_args = args_filter(call.arguments.args, arg_types,
                                     arg_accesses)
             if unique:
@@ -3243,9 +3238,11 @@ class Loop(Node):
             parent.add(my_decl)
 
 
-class Call(Node):
+class Kern(Node):
     '''
-    Represents a call to a sub-program unit from within the PSy layer.
+    Base class representing a call to a sub-program unit from within the
+    PSy layer. It is possible for this unit to be in-lined within the
+    PSy layer.
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
@@ -3306,7 +3303,7 @@ class Call(Node):
 
     def view(self, indent=0):
         '''
-        Write out a textual summary of this Call node to stdout
+        Write out a textual summary of this Kern node to stdout
         and then call the view() method of any children.
 
         :param indent: Depth of indent for output text
@@ -3321,7 +3318,7 @@ class Call(Node):
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node
         type '''
-        return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+        return colored("Kernel", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     @property
     def is_reduction(self):
@@ -3476,7 +3473,7 @@ class Call(Node):
     @property
     def name(self):
         '''
-        :returns: the name of the kernel associated with this call.
+        :returns: the name of the kernel.
         :rtype: str
         '''
         return self._name
@@ -3484,29 +3481,38 @@ class Call(Node):
     @name.setter
     def name(self, value):
         '''
-        Set the name of the kernel that this call is for.
+        Set the name of the kernel.
 
         :param str value: The name of the kernel.
         '''
         self._name = value
+
+    def is_coloured(self):
+        '''
+        :returns: True if this kernel is being called from within a \
+                  coloured loop.
+        :rtype: bool
+        '''
+        return self.parent.loop_type == "colour"
 
     @property
     def iterates_over(self):
         return self._iterates_over
 
     def local_vars(self):
-        raise NotImplementedError("Call.local_vars should be implemented")
+        raise NotImplementedError("Kern.local_vars should be implemented")
 
     def __str__(self):
-        raise NotImplementedError("Call.__str__ should be implemented")
+        raise NotImplementedError("Kern.__str__ should be implemented")
 
     def gen_code(self, parent):
-        raise NotImplementedError("Call.gen_code should be implemented")
+        raise NotImplementedError("Kern.gen_code should be implemented")
 
 
-class Kern(Call):
+class CodedKern(Kern):
     '''
-    Class representing a call to a PSyclone Kernel.
+    Class representing a call to a PSyclone Kernel with a user-provided
+    implementation. The kernel may or may not be in-lined.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -3518,12 +3524,15 @@ class Kern(Call):
     :param bool check: Whether or not to check that the number of arguments \
                        specified in the kernel meta-data matches the number \
                        provided by the call in the Algorithm layer.
+
     :raises GenerationError: if(check) and the number of arguments in the \
                              call does not match that in the meta-data.
+
     '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
-        Call.__init__(self, parent, call, call.ktype.procedure.name,
-                      KernelArguments(call, self))
+        super(CodedKern, self).__init__(parent, call,
+                                        call.ktype.procedure.name,
+                                        KernelArguments(call, self))
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
@@ -3630,7 +3639,7 @@ class Kern(Call):
                   for colour
         :rtype: string
         '''
-        return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+        return colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     def gen_code(self, parent):
         '''
@@ -3680,11 +3689,6 @@ class Kern(Call):
                                  "{1} access".
                                  format(self.name,
                                         AccessType.INC.api_specific_name()))
-
-    def is_coloured(self):
-        ''' Returns true if this kernel is being called from within a
-        coloured loop '''
-        return self.parent.loop_type == "colour"
 
     @property
     def ast(self):
@@ -3928,11 +3932,13 @@ class Kern(Call):
         self._modified = value
 
 
-class BuiltIn(Call):
-    ''' Parent class for all built-ins (field operations for which the user
-    does not have to provide a kernel). '''
+class BuiltIn(Kern):
+    '''
+    Parent class for all built-ins (field operations for which the user
+    does not have to provide an implementation).
+    '''
     def __init__(self):
-        # We cannot call Call.__init__ as don't have necessary information
+        # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
         # that information is available.
         self._arg_descriptors = None
@@ -3948,7 +3954,7 @@ class BuiltIn(Call):
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
-        Call.__init__(self, parent, call, name, arguments)
+        super(BuiltIn, self).__init__(parent, call, name, arguments)
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
@@ -3956,13 +3962,23 @@ class BuiltIn(Call):
         builtin's do not have any local variables so set to nothing'''
         return []
 
+    @property
+    def coloured_text(self):
+        '''
+        :returns: the name of this node type, possibly with control codes
+                  for colour.
+        :rtype: str
+
+        '''
+        return colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
+
 
 class Arguments(object):
     '''
     Arguments abstract base class.
 
-    :param parent_call: the call with which the arguments are associated.
-    :type parent_call: sub-class of :py:class:`psyclone.psyGen.Call`
+    :param parent_call: kernel call with which the arguments are associated.
+    :type parent_call: sub-class of :py:class:`psyclone.psyGen.Kern`
     '''
     def __init__(self, parent_call):
         self._parent_call = parent_call
@@ -4049,15 +4065,15 @@ class DataAccess(object):
         instance with which the argument is associated.
 
         :param arg: the argument that we are concerned with. An \
-        argument can be found in a `Call` a `HaloExchange` or a \
+        argument can be found in a `Kern` a `HaloExchange` or a \
         `GlobalSum` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
         # the `psyclone.psyGen.Argument` we are concerned with
         self._arg = arg
-        # the call (Call, HaloExchange, or GlobalSum (or subclass)
-        # instance to which the argument is associated
+        # The call (Kern, HaloExchange, GlobalSum or subclass)
+        # instance with which the argument is associated
         self._call = arg.call
         # initialise _covered and _vector_index_access to keep pylint
         # happy
@@ -4195,14 +4211,14 @@ class Argument(object):
 
     def __init__(self, call, arg_info, access):
         '''
-        :param call: the call that this argument is associated with
-        :type call: :py:class:`psyclone.psyGen.Call`
-        :param arg_info: Information about this argument collected by
-        the parser
+        :param call: the call that this argument is associated with.
+        :type call: :py:class:`psyclone.psyGen.Kern`
+        :param arg_info: Information about this argument collected by \
+                         the parser.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param access: the way in which this argument is accessed in
-        the 'Call'. Valid values are specified in the config object
-        of the current API.
+        :param access: the way in which this argument is accessed in \
+                 the 'Kern'. Valid values are specified in the config object \
+                 of the current API.
         :type access: str
 
         '''
@@ -4375,7 +4391,7 @@ class Argument(object):
 
         '''
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Call, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -4399,7 +4415,7 @@ class Argument(object):
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Call, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -4438,7 +4454,7 @@ class Argument(object):
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Call, GlobalSum)) or
+                           isinstance(x, (Kern, GlobalSum)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []

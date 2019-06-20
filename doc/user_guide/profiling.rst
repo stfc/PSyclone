@@ -144,13 +144,13 @@ PSyclone and all kernel calls::
         [Profile]
             Loop[type='outer',field_space='cu',it_space='internal_pts']
                 Loop[type='inner',field_space='cu',it_space='internal_pts']
-                    KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
             Loop[type='outer',field_space='cv',it_space='internal_pts']
                 Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
             Loop[type='outer',field_space='ct',it_space='internal_pts']
                 Loop[type='inner',field_space='ct',it_space='internal_pts']
-                    KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                    CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
@@ -160,15 +160,15 @@ region::
         [Profile]
             Loop[type='outer',field_space='cu',it_space='internal_pts']
                 Loop[type='inner',field_space='cu',it_space='internal_pts']
-                    KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
         [Profile]
             Loop[type='outer',field_space='cv',it_space='internal_pts']
                 Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
         [Profile]
             Loop[type='outer',field_space='ct',it_space='internal_pts']
                 Loop[type='inner',field_space='ct',it_space='internal_pts']
-                    KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                    CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 Both options can be specified at the same time::
 
@@ -177,15 +177,15 @@ Both options can be specified at the same time::
             [Profile]
                 Loop[type='outer',field_space='cu',it_space='internal_pts']
                     Loop[type='inner',field_space='cu',it_space='internal_pts']
-                        KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+                        CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
             [Profile]
                 Loop[type='outer',field_space='cv',it_space='internal_pts']
                     Loop[type='inner',field_space='cv',it_space='internal_pts']
-                        KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+                        CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
             [Profile]
                 Loop[type='outer',field_space='ct',it_space='internal_pts']
                     Loop[type='inner',field_space='ct',it_space='internal_pts']
-                        KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                        CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 
 

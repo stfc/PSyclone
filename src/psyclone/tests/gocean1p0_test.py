@@ -862,7 +862,7 @@ def test_goschedule_view(capsys):
     # Ensure we check for the correct (colour) control codes in the output
     sched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+    call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     expected_output = (
         sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
