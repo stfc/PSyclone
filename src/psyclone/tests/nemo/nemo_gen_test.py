@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,3 +55,13 @@ def test_api_no_alg():
                         api="nemo")
     assert alg is None
     assert isinstance(psy, fparser.two.Fortran2003.Program)
+
+
+def test_non_ascii_char(parser, tmpdir):
+    ''' Check that we generate the PSy layer OK when the original Fortran
+    code contains non-ASCII characters. '''
+    from psyclone.generator import main
+    test_file = os.path.join(BASE_PATH, "non_ascii_char.f90")
+    tmp_file = os.path.join(tmpdir, "test_psy.f90")
+    main(["-api", "nemo", "-opsy", tmp_file, test_file])
+    assert os.path.isfile(tmp_file)
