@@ -3202,6 +3202,9 @@ class Loop(Node):
         # (write access before read)
         var_accesses.add_access(self._variable_name, AccessType.WRITE, self)
         var_accesses.add_access(self._variable_name, AccessType.READ, self)
+        # TODO: self._start/stop/step are not defined at this stage (at least
+        # in the gocean1.0 api). ATM this results in an 'empty' variable
+        # being created (name = "").
         var_accesses.add_access(self._start, AccessType.READ, self)
         var_accesses.add_access(self._stop, AccessType.READ, self)
         var_accesses.add_access(self._step, AccessType.READ, self)
@@ -3364,13 +3367,13 @@ class Kern(Node):
             entity.view(indent=indent + 1)
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked as
-        UNKNOWN for now.
+        '''Get all variable access information. All accesses are marked
+        according to the kernel declaration.
         :param var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            var_accesses.add_access(arg.name, AccessType.UNKNOWN, self)
+            var_accesses.add_access(arg.name, arg.access, self)
         super(Kern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 

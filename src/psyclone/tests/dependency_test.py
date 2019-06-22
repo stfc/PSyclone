@@ -228,6 +228,11 @@ def test_goloop():
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
     print(var_accesses)
+    assert str(var_accesses) == "cu_fld: WRITE, i: READWRITE, j: READWRITE, "\
+                                "p_fld: READ, u_fld: READ"
+    # TODO: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
+    # The empty value is caused by not having start, stop, end of the loop
+    # defined at this stage.
 
 
 def test_location(parser):
