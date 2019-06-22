@@ -59,11 +59,14 @@ class AccessInfo(object):
     :param indices: Indices used in the access, defaults to None
     :type indices: list of :py:class:`psyclone.psyGen.Node` instances \
         (e.g. Reference, ...)
+    :param node: Node in PSyIR in which the access happens, defaults to None.
+    :type node: :py:class:`psyclone.psyGen.Node` instance.
     '''
 
-    def __init__(self, access_type, location=None, indices=None):
+    def __init__(self, access_type, location, node, indices=None):
         self._location = location
         self._access_type = access_type
+        self._node = node
         # Create a copy of the list of indices
         if indices:
             self._indices = indices[:]
@@ -100,6 +103,11 @@ class AccessInfo(object):
         ''':returns: the location information for this access.
         :rtype: int'''
         return self._location
+
+    def get_node(self):
+        ''':returns: the node at which this access happens.
+        :rtype: :py:class:`psyclone.psyGen.Node` '''
+        return self._node
 
 
 # =============================================================================
@@ -147,7 +155,7 @@ class VariableAccessInfo(object):
         '''
         return self._accesses
 
-    def add_access(self, access_type, location, indices=None):
+    def add_access(self, access_type, location, node, indices=None):
         '''Adds access information to this variable.
         :param access_type: The type of access (READ, WRITE, ....)
         :type access_type
@@ -157,8 +165,10 @@ class VariableAccessInfo(object):
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None
         :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
+        :param node: Node in PSyIR in which the access happens.
+        :type node: :py:class:`psyclone.psyGen.Node` instance.
         '''
-        self._accesses.append(AccessInfo(access_type, location, indices))
+        self._accesses.append(AccessInfo(access_type, location, node, indices))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
@@ -212,20 +222,24 @@ class VariablesAccessInfo(object):
         '''
         self._location = self._location + 1
 
-    def add_access(self, var_name, access_type, indices=None):
+    def add_access(self, var_name, access_type, node, indices=None):
         '''Adds access information to this variable.
         :param access_type: The type of access (READ, WRITE, ....)
         :type access_type :py:class:`psyclone.core.access_type.AccessType`
+        :param node: Node in PSyIR in which the access happens.
+        :type node: :py:class:`psyclone.psyGen.Node` instance.
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None.
         :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
+
         '''
         if var_name in self._var_to_varinfo:
             self._var_to_varinfo[var_name].add_access(access_type,
-                                                      self._location, indices)
+                                                      self._location, node,
+                                                      indices)
         else:
             var_info = VariableAccessInfo(var_name)
-            var_info.add_access(access_type, self._location, indices)
+            var_info.add_access(access_type, self._location, node, indices)
             self._var_to_varinfo[var_name] = var_info
 
     def get_all_vars(self):
@@ -252,6 +266,7 @@ class VariablesAccessInfo(object):
             var_info = other_access_info.get_varinfo(var_name)
             for access_info in var_info.get_all_accesses():
                 self.add_access(var_name, access_info.get_access_type(),
+                                access_info.get_node(),
                                 access_info.get_indices())
 
     def is_written(self, var_name):

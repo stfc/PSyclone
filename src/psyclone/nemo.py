@@ -42,13 +42,13 @@
 
 from __future__ import print_function, absolute_import
 import copy
+from fparser.two.utils import walk_ast, get_child
+from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, CodedKern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
-from fparser.two.utils import walk_ast, get_child
-from fparser.two import Fortran2003
 
 # The base colour map doesn't have CodeBlock as that is currently
 # a NEMO-API-specific entity.
@@ -491,8 +491,8 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
-        var_accesses.add_access(self._variable_name, AccessType.WRITE)
-        var_accesses.add_access(self._variable_name, AccessType.READ)
+        var_accesses.add_access(self._variable_name, AccessType.WRITE, self)
+        var_accesses.add_access(self._variable_name, AccessType.READ, self)
         var_accesses.next_location()
         # TODO: atm start, stop and step are just strings, so we can't
         # get any variable information

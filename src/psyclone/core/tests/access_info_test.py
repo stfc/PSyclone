@@ -40,28 +40,30 @@ import pytest
 from psyclone.core.access_info import AccessInfo, VariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
+from psyclone.psyGen import Node
 
 
 def test_access_info():
     '''Test the AccessInfo class.
     '''
-    access_info = AccessInfo(AccessType.READ)
+    location = 12
+    access_info = AccessInfo(AccessType.READ, location, Node())
     assert access_info.get_access_type() == AccessType.READ
-    assert access_info.get_location() is None
+    assert access_info.get_location() == location
     assert access_info.get_indices() is None
     access_info.change_read_to_write()
     assert access_info.get_access_type() == AccessType.WRITE
     access_info.set_indices(["i"])
     assert access_info.get_indices() == ["i"]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, 12)
+    access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
     assert access_info.get_access_type() == AccessType.UNKNOWN
-    assert access_info.get_location() == 12
+    assert access_info.get_location() == location
     assert access_info.get_indices() is None
 
-    access_info = AccessInfo(AccessType.UNKNOWN, 12, ["i", "j"])
+    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(), ["i", "j"])
     assert access_info.get_access_type() == AccessType.UNKNOWN
-    assert access_info.get_location() == 12
+    assert access_info.get_location() == location
     assert access_info.get_indices() == ["i", "j"]
 
 
@@ -77,7 +79,7 @@ def test_variable_access_info():
     assert vai.is_read() is False
     assert vai.get_all_accesses() == []
 
-    vai.add_access(AccessType.READ, 1)
+    vai.add_access(AccessType.READ, Node(), 1)
     assert vai.is_read()
     vai.change_read_to_write()
     assert not vai.is_read()
@@ -90,27 +92,34 @@ def test_variables_access_info():
     a list of variables, each with a list of accesses.
     '''
     var_accesses = VariablesAccessInfo()
-    var_accesses.add_access("read", AccessType.READ)
-    var_accesses.add_access("written", AccessType.WRITE)
+    node1 = Node()
+    var_accesses.add_access("read", AccessType.READ, node1)
+    node2 = Node()
+    var_accesses.add_access("written", AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
     var_accesses.next_location()
-    var_accesses.add_access("written", AccessType.WRITE)
+    node = Node()
+    var_accesses.add_access("written", AccessType.WRITE, node)
     var_accesses.next_location()
-    var_accesses.add_access("read_written", AccessType.WRITE)
-    var_accesses.add_access("read_written", AccessType.READ)
+    var_accesses.add_access("read_written", AccessType.WRITE, node)
+    var_accesses.add_access("read_written", AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READWRITE, "\
                                 "written: WRITE"
     assert set(var_accesses.get_all_vars()) == set(["read", "written",
                                                     "read_written"])
+    all_accesses = var_accesses.get_varinfo("read").get_all_accesses()
+    assert all_accesses[0].get_node() == node1
     written_accesses = var_accesses.get_varinfo("written").get_all_accesses()
     assert written_accesses[0].get_location() == 0
     assert written_accesses[1].get_location() == 1
+    # Check that the location pointer is pointing to the next statement:
+    assert var_accesses.get_location() == 2
 
     # Create a new instance, which starts with statement number 999
     var_accesses2 = VariablesAccessInfo(999)
-    var_accesses2.add_access("new_var", AccessType.READ)
-    var_accesses2.add_access("written", AccessType.READ)
+    var_accesses2.add_access("new_var", AccessType.READ, node)
+    var_accesses2.add_access("written", AccessType.READ, node)
     new_var_accesses = var_accesses2.get_varinfo("new_var").get_all_accesses()
     assert new_var_accesses[0].get_location() == 999
 

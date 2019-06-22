@@ -2446,7 +2446,7 @@ class OMPParallelDirective(OMPDirective):
         '''
         result = set()
         # get variable names from all calls that are a child of this node
-        for call in self.calls():
+        for call in self.kernels():
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
@@ -3200,11 +3200,11 @@ class Loop(Node):
         # the dependency analysis for declaring openmp private variables
         # will automatically declare the loop variables to be private
         # (write access before read)
-        var_accesses.add_access(self._variable_name, AccessType.WRITE)
-        var_accesses.add_access(self._variable_name, AccessType.READ)
-        var_accesses.add_access(self._start, AccessType.READ)
-        var_accesses.add_access(self._stop, AccessType.READ)
-        var_accesses.add_access(self._step, AccessType.READ)
+        var_accesses.add_access(self._variable_name, AccessType.WRITE, self)
+        var_accesses.add_access(self._variable_name, AccessType.READ, self)
+        var_accesses.add_access(self._start, AccessType.READ, self)
+        var_accesses.add_access(self._stop, AccessType.READ, self)
+        var_accesses.add_access(self._step, AccessType.READ, self)
         var_accesses.next_location()
 
         for child in self._children:
@@ -3370,8 +3370,8 @@ class Kern(Node):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            var_accesses.add_access(arg.name, AccessType.UNKNOWN)
-        super(Call, self).reference_accesses(var_accesses)
+            var_accesses.add_access(arg.name, AccessType.UNKNOWN, self)
+        super(Kern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
     @property
@@ -7129,7 +7129,7 @@ class Reference(Node):
         :param var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        var_accesses.add_access(self._reference, AccessType.READ)
+        var_accesses.add_access(self._reference, AccessType.READ, self)
 
     def gen_c_code(self, indent=0):
         '''
