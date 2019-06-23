@@ -35,25 +35,25 @@
 
 '''PSyclone script demonstrating that kernels that have been
 transformed into the PSyIR can be transformed back into Fortran by
-using the FortranPSyIRVisitor class.
+using the FortranWriter class.
 
 '''
 from __future__ import print_function
-from psyclone.psyir.backend.fortran import FortranPSyIRVisitor
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psy):
     '''Print out Fortran versions of all kernels found in this file.'''
-    fortran_psyir_visitor = FortranPSyIRVisitor()
+    fortran_writer = FortranWriter()
 
     # Loop over all of the Invokes in the PSy object.
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
         # Loop over all of the Kernels in this Schedule.
-        for kernel in schedule.kern_calls():
+        for kernel in schedule.coded_kernels():
             kernel_schedule = kernel.get_kernel_schedule()
-            kern = fortran_psyir_visitor.visit(kernel_schedule)
+            kern = fortran_writer(kernel_schedule)
             print(kern)
 
     return psy

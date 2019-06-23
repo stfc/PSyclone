@@ -40,7 +40,7 @@ already has a gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
-
+from psyclone.psyGen import FORTRAN_INTRINSICS
 
 def get_intent(symbol):
     '''Given a Symbol instance as input, determine the Fortran intent that
@@ -127,7 +127,7 @@ def get_kind(symbol):
     return kind
 
 
-class FortranPSyIRVisitor(PSyIRVisitor):
+class FortranWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
@@ -158,26 +158,6 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         if symbol.is_constant:
             result += " = {0}".format(symbol.constant_value)
         result += "\n"
-        return result
-
-    def node(self, node):
-        '''Catch any unsupported nodes, output their class names and continue
-        down the node hierarchy.
-
-        :param node: An unsupported PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyGen.Node`
-
-        :returns: The Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = "{0}[ {1} start ]\n".format(self._nindent,
-                                             type(node).__name__)
-        self._depth += 1
-        for child in node.children:
-            result += self.visit(child)
-        self._depth -= 1
-        result += "{0}[ {1} end ]\n".format(self._nindent, type(node).__name__)
         return result
 
     def nemokern(self, node):
@@ -292,10 +272,23 @@ class FortranPSyIRVisitor(PSyIRVisitor):
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
         lhs = self.visit(node.children[0])
-        oper = mapping[node._operator]
         rhs = self.visit(node.children[1])
-        result = "{0}{1}{2}".format(lhs, oper, rhs)
-        return result
+        try:
+            oper = mapping[node._operator]
+            # This is a binary operation
+            return "{0}{1}{2}".format(lhs, oper, rhs)
+        except KeyError:
+            # There is currently no mapping available for binary
+            # intrinsics (see #414) so a temporary solution is used
+            # that relies on the PSyIR name being the same as the
+            # Fortran Intrinsic name.
+            oper = node._operator.name
+            if oper in FORTRAN_INTRINSICS:
+                # This is a binary intrinsic function.
+                return "{0}({1},{2})".format(oper, lhs, rhs)
+        raise VisitorError("Unexpected binary op '{0}'."
+                           "".format(node._operator))
+
 
     def reference(self, node):
         '''This method is called when a Reference instance is found in the
@@ -406,10 +399,22 @@ class FortranPSyIRVisitor(PSyIRVisitor):
             # than one.
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
-        oper = mapping[node._operator]
+
         content = self.visit(node.children[0])
-        result = "{0}{1}".format(oper, content)
-        return result
+        try:
+            oper = mapping[node._operator]
+            # This is a unary operation
+            return "{0}{1}".format(oper, content)
+        except KeyError:
+            # There is currently no mapping available for unary
+            # intrinsics (see #414) so a temporary solution is used
+            # that relies on the PSyIR name being the same as the
+            # Fortran Intrinsic name.
+            oper = node._operator.name
+            if oper in FORTRAN_INTRINSICS:
+                # This is a unary intrinsic function.
+                return "{0}({1})".format(oper, content)
+        raise VisitorError("Unexpected unary op '{0}'.".format(node._operator))
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

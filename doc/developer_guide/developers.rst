@@ -257,10 +257,10 @@ The PSyclone Internal Representation (PSyIR)
 
 The PSyclone Internal Representation (PSyIR) is a language independent
 AST that PSyclone uses to represent the PSy layer and the kernel
-code. It can be constructed from scratch or produced from existing
-code using one of the (frontend) ASTProcessors provided in PSyclone
-and can be transformed back to a particular language using the
-(backend) support provided in PSyclone.
+code. The PSyIR can be constructed from scratch or produced from
+existing code using one of the (front-end) ASTProcessors provided in
+PSyclone and it can be transformed back to a particular language using
+the (back-end) support provided in PSyclone.
 
 Nodes
 =====
@@ -500,19 +500,19 @@ DataAccess class i.e. the `_field_write_arguments()` and
 `_field_read_arguments()` methods, both of which are found in the
 `Arguments` class.
 
-PSyIR backends
-##############
+PSyIR back-ends
+###############
 
-PSyIR backends translate PSyIR into an other form (such as Fortran, C
-or OpenCL). Until recently this backend support has been implemented
+PSyIR back-ends translate PSyIR into another form (such as Fortran, C
+or OpenCL). Until recently this back-end support has been implemented
 within the PSyIR `Node` classes themselves via various `gen*`
 methods. However, this approach is getting a little unwieldy.
 
-Therefore a `Visitor` pattern has been used in the latest backend
+Therefore a `Visitor` pattern has been used in the latest back-end
 implementation (translating PSyIR kernel code to Fortran). This
 approach separates the code to traverse a tree from the tree being
-visited. It is expected that the existing backends will migrate to
-this new approach over time. The backend visitor code is stored in
+visited. It is expected that the existing back-ends will migrate to
+this new approach over time. The back-end visitor code is stored in
 `psyclone/psyir/backend`.
 
 Visitor Base code
@@ -520,17 +520,18 @@ Visitor Base code
 
 `base.py` in `psyclone/psyir/backend` provides a base class -
 `PSyIRVisitor` - that implements the visitor pattern and is designed
-to be subclassed by a particular backend.
+to be subclassed by each back-end.
 
 `PSyIRVisitor` is implemented in such a way that the PSyIR classes do
 not need to be modified. This is achieved by translating the class
-name of the object being visited in the PSyIR tree into a method name
-that it attempts to call (using the Python `eval` function).
+name of the object being visited in the PSyIR tree into the method
+name that the visitor attempts to call (using the Python `eval`
+function).
 
 For example, an instance of the `Loop` PSyIR class would result in
 `PSyIRVisitor` attempting to call a `loop` method with the PSyIR
 instance as an argument. Note the names are always translated to lower
-case. Therefore, a particular backend needs to subclass
+case. Therefore, a particular back-end needs to subclass
 `PSyIRVisitor`, provide a loop method (in this particular example) and
 this method would then be called when the visitor finds an instance of
 `Loop`. For example:
@@ -539,7 +540,7 @@ this method would then be called when the visitor finds an instance of
 
     from __future__ import print_function
     class TestVisitor(PSyIRVisitor):
-        ''' Example implementation of a backend visitor. '''
+        ''' Example implementation of a back-end visitor. '''
 
         def loop(self, node):
             ''' This method is called if the visitor finds a loop. '''
@@ -556,7 +557,7 @@ when and how to call children. For example:
 
     from __future__ import print_function
     class TestVisitor(PSyIRVisitor):
-        ''' Example implementation of a backend visitor. '''
+        ''' Example implementation of a back-end visitor. '''
 
         def loop(self, node):
             ''' This method is called if the visitor finds a loop. '''
@@ -588,11 +589,11 @@ with the associated Python keyword.
 PSyIR nodes might not be direct subclasses of `Node`. For example,
 `GOKernelSchedule` subclasses `KernelSchedule` which subclasses
 `Schedule` which subclasses `Node`. This can cause a problem as a
-backend would need to have a different method for each class e.g. both
+back-end would need to have a different method for each class e.g. both
 a `gokernelschedule` and a `kernelschedule` method, even if the
 required behaviour is the same. Even worse, expecting someone to have
-to implement a new method in all backends when they subclass a node
-(if they don't require the backend output to change) is overly
+to implement a new method in all back-ends when they subclass a node
+(if they don't require the back-end output to change) is overly
 restrictive.
 
 To get round the above problem, if the attempt to call a method with
@@ -604,14 +605,14 @@ names and raises an exception).
 
 This implementation gives the behaviour one would expect from standard
 inheritance rules. For example, if a `kernelschedule` method is
-implemented in the backend and a `GOKernelSchedule` is found then a
+implemented in the back-end and a `GOKernelSchedule` is found then a
 `gokernelschedule` method is first tried which fails, then a
 `kernelschedule` method is called which succeeds. Therefore all
 subclasses of `KernelSchedule` will call the `kernelschedule` method
-(if a method particular to them has not been added).
+(if their particular specialisation has not been added).
 
 One example of the power of this approach makes use of the fact that
-all PSyIR nodes have `Node` as a subclass. Therefore, some base
+all PSyIR nodes have `Node` as a parent class. Therefore, some base
 functionality can be added there and all nodes that do not have a
 specific method implemented will call this. To see the
 class hierarchy, the following code can be written:
@@ -633,8 +634,8 @@ class hierarchy, the following code can be written:
     print_hierarchy = PrintHierarchy()
     print_hierarchy.visit(psyir_tree)
 
-In the examples presented up to now, the information from a backend
-has been printed. However, a backend will generally not want to use
+In the examples presented up to now, the information from a back-end
+has been printed. However, a back-end will generally not want to use
 print statements. Output from a `PSyIRVisitor` is supported by
 allowing each method call to return a string. Reimplementing the
 previous example using strings would give the following:
@@ -657,20 +658,22 @@ previous example using strings would give the following:
     result = print_hierarchy.visit(psyir_tree)
     print(result)
 
-As most backends are expected to indent their output based in some way on the
-PSyIR node hierarchy, the `PSyIRVisitor` provides support for this. The
-`self._nindent` variable contains the current indentation as a
-string and the indentation can be increased by increasing the value of
-the `self._depth` variable. The initial depth defaults to 0 and the
-initial indentation defaults to two spaces. These defaults can
-be changed when creating the backend instance. For example:
+As most back-ends are expected to indent their output based in some
+way on the PSyIR node hierarchy, the `PSyIRVisitor` provides support
+for this. The `self._nindent` variable contains the current
+indentation as a string and the indentation can be increased by
+increasing the value of the `self._depth` variable. The initial depth
+defaults to 0 and the initial indentation defaults to two
+spaces. These defaults can be changed when creating the back-end
+instance. For example:
 
 ::
 
-    print_hierarchy = PrintHierarchy(depth=2, indent="***")
+    print_hierarchy = PrintHierarchy(initial_indent_depth=2,
+                                     indent_string="***")
 
-Given the indentation support the `PrintHierarchy` example can be
-modified to support indenting by writing the following:
+The `PrintHierarchy` example can be modified to support indenting by
+writing the following:
 
 ::
 
@@ -695,6 +698,21 @@ modified to support indenting by writing the following:
     result = print_hierarchy.visit(psyir_tree)
     print(result)
 
+As a visitor instance always calls the visit method, an alternative
+(functor) implementation is provided via the `__call__` method in the
+base class. This allows the above example to be called in the
+following simplified way (as if it were a function):
+
+::
+
+    print_hierarchy = PrintHierarchy()
+    result = print_hierarchy(psyir_tree)
+    print(result)
+
+The primary reason for providing the above (functor) interface is to
+hide users from the use of the visitor pattern. This is the suggested
+interface to expose to users (and `visit` could be changed to `_visit`
+at some point to support the implementation hiding).
 
 Parsing Code
 ############

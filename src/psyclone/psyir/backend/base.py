@@ -39,15 +39,14 @@ back ends.
 '''
 # pylint: disable=eval-used
 
-from __future__ import print_function
 from psyclone.psyGen import Node
 
 
 class VisitorError(Exception):
-    '''Provides a PSyclone-specific error class for errors found within a
+    '''Provides a PSyclone-specific error class for errors related to a
     PSyIR visitor.
 
-    :param str value: error message.
+    :param str value: Error message.
 
     '''
     def __init__(self, value):
@@ -66,42 +65,43 @@ class PSyIRVisitor(object):
     is raised if a visitor method for a PSyIR node has not been \
     implemented, otherwise the visitor silently continues. This is an \
     optional argument which defaults to False.
-    :param indent: Specifies how what to use for indentation. This is \
-    an optional argument that defaults to None, which indicates that \
-    two spaces should be used.
-    :type indent: str or NoneType
-    :param int start_depth: Specifies how much indentation to start \
-    with. This is an optional argument that defaults to 0.
+    :param indent_string: Specifies how what to use for \
+    indentation. This is an optional argument that defaults to None, \
+    which indicates that two spaces should be used.
+    :type indent_string: str or NoneType
+    :param int initial_indent_depth: Specifies how much indentation to \
+    start with. This is an optional argument that defaults to 0.
 
-    :raises TypeError: if skip_nodes is not a boolean, indent is not a \
-    string, start_depth is not an integer, or star_depth is negative.
+    :raises TypeError: If skip_nodes is not a boolean, indent_string \
+    is not a string, or initial_indent_depth is not an integer.
 
     '''
-    def __init__(self, skip_nodes=False, indent=None, start_depth=0):
+    def __init__(self, skip_nodes=False, indent_string=None,
+                 initial_indent_depth=0):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
                 "skip_nodes should be a boolean but found '{0}'."
                 "".format(type(skip_nodes).__name__))
-        if indent is not None and not isinstance(indent, str):
+        if indent_string is not None and not isinstance(indent_string, str):
             raise TypeError(
-                "indent should be a str but found '{0}'."
-                "".format(type(indent).__name__))
-        if not isinstance(start_depth, int):
+                "indent_string should be a str but found '{0}'."
+                "".format(type(indent_string).__name__))
+        if not isinstance(initial_indent_depth, int):
             raise TypeError(
-                "start_depth should be an integer but found '{0}'."
-                "".format(type(start_depth).__name__))
-        if start_depth < 0:
+                "initial_indent_depth should be an integer but found '{0}'."
+                "".format(type(initial_indent_depth).__name__))
+        if initial_indent_depth < 0:
             raise TypeError(
-                "start_depth should not be negative, but found '{0}'."
-                "".format(start_depth))
+                "initial_indent_depth should not be negative, but found '{0}'."
+                "".format(initial_indent_depth))
 
         self._skip_nodes = skip_nodes
-        if indent is None:
+        if indent_string is None:
             self._indent = "  "
         else:
-            self._indent = indent
-        self._depth = start_depth
+            self._indent = indent_string
+        self._depth = initial_indent_depth
 
     @property
     def _nindent(self):
@@ -111,6 +111,18 @@ class PSyIRVisitor(object):
 
         '''
         return self._depth * self._indent
+
+    def __call__(self, node):
+        '''This method is called when an instance of the class is called
+        directly (like a function). This implementation is known as
+        a functor. It makes sense for this class as there is only one
+        main method - the `visit` method.
+
+        :param node: A PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        return self.visit(node)
 
     def visit(self, node):
         '''Implements the PSyIR callbacks. Callbacks are implemented by using

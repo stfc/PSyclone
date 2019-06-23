@@ -39,7 +39,7 @@
 import pytest
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import get_intent, get_dims, get_kind, \
-    FortranPSyIRVisitor
+    FortranWriter
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
@@ -125,12 +125,12 @@ def test_get_kind():
     assert get_kind(logical_symbol) is None
 
 
-def test_FortranPSyIRVisitor_get_declaration():
-    '''Check the FortranPSyIRVisitor class get_declaration method produces
+def test_FortranWriter_get_declaration():
+    '''Check the FortranWriter class get_declaration method produces
     the expected declarations.
 
     '''
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
 
     # Basic entry
     symbol = Symbol("dummy1", "integer")
@@ -176,10 +176,9 @@ def create_schedule(code):
     return schedule
 
 
-def test_FortranPSyIRVisitor_node():
-    '''Check the FortranPSyIRVisitor class node method prints the class
-    information and calls any children. This method is used to output
-    any unsupported PSyIR nodes in a human readable way.
+def test_FortranWriter_exception():
+    '''Check the FortranWriter class instance raises an exception if an
+    unsupported PSyIR node is found.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -204,15 +203,14 @@ def test_FortranPSyIRVisitor_node():
     unsupported.children = binary_operation.children
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
-    result = fvisitor.visit(schedule)
+    fvisitor = FortranWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        result = fvisitor(schedule)
+    assert "Unsupported node 'Unsupported' found" in str(excinfo)
 
-    assert ("    a=    [ Unsupported start ]\n"
-            "bc    [ Unsupported end ]\n" in result)
 
-
-def test_FortranPSyIRVisitor_nemokern():
-    '''Check the FortranPSyIRVisitor class nemokern method prints the
+def test_FortranWriter_nemokern():
+    '''Check the FortranWriter class nemokern method prints the
     class information and calls any children. This method is used to
     output nothing for a NemoKern object and simply call its children
     as NemoKern is a collection of PSyIR nodes so needs no
@@ -236,7 +234,7 @@ def test_FortranPSyIRVisitor_nemokern():
     schedule.children = [nemo_kern]
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
     assert(
         "  subroutine tmp()\n"
@@ -249,8 +247,8 @@ def test_FortranPSyIRVisitor_nemokern():
         "  end subroutine tmp\n") in result
 
 
-def test_FortranPSyIRVisitor_kernelschedule(monkeypatch):
-    '''Check the FortranPSyIRVisitor class nemokern method prints the
+def test_FortranWriter_kernelschedule(monkeypatch):
+    '''Check the FortranWriter class nemokern method prints the
     class information and calls any children. This method is used to
     output nothing for a NemoKern object and simply call its children
     as NemoKern is a collection of PSyIR nodes so needs no
@@ -272,7 +270,7 @@ def test_FortranPSyIRVisitor_kernelschedule(monkeypatch):
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
 
     # The asserts need to be split as the declaration order can change
@@ -292,12 +290,37 @@ def test_FortranPSyIRVisitor_kernelschedule(monkeypatch):
         _ = fvisitor.visit(schedule)
     assert "Expected node name to have a value." in str(excinfo)
 
-# assignment and binaryoperation are already checked within previous
-# tests
+# assignment and binaryoperation (not intrinsics) are already checked
+# within previous tests
 
 
-def test_FortranPSyIRVisitor_reference():
-    '''Check the FortranPSyIRVisitor class reference method prints the
+def test_FortranWriter_binaryoperation():
+    '''Check the FortranWriter class binary_operation method correctly
+    prints out the Fortran representation of an intrinsic. Uses mod as
+    the example.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    a = sign(1.0,1.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor.visit(schedule)
+    assert "a=SIGN(1.0,1.0)" in result
+
+
+
+def test_FortranWriter_reference():
+    '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
     Also check the method raises an exception if it has children as
     this is not expected.
@@ -319,7 +342,7 @@ def test_FortranPSyIRVisitor_reference():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
 
     # The asserts need to be split as the declaration order can change
@@ -349,8 +372,8 @@ def test_FortranPSyIRVisitor_reference():
     assert "PSyIR Reference node should not have any children." in str(excinfo)
 
 
-def test_FortranPSyIRVisitor_array():
-    '''Check the FortranPSyIRVisitor class array method correctly prints
+def test_FortranWriter_array():
+    '''Check the FortranWriter class array method correctly prints
     out the Fortran representation of an array
 
     '''
@@ -368,15 +391,15 @@ def test_FortranPSyIRVisitor_array():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
     assert "a(2,n,:)=0.0" in result
 
 # literal is already checked within previous tests
 
 
-def test_FortranPSyIRVisitor_ifblock():
-    '''Check the FortranPSyIRVisitor class ifblock method
+def test_FortranWriter_ifblock():
+    '''Check the FortranWriter class ifblock method
     correctly prints out the Fortran representation.
 
     '''
@@ -400,7 +423,7 @@ def test_FortranPSyIRVisitor_ifblock():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
     assert (
         "    if (n>2) then\n"
@@ -413,8 +436,8 @@ def test_FortranPSyIRVisitor_ifblock():
         "    end if\n") in result
 
 
-def test_FortranPSyIRVisitor_unaryoperation():
-    '''Check the FortranPSyIRVisitor class unary_operation method
+def test_FortranWriter_unaryoperation():
+    '''Check the FortranWriter class unary_operation method
     correctly prints out the Fortran representation. Uses -1 as the
     example.
 
@@ -432,13 +455,37 @@ def test_FortranPSyIRVisitor_unaryoperation():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
     assert "a=-1" in result
 
 
-def test_FortranPSyIRVisitor_return():
-    '''Check the FortranPSyIRVisitor class return method
+def test_FortranWriter_unaryoperation2():
+    '''Check the FortranWriter class unary_operation method correctly
+    prints out the Fortran representation of an intrinsic. Uses sin as
+    the example.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    a = sin(1.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor.visit(schedule)
+    assert "a=SIN(1.0)" in result
+
+
+def test_FortranWriter_return():
+    '''Check the FortranWriter class return method
     correctly prints out the Fortran representation.
 
     '''
@@ -453,13 +500,13 @@ def test_FortranPSyIRVisitor_return():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
     assert "    return\n" in result
 
 
-def test_FortranPSyIRVisitor_codeblock():
-    '''Check the FortranPSyIRVisitor class codeblock method correctly
+def test_FortranWriter_codeblock():
+    '''Check the FortranWriter class codeblock method correctly
     prints out the Fortran code contained within it.
 
     '''
@@ -484,7 +531,7 @@ def test_FortranPSyIRVisitor_codeblock():
     schedule.addchild(code_block)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranPSyIRVisitor()
+    fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
 
     assert (

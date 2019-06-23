@@ -55,7 +55,8 @@ def test_psyirvisitor_defaults():
 
 def test_psyirvisitor_init():
     '''Check the PSyIRVisitor class __init__ arguments are stored.'''
-    visitor = PSyIRVisitor(skip_nodes=True, indent=" ", start_depth=1)
+    visitor = PSyIRVisitor(skip_nodes=True, indent_string=" ",
+                           initial_indent_depth=1)
     assert visitor._skip_nodes
     assert visitor._indent == " "
     assert visitor._depth == 1
@@ -74,33 +75,34 @@ def test_psyirvisitor_init_error1():
 
 def test_psyirvisitor_init_error2():
     '''Check that the expected error is raised if the PSyIRVisitor class
-    __init__ indent argument is not a string.
+    __init__ indent_string argument is not a string.
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        _ = PSyIRVisitor(indent=True)
-    assert "indent should be a str but found 'bool'." in str(excinfo.value)
+        _ = PSyIRVisitor(indent_string=True)
+    assert ("indent_string should be a str but found "
+            "'bool'." in str(excinfo.value))
 
 
 def test_psyirvisitor_init_error3():
     '''Check that the expected error is raised if the PSyIRVisitor class
-    __init__ start_depth argument is not an integer.
+    __init__ initial_indent_depth argument is not an integer.
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        _ = PSyIRVisitor(start_depth="2")
-    assert "start_depth should be an integer but found 'str'." \
+        _ = PSyIRVisitor(initial_indent_depth="2")
+    assert "initial_indent_depth should be an integer but found 'str'." \
         in str(excinfo.value)
 
 
 def test_psyirvisitor_init_error4():
     '''Check that the expected error is raised if the PSyIRVisitor class
-    __init__ start_depth argument is negative.
+    __init__ initial_indent_depth argument is negative.
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        _ = PSyIRVisitor(start_depth=-1)
-    assert "start_depth should not be negative, but found '-1'." \
+        _ = PSyIRVisitor(initial_indent_depth=-1)
+    assert "initial_indent_depth should not be negative, but found '-1'." \
         in str(excinfo.value)
 
 
@@ -109,7 +111,7 @@ def test_psyirvisitor_nindent():
     the supplied depth and indent values.
 
     '''
-    visitor = PSyIRVisitor(indent=" ", start_depth=4)
+    visitor = PSyIRVisitor(indent_string=" ", initial_indent_depth=4)
     assert visitor._nindent == "    "
 
 
@@ -118,7 +120,7 @@ def test_psyirvisitor_visit_arg_error():
     PSyIRVisitor visit method is not a Node or subclass of Node.
 
     '''
-    visitor = PSyIRVisitor(indent=" ", start_depth=4)
+    visitor = PSyIRVisitor(indent_string=" ", initial_indent_depth=4)
     with pytest.raises(VisitorError) as excinfo:
         visitor.visit("hello")
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
