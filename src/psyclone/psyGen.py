@@ -3776,7 +3776,8 @@ class Kern(Call):
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''
-        return self.parent.loop_type == "colour"
+        # The loop node is 2 layers above the loop body nodes.
+        return self.parent.parent.loop_type == "colour"
 
     @property
     def ast(self):

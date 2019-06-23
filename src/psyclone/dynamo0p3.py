@@ -6538,20 +6538,22 @@ class DynKern(Kern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        parent_loop = self.parent.parent
+
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
+        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
                                           arg_accesses=[AccessType.READ,
                                                         AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_halo_depth > 1:
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_halo_depth))
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map

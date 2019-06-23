@@ -1171,8 +1171,10 @@ class ColourTrans(Transformation):
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
+
         :param node: The loop to transform.
         :type node: :py:class:`psyclone.psyGen.Loop`
+
         :returns: Tuple of modified schedule and record of transformation
         :rtype: (:py:class:`psyclone.psyGen.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
@@ -1210,14 +1212,14 @@ class ColourTrans(Transformation):
         else:  # no distributed memory
             colour_loop.set_upper_bound("ncolour")
         # Add this loop as a child of our loop over colours
-        colours_loop.addchild(colour_loop)
+        colours_loop.loop_body.append(colour_loop)
 
         # add contents of node to colour loop
-        colour_loop.children.extend(node.children)
+        colour_loop.loop_body.extend(node.loop_body)
 
         # change the parent of the node's contents to the colour loop
-        for child in node.children:
-            child.parent = colour_loop
+        for child in node.loop_body:
+            child.parent = colour_loop.children[3]
 
         # remove original loop
         node_parent.children.remove(node)
