@@ -1574,6 +1574,17 @@ class Schedule(Node):
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
+    def __getitem__(self, index):
+        '''
+        Overload the subscript notation ([int]) to access a Schedule statements
+        sequence.
+
+        :param int index: index of the statment to access.
+        :return: statment in a given position in the Schedule sequence.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
+        return self._children[index]
+
     def __str__(self):
         result = "Schedule:\n"
         for entity in self._children:
@@ -4752,7 +4763,7 @@ class IfBlock(Node):
                 "IfBlock malformed or incomplete. It should have at least 2 "
                 "children, but found {0}.".format(len(self.children)))
 
-        return self._children[1]._children
+        return self._children[1]
 
     @property
     def else_body(self):
@@ -4763,7 +4774,7 @@ class IfBlock(Node):
         :rtype: list of :py:class:`psyclone.psyGen.Node`
         '''
         if len(self._children) == 3:
-            return self._children[2]._children
+            return self._children[2]
         return []
 
     @property
@@ -6929,6 +6940,22 @@ class Assignment(Node):
     '''
     def __init__(self, ast=None, parent=None):
         super(Assignment, self).__init__(ast=ast, parent=parent)
+
+    @property
+    def lhs(self):
+        '''
+        :returns: the child node representing the assignment Left-Hand Side.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
+        return self._children[0]
+
+    @property
+    def rhs(self):
+        '''
+        :returns: the child node representing the assignment Right-Hand Side.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
+        return self._children[1]
 
     @property
     def coloured_text(self):
