@@ -1397,6 +1397,7 @@ class GOKernelGridArgument(Argument):
 
     '''
     def __init__(self, arg):
+        super(GOKernelGridArgument, self).__init__(None, None, arg.access)
         if arg.grid_prop in GRID_PROPERTY_DICT:
             self._name = GRID_PROPERTY_DICT[arg.grid_prop]
         else:
