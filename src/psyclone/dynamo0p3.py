@@ -6156,6 +6156,23 @@ class DynKern(CodedKern):
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel declaration.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments.args:
+            # If arg is a grid type argument, it does not have
+            # the access mode defined. So take it from the arg_descriptor:
+            if arg._arg.vector_size > 0:
+                # It's an array, so add an index value for the stored indices
+                var_accesses.add_access(arg.name, arg.access, self, [1])
+            else:
+                var_accesses.add_access(arg.name, arg.access, self)
+        super(DynKern, self).reference_accesses(var_accesses)
+        var_accesses.next_location()
+
     def load(self, call, parent=None):
         '''
         Sets up kernel information with the call object which is
