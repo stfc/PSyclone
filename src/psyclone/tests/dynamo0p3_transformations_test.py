@@ -437,7 +437,7 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     cschedule, _ = ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
 
     invoke.schedule = schedule
     code = str(psy.gen)
@@ -491,7 +491,7 @@ def test_omp_colour_orient_trans(monkeypatch, annexed, dist_mem):
     cschedule, _ = ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
 
     invoke.schedule = schedule
     code = str(psy.gen)
@@ -727,8 +727,8 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     schedule, _ = ctrans.apply(schedule.children[index+1])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index].children[0])
-    schedule, _ = otrans.apply(schedule.children[index+1].children[0])
+    schedule, _ = otrans.apply(schedule.children[index].loop_body[0])
+    schedule, _ = otrans.apply(schedule.children[index+1].loop_body[0])
 
     gen = str(psy.gen)
 
@@ -762,7 +762,7 @@ def test_omp_region_omp_do(dist_mem):
     oschedule, _ = ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule.children[index].children[0])
+    schedule, _ = olooptrans.apply(oschedule.children[index].loop_body[0])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = schedule
@@ -964,8 +964,8 @@ def test_multi_different_kernel_omp(
     schedule, _ = ctrans.apply(schedule.children[index2])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index1].children[0])
-    schedule, _ = otrans.apply(schedule.children[index2].children[0])
+    schedule, _ = otrans.apply(schedule.children[index1].loop_body[0])
+    schedule, _ = otrans.apply(schedule.children[index2].loop_body[0])
 
     code = str(psy.gen)
 

@@ -5264,7 +5264,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
@@ -5361,7 +5361,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -8535,10 +8535,11 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call)
 
         # Add the kernel as a child of the loop
         cloop.loop_body.append(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)

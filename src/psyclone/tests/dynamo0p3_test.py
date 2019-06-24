@@ -5985,7 +5985,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
     field = halo_exchange.field
     read_dependencies = field.forward_read_dependencies()
     read_dependency = read_dependencies[0]
-    loop = read_dependency.call.parent
+    loop = read_dependency.call.parent.parent
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_read_info()

@@ -1199,7 +1199,8 @@ class ColourTrans(Transformation):
 
         # create a colour loop. This loops over a particular colour and
         # can be run in parallel
-        colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
+        colour_loop = node.__class__(parent=colours_loop.children[3],
+                                     loop_type="colour")
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space

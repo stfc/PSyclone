@@ -1970,11 +1970,11 @@ def test_node_ancestor():
     from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     node = kern.ancestor(Node)
-    assert isinstance(node, Loop)
-    node = kern.ancestor(Node, excluding=[Loop])
-    assert node is sched
+    assert isinstance(node, Schedule)
+    node = kern.ancestor(Node, excluding=[Schedule])
+    assert node is sched.children[0].loop_body[0]
 
 
 def test_dag_names():
