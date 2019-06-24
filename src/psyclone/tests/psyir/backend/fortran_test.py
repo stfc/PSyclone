@@ -296,8 +296,8 @@ def test_FortranWriter_kernelschedule(monkeypatch):
 
 def test_FortranWriter_binaryoperation():
     '''Check the FortranWriter class binary_operation method correctly
-    prints out the Fortran representation of an intrinsic. Uses mod as
-    the example.
+    prints out the Fortran representation of an intrinsic. Uses sign
+    as the example.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -317,6 +317,30 @@ def test_FortranWriter_binaryoperation():
     result = fvisitor.visit(schedule)
     assert "a=SIGN(1.0,1.0)" in result
 
+
+def test_FortranWriter_binaryoperation_unsupported(monkeypatch):
+    '''Check the FortranWriter class binary_operation method raises an
+    exception if an unknown binary operator is found.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    a = sign(1.0,1.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    from psyclone.psyir.backend import fortran
+    monkeypatch.setattr(fortran, "FORTRAN_INTRINSICS", [])
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        result = fvisitor(schedule)
+    assert "Unexpected binary op" in str(excinfo)
 
 
 def test_FortranWriter_reference():
@@ -482,6 +506,31 @@ def test_FortranWriter_unaryoperation2():
     fvisitor = FortranWriter()
     result = fvisitor.visit(schedule)
     assert "a=SIN(1.0)" in result
+
+
+def test_FortranWriter_unaryoperation_unsupported(monkeypatch):
+    '''Check the FortranWriter class unary_operation method raises an
+    exception if an unknown unary operator is found.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    a = sin(1.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    from psyclone.psyir.backend import fortran
+    monkeypatch.setattr(fortran, "FORTRAN_INTRINSICS", [])
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        result = fvisitor(schedule)
+    assert "Unexpected unary op" in str(excinfo)
 
 
 def test_FortranWriter_return():
