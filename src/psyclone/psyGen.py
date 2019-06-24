@@ -3367,13 +3367,12 @@ class Kern(Node):
             entity.view(indent=indent + 1)
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel declaration.
+        '''Get all variable access information. The API specific classes
+        add the accesses to the arguments. So the code here only calls
+        the baseclass, and increases the location.
         :param var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        for arg in self.arguments.args:
-            var_accesses.add_access(arg.name, arg.access, self)
         super(Kern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 

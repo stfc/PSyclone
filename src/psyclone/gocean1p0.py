@@ -883,6 +883,17 @@ class GOKern(CodedKern):
         # Get a reference to the namespace manager
         self._name_space_manager = NameSpaceFactory().create()
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel declaration.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments.args:
+            var_accesses.add_access(arg.name, arg.access, self)
+        super(GOKern, self).reference_accesses(var_accesses)
+        var_accesses.next_location()
+
     def load(self, call, parent=None):
         '''
         Populate the state of this GOKern object.
