@@ -62,6 +62,6 @@ def test_non_ascii_char(parser, tmpdir):
     code contains non-ASCII characters. '''
     from psyclone.generator import main
     test_file = os.path.join(BASE_PATH, "non_ascii_char.f90")
-    tmp_file = os.path.join(tmpdir, "test_psy.f90")
+    tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
     main(["-api", "nemo", "-opsy", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
