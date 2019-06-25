@@ -244,7 +244,6 @@ def main(args):
                       been invoked with.
     '''
     # pylint: disable=too-many-statements,too-many-branches
-    import io
 
     # Make sure we have the supported APIs defined in the Config singleton,
     # but postpone loading the config file till the command line was parsed
@@ -429,8 +428,7 @@ def main(args):
         psy_str = str(psy)
         alg_str = str(alg)
     if args.oalg is not None:
-        with io.open(args.oalg, "w", encoding="utf8") as file_object:
-            file_object.write(alg_str)
+        write_unicode_file(alg_str, args.oalg)
     else:
         print("Transformed algorithm code:\n%s" % alg_str)
 
@@ -438,10 +436,35 @@ def main(args):
         # empty file so do not output anything
         pass
     elif args.opsy is not None:
-        with io.open(args.opsy, "w", encoding="utf8") as file_object:
-            file_object.write(psy_str)
+        write_unicode_file(psy_str, args.opsy)
     else:
         print("Generated psy layer code:\n", psy_str)
+
+
+def write_unicode_file(contents, filename):
+    '''
+    Wrapper routine that ensures that a string is encoded as unicode before
+    writing to file in both Python 2 and 3.
+
+    :param str contents: string to write to file.
+    :param str filename: the name of the file to create.
+
+    '''
+    import six
+    import io
+
+    if six.PY2:
+        # In Python 2 the plain string must be encoded as unicode for the call
+        # to write() below. unicode() does not exist in Python 3 since all
+        # strings are unicode.
+        # pylint: disable=undefined-variable
+        contents = unicode(contents, 'utf-8')
+        # pylint: enable=undefined-variable
+
+    encoding = {'encoding': 'utf8'} if six.PY3 else {}
+
+    with io.open(filename, mode='w', **encoding) as file_object:
+        file_object.write(contents)
 
 
 if __name__ == "__main__":
