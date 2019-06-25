@@ -570,7 +570,7 @@ def test_sched_view(capsys):
 
 
 def test_sched_getitem():
-    '''Test that Schedule have the [int] operators overloaded to return the
+    '''Test that Schedule has the [int] operator overloaded to return the
     given index child'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
@@ -580,6 +580,17 @@ def test_sched_getitem():
     sched = psy.invokes.invoke_list[0].schedule
     for indx in range(len(sched._children)):
         assert sched[indx] is sched._children[indx]
+
+    # Test range indexing
+    children = sched[:]
+    assert len(children) == 2
+    assert children[0] is sched._children[0]
+    assert children[1] is sched._children[1]
+
+    # Test index out-of-bounds Error
+    with pytest.raises(IndexError) as err:
+        _ = sched[len(sched._children)]
+    assert "list index out of range" in str(err)
 
 
 def test_sched_can_be_printed():

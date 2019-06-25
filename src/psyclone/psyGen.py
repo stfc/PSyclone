@@ -1576,11 +1576,11 @@ class Schedule(Node):
 
     def __getitem__(self, index):
         '''
-        Overload the subscript notation ([int]) to access a Schedule statements
-        sequence.
+        Overload the subscript notation ([int]) to access specific statements
+        in the Schedule.
 
-        :param int index: index of the statment to access.
-        :return: statment in a given position in the Schedule sequence.
+        :param int index: index of the statement to access.
+        :return: statement in a given position in the Schedule sequence.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         return self._children[index]
@@ -4749,11 +4749,10 @@ class IfBlock(Node):
 
     @property
     def if_body(self):
-        ''' Return children of the Schedule executed when the IfBlock
-        evaluates to True.
+        ''' Return the Schedule executed when the IfBlock evaluates to True.
 
-        :return: Statements to be executed when IfBlock evaluates to True.
-        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :return: Schedule to be executed when IfBlock evaluates to True.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
         '''
@@ -4767,15 +4766,16 @@ class IfBlock(Node):
 
     @property
     def else_body(self):
-        ''' Return children of the Schedule executed when the IfBlock
-        evaluates to False.
+        ''' If available return the Schedule executed when the IfBlock
+        evaluates to False, otherwise return None.
 
-        :return: Statements to be executed when IfBlock evaluates to False.
-        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :return: Schedule to be executed when IfBlock evaluates \
+            to False, if it doesn't exist returns None.
+        :rtype: :py:class:`psyclone.psyGen.Schedule` or NoneType
         '''
         if len(self._children) == 3:
             return self._children[2]
-        return []
+        return None
 
     @property
     def coloured_text(self):
@@ -6944,7 +6944,8 @@ class Assignment(Node):
     @property
     def lhs(self):
         '''
-        :returns: the child node representing the assignment Left-Hand Side.
+        :returns: the child node representing the Left-Hand Side of the \
+            assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         return self._children[0]
@@ -6952,7 +6953,8 @@ class Assignment(Node):
     @property
     def rhs(self):
         '''
-        :returns: the child node representing the assignment Right-Hand Side.
+        :returns: the child node representing the Right-Hand Side of the \
+            assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         return self._children[1]
