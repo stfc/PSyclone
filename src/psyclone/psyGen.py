@@ -3047,9 +3047,10 @@ class Loop(Node):
         self.addchild(Literal("1", parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
-    def addchild(self, parent):
+    def addchild(self, parent, index=None):
+        '''Add a limit to the number of children that can be added.'''
         if len(self._children) < 4:
-            super(Loop, self).addchild(parent)
+            super(Loop, self).addchild(parent, index)
         else:
             raise InternalError(
                 "This Loop construct already has 4 children. (Note: to add"

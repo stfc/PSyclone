@@ -228,12 +228,12 @@ class LoopFuseTrans(Transformation):
                                       "At least one of the nodes is not "
                                       "a loop")
 
-        # We expect fully-formed Loops
-        if len(node1.children) != 4:
-            raise TransformationError("")
+            # If they are loops, they must be fully-formed.
+            if len(node1.children) != 4:
+                raise TransformationError("")
 
-        if len(node2.children) != 4:
-            raise TransformationError("")
+            if len(node2.children) != 4:
+                raise TransformationError("")
 
         # check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
