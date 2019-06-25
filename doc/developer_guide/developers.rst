@@ -266,6 +266,33 @@ provides the following common interface:
 .. autoclass:: psyclone.psyGen.Node
     :members:
 
+Tree Navigation
+===============
+
+Each PSyIR node provides several ways to navigate the AST:
+
+The `children` and `parent` properties (available in all nodes) provide an
+homogeneous method to go up and down the tree hierarchy. This method
+is recommended when applying general operations or analysis to the tree,
+however, if one intends to navigate the tree in a way that depends on the type
+of node, the `children` and `parent` methods should be avoided. The structure
+of the tree may change in different versions of PSyclone and the encoded
+navigation won't be future-proof.
+
+To solve this issue some nodes also provide methods for semantic navigation:
+
+- Schedule: subscript operator for indexing access. (e.g. `sched[3]` or `sched[2:4]`)
+- Assignment: rhs and lhs properties.
+- IfBlocks: condition, if_body and else_body properties.
+
+This is the recommended methods to navigate the tree for heterogeneous operations
+or analysis.
+
+Additionally, the `walk` method (available in all nodes) is able to recurse
+through the tree and return objects of a given type. This is useful when the
+objective is to move down the tree to an specific node or list of nodes without
+information about the exact location.
+
 
 Schedule
 ===============
