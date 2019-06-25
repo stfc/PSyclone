@@ -1053,11 +1053,11 @@ functions for W1.
 meta_reference_element
 ######################
 
-A kernel that requires properties of the reference element specifies
-those properties through the ``meta_reference_element`` metadata
-entry.  (If no reference element properties are required then this
-metadata should be omitted.)  Consider the following example kernel
-metadata::
+A kernel that requires properties of the reference element in LFRIc
+specifies those properties through the ``meta_reference_element``
+metadata entry.  (If no reference element properties are required then
+this metadata should be omitted.)  Consider the following example
+kernel metadata::
 
   type, extends(kernel_type) :: testkern_type
     type(arg_type), dimension(2) :: meta_args = &
