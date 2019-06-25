@@ -1065,8 +1065,8 @@ metadata::
 	   arg_type(gh_field, gh_write, w0) /)
     type(reference_element_data_type), dimension(2) :: &
       meta_reference_element =                         &
-        (/ mesh_data_type(number_horizontal_faces),    &
-	   mesh_data_type(normal_to_face ) /)
+        (/ reference_element_data_type(number_horizontal_faces), &
+	   reference_element_data_type(normal_to_face) /)
   contains
     procedure, nopass :: code => testkern_code
   end type testkern_type
@@ -1078,11 +1078,14 @@ listed below:
 ======================= ===================================================
 Name                    Description
 ======================= ===================================================
-normal_to_face          Array of normals for each horizontal face indexed
-                        as (face, component).
 number_horizontal_faces Number of horizontal faces on the reference element.
-out_face_normal         Array of normals for each horizontal face indexed
-                        as (component, face).
+number_vertical_faces   Number of vertical faces on the reference element.
+normal_to_face          Array of normals pointing in the positive (x, y, z)
+                        axis direction for each face (whether horizontal or
+			vertical) indexed as (face, component).
+out_face_normal         Array of outward-pointing normals for each face
+                        (whether horizontal or vertical) indexed as
+			(component, face).
 ======================= ===================================================
 
 .. _dynamo0.3-gh-shape:
