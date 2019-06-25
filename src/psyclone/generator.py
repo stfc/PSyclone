@@ -244,6 +244,7 @@ def main(args):
                       been invoked with.
     '''
     # pylint: disable=too-many-statements,too-many-branches
+    import io
 
     # Make sure we have the supported APIs defined in the Config singleton,
     # but postpone loading the config file till the command line was parsed
@@ -428,9 +429,8 @@ def main(args):
         psy_str = str(psy)
         alg_str = str(alg)
     if args.oalg is not None:
-        my_file = open(args.oalg, "w")
-        my_file.write(alg_str)
-        my_file.close()
+        with io.open(args.oalg, "w", encoding="utf8") as file_object:
+            file_object.write(alg_str)
     else:
         print("Transformed algorithm code:\n%s" % alg_str)
 
@@ -438,9 +438,8 @@ def main(args):
         # empty file so do not output anything
         pass
     elif args.opsy is not None:
-        my_file = open(args.opsy, "w")
-        my_file.write(psy_str)
-        my_file.close()
+        with io.open(args.opsy, "w", encoding="utf8") as file_object:
+            file_object.write(psy_str)
     else:
         print("Generated psy layer code:\n", psy_str)
 
