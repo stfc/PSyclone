@@ -42,7 +42,8 @@ already has a gen() method to generate Fortran.
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import FORTRAN_INTRINSICS
 
-def get_intent(symbol):
+
+def gen_intent(symbol):
     '''Given a Symbol instance as input, determine the Fortran intent that
     the Symbol should have and return the value as a string.
 
@@ -70,7 +71,7 @@ def get_intent(symbol):
                            "".format(str(excinfo)))
 
 
-def get_dims(symbol):
+def gen_dims(symbol):
     '''Given a Symbol instance as input, return a list of strings
     representing the symbol's array dimensions.
 
@@ -99,11 +100,11 @@ def get_dims(symbol):
             dims.append(":")
         else:
             raise NotImplementedError(
-                "unsupported get_dims index '{0}'".format(str(index)))
+                "unsupported gen_dims index '{0}'".format(str(index)))
     return dims
 
 
-def get_kind(symbol):
+def gen_kind(symbol):
     '''Infer the expected Fortran kind value from the Symbol
     instance. This is a temporary LFRic-specific hack which simply
     adds a hardcoded kind value for real variables and a hardcoded
@@ -133,7 +134,7 @@ class FortranWriter(PSyIRVisitor):
     generating Fortran).
 
     '''
-    def get_declaration(self, symbol):
+    def gen_declaration(self, symbol):
         '''Create and return the Fortran declaration for this Symbol.
 
         :param symbol: The symbol instance.
@@ -142,9 +143,9 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        intent = get_intent(symbol)
-        dims = get_dims(symbol)
-        kind = get_kind(symbol)
+        intent = gen_intent(symbol)
+        dims = gen_dims(symbol)
+        kind = gen_kind(symbol)
         result = "{0}{1}".format(self._nindent, symbol.datatype)
         if kind:
             result += "({0})".format(kind)
@@ -160,7 +161,7 @@ class FortranWriter(PSyIRVisitor):
         result += "\n"
         return result
 
-    def nemokern(self, node):
+    def nemokern_node(self, node):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
 
@@ -174,10 +175,10 @@ class FortranWriter(PSyIRVisitor):
         result = ""
         schedule = node.get_kernel_schedule()
         for child in schedule.children:
-            result += self.visit(child)
+            result += self._visit(child)
         return result
 
-    def kernelschedule(self, node):
+    def kernelschedule_node(self, node):
         '''This method is called when a KernelSchedule instance is found in
         the PSyIR tree.
 
@@ -212,11 +213,11 @@ class FortranWriter(PSyIRVisitor):
         # Declare the kernel data.
         declarations = ""
         for symbol in node.symbol_table._symbols.values():
-            declarations += self.get_declaration(symbol)
+            declarations += self.gen_declaration(symbol)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:
-            exec_statements += self.visit(child)
+            exec_statements += self._visit(child)
         result += (
             "{0}\n"
             "{1}\n"
@@ -233,7 +234,7 @@ class FortranWriter(PSyIRVisitor):
             "".format(self._nindent, node.name+"_mod"))
         return result
 
-    def assignment(self, node):
+    def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the
         PSyIR tree.
 
@@ -244,12 +245,12 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        lhs = self.visit(node.children[0])
-        rhs = self.visit(node.children[1])
+        lhs = self._visit(node.children[0])
+        rhs = self._visit(node.children[1])
         result = "{0}{1}={2}\n".format(self._nindent, lhs, rhs)
         return result
 
-    def binaryoperation(self, node):
+    def binaryoperation_node(self, node):
         '''This method is called when a BinaryOperation instance is found in
         the PSyIR tree.
 
@@ -271,8 +272,8 @@ class FortranWriter(PSyIRVisitor):
             # than one.
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
-        lhs = self.visit(node.children[0])
-        rhs = self.visit(node.children[1])
+        lhs = self._visit(node.children[0])
+        rhs = self._visit(node.children[1])
         try:
             oper = mapping[node._operator]
             # This is a binary operation
@@ -289,8 +290,7 @@ class FortranWriter(PSyIRVisitor):
         raise VisitorError("Unexpected binary op '{0}'."
                            "".format(node._operator))
 
-
-    def reference(self, node):
+    def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
@@ -308,7 +308,7 @@ class FortranWriter(PSyIRVisitor):
                 "PSyIR Reference node should not have any children.")
         return node._reference
 
-    def array(self, node):
+    def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
 
@@ -321,11 +321,11 @@ class FortranWriter(PSyIRVisitor):
         '''
         args = []
         for child in node.children:
-            args.append(str(self.visit(child)))
+            args.append(str(self._visit(child)))
         result = "{0}({1})".format(node.name, ",".join(args))
         return result
 
-    def literal(self, node):
+    def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -339,7 +339,7 @@ class FortranWriter(PSyIRVisitor):
         result = node._value
         return result
 
-    def ifblock(self, node):
+    def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
 
@@ -350,15 +350,15 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        condition = self.visit(node.children[0])
+        condition = self._visit(node.children[0])
 
         self._depth += 1
         if_body = ""
         for child in node.if_body:
-            if_body += self.visit(child)
+            if_body += self._visit(child)
         else_body = ""
         for child in node.else_body:
-            else_body += self.visit(child)
+            else_body += self._visit(child)
         self._depth -= 1
 
         if else_body:
@@ -377,7 +377,7 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
-    def unaryoperation(self, node):
+    def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
@@ -400,7 +400,7 @@ class FortranWriter(PSyIRVisitor):
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
 
-        content = self.visit(node.children[0])
+        content = self._visit(node.children[0])
         try:
             oper = mapping[node._operator]
             # This is a unary operation
@@ -433,7 +433,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         return "{0}return\n".format(self._nindent)
 
-    def codeblock(self, node):
+    def codeblock_node(self, node):
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. It returns the content of the CodeBlock as a
         Fortran string, indenting as appropriate.

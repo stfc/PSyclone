@@ -65,9 +65,8 @@ class PSyIRVisitor(object):
     is raised if a visitor method for a PSyIR node has not been \
     implemented, otherwise the visitor silently continues. This is an \
     optional argument which defaults to False.
-    :param indent_string: Specifies how what to use for \
-    indentation. This is an optional argument that defaults to None, \
-    which indicates that two spaces should be used.
+    :param indent_string: Specifies what to use for indentation. This \
+    is an optional argument that defaults to two spaces.
     :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
     start with. This is an optional argument that defaults to 0.
@@ -76,7 +75,7 @@ class PSyIRVisitor(object):
     is not a string, or initial_indent_depth is not an integer.
 
     '''
-    def __init__(self, skip_nodes=False, indent_string=None,
+    def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0):
 
         if not isinstance(skip_nodes, bool):
@@ -97,10 +96,7 @@ class PSyIRVisitor(object):
                 "".format(initial_indent_depth))
 
         self._skip_nodes = skip_nodes
-        if indent_string is None:
-            self._indent = "  "
-        else:
-            self._indent = indent_string
+        self._indent = indent_string
         self._depth = initial_indent_depth
 
     @property
@@ -122,9 +118,9 @@ class PSyIRVisitor(object):
         :type node: :py:class:`psyclone.psyGen.Node`
 
         '''
-        return self.visit(node)
+        return self._visit(node)
 
-    def visit(self, node):
+    def _visit(self, node):
         '''Implements the PSyIR callbacks. Callbacks are implemented by using
         the class hierarchy names of the object in the PSyIR tree as
         the candidate method names. The class name of the object is
@@ -149,14 +145,13 @@ class PSyIRVisitor(object):
                 "".format(type(node).__name__))
 
         # Make a list of the node's ancestor classes (including
-        # itself) in method resolution order (mro).
+        # itself) in method resolution order (mro), apart from the
+        # base "object" class.
         import inspect
-        possible_method_names = [curr_class.__name__.lower() for curr_class
-                                 in inspect.getmro(type(node))]
+        possible_method_names = [curr_class.__name__.lower()+"_node"
+                                 for curr_class in inspect.getmro(type(node))]
+        possible_method_names.remove("object_node")
 
-        if "return" in possible_method_names:
-            possible_method_names[possible_method_names.index("return")] \
-                = "return_node"
         # Try to call methods using the class names in the order of
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
@@ -174,7 +169,7 @@ class PSyIRVisitor(object):
 
         if self._skip_nodes:
             for child in node.children:
-                self.visit(child)
+                self._visit(child)
         else:
             raise VisitorError(
                 "Unsupported node '{0}' found: method names attempted were "

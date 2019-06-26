@@ -122,7 +122,7 @@ def test_psyirvisitor_visit_arg_error():
     '''
     visitor = PSyIRVisitor(indent_string=" ", initial_indent_depth=4)
     with pytest.raises(VisitorError) as excinfo:
-        visitor.visit("hello")
+        visitor("hello")
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
             "'str'." in str(excinfo.value))
 
@@ -134,10 +134,10 @@ def test_psyirvisitor_visit_no_method1():
     '''
     visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:
-        visitor.visit(Node())
+        visitor(Node())
     assert (
         "Visitor Error: Unsupported node 'Node' found: method names "
-        "attempted were ['node', 'object']." in str(excinfo.value))
+        "attempted were ['node_node']." in str(excinfo.value))
 
 
 def test_psyirvisitor_visit_no_method2():
@@ -146,7 +146,7 @@ def test_psyirvisitor_visit_no_method2():
 
     '''
     visitor = PSyIRVisitor(skip_nodes=True)
-    result = visitor.visit(Node())
+    result = visitor(Node())
     assert result is None
 
 
@@ -162,13 +162,13 @@ def test_psyirvisitor_visit_attribute_error():
     class MyPSyIRVisitor(PSyIRVisitor):
         '''Subclass PSyIRVisitor to make the node method exist but it itself
         raises an attribute error.'''
-        def node(self, _):
+        def node_node(self, _):
             ''' Raise an AttributeError for testing purposes '''
             raise AttributeError("Error")
 
     visitor = MyPSyIRVisitor()
     with pytest.raises(AttributeError) as excinfo:
-        _ = visitor.visit(Node())
+        _ = visitor(Node())
     assert str(excinfo.value) == "Error"
 
 
@@ -184,10 +184,10 @@ def test_psyirvisitor_visit_all_parents():
         '''
     visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:
-        visitor.visit(Unsupported())
+        visitor(Unsupported())
     assert (
         "Visitor Error: Unsupported node 'Unsupported' found: method names "
-        "attempted were ['unsupported', 'node', 'object']."
+        "attempted were ['unsupported_node', 'node_node']."
         "" in str(excinfo.value))
 
 
@@ -202,7 +202,7 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
         works as expected.
 
         '''
-        def testnode2(self, _):
+        def testnode2_node(self, _):
             '''Match with class TestNode2. The print is used to check that this
             method is called.
 
@@ -231,7 +231,7 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
     # class TestNode2) if setting skip_nodes to True works as
     # expected.
     test_visitor = TestVisitor(skip_nodes=True)
-    _ = test_visitor.visit(test_node1)
+    _ = test_visitor(test_node1)
 
     # Success, the child node (an instance of class TestNode2) has
     # been visited.
@@ -249,7 +249,7 @@ def test_psyirvisitor_visit_return_node():
     return_node = Return()
     test_visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:
-        _ = test_visitor.visit(return_node)
+        _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
-            "attempted were ['return_node', 'node', 'object']."
+            "attempted were ['return_node', 'node_node']."
             ""in str(excinfo))

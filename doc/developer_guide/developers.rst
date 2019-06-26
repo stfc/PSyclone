@@ -526,13 +526,14 @@ to be subclassed by each back-end.
 not need to be modified. This is achieved by translating the class
 name of the object being visited in the PSyIR tree into the method
 name that the visitor attempts to call (using the Python `eval`
-function).
+function). `_node` is postfixed to the method name to avoid name
+clashes with Python keywords.
 
 For example, an instance of the `Loop` PSyIR class would result in
-`PSyIRVisitor` attempting to call a `loop` method with the PSyIR
+`PSyIRVisitor` attempting to call a `loop_node` method with the PSyIR
 instance as an argument. Note the names are always translated to lower
 case. Therefore, a particular back-end needs to subclass
-`PSyIRVisitor`, provide a loop method (in this particular example) and
+`PSyIRVisitor`, provide a `loop_node` method (in this particular example) and
 this method would then be called when the visitor finds an instance of
 `Loop`. For example:
 
@@ -542,12 +543,12 @@ this method would then be called when the visitor finds an instance of
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
-        def loop(self, node):
+        def loop_node(self, node):
             ''' This method is called if the visitor finds a loop. '''
 	    print("Found a loop node")
 
     test_visitor = TestVisitor()
-    test_visitor.visit(psyir_tree)
+    test_visitor._visit(psyir_tree)
 
 It is up to the sub-class to call any children of the particular
 node. This approach was chosen as it allows the sub-class to control
@@ -559,14 +560,14 @@ when and how to call children. For example:
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
-        def loop(self, node):
+        def loop_node(self, node):
             ''' This method is called if the visitor finds a loop. '''
 	    print("Found a loop node")
 	    for child in node.children:
-                self.visit(child)
+                self._visit(child)
 
     test_visitor = TestVisitor()
-    test_visitor.visit(psyir_tree)
+    test_visitor._visit(psyir_tree)
 
 If a `node` is called that does not have an associated method defined
 then `PSyIRVisitor` will raise a `VisitorError` exception. This
@@ -580,36 +581,31 @@ when initialising the visitor i.e.
 Any unsupported nodes will then be ignored and their children will be
 called in the order that they appear in the tree.
 
-There is currently one case where there is not a direct mapping
-between the name of the PSyIR class and the name of the method being
-called - the `Return` class. The `Return` class calls the
-`return_node` method. The reason for this is to avoid a name clash
-with the associated Python keyword.
-
 PSyIR nodes might not be direct subclasses of `Node`. For example,
 `GOKernelSchedule` subclasses `KernelSchedule` which subclasses
 `Schedule` which subclasses `Node`. This can cause a problem as a
 back-end would need to have a different method for each class e.g. both
-a `gokernelschedule` and a `kernelschedule` method, even if the
+a `gokernelschedule_node` and a `kernelschedule_node` method, even if the
 required behaviour is the same. Even worse, expecting someone to have
 to implement a new method in all back-ends when they subclass a node
 (if they don't require the back-end output to change) is overly
 restrictive.
 
 To get round the above problem, if the attempt to call a method with
-the name of the PSyIR class fails, then the `PSyIRVisitor` will subsequently
-call the method name of its parent. This will continue with
-the `PSyIRVisitor` working its way through the class hierarchy in
-method resolution order until it is successful (or fails for all
-names and raises an exception).
+the name of the PSyIR class (with `_node` appended) fails, then the
+`PSyIRVisitor` will subsequently call the method name of its parent
+(with `_node` appended). This will continue with the `PSyIRVisitor`
+working its way through the class hierarchy in method resolution order
+until it is successful (or fails for all names and raises an
+exception).
 
 This implementation gives the behaviour one would expect from standard
-inheritance rules. For example, if a `kernelschedule` method is
+inheritance rules. For example, if a `kernelschedule_node` method is
 implemented in the back-end and a `GOKernelSchedule` is found then a
-`gokernelschedule` method is first tried which fails, then a
-`kernelschedule` method is called which succeeds. Therefore all
-subclasses of `KernelSchedule` will call the `kernelschedule` method
-(if their particular specialisation has not been added).
+`gokernelschedule_node` method is first tried which fails, then a
+`kernelschedule_node` method is called which succeeds. Therefore all
+subclasses of `KernelSchedule` will call the `kernelschedule_node`
+method (if their particular specialisation has not been added).
 
 One example of the power of this approach makes use of the fact that
 all PSyIR nodes have `Node` as a parent class. Therefore, some base
@@ -623,16 +619,16 @@ class hierarchy, the following code can be written:
     class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy. '''
 
-        def node(self, node):
+        def node_node(self, node):
 	    ''' This method is called if no specific methods have been
 	        written. '''
 	    print("[ {0} start]".format(type(node).__name__))
 	    for child in node.children:
-	        self.visit(child)
+	        self._visit(child)
 	    print("[ {0} end]".format(type(node).__name__))
 
     print_hierarchy = PrintHierarchy()
-    print_hierarchy.visit(psyir_tree)
+    print_hierarchy._visit(psyir_tree)
 
 In the examples presented up to now, the information from a back-end
 has been printed. However, a back-end will generally not want to use
@@ -646,16 +642,16 @@ previous example using strings would give the following:
     PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy'''
 
-        def node(self, node):
+        def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
 	    result = "[ {0} start ]".format(type(node).__name__)
 	    for child in node.children:
-	        result += self.visit(child)
+	        result += self._visit(child)
 	    result += "[ {0} end ]".format(type(node).__name__)
             return result
 
     print_hierarchy = PrintHierarchy()
-    result = print_hierarchy.visit(psyir_tree)
+    result = print_hierarchy._visit(psyir_tree)
     print(result)
 
 As most back-ends are expected to indent their output based in some
@@ -682,23 +678,23 @@ writing the following:
     ''' Example of a visitor that prints the PSyIR node hierarchy
         with indentation'''
 
-        def node(self, node):
+        def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
 	    result = "{0}[ {1} start ]\n".format(self._nindent,
 	                                         type(node).__name__)
 	    self._depth += 1
 	    for child in node.children:
-	        result += self.visit(child)
+	        result += self._visit(child)
 	    self._depth -= 1
 	    result += "{0}[ {1} end ]\n".format(self._nindent,
 	                                        type(node).__name__)
-            return result
+	    return result
 
     print_hierarchy = PrintHierarchy()
-    result = print_hierarchy.visit(psyir_tree)
+    result = print_hierarchy._visit(psyir_tree)
     print(result)
 
-As a visitor instance always calls the visit method, an alternative
+As a visitor instance always calls the `_visit` method, an alternative
 (functor) implementation is provided via the `__call__` method in the
 base class. This allows the above example to be called in the
 following simplified way (as if it were a function):
@@ -710,9 +706,9 @@ following simplified way (as if it were a function):
     print(result)
 
 The primary reason for providing the above (functor) interface is to
-hide users from the use of the visitor pattern. This is the suggested
-interface to expose to users (and `visit` could be changed to `_visit`
-at some point to support the implementation hiding).
+hide users from the use of the visitor pattern. This is the interface
+to expose to users (which is why `_visit` is used for the visitor
+method, rather than `visit`).
 
 Parsing Code
 ############

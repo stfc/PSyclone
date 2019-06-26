@@ -38,7 +38,7 @@
 
 import pytest
 from psyclone.psyir.backend.base import VisitorError
-from psyclone.psyir.backend.fortran import get_intent, get_dims, get_kind, \
+from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 from fparser.two.parser import ParserFactory
@@ -47,27 +47,27 @@ import fparser.two.Fortran2003 as Fortran2003
 from fparser.api import get_reader
 
 
-def test_get_intent():
-    '''Check the get_intent function produces the expected intent
+def test_gen_intent():
+    '''Check the gen_intent function produces the expected intent
     strings.
 
     '''
     symbol = Symbol("dummy", "integer",
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    assert get_intent(symbol) is None
+    assert gen_intent(symbol) is None
     symbol = Symbol("dummy", "integer",
                     interface=Symbol.Argument(Symbol.Access.READ))
-    assert get_intent(symbol) == "in"
+    assert gen_intent(symbol) == "in"
     symbol = Symbol("dummy", "integer",
                     interface=Symbol.Argument(Symbol.Access.WRITE))
-    assert get_intent(symbol) == "out"
+    assert gen_intent(symbol) == "out"
     symbol = Symbol("dummy", "integer",
                     interface=Symbol.Argument(Symbol.Access.READWRITE))
-    assert get_intent(symbol) == "inout"
+    assert gen_intent(symbol) == "inout"
 
 
-def test_get_intent_error(monkeypatch):
-    '''Check the get_intent function raises an exception if an unsupported
+def test_gen_intent_error(monkeypatch):
+    '''Check the gen_intent function raises an exception if an unsupported
     access type is found.
 
     '''
@@ -75,12 +75,12 @@ def test_get_intent_error(monkeypatch):
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
     with pytest.raises(VisitorError) as excinfo:
-        _ = get_intent(symbol)
+        _ = gen_intent(symbol)
     assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo)
 
 
-def test_get_dims():
-    '''Check the get_dims function produces the expected dimension
+def test_gen_dims():
+    '''Check the gen_dims function produces the expected dimension
     strings.
 
     '''
@@ -88,11 +88,11 @@ def test_get_dims():
                  interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     symbol = Symbol("dummy", "integer", shape=[arg, 2, None],
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    assert get_dims(symbol) == ["arg", "2", ":"]
+    assert gen_dims(symbol) == ["arg", "2", ":"]
 
 
-def test_get_dims_error(monkeypatch):
-    '''Check the get_dims function raises an exception if a symbol shape
+def test_gen_dims_error(monkeypatch):
+    '''Check the gen_dims function raises an exception if a symbol shape
     entry is not supported.
 
     '''
@@ -100,12 +100,12 @@ def test_get_dims_error(monkeypatch):
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     monkeypatch.setattr(symbol, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = get_dims(symbol)
-    assert "unsupported get_dims index 'invalid'" in str(excinfo)
+        _ = gen_dims(symbol)
+    assert "unsupported gen_dims index 'invalid'" in str(excinfo)
 
 
-def test_get_kind():
-    '''Check the get_kind function produces the expected kind values. Note
+def test_gen_kind():
+    '''Check the gen_kind function produces the expected kind values. Note
     these are currently hardcoded to support the LFRic API. Issue #375
     captures this problem.
 
@@ -120,13 +120,13 @@ def test_get_kind():
         "dummy3", "boolean",
         interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
 
-    assert get_kind(int_symbol) == "i_def"
-    assert get_kind(real_symbol) == "r_def"
-    assert get_kind(logical_symbol) is None
+    assert gen_kind(int_symbol) == "i_def"
+    assert gen_kind(real_symbol) == "r_def"
+    assert gen_kind(logical_symbol) is None
 
 
-def test_FortranWriter_get_declaration():
-    '''Check the FortranWriter class get_declaration method produces
+def test_FortranWriter_gen_declaration():
+    '''Check the FortranWriter class gen_declaration method produces
     the expected declarations.
 
     '''
@@ -134,24 +134,24 @@ def test_FortranWriter_get_declaration():
 
     # Basic entry
     symbol = Symbol("dummy1", "integer")
-    result = fvisitor.get_declaration(symbol)
+    result = fvisitor.gen_declaration(symbol)
     assert result == "integer(i_def) :: dummy1\n"
 
     # Array with intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    result = fvisitor.get_declaration(symbol)
+    result = fvisitor.gen_declaration(symbol)
     assert result == "integer(i_def), dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    result = fvisitor.get_declaration(symbol)
+    result = fvisitor.gen_declaration(symbol)
     assert result == "integer(i_def), dimension(2,:,2) :: dummy2\n"
 
     # Constant
     symbol = Symbol("dummy3", "integer", constant_value=10)
-    result = fvisitor.get_declaration(symbol)
+    result = fvisitor.gen_declaration(symbol)
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
 
 
@@ -235,7 +235,7 @@ def test_FortranWriter_nemokern():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert(
         "  subroutine tmp()\n"
         "    integer(i_def) :: a\n"
@@ -271,7 +271,7 @@ def test_FortranWriter_kernelschedule(monkeypatch):
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
 
     # The asserts need to be split as the declaration order can change
     # between different versions of Psython.
@@ -287,7 +287,7 @@ def test_FortranWriter_kernelschedule(monkeypatch):
 
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
-        _ = fvisitor.visit(schedule)
+        _ = fvisitor(schedule)
     assert "Expected node name to have a value." in str(excinfo)
 
 # assignment and binaryoperation (not intrinsics) are already checked
@@ -314,7 +314,7 @@ def test_FortranWriter_binaryoperation():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert "a=SIGN(1.0,1.0)" in result
 
 
@@ -367,7 +367,7 @@ def test_FortranWriter_reference():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
 
     # The asserts need to be split as the declaration order can change
     # between different versions of Psython.
@@ -392,7 +392,7 @@ def test_FortranWriter_reference():
 
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
-        result = fvisitor.visit(schedule)
+        result = fvisitor(schedule)
     assert "PSyIR Reference node should not have any children." in str(excinfo)
 
 
@@ -416,7 +416,7 @@ def test_FortranWriter_array():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert "a(2,n,:)=0.0" in result
 
 # literal is already checked within previous tests
@@ -448,7 +448,7 @@ def test_FortranWriter_ifblock():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert (
         "    if (n>2) then\n"
         "      n=n+1\n"
@@ -480,7 +480,7 @@ def test_FortranWriter_unaryoperation():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert "a=-1" in result
 
 
@@ -504,7 +504,7 @@ def test_FortranWriter_unaryoperation2():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert "a=SIN(1.0)" in result
 
 
@@ -550,7 +550,7 @@ def test_FortranWriter_return():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
     assert "    return\n" in result
 
 
@@ -581,7 +581,7 @@ def test_FortranWriter_codeblock():
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
-    result = fvisitor.visit(schedule)
+    result = fvisitor(schedule)
 
     assert (
         "    a=1\n"
