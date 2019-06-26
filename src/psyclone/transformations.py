@@ -1237,7 +1237,7 @@ class KernelModuleInlineTrans(Transformation):
     >>>
     >>> inline_trans = KernelModuleInlineTrans()
     >>>
-    >>> ischedule, _ = inline_trans.apply(schedule.children[0].children[0])
+    >>> ischedule, _ = inline_trans.apply(schedule.children[0].loop_body[0])
     >>> ischedule.view()
 
     .. warning ::
@@ -2142,7 +2142,7 @@ class GOLoopSwapTrans(Transformation):
                                       "an instance of '{1}."
                                       .format(node_outer, type(node_outer)))
 
-        if not node_outer.children:
+        if not node_outer.loop_body:
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have one "
@@ -2150,7 +2150,7 @@ class GOLoopSwapTrans(Transformation):
                                       "have any statements inside."
                                       .format(node_outer))
 
-        node_inner = node_outer.children[0]
+        node_inner = node_outer.loop_body[0]
         # Check that the supplied Node is a Loop
         if not isinstance(node_inner, Loop):
             raise TransformationError("Error in GOLoopSwap transformation. "
@@ -2160,7 +2160,7 @@ class GOLoopSwapTrans(Transformation):
                                       "'{1}'."
                                       .format(node_outer, node_inner))
 
-        if len(node_outer.children) > 1:
+        if len(node_outer.loop_body) > 1:
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have "
@@ -2169,8 +2169,8 @@ class GOLoopSwapTrans(Transformation):
                                       "two being '{2}' and '{3}'"
                                       .format(node_outer,
                                               len(node_outer.children),
-                                              node_outer.children[0],
-                                              node_outer.children[1]))
+                                              node_outer.loop_body[0],
+                                              node_outer.loop_body[1]))
 
     def apply(self, outer):  # pylint: disable=arguments-differ
         '''The argument :py:obj:`outer` must be a loop which has exactly
@@ -2184,12 +2184,13 @@ class GOLoopSwapTrans(Transformation):
         self._validate(outer)
 
         schedule = outer.root
-        inner = outer.children[0]
+        inner = outer.loop_body[0]
         parent = outer.parent
 
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [inner, outer])
 
+        exit(0)
         # Remove outer from parent:
         index = parent.children.index(outer)
         del parent.children[index]
@@ -3509,7 +3510,7 @@ class ExtractRegionTrans(RegionTrans):
             # Check that ExtractNode is not inserted between a Kernel or
             # a BuiltIn call and its parent Loop.
             if isinstance(node, (Kern, BuiltIn)) and \
-               isinstance(node.parent, Loop):
+               isinstance(node.parent.parent, Loop):
                 raise TransformationError(
                     "Error in {0}: Extraction of a Kernel or a Built-in "
                     "call without its parent Loop is not allowed."

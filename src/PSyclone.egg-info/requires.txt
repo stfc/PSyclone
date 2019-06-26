@@ -1,0 +1,14 @@
+pyparsing
+fparser==0.0.8
+configparser
+six
+
+[:python_version < "3.0"]
+enum34
+
+[doc]
+sphinx
+sphinxcontrib.bibtex
+
+[test]
+pytest

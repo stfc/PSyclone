@@ -814,8 +814,8 @@ class GOLoop(Loop):
                                              index_offset))
 
         # Generate the upper and lower loop bounds
-        self.start.children = [Literal(self._lower_bound(), parent=self)]
-        self.stop.children = [Literal(self._upper_bound(), parent=self)]
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
 
         Loop.gen_code(self, parent)
 

@@ -1,0 +1,30 @@
+Metadata-Version: 2.1
+Name: PSyclone
+Version: 1.7.0
+Summary: PSyclone - a compiler for Finite Element/Volume/Difference DSLs in Fortran
+Home-page: https://github.com/stfc/psyclone
+Author: Rupert Ford <rupert.ford@stfc.ac.uk>, Andrew Porter <andrew.porter@stfc.ac.uk>
+Author-email: rupert.ford@stfc.ac.uk
+License: OSI Approved :: BSD 3-Clause License
+Description: PSyclone is a compiler for Fortran-embedded Domain Specific Languages
+        targetting Finite Element/Volume/Difference methods in earth-system
+        modelling.
+        
+        See https://github.com/stfc/psyclone for more information.
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Fortran
+Classifier: Programming Language :: Python
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Software Development
+Classifier: Topic :: Utilities
+Classifier: Operating System :: POSIX
+Classifier: Operating System :: Unix
+Classifier: Operating System :: MacOS
+Provides-Extra: test
+Provides-Extra: doc
