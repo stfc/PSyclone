@@ -569,6 +569,30 @@ def test_sched_view(capsys):
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
+def test_sched_getitem():
+    '''Test that Schedule has the [int] operator overloaded to return the
+    given index child'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    sched = psy.invokes.invoke_list[0].schedule
+    for indx in range(len(sched._children)):
+        assert sched[indx] is sched._children[indx]
+
+    # Test range indexing
+    children = sched[:]
+    assert len(children) == 2
+    assert children[0] is sched._children[0]
+    assert children[1] is sched._children[1]
+
+    # Test index out-of-bounds Error
+    with pytest.raises(IndexError) as err:
+        _ = sched[len(sched._children)]
+    assert "list index out of range" in str(err)
+
+
 def test_sched_can_be_printed():
     ''' Check the schedule class can always be printed'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2819,6 +2843,18 @@ def test_assignment_can_be_printed():
     initialised fully)'''
     assignment = Assignment()
     assert "Assignment[]\n" in str(assignment)
+
+
+def test_assignment_semantic_navigation():
+    '''Test that the Assignment navigation properties reference the expected
+    children'''
+    assignment = Assignment()
+    ref = Reference("a", assignment)
+    lit = Literal("1", assignment)
+    assignment.addchild(ref)
+    assignment.addchild(lit)
+    assert assignment.lhs is assignment._children[0]
+    assert assignment.rhs is assignment._children[1]
 
 
 def test_assignment_gen_c_code():

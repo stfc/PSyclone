@@ -1574,6 +1574,17 @@ class Schedule(Node):
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
+    def __getitem__(self, index):
+        '''
+        Overload the subscript notation ([int]) to access specific statements
+        in the Schedule.
+
+        :param int index: index of the statement to access.
+        :return: statement in a given position in the Schedule sequence.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
+        return self._children[index]
+
     def __str__(self):
         result = "Schedule:\n"
         for entity in self._children:
@@ -4738,11 +4749,10 @@ class IfBlock(Node):
 
     @property
     def if_body(self):
-        ''' Return children of the Schedule executed when the IfBlock
-        evaluates to True.
+        ''' Return the Schedule executed when the IfBlock evaluates to True.
 
-        :return: Statements to be executed when IfBlock evaluates to True.
-        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :return: Schedule to be executed when IfBlock evaluates to True.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
         '''
@@ -4752,19 +4762,20 @@ class IfBlock(Node):
                 "IfBlock malformed or incomplete. It should have at least 2 "
                 "children, but found {0}.".format(len(self.children)))
 
-        return self._children[1]._children
+        return self._children[1]
 
     @property
     def else_body(self):
-        ''' Return children of the Schedule executed when the IfBlock
-        evaluates to False.
+        ''' If available return the Schedule executed when the IfBlock
+        evaluates to False, otherwise return None.
 
-        :return: Statements to be executed when IfBlock evaluates to False.
-        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :return: Schedule to be executed when IfBlock evaluates \
+            to False, if it doesn't exist returns None.
+        :rtype: :py:class:`psyclone.psyGen.Schedule` or NoneType
         '''
         if len(self._children) == 3:
-            return self._children[2]._children
-        return []
+            return self._children[2]
+        return None
 
     @property
     def coloured_text(self):
@@ -6929,6 +6940,24 @@ class Assignment(Node):
     '''
     def __init__(self, ast=None, parent=None):
         super(Assignment, self).__init__(ast=ast, parent=parent)
+
+    @property
+    def lhs(self):
+        '''
+        :returns: the child node representing the Left-Hand Side of the \
+            assignment.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
+        return self._children[0]
+
+    @property
+    def rhs(self):
+        '''
+        :returns: the child node representing the Right-Hand Side of the \
+            assignment.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
+        return self._children[1]
 
     @property
     def coloured_text(self):
