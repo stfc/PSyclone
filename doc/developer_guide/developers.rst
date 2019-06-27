@@ -339,7 +339,7 @@ Dependence Analysis in PSyclone produces ordering constraints between
 instances of the `Argument` class within a PSyIR.
 
 The `Argument` class is used to specify the data being passed into and
-out of instances of the `Call` class, `HaloExchange` Class and
+out of instances of the `Kern` class, `HaloExchange` Class and
 `GlobalSum` class (and their subclasses).
 
 As an illustration consider the following invoke::
@@ -412,7 +412,7 @@ exist.
 
 If there is a field vector associated with an instance of an
 `Argument` class then all of the data in its vector indices are
-assumed to be accessed when the argument is part of a `Call` or a
+assumed to be accessed when the argument is part of a `Kern` or a
 `GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
 single index of a field vector. Therefore there is one halo exchange
 per field vector index. For example::
@@ -422,10 +422,10 @@ per field vector index. For example::
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
-    ... ... KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+    ... ... CodedKern testkern_stencil_vector_code(f1,f2) [module_inline=False]
 
 In the above PSyIR schedule, the field `f1` is a vector field and the
-`Call` `testkern\_stencil\_vector\_code` is assumed to access data in
+`CodedKern` `testkern\_stencil\_vector\_code` is assumed to access data in
 all of the vector components. However, there is a separate `HaloExchange`
 for each component. This means that halo exchanges accessing the
 same field but different components do not `overlap`, but each halo
@@ -459,7 +459,7 @@ in a kernel and also requires halo exchanges e.g.::
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
-         KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+         CodedKern testkern_stencil_vector_code(f1,f2) [module_inline=False]
 
 In this case the PSyIR loop node needs to know about all 3 halo
 exchanges before its access is fully `covered`. This functionality is
@@ -572,16 +572,17 @@ instance is created.
 An `InvokeCall` object is created in the `create_invoke_call` method
 by first parsing each of the kernels specified in an invoke call and
 creating a list of `kernel` objects which are then used to create
-an `InvokeCall`.
+an `InvokeCall`. These objects capture information on the way each
+kernel is being called from the Algorithm layer.
 
 A `kernel` object is created in the `create_kernel_call` method which
-extracts the kernel name and kernel arguments, then creates either a
-`BuiltInCall` instance (via the `create_builtin_kernel_call` method)
-or a `KernelCall` instance (via the `create_coded_kernel_call`
-method). `BuiltInCalls` are created if the kernel name is the same as
-one of those specified in the builtin names for this particular API
-(see the variable `_builtin_name_map` which is initialised by the
-`get_builtin_defs` function.
+extracts the kernel name and kernel arguments, then creates either an
+`algorithm.BuiltInCall` instance (via the `create_builtin_kernel_call`
+method) or an `algorithm.KernelCall` instance (via the
+`create_coded_kernel_call` method). `BuiltInCalls` are created if the
+kernel name is the same as one of those specified in the builtin names
+for this particular API (see the variable `_builtin_name_map` which is
+initialised by the `get_builtin_defs` function).
 
 The `create_kernel_call` method uses the `get_kernel` function to find
 out the kernel name and create a list of `Arg` instances representing
@@ -598,34 +599,34 @@ create the appropriate `Arg` instance. Previously we relied on the
           extend if we were to support arithmetic operations in an
           invoke call.
 
-Parsing Kernel Code
-===================
+Parsing Kernel Code (Metadata)
+==============================
 
-A `BuiltInCall` instance is created by being passed a
-`BuiltinKernelType` instance for the particular API via the
-`BuiltInKernelTypeFactory` class which is found in the `kernels.py`
-file. This class parses the Fortran module file which specifies
+An `algorithm.BuiltInCall` instance is created by being passed a
+`kernel.BuiltinKernelType` instance for the particular API via the
+`BuiltInKernelTypeFactory` class which is found in the `parse.kernels`
+module. This class parses the Fortran module file which specifies
 builtin description metadata. Currently `fparser1` is used but we will
 be migrating to `fparser2` in the future. The builtin metadata is
 specified in the same form as coded kernel metadata so the same logic
-can be used (i.e. the `KernelTypeFactory create` method is called)
+can be used (i.e. the `KernelTypeFactory.create` method is called)
 which is why `BuiltInKernelTypeFactory` subclasses
 `KernelTypeFactory`.
 
-A `KernelCall` instance is created by being passed the module name of
-the kernel and a `KernelType` instance for the particular API via the
-`KernelTypeFactory` class which is also found in the `kernels.py`
-file. This class is given the parsed kernel module (via the
-`get_kernel_ast` function - which searches for the kernel file using
-the kernel path information introduced earlier). Again, currently
-`fparser1` is used but we will be migrating to `fparser2` in the
-future.
+An `algorithm.KernelCall` instance is created by being passed the
+module name of the kernel and a `kernel.KernelType` instance for the
+particular API via the `KernelTypeFactory` class which is also found
+in the `parse.kernel` module. This class is given the parsed kernel
+module (via the `get_kernel_ast` function - which searches for the
+kernel file using the kernel path information introduced
+earlier). Again, currently `fparser1` is used but we will be migrating
+to `fparser2` in the future.
 
 The `KernelTypeFactory create` method is used for both coded kernels
 and builtin kernels to specify the API-specific class to use. As an
-example, in the case of the `dynamo0.3` API the class is
+example, in the case of the `dynamo0.3` API, the class is
 `DynKernMetadata` which is found in `psyclone.dynamo0p3`. Once this
-instance has been created (by passing it an `fparser1` AST) it can
+instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from
 `fparser1` to `fparser2` would required changing the parse code logic
 in each of the API-specific classes.
@@ -1804,10 +1805,10 @@ stores the resulting AST in `Kern._fp2_ast` for return by future calls.
 See `psyclone.transformations.ACCRoutineTrans` for an example of directly
 manipulating the fparser2 AST.
 
-Alternatively, one can call the `psyclone.psyGen.Kern.get_kernel_schedule()`
+Alternatively, one can call the `psyclone.psyGen.CodedKern.get_kernel_schedule()`
 to generate the PSyIR representation of the kernel code. 
 
-.. automethod:: psyclone.psyGen.Kern.get_kernel_schedule
+.. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
 
 The AST to AST transformation is done using an ASTProcessor.
 At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
