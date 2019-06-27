@@ -281,17 +281,20 @@ navigation won't be future-proof.
 
 To solve this issue some nodes also provide methods for semantic navigation:
 
-- Schedule: subscript operator for indexing access. (e.g. `sched[3]` or `sched[2:4]`)
-- Assignment: rhs and lhs properties.
-- IfBlocks: condition, if_body and else_body properties.
+- Schedule: subscript operator for indexing the statements inside the
+  Schedule. (e.g. `sched[3]` or `sched[2:4]`)
+- Assignment: `rhs` and `lhs` properties.
+- IfBlocks: `condition`, `if_body` and `else_body` properties.
 
-This is the recommended methods to navigate the tree for heterogeneous operations
-or analysis.
+These are the recommended methods to navigate the tree for analysis or
+operations that depend on the Node type.
 
 Additionally, the `walk` method (available in all nodes) is able to recurse
 through the tree and return objects of a given type. This is useful when the
 objective is to move down the tree to an specific node or list of nodes without
 information about the exact location.
+
+.. automethod:: psyclone.psyGen.Node.walk
 
 
 Schedule
