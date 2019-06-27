@@ -5853,12 +5853,17 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two.Fortran2003 import Actual_Arg_Spec_List
 
+        # Mapping from Fortran operators/intrinsics to the canonical
+        # operators defined in the UnaryOperation.Operator enumeration.
         fortranoperators = {
             '+': UnaryOperation.Operator.PLUS,
             '-': UnaryOperation.Operator.MINUS,
             '.not.': UnaryOperation.Operator.NOT,
+            "abs": UnaryOperation.Operator.ABS,
+            "ceiling": UnaryOperation.Operator.CEIL,
             "exp": UnaryOperation.Operator.EXP,
             "log": UnaryOperation.Operator.LOG,
+            "log10": UnaryOperation.Operator.LOG10,
             "sin": UnaryOperation.Operator.SIN,
             "asin": UnaryOperation.Operator.ASIN,
             "cos": UnaryOperation.Operator.COS,
@@ -7204,13 +7209,13 @@ class UnaryOperation(Operation):
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
         # Logical Operators
         'NOT',
         # Trigonometric Operators
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
-        'ABS',
+        'ABS', 'CEIL',
         # Casting Operators
         'REAL', 'INT'
         ])
