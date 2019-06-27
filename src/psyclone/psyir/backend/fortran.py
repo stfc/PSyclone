@@ -212,7 +212,7 @@ class FortranWriter(PSyIRVisitor):
         self._depth += 1
         # Declare the kernel data.
         declarations = ""
-        for symbol in node.symbol_table._symbols.values():
+        for symbol in node.symbol_table.symbols:
             declarations += self.gen_declaration(symbol)
         # Get the executable statements.
         exec_statements = ""
@@ -275,7 +275,7 @@ class FortranWriter(PSyIRVisitor):
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
-            oper = mapping[node._operator]
+            oper = mapping[node.operator]
             # This is a binary operation
             return "{0}{1}{2}".format(lhs, oper, rhs)
         except KeyError:
@@ -283,12 +283,12 @@ class FortranWriter(PSyIRVisitor):
             # intrinsics (see #414) so a temporary solution is used
             # that relies on the PSyIR name being the same as the
             # Fortran Intrinsic name.
-            oper = node._operator.name
+            oper = node.operator.name
             if oper in FORTRAN_INTRINSICS:
                 # This is a binary intrinsic function.
                 return "{0}({1},{2})".format(oper, lhs, rhs)
         raise VisitorError("Unexpected binary op '{0}'."
-                           "".format(node._operator))
+                           "".format(node.operator))
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
@@ -306,7 +306,7 @@ class FortranWriter(PSyIRVisitor):
         if node.children:
             raise VisitorError(
                 "PSyIR Reference node should not have any children.")
-        return node._reference
+        return node.name
 
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
@@ -336,7 +336,7 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = node._value
+        result = node.value
         return result
 
     def ifblock_node(self, node):
@@ -402,7 +402,7 @@ class FortranWriter(PSyIRVisitor):
 
         content = self._visit(node.children[0])
         try:
-            oper = mapping[node._operator]
+            oper = mapping[node.operator]
             # This is a unary operation
             return "{0}{1}".format(oper, content)
         except KeyError:
@@ -410,11 +410,11 @@ class FortranWriter(PSyIRVisitor):
             # intrinsics (see #414) so a temporary solution is used
             # that relies on the PSyIR name being the same as the
             # Fortran Intrinsic name.
-            oper = node._operator.name
+            oper = node.operator.name
             if oper in FORTRAN_INTRINSICS:
                 # This is a unary intrinsic function.
                 return "{0}({1})".format(oper, content)
-        raise VisitorError("Unexpected unary op '{0}'.".format(node._operator))
+        raise VisitorError("Unexpected unary op '{0}'.".format(node.operator))
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

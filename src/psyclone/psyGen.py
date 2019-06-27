@@ -5598,6 +5598,14 @@ class SymbolTable(object):
                             str(symbol)))
 
     @property
+    def symbols(self):
+        '''
+        :returns:  List of symbols.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        return self._symbols.values()
+
+    @property
     def local_symbols(self):
         '''
         :returns:  List of local symbols.
@@ -5906,7 +5914,8 @@ class UnaryOperation(Node):
     Node representing a UnaryOperation expression. As such it has one operand
     as child 0, and an attribute with the operator type.
 
-    :param str operator: string representing the unary operator.
+    :param operator: Enumerated type capturing the unary operator.
+    :type operator: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
     :param parent: the parent node of this UnaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -5933,6 +5942,17 @@ class UnaryOperation(Node):
                 "".format(type(operator).__name__))
 
         self._operator = operator
+
+    @property
+    def operator(self):
+        '''
+        Return the unary operator.
+
+        :return: Enumerated type capturing the unary operator.
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
+        '''
+
+        return self._operator
 
     @property
     def coloured_text(self):
@@ -6036,8 +6056,8 @@ class BinaryOperation(Node):
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
 
-    :param operator: node in the fparser2 AST representing the binary operator.
-    :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
+    :param operator: Enumerated type capturing the binary operator.
+    :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
     :param parent: the parent node of this BinaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -6091,6 +6111,17 @@ class BinaryOperation(Node):
         for entity in self._children:
             result += str(entity)
         return result
+
+    @property
+    def operator(self):
+        '''
+        Return the binary operator.
+
+        :return: Enumerated type capturing the binary operator.
+        :rtype: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+        '''
+
+        return self._operator
 
     def gen_c_code(self, indent=0):
         '''
@@ -6248,6 +6279,16 @@ class Literal(Node):
     def __init__(self, value, parent=None):
         super(Literal, self).__init__(parent=parent)
         self._value = value
+
+    @property
+    def value(self):
+        '''
+        Return the value of the literal.
+
+        :return: String representing the literal value.
+        :rtype: str
+        '''
+        return self._value
 
     @property
     def coloured_text(self):
