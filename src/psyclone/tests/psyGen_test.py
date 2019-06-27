@@ -4565,12 +4565,12 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
         ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
         ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.MODULUS),
         ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
-        ('x = max(a, b)', NaryOperation, NaryOperation.Operator.MAX),
-        ('x = max(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
-        ('x = min(a, b)', NaryOperation, NaryOperation.Operator.MIN),
+        ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
+        ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
+        ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
         ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-        ('x = sum(a, idim)', NaryOperation, NaryOperation.Operator.SUM),
-        ('x = sum(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
+        ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
+        ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
     )
 
     for code, expected_type, expected_op in testlist:

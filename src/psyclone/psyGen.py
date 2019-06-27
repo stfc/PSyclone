@@ -45,6 +45,7 @@ import abc
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from fparser.two import Fortran2003
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -74,14 +75,9 @@ except ImportError:
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
 # The list of Fortran instrinsic functions that we know about (and can
-# therefore distinguish from array accesses). These should really be
-# provided by the parser (github.com/stfc/fparser/issues/189).
-FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
-                      "CEILING", "REAL", "KIND", "EXP", "SQRT",
-                      "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN",
-                      "LOG", "LOG10", "NINT",
-                      "MINVAL", "MAXVAL", "MINLOC", "MAXLOC", "TRIM",
-                      "RESHAPE"]
+# therefore distinguish from array accesses). We take the definitions
+# from fparser.
+FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive. All code for OpenMP
@@ -5910,6 +5906,8 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two.Fortran2003 import Intrinsic_Function_Reference
 
+        # Map from Fortran operators to the canonical Binary operators
+        # defined in the BinaryOperation.Operator enumeration.
         fortranoperators = {
             '+': BinaryOperation.Operator.ADD,
             '-': BinaryOperation.Operator.SUB,
@@ -5931,6 +5929,9 @@ class Fparser2ASTProcessor(object):
             '.and.': BinaryOperation.Operator.AND,
             '.or.': BinaryOperation.Operator.OR,
             'sign': BinaryOperation.Operator.SIGN,
+            'sum': BinaryOperation.Operator.SUM,
+            'max': BinaryOperation.Operator.MAX,
+            'min': BinaryOperation.Operator.MIN,
             'mod': BinaryOperation.Operator.MODULUS,
             }
 
@@ -6014,22 +6015,28 @@ class Fparser2ASTProcessor(object):
                 :py:class:`psyclone.psyGen.NaryOperation`
 
         '''
-        # TODO these lists should really come from fparser?  Map from
-        # Fortran intrinsic name to PSyIR operator. 'real' and 'int'
-        # can be either unary or binary but we don't yet support the
-        # binary form.
-        unary_intrinsics = ["exp", "log", "sin", "asin", "cos", "acos",
-                            "tan", "atan", "sqrt", "real", "int"]
-        binary_intrinsics = ["mod", "sign"]
-        nary_intrinsics = ["max", "min", "sum"]
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
+        # First item is the name of the intrinsic
+        name = node.items[0].string.upper()
+        # Now work out how many arguments it has
+        num_args = 0
+        if len(node.items) > 1:
+            # TODO Once fparser #203 is on master this check on isinstance
+            # will probably be unnecessary.
+            if isinstance(node.items[1], Actual_Arg_Spec_List):
+                num_args = len(node.items[1].items)
+            else:
+                num_args = len(node.items) - 1
 
-        name = node.items[0].string.lower()
-        if name in unary_intrinsics:
-            return self._unary_op_handler(node, parent)
-        if name in binary_intrinsics:
-            return self._binary_op_handler(node, parent)
-        if name in nary_intrinsics:
+        # We don't handle any intrinsics that don't have arguments
+        if num_args > 0 and name in FORTRAN_INTRINSICS:
+            if num_args == 1:
+                return self._unary_op_handler(node, parent)
+            if num_args == 2:
+                return self._binary_op_handler(node, parent)
             return self._nary_op_handler(node, parent)
+
+        # Intrinsic is not handled - this will result in a CodeBlock
         raise NotImplementedError(name)
 
     def _name_handler(self, node, parent):
@@ -7296,13 +7303,13 @@ class BinaryOperation(Operation):
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'MODULUS',
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'MODULUS', 'SUM',
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
         'AND', 'OR',
         # Other Maths Operators
-        'SIGN'
+        'SIGN', 'MIN', 'MAX',
         ])
 
     @property
