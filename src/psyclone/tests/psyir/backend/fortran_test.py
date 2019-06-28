@@ -346,6 +346,54 @@ def test_fw_binaryoperator_unknown(monkeypatch):
     assert "Unexpected binary op" in str(excinfo)
 
 
+def test_fw_naryopeator():
+    ''' Check that the FortranWriter class nary_operation method correctly
+    prints out the Fortran representation of an intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a\n"
+        "    a = max(1.0,1.0,2.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "a=MAX(1.0,1.0,2.0)" in result
+
+
+def test_fw_naryopeator_unknown(monkeypatch):
+    ''' Check that the FortranWriter class nary_operation method raises
+    the expected error if it encounters an unknown operator.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a\n"
+        "    a = max(1.0,1.0,2.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    # Remove max() from the list of supported nary operators
+    monkeypatch.delitem(Fparser2ASTProcessor.nary_operators, "max")
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    with pytest.raises(VisitorError) as err:
+        _ = fvisitor(schedule)
+    assert "Unexpected N-ary op" in str(err)
+
+
 def test_fw_reference():
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
