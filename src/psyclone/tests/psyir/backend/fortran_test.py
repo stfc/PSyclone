@@ -37,14 +37,14 @@
 '''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
 
 import pytest
-from psyclone.psyir.backend.base import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
-    FortranWriter
-from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 import fparser.two.Fortran2003 as Fortran2003
 from fparser.api import get_reader
+from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
+    FortranWriter
+from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 
 
 def test_gen_intent():
@@ -125,7 +125,7 @@ def test_gen_kind():
     assert gen_kind(logical_symbol) is None
 
 
-def test_FortranWriter_gen_declaration():
+def test_fw_gen_declaration():
     '''Check the FortranWriter class gen_declaration method produces
     the expected declarations.
 
@@ -176,7 +176,7 @@ def create_schedule(code):
     return schedule
 
 
-def test_FortranWriter_exception():
+def test_fw_exception():
     '''Check the FortranWriter class instance raises an exception if an
     unsupported PSyIR node is found.
 
@@ -192,9 +192,11 @@ def test_FortranWriter_exception():
         "end module test")
     schedule = create_schedule(code)
 
+    # pylint: disable=abstract-method
     # modify the reference to b to be something unsupported
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the Fortran visitor.'''
+    # pylint: enable=abstract-method
 
     unsupported = Unsupported()
     assignment = schedule.children[0]
@@ -205,11 +207,11 @@ def test_FortranWriter_exception():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
-        result = fvisitor(schedule)
+        _ = fvisitor(schedule)
     assert "Unsupported node 'Unsupported' found" in str(excinfo)
 
 
-def test_FortranWriter_nemokern():
+def test_fw_nemokern():
     '''Check the FortranWriter class nemokern method prints the
     class information and calls any children. This method is used to
     output nothing for a NemoKern object and simply call its children
@@ -247,13 +249,10 @@ def test_FortranWriter_nemokern():
         "  end subroutine tmp\n") in result
 
 
-def test_FortranWriter_kernelschedule(monkeypatch):
-    '''Check the FortranWriter class nemokern method prints the
-    class information and calls any children. This method is used to
-    output nothing for a NemoKern object and simply call its children
-    as NemoKern is a collection of PSyIR nodes so needs no
-    output itself. Also check that the visitor raises an exception if
-    the name of the node has no value.
+def test_fw_kernelschedule(monkeypatch):
+    '''Check the FortranWriter class outputs correct code when a
+    KernelSchedule node is found. Also tests that an exception is
+    raised if KernelSchedule.name does not have a value.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -273,9 +272,11 @@ def test_FortranWriter_kernelschedule(monkeypatch):
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
 
-    # The asserts need to be split as the declaration order can change
-    # between different versions of Psython.
     assert(
+        "module tmp_mod\n"
+        "  use constants_mod, only : r_def, i_def\n"
+        "  implicit none\n"
+        "  contains\n"
         "  subroutine tmp(a,b,c)\n"
         "    real(r_def), dimension(:), intent(out) :: a\n"
         "    real(r_def), dimension(:), intent(in) :: b\n"
@@ -283,7 +284,8 @@ def test_FortranWriter_kernelschedule(monkeypatch):
         "\n"
         "    a=b/c\n"
         "\n"
-        "  end subroutine tmp\n") in result
+        "  end subroutine tmp\n"
+        "end module tmp_mod") in result
 
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
@@ -294,7 +296,7 @@ def test_FortranWriter_kernelschedule(monkeypatch):
 # within previous tests
 
 
-def test_FortranWriter_binaryoperation():
+def test_fw_binaryoperator():
     '''Check the FortranWriter class binary_operation method correctly
     prints out the Fortran representation of an intrinsic. Uses sign
     as the example.
@@ -318,7 +320,7 @@ def test_FortranWriter_binaryoperation():
     assert "a=SIGN(1.0,1.0)" in result
 
 
-def test_FortranWriter_binaryoperation_unsupported(monkeypatch):
+def test_fw_binaryoperator_unknown(monkeypatch):
     '''Check the FortranWriter class binary_operation method raises an
     exception if an unknown binary operator is found.
 
@@ -339,11 +341,11 @@ def test_FortranWriter_binaryoperation_unsupported(monkeypatch):
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
-        result = fvisitor(schedule)
+        _ = fvisitor(schedule)
     assert "Unexpected binary op" in str(excinfo)
 
 
-def test_FortranWriter_reference():
+def test_fw_reference():
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
     Also check the method raises an exception if it has children as
@@ -396,7 +398,7 @@ def test_FortranWriter_reference():
     assert "PSyIR Reference node should not have any children." in str(excinfo)
 
 
-def test_FortranWriter_array():
+def test_fw_array():
     '''Check the FortranWriter class array method correctly prints
     out the Fortran representation of an array
 
@@ -422,7 +424,7 @@ def test_FortranWriter_array():
 # literal is already checked within previous tests
 
 
-def test_FortranWriter_ifblock():
+def test_fw_ifblock():
     '''Check the FortranWriter class ifblock method
     correctly prints out the Fortran representation.
 
@@ -460,7 +462,7 @@ def test_FortranWriter_ifblock():
         "    end if\n") in result
 
 
-def test_FortranWriter_unaryoperation():
+def test_fw_unaryoperator():
     '''Check the FortranWriter class unary_operation method
     correctly prints out the Fortran representation. Uses -1 as the
     example.
@@ -484,7 +486,7 @@ def test_FortranWriter_unaryoperation():
     assert "a=-1" in result
 
 
-def test_FortranWriter_unaryoperation2():
+def test_fw_unaryoperator2():
     '''Check the FortranWriter class unary_operation method correctly
     prints out the Fortran representation of an intrinsic. Uses sin as
     the example.
@@ -508,7 +510,7 @@ def test_FortranWriter_unaryoperation2():
     assert "a=SIN(1.0)" in result
 
 
-def test_FortranWriter_unaryoperation_unsupported(monkeypatch):
+def test_fw_unaryoperator_unknown(monkeypatch):
     '''Check the FortranWriter class unary_operation method raises an
     exception if an unknown unary operator is found.
 
@@ -529,11 +531,11 @@ def test_FortranWriter_unaryoperation_unsupported(monkeypatch):
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
-        result = fvisitor(schedule)
+        _ = fvisitor(schedule)
     assert "Unexpected unary op" in str(excinfo)
 
 
-def test_FortranWriter_return():
+def test_fw_return():
     '''Check the FortranWriter class return method
     correctly prints out the Fortran representation.
 
@@ -554,7 +556,7 @@ def test_FortranWriter_return():
     assert "    return\n" in result
 
 
-def test_FortranWriter_codeblock():
+def test_fw_codeblock():
     '''Check the FortranWriter class codeblock method correctly
     prints out the Fortran code contained within it.
 
