@@ -2955,7 +2955,14 @@ def test_array_gen_c_code():
     assert array.gen_c_code() == 'array1[3 * array1LEN2 * '\
         'array1LEN1 + 2 * array1LEN1 + 1]'
 
+
 # Test Literal class
+def test_literal_value():
+    '''Test the value property returns the value of the Literal object.
+
+    '''
+    literal = Literal("1")
+    assert literal.value == "1"
 
 
 def test_literal_view(capsys):
@@ -3002,6 +3009,15 @@ def test_binaryoperation_initialization():
            "BinaryOperation.Operator but found" in str(err)
     bop = BinaryOperation(BinaryOperation.Operator.ADD)
     assert bop._operator is BinaryOperation.Operator.ADD
+
+
+def test_binaryoperation_operator():
+    '''Test that the operator property returns the binaryoperator in the
+    binaryoperation.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert binary_operation.operator == BinaryOperation.Operator.ADD
 
 
 def test_binaryoperation_view(capsys):
@@ -3062,8 +3078,7 @@ def test_binaryoperation_gen_c_code():
                  (BinaryOperation.Operator.LE, '(a <= b)'),
                  (BinaryOperation.Operator.AND, '(a && b)'),
                  (BinaryOperation.Operator.OR, '(a || b)'),
-                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'),
-                 )
+                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'))
 
     for operator, expected in test_list:
         binary_operation._operator = operator
@@ -3090,6 +3105,15 @@ def test_unaryoperation_initialization():
            "UnaryOperation.Operator but found" in str(err)
     uop = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert uop._operator is UnaryOperation.Operator.MINUS
+
+
+def test_unaryoperation_operator():
+    '''Test that the operator property returns the unaryoperator in the
+    unaryoperation.
+
+    '''
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
+    assert unary_operation.operator == UnaryOperation.Operator.MINUS
 
 
 def test_unaryoperation_view(capsys):
@@ -3140,8 +3164,7 @@ def test_unaryoperation_gen_c_code():
                  (UnaryOperation.Operator.ASIN, 'asin(a)'),
                  (UnaryOperation.Operator.ATAN, 'atan(a)'),
                  (UnaryOperation.Operator.ABS, 'abs(a)'),
-                 (UnaryOperation.Operator.REAL, 'float(a)'),
-                 )
+                 (UnaryOperation.Operator.REAL, 'float(a)'))
 
     for operator, expected in test_list:
         unary_operation._operator = operator
@@ -3836,6 +3859,19 @@ def test_symboltable_contains():
     assert "var1" in sym_table
     assert "var2" in sym_table
     assert "var3" not in sym_table
+
+
+def test_symboltable_symbols():
+    '''Test that the symbols property returns a list of the symbols in the
+    SymbolTable.'''
+    sym_table = SymbolTable()
+    assert sym_table.symbols == []
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", [None]))
+    assert len(sym_table.symbols) == 2
+    sym_table.add(Symbol("var3", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    assert len(sym_table.symbols) == 3
 
 
 def test_symboltable_local_symbols():
@@ -4591,8 +4627,7 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
                 ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
                 ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
                 ('x = real(a, 8)', CodeBlock, None),
-                ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-                )
+                ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT))
 
     for code, expected_type, expected_op in testlist:
         fake_parent = Node()
@@ -4983,8 +5018,7 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
                 ('<=', BinaryOperation.Operator.LE),
                 ('.LE.', BinaryOperation.Operator.LE),
                 ('.and.', BinaryOperation.Operator.AND),
-                ('.or.', BinaryOperation.Operator.OR),
-                )
+                ('.or.', BinaryOperation.Operator.OR))
 
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
@@ -5033,8 +5067,7 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     testlist = (('+', UnaryOperation.Operator.PLUS),
                 ('-', UnaryOperation.Operator.MINUS),
                 ('.not.', UnaryOperation.Operator.NOT),
-                ('.NOT.', UnaryOperation.Operator.NOT),
-                )
+                ('.NOT.', UnaryOperation.Operator.NOT))
 
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
