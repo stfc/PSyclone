@@ -580,10 +580,10 @@ def test_field_deref(dist_mem):
     assert output in generated_code
     if dist_mem:
         output = (
-            "      !\n"
+            "      !\nf"
             "      ! Create a mesh object\n"
             "      !\n"
-            "      mesh => f1%get_mesh()\n"
+            "      mesh => f1_proxy%vspace%get_mesh()\n"
         )
         assert output in generated_code
     output = (
@@ -711,7 +711,7 @@ def test_field_fs(tmpdir):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -850,7 +850,7 @@ def test_real_scalar():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -932,7 +932,7 @@ def test_int_scalar():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1015,7 +1015,7 @@ def test_two_real_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1097,7 +1097,7 @@ def test_two_int_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1187,7 +1187,7 @@ def test_two_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1269,7 +1269,7 @@ def test_vector_field_2():
     generated_code = str(psy.gen)
     # all references to chi_proxy should be chi_proxy(1)
     assert "chi_proxy%" not in generated_code
-    assert generated_code.count("chi_proxy(1)%vspace") == 4
+    assert generated_code.count("chi_proxy(1)%vspace") == 5
     # use each chi field individually in the kernel
     assert ("chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data" in
             generated_code)
@@ -1380,7 +1380,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => mapping%get_mesh()\n"
+        "      mesh => mapping_proxy%fs_from%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1503,7 +1503,7 @@ def test_operator_nofield_different_space(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert "mesh => my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
@@ -1522,7 +1522,7 @@ def test_operator_nofield_scalar():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
-    assert "mesh => my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
@@ -1548,7 +1548,7 @@ def test_operator_nofield_scalar_deref(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         if dist_mem:
-            assert "mesh => opbox_my_mapping%get_mesh()" in gen
+            assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
         assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
         assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
         assert ("qr_get_instance%compute_function(BASIS, "
@@ -3510,7 +3510,7 @@ def test_no_mesh_mod():
     result = str(psy.gen)
     assert "USE mesh_mod, ONLY: mesh_type" not in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" not in result
-    assert "mesh => a%get_mesh()" not in result
+    assert "mesh => a_proxy%vspace%get_mesh()" not in result
 
 
 def test_mesh_mod():
@@ -3527,7 +3527,7 @@ def test_mesh_mod():
     output = ("      !\n"
               "      ! Create a mesh object\n"
               "      !\n"
-              "      mesh => a%get_mesh()\n")
+              "      mesh => a_proxy%vspace%get_mesh()\n")
     assert output in result
 
 # when we add build tests we should test that we can we get the mesh

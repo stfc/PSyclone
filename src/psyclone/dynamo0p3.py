@@ -3057,7 +3057,9 @@ class DynMeshes(object):
             # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
-            rhs = self._first_var.name_indexed + "%get_mesh()"
+#            rhs = self._first_var.name_indexed + "%get_mesh()"
+            rhs = "%".join([self._first_var.proxy_name_indexed,
+                            self._first_var.ref_name(), "get_mesh()"])
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
             if self._needs_colourmap:
@@ -3105,13 +3107,20 @@ class DynMeshes(object):
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=dig.fine.name_indexed + "%get_mesh()"))
+    #                              rhs=dig.fine.name_indexed + "%get_mesh()"))
+                              rhs="%".join([dig.fine.proxy_name_indexed,
+                                                dig.fine.ref_name(),"get_mesh()"]) ))
+#            rhs = self._first_var.name_indexed + "%get_mesh()"                
+#                rhs = "%".join([self._first_var.proxy_name_indexed,
+#                            self._first_var.ref_name(), "get_mesh()"])
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=dig.coarse.name_indexed + "%get_mesh()"))
+#                              rhs=dig.coarse.name_indexed + "%get_mesh()"))
+                              rhs="%".join([dig.coarse.proxy_name_indexed,
+                                                dig.coarse.ref_name(),"get_mesh()"]) ))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:

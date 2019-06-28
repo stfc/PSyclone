@@ -321,7 +321,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => mapping%get_mesh()\n"
+        "      mesh => mapping_proxy%fs_from%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -443,7 +443,7 @@ def test_operator_nofield_different_space(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert "mesh => my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
@@ -461,7 +461,7 @@ def test_operator_nofield_scalar():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert "mesh => my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
@@ -485,7 +485,7 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert "mesh => opbox_my_mapping%get_mesh()" in gen
+        assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
     assert ("qr_get_instance%compute_function(BASIS, "
