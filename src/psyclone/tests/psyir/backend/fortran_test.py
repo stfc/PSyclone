@@ -325,6 +325,7 @@ def test_fw_binaryoperator_unknown(monkeypatch):
     exception if an unknown binary operator is found.
 
     '''
+    from psyclone.psyGen import Fparser2ASTProcessor
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
@@ -336,8 +337,8 @@ def test_fw_binaryoperator_unknown(monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    from psyclone.psyir.backend import fortran
-    monkeypatch.setattr(fortran, "FORTRAN_INTRINSICS", [])
+    # Remove sign() from the list of supported binary operators
+    monkeypatch.delitem(Fparser2ASTProcessor.binary_operators, "sign")
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
@@ -515,6 +516,7 @@ def test_fw_unaryoperator_unknown(monkeypatch):
     exception if an unknown unary operator is found.
 
     '''
+    from psyclone.psyGen import Fparser2ASTProcessor
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
@@ -526,8 +528,8 @@ def test_fw_unaryoperator_unknown(monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    from psyclone.psyir.backend import fortran
-    monkeypatch.setattr(fortran, "FORTRAN_INTRINSICS", [])
+    # Remove sin() from the dict of unary operators
+    monkeypatch.delitem(Fparser2ASTProcessor.unary_operators, "sin")
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:

@@ -277,18 +277,13 @@ class FortranWriter(PSyIRVisitor):
         try:
             oper = mapping[node.operator]
             # This is a binary operation
+            if oper.upper() in FORTRAN_INTRINSICS:
+                # This is a binary intrinsic function.
+                return "{0}({1},{2})".format(oper.upper(), lhs, rhs)
             return "{0}{1}{2}".format(lhs, oper, rhs)
         except KeyError:
-            # There is currently no mapping available for binary
-            # intrinsics (see #414) so a temporary solution is used
-            # that relies on the PSyIR name being the same as the
-            # Fortran Intrinsic name.
-            oper = node.operator.name
-            if oper in FORTRAN_INTRINSICS:
-                # This is a binary intrinsic function.
-                return "{0}({1},{2})".format(oper, lhs, rhs)
-        raise VisitorError("Unexpected binary op '{0}'."
-                           "".format(node.operator))
+            raise VisitorError("Unexpected binary op '{0}'."
+                               "".format(node.operator))
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
@@ -406,17 +401,13 @@ class FortranWriter(PSyIRVisitor):
         try:
             oper = mapping[node.operator]
             # This is a unary operation
+            if oper.upper() in FORTRAN_INTRINSICS:
+                # This is a unary intrinsic function.
+                return "{0}({1})".format(oper.upper(), content)
             return "{0}{1}".format(oper, content)
         except KeyError:
-            # There is currently no mapping available for unary
-            # intrinsics (see #414) so a temporary solution is used
-            # that relies on the PSyIR name being the same as the
-            # Fortran Intrinsic name.
-            oper = node.operator.name
-            if oper in FORTRAN_INTRINSICS:
-                # This is a unary intrinsic function.
-                return "{0}({1})".format(oper, content)
-        raise VisitorError("Unexpected unary op '{0}'.".format(node.operator))
+            raise VisitorError("Unexpected unary op '{0}'.".format(
+                node.operator))
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in
