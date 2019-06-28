@@ -6417,20 +6417,20 @@ class Fparser2ASTProcessor(object):
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
         ('.not.', UnaryOperation.Operator.NOT),
-        ("abs": UnaryOperation.Operator.ABS),
-        ("ceiling": UnaryOperation.Operator.CEIL),
-        ("exp": UnaryOperation.Operator.EXP),
-        ("log": UnaryOperation.Operator.LOG),
-        ("log10": UnaryOperation.Operator.LOG10),
-        ("sin": UnaryOperation.Operator.SIN),
-        ("asin": UnaryOperation.Operator.ASIN),
-        ("cos": UnaryOperation.Operator.COS),
-        ("acos": UnaryOperation.Operator.ACOS),
-        ("tan": UnaryOperation.Operator.TAN),
-        ("atan": UnaryOperation.Operator.ATAN),
-        ("sqrt": UnaryOperation.Operator.SQRT),
-        ("real": UnaryOperation.Operator.REAL),
-        ("int": UnaryOperation.Operator.INT)])
+        ("abs", UnaryOperation.Operator.ABS),
+        ("ceiling", UnaryOperation.Operator.CEIL),
+        ("exp", UnaryOperation.Operator.EXP),
+        ("log", UnaryOperation.Operator.LOG),
+        ("log10", UnaryOperation.Operator.LOG10),
+        ("sin", UnaryOperation.Operator.SIN),
+        ("asin", UnaryOperation.Operator.ASIN),
+        ("cos", UnaryOperation.Operator.COS),
+        ("acos", UnaryOperation.Operator.ACOS),
+        ("tan", UnaryOperation.Operator.TAN),
+        ("atan", UnaryOperation.Operator.ATAN),
+        ("sqrt", UnaryOperation.Operator.SQRT),
+        ("real", UnaryOperation.Operator.REAL),
+        ("int", UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
         ('+', BinaryOperation.Operator.ADD),
@@ -6452,16 +6452,16 @@ class Fparser2ASTProcessor(object):
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
-        ('sign': BinaryOperation.Operator.SIGN),
-        ('sum': BinaryOperation.Operator.SUM),
-        ('max': BinaryOperation.Operator.MAX),
-        ('min': BinaryOperation.Operator.MIN),
-        ('mod': BinaryOperation.Operator.MODULUS)])
+        ('sign', BinaryOperation.Operator.SIGN),
+        ('sum', BinaryOperation.Operator.SUM),
+        ('max', BinaryOperation.Operator.MAX),
+        ('min', BinaryOperation.Operator.MIN),
+        ('mod', BinaryOperation.Operator.MODULUS)])
 
-        nary_operators = OrderedDict([
-            ('max': NaryOperation.Operator.MAX),
-            ('min': NaryOperation.Operator.MIN),
-            ('sum': NaryOperation.Operator.SUM)])
+    nary_operators = OrderedDict([
+        ('max', NaryOperation.Operator.MAX),
+        ('min', NaryOperation.Operator.MIN),
+        ('sum', NaryOperation.Operator.SUM)])
 
     def __init__(self):
         from fparser.two import Fortran2003, utils
@@ -7379,6 +7379,8 @@ class Fparser2ASTProcessor(object):
                                expected structure.
 
         '''
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
+
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2ASTProcessor.unary_operators[operator_str]
