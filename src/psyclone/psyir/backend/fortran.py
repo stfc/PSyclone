@@ -357,8 +357,10 @@ class FortranWriter(PSyIRVisitor):
         for child in node.if_body:
             if_body += self._visit(child)
         else_body = ""
-        for child in node.else_body:
-            else_body += self._visit(child)
+        # node.else_body is None if there is no else clause.
+        if node.else_body:
+            for child in node.else_body:
+                else_body += self._visit(child)
         self._depth -= 1
 
         if else_body:
