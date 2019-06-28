@@ -83,21 +83,17 @@ class CWriter(PSyIRVisitor):
         code += symbol.name
         return code
 
-    def gen_c_local_variables(self, symbol_table):
+    def gen_local_variable(self, symbol):
         '''
         Generate C code that declares all local symbols in the Symbol Table.
 
-        :param symbol: The symbol table instance.
-        :type symbol: :py:class:`psyclone.psyGen.SymbolTable`
+        :param symbol: The symbol instance.
+        :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
-        :returns: C languague declaration of the local symbols.
+        :returns: C languague declaration of a local variable.
         :rtype: str
         '''
-        code = ""
-        for symbol in symbol_table.local_symbols:
-            code += "{0}{1};\n".format(self._nindent,
-                                       self.gen_declaration(symbol))
-        return code
+        return "{0}{1};\n".format(self._nindent, self.gen_declaration(symbol))
 
     def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the

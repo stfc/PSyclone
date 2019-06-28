@@ -3819,7 +3819,8 @@ class CodedKern(Kern):
                                       "kernel ({0})".format(self.name))
 
         if self.root.opencl:
-            new_kern_code = self.get_kernel_schedule().gen_ocl()
+            ocl_writer = OpenCLWriter()
+            new_kern_code = ocl_writer(self.get_kernel_schedule())
         else:
             # Generate the Fortran for this transformed kernel, ensuring that
             # we limit the line lengths
@@ -5554,32 +5555,29 @@ class SymbolTable(object):
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
-    def gen_ocl_argument_list(self, indent=0):
+    @property
+    def iteration_indices(self):
         '''
-        Generate OpenCL argument list.
+        :return: List of symbols representing the iteration indices.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
-        :raises NotImplementedError: is an abstract method.
+        :raises NotImplementedError: Abastract method.
         '''
         raise NotImplementedError(
-            "A generic implementation of this method is not available.")
+            "Abstract method. Which symbols are iteration indices is"
+            " API-specific.")
 
-    def gen_ocl_iteration_indices(self, indent=0):
+    @property
+    def data_arguments(self):
         '''
-        Generate OpenCL iteration indices declaration.
+        :return: List of symbols representing the data arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
-        :raises NotImplementedError: is an abstract method.
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
-    def gen_ocl_array_length(self, indent=0):
-        '''
-        Generate OpenCL array length variable declarations.
-
-        :raises NotImplementedError: is an abstract method.
+        :raises NotImplementedError: Abastract method.
         '''
         raise NotImplementedError(
-            "A generic implementation of this method is not available.")
+            "Abstract method. Which symbols are data arguments is"
+            " API-specific.")
 
     def view(self):
         '''
@@ -5642,17 +5640,6 @@ class KernelSchedule(Schedule):
               + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
-
-    def gen_ocl(self, indent=0):
-        '''
-        Generate a string representation of this node in the OpenCL language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: OpenCL language code representing the node.
-        :rtype: str
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
 
     def __str__(self):
         result = "KernelSchedule[name:'" + self._name + "']:\n"
