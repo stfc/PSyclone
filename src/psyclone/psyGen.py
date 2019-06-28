@@ -5614,7 +5614,7 @@ class SymbolTable(object):
         :returns:  List of symbols.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
-        return self._symbols.values()
+        return list(self._symbols.values())
 
     @property
     def local_symbols(self):
