@@ -5977,6 +5977,8 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two.Fortran2003 import Actual_Arg_Spec_List
 
+        # Mapping from Fortran intrinsics to the canonical operator in
+        # the NaryOperation.Operator enumeration.
         fortranintrinsics = {
             'max': NaryOperation.Operator.MAX,
             'min': NaryOperation.Operator.MIN,
@@ -6089,11 +6091,9 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation. It also
-        resolves Fortran intrinsics parsed as array references. If the node
-        is connected to a SymbolTable, it checks the reference has been
-        previously declared.
-
+        Transforms an fparser2 Part_Ref to the PSyIR representation.
+        If the node is connected to a SymbolTable, it checks the reference
+        has been previously declared.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -6105,58 +6105,11 @@ class Fparser2ASTProcessor(object):
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
+
         '''
         from fparser.two import Fortran2003
 
         reference_name = node.items[0].string.lower()
-
-        # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
-        # #189), we can fix the issue here and convert them to appropriate
-        # PSyIR nodes.
-        # TODO rm this once #189 of fparser is on master
-        if reference_name == 'sign':
-            bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
-            self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
-                               nodes_parent=node)
-            self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
-                               nodes_parent=node)
-            return bop
-        if reference_name == 'sin':
-            uop = UnaryOperation(UnaryOperation.Operator.SIN, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1]],
-                               nodes_parent=node)
-            return uop
-        if reference_name == 'real':
-            if len(node.items) != 2:
-                raise GenerationError(
-                    "Unexpected fparser2 node when parsing the real() "
-                    "intrinsic, 2 items were expected but found '{0}'."
-                    "".format(repr(node)))
-            # The single argument will be 'node.items[1]' in current fparser2
-            # implementation or node.items[1].items[0] in the future (see
-            # fparser#170).
-            argument = None
-            if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
-                argument = node.items[1].items[0]
-                if len(node.items[1].items) > 1:
-                    # If it has more than a single argument create a CodeBlock
-                    # TODO: Note that real(var, kind) expressions are not
-                    # supported because Fortran kinds are still not captured
-                    # (Issue #375)
-                    raise NotImplementedError()
-            else:
-                argument = node.items[1]
-            uop = UnaryOperation(UnaryOperation.Operator.REAL, parent)
-            self.process_nodes(parent=uop, nodes=[argument],
-                               nodes_parent=node)
-            return uop
-        if reference_name == 'sqrt':
-            uop = UnaryOperation(UnaryOperation.Operator.SQRT, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1]],
-                               nodes_parent=node)
-            return uop
-        if reference_name == 'sum':
-            return self._nary_op_handler(node, parent=parent)
 
         if hasattr(parent.root, 'symbol_table'):
             symbol_table = parent.root.symbol_table
