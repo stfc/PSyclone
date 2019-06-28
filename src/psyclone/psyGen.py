@@ -5961,6 +5961,19 @@ class Operation(Node):
                                                      type(operator).__name__))
         self._operator = operator
 
+    @property
+    def operator(self):
+        '''
+        Return the operator.
+
+        :return: Enumerated type capturing the operator.
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
+                :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
+                :py:class:`psyclone.psyGen.NaryOperation.Operator`
+
+        '''
+        return self._operator
+
     def view(self, indent=0):
         '''
         Print a representation of this node in the schedule to stdout.
@@ -6001,17 +6014,6 @@ class UnaryOperation(Operation):
         # Casting Operators
         'REAL', 'INT'
         ])
-
-    @property
-    def operator(self):
-        '''
-        Return the unary operator.
-
-        :return: Enumerated type capturing the unary operator.
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
-        '''
-
-        return self._operator
 
     @property
     def coloured_text(self):
@@ -6121,17 +6123,6 @@ class BinaryOperation(Operation):
         '''
         return colored("BinaryOperation",
                        SCHEDULE_COLOUR_MAP["BinaryOperation"])
-
-    @property
-    def operator(self):
-        '''
-        Return the binary operator.
-
-        :return: Enumerated type capturing the binary operator.
-        :rtype: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
-        '''
-
-        return self._operator
 
     def gen_c_code(self, indent=0):
         '''
