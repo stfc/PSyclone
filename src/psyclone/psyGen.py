@@ -1517,14 +1517,6 @@ class Node(object):
         '''
         raise NotImplementedError("Please implement me")
 
-    def gen_c_code(self, indent=0):
-        '''Abstract method for the generation of C source code
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: is an abstract method.
-        '''
-        raise NotImplementedError("Please implement me")
-
     def update(self):
         ''' By default we assume there is no need to update the existing
         fparser2 AST which this Node represents. We simply call the update()
@@ -4808,36 +4800,6 @@ class IfBlock(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
-        :rtype: str
-        :raises InternalError: If any mandatory children of the IfBlock \
-            node are missing.
-        '''
-        if len(self.children) < 2:
-            raise InternalError("IfBlock malformed or "
-                                "incomplete. It should have at least 2 "
-                                "children, but found {0}."
-                                "".format(len(self.children)))
-
-        retval = self.indent(indent) + "if ("
-        retval += self.condition.gen_c_code() + ") {\n"
-        for statement in self.if_body:
-            retval += statement.gen_c_code(indent + 1) + "\n"
-
-        if len(self.children) == 3:
-            retval += self.indent(indent) + "} else {\n"
-            for statement in self.else_body:
-                retval += statement.gen_c_code(indent + 1) + "\n"
-
-        retval += self.indent(indent) + "}\n"
-
-        return retval
-
 
 class ACCKernelsDirective(ACCDirective):
     '''
@@ -5323,38 +5285,6 @@ class Symbol(object):
                                     type(new_value)))
         self._constant_value = new_value
 
-    def gen_c_definition(self):
-        '''
-        Generates string representing the C language definition of the symbol.
-
-        :returns: The C definition of the symbol.
-        :rtype: str
-        :raises NotImplementedError: if there are some symbol types or nodes \
-                                     which are not implemented yet.
-        '''
-        code = ""
-        if self.datatype == "real":
-            code = code + "double "
-        elif self.datatype == "integer":
-            code = code + "int "
-        elif self.datatype == "character":
-            code = code + "char "
-        elif self.datatype == "boolean":
-            code = code + "bool "
-        else:
-            raise NotImplementedError(
-                "Could not generate the C definition for the variable '{0}', "
-                "type '{1}' is currently not supported."
-                "".format(self.name, self.datatype))
-
-        # If the argument is an array, in C language we define it
-        # as an unaliased pointer.
-        if self.is_array:
-            code += "* restrict "
-
-        code += self.name
-        return code
-
     def __str__(self):
         ret = self.name + ": <" + self.datatype + ", "
         if self.is_array:
@@ -5624,19 +5554,6 @@ class SymbolTable(object):
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
-    def gen_c_local_variables(self, indent=0):
-        '''
-        Generate C code that defines all local symbols in the Symbol Table.
-
-        :param int indent: Indentation level
-        :returns: C languague definition of the local symbols.
-        :rtype: str
-        '''
-        code = ""
-        for symbol in self.local_symbols:
-            code += Node.indent(indent) + symbol.gen_c_definition() + ";\n"
-        return code
-
     def gen_ocl_argument_list(self, indent=0):
         '''
         Generate OpenCL argument list.
@@ -5795,15 +5712,6 @@ class CodeBlock(Node):
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :raises GenerationError: gen_c_code always fails for CodeBlocks.
-        '''
-        raise GenerationError("CodeBlock can not be translated to C")
-
 
 class Assignment(Node):
     '''
@@ -5824,7 +5732,13 @@ class Assignment(Node):
         :returns: the child node representing the Left-Hand Side of the \
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: Node has lest children than expected
         '''
+        if self._children:
+            raise InternalError("Assignment '{}' malformed or incomplete. It " \
+                "needs at least 1 children to have a lhs.".format(str(self)))
+
         return self._children[0]
 
     @property
@@ -5833,7 +5747,13 @@ class Assignment(Node):
         :returns: the child node representing the Right-Hand Side of the \
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: Node has lest children than expected
         '''
+        if len(self._children) < 2:
+            raise InternalError("Assignment '{}' malformed or incomplete. It " \
+                "needs at least 2 children to have a rhs.".format(str(self)))
+
         return self._children[1]
 
     @property
@@ -5863,23 +5783,6 @@ class Assignment(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        if len(self.children) != 2:
-            raise GenerationError("Assignment malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
-
-        return self.indent(indent) \
-            + self.children[0].gen_c_code() + " = " \
-            + self.children[1].gen_c_code() + ";"
 
 
 class Reference(Node):
@@ -5926,16 +5829,6 @@ class Reference(Node):
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        return self._reference
 
 
 class UnaryOperation(Node):
@@ -6012,73 +5905,6 @@ class UnaryOperation(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-
-        :return: C language code representing the node.
-        :rtype: str
-
-        :raises GenerationError: If the node or its children are invalid.
-        :raises NotImplementedError: If the operator is not supported.
-        '''
-        if len(self.children) != 1:
-            raise GenerationError("UnaryOperation malformed or "
-                                  "incomplete. It should have exactly 1 "
-                                  "child, but found {0}."
-                                  "".format(len(self.children)))
-
-        def operator_format(operator_str, expr_str):
-            '''
-            :param str operator_str: String representing the operator.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language operator expression.
-            :rtype: str
-            '''
-            return "(" + operator_str + expr_str + ")"
-
-        def function_format(function_str, expr_str):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr_str + ")"
-
-        # Define a map with the operator string and the formatter function
-        # associated with each UnaryOperation.Operator
-        opmap = {
-            UnaryOperation.Operator.MINUS: ("-", operator_format),
-            UnaryOperation.Operator.PLUS: ("+", operator_format),
-            UnaryOperation.Operator.NOT: ("!", operator_format),
-            UnaryOperation.Operator.SIN: ("sin", function_format),
-            UnaryOperation.Operator.COS: ("cos", function_format),
-            UnaryOperation.Operator.TAN: ("tan", function_format),
-            UnaryOperation.Operator.ASIN: ("asin", function_format),
-            UnaryOperation.Operator.ACOS: ("acos", function_format),
-            UnaryOperation.Operator.ATAN: ("atan", function_format),
-            UnaryOperation.Operator.ABS: ("abs", function_format),
-            UnaryOperation.Operator.REAL: ("float", function_format),
-            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
-            }
-
-        # If the instance operator exists in the map, use its associated
-        # operator and formatter to generate the code, otherwise raise
-        # an Error.
-        try:
-            opstring, formatter = opmap[self._operator]
-        except KeyError:
-            raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
-                "".format(self._operator))
-
-        return formatter(opstring, self.children[0].gen_c_code())
-
 
 class BinaryOperation(Node):
     '''
@@ -6152,78 +5978,6 @@ class BinaryOperation(Node):
 
         return self._operator
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        :raises GenerationError: If the node or its children are invalid.
-        :raises NotImplementedError: If the operator is not supported.
-        '''
-
-        if len(self.children) != 2:
-            raise GenerationError("BinaryOperation malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
-
-        def operator_format(operator_str, expr1, expr2):
-            '''
-            :param str operator_str: String representing the operator.
-            :param str expr1: String representation of the LHS operand.
-            :param str expr2: String representation of the RHS operand.
-
-            :returns: C language operator expression.
-            :rtype: str
-            '''
-            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
-
-        def function_format(function_str, expr1, expr2):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr1: String representation of the first operand.
-            :param str expr2: String representation of the second operand.
-
-            :returns: C language binary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr1 + ", " + expr2 + ")"
-
-        # Define a map with the operator string and the formatter function
-        # associated with each BinaryOperation.Operator
-        opmap = {
-            BinaryOperation.Operator.ADD: ("+", operator_format),
-            BinaryOperation.Operator.SUB: ("-", operator_format),
-            BinaryOperation.Operator.MUL: ("*", operator_format),
-            BinaryOperation.Operator.DIV: ("/", operator_format),
-            BinaryOperation.Operator.REM: ("%", operator_format),
-            BinaryOperation.Operator.POW: ("pow", function_format),
-            BinaryOperation.Operator.EQ: ("==", operator_format),
-            BinaryOperation.Operator.NE: ("!=", operator_format),
-            BinaryOperation.Operator.LT: ("<", operator_format),
-            BinaryOperation.Operator.LE: ("<=", operator_format),
-            BinaryOperation.Operator.GT: (">", operator_format),
-            BinaryOperation.Operator.GE: (">=", operator_format),
-            BinaryOperation.Operator.AND: ("&&", operator_format),
-            BinaryOperation.Operator.OR: ("||", operator_format),
-            BinaryOperation.Operator.SIGN: ("copysign", function_format),
-            }
-
-        # If the instance operator exists in the map, use its associated
-        # operator and formatter to generate the code, otherwise raise
-        # an Error.
-        try:
-            opstring, formatter = opmap[self._operator]
-        except KeyError:
-            raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
-                "".format(self._operator))
-
-        return formatter(opstring, self.children[0].gen_c_code(),
-                         self.children[1].gen_c_code())
-
 
 class Array(Reference):
     '''
@@ -6264,37 +6018,6 @@ class Array(Reference):
         for entity in self._children:
             result += str(entity)
         return result
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        code = super(Array, self).gen_c_code() + "["
-
-        dimensions_remaining = len(self._children)
-        if dimensions_remaining < 1:
-            raise GenerationError("Array must have at least 1 dimension.")
-
-        # In C array expressions should be reversed from the PSyIR order
-        # (column-major to row-major order) and flattened (1D).
-        for child in reversed(self._children):
-            code = code + child.gen_c_code()
-            # For each dimension bigger than one, it needs to write the
-            # appropriate operation to flatten the array. By convention,
-            # the array dimensions are <name>LEN<DIM>.
-            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
-            for dim in reversed(range(1, dimensions_remaining)):
-                dimstring = self._reference + "LEN" + str(dim)
-                code = code + " * " + dimstring
-            dimensions_remaining = dimensions_remaining - 1
-            code = code + " + "
-
-        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
-        return code
 
 
 class Literal(Node):
@@ -6342,20 +6065,6 @@ class Literal(Node):
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        str_value = self._value
-        # C Scientific notation is always an 'e' letter
-        str_value = str_value.replace('d', 'e')
-        str_value = str_value.replace('D', 'e')
-        return str_value
-
 
 class Return(Node):
     '''
@@ -6389,16 +6098,6 @@ class Return(Node):
 
     def __str__(self):
         return "Return[]\n"
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
-        :rtype: str
-        '''
-        return self.indent(indent) + "return;"
 
 
 class Fparser2ASTProcessor(object):

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab.
+# Author R. W. Ford, S. Siso STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel schedules as PSy-layer PSyIR
@@ -245,8 +245,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        lhs = self._visit(node.children[0])
-        rhs = self._visit(node.children[1])
+        lhs = self._visit(node.lhs)
+        rhs = self._visit(node.rhs)
         result = "{0}{1}={2}\n".format(self._nindent, lhs, rhs)
         return result
 
@@ -421,10 +421,6 @@ class FortranWriter(PSyIRVisitor):
     def return_node(self, _):
         '''This method is called when a Return instance is found in
         the PSyIR tree.
-
-        Notice the name of the method is `return_node`, not `return`. This
-        is done by the base class to avoid a name clash with the
-        Python `return` keyword.
 
         :param node: A Return PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Return`
