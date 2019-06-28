@@ -46,6 +46,7 @@ from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from fparser.two import Fortran2003
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -75,14 +76,9 @@ except ImportError:
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
 # The list of Fortran instrinsic functions that we know about (and can
-# therefore distinguish from array accesses). These should really be
-# provided by the parser (github.com/stfc/fparser/issues/189).
-FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
-                      "CEILING", "REAL", "KIND", "EXP", "SQRT",
-                      "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN",
-                      "LOG", "LOG10", "NINT",
-                      "MINVAL", "MAXVAL", "MINLOC", "MAXLOC", "TRIM",
-                      "RESHAPE"]
+# therefore distinguish from array accesses). These are taken from
+# fparser.
+FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive. All code for OpenMP
@@ -119,6 +115,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Reference": "yellow",
                        "BinaryOperation": "blue",
                        "UnaryOperation": "blue",
+                       "NaryOperation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
                        "CodeBlock": "red"}
@@ -5938,7 +5935,51 @@ class Reference(Node):
         return self._reference
 
 
-class UnaryOperation(Node):
+@six.add_metaclass(abc.ABCMeta)
+class Operation(Node):
+    '''
+    Abstract base class for PSyIR nodes representing operators.
+
+    :param operator: the operator used in the operation.
+    :type operator: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
+                    :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
+                    :py:class:`psyclone.psyGen.NaryOperation.Operator`
+    :param parent: the parent node of this Operation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    :raises TypeError: if the supplied operator is not an instance of \
+                       self.Operator.
+
+    '''
+    def __init__(self, operator, parent=None):
+        super(Operation, self).__init__(parent=parent)
+
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "{0} operator argument must be of type "
+                "{0}.Operator but found {1}.".format(type(self).__name__,
+                                                     type(operator).__name__))
+        self._operator = operator
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator.name + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "{0}[operator:'{1}']\n".format(type(self).__name__,
+                                                self._operator.name)
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+
+class UnaryOperation(Operation):
     '''
     Node representing a UnaryOperation expression. As such it has one operand
     as child 0, and an attribute with the operator type.
@@ -5950,27 +5991,16 @@ class UnaryOperation(Node):
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
         # Logical Operators
         'NOT',
         # Trigonometric Operators
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
-        'ABS',
+        'ABS', 'CEIL',
         # Casting Operators
-        'REAL'
+        'REAL', 'INT'
         ])
-
-    def __init__(self, operator, parent=None):
-        super(UnaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "UnaryOperation operator argument must be of type "
-                "UnaryOperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
 
     @property
     def operator(self):
@@ -5994,23 +6024,6 @@ class UnaryOperation(Node):
         '''
         return colored("UnaryOperation",
                        SCHEDULE_COLOUR_MAP["UnaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
 
     def gen_c_code(self, indent=0):
         '''
@@ -6080,37 +6093,22 @@ class UnaryOperation(Node):
         return formatter(opstring, self.children[0].gen_c_code())
 
 
-class BinaryOperation(Node):
+class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
 
-    :param operator: Enumerated type capturing the binary operator.
-    :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
-    :param parent: the parent node of this BinaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'MODULUS', 'SUM',
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
         'AND', 'OR',
         # Other Maths Operators
-        'SIGN'
+        'SIGN', 'MIN', 'MAX'
         ])
-
-    def __init__(self, operator, parent=None):
-        super(BinaryOperation, self).__init__(parent=parent)
-
-        if not isinstance(operator, self.Operator):
-            raise TypeError(
-                "BinaryOperation operator argument must be of type "
-                "BinaryOperation.Operator but found {0}."
-                "".format(type(operator).__name__))
-
-        self._operator = operator
 
     @property
     def coloured_text(self):
@@ -6123,23 +6121,6 @@ class BinaryOperation(Node):
         '''
         return colored("BinaryOperation",
                        SCHEDULE_COLOUR_MAP["BinaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
 
     @property
     def operator(self):
@@ -6223,6 +6204,31 @@ class BinaryOperation(Node):
 
         return formatter(opstring, self.children[0].gen_c_code(),
                          self.children[1].gen_c_code())
+
+
+class NaryOperation(Operation):
+    '''
+    Node representing a n-ary operation expression. The n operands are the
+    stored as the 0 - n-1th children of this node and the type of the operator
+    is held in an attribute.
+
+    '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'MAX', 'MIN', 'SUM'
+        ])
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :returns: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("NaryOperation",
+                       SCHEDULE_COLOUR_MAP["NaryOperation"])
 
 
 class Array(Reference):
@@ -6410,7 +6416,21 @@ class Fparser2ASTProcessor(object):
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
-        ('.not.', UnaryOperation.Operator.NOT)])
+        ('.not.', UnaryOperation.Operator.NOT),
+        ("abs": UnaryOperation.Operator.ABS),
+        ("ceiling": UnaryOperation.Operator.CEIL),
+        ("exp": UnaryOperation.Operator.EXP),
+        ("log": UnaryOperation.Operator.LOG),
+        ("log10": UnaryOperation.Operator.LOG10),
+        ("sin": UnaryOperation.Operator.SIN),
+        ("asin": UnaryOperation.Operator.ASIN),
+        ("cos": UnaryOperation.Operator.COS),
+        ("acos": UnaryOperation.Operator.ACOS),
+        ("tan": UnaryOperation.Operator.TAN),
+        ("atan": UnaryOperation.Operator.ATAN),
+        ("sqrt": UnaryOperation.Operator.SQRT),
+        ("real": UnaryOperation.Operator.REAL),
+        ("int": UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
         ('+', BinaryOperation.Operator.ADD),
@@ -6431,7 +6451,17 @@ class Fparser2ASTProcessor(object):
         ('>', BinaryOperation.Operator.GT),
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
-        ('.or.', BinaryOperation.Operator.OR)])
+        ('.or.', BinaryOperation.Operator.OR),
+        ('sign': BinaryOperation.Operator.SIGN),
+        ('sum': BinaryOperation.Operator.SUM),
+        ('max': BinaryOperation.Operator.MAX),
+        ('min': BinaryOperation.Operator.MIN),
+        ('mod': BinaryOperation.Operator.MODULUS)])
+
+        nary_operators = OrderedDict([
+            ('max': NaryOperation.Operator.MAX),
+            ('min': NaryOperation.Operator.MIN),
+            ('sum': NaryOperation.Operator.SUM)])
 
     def __init__(self):
         from fparser.two import Fortran2003, utils
@@ -6450,6 +6480,7 @@ class Fparser2ASTProcessor(object):
             Fortran2003.Case_Construct: self._case_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
+            Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
         }
 
     @staticmethod
@@ -7334,20 +7365,34 @@ class Fparser2ASTProcessor(object):
         Transforms an fparser2 UnaryOpBase to the PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.UnaryOpBase`
+        :type node: :py:class:`fparser.two.utils.UnaryOpBase` or \
+               :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
-        '''
 
-        operator_str = node.items[0].lower()
+        :raises NotImplementedError: if the supplied operator is not \
+                                     supported by this handler.
+        :raises InternalError: if the fparser parse tree does not have the \
+                               expected structure.
+
+        '''
+        operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2ASTProcessor.unary_operators[operator_str]
         except KeyError:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
+
+        if isinstance(node.items[1], Actual_Arg_Spec_List) and \
+                len(node.items[1].items) > 1:
+            # We have more than one argument and therefore this is not a
+            # unary operation!
+            raise InternalError("Operation '{0}' has more than one argument "
+                                "and is therefore not unary!".
+                                format(str(node)))
 
         unary_op = UnaryOperation(operator, parent=parent)
         self.process_nodes(parent=unary_op, nodes=[node.items[1]],
@@ -7357,17 +7402,45 @@ class Fparser2ASTProcessor(object):
 
     def _binary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 BinaryOp to the PSyIR representation.
+        Transforms an fparser2 BinaryOp or Intrinsic_Function_Reference to
+        the PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
+        :type node: :py:class:`fparser.two.utils.BinaryOpBase` or \
+               :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
-        '''
 
-        operator_str = node.items[1].lower()
+        :raises NotImplementedError: if the supplied operator/intrinsic is \
+                                     not supported by this handler.
+        :raises InternalError: if the fparser parse tree does not have the \
+                               expected structure.
+
+        '''
+        from fparser.two.Fortran2003 import Intrinsic_Function_Reference, \
+            Actual_Arg_Spec_List
+
+        if isinstance(node, Intrinsic_Function_Reference):
+            operator_str = node.items[0].string.lower()
+            # Arguments are held in an Actual_Arg_Spec_List
+            if not isinstance(node.items[1], Actual_Arg_Spec_List):
+                raise InternalError(
+                    "Unexpected fparser parse tree for binary intrinsic "
+                    "operation '{0}'. Expected second child to be "
+                    "Actual_Arg_Spec_List but got '{1}'.".format(
+                        str(node), type(node.items[1])))
+            arg_nodes = node.items[1].items
+            if len(arg_nodes) != 2:
+                raise InternalError(
+                    "Binary operator should have exactly two arguments but "
+                    "found {0} for '{1}'.".format(len(arg_nodes), str(node)))
+        else:
+            operator_str = node.items[1].lower()
+            arg_nodes = [node.items[0], node.items[2]]
+
         try:
             operator = Fparser2ASTProcessor.binary_operators[operator_str]
         except KeyError:
@@ -7375,12 +7448,98 @@ class Fparser2ASTProcessor(object):
             raise NotImplementedError(operator_str)
 
         binary_op = BinaryOperation(operator, parent=parent)
-        self.process_nodes(parent=binary_op, nodes=[node.items[0]],
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]],
                            nodes_parent=node)
-        self.process_nodes(parent=binary_op, nodes=[node.items[2]],
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]],
                            nodes_parent=node)
 
         return binary_op
+
+    def _nary_op_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Intrinsic_Function_Reference with three or
+        more arguments to the PSyIR representation.
+        :param node: node in fparser2 Parse Tree.
+        :type node: \
+             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyGen.NaryOperation`
+
+        :raises NotImplementedError: if the supplied Intrinsic is not \
+                                     supported by this handler.
+        :raises InternalError: if the fparser parse tree does not have the \
+                               expected structure.
+
+        '''
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
+
+        operator_str = str(node.items[0]).lower()
+        try:
+            operator = Fparser2ASTProcessor.nary_operators[operator_str]
+        except KeyError:
+            # Intrinsic not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
+
+        nary_op = NaryOperation(operator, parent=parent)
+
+        if not isinstance(node.items[1], Actual_Arg_Spec_List):
+            raise InternalError(
+                "Expected second 'item' of N-ary intrinsic '{0}' in fparser "
+                "parse tree to be an Actual_Arg_Spec_List but found '{1}'.".
+                format(str(node), type(node.items[1])))
+        if len(node.items[1].items) < 3:
+            raise InternalError(
+                "An N-ary operation must have more than two arguments but "
+                "found {0} for '{1}'.".format(len(node.items[1].items),
+                                              str(node)))
+
+        # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
+        # to process the `items` of that...
+        self.process_nodes(parent=nary_op, nodes=list(node.items[1].items),
+                           nodes_parent=node.items[1])
+        return nary_op
+
+    def _intrinsic_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
+        representation. Since Fortran Intrinsics can be unary, binary or
+        nary this handler identifies the appropriate 'sub handler'
+        :param node: node in fparser2 Parse Tree.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation` or \
+                :py:class:`psyclone.psyGen.BinaryOperation` or \
+                :py:class:`psyclone.psyGen.NaryOperation`
+        '''
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
+        # First item is the name of the intrinsic
+        name = node.items[0].string.upper()
+        # Now work out how many arguments it has
+        num_args = 0
+        if len(node.items) > 1:
+            # TODO Once fparser #203 is on master this check on isinstance
+            # will probably be unnecessary.
+            if isinstance(node.items[1], Actual_Arg_Spec_List):
+                num_args = len(node.items[1].items)
+            else:
+                num_args = len(node.items) - 1
+
+        # We don't handle any intrinsics that don't have arguments
+        if num_args > 0:
+            if num_args == 1:
+                return self._unary_op_handler(node, parent)
+            if num_args == 2:
+                return self._binary_op_handler(node, parent)
+            return self._nary_op_handler(node, parent)
+
+        # Intrinsic is not handled - this will result in a CodeBlock
+        raise NotImplementedError(name)
 
     def _name_handler(self, node, parent):
         '''
@@ -7427,11 +7586,9 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation. It also
-        resolves Fortran intrinsics parsed as array references. If the node
-        is connected to a SymbolTable, it checks the reference has been
+        Transforms an fparser2 Part_Ref to the PSyIR representation. If the
+        node is connected to a SymbolTable, it checks the reference has been
         previously declared.
-
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -7443,55 +7600,11 @@ class Fparser2ASTProcessor(object):
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
+
         '''
         from fparser.two import Fortran2003
 
         reference_name = node.items[0].string.lower()
-
-        # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
-        # #189), we can fix the issue here and convert them to appropriate
-        # PSyIR nodes.
-        if reference_name == 'sign':
-            bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
-            self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
-                               nodes_parent=node)
-            self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
-                               nodes_parent=node)
-            return bop
-        if reference_name == 'sin':
-            uop = UnaryOperation(UnaryOperation.Operator.SIN, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1]],
-                               nodes_parent=node)
-            return uop
-        if reference_name == 'real':
-            if len(node.items) != 2:
-                raise GenerationError(
-                    "Unexpected fparser2 node when parsing the real() "
-                    "intrinsic, 2 items were expected but found '{0}'."
-                    "".format(repr(node)))
-            # The single argument will be 'node.items[1]' in current fparser2
-            # implementation or node.items[1].items[0] in the future (see
-            # fparser#170).
-            argument = None
-            if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
-                argument = node.items[1].items[0]
-                if len(node.items[1].items) > 1:
-                    # If it has more than a single argument create a CodeBlock
-                    # TODO: Note that real(var, kind) expressions are not
-                    # supported because Fortran kinds are still not captured
-                    # (Issue #375)
-                    raise NotImplementedError()
-            else:
-                argument = node.items[1]
-            uop = UnaryOperation(UnaryOperation.Operator.REAL, parent)
-            self.process_nodes(parent=uop, nodes=[argument],
-                               nodes_parent=node)
-            return uop
-        if reference_name == 'sqrt':
-            uop = UnaryOperation(UnaryOperation.Operator.SQRT, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1]],
-                               nodes_parent=node)
-            return uop
 
         if hasattr(parent.root, 'symbol_table'):
             symbol_table = parent.root.symbol_table
