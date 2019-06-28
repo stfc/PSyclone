@@ -5895,9 +5895,11 @@ class Fparser2ASTProcessor(object):
 
         if isinstance(node.items[1], Actual_Arg_Spec_List) and \
                 len(node.items[1].items) > 1:
-            # We have more than one argument - this is possible for e.g. REAL
-            # but we don't yet support it so produce a CodeBlock instead.
-            raise NotImplementedError(operator_str)
+            # We have more than one argument and therefore this is not a
+            # unary operation!
+            raise InternalError("Operation '{0}' has more than one argument "
+                                "and is therefore not unary!".
+                                format(str(node)))
 
         unary_op = UnaryOperation(operator, parent=parent)
         self.process_nodes(parent=unary_op, nodes=[node.items[1]],
@@ -5920,7 +5922,8 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
 
         '''
-        from fparser.two.Fortran2003 import Intrinsic_Function_Reference
+        from fparser.two.Fortran2003 import Intrinsic_Function_Reference, \
+            Actual_Arg_Spec_List
 
         # Map from Fortran operators to the canonical Binary operators
         # defined in the BinaryOperation.Operator enumeration.
@@ -5953,7 +5956,18 @@ class Fparser2ASTProcessor(object):
 
         if isinstance(node, Intrinsic_Function_Reference):
             operator_str = node.items[0].string.lower()
+            # Arguments are held in an Actual_Arg_Spec_List
+            if not isinstance(node.items[1], Actual_Arg_Spec_List):
+                raise InternalError(
+                    "Unexpected fparser parse tree for binary intrinsic "
+                    "operation '{0}'. Expected second child to be "
+                    "Actual_Arg_Spec_List but got '{1}'.".format(
+                        str(node), type(node.items[1])))
             arg_nodes = node.items[1].items
+            if len(arg_nodes) != 2:
+                raise InternalError(
+                    "Binary operator should have exactly two arguments but "
+                    "found {0} for '{1}'.".format(len(arg_nodes), str(node)))
         else:
             operator_str = node.items[1].lower()
             arg_nodes = [node.items[0], node.items[2]]
@@ -5973,8 +5987,8 @@ class Fparser2ASTProcessor(object):
 
     def _nary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
-        representation.
+        Transforms an fparser2 Intrinsic_Function_Reference with three or
+        more arguments to the PSyIR representation.
 
         :param node: node in fparser2 Parse Tree.
         :type node: \
@@ -6005,14 +6019,21 @@ class Fparser2ASTProcessor(object):
 
         nary_op = NaryOperation(operator, parent=parent)
 
-        if isinstance(node.items[1], Actual_Arg_Spec_List):
-            # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
-            # to process the `items` of that...
-            self.process_nodes(parent=nary_op, nodes=list(node.items[1].items),
-                               nodes_parent=node.items[1])
-        else:
-            self.process_nodes(parent=nary_op, nodes=node.items[1:],
-                               nodes_parent=node)
+        if not isinstance(node.items[1], Actual_Arg_Spec_List):
+            raise InternalError(
+                "Expected second 'item' of N-ary intrinsic '{0}' in fparser "
+                "parse tree to be an Actual_Arg_Spec_List but found '{1}'.".
+                format(str(node), type(node.items[1])))
+        if len(node.items[1].items) < 3:
+            raise InternalError(
+                "An N-ary operation must have more than two arguments but "
+                "found {0} for '{1}'.".format(len(node.items[1].items),
+                                              str(node)))
+
+        # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
+        # to process the `items` of that...
+        self.process_nodes(parent=nary_op, nodes=list(node.items[1].items),
+                           nodes_parent=node.items[1])
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -6047,7 +6068,7 @@ class Fparser2ASTProcessor(object):
                 num_args = len(node.items) - 1
 
         # We don't handle any intrinsics that don't have arguments
-        if num_args > 0 and name in FORTRAN_INTRINSICS:
+        if num_args > 0:
             if num_args == 1:
                 return self._unary_op_handler(node, parent)
             if num_args == 2:

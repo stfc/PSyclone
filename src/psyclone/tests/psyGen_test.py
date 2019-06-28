@@ -3157,6 +3157,35 @@ def test_unaryoperation_gen_c_code():
     assert "' operator." in str(err)
 
 
+def test_naryoperation_view(capsys):
+    ''' Check the view and colored_text methods of the Nary Operation
+    class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
+    nary_operation.addchild(Literal("1", parent=nary_operation))
+    nary_operation.addchild(Literal("1", parent=nary_operation))
+    nary_operation.addchild(Literal("1", parent=nary_operation))
+
+    coloredtext = colored("NaryOperation",
+                          SCHEDULE_COLOUR_MAP["NaryOperation"])
+    nary_operation.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[operator:'MAX']" in output
+
+
+def test_naryoperation_can_be_printed():
+    '''Test that an Nary Operation instance can always be printed (i.e. is
+    initialised fully)'''
+    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
+    assert "NaryOperation[operator:'MAX']\n" in str(nary_operation)
+    nary_operation.addchild(Literal("1", parent=nary_operation))
+    nary_operation.addchild(Literal("2", parent=nary_operation))
+    nary_operation.addchild(Literal("3", parent=nary_operation))
+    # Check the node children are also printed
+    assert "Literal[value:'1']\n" in str(nary_operation)
+    assert "Literal[value:'2']\n" in str(nary_operation)
+    assert "Literal[value:'3']\n" in str(nary_operation)
+
 # Test Return class
 
 def test_return_view(capsys):
@@ -4611,6 +4640,8 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
         ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
         ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
         ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
+        # Check that we get a CodeBlock for an unsupported N-ary operation
+        ('x = reshape(a, b, c)', CodeBlock, None),
     )
 
     for code, expected_type, expected_op in testlist:
@@ -4626,7 +4657,92 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
                 "Fails when parsing '" + code + "'"
 
 
-def testfp2astproc_handling_nested_intrinsic(f2008_parser):
+def test_fp2astproc_intrinsic_no_args(f2008_parser):
+    ''' Check that an intrinsic with no arguments results in a
+    NotImplementedError. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    reader = FortranStringReader("x = SUM(a, b)")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    # Manually remove the arguments
+    fp2node.items = (fp2node.items[0],)
+    with pytest.raises(NotImplementedError) as err:
+        processor._intrinsic_handler(fp2node, fake_parent)
+    assert "SUM" in str(err)
+
+
+def test_fp2astproc_unary_op_handler_error(f2008_parser):
+    ''' Check that the unary op handler raises the expected error if the
+    parse tree has an unexpected structure. This is a hard error to
+    provoke since fparser checks that the number of arguments is correct. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Name
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    reader = FortranStringReader("x = exp(a)")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    # Create an fparser node for a binary operation so that we can steal
+    # its operands
+    reader = FortranStringReader("x = max(a, b)")
+    maxnode = Execution_Part.match(reader)[0][0].items[2]
+    # Break the number of arguments in the fparser node by using those
+    # from the binary operation
+    fp2node.items = (fp2node.items[0], maxnode.items[1])
+    with pytest.raises(InternalError) as err:
+        processor._unary_op_handler(fp2node, fake_parent)
+    assert ("Operation 'EXP(a, b)' has more than one argument and is "
+            "therefore not unary" in str(err))
+
+
+def test_fp2astproc_binary_op_handler_error(f2008_parser):
+    ''' Check that the binary op handler raises the expected errors if the
+    parse tree has an unexpected structure. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Name
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    reader = FortranStringReader("x = SUM(a, b)")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    # Break the number of arguments in the fparser node
+    fp2node.items[1].items = (Name('a'),)
+    with pytest.raises(InternalError) as err:
+        processor._binary_op_handler(fp2node, fake_parent)
+    assert ("Binary operator should have exactly two arguments but found 1 "
+            "for 'SUM(a)'." in str(err))
+    # Now break the 'items' tuple of this fparser node
+    fp2node.items = (fp2node.items[0], Name('dummy'))
+    with pytest.raises(InternalError) as err:
+        processor._binary_op_handler(fp2node, fake_parent)
+    assert ("binary intrinsic operation 'SUM(dummy)'. Expected second child "
+            "to be Actual_Arg_Spec_List" in str(err))
+
+
+def test_fp2astproc_nary_op_handler_error(f2008_parser):
+    ''' Check that the Nary op handler raises the expected error if the parse
+    tree has an unexpected structure. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Name
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    reader = FortranStringReader("x = SUM(a, b, mask)")
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    # Give the node an incorrect number of arguments for the Nary handler
+    fp2node.items[1].items = (Name('a'),)
+    with pytest.raises(InternalError) as err:
+        processor._nary_op_handler(fp2node, fake_parent)
+    assert ("An N-ary operation must have more than two arguments but found 1 "
+            "for 'SUM(a)'" in str(err))
+    # Break the 'items' tuple of this fparser node
+    fp2node.items = (fp2node.items[0], Name('dummy'))
+    with pytest.raises(InternalError) as err:
+        processor._nary_op_handler(fp2node, fake_parent)
+    assert ("Expected second 'item' of N-ary intrinsic 'SUM(dummy)' in fparser"
+            " parse tree to be an Actual_Arg_Spec_List" in str(err))
+
+
+def test_fp2astproc_handling_nested_intrinsic(f2008_parser):
     ''' Check that we correctly handle nested intrinsic functions. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
