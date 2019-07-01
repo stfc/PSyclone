@@ -3200,8 +3200,8 @@ class Loop(Node):
         # the dependency analysis for declaring openmp private variables
         # will automatically declare the loop variables to be private
         # (write access before read)
-        var_accesses.add_access(self._variable_name, AccessType.WRITE, self)
-        var_accesses.add_access(self._variable_name, AccessType.READ, self)
+        var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
+        var_accesses.add_access(self.variable_name, AccessType.READ, self)
         # TODO: self._start/stop/step are not defined at this stage (at least
         # in the gocean1.0 api). ATM this results in an 'empty' variable
         # being created (name = "").
