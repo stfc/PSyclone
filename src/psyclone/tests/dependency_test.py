@@ -44,6 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
 from psyclone.core.access_info import VariablesAccessInfo
+from psyclone.core.access_type import AccessType
 
 
 # Constants
@@ -137,11 +138,17 @@ def test_if_statement(parser):
     if_stmt.reference_accesses(var_accesses)
     assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
                                 "q: READWRITE, r: READ"
+    # Test that the two accesses to 'q' indeed show up as
+    q_accesses = var_accesses.get_varinfo("q").get_all_accesses()
+    assert len(q_accesses) == 2
+    assert q_accesses[0].get_access_type() == AccessType.READ
+    assert q_accesses[1].get_access_type() == AccessType.WRITE
+    assert q_accesses[0].get_location() < q_accesses[1].get_location()
 
 
 @pytest.mark.xfail(reason="Calls in nemo not yet supported")
 def test_call(parser):
-    ''' Check that we correctly identify implicit loops in the fparser2 AST '''
+    ''' Check that we correctly handle a call in a program '''
     reader = FortranStringReader('''program test_prog
                                  call sub(a,b)
                                  end program test_prog''')
