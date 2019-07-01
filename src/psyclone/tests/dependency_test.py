@@ -42,9 +42,9 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
-from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
+from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
 
 
 # Constants
@@ -240,6 +240,33 @@ def test_goloop():
     # TODO: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
+
+
+@pytest.mark.xfail(reason="Dynamoloops boundaries are also strings")
+def test_dynamo():
+    '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
+    are reported based on the user's point of view, not the code actually
+    created by PSyclone, e.g. it shows a dependency on 'some_field', but not
+    on some_field_proxy etc. Also the dependency is at this stage taken
+    from the kernel declaration, not the actual kernel usage.
+    '''
+    from psyclone.parse.algorithm import parse
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+
+    var_accesses = VariablesAccessInfo()
+    schedule.reference_accesses(var_accesses)
+    # TODO: atm there is an empty entry (": READ") at the beginning of the
+    # dependency string, caused by the loop
+    # boundaries, which are not yet proper PSyIR objects.
+    # 'cell' is the loop variable automatically created by PSyclone.
+    assert str(var_accesses) == "a: READ, cell: READWRITE, f1: WRITE, "\
+        "f2: READ, m1: READ, m2: READ"
 
 
 def test_location(parser):
