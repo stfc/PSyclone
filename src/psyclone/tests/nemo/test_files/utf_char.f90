@@ -31,6 +31,6 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 
-program bad_char
+program utf_char
   write(*,*) 'max reachable coeff. (at the Equator) for e1=1°)'
-end program bad_char
+end program utf_char

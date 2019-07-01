@@ -57,11 +57,12 @@ def test_api_no_alg():
     assert isinstance(psy, fparser.two.Fortran2003.Program)
 
 
-def test_non_ascii_char(parser, tmpdir):
+def test_utf_char(parser, tmpdir):
     ''' Check that we generate the PSy layer OK when the original Fortran
-    code contains non-ASCII characters. '''
+    code contains UTF characters with no representation in the ASCII
+    character set. '''
     from psyclone.generator import main
-    test_file = os.path.join(BASE_PATH, "non_ascii_char.f90")
+    test_file = os.path.join(BASE_PATH, "utf_char.f90")
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
     main(["-api", "nemo", "-opsy", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
