@@ -41,6 +41,7 @@ functions.
 '''
 
 from __future__ import absolute_import
+import sys
 import os
 import re
 import pytest
@@ -74,18 +75,6 @@ def teardown_function():
 
 
 # a set of unit tests for the generate function
-
-
-def test_utf_char(tmpdir):
-    ''' Test that the generate method works OK when both the Algorithm and
-    Kernel code contain utf-encoded chars. '''
-    algfile = os.path.join(str(tmpdir), "alg.f90")
-    main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
-          "-api", "gocean1.0", "-oalg", algfile])
-    with open(algfile, "r") as afile:
-        alg = afile.read().lower()
-        assert "max reachable coeff" in alg
-        assert "call invoke_0_kernel_utf" in alg
 
 
 def test_non_existant_filename():
@@ -859,3 +848,55 @@ def test_main_include_path(capsys):
           '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
+
+
+def test_write_utf_file(tmpdir, monkeypatch):
+    ''' Unit tests for the write_unicode_file utility routine. '''
+    import six
+    import io
+    from psyclone.psyGen import InternalError
+    from psyclone.generator import write_unicode_file
+
+    # First for plain ASCII
+    out_file1 = os.path.join(str(tmpdir), "out1.txt")
+    write_unicode_file("This contains only ASCII", out_file1)
+
+    # Second with a character that has no ASCII representation
+    with open(out_file1, "r") as infile:
+        content = infile.read()
+        assert "This contains only ASCII" in content
+    out_file2 = os.path.join(str(tmpdir), "out2.txt")
+    if six.PY2:
+        test_str = u"This contains UTF: "+unichr(1200)
+        encoding = {'encoding': 'utf-8'}
+    else:
+        test_str = "This contains UTF: "+chr(1200)
+        encoding = {}
+    write_unicode_file(test_str, out_file2)
+
+    with io.open(out_file2, mode="r", **encoding) as infile:
+        content = infile.read()
+    assert test_str in content
+
+    # monkeypatch the six module so that the check on which Python
+    # version is being used fails.
+    monkeypatch.setattr(six, "PY2", value=None)
+    monkeypatch.setattr(six, "PY3", value=None)
+    with pytest.raises(InternalError) as err:
+        write_unicode_file("Some stuff", out_file2)
+    assert "Unrecognised Python version" in str(err)
+
+
+def test_utf_char(tmpdir):
+    ''' Test that the generate method works OK when both the Algorithm and
+    Kernel code contain utf-encoded chars. '''
+    algfile = os.path.join(str(tmpdir), "alg.f90")
+    main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
+          "-api", "gocean1.0", "-oalg", algfile])
+    # We only check the algorithm layer since we generate the PSy
+    # layer from scratch in this API (and thus it contains no
+    # non-ASCII characters).
+    with open(algfile, "r") as afile:
+        alg = afile.read().lower()
+        assert "max reachable coeff" in alg
+        assert "call invoke_0_kernel_utf" in alg

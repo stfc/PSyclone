@@ -454,14 +454,19 @@ def write_unicode_file(contents, filename):
     import io
 
     if six.PY2:
-        # In Python 2 the plain string must be encoded as unicode for the call
+        # In Python 2 a plain string must be encoded as unicode for the call
         # to write() below. unicode() does not exist in Python 3 since all
         # strings are unicode.
         # pylint: disable=undefined-variable
-        contents = unicode(contents, 'utf-8')
+        if not isinstance(contents, unicode):
+            contents = unicode(contents, 'utf-8')
         # pylint: enable=undefined-variable
-
-    encoding = {'encoding': 'utf8'} if six.PY3 else {}
+        encoding = {}
+    elif six.PY3:
+        encoding = {'encoding': 'utf-8'}
+    else:
+        from psyclone.psyGen import InternalError
+        raise InternalError("Unrecognised Python version!")
 
     with io.open(filename, mode='w', **encoding) as file_object:
         file_object.write(contents)
