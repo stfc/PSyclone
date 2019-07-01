@@ -76,6 +76,18 @@ def teardown_function():
 # a set of unit tests for the generate function
 
 
+def test_utf_char(tmpdir):
+    ''' Test that the generate method works OK when both the Algorithm and
+    Kernel code contain utf-encoded chars. '''
+    algfile = os.path.join(str(tmpdir), "alg.f90")
+    main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
+          "-api", "gocean1.0", "-oalg", algfile])
+    with open(algfile, "r") as afile:
+        alg = afile.read().lower()
+        assert "max reachable coeff" in alg
+        assert "call invoke_0_kernel_utf" in alg
+
+
 def test_non_existant_filename():
     ''' checks that alg_gen raises appropriate error when a
     non-existant filename is supplied '''
