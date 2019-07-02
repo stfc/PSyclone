@@ -161,10 +161,13 @@ def add_kernels(children):
         # Can this node be included in a kernels region?
         if not valid_kernel(child):
             # It can't so we put what we have so far inside a kernels region
+            # provided it contains one or more loops
             if have_loops(node_list):
                 try_kernels_trans(node_list)
-                node_list = []
-            # and then we go down a level and try again
+            # A node that cannot be included in a kernels region marks the
+            # end of the current candidate region so reset the list.
+            node_list = []
+            # Now we go down a level and try again
             if isinstance(child, IfBlock):
                 add_kernels(child.if_body)
                 add_kernels(child.else_body)
