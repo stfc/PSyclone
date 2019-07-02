@@ -3018,7 +3018,8 @@ class Loop(Node):
 
     def __init__(self, parent=None,
                  variable_name="",
-                 valid_loop_types=None):
+                 valid_loop_types=None,
+                 preinit=True):
         Node.__init__(self, parent=parent)
 
         # we need to determine whether this is a built-in or kernel
@@ -3041,11 +3042,12 @@ class Loop(Node):
         self._variable_name = variable_name
         self._id = ""
 
-        # Pre-initialise the Loop children
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
-        self.addchild(Schedule(parent=self))  # loop body
+        if preinit:
+            # Pre-initialise the Loop children
+            self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+            self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+            self.addchild(Literal("1", parent=self))  # step
+            self.addchild(Schedule(parent=self))  # loop body
 
     def addchild(self, parent, index=None):
         '''Add a limit to the number of children that can be added.'''
@@ -5573,6 +5575,14 @@ class Fparser2ASTProcessor(object):
         '''
         return None
 
+    def _create_frontend_loop(self, parent, variable_name):
+        return Loop(parent=parent, variable_name=variable_name, preinit=False)
+
+    def _create_frontend_loopbody(self, loop_body, node):
+        ''' By default continue parsing the tree inside the loop. '''
+        self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
+                           nodes_parent=node)
+
     def _do_construct_handler(self, node, parent):
         '''
         Transforms an fparser2 Do Construct to the PSyIR representation.
@@ -5593,8 +5603,7 @@ class Fparser2ASTProcessor(object):
         from fparser.two import Fortran2003
         ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
         if not ctrl:
-            # If there is no Control expression, put in a CodeBlock
-            raise NotImplementedError()
+            raise InternalError("")
         if ctrl[0].items[0]:
             # If this is a DO WHILE then the first element of items will not
             # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
@@ -5602,7 +5611,6 @@ class Fparser2ASTProcessor(object):
             # rather than being properly described in the PSyIR.
             raise NotImplementedError()
 
-        loop = Loop(parent=parent)
         # Second element of items member of Loop Control is itself a tuple
         # containing:
         #   Loop variable, [start value expression, end value expression, step
@@ -5610,6 +5618,8 @@ class Fparser2ASTProcessor(object):
         # Loop variable will be an instance of Fortran2003.Name
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
+        loop = self._create_frontend_loop(parent, variable_name)
+        loop._ast = node
 
         # Get the loop limits. These are given in a list which is the second
         # element of a tuple which is itself the second element of the items
@@ -5637,9 +5647,9 @@ class Fparser2ASTProcessor(object):
 
         # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
         loop_body = Schedule(parent=loop)
-        self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
-                           nodes_parent=node)
+        loop_body._ast = node
         loop.addchild(loop_body)
+        self._create_frontend_loopbody(loop_body, node)
 
         return loop
 

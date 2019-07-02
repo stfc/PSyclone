@@ -76,31 +76,40 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     Specialisation of Fparser2ASTProcessor for the Nemo API.
     '''
     def __init__(self):
-        from fparser.two import Fortran2003
         super(NemoFparser2ASTProcessor, self).__init__()
 
-        # Insert specialised handlers for this API to the handlers table.
-        self.handlers[Fortran2003.Block_Nonlabel_Do_Construct] = \
-            self._nemo_do_construct_handler
-
-    def _nemo_do_construct_handler(self, node, parent):
-        loop = super(NemoFparser2ASTProcessor, self) \
-            ._do_construct_handler(node, parent)
+    def _create_frontend_loop(self, parent, variable_name):
+        loop = NemoLoop(parent=parent, variable_name=variable_name,
+                        preinit=False)
 
         # Identify the type of loop
-        if self._variable_name in NEMO_LOOP_TYPE_MAPPING:
-            self.loop_type = NEMO_LOOP_TYPE_MAPPING[self._variable_name]
+        if variable_name in NEMO_LOOP_TYPE_MAPPING:
+            loop.loop_type = NEMO_LOOP_TYPE_MAPPING[variable_name]
         else:
-            self.loop_type = "unknown"
+            loop.loop_type = "unknown"
 
-        # TODO: FIX
-        # Now check the PSyIR of this loop body to see whether it is
-        # a valid kernel
-        if NemoKern.match(self):
-            # It is, so we create a new kernel object and make it the only
+        return loop
+
+    def _create_frontend_loopbody(self, loop_body, node):
+        # We create a fake node because we need to parse the children
+        # before we decide what to do with them.
+        fakeparent = Node()
+        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
+                           nodes_parent=node)
+
+        if NemoKern.match(fakeparent):
+            # Create a new kernel object and make it the only
             # child of this Loop node. The PSyIR of the loop body becomes
             # the schedule of this kernel.
-            self.children = [NemoKern(self.children, self._ast, parent=self)]
+            nemokern = NemoKern(fakeparent.children, node, parent=loop_body)
+            loop_body.children.append(nemokern)
+            for child in fakeparent.children:
+                child.parent = nemokern
+        else:
+            # Otherwise just connect the new children into the tree.
+            loop_body.children.extend(fakeparent.children)
+            for child in fakeparent.children:
+                child.parent = loop_body
 
     def _create_child(self, child, parent=None):
         '''
@@ -274,7 +283,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoInvokeSchedule(InvokeSchedule):
+class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     '''
     The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
@@ -290,6 +299,7 @@ class NemoInvokeSchedule(InvokeSchedule):
     '''
     def __init__(self, invoke, ast):
         Node.__init__(self)
+        NemoFparser2ASTProcessor.__init__(self)
 
         self._invoke = invoke
         self._ast = ast
@@ -402,17 +412,14 @@ class NemoLoop(Loop):
     '''
     Class representing a Loop in NEMO.
 
-    :param ast: node in the fparser2 AST representing the loop.
-    :type ast: :py:class:`fparser.two.Block_Nonlabel_Do_Construct`
     :param parent: parent of this NemoLoop in the PSyclone AST.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, ast, parent=None):
-        from fparser.two.Fortran2003 import Loop_Control
-        Loop.__init__(self, parent=parent,
+
+    def __init__(self, parent=None, variable_name='', preinit=False):
+        Loop.__init__(self, parent=parent, variable_name=variable_name,
+                      preinit=preinit,
                       valid_loop_types=VALID_LOOP_TYPES)
-        # Keep a ptr to the corresponding node in the parse tree
-        self._ast = ast
 
     @property
     def kernel(self):
@@ -447,9 +454,10 @@ class NemoImplicitLoop(NemoLoop):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
+    _valid_loop_types = VALID_LOOP_TYPES
+
     def __init__(self, ast, parent=None):
-        Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+        Loop.__init__(self, parent=parent)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
