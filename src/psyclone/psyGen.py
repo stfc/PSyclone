@@ -5722,8 +5722,9 @@ class Assignment(Node):
 
         :raises InternalError: Node has lest children than expected
         '''
-        if self._children:
-            raise InternalError("Assignment '{}' malformed or incomplete. It " \
+        if not self._children:
+            raise InternalError(
+                "Assignment '{}' malformed or incomplete. It "
                 "needs at least 1 children to have a lhs.".format(str(self)))
 
         return self._children[0]
@@ -5738,7 +5739,8 @@ class Assignment(Node):
         :raises InternalError: Node has lest children than expected
         '''
         if len(self._children) < 2:
-            raise InternalError("Assignment '{}' malformed or incomplete. It " \
+            raise InternalError(
+                "Assignment '{}' malformed or incomplete. It "
                 "needs at least 2 children to have a rhs.".format(str(self)))
 
         return self._children[1]

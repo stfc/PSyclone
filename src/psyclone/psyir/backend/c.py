@@ -41,6 +41,7 @@ it needs to be extended for generating pure C code.
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 
+
 class CWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-C back-end for the PSyIR AST.
 
@@ -195,9 +196,9 @@ class CWriter(PSyIRVisitor):
 
         '''
         if len(node.children) < 2:
-            raise VisitorError("IfBlock malformed or incomplete. It should" \
-                "have at least children, but found {0}." \
-                "".format(len(node.children)))
+            raise VisitorError(
+                "IfBlock malformed or incomplete. It should have at least "
+                "2 children, but found {0}.".format(len(node.children)))
 
         condition = self._visit(node.children[0])
 
@@ -214,11 +215,11 @@ class CWriter(PSyIRVisitor):
 
         if else_body:
             result = (
-                "{0}if ({1}) {\n"
+                "{0}if ({1}) {{\n"
                 "{2}"
-                "{0}} else {\n"
+                "{0}}} else {{\n"
                 "{3}"
-                "{0}}\n"
+                "{0}}}\n"
                 "".format(self._nindent, condition, if_body, else_body))
         else:
             result = (
@@ -242,8 +243,9 @@ class CWriter(PSyIRVisitor):
 
         '''
         if len(node.children) != 1:
-            raise VisitorError("UnaryOperation malformed or incomplete. It " \
-                "should have exactly 1 child, but found {0}." \
+            raise VisitorError(
+                "UnaryOperation malformed or incomplete. It "
+                "should have exactly 1 child, but found {0}."
                 "".format(len(node.children)))
 
         def operator_format(operator_str, expr_str):
@@ -291,7 +293,7 @@ class CWriter(PSyIRVisitor):
             opstring, formatter = opmap[node.operator]
         except KeyError:
             raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
+                "The C backend does not support the '{0}' operator."
                 "".format(node.operator))
 
         return formatter(opstring, self._visit(node.children[0]))
@@ -308,8 +310,9 @@ class CWriter(PSyIRVisitor):
 
         '''
         if len(node.children) != 2:
-            raise VisitorError("BinaryOperation malformed or incomplete. It " \
-                "should have exactly 2 children, but found {0}." \
+            raise VisitorError(
+                "BinaryOperation malformed or incomplete. It "
+                "should have exactly 2 children, but found {0}."
                 "".format(len(node.children)))
 
         def operator_format(operator_str, expr1, expr2):
@@ -362,7 +365,7 @@ class CWriter(PSyIRVisitor):
             opstring, formatter = opmap[node.operator]
         except KeyError:
             raise VisitorError(
-                "The gen_c_code backend does not support the '{0}' operator."
+                "The C backend does not support the '{0}' operator."
                 "".format(node.operator))
 
         return formatter(opstring,
@@ -381,3 +384,16 @@ class CWriter(PSyIRVisitor):
 
         '''
         return "{0}return;\n".format(self._nindent)
+
+    def codeblock_node(self, node):
+        '''This method is called when a CodeBlock instance is found in the
+        PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
+        code.
+
+        :param node: A CodeBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.CodeBlock`
+
+        :raises VisitorError: The CodeBlock can not be translated to C.
+
+        '''
+        raise VisitorError("CodeBlocks can not be translated to C.")
