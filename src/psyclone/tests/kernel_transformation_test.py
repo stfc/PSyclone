@@ -101,7 +101,7 @@ def test_accroutine():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
@@ -147,7 +147,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
@@ -196,7 +196,7 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)

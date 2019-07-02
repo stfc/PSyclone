@@ -736,7 +736,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     for child in schedule.children:
         if isinstance(child, Loop):
             if child.loop_type == "colours":
-                schedule, _ = otrans.apply(child.children[0])
+                schedule, _ = otrans.apply(child.loop_body[0])
             else:
                 schedule, _ = otrans.apply(child)
 
