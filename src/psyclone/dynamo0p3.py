@@ -6166,7 +6166,9 @@ class DynKern(CodedKern):
             # If arg is a grid type argument, it does not have
             # the access mode defined. So take it from the arg_descriptor:
             if arg.vector_size > 0:
-                # It's an array, so add an index value for the stored indices
+                # It's an array, so add an arbitrary index value for the
+                # stored indices (which is at this stage the only way to
+                # indicate an array access).
                 var_accesses.add_access(arg.name, arg.access, self, [1])
             else:
                 var_accesses.add_access(arg.name, arg.access, self)
