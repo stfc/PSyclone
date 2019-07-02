@@ -1533,8 +1533,9 @@ class Node(object):
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
-        just recurses down to all children.
-        :param var_accesses: \
+        just recurses down to all children:
+        :param var_accesses: Stores the output results.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for child in self._children:
