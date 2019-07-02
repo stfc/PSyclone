@@ -883,7 +883,8 @@ def test_acc_dir_view(capsys):
         colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive
-    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0],
+                               force_parallel=True)
     new_sched.children[1].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
@@ -895,7 +896,7 @@ def test_acc_dir_view(capsys):
     new_sched.children[1].children[0].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, collapse=2, independent]")
+        colored("Directive", colour)+"[ACC Loop, collapse=2]")
 
 
 def test_haloexchange_unknown_halo_depth():

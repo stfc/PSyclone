@@ -1867,10 +1867,10 @@ def test_accloop(tmpdir):
 
     assert '''\
       !$acc parallel default(present)
-      !$acc loop independent
+      !$acc loop
       DO j=2,jstop''' in gen
     assert ("END DO \n"
-            "      !$acc loop independent\n"
+            "      !$acc loop\n"
             "      DO j=2,jstop+1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1915,7 +1915,7 @@ def test_acc_collapse(tmpdir):
 
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
-            "      !$acc loop collapse(2) independent\n"
+            "      !$acc loop collapse(2)\n"
             "      DO j=2,jstop\n"
             "        DO i=2,istop+1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
@@ -1923,8 +1923,9 @@ def test_acc_collapse(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_indep(tmpdir):
-    ''' Tests for the independent clause to a loop directive. '''
+def test_acc_force(tmpdir):
+    ''' Tests for the force_parallel option to the ACCLoopTrans. This
+    should just result in an independent clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -1932,8 +1933,8 @@ def test_acc_indep(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
-    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], force_parallel=False)
+    new_sched, _ = acclpt.apply(schedule.children[1], force_parallel=True)
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1965,6 +1966,20 @@ def test_acc_loop_seq():
             "      do j=2,jstop\n" in gen)
 
 
+def test_acc_loop_seq_not_parallel():
+    ''' Check that we cannot specify both sequential and force_parallel to
+    an ACCLoopTrans. '''
+    acclpt = ACCLoopTrans()
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    with pytest.raises(TransformationError) as err:
+        _, _ = acclpt.apply(schedule.children[0], sequential=True,
+                            force_parallel=True)
+    assert ("It makes no sense to specify that we should force a loop to be "
+            "parallel" in str(err))
+
+
 def test_acc_loop_view(capsys):
     ''' Test for the view() method of ACCLoopDirective. '''
     acclpt = ACCLoopTrans()
@@ -1972,8 +1987,8 @@ def test_acc_loop_view(capsys):
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                            name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
-    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], force_parallel=False)
+    new_sched, _ = acclpt.apply(schedule.children[1], force_parallel=True)
     new_sched, _ = acclpt.apply(schedule.children[2], sequential=True)
     # Check the view method
     new_sched.view()

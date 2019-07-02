@@ -428,6 +428,11 @@ class ParallelLoopTrans(Transformation):
     code-generation time.
 
     '''
+    def __init__(self):
+        # Whether or not we should force the target loop to be parallelised
+        self._force_parallel = False
+        super(ParallelLoopTrans, self).__init__()
+
     @abc.abstractmethod
     def __str__(self):
         return  # pragma: no cover
@@ -455,17 +460,20 @@ class ParallelLoopTrans(Transformation):
         :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
         '''
 
-    def _validate(self, node, collapse=None):
+    def _validate(self, node, collapse=None, force_parallel=False):
         '''
         Perform validation checks before applying the transformation
 
         :param node: the node we are checking.
         :type node: :py:class:`psyclone.psyGen.Node`.
         :param int collapse: number of nested loops to collapse or None.
+        :param bool force_parallel: whether or not we should force \
+                                    parallelisation of the loop.
+
         :raises TransformationError: if the node is not a \
-        :py:class:`psyclone.psyGen.Loop`
+                                     :py:class:`psyclone.psyGen.Loop`
         :raises TransformationError: if the \
-        :py:class:`psyclone.psyGen.Loop` loop iterates over colours
+                  :py:class:`psyclone.psyGen.Loop` loop iterates over colours.
 
         '''
         # Check that the supplied node is a Loop
@@ -503,7 +511,7 @@ class ParallelLoopTrans(Transformation):
                     "Cannot apply COLLAPSE({0}) clause to a loop nest "
                     "containing only {1} loops".format(collapse, loop_count))
 
-    def apply(self, node, collapse=None):
+    def apply(self, node, collapse=None, force_parallel=False):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -526,12 +534,16 @@ class ParallelLoopTrans(Transformation):
         :type node: :py:class:`psyclone.psyGen.Node`.
         :param int collapse: number of loops to collapse into single \
                              iteration space or None.
+        :param bool force_parallel: whether we should force the compiler to \
+                                    parallelise this loop.
+
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
                    :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(node, collapse)
-
+        self._validate(node, collapse, force_parallel)
+        #TODO should force_parallel be an argument to self._directive()?
+        self._force_parallel = force_parallel
         schedule = node.root
 
         # create a memento of the schedule and the proposed
@@ -561,7 +573,6 @@ class ParallelLoopTrans(Transformation):
 
 
 class OMPLoopTrans(ParallelLoopTrans):
-
     '''
     Adds an orphaned OpenMP directive to a loop. i.e. the directive
     must be inside the scope of some other OMP Parallel
@@ -769,9 +780,6 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     '''
     def __init__(self):
-        # Whether to add the "independent" clause
-        # to the loop directive.
-        self._independent = True
         self._sequential = False
         super(ACCLoopTrans, self).__init__()
 
@@ -799,20 +807,26 @@ class ACCLoopTrans(ParallelLoopTrans):
         directive = ACCLoopDirective(parent=parent,
                                      children=children,
                                      collapse=collapse,
-                                     independent=self._independent,
+                                     independent=self._force_parallel,
                                      sequential=self._sequential)
         return directive
 
-    def _validate(self, node, collapse=None):
+    def validate(self, node, sequential, force_parallel):
         '''
-        Does OpenACC-specific validation checks before calling the
-        _validate method of the base class.
+        Does OpenACC-specific validation checks.
 
         :param node: the proposed target of the !$acc loop directive.
         :type node: :py:class:`psyclone.psyGen.Node`.
-        :param int collapse: number of loops to collapse or None.
-        :raises NotImplementedError: if an API other than GOcean 1.0 is \
-                                     being used.
+        :param bool sequential: whether or not to specify that this loop\
+                                should be executed sequentially.
+        :param bool force_parallel: whether or not to attempt to force the \
+                                    compiler to parallelise the loop.
+
+        :raises NotImplementedError: if an API other than GOcean 1.0 or \
+                                     NEMO is being used.
+        :raises TransformationError: if both `sequential` and `force_parallel`\
+                                     are True.
+
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.nemo import NemoInvokeSchedule
@@ -821,9 +835,14 @@ class ACCLoopTrans(ParallelLoopTrans):
             raise NotImplementedError(
                 "OpenACC loop transformations are currently only supported "
                 "for the gocean 1.0 and nemo APIs")
-        super(ACCLoopTrans, self)._validate(node, collapse)
 
-    def apply(self, node, collapse=None, independent=True, sequential=False):
+        if sequential and force_parallel:
+            raise TransformationError(
+                "It makes no sense to specify that we should force a loop to "
+                "be parallel *and* that it is sequential.")
+
+    def apply(self, node, collapse=None, force_parallel=False,
+              sequential=False):
         '''
         Apply the ACCLoop transformation to the specified node in a
         GOInvokeSchedule. This node must be a Loop since this transformation
@@ -845,18 +864,21 @@ class ACCLoopTrans(ParallelLoopTrans):
         :type node: :py:class:`psyclone.psyGen.Loop`.
         :param int collapse: number of loops to collapse into single \
                              iteration space or None.
-        :param bool independent: whether to add the "independent" clause to \
-                                 the directive (not strictly necessary within \
-                                 PARALLEL regions).
+        :param bool force_parallel: specifies that the target loop is safe to \
+                             parallelise and that PSyclone should take all \
+                             possible steps to persuade a compiler to produce \
+                             parallel code. This includes adding the \
+                             "independent" clause to the resulting directive \
+                             and making any scalar variables thread private.
         :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
                   :py:class:`psyclone.undoredo.Memento`)
         '''
+        self.validate(node, sequential, force_parallel)
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
-        self._independent = independent
         self._sequential = sequential
         # Call the apply() method of the base class
-        return super(ACCLoopTrans, self).apply(node, collapse)
+        return super(ACCLoopTrans, self).apply(node, collapse, force_parallel)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -2843,7 +2865,7 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
-        from psyclone.psyGen import Schedule, Directive, \
+        from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
 
