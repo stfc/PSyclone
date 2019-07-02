@@ -53,10 +53,11 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    CodedKern
 
 # First section : Parser specialisations and classes
 
@@ -1380,7 +1381,7 @@ class DynCollection(object):
             self._invoke = node
             self._kernel = None
             # The list of kernel calls we are responsible for
-            self._calls = node.schedule.calls()
+            self._calls = node.schedule.kernels()
         elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
@@ -2884,7 +2885,7 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        for call in self._schedule.kern_calls():
+        for call in self._schedule.coded_kernels():
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -2942,7 +2943,7 @@ class DynMeshes(object):
         in the constructor since colouring is applied by Transformations
         and happens after the Schedule has already been constructed.
         '''
-        for call in [call for call in self._schedule.kern_calls() if
+        for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured
@@ -4164,7 +4165,7 @@ class DynInvoke(Invoke):
 
         # adding in qr arguments
         self._alg_unique_qr_args = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             if call.qr_required:
                 if call.qr_text not in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(call.qr_text)
@@ -4173,7 +4174,7 @@ class DynInvoke(Invoke):
         # arguments within the psy layer. These are stored in the
         # _psy_unique_qr_vars list
         self._psy_unique_qr_vars = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             if call.qr_required:
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
@@ -4223,7 +4224,7 @@ class DynInvoke(Invoke):
                 "type. Expected one of '{0}' but got '{1}'".
                 format(valid_names, access))
         declarations = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text and arg.type == datatype:
@@ -4236,7 +4237,7 @@ class DynInvoke(Invoke):
         function space. Searches through all Kernel calls in this
         invoke. Currently the first argument object that is found is
         used. Throws an exception if no argument exists. '''
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             try:
                 return kern_call.arguments.get_arg_on_space(fspace)
             except FieldNotFoundError:
@@ -4249,7 +4250,7 @@ class DynInvoke(Invoke):
         calls in this invoke. '''
         unique_fs = []
         unique_fs_names = []
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             kern_fss = kern_call.arguments.unique_fss
             for fspace in kern_fss:
                 if fspace.mangled_name not in unique_fs_names:
@@ -4272,7 +4273,7 @@ class DynInvoke(Invoke):
                   iterate over DoFs.
         :rtype: bool
         '''
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             if kern_call.iterates_over.lower() != "dofs":
                 return False
         return True
@@ -4280,7 +4281,7 @@ class DynInvoke(Invoke):
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
         invoke then return that field. Otherwise return None. '''
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             field = field_on_space(func_space, kern_call.arguments)
             if field:
                 return field
@@ -5177,24 +5178,26 @@ class HaloDepth(object):
 
 
 def halo_check_arg(field, access_types):
-    '''Support function which performs checks to ensure the first argument
+    '''
+    Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
     call and that the field is accessed in one of the ways specified
     by the second argument. If no error is reported it returns the
-    call object containing this argument
+    call object containing this argument.
 
     :param field: the argument object we are checking
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
     :param access_types: List of allowed access types.
     :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
     :return: the call containing the argument object
-    :rtype: :py:class:`psyclone.psyGen.Call`
-    :raises GenerationError: if the first argument to this function is
-    the wrong type
-    :raises GenerationError: if the first argument is not accessed in
-    one of the ways specified by the second argument to the function
-    :raises GenerationError: if the first argument is not contained
-    within a call object
+    :rtype: sub-class of :py:class:`psyclone.psyGen.Kern`
+
+    :raises GenerationError: if the first argument to this function is \
+                             the wrong type.
+    :raises GenerationError: if the first argument is not accessed in one of \
+                    the ways specified by the second argument to the function.
+    :raises GenerationError: if the first argument is not contained \
+                             within a call object.
 
     '''
     try:
@@ -5798,7 +5801,7 @@ class DynLoop(Loop):
         unique_fields = []
         unique_field_names = []
 
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if self._halo_read_access(arg):
                     if arg.name not in unique_field_names:
@@ -5925,7 +5928,7 @@ class DynLoop(Loop):
         # required. This is done by removing halo exchanges after this
         # loop where a field in this loop previously had a forward
         # dependence on a halo exchange but no longer does
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.access in AccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
@@ -6126,7 +6129,7 @@ class DynLoop(Loop):
                 parent.add(CommentGen(parent, ""))
 
 
-class DynKern(Kern):
+class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
@@ -6253,9 +6256,9 @@ class DynKern(Kern):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
         from psyclone.parse.algorithm import KernelCall
-        Kern.__init__(self, DynKernelArguments,
-                      KernelCall(module_name, ktype, args),
-                      parent, check=False)
+        CodedKern.__init__(self, DynKernelArguments,
+                           KernelCall(module_name, ktype, args),
+                           parent, check=False)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -8546,3 +8549,49 @@ class DynKernCallFactory(object):
 
         # Return the outermost loop
         return cloop
+
+
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = [
+    'FunctionSpace',
+    'DynFuncDescriptor03',
+    'DynArgDescriptor03',
+    'DynKernMetadata',
+    'DynamoPSy',
+    'DynamoInvokes',
+    'DynCollection',
+    'DynStencils',
+    'DynDofmaps',
+    'DynOrientations',
+    'DynFunctionSpaces',
+    'DynFields',
+    'DynProxies',
+    'DynCellIterators',
+    'DynScalarArgs',
+    'DynLMAOperators',
+    'DynCMAOperators',
+    'DynMeshes',
+    'DynInterGrid',
+    'DynBasisFunctions',
+    'DynBoundaryConditions',
+    'DynInvoke',
+    'DynInvokeSchedule',
+    'DynGlobalSum',
+    'DynHaloExchange',
+    'DynHaloExchangeStart',
+    'DynHaloExchangeEnd',
+    'HaloDepth',
+    'HaloWriteAccess',
+    'HaloReadAccess',
+    'DynLoop',
+    'DynKern',
+    'ArgOrdering',
+    'KernCallArgList',
+    'KernStubArgList',
+    'FSDescriptor',
+    'FSDescriptors',
+    'DynStencil',
+    'DynKernelArguments',
+    'DynKernelArgument',
+    'DynKernCallFactory']

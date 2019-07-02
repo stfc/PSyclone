@@ -53,9 +53,9 @@ program simple
 
   integer :: ncycle
 
-  model_grid = grid_type(ARAKAWA_C,                           &
-                         (/BC_PERIODIC,BC_PERIODIC,BC_NONE/), &
-                         OFFSET_SW)
+  model_grid = grid_type(GO_ARAKAWA_C,                                 &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
+                         GO_OFFSET_SW)
 
   ! Create fields on this grid
   p_fld  = r2d_field(model_grid, T_POINTS)
@@ -66,13 +66,13 @@ program simple
   z_fld = r2d_field(model_grid, F_POINTS)
   h_fld = r2d_field(model_grid, T_POINTS)
 
-  do ncycle=1,itmax
-    
+  write(*,*) "Simulation start"
+  do ncycle=1, 100
     call invoke( compute_cu(CU_fld, p_fld, u_fld),      &
                  compute_cv(CV_fld, p_fld, v_fld),      &
                  compute_z(z_fld, p_fld, u_fld, v_fld), &
                  compute_h(h_fld, p_fld, u_fld, v_fld) )
-
   end do
+  write(*,*) "Simulation end"
 
 end program simple

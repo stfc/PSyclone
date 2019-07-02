@@ -35,15 +35,16 @@
 
 '''This module implements the PSyclone NEMO API by specialising
    the required base classes for both code generation (PSy, Invokes,
-   Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
+   Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument)
    and parsing (Descriptor and KernelType).
 
 '''
 
 from __future__ import print_function, absolute_import
 import copy
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, Kern, InternalError, NameSpaceFactory, \
+    Loop, CodedKern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
@@ -52,23 +53,6 @@ from fparser.two import Fortran2003
 # a NEMO-API-specific entity.
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
-
-# The valid types of loop and associated loop variable and bounds
-VALID_LOOP_TYPES = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
-                    "lat": {"var": "jj", "start": "1", "stop": "jpj"},
-                    "levels": {"var": "jk", "start": "1", "stop": "jpk"},
-                    # TODO what is the upper bound of tracer loops?
-                    "tracers": {"var": "jt", "start": "1", "stop": ""},
-                    "unknown": {"var": "", "start": "1", "stop": ""}}
-
-# Mapping from loop variable to loop type. This is how we identify each
-# explicit do loop we encounter.
-NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
-                          "jt": "tracers", "jn": "tracers"}
-
-# Mapping from loop type to array index. NEMO uses an "i, j, k" data
-# layout.
-NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
@@ -82,9 +66,12 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         loop = NemoLoop(parent=parent, variable_name=variable_name,
                         preinit=False)
 
+        loop_type_mapping = Config.get().api_conf("nemo")\
+            .get_loop_type_mapping()
+
         # Identify the type of loop
-        if variable_name in NEMO_LOOP_TYPE_MAPPING:
-            loop.loop_type = NEMO_LOOP_TYPE_MAPPING[variable_name]
+        if variable_name in loop_type_mapping:
+            loop.loop_type = loop_type_mapping[variable_name]
         else:
             loop.loop_type = "unknown"
 
@@ -324,7 +311,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
         return result
 
 
-class NemoKern(Kern):
+class NemoKern(CodedKern):
     ''' Stores information about NEMO kernels as extracted from the
     NEMO code. Kernels are leaves in the PSyIR. I.e. they have
     no self._children but they do have a KernelSchedule.
@@ -417,9 +404,19 @@ class NemoLoop(Loop):
     '''
 
     def __init__(self, parent=None, variable_name='', preinit=False):
-        Loop.__init__(self, parent=parent, variable_name=variable_name,
+        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
+        Loop.__init__(self, parent=parent,
+                      variable_name=variable_name,
                       preinit=preinit,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=valid_loop_types)
+
+    def __str__(self):
+        result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
+                  "\n")
+        for entity in self._children:
+            result += str(entity) + "\n"
+        result += "EndLoop"
+        return result
 
     @property
     def kernel(self):
@@ -454,10 +451,11 @@ class NemoImplicitLoop(NemoLoop):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-    _valid_loop_types = VALID_LOOP_TYPES
 
     def __init__(self, ast, parent=None):
-        Loop.__init__(self, parent=parent)
+        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
+        Loop.__init__(self, parent=parent,
+                      valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 

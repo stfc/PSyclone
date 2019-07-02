@@ -41,7 +41,6 @@ module compute_h_mod
 
   private
 
-  public invoke_compute_h
   public compute_h, compute_h_code
 
   type, extends(kernel_type) :: compute_h
@@ -75,8 +74,8 @@ contains
   SUBROUTINE compute_h_code(i, j, h, p, u, v)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(out), DIMENSION(:,:) :: h
-    REAL(wp), INTENT(in),  DIMENSION(:,:) :: p, u, v
+    REAL(go_wp), INTENT(out), DIMENSION(:,:) :: h
+    REAL(go_wp), INTENT(in),  DIMENSION(:,:) :: p, u, v
 
     H(I,J) = P(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
                            V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))

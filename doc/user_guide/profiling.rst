@@ -12,7 +12,7 @@ Or more fine grained by applying a profiling transformation in
 a transformation script.
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, and comes with a simple
+It currently supports dl_timer, Dr Hook, and comes with a simple
 stand-alone timer library.
 An application needs to be able to find the module files for the 
 profile wrapper, and needs to be linked with the included wrapper
@@ -144,13 +144,13 @@ PSyclone and all kernel calls::
         [Profile]
             Loop[type='outer',field_space='cu',it_space='internal_pts']
                 Loop[type='inner',field_space='cu',it_space='internal_pts']
-                    KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
             Loop[type='outer',field_space='cv',it_space='internal_pts']
                 Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
             Loop[type='outer',field_space='ct',it_space='internal_pts']
                 Loop[type='inner',field_space='ct',it_space='internal_pts']
-                    KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                    CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
@@ -160,15 +160,15 @@ region::
         [Profile]
             Loop[type='outer',field_space='cu',it_space='internal_pts']
                 Loop[type='inner',field_space='cu',it_space='internal_pts']
-                    KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
         [Profile]
             Loop[type='outer',field_space='cv',it_space='internal_pts']
                 Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+                    CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
         [Profile]
             Loop[type='outer',field_space='ct',it_space='internal_pts']
                 Loop[type='inner',field_space='ct',it_space='internal_pts']
-                    KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                    CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 Both options can be specified at the same time::
 
@@ -177,15 +177,15 @@ Both options can be specified at the same time::
             [Profile]
                 Loop[type='outer',field_space='cu',it_space='internal_pts']
                     Loop[type='inner',field_space='cu',it_space='internal_pts']
-                        KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+                        CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
             [Profile]
                 Loop[type='outer',field_space='cv',it_space='internal_pts']
                     Loop[type='inner',field_space='cv',it_space='internal_pts']
-                        KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+                        CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
             [Profile]
                 Loop[type='outer',field_space='ct',it_space='internal_pts']
                     Loop[type='inner',field_space='ct',it_space='internal_pts']
-                        KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                        CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 
 
@@ -211,7 +211,7 @@ As an example::
     newschedule.view()
 
 .. warning::
-
+ 
     It is the responsibility of the user to make sure that a profile
     region is only created inside a multi-threaded region if the
     profiling library used is thread-safe!
@@ -225,7 +225,7 @@ library. Support for further profiling libraries will be
 added in the future. To compile the wrapper libraries,
 change into the directory ``lib/profiling`` of PSyclone
 and type ``make`` to compile all wrappers. If only some
-of the wrapper are required, you can either use
+of the wrappers are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
 corresponding README files contain additional parameters

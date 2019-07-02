@@ -3721,7 +3721,7 @@ def test_repr_3_builtins_2_reductions_do():
 
 
 @pytest.mark.xfail(reason="Fix before submitting PR")
-def test_reprod_view(capsys, monkeypatch, annexed):
+def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     '''test that we generate a correct view() for OpenMP do
     reductions. Also test with and without annexed dofs being computed
     as this affects the output.
@@ -3737,81 +3737,80 @@ def test_reprod_view(capsys, monkeypatch, annexed):
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+    call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
 
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.19.1_three_builtins_two_reductions.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
-        for child in schedule.children:
-            if isinstance(child, DynLoop):
-                schedule, _ = otrans.apply(child, reprod=True)
-        for child in schedule.children:
-            if isinstance(child, OMPDoDirective):
-                schedule, _ = rtrans.apply(child)
-        invoke.schedule = schedule
-        schedule.view()
-        # only display reprod in schedule view if a reduction
-        result, _ = capsys.readouterr()
-        if distmem:  # annexed can be True or False
-            expected = (
-                sched + "[invoke='invoke_0', dm=True]\n"
-                "    " + directive+"[OMP parallel]\n"
-                "        " + directive + "[OMP do][reprod=True]\n"
-                "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='ndofs']\n"
-                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
-                "    " + gsum + "[scalar='asum']\n"
-                "    " + directive + "[OMP parallel]\n"
-                "        " + directive + "[OMP do]\n"
-                "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='nannexed']\n"
-                "                " + call + " inc_a_times_x(asum,f1)\n"
-                "    " + directive + "[OMP parallel]\n"
-                "        " + directive + "[OMP do][reprod=True]\n"
-                "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='ndofs']\n"
-                "                " + call + " sum_x(bsum,f2)\n"
-                "    " + gsum + "[scalar='bsum']\n")
-            if not annexed:
-                expected = expected.replace("nannexed", "ndofs")
-        else:  # not distmem. annexed can be True or False
-            expected = (
-                sched + "[invoke='invoke_0', dm=False]\n"
-                "    " + directive + "[OMP parallel]\n"
-                "        " + directive + "[OMP do][reprod=True]\n"
-                "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='ndofs']\n"
-                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
-                "    " + directive + "[OMP parallel]\n"
-                "        " + directive + "[OMP do]\n"
-                "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='ndofs']\n"
-                "                " + call + " inc_a_times_x(asum,f1)\n"
-                "    " + directive + "[OMP parallel]\n"
-                "        " + directive + "[OMP do][reprod=True]\n"
-                "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='ndofs']\n"
-                "                " + call + " sum_x(bsum,f2)\n")
-        if expected not in result:
-            print("Expected ...")
-            print(expected)
-            print("Found ...")
-            print(result)
-            assert 0
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.19.1_three_builtins_two_reductions.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = Dynamo0p3OMPLoopTrans()
+    for child in schedule.children:
+        if isinstance(child, DynLoop):
+            schedule, _ = otrans.apply(child, reprod=True)
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            schedule, _ = rtrans.apply(child)
+    invoke.schedule = schedule
+    schedule.view()
+    # only display reprod in schedule view if a reduction
+    result, _ = capsys.readouterr()
+    if dist_mem:  # annexed can be True or False
+        expected = (
+            sched + "[invoke='invoke_0', dm=True]\n"
+            "    " + directive+"[OMP parallel]\n"
+            "        " + directive + "[OMP do][reprod=True]\n"
+            "            " + loop + "[type='dofs',"
+            "field_space='any_space_1',it_space='dofs', "
+            "upper_bound='ndofs']\n"
+            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "    " + gsum + "[scalar='asum']\n"
+            "    " + directive + "[OMP parallel]\n"
+            "        " + directive + "[OMP do]\n"
+            "            " + loop + "[type='dofs',"
+            "field_space='any_space_1',it_space='dofs', "
+            "upper_bound='nannexed']\n"
+            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "    " + directive + "[OMP parallel]\n"
+            "        " + directive + "[OMP do][reprod=True]\n"
+            "            " + loop + "[type='dofs',"
+            "field_space='any_space_1',it_space='dofs', "
+            "upper_bound='ndofs']\n"
+            "                " + call + " sum_x(bsum,f2)\n"
+            "    " + gsum + "[scalar='bsum']\n")
+        if not annexed:
+            expected = expected.replace("nannexed", "ndofs")
+    else:  # not dist_mem. annexed can be True or False
+        expected = (
+            sched + "[invoke='invoke_0', dm=False]\n"
+            "    " + directive + "[OMP parallel]\n"
+            "        " + directive + "[OMP do][reprod=True]\n"
+            "            " + loop + "[type='dofs',"
+            "field_space='any_space_1',it_space='dofs', "
+            "upper_bound='ndofs']\n"
+            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "    " + directive + "[OMP parallel]\n"
+            "        " + directive + "[OMP do]\n"
+            "            " + loop + "[type='dofs',"
+            "field_space='any_space_1',it_space='dofs', "
+            "upper_bound='ndofs']\n"
+            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "    " + directive + "[OMP parallel]\n"
+            "        " + directive + "[OMP do][reprod=True]\n"
+            "            " + loop + "[type='dofs',"
+            "field_space='any_space_1',it_space='dofs', "
+            "upper_bound='ndofs']\n"
+            "                " + call + " sum_x(bsum,f2)\n")
+    if expected not in result:
+        print("Expected ...")
+        print(expected)
+        print("Found ...")
+        print(result)
+        assert 0
 
 
 def test_reductions_reprod():

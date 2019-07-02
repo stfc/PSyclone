@@ -625,7 +625,7 @@ def test_cma_asm_cbanded_dofmap_error():
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    calls = invoke.schedule.calls()
+    calls = invoke.schedule.kernels()
     # We must go in and make the internal state inconsistent in order
     # to trigger the error. So, we set the type of all the arguments
     # in the kernel cal to be CMA operators...
@@ -809,7 +809,7 @@ def test_cma_apply_indirection_dofmap_error():
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    calls = invoke.schedule.calls()
+    calls = invoke.schedule.kernels()
     # We must go in and make the internal state inconsistent in order
     # to trigger the error. So, we set the type of all the arguments
     # in the kernel cal to be CMA operators...

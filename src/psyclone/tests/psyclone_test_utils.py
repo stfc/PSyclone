@@ -285,7 +285,7 @@ class Compile(object):
         # Get the names of the modules associated with the kernels.
         # By definition, built-ins do not have associated Fortran modules.
         for invoke in psy_ast.invokes.invoke_list:
-            for call in invoke.schedule.kern_calls():
+            for call in invoke.schedule.coded_kernels():
                 kernel_modules.add(call.module_name)
 
         # Change to the temporary directory passed in to us from
@@ -307,6 +307,12 @@ class Compile(object):
             # Build the kernels. We allow kernels to also be located in
             # the temporary directory that we have been passed.
             for fort_file in kernel_modules:
+
+                # Skip file if it is not Fortran. TODO #372: Add support
+                # for C/OpenCL compiling as part of the test suite.
+                if fort_file.endswith(".cl"):
+                    continue
+
                 name = self.find_fortran_file([self.base_path,
                                                str(self._tmpdir)], fort_file)
                 self.compile_file(name)

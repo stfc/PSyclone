@@ -44,7 +44,6 @@ module compute_z_mod
 
   private
 
-  public invoke_compute_z
   public compute_z, compute_z_code
 
   type, extends(kernel_type) :: compute_z

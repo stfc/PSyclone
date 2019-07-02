@@ -62,6 +62,15 @@ API = "gocean1.0"
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
+    yield()
+    Config._instance = None
+
+
+@pytest.fixture
+def outputdir(tmpdir, monkeypatch):
+    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
 
 
 def test_const_loop_bounds_not_schedule():
@@ -1444,7 +1453,7 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
 
-def test_ocl_apply():
+def test_ocl_apply(outputdir):
     ''' Check that OCLTrans generates correct code '''
     from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
