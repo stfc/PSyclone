@@ -496,6 +496,64 @@ DataAccess class i.e. the `_field_write_arguments()` and
 `Arguments` class.
 
 
+Variable Accesses
+=================
+
+Especially in the NEMO API, it is not possible to rely on pre-defined
+kernel information to determine dependencies between loops. So an additional,
+somewhat lower-level API is being implemented that can be used to determine
+variable accesses (READ and WRITE), which is based on the PSyIR information only,
+not on any kernel information. The information about all variable usage
+of a node can be gathered by creating an object of type
+``psyclone.core.access_info.VariablesAccessInfo``, and then calling
+the function ``reference_accesses`` for the node:
+
+.. autofunction:: psyclone.psyGen.Node.reference_accesses
+
+.. autoclass:: psyclone.core.access_info.VariablesAccessInfo
+    :members:
+
+This class collects information for each variable used in the tree
+starting with the given node. For each variable an instance of
+``psyclone.core.access_info.VariableAccessInfo`` is created, which collects
+all accesses for that variable using ``psyclone.config.access_info.AccessInfo``
+instances:
+
+.. autoclass:: psyclone.core.access_info.VariableAccessInfo
+    :members:
+
+.. autoclass:: psyclone.core.access_info.AccessInfo
+    :members:
+
+Here a simple example on how to use this API. This is from the
+``psyclone.psyGen.OMPParallelDirective`` (so ``self`` is an instance of this
+transformation), and this code is used to determine a list with all scalar
+variables that must be declared as thread-private::
+
+  var_accesses = VariablesAccessInfo()
+  self.reference_accesses(var_accesses)
+  for var_name in var_accesses.get_all_vars():
+      accesses = var_accesses.get_varinfo(var_name).get_all_accesses()
+      # Ignore variables that have indices, we only look at scalar
+      # This tests only the first access, the assumption is that all
+      # accesses are either using an array access, or none.
+      if accesses[0].get_indices() is not None:
+          continue
+      # If a variable is only accessed once, it is either an error
+      # or a shared variable - anyway it is not private
+      if len(accesses) == 1:
+          continue
+      # We have at least two accesses. If the first one is a write,
+      # assume the variable should be private:
+      if accesses[0].get_access_type() == AccessType.WRITE:
+          result.add(var_name.lower())
+
+
+.. note:: There is a certain overlap in the dependency analysis code
+          and the variable access API. More work on unifying those two
+          approaches will be undertaken in the future.
+
+
 Parsing Code
 ############
 
