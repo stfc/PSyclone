@@ -158,7 +158,7 @@ class VariableAccessInfo(object):
     def add_access(self, access_type, location, node, indices=None):
         '''Adds access information to this variable.
         :param access_type: The type of access (READ, WRITE, ....)
-        :type access_type
+        :type access_type: \
             :py:class:`psyclone.core.access_type.AccessType`
         :param location: Location information
         :type location: int
