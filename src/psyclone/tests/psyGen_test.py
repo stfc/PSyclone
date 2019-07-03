@@ -3044,17 +3044,6 @@ def test_kernelschedule_can_be_printed():
     assert "End Schedule" in str(kschedule)
 
 
-def test_kernelschedule_abstract_methods():
-    ''' Test that the abstract methods produce the appropriate error.'''
-
-    kschedule = KernelSchedule("kname")
-
-    with pytest.raises(NotImplementedError) as error:
-        kschedule.gen_ocl()
-    assert "A generic implementation of this method is not available."\
-        in str(error.value)
-
-
 def test_kernelschedule_name_setter():
     '''Test that the name setter changes the kernel name attribute.'''
     kschedule = KernelSchedule("kname")
@@ -3361,29 +3350,6 @@ def test_symbol_copy_properties():
     assert symbol.shape == []
     assert symbol.scope == "local"
     assert symbol.constant_value == 7
-
-
-def test_symbol_gen_c_definition():
-    '''Test that the Symbol gen_c_definition method generates the expected
-    C definitions, or raises an error if the type is not supported.
-    '''
-    sym_1 = Symbol("name", "integer", [])
-    assert sym_1.gen_c_definition() == "int name"
-
-    sym_2 = Symbol("name", "character", [None])
-    assert sym_2.gen_c_definition() == "char * restrict name"
-
-    sym_3 = Symbol("name", "real", [None, None])
-    assert sym_3.gen_c_definition() == "double * restrict name"
-
-    sym_4 = Symbol("name", "boolean", [])
-    assert sym_4.gen_c_definition() == "bool name"
-
-    sym_1._datatype = "invalid"
-    with pytest.raises(NotImplementedError) as err:
-        _ = sym_1.gen_c_definition()
-    assert ("Could not generate the C definition for the variable 'name', "
-            "type 'invalid' is currently not supported.") in str(err)
 
 
 # Test SymbolTable Class
@@ -3705,36 +3671,20 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
-def test_symboltable_gen_c_local_variables():
-    ''' Test that it returns a concatenation of just the multiple local
-    symbols definitions .
-    '''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_table.add(Symbol("var3", "real", [None]))
-    sym_v1 = sym_table.lookup('var1')
-    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
-    sym_table.specify_argument_list([sym_v1])
-
-    c_local_vars = sym_table.gen_c_local_variables()
-    assert sym_table.lookup("var1").gen_c_definition() not in c_local_vars
-    assert sym_table.lookup("var2").gen_c_definition() in c_local_vars
-    assert sym_table.lookup("var3").gen_c_definition() in c_local_vars
-
-
-def test_symboltable_abstract_methods():
-    '''Test that the SymbolTable abstract methods raise the appropriate
+def test_symboltable_abstract_properties():
+    '''Test that the SymbolTable abstract properties raise the appropriate
     error.'''
     sym_table = SymbolTable()
 
-    for method in [sym_table.gen_ocl_argument_list,
-                   sym_table.gen_ocl_iteration_indices,
-                   sym_table.gen_ocl_array_length]:
-        with pytest.raises(NotImplementedError) as error:
-            method()
-        assert "A generic implementation of this method is not available."\
-            in str(error.value)
+    with pytest.raises(NotImplementedError) as error:
+        _ = sym_table.data_arguments
+    assert "Abstract property. Which symbols are data arguments is " \
+        "API-specific." in str(error.value)
+
+    with pytest.raises(NotImplementedError) as error:
+        _ = sym_table.iteration_indices
+    assert "Abstract property. Which symbols are iteration indices is " \
+        "API-specific." in str(error.value)
 
 
 # Test Fparser2ASTProcessor

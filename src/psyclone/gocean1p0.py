@@ -1953,7 +1953,6 @@ class GOSymbolTable(SymbolTable):
         self._check_gocean_conformity()
         return self.argument_list[:2]
 
-
     @property
     def data_arguments(self):
         '''In GOcean API the data arguments start from the third item in the

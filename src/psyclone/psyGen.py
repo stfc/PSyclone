@@ -3819,6 +3819,7 @@ class CodedKern(Kern):
                                       "kernel ({0})".format(self.name))
 
         if self.root.opencl:
+            from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter()
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         else:
@@ -5564,7 +5565,7 @@ class SymbolTable(object):
         :raises NotImplementedError: Abastract method.
         '''
         raise NotImplementedError(
-            "Abstract method. Which symbols are iteration indices is"
+            "Abstract property. Which symbols are iteration indices is"
             " API-specific.")
 
     @property
@@ -5576,7 +5577,7 @@ class SymbolTable(object):
         :raises NotImplementedError: Abastract method.
         '''
         raise NotImplementedError(
-            "Abstract method. Which symbols are data arguments is"
+            "Abstract property. Which symbols are data arguments is"
             " API-specific.")
 
     def view(self):
@@ -5771,7 +5772,6 @@ class Assignment(Node):
         for entity in self._children:
             result += str(entity)
         return result
-
 
 
 class Reference(Node):
