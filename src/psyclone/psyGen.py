@@ -1534,6 +1534,7 @@ class Node(object):
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
         just recurses down to all children:
+
         :param var_accesses: Stores the output results.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
@@ -2464,7 +2465,7 @@ class OMPParallelDirective(OMPDirective):
             if accesses[0].get_indices() is not None:
                 continue
 
-            # If a variable is only accesses once, it is either an error
+            # If a variable is only accessed once, it is either an error
             # or a shared variable - anyway it is not private
             if len(accesses) == 1:
                 continue
