@@ -255,10 +255,15 @@ https://github.com/stfc/PSyclone/wiki.
 The PSyclone Internal Representation (PSyIR)
 ############################################
 
-The PSyclone Internal Representation (PSyIR) is a language independent AST
-that PSyclone uses to represent the PSy layer and the kernel code. It can
-be constructed from scratch or produced from existing code using one of the
-ASTProcessors provided in PSyclone.
+The PSyclone Internal Representation (PSyIR) is a language independent
+AST that PSyclone uses to represent the PSy layer and the kernel
+code. The PSyIR can be constructed from scratch or produced from
+existing code using one of the (front-end) ASTProcessors provided in
+PSyclone and it can be transformed back to a particular language using
+the (back-end) support provided in PSyclone.
+
+Nodes
+=====
 
 All nodes in the AST are sub-classes of the abstract `Node` base class, which
 provides the following common interface:
@@ -266,11 +271,41 @@ provides the following common interface:
 .. autoclass:: psyclone.psyGen.Node
     :members:
 
-
-Schedule
+Tree Navigation
 ===============
 
-The Schedule node represents a sequence of statments. It is a important node
+Each PSyIR node provides several ways to navigate the AST:
+
+The `children` and `parent` properties (available in all nodes) provide an
+homogeneous method to go up and down the tree hierarchy. This method
+is recommended when applying general operations or analysis to the tree,
+however, if one intends to navigate the tree in a way that depends on the type
+of node, the `children` and `parent` methods should be avoided. The structure
+of the tree may change in different versions of PSyclone and the encoded
+navigation won't be future-proof.
+
+To solve this issue some nodes also provide methods for semantic navigation:
+
+- Schedule: subscript operator for indexing the statements inside the
+  Schedule. (e.g. `sched[3]` or `sched[2:4]`)
+- Assignment: `rhs` and `lhs` properties.
+- IfBlocks: `condition`, `if_body` and `else_body` properties.
+
+These are the recommended methods to navigate the tree for analysis or
+operations that depend on the Node type.
+
+Additionally, the `walk` method (available in all nodes) is able to recurse
+through the tree and return objects of a given type. This is useful when the
+objective is to move down the tree to an specific node or list of nodes without
+information about the exact location.
+
+.. automethod:: psyclone.psyGen.Node.walk
+
+
+Schedule
+========
+
+The Schedule node represents a sequence of statements. It is a important node
 in PSyclone because two of its specialisations: InvokeSchedule and
 KernelSchedule (described below), are used as the root nodes of PSy-layer
 invokes and kernel subroutines. This makes them the starting points for any
@@ -495,6 +530,215 @@ DataAccess class i.e. the `_field_write_arguments()` and
 `_field_read_arguments()` methods, both of which are found in the
 `Arguments` class.
 
+PSyIR back-ends
+###############
+
+PSyIR back-ends translate PSyIR into another form (such as Fortran, C
+or OpenCL). Until recently this back-end support has been implemented
+within the PSyIR `Node` classes themselves via various `gen*`
+methods. However, this approach is getting a little unwieldy.
+
+Therefore a `Visitor` pattern has been used in the latest back-end
+implementation (translating PSyIR kernel code to Fortran). This
+approach separates the code to traverse a tree from the tree being
+visited. It is expected that the existing back-ends will migrate to
+this new approach over time. The back-end visitor code is stored in
+`psyclone/psyir/backend`.
+
+Visitor Base code
+=================
+
+`base.py` in `psyclone/psyir/backend` provides a base class -
+`PSyIRVisitor` - that implements the visitor pattern and is designed
+to be subclassed by each back-end.
+
+`PSyIRVisitor` is implemented in such a way that the PSyIR classes do
+not need to be modified. This is achieved by translating the class
+name of the object being visited in the PSyIR tree into the method
+name that the visitor attempts to call (using the Python `eval`
+function). `_node` is postfixed to the method name to avoid name
+clashes with Python keywords.
+
+For example, an instance of the `Loop` PSyIR class would result in
+`PSyIRVisitor` attempting to call a `loop_node` method with the PSyIR
+instance as an argument. Note the names are always translated to lower
+case. Therefore, a particular back-end needs to subclass
+`PSyIRVisitor`, provide a `loop_node` method (in this particular example) and
+this method would then be called when the visitor finds an instance of
+`Loop`. For example:
+
+::
+
+    from __future__ import print_function
+    class TestVisitor(PSyIRVisitor):
+        ''' Example implementation of a back-end visitor. '''
+
+        def loop_node(self, node):
+            ''' This method is called if the visitor finds a loop. '''
+            print("Found a loop node")
+
+    test_visitor = TestVisitor()
+    test_visitor._visit(psyir_tree)
+
+It is up to the sub-class to call any children of the particular
+node. This approach was chosen as it allows the sub-class to control
+when and how to call children. For example:
+
+::
+
+    from __future__ import print_function
+    class TestVisitor(PSyIRVisitor):
+        ''' Example implementation of a back-end visitor. '''
+
+        def loop_node(self, node):
+            ''' This method is called if the visitor finds a loop. '''
+            print("Found a loop node")
+            for child in node.children:
+                self._visit(child)
+
+    test_visitor = TestVisitor()
+    test_visitor._visit(psyir_tree)
+
+If a `node` is called that does not have an associated method defined
+then `PSyIRVisitor` will raise a `VisitorError` exception. This
+behaviour can be changed by setting the `skip_nodes` option to `True`
+when initialising the visitor i.e.
+
+::
+
+    test_visitor = TestVisitor(skip_nodes=True)
+
+Any unsupported nodes will then be ignored and their children will be
+called in the order that they appear in the tree.
+
+PSyIR nodes might not be direct subclasses of `Node`. For example,
+`GOKernelSchedule` subclasses `KernelSchedule` which subclasses
+`Schedule` which subclasses `Node`. This can cause a problem as a
+back-end would need to have a different method for each class e.g. both
+a `gokernelschedule_node` and a `kernelschedule_node` method, even if the
+required behaviour is the same. Even worse, expecting someone to have
+to implement a new method in all back-ends when they subclass a node
+(if they don't require the back-end output to change) is overly
+restrictive.
+
+To get round the above problem, if the attempt to call a method with
+the name of the PSyIR class (with `_node` appended) fails, then the
+`PSyIRVisitor` will subsequently call the method name of its parent
+(with `_node` appended). This will continue with the `PSyIRVisitor`
+working its way through the class hierarchy in method resolution order
+until it is successful (or fails for all names and raises an
+exception).
+
+This implementation gives the behaviour one would expect from standard
+inheritance rules. For example, if a `kernelschedule_node` method is
+implemented in the back-end and a `GOKernelSchedule` is found then a
+`gokernelschedule_node` method is first tried which fails, then a
+`kernelschedule_node` method is called which succeeds. Therefore all
+subclasses of `KernelSchedule` will call the `kernelschedule_node`
+method (if their particular specialisation has not been added).
+
+One example of the power of this approach makes use of the fact that
+all PSyIR nodes have `Node` as a parent class. Therefore, some base
+functionality can be added there and all nodes that do not have a
+specific method implemented will call this. To see the
+class hierarchy, the following code can be written:
+
+::
+
+   from __future__ import print_function
+    class PrintHierarchy(PSyIRVisitor):
+        ''' Example of a visitor that prints the PSyIR node hierarchy. '''
+
+        def node_node(self, node):
+        ''' This method is called if no specific methods have been
+            written. '''
+            print("[ {0} start]".format(type(node).__name__))
+            for child in node.children:
+                self._visit(child)
+            print("[ {0} end]".format(type(node).__name__))
+
+    print_hierarchy = PrintHierarchy()
+    print_hierarchy._visit(psyir_tree)
+
+In the examples presented up to now, the information from a back-end
+has been printed. However, a back-end will generally not want to use
+print statements. Output from a `PSyIRVisitor` is supported by
+allowing each method call to return a string. Reimplementing the
+previous example using strings would give the following:
+
+::
+   
+    from __future__ import print_function class
+    PrintHierarchy(PSyIRVisitor):
+        ''' Example of a visitor that prints the PSyIR node hierarchy'''
+
+        def node_node(self, node):
+            ''' This method is called if the visitor finds a loop '''
+            result = "[ {0} start ]".format(type(node).__name__)
+            for child in node.children:
+                result += self._visit(child)
+            result += "[ {0} end ]".format(type(node).__name__)
+            return result
+
+    print_hierarchy = PrintHierarchy()
+    result = print_hierarchy._visit(psyir_tree)
+    print(result)
+
+As most back-ends are expected to indent their output based in some
+way on the PSyIR node hierarchy, the `PSyIRVisitor` provides support
+for this. The `self._nindent` variable contains the current
+indentation as a string and the indentation can be increased by
+increasing the value of the `self._depth` variable. The initial depth
+defaults to 0 and the initial indentation defaults to two
+spaces. These defaults can be changed when creating the back-end
+instance. For example:
+
+::
+
+    print_hierarchy = PrintHierarchy(initial_indent_depth=2,
+                                     indent_string="***")
+
+The `PrintHierarchy` example can be modified to support indenting by
+writing the following:
+
+::
+
+    from __future__ import print_function
+    class PrintHierarchy(PSyIRVisitor):
+    ''' Example of a visitor that prints the PSyIR node hierarchy
+        with indentation'''
+
+        def node_node(self, node):
+            ''' This method is called if the visitor finds a loop '''
+            result = "{0}[ {1} start ]\n".format(self._nindent,
+                                                 type(node).__name__)
+        self._depth += 1
+        for child in node.children:
+            result += self._visit(child)
+        self._depth -= 1
+        result += "{0}[ {1} end ]\n".format(self._nindent,
+                                            type(node).__name__)
+        return result
+
+    print_hierarchy = PrintHierarchy()
+    result = print_hierarchy._visit(psyir_tree)
+    print(result)
+
+As a visitor instance always calls the `_visit` method, an alternative
+(functor) implementation is provided via the `__call__` method in the
+base class. This allows the above example to be called in the
+following simplified way (as if it were a function):
+
+::
+
+    print_hierarchy = PrintHierarchy()
+    result = print_hierarchy(psyir_tree)
+    print(result)
+
+The primary reason for providing the above (functor) interface is to
+hide users from the use of the visitor pattern. This is the interface
+to expose to users (which is why `_visit` is used for the visitor
+method, rather than `visit`).
 
 Variable Accesses
 =================
