@@ -113,9 +113,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "If": "red",
                        "Assignment": "blue",
                        "Reference": "yellow",
-                       "BinaryOperation": "blue",
-                       "UnaryOperation": "blue",
-                       "NaryOperation": "blue",
+                       "Operation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
                        "CodeBlock": "red"}
@@ -6025,7 +6023,7 @@ class UnaryOperation(Operation):
         :rtype: str
         '''
         return colored("UnaryOperation",
-                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
+                       SCHEDULE_COLOUR_MAP["Operation"])
 
     def gen_c_code(self, indent=0):
         '''
@@ -6122,7 +6120,7 @@ class BinaryOperation(Operation):
         :rtype: str
         '''
         return colored("BinaryOperation",
-                       SCHEDULE_COLOUR_MAP["BinaryOperation"])
+                       SCHEDULE_COLOUR_MAP["Operation"])
 
     def gen_c_code(self, indent=0):
         '''
@@ -6218,8 +6216,7 @@ class NaryOperation(Operation):
         :returns: Name of node + control chars for colour.
         :rtype: str
         '''
-        return colored("NaryOperation",
-                       SCHEDULE_COLOUR_MAP["NaryOperation"])
+        return colored("NaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
 
 
 class Array(Reference):

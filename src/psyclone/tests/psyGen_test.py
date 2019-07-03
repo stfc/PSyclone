@@ -3030,7 +3030,7 @@ def test_binaryoperation_view(capsys):
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation",
-                          SCHEDULE_COLOUR_MAP["BinaryOperation"])
+                          SCHEDULE_COLOUR_MAP["Operation"])
     binary_operation.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[operator:'ADD']" in output
@@ -3124,7 +3124,7 @@ def test_unaryoperation_view(capsys):
     ref1 = Reference("a", parent=unary_operation)
     unary_operation.addchild(ref1)
     coloredtext = colored("UnaryOperation",
-                          SCHEDULE_COLOUR_MAP["UnaryOperation"])
+                          SCHEDULE_COLOUR_MAP["Operation"])
     unary_operation.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[operator:'MINUS']" in output
@@ -3190,7 +3190,7 @@ def test_naryoperation_view(capsys):
     nary_operation.addchild(Literal("1", parent=nary_operation))
 
     coloredtext = colored("NaryOperation",
-                          SCHEDULE_COLOUR_MAP["NaryOperation"])
+                          SCHEDULE_COLOUR_MAP["Operation"])
     nary_operation.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[operator:'MAX']" in output
