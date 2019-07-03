@@ -3224,7 +3224,7 @@ class Loop(Node):
         var_accesses.add_access(self._step, AccessType.READ, self)
         var_accesses.next_location()
 
-        for child in self._children:
+        for child in self.children:
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
 
@@ -4888,13 +4888,13 @@ class IfBlock(Node):
         '''
 
         # The first child is the if condition - all variables are read-only
-        self._children[0].reference_accesses(var_accesses)
+        self.condition.reference_accesses(var_accesses)
         var_accesses.next_location()
-        self._children[1].reference_accesses(var_accesses)
+        self.if_body.reference_accesses(var_accesses)
         var_accesses.next_location()
 
-        if len(self._children) > 2:
-            self._children[2].reference_accesses(var_accesses)
+        if self.else_body:
+            self.else_body.reference_accesses(var_accesses)
             var_accesses.next_location()
 
     def gen_c_code(self, indent=0):
