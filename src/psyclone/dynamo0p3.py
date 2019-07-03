@@ -709,6 +709,7 @@ class DynArgDescriptor03(Descriptor):
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
+            self._vector_size = 0
 
         # We should never get to here
         else:
