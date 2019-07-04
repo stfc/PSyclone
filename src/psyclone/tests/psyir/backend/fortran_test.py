@@ -244,7 +244,7 @@ def test_fw_nemokern():
         "    integer(i_def) :: b\n"
         "    integer(i_def) :: c\n"
         "\n"
-        "    a=b/c\n"
+        "    a=b / c\n"
         "\n"
         "  end subroutine tmp\n") in result
 
@@ -282,7 +282,7 @@ def test_fw_kernelschedule(monkeypatch):
         "    real(r_def), dimension(:), intent(in) :: b\n"
         "    integer(i_def), intent(in) :: c\n"
         "\n"
-        "    a=b/c\n"
+        "    a=b / c\n"
         "\n"
         "  end subroutine tmp\n"
         "end module tmp_mod") in result
@@ -317,7 +317,7 @@ def test_fw_binaryoperator():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    assert "a=SIGN(1.0,1.0)" in result
+    assert "a=SIGN(1.0, 1.0)" in result
 
 
 def test_fw_binaryoperator_unknown(monkeypatch):
@@ -366,7 +366,7 @@ def test_fw_naryopeator():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    assert "a=MAX(1.0,1.0,2.0)" in result
+    assert "a=MAX(1.0, 1.0, 2.0)" in result
 
 
 def test_fw_naryopeator_unknown(monkeypatch):
@@ -501,10 +501,10 @@ def test_fw_ifblock():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     assert (
-        "    if (n>2) then\n"
-        "      n=n+1\n"
+        "    if (n > 2) then\n"
+        "      n=n + 1\n"
         "    end if\n"
-        "    if (n>4) then\n"
+        "    if (n > 4) then\n"
         "      a=-1\n"
         "    else\n"
         "      a=1\n"

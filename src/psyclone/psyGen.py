@@ -6405,20 +6405,20 @@ class Fparser2ASTProcessor(object):
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
         ('.not.', UnaryOperation.Operator.NOT),
-        ("abs", UnaryOperation.Operator.ABS),
-        ("ceiling", UnaryOperation.Operator.CEIL),
-        ("exp", UnaryOperation.Operator.EXP),
-        ("log", UnaryOperation.Operator.LOG),
-        ("log10", UnaryOperation.Operator.LOG10),
-        ("sin", UnaryOperation.Operator.SIN),
-        ("asin", UnaryOperation.Operator.ASIN),
-        ("cos", UnaryOperation.Operator.COS),
-        ("acos", UnaryOperation.Operator.ACOS),
-        ("tan", UnaryOperation.Operator.TAN),
-        ("atan", UnaryOperation.Operator.ATAN),
-        ("sqrt", UnaryOperation.Operator.SQRT),
-        ("real", UnaryOperation.Operator.REAL),
-        ("int", UnaryOperation.Operator.INT)])
+        ('abs', UnaryOperation.Operator.ABS),
+        ('ceiling', UnaryOperation.Operator.CEIL),
+        ('exp', UnaryOperation.Operator.EXP),
+        ('log', UnaryOperation.Operator.LOG),
+        ('log10', UnaryOperation.Operator.LOG10),
+        ('sin', UnaryOperation.Operator.SIN),
+        ('asin', UnaryOperation.Operator.ASIN),
+        ('cos', UnaryOperation.Operator.COS),
+        ('acos', UnaryOperation.Operator.ACOS),
+        ('tan', UnaryOperation.Operator.TAN),
+        ('atan', UnaryOperation.Operator.ATAN),
+        ('sqrt', UnaryOperation.Operator.SQRT),
+        ('real', UnaryOperation.Operator.REAL),
+        ('int', UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
         ('+', BinaryOperation.Operator.ADD),
@@ -7350,7 +7350,8 @@ class Fparser2ASTProcessor(object):
 
     def _unary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 UnaryOpBase to the PSyIR representation.
+        Transforms an fparser2 UnaryOpBase or Intrinsic_Function_Reference
+        to the PSyIR representation.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.utils.UnaryOpBase` or \
@@ -7496,16 +7497,20 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation. Since Fortran Intrinsics can be unary, binary or
-        nary this handler identifies the appropriate 'sub handler'
+        nary this handler identifies the appropriate 'sub handler' by
+        examining the number of arguments present.
+
         :param node: node in fparser2 Parse Tree.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation` or \
                 :py:class:`psyclone.psyGen.BinaryOperation` or \
                 :py:class:`psyclone.psyGen.NaryOperation`
+
         '''
         from fparser.two.Fortran2003 import Actual_Arg_Spec_List
         # First item is the name of the intrinsic
@@ -7521,11 +7526,11 @@ class Fparser2ASTProcessor(object):
                 num_args = len(node.items) - 1
 
         # We don't handle any intrinsics that don't have arguments
-        if num_args > 0:
-            if num_args == 1:
-                return self._unary_op_handler(node, parent)
-            if num_args == 2:
-                return self._binary_op_handler(node, parent)
+        if num_args == 1:
+            return self._unary_op_handler(node, parent)
+        if num_args == 2:
+            return self._binary_op_handler(node, parent)
+        if num_args > 2:
             return self._nary_op_handler(node, parent)
 
         # Intrinsic is not handled - this will result in a CodeBlock

@@ -135,7 +135,11 @@ def _reverse_map(op_map):
 
     :param op_map: mapping from string representation of operator to \
                    enumerated type.
-    :type op_map: collections.OrderedDict
+    :type op_map: :py:class:`collections.OrderedDict`
+
+    :returns: a mapping from PSyIR operation to the equivalent Fortran string.
+    :rtype: dict with :py:class:`psyclone.psyGen.Operation.Operator` keys and
+            str values.
 
     '''
     mapping = {}
@@ -293,8 +297,8 @@ class FortranWriter(PSyIRVisitor):
             # This is a binary operation
             if oper.upper() in FORTRAN_INTRINSICS:
                 # This is a binary intrinsic function.
-                return "{0}({1},{2})".format(oper.upper(), lhs, rhs)
-            return "{0}{1}{2}".format(lhs, oper, rhs)
+                return "{0}({1}, {2})".format(oper.upper(), lhs, rhs)
+            return "{0} {1} {2}".format(lhs, oper, rhs)
         except KeyError:
             raise VisitorError("Unexpected binary op '{0}'."
                                "".format(node.operator))
@@ -321,7 +325,7 @@ class FortranWriter(PSyIRVisitor):
             arg_list.append(self._visit(child))
         try:
             oper = mapping[node.operator]
-            return "{0}({1})".format(oper.upper(), ",".join(arg_list))
+            return "{0}({1})".format(oper.upper(), ", ".join(arg_list))
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
