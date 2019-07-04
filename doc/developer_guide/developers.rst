@@ -255,7 +255,7 @@ https://github.com/stfc/PSyclone/wiki.
 The PSyclone Internal Representation (PSyIR)
 ############################################
 
-The PSyclone Internal Representation (PSyIR) is a language independent
+The PSyclone Internal Representation (PSyIR) is a language-independent
 AST that PSyclone uses to represent the PSy layer and the kernel
 code. The PSyIR can be constructed from scratch or produced from
 existing code using one of the (front-end) ASTProcessors provided in
@@ -366,6 +366,26 @@ recreated if required.
 .. autoclass:: psyclone.psyGen.Loop
     :members:
 
+Operation Nodes
+===============
+
+Arithmetic operations and various intrinsic/query functions are represented
+in the PSyIR by sub-classes of the `Operation` node:
+
+.. autoclass:: psyclone.psyGen.Operation
+   :members:
+
+The operations are classified according to the number of operands:
+those having one operand are represented by
+`psyclone.psyGen.UnaryOperation` nodes, those having two by
+`psyclone.psyGen.BinaryOperation` and those having more than two by
+`psyclone.psyGen.NaryOperation`. Note that where an intrinsic (such as
+Fortran's `MAX`) can have a variable number of arguments, the class
+used to represent it in the PSyIR is determined by the actual number
+of arguments in a particular instance. e.g. `MAX(var1, var2)` would be
+represented by a `psyclone.psyGen.BinaryOperation` but `MAX(var1,
+var2, var3)` would be represented by a
+`psyclone.psyGen.NaryOperation`.
 
 Dependence Analysis
 ===================
