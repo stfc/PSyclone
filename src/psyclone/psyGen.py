@@ -5949,6 +5949,10 @@ class Operation(Node):
                        self.Operator.
 
     '''
+    # Enumeration of the Operators represented by this class. Must be
+    # overridden in sub-class.
+    Operator = Enum('Operator', ['null'])
+
     def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
 
@@ -5958,6 +5962,17 @@ class Operation(Node):
                 "{0}.Operator but found {1}.".format(type(self).__name__,
                                                      type(operator).__name__))
         self._operator = operator
+
+    @property
+    @abc.abstractmethod
+    def coloured_text(self):
+        '''
+        Abstract method to return the name of this node type with control
+        codes for terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
 
     @property
     def operator(self):
@@ -5975,7 +5990,9 @@ class Operation(Node):
     def view(self, indent=0):
         '''
         Print a representation of this node in the schedule to stdout.
+
         :param int indent: level to which to indent output.
+
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
               self._operator.name + "']")
