@@ -6100,8 +6100,8 @@ class BinaryOperation(Operation):
 
     '''
     Operator = Enum('Operator', [
-        # Arithmetic Operators
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'MODULUS', 'SUM',
+        # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'SUM',
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
@@ -6444,7 +6444,7 @@ class Fparser2ASTProcessor(object):
         ('sum', BinaryOperation.Operator.SUM),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
-        ('mod', BinaryOperation.Operator.MODULUS)])
+        ('mod', BinaryOperation.Operator.REM)])
 
     nary_operators = OrderedDict([
         ('max', NaryOperation.Operator.MAX),

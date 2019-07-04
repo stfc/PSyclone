@@ -4668,7 +4668,7 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
         ('x = int(a, 8)', CodeBlock, None),
         ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
         ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
-        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.MODULUS),
+        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
         ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
         ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
         ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
