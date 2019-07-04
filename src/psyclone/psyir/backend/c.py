@@ -58,6 +58,7 @@ class CWriter(PSyIRVisitor):
 
         :returns: The C declaration of the given of the symbol.
         :rtype: str
+
         :raises NotImplementedError: if there are some symbol types or nodes \
             which are not implemented yet.
         '''

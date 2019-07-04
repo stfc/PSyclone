@@ -269,14 +269,14 @@ def test_symtab_implementation_for_opencl():
     '''
     kschedule = GOKernelSchedule('test')
 
-    # Test gen_ocl without any kernel argument
+    # Test symbol table without any kernel argument
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
-    # Test gen_ocl with 1 kernel argument
+    # Test symbol table with 1 kernel argument
     arg1 = Symbol("arg1", "integer", [],
                   interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg1)
@@ -287,7 +287,7 @@ def test_symtab_implementation_for_opencl():
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
-    # Test gen_ocl with 2 kernel argument
+    # Test symbol table with 2 kernel argument
     arg2 = Symbol("arg2", "integer", shape=[],
                   interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg2)
@@ -295,6 +295,17 @@ def test_symtab_implementation_for_opencl():
     iteration_indices = kschedule.symbol_table.iteration_indices
     assert iteration_indices[0] is arg1
     assert iteration_indices[1] is arg2
+
+    # Test symbol table with 3 kernel argument
+    arg3 = Symbol("buffer1", "real", shape=[10,10],
+                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    kschedule.symbol_table.add(arg3)
+    kschedule.symbol_table.specify_argument_list([arg1, arg2, arg3])
+    iteration_indices = kschedule.symbol_table.iteration_indices
+    data_args = kschedule.symbol_table.data_arguments
+    assert iteration_indices[0] is arg1
+    assert iteration_indices[1] is arg2
+    assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
     arg1._datatype = "real"

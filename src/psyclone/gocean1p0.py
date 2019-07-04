@@ -1901,8 +1901,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
 class GOSymbolTable(SymbolTable):
     '''
-    Sub-classes SymbolTable to provide an API-specific implementation of the
-    OpenCL generation methods.
+    Sub-classes SymbolTable to provide a GOcean-specific implementation.
     '''
 
     def _check_gocean_conformity(self):
@@ -1944,7 +1943,7 @@ class GOSymbolTable(SymbolTable):
 
     @property
     def iteration_indices(self):
-        '''In GOcean API has the two first kernel arguments are the iteration
+        '''In the GOcean API the two first kernel arguments are the iteration
         indices.
 
         :return: List of symbols representing the iteration indices.
@@ -1955,10 +1954,10 @@ class GOSymbolTable(SymbolTable):
 
     @property
     def data_arguments(self):
-        '''In GOcean API the data arguments start from the third item in the
+        '''In the GOcean API the data arguments start from the third item in the
         argument list.
 
-        :return: List of symbols representing the iteration indices.
+        :return: List of symbols representing the data arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
         self._check_gocean_conformity()
@@ -1967,8 +1966,7 @@ class GOSymbolTable(SymbolTable):
 
 class GOKernelSchedule(KernelSchedule):
     '''
-    Sub-classes KernelSchedule to provide an API-specific implementation of the
-    OpenCL generation method.
+    Sub-classes KernelSchedule to provide a GOcean-specific implementation.
 
     :param str name: Kernel subroutine name
     '''

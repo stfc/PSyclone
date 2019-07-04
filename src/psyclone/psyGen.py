@@ -5559,10 +5559,10 @@ class SymbolTable(object):
     @property
     def iteration_indices(self):
         '''
-        :return: List of symbols representing the iteration indices.
+        :return: List of symbols representing kernel iteration indices.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
-        :raises NotImplementedError: Abastract method.
+        :raises NotImplementedError: this method is abstract.
         '''
         raise NotImplementedError(
             "Abstract property. Which symbols are iteration indices is"
@@ -5571,10 +5571,10 @@ class SymbolTable(object):
     @property
     def data_arguments(self):
         '''
-        :return: List of symbols representing the data arguments.
+        :return: List of symbols representing kernel data arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
-        :raises NotImplementedError: Abastract method.
+        :raises NotImplementedError: this method is abstract.
         '''
         raise NotImplementedError(
             "Abstract property. Which symbols are data arguments is"
