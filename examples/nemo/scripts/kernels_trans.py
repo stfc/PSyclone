@@ -219,7 +219,6 @@ def trans(psy):
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
-        sched.view()
 
         add_kernels(sched.children)
         sched.view()
