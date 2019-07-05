@@ -387,6 +387,24 @@ represented by a `psyclone.psyGen.BinaryOperation` but `MAX(var1,
 var2, var3)` would be represented by a
 `psyclone.psyGen.NaryOperation`.
 
+The operations supported by the `UnaryOperation` are:
+
+.. autoclass:: psyclone.psyGen.UnaryOperation.Operator
+   :members:
+   :undoc-members:
+
+The operations supported by the `BinaryOperation` are:
+
+.. autoclass:: psyclone.psyGen.BinaryOperation.Operator
+   :members:
+   :undoc-members:
+
+The operations supported by the `NaryOperation` are:
+
+.. autoclass:: psyclone.psyGen.NaryOperation.Operator
+   :members:
+   :undoc-members:
+
 Dependence Analysis
 ===================
 
