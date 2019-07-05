@@ -369,7 +369,7 @@ def test_extract_node_position():
     abspos = child.abs_position
     dpth = child.depth
     schedule, _ = gocetrans.apply(child)
-    extract_node = schedule.walk(schedule.children, ExtractNode)
+    extract_node = schedule.walk(ExtractNode)
     # The result is only one ExtractNode in the list with position 1
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
@@ -393,7 +393,7 @@ def test_extract_node_position():
     abspos = children[0].abs_position
     dpth = children[0].depth
     schedule, _ = dynetrans.apply(children)
-    extract_node = schedule.walk(schedule.children, ExtractNode)
+    extract_node = schedule.walk(ExtractNode)
     # The result is only one ExtractNode in the list with position 0
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos

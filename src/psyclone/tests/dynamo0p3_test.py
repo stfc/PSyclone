@@ -2151,7 +2151,7 @@ def test_bc_kernel_anyspace1_only():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernels = schedule.walk(schedule.children, DynKern)
+    kernels = schedule.walk(DynKern)
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
@@ -2173,7 +2173,7 @@ def test_bc_op_kernel_wrong_args():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernels = schedule.walk(schedule.children, DynKern)
+    kernels = schedule.walk(DynKern)
     # Ensure that the kernel has the wrong number of arguments - duplicate
     # the existing argument in the list
     kernels[0].arguments.args.append(kernels[0].arguments.args[0])
@@ -3624,7 +3624,7 @@ def test_upper_bound_fortran_2(monkeypatch):
         "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
     # Pretend the loop is over colours and does not contain a kernel
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
-    monkeypatch.setattr(my_loop, "walk", lambda x, y: [])
+    monkeypatch.setattr(my_loop, "walk", lambda x: [])
     with pytest.raises(InternalError) as excinfo:
         _ = my_loop._upper_bound_fortran()
     assert "Failed to find a kernel within a loop over colours" in str(excinfo)

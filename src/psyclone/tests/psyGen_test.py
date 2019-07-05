@@ -2225,8 +2225,8 @@ def test_haloexchange_vector_index_depend():
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
     field = first_d_field_halo_exchange.field
-    all_nodes = schedule.walk(schedule.children, Node)
-    following_nodes = all_nodes[4:]
+    all_nodes = schedule.walk(Node)
+    following_nodes = all_nodes[5:]
     result_list = field._find_read_arguments(following_nodes)
     assert len(result_list) == 1
     assert result_list[0].call.name == 'ru_code'
@@ -4882,7 +4882,7 @@ def test_fp2astproc_case_default(f2008_parser):
         fake_parent = Node()
         processor = Fparser2ASTProcessor()
         processor.process_nodes(fake_parent, [fparser2case_construct], None)
-        assigns = fake_parent.walk(fake_parent.children, Assignment)
+        assigns = fake_parent.walk(Assignment)
         # Check that the assignment to 'branch 3' (in the default clause) is
         # the deepest in the tree
         assert "branch3" in str(assigns[2])
