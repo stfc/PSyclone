@@ -330,7 +330,7 @@ class NemoKern(CodedKern):
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
-        if node.walk(node.children, (CodeBlock, NemoLoop)):
+        if node.walk((CodeBlock, NemoLoop)):
             # A kernel cannot contain unrecognised code (including IO
             # operations and routine calls) or loops.
             return False
@@ -480,7 +480,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
 
         :raises NotImplementedError: if the loop contains >1 kernel.
         '''
-        kernels = self.walk(self.children, NemoKern)
+        kernels = self.walk(NemoKern)
         if kernels:
             # TODO cope with case where loop contains >1 kernel (e.g.
             # following loop fusion)

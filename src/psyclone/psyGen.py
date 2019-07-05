@@ -364,7 +364,7 @@ class PSy(object):
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
-            for kernel in schedule.walk(schedule.children, CodedKern):
+            for kernel in schedule.walk(CodedKern):
                 if kernel.module_inline:
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
@@ -1388,13 +1388,24 @@ class Node(object):
             return True
         return False
 
-    def walk(self, children, my_type):
-        ''' Recurse through tree and return objects of 'my_type'. '''
+    def walk(self, my_type):
+        ''' Recurse through the PSyIR tree and return all objects that are
+        an instance of 'my_type', which is either a single class or a tuple
+        of classes. In the latter case all nodes are returned that are
+        instances of any classes in the tuple.
+
+        :param my_type: The class(es) for which the instances are collected.
+        :type my_type: Either a single :py:class:`psyclone.Node` class\
+            or a tuple of such classes.
+        :return: List with all nodes that are instances of my_type \
+            starting at and including this node.
+        :rtype: List of :py:class:`psyclone.Node` instances.
+        '''
         local_list = []
-        for child in children:
-            if isinstance(child, my_type):
-                local_list.append(child)
-            local_list += self.walk(child.children, my_type)
+        if isinstance(self, my_type):
+            local_list.append(self)
+        for child in self.children:
+            local_list += child.walk(my_type)
         return local_list
 
     def ancestor(self, my_type, excluding=None):
@@ -1429,7 +1440,7 @@ class Node(object):
         :returns: all kernels that are descendants of this node in the PSyIR.
         :rtype: list of :py:class:`psyclone.psyGen.Kern` sub-classes.
         '''
-        return self.walk(self.children, Kern)
+        return self.walk(Kern)
 
     def following(self):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
@@ -1439,7 +1450,7 @@ class Node(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
-        all_nodes = self.walk(self.root.children, Node)
+        all_nodes = self.root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
@@ -1455,7 +1466,7 @@ class Node(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
-        all_nodes = self.walk(self.root.children, Node)
+        all_nodes = self.root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]
         if reverse:
@@ -1470,11 +1481,11 @@ class Node(object):
         :returns: all user-supplied kernel calls below this node.
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
         '''
-        return self.walk(self._children, CodedKern)
+        return self.walk(CodedKern)
 
     def loops(self):
         '''Return all loops currently in this schedule.'''
-        return self.walk(self._children, Loop)
+        return self.walk(Loop)
 
     def reductions(self, reprod=None):
         '''Return all calls that have reductions and are decendents of this
@@ -1484,7 +1495,7 @@ class Node(object):
         builtins that are set to reproducible are returned.'''
 
         call_reduction_list = []
-        for call in self.walk(self.children, Kern):
+        for call in self.walk(Kern):
             if call.is_reduction:
                 if reprod is None:
                     call_reduction_list.append(call)
@@ -1714,7 +1725,7 @@ class InvokeSchedule(Schedule):
             if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
                                    rhs="get_cmd_queues()"))
             # Kernel pointers
-            kernels = self.walk(self._children, Kern)
+            kernels = self.walk(Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
                 kernel = self._name_space_manager.create_name(
@@ -1986,7 +1997,7 @@ class ACCEnterDataDirective(ACCDirective):
         # OpenACC kernels (calls within an OpenACC parallel directive)
         # 1. Find all parallel directives. We store this list for later
         #    use in any sub-class.
-        self._acc_dirs = self.walk(self.root.children, ACCParallelDirective)
+        self._acc_dirs = self.root.walk(ACCParallelDirective)
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -2093,7 +2104,7 @@ class ACCParallelDirective(ACCDirective):
         # We can't use Node.ancestor() because the data directive does
         # not have children. Instead, we go back up to the Schedule and
         # walk down from there.
-        nodes = self.root.walk(self.root.children, ACCEnterDataDirective)
+        nodes = self.root.walk(ACCEnterDataDirective)
         if len(nodes) != 1:
             raise GenerationError(
                 "A Schedule containing an ACC parallel region must also "
@@ -2466,7 +2477,7 @@ class OMPParallelDirective(OMPDirective):
             is an error on the part of the user. '''
         # We need to recurse down through all our children and check
         # whether any of them are an OMPDirective.
-        node_list = self.walk(self.children, OMPDirective)
+        node_list = self.walk(OMPDirective)
         if len(node_list) == 0:
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
@@ -3611,7 +3622,7 @@ class CodedKern(Kern):
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
         my_schedule = self.ancestor(Schedule)
-        for kernel in self.walk(my_schedule.children, Kern):
+        for kernel in my_schedule.walk(Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
 

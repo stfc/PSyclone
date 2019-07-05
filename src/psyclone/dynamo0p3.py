@@ -5718,7 +5718,7 @@ class DynLoop(Loop):
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
-            kernels = self.walk(self.children, DynKern)
+            kernels = self.walk(DynKern)
             if not kernels:
                 raise InternalError(
                     "Failed to find a kernel within a loop over colours.")
