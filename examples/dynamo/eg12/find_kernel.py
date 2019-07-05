@@ -112,7 +112,7 @@ if TRANSMOD:
 INVOKE_NAME = []
 for invoke in PSY.invokes.invoke_list:
     schedule = invoke.schedule
-    for kernel in schedule.walk(schedule.children, Kern):
+    for kernel in schedule.walk(Kern):
         if kernel.name.lower() == KERNEL_NAME and \
           invoke.name not in INVOKE_NAME:
             INVOKE_NAME.append(invoke.name)
