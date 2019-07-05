@@ -6418,7 +6418,7 @@ def test_intergrid_colour(dist_mem):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
@@ -6462,12 +6462,12 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     loop = loops[1]
     # To a prolong kernel
     new_sched, _ = ctrans.apply(loop)
     # Update our list of loops
-    loops = new_sched.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     # Trigger the error by calling the internal method to get the upper
     # bound before the colourmaps have been set-up
     with pytest.raises(InternalError) as err:
@@ -6501,13 +6501,13 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
     # To a restrict kernel
     _, _ = ctrans.apply(loops[3])
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OMP to loops over coloured cells
     _, _ = otrans.apply(loops[2])
@@ -6537,13 +6537,13 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     # Colour the first loop
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = otrans.apply(loops[1])
     # Put the parallel loop inside a parallel region
-    dirs = schedule.walk(schedule.children, psyGen.Directive)
+    dirs = schedule.walk(psyGen.Directive)
     _, _ = ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
@@ -6576,13 +6576,13 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.view()
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = DynamoLoopFuseTrans()
     _, _ = ctrans.apply(loops[0])
     _, _ = ctrans.apply(loops[1])
     schedule.view()
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = ftrans.apply(loops[0], loops[2])
     schedule.view()
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
@@ -6598,7 +6598,7 @@ def test_intergrid_err(dist_mem):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
 
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "

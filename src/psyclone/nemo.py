@@ -332,7 +332,11 @@ class NemoKern(CodedKern):
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
-        if node.walk((CodeBlock, NemoLoop)):
+        nodes = node.walk((CodeBlock, NemoLoop))
+        # 'node' can be returned as part of the walk, remove it:
+        if node in nodes:
+            nodes.remove(node)
+        if nodes:
             # A kernel cannot contain unrecognised code (including IO
             # operations and routine calls) or loops.
             return False

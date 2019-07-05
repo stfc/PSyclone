@@ -96,7 +96,7 @@ def test_explicit_do_sched():
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 3
     # The schedule should contain just 1 kernel
     assert isinstance(loops[2].children[0], nemo.NemoKern)
@@ -112,7 +112,7 @@ def test_array_valued_function():
     sched = psy.invokes.invoke_list[0].schedule
     assert len(sched.children) == 2
     # We should just have two assignments and no Kernels
-    kernels = sched.walk(sched.children, nemo.NemoKern)
+    kernels = sched.walk(nemo.NemoKern)
     assert not kernels
 
 
@@ -173,7 +173,7 @@ def test_multi_kern():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
     loops[0].children.append(kerns[1])
@@ -190,7 +190,7 @@ def test_implicit_loop_assign():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     # We should have three implicit loops
     assert len(loops) == 3
     assert isinstance(sched.children[0], nemo.NemoLoop)
@@ -209,7 +209,7 @@ def test_complex_code():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 5
     kerns = sched.coded_kernels()
     assert len(kerns) == 1
@@ -374,7 +374,7 @@ def test_kern_inside_if():
     ifblock = sched.children[0].children[1]
     assert isinstance(ifblock, IfBlock)
     assert isinstance(ifblock.else_body[0], IfBlock)
-    kernels = ifblock.walk(ifblock.else_body, nemo.NemoKern)
+    kernels = ifblock.else_body.walk(nemo.NemoKern)
     assert isinstance(kernels[0], nemo.NemoKern)
 
 
@@ -397,7 +397,7 @@ def test_kern_sched_parents(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     # Find the (one and only) kernel
-    kernels = schedule.walk(schedule.children, nemo.NemoKern)
+    kernels = schedule.walk(nemo.NemoKern)
     assert len(kernels) == 1
     # Get its schedule
     sched = kernels[0].get_kernel_schedule()
