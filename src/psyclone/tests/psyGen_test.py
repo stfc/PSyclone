@@ -4715,7 +4715,7 @@ def test_fp2astproc_unary_op_handler_error(f2008_parser):
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, Name
+    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2ASTProcessor()
     fake_parent = Node()
     reader = FortranStringReader("x = exp(a)")
@@ -4783,7 +4783,6 @@ def test_fp2astproc_handling_nested_intrinsic(f2008_parser):
     ''' Check that we correctly handle nested intrinsic functions. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import Reference
     processor = Fparser2ASTProcessor()
     fake_parent = Node()
     reader = FortranStringReader(
@@ -4804,7 +4803,6 @@ def testfp2astproc_handling_array_product(f2008_parser):
     ''' Check that we correctly handle array products. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import CodeBlock
     processor = Fparser2ASTProcessor()
     fake_parent = Node()
     reader = FortranStringReader(

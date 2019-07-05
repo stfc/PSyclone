@@ -44,9 +44,9 @@ from enum import Enum
 import abc
 from collections import OrderedDict
 import six
+from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from fparser.two import Fortran2003
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -5949,9 +5949,9 @@ class Operation(Node):
                        self.Operator.
 
     '''
-    # Enumeration of the Operators represented by this class. Must be
-    # overridden in sub-class.
-    Operator = Enum('Operator', ['null'])
+    # Must be overridden in sub-class to hold an Enumeration of the Operators
+    # that it can represent.
+    Operator = None
 
     def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
@@ -6016,6 +6016,7 @@ class UnaryOperation(Operation):
     :type operator: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
     :param parent: the parent node of this UnaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
@@ -6038,6 +6039,7 @@ class UnaryOperation(Operation):
 
         :return: Name of node + control chars for colour.
         :rtype: str
+
         '''
         return colored("UnaryOperation",
                        SCHEDULE_COLOUR_MAP["Operation"])
@@ -6053,6 +6055,7 @@ class UnaryOperation(Operation):
 
         :raises GenerationError: If the node or its children are invalid.
         :raises NotImplementedError: If the operator is not supported.
+
         '''
         if len(self.children) != 1:
             raise GenerationError("UnaryOperation malformed or "
@@ -6114,6 +6117,11 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
+
+    :param operator: the operator used in the operation.
+    :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+    :param parent: the parent node of this Operation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
     Operator = Enum('Operator', [
@@ -6218,6 +6226,12 @@ class NaryOperation(Operation):
     stored as the 0 - n-1th children of this node and the type of the operator
     is held in an attribute.
 
+
+    :param operator: the operator used in the operation.
+    :type operator: :py:class:`psyclone.psyGen.NaryOperation.Operator`
+    :param parent: the parent node of this Operation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators
@@ -6232,6 +6246,7 @@ class NaryOperation(Operation):
 
         :returns: Name of node + control chars for colour.
         :rtype: str
+
         '''
         return colored("NaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
 
@@ -6241,10 +6256,11 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param ast: node in the fparser2 AST representing array.
-    :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
+    :param reference_name: node in the fparser2 parse tree representing array.
+    :type reference_name: :py:class:`fparser.two.Fortran2003.Part_Ref.
     :param parent: the parent node of this Array in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
     def __init__(self, reference_name, parent):
         super(Array, self).__init__(reference_name, parent=parent)

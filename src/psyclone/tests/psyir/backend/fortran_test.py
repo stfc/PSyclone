@@ -325,7 +325,6 @@ def test_fw_binaryoperator_unknown(monkeypatch):
     exception if an unknown binary operator is found.
 
     '''
-    from psyclone.psyGen import Fparser2ASTProcessor
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
@@ -564,7 +563,6 @@ def test_fw_unaryoperator_unknown(monkeypatch):
     exception if an unknown unary operator is found.
 
     '''
-    from psyclone.psyGen import Fparser2ASTProcessor
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
