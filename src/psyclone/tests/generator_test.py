@@ -41,7 +41,6 @@ functions.
 '''
 
 from __future__ import absolute_import
-import sys
 import os
 import re
 import pytest
@@ -867,7 +866,9 @@ def test_write_utf_file(tmpdir, monkeypatch):
         assert "This contains only ASCII" in content
     out_file2 = os.path.join(str(tmpdir), "out2.txt")
     if six.PY2:
+        # pylint: disable=undefined-variable
         test_str = u"This contains UTF: "+unichr(1200)
+        # pylint: enable=undefined-variable
         encoding = {'encoding': 'utf-8'}
     else:
         test_str = "This contains UTF: "+chr(1200)
