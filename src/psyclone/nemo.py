@@ -332,15 +332,17 @@ class NemoKern(CodedKern):
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
+        # This function is called with node being a NemoLoop. This means
+        # that 'node' is always part of the result of walk. So if there
+        # is a loop or CodeBlock inside, walk will return more than one
+        # element (the first being the node)
+        assert isinstance(node, NemoLoop)
         nodes = node.walk((CodeBlock, NemoLoop))
-        # 'node' can be returned as part of the walk, remove it:
-        if node in nodes:
-            nodes.remove(node)
-        if nodes:
-            # A kernel cannot contain unrecognised code (including IO
-            # operations and routine calls) or loops.
-            return False
-        return True
+
+        # A kernel cannot contain loops or other unrecognised code (including
+        # IO operations and routine calls) or loops. So if there is more than
+        # one node in the result, this node can not be a kernel.
+        return len(nodes) == 1
 
     def local_vars(self):
         '''
