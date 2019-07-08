@@ -3107,7 +3107,8 @@ class DynMeshes(object):
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
                               rhs="%".join([dig.fine.proxy_name_indexed,
-                                                dig.fine.ref_name(),"get_mesh()"]) ))
+                                            dig.fine.ref_name(),
+                                            "get_mesh()"])))
 
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
@@ -3115,7 +3116,8 @@ class DynMeshes(object):
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
                               rhs="%".join([dig.coarse.proxy_name_indexed,
-                                                dig.coarse.ref_name(),"get_mesh()"]) ))
+                                            dig.coarse.ref_name(),
+                                            "get_mesh()"])))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
