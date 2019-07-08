@@ -100,6 +100,7 @@ class NemoInvoke(Invoke):
     :param str name: the name of this Invoke (program unit).
     '''
     def __init__(self, ast, name):
+        # pylint: disable=super-init-not-called
         self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
@@ -146,6 +147,7 @@ class NemoInvokes(Invokes):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
     def __init__(self, ast):
+        # pylint: disable=super-init-not-called, too-many-locals
         from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt, Name
@@ -204,6 +206,7 @@ class NemoPSy(PSy):
                            supplied AST.
     '''
     def __init__(self, ast):
+        # pylint: disable=super-init-not-called
         names = walk_ast(ast.content, [Fortran2003.Name])
         # The name of the program unit will be the first in the list
         if not names:
@@ -257,6 +260,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
     '''
     def __init__(self, invoke, ast):
+        # pylint: disable=super-init-not-called, non-parent-init-called
         Node.__init__(self)
         NemoFparser2ASTProcessor.__init__(self)
 
@@ -301,6 +305,7 @@ class NemoKern(CodedKern):
 
     '''
     def __init__(self, psyir_nodes, parse_tree, parent=None):
+        # pylint: disable=super-init-not-called
         from psyclone.psyGen import KernelSchedule
         self._name = ""
         self._parent = parent
@@ -546,6 +551,7 @@ class NemoImplicitLoop(NemoLoop):
 
     '''
     def __init__(self, ast, parent=None):
+        # pylint: disable=super-init-not-called, non-parent-init-called
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
                       valid_loop_types=valid_loop_types)
@@ -568,6 +574,7 @@ class NemoImplicitLoop(NemoLoop):
         :rtype: bool
 
         '''
+        # pylint: disable=too-many-return-statements
         if not isinstance(node, Fortran2003.Assignment_Stmt):
             return False
         # We are expecting something like:
