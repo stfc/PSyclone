@@ -269,6 +269,9 @@ release 1.7.0 20th December 2018
 	28) #317 and PR #330. Fix to allow module use statements to be
 	added to functions.
 
+	29) #330 and PR #422. Adds PSyIR node to represent Nary operators and
+	increases the number of supported operators.
+
 release 1.6.1 6th December 2018
 
   	1) #250. Change setup.py (used for pip installation) to only use
