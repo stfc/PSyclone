@@ -5060,25 +5060,102 @@ def test_fp2astproc_case_default(f2008_parser):
                           Assignment)
 
 
-def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
-    ''' Test that the Case_Construct handler raises the proper errors when
-    it parses invalid or unsupported fparser2 trees.
-    '''
+def test_fp2astproc_handling_case_list(f2008_parser):
+    ''' Test that the Case_Construct handler correctly processes CASE
+    statements involving a list of conditions. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-
-    # CASE Value Ranges are not supported
     reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1:)
-                branch1 = 1
+        '''SELECT CASE (my_var)
+            CASE (label2, label3)
+                branch2 = 1
             END SELECT''')
     fparser2case_construct = Execution_Part.match(reader)[0][0]
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert isinstance(ifnode.condition, BinaryOperation)
+    assert ifnode.condition.operator == BinaryOperation.Operator.OR
+    eqnode = ifnode.condition.children[0]
+    assert eqnode.operator == BinaryOperation.Operator.EQ
+    assert "my_var" in str(eqnode.children[0])
+    assert "label2" in str(eqnode.children[1])
+    eqnode = ifnode.children[0].children[1]
+    assert eqnode.operator == BinaryOperation.Operator.EQ
+    assert "my_var" in str(eqnode.children[0])
+    assert "label3" in str(eqnode.children[1])
+
+    assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
+
+
+def test_fp2astproc_handling_case_range(f2008_parser):
+    ''' Test that the Case_Construct handler correctly processes CASE
+    statements involving a range. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''SELECT CASE (my_var)
+            CASE (label4:label5)
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert isinstance(ifnode.children[0], BinaryOperation)
+    assert ifnode.condition.operator == BinaryOperation.Operator.AND
+    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.GE
+    assert ifnode.condition.children[1].operator == BinaryOperation.Operator.LE
+    assert "branch3" in str(ifnode.if_body[0].lhs)
+
+
+def test_fp2astproc_handling_case_range_list(f2008_parser):
+    ''' Test that the Case_Construct handler correctly processes CASE
+    statements involving a list of ranges. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''SELECT CASE (my_var)
+            CASE (:label1, label5:, label6)
+                branch4 = 1
+            END SELECT''')
+    # We should end up with:
+    #    my_var <= label1 OR my_var >= label5 OR my_var == label6
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert isinstance(ifnode.condition, BinaryOperation)
+    assert ifnode.condition.operator == BinaryOperation.Operator.OR
+    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.LE
+    assert "label1" in str(ifnode.condition.children[0].children[1])
+    orop = ifnode.condition.children[1]
+    assert orop.operator == BinaryOperation.Operator.OR
+    assert orop.children[0].operator == BinaryOperation.Operator.GE
+    assert "label5" in str(orop.children[0].children[1])
+    assert orop.children[1].operator == BinaryOperation.Operator.EQ
+    assert "label6" in str(orop.children[1].children[1])
+    assert "branch4" in str(ifnode.if_body[0].lhs)
+
+
+def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
+    ''' Test that the Case_Construct handler raises the proper errors when
+    it parses invalid or unsupported fparser2 trees.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
 
     # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(

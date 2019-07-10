@@ -7254,14 +7254,7 @@ class Fparser2ASTProcessor(object):
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
-                # Case value Ranges not supported yet, if found we
-                # raise a NotImplementedError that the process_node()
-                # will catch and generate a CodeBlock instead.
                 case_expression = child.items[0].items[0]
-                if isinstance(case_expression,
-                              (Fortran2003.Case_Value_Range,
-                               Fortran2003.Case_Value_Range_List)):
-                    raise NotImplementedError("Case Value Range Statement")
                 if case_expression is None:
                     # This is a 'case default' clause - store its position.
                     # We do this separately as this clause is special and
@@ -7283,48 +7276,52 @@ class Fparser2ASTProcessor(object):
             end_idx = clause_indices[idx+1]
             clause = node.content[start_idx]
 
-            if isinstance(clause, Fortran2003.Case_Stmt):
-                case = clause.items[0]
-                if isinstance(case, Fortran2003.Case_Selector):
-                    ifblock = IfBlock(parent=currentparent,
-                                      annotation='was_case')
-                    ifblock.ast = node.content[start_idx]
-                    ifblock.ast_end = node.content[end_idx - 1]
+            if not isinstance(clause, Fortran2003.Case_Stmt):
+                continue
 
-                    # Add condition: selector == case
-                    bop = BinaryOperation(BinaryOperation.Operator.EQ,
-                                          parent=ifblock)
+            case = clause.items[0]
+            if isinstance(case, Fortran2003.Case_Selector):
+                ifblock = IfBlock(parent=currentparent,
+                                  annotation='was_case')
+                ifblock.ast = node.content[start_idx]
+                ifblock.ast_end = node.content[end_idx - 1]
 
-                    self.process_nodes(parent=bop,
-                                       nodes=[selector],
-                                       nodes_parent=node)
-                    self.process_nodes(parent=bop,
-                                       nodes=[case.items[0]],
-                                       nodes_parent=node)
-                    ifblock.addchild(bop)
+                if isinstance(case.items[0],
+                              Fortran2003.Case_Value_Range_List):
+                    # We have a list of conditions in one CASE stmt which
+                    # we need to combine with OR operators
+                    self._process_case_value_list(selector,
+                                                  case.items[0].items,
+                                                  case.items[0], ifblock)
+                else:
+                    # We only have a single condition
+                    # TODO once fparser/#170 is done we might never take
+                    # this branch...
+                    self._process_case_value(selector, case.items[0],
+                                             case, ifblock)
 
-                    # Add If_body
-                    ifbody = Schedule(parent=ifblock)
-                    self.process_nodes(parent=ifbody,
-                                       nodes=node.content[start_idx + 1:
-                                                          end_idx],
-                                       nodes_parent=node)
-                    ifblock.addchild(ifbody)
-                    ifbody.ast = node.content[start_idx + 1]
-                    ifbody.ast_end = node.content[end_idx - 1]
+                # Add If_body
+                ifbody = Schedule(parent=ifblock)
+                self.process_nodes(parent=ifbody,
+                                   nodes=node.content[start_idx + 1:
+                                                      end_idx],
+                                   nodes_parent=node)
+                ifblock.addchild(ifbody)
+                ifbody.ast = node.content[start_idx + 1]
+                ifbody.ast_end = node.content[end_idx - 1]
 
-                    if rootif:
-                        # If rootif is already initialised we chain the new
-                        # case in the last else branch.
-                        elsebody = Schedule(parent=currentparent)
-                        currentparent.addchild(elsebody)
-                        elsebody.addchild(ifblock)
-                        elsebody.ast = node.content[start_idx + 1]
-                        elsebody.ast_end = node.content[end_idx - 1]
-                    else:
-                        rootif = ifblock
+                if rootif:
+                    # If rootif is already initialised we chain the new
+                    # case in the last else branch.
+                    elsebody = Schedule(parent=currentparent)
+                    currentparent.addchild(elsebody)
+                    elsebody.addchild(ifblock)
+                    elsebody.ast = node.content[start_idx + 1]
+                    elsebody.ast_end = node.content[end_idx - 1]
+                else:
+                    rootif = ifblock
 
-                    currentparent = ifblock
+                currentparent = ifblock
 
         if default_clause_idx:
             # Finally, add the content of the 'default' clause as a last
@@ -7346,6 +7343,125 @@ class Fparser2ASTProcessor(object):
             elsebody.ast = node.content[start_idx + 1]
             elsebody.ast_end = node.content[end_idx - 1]
         return rootif
+
+    def _process_case_value_list(self, selector, nodes, nodes_parent, parent):
+        '''
+        Processes the supplied list of fparser2 nodes representing case-value
+        expressions and constructs the equivalent PSyIR representation.
+        e.g. for:
+
+               SELECT CASE(my_flag)
+               CASE(var1, var2:var3, :var5)
+                 my_switch = .true.
+               END SELECT
+
+        the equivalent logical expression is:
+
+        my_flag == var1 OR (myflag>=var2 AND myflag <= var3) OR my_flag <= var5
+
+        and the corresponding structure of the PSyIR that we create is:
+
+                    OR
+                   /  \
+                 EQ    OR
+                      /  \
+                   AND    LE
+                  /  \
+                GE    LE
+
+        :param selector: the fparser2 parse tree representing the \
+                      selector_expression in SELECT CASE(selector_expression).
+        :type selector: sub-class of :py:class:`fparser.two.utils.Base`
+        :param nodes: the nodes representing the label-list of the current \
+                      CASE() clause.
+        :type nodes: list of :py:class:`fparser.two.Fortran2003.Name` or \
+                     :py:class:`fparser.two.Fortran2003.Case_Value_Range`.
+        :param nodes_parent: the parent in the fparser2 parse tree of the \
+                             nodes making up the label-list. 
+        :type nodes_parent: sub-class of :py:class:`fparser.two.utils.Base`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        if len(nodes) == 1:
+            # Only one item in list so process it
+            self._process_case_value(selector, nodes[0], nodes_parent, parent)
+            return
+        # More than one item in list. Create an OR node with the first item
+        # on the list as one arg then recurse down to handle the remainder
+        # of the list.
+        orop = BinaryOperation(BinaryOperation.Operator.OR,
+                               parent=parent)
+        self._process_case_value(selector, nodes[0], nodes_parent, orop)
+        self._process_case_value_list(selector, nodes[1:], nodes_parent, orop)
+        parent.addchild(orop)
+
+    def _process_case_value(self, selector, node, node_parent, parent):
+        '''
+        Handles an individual condition inside a CASE statement. This can
+        be a single scalar expression (e.g. CASE(1)) or a range specification
+        (e.g. CASE(lim1:lim2)).
+
+        :param selector: the node in the fparser2 parse tree representing the
+                         'some_expr' of the SELECT CASE(some_expr).
+        :type selector: sub-class of :py:class:`fparser.two.utils.Base`
+        :param node: the node representing the case-value expression in the \
+                     fparser2 parse tree.
+        :type node: sub-class of :py:class:`fparser.two.utils.Base`
+        :param node_parent: the parent in the fparser2 parse tree of the \
+                            node representing this case-value.
+        :type node_parent: sub-class of :py:class:`fparser.two.utils.Base`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        node._parent = node_parent  # Retrofit parent information
+
+        if isinstance(node, Fortran2003.Case_Value_Range):
+            # The case value is a range (e.g. lim1:lim2)
+            if node.items[0] and node.items[1]:
+                # Have lower and upper limits so need a parent AND
+                aop = BinaryOperation(BinaryOperation.Operator.AND,
+                                      parent=parent)
+                parent.addchild(aop)
+                new_parent = aop
+            else:
+                # No need to create new parent node
+                new_parent = parent
+
+            if node.items[0]:
+                # Have lower limit
+                geop = BinaryOperation(BinaryOperation.Operator.GE,
+                                       parent=new_parent)
+                self.process_nodes(parent=geop,
+                                   nodes=[selector],
+                                   nodes_parent=node)
+                self.process_nodes(parent=geop,
+                                   nodes=[node.items[0]],
+                                   nodes_parent=node)
+                new_parent.addchild(geop)
+            if node.items[1]:
+                # Have upper limit
+                leop = BinaryOperation(BinaryOperation.Operator.LE,
+                                       parent=new_parent)
+                self.process_nodes(parent=leop,
+                                   nodes=[selector],
+                                   nodes_parent=node)
+                self.process_nodes(parent=leop,
+                                   nodes=[node.items[1]],
+                                   nodes_parent=node)
+                new_parent.addchild(leop)
+        else:
+            # The case value is some scalar initialisation expression
+            bop = BinaryOperation(BinaryOperation.Operator.EQ,
+                                  parent=parent)
+            parent.addchild(bop)
+            self.process_nodes(parent=bop,
+                               nodes=[selector],
+                               nodes_parent=node)
+            self.process_nodes(parent=bop,
+                               nodes=[node],
+                               nodes_parent=node_parent)
 
     def _return_handler(self, _, parent):
         '''
