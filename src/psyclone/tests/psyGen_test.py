@@ -5155,7 +5155,7 @@ def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
     it parses invalid or unsupported fparser2 trees.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
+    from fparser.two.Fortran2003 import Execution_Part, Name
 
     # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
@@ -5197,6 +5197,20 @@ def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
     with pytest.raises(InternalError) as error:
         processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert "Failed to find closing case statement in:" in str(error.value)
+
+    # Test when one clause is not of the expected type
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+    fparser2case_construct.content[1].items = (Name("Fake"), None)
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert "to be a Case_Selector but got" in str(error.value)
 
 
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):

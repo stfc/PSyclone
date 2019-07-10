@@ -7254,6 +7254,11 @@ class Fparser2ASTProcessor(object):
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
+                if not isinstance(child.items[0], Fortran2003.Case_Selector):
+                    raise InternalError(
+                        "Unexpected parse tree structure. Expected child of "
+                        "Case_Stmt to be a Case_Selector but got: '{0}'".
+                        format(type(child.items[0]).__name__))
                 case_expression = child.items[0].items[0]
                 if case_expression is None:
                     # This is a 'case default' clause - store its position.
@@ -7275,53 +7280,49 @@ class Fparser2ASTProcessor(object):
             start_idx = clause_indices[idx]
             end_idx = clause_indices[idx+1]
             clause = node.content[start_idx]
-
-            if not isinstance(clause, Fortran2003.Case_Stmt):
-                continue
-
             case = clause.items[0]
-            if isinstance(case, Fortran2003.Case_Selector):
-                ifblock = IfBlock(parent=currentparent,
-                                  annotation='was_case')
-                ifblock.ast = node.content[start_idx]
-                ifblock.ast_end = node.content[end_idx - 1]
 
-                if isinstance(case.items[0],
-                              Fortran2003.Case_Value_Range_List):
-                    # We have a list of conditions in one CASE stmt which
-                    # we need to combine with OR operators
-                    self._process_case_value_list(selector,
-                                                  case.items[0].items,
-                                                  case.items[0], ifblock)
-                else:
-                    # We only have a single condition
-                    # TODO once fparser/#170 is done we might never take
-                    # this branch...
-                    self._process_case_value(selector, case.items[0],
-                                             case, ifblock)
+            ifblock = IfBlock(parent=currentparent,
+                              annotation='was_case')
+            ifblock.ast = node.content[start_idx]
+            ifblock.ast_end = node.content[end_idx - 1]
 
-                # Add If_body
-                ifbody = Schedule(parent=ifblock)
-                self.process_nodes(parent=ifbody,
-                                   nodes=node.content[start_idx + 1:
-                                                      end_idx],
-                                   nodes_parent=node)
-                ifblock.addchild(ifbody)
-                ifbody.ast = node.content[start_idx + 1]
-                ifbody.ast_end = node.content[end_idx - 1]
+            if isinstance(case.items[0],
+                          Fortran2003.Case_Value_Range_List):
+                # We have a list of conditions in one CASE stmt which
+                # we need to combine with OR operators
+                self._process_case_value_list(selector,
+                                              case.items[0].items,
+                                              case.items[0], ifblock)
+            else:
+                # We only have a single condition
+                # TODO once fparser/#170 is done we might never take
+                # this branch...
+                self._process_case_value(selector, case.items[0],
+                                         case, ifblock)
 
-                if rootif:
-                    # If rootif is already initialised we chain the new
-                    # case in the last else branch.
-                    elsebody = Schedule(parent=currentparent)
-                    currentparent.addchild(elsebody)
-                    elsebody.addchild(ifblock)
-                    elsebody.ast = node.content[start_idx + 1]
-                    elsebody.ast_end = node.content[end_idx - 1]
-                else:
-                    rootif = ifblock
+            # Add If_body
+            ifbody = Schedule(parent=ifblock)
+            self.process_nodes(parent=ifbody,
+                               nodes=node.content[start_idx + 1:
+                                                  end_idx],
+                               nodes_parent=node)
+            ifblock.addchild(ifbody)
+            ifbody.ast = node.content[start_idx + 1]
+            ifbody.ast_end = node.content[end_idx - 1]
 
-                currentparent = ifblock
+            if rootif:
+                # If rootif is already initialised we chain the new
+                # case in the last else branch.
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                elsebody.addchild(ifblock)
+                elsebody.ast = node.content[start_idx + 1]
+                elsebody.ast_end = node.content[end_idx - 1]
+            else:
+                rootif = ifblock
+
+            currentparent = ifblock
 
         if default_clause_idx:
             # Finally, add the content of the 'default' clause as a last
