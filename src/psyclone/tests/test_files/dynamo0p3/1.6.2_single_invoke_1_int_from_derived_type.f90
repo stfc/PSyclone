@@ -14,7 +14,7 @@ program single_invoke
   ! In the third the type-bound routine takes an argument and in the
   ! fourth this argument is itself obtained by dereferencing another
   ! derived type.
-  use testkern_one_int_scalar, only: testkern_type
+  use testkern_one_int_scalar_mod, only: testkern_one_int_scalar_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
@@ -23,10 +23,10 @@ program single_invoke
   integer :: switch = 4
 
   call invoke(                                                      &
-       testkern_type(f1,my_obj%iflag,f2,m1,m2),                     &
-       testkern_type(f1,my_obj%get_flag(),f2,m1,m2),                &
-       testkern_type(f1,my_obj%get_flag(switch),f2,m1,m2),          &
-       testkern_type(f1,my_obj%get_flag(int_wrapper%data),f2,m1,m2) &
+       testkern_one_int_scalar_type(f1,my_obj%iflag,f2,m1,m2),                     &
+       testkern_one_int_scalar_type(f1,my_obj%get_flag(),f2,m1,m2),                &
+       testkern_one_int_scalar_type(f1,my_obj%get_flag(switch),f2,m1,m2),          &
+       testkern_one_int_scalar_type(f1,my_obj%get_flag(int_wrapper%data),f2,m1,m2) &
           )
 
 end program single_invoke

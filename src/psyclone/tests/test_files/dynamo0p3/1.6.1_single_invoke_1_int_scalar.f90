@@ -9,14 +9,14 @@
 program single_invoke
 
   ! Description: single function specified in an invoke call
-  use testkern_one_int_scalar, only: testkern_type
+  use testkern_one_int_scalar_mod, only: testkern_one_int_scalar_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
   integer(i_def)   :: iflag
 
   call invoke(                              &
-       testkern_type(f1,iflag,f2,m1,m2)   &
+       testkern_one_int_scalar_type(f1,iflag,f2,m1,m2)   &
           )
 
 end program single_invoke

@@ -6,12 +6,12 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_one_int_scalar
+module testkern_one_int_scalar_mod
   use argument_mod
   use kernel_mod
   use constants_mod
   
-  type, public, extends(kernel_type) :: testkern_type
+  type, public, extends(kernel_type) :: testkern_one_int_scalar_type
      private
      type(arg_type), dimension(5) :: meta_args = &
           (/ arg_type(gh_field,   gh_write,w1), &
@@ -23,7 +23,7 @@ module testkern_one_int_scalar
      integer :: iterates_over = cells
    contains
      procedure, public, nopass :: code => testkern_code
-  end type testkern_type
+  end type testkern_one_int_scalar_type
 contains
 
   subroutine testkern_code(nlayers, afield1, iflag, afield2, afield3, afield4, &
@@ -42,4 +42,4 @@ contains
     integer(kind=i_def), dimension(:), intent(in)  :: map_w3    
   end subroutine testkern_code
 
-end module testkern_one_int_scalar
+end module testkern_one_int_scalar_mod
