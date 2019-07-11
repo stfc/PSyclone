@@ -135,18 +135,19 @@ class Profiler(object):
 
 # =============================================================================
 class ProfileNode(Node):
-    '''This class can be inserted into a schedule to create profiling code.
     '''
+    This class can be inserted into a schedule to create profiling code.
+
+    :param children: A list of children nodes for this node.
+    :type children: A list of :py::class::`psyclone.psyGen.Node` \
+                   or derived classes.
+    :param parent: The parent of this node in the PSyIR.
+    :type parent: A :py::class::`psyclone.psyGen.Node`.
+
+    '''
+    fortran_module = "profile_mod"  #: Profiling interface Fortran module
 
     def __init__(self, children=None, parent=None):
-        '''Constructor for a ProfileNode that is inserted in a schedule.
-        Parameters:
-            :param children: A list of children nodes for this node.
-            :type children: A list of :py::class::`psyclone.psyGen.Node` \
-            or derived classes.
-            :param parent: The parent of this node.
-            :type parent: A :py::class::`psyclone.psyGen.Node`.
-        '''
         Node.__init__(self, children=children, parent=parent)
 
         # Store the name of the profile variable that is used for this
@@ -198,9 +199,11 @@ class ProfileNode(Node):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children
         of this node.
-        :param parent: The parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`.'''
 
+        :param parent: The parent of this node.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+
+        '''
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
             # Schedule there should be only one kernel, but if Profile is
@@ -218,7 +221,7 @@ class ProfileNode(Node):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        use = UseGen(parent, "profile_mod", only=True,
+        use = UseGen(parent, self.fortran_module, only=True,
                      funcnames=["ProfileData, ProfileStart, ProfileEnd"])
         parent.add(use)
         prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
@@ -250,3 +253,93 @@ class ProfileNode(Node):
         '''
         raise NotImplementedError("Generation of C code is not supported "
                                   "for profiling")
+
+    def update(self):
+        '''
+        Update the underlying fparser2 parse tree to implement the profiling
+        region represented by this Node.
+
+        '''
+        from fparser.common.sourceinfo import FortranFormat
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        from psyclone.psyGen import object_index
+
+        # Ensure child nodes are up-to-date
+        super(ProfileNode, self).update()
+
+        # Get the parse tree of the routine containing this region
+        ptree = self.root.invoke._ast
+        routines = walk_ast([ptree], [Fortran2003.Main_Program,
+                                      Fortran2003.Subroutine_Stmt,
+                                      Fortran2003.Function_Stmt])
+        for routine in routines:
+            names = walk_ast([routine], [Fortran2003.Name])
+            routine_name = str(names[0]).lower()
+            break
+
+        spec_parts = walk_ast([ptree], [Fortran2003.Specification_Part])
+        spec_part = spec_parts[0]  #TODO check no. of spec. parts found
+
+        # Get the existing use statements
+        use_stmts = walk_ast(spec_part.content, [Fortran2003.Use_Stmt])
+        mod_names = []
+        for stmt in use_stmts:
+            mod_names.append(str(stmt.items[2]).lower())
+
+        # If we don't already have a use for the profiling module then
+        # add one.
+        if self.fortran_module not in mod_names:
+            reader = FortranStringReader(
+                "use profile_mod, only: ProfileData, ProfileStart, ProfileEnd")
+            # Tell the reader that the source is free format
+            reader.set_format(FortranFormat(True, False))
+            use = Fortran2003.Use_Stmt(reader)
+            spec_part.content.insert(0, use)
+
+        # Create a name for this region
+        sched = self.root
+        pnodes = sched.walk(sched.children, ProfileNode)
+        region_idx = pnodes.index(self)
+        region_name = "region_{0}".format(region_idx)
+        var_name = "profile{0}".format(region_idx)
+
+        # Create a variable for this profiling region
+        reader = FortranStringReader(
+            "type(ProfileData), save :: {0}".format(var_name))
+        # Tell the reader that the source is free format
+        reader.set_format(FortranFormat(True, False))
+        decln = Fortran2003.Type_Declaration_Stmt(reader)
+        spec_part.content.append(decln)
+
+        # Find the parent in the parse tree
+        content_ast = self.children[0].ast
+        fp_parent = content_ast._parent
+
+        # Find the location of the AST of our first child node in the
+        # list of child nodes of our parent in the fparser parse tree.
+        ast_start_index = object_index(fp_parent.content,
+                                       content_ast)
+        if self.children[-1].ast_end:
+            ast_end_index = object_index(fp_parent.content,
+                                         self.children[-1].ast_end)
+        else:
+            ast_end_index = object_index(fp_parent.content,
+                                         self.children[-1].ast)
+
+        # Add the profiling-end call
+        reader = FortranStringReader(
+            "CALL ProfileEnd({0})".format(region_name))
+        # Tell the reader that the source is free format
+        reader.set_format(FortranFormat(True, False))
+        pecall = Fortran2003.Call_Stmt(reader)
+        fp_parent.content.insert(ast_end_index+1, pecall)
+
+        # Add the profiling-start call
+        reader = FortranStringReader(
+            "CALL ProfileStart('{0}', '{1}', {2})".format(
+                routine_name, region_name, var_name))
+        reader.set_format(FortranFormat(True, False))
+        pscall = Fortran2003.Call_Stmt(reader)
+        fp_parent.content.insert(ast_start_index, pscall)
