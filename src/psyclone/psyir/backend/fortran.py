@@ -419,6 +419,35 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
+    def loop_node(self, node):
+        '''This method is called when a Loop instance is found in the
+        PSyIR tree.
+
+        :param node: An Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        start = self._visit(node.start_expr)
+        stop = self._visit(node.stop_expr)
+        step = self._visit(node.step_expr)
+        variable_name = node.variable_name
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        result = (
+            "{0}do {1} = {2}, {3}, {4}\n"
+            "{5}"
+            "{0}enddo\n"
+            "".format(self._nindent, variable_name, start, stop, step, body))
+        return result
+
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
