@@ -170,8 +170,11 @@
         53) PR #413 for #411. Adds support for semantic navigation of the
         PSyIR tree.
 
-	54) PR #376 for #368. Introduces PSyIR back-end infrastructure using the
-	Visitor Pattern and creates a PSyIR-to-Fortran back-end.
+        54) PR #376 for #368. Introduces PSyIR back-end infrastructure using the
+        Visitor Pattern and creates a PSyIR-to-Fortran back-end.
+
+        55) PR #428 for #427. Fix to test suite so that empty, transformed
+        kernel files are not created in the CWD.
 
 release 1.7.0 20th December 2018
 
@@ -268,6 +271,9 @@ release 1.7.0 20th December 2018
 
 	28) #317 and PR #330. Fix to allow module use statements to be
 	added to functions.
+
+	29) #330 and PR #422. Adds PSyIR node to represent Nary operators and
+	increases the number of supported operators.
 
 release 1.6.1 6th December 2018
 

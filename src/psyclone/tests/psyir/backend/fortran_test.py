@@ -244,7 +244,7 @@ def test_fw_nemokern():
         "    integer(i_def) :: b\n"
         "    integer(i_def) :: c\n"
         "\n"
-        "    a=b/c\n"
+        "    a=b / c\n"
         "\n"
         "  end subroutine tmp\n") in result
 
@@ -282,7 +282,7 @@ def test_fw_kernelschedule(monkeypatch):
         "    real(r_def), dimension(:), intent(in) :: b\n"
         "    integer(i_def), intent(in) :: c\n"
         "\n"
-        "    a=b/c\n"
+        "    a=b / c\n"
         "\n"
         "  end subroutine tmp\n"
         "end module tmp_mod") in result
@@ -317,7 +317,7 @@ def test_fw_binaryoperator():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    assert "a=SIGN(1.0,1.0)" in result
+    assert "a=SIGN(1.0, 1.0)" in result
 
 
 def test_fw_binaryoperator_unknown(monkeypatch):
@@ -336,13 +336,61 @@ def test_fw_binaryoperator_unknown(monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    from psyclone.psyir.backend import fortran
-    monkeypatch.setattr(fortran, "FORTRAN_INTRINSICS", [])
+    # Remove sign() from the list of supported binary operators
+    monkeypatch.delitem(Fparser2ASTProcessor.binary_operators, "sign")
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = fvisitor(schedule)
     assert "Unexpected binary op" in str(excinfo)
+
+
+def test_fw_naryopeator():
+    ''' Check that the FortranWriter class nary_operation method correctly
+    prints out the Fortran representation of an intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a\n"
+        "    a = max(1.0,1.0,2.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "a=MAX(1.0, 1.0, 2.0)" in result
+
+
+def test_fw_naryopeator_unknown(monkeypatch):
+    ''' Check that the FortranWriter class nary_operation method raises
+    the expected error if it encounters an unknown operator.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a\n"
+        "    a = max(1.0,1.0,2.0)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    # Remove max() from the list of supported nary operators
+    monkeypatch.delitem(Fparser2ASTProcessor.nary_operators, "max")
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    with pytest.raises(VisitorError) as err:
+        _ = fvisitor(schedule)
+    assert "Unexpected N-ary op" in str(err)
 
 
 def test_fw_reference():
@@ -452,10 +500,10 @@ def test_fw_ifblock():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     assert (
-        "    if (n>2) then\n"
-        "      n=n+1\n"
+        "    if (n > 2) then\n"
+        "      n=n + 1\n"
         "    end if\n"
-        "    if (n>4) then\n"
+        "    if (n > 4) then\n"
         "      a=-1\n"
         "    else\n"
         "      a=1\n"
@@ -526,8 +574,8 @@ def test_fw_unaryoperator_unknown(monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
-    from psyclone.psyir.backend import fortran
-    monkeypatch.setattr(fortran, "FORTRAN_INTRINSICS", [])
+    # Remove sin() from the dict of unary operators
+    monkeypatch.delitem(Fparser2ASTProcessor.unary_operators, "sin")
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
