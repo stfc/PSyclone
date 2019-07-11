@@ -453,7 +453,7 @@ def test_operator_nofield_different_space(tmpdir):
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
 
-def test_operator_nofield_scalar():
+def test_operator_nofield_scalar(tmpdir):
     ''' tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -461,6 +461,8 @@ def test_operator_nofield_scalar():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
