@@ -374,9 +374,14 @@ def test_builtin_no_trans():
             "kernel 'x_plus_y' is of type " in str(err))
 
 
-def test_no_inline_before_trans(monkeypatch):
+def test_no_inline_before_trans(monkeypatch, tmpdir):
     ''' Check that we reject attempts to transform kernels that have been
     marked for module in-lining. Issue #229. '''
+
+    # Even though this code will raise an exception at the end, it will
+    # still create an (empty) file 'testkern_any_space_2_0_mod.f90'.
+    # So change to tmpdir to avoid this.
+    old_pwd = tmpdir.chdir()
     from psyclone.transformations import KernelModuleInlineTrans
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
@@ -396,6 +401,7 @@ def test_no_inline_before_trans(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen).lower()
     assert "Cannot module-inline a transformed kernel " in str(err)
+    old_pwd.chdir()
 
 
 def test_no_inline_after_trans(monkeypatch):
