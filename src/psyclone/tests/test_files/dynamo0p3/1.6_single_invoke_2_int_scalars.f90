@@ -14,12 +14,10 @@ program single_invoke
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
-  real(r_def)      :: a
-  integer(i_def)   :: iflag, istep
+  integer(i_def)   :: iflag, istep, iscalar
 
   call invoke(                                  &
        testkern_type(iflag,f1,f2,m1,m2,istep),  &
-       testkern_type(1_i_def,f1,f2,m1,m2,istep) &
-          )
+       testkern_type(iflag,f1,f2,m1,m2,iscalar)   )
 
 end program single_invoke

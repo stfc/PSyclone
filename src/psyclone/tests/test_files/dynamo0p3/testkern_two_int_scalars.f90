@@ -6,7 +6,12 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern
+module testkern_two_int_scalars
+
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+  
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(6) :: meta_args = &
           (/ arg_type(gh_integer, gh_read    ), &
@@ -16,14 +21,29 @@ module testkern
              arg_type(gh_field,   gh_read, w3), &
              arg_type(gh_integer, gh_read    )  &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
+     procedure, public, nopass :: code => testkern_code
   end type testkern_type
 contains
 
-  subroutine testkern_code(iflag, afield1, afield2, afield3, afield4, istep)
-    integer, intent(in) :: iflag, istep
-    real(wp), dimension(:,:)  :: afield1, afield2, afield3, afield4
+  subroutine testkern_code(nlayers, iflag, f1data, f2data, f3data, f4data, istep, &
+                           ndf_w1, undf_w1, map_w1,                       &
+                           ndf_w2, undf_w2, map_w2,                       &
+                           ndf_w3, undf_w3, map_w3  )
+    implicit none
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1, ndf_w2, ndf_w3
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
+    real(kind=r_def), dimension(undf_w1),   intent(inout) :: f1data
+    real(kind=r_def), dimension(undf_w2),   intent(in)    :: f2data
+    real(kind=r_def), dimension(undf_w2),   intent(in)    :: f3data
+    real(kind=r_def), dimension(undf_w3),   intent(in)    :: f4data
+    integer(kind=i_def),                    intent(in)    :: iflag, istep
+    integer(kind=i_def), dimension(ndf_w1), intent(in)    :: map_w1
+    integer(kind=i_def), dimension(ndf_w2), intent(in)    :: map_w2
+    integer(kind=i_def), dimension(ndf_w3), intent(in)    :: map_w3        
+
   end subroutine testkern_code
-end module testkern
+  
+end module testkern_two_int_scalars

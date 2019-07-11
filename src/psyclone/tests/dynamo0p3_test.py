@@ -531,7 +531,7 @@ def test_field(tmpdir):
     assert output in str(generated_code)
 
 
-def test_field_deref(dist_mem):
+def test_field_deref(tmpdir,dist_mem):
     ''' Tests that a call with a set of fields (some obtained by
     de-referencing derived types) and no basis functions produces
     correct code.'''
@@ -549,6 +549,9 @@ def test_field_deref(dist_mem):
     if dist_mem:
         output = "      USE mesh_mod, ONLY: mesh_type\n"
         assert output in generated_code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
@@ -814,7 +817,7 @@ def test_field_fs(tmpdir):
     assert output in generated_code
 
 
-def test_real_scalar():
+def test_real_scalar(tmpdir):
     ''' tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields)'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -822,6 +825,9 @@ def test_real_scalar():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
@@ -895,7 +901,7 @@ def test_real_scalar():
     assert expected in generated_code
 
 
-def test_int_scalar():
+def test_int_scalar(tmpdir):
     ''' tests that we generate correct code when a kernel takes a single,
     integer scalar argument (plus fields) '''
     _, invoke_info = parse(
@@ -904,6 +910,9 @@ def test_int_scalar():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(f1, iflag, f2, m1, m2)\n"
         "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
@@ -978,7 +987,7 @@ def test_int_scalar():
     assert expected in generated_code
 
 
-def test_two_real_scalars():
+def test_two_real_scalars(tmpdir):
     ''' tests that we generate correct code when a kernel has two real,
     scalar arguments '''
     _, invoke_info = parse(
@@ -987,6 +996,9 @@ def test_two_real_scalars():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
@@ -1061,7 +1073,7 @@ def test_two_real_scalars():
     assert expected in generated_code
 
 
-def test_two_int_scalars():
+def test_two_int_scalars(tmpdir):
     ''' tests that we generate correct code when a kernel has two integer,
     scalar arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1069,11 +1081,13 @@ def test_two_int_scalars():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     expected = (
-        "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
+        "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep, iscalar)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(in) :: iflag, istep\n"
+        "      INTEGER, intent(in) :: iflag, istep, iscalar\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
@@ -1143,8 +1157,8 @@ def test_two_int_scalars():
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
-        "        CALL testkern_code(nlayers, 1_i_def, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
+        "        CALL testkern_code(nlayers, iflag, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, iscalar, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
@@ -1255,18 +1269,22 @@ def test_vector_field():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+    
     assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
             generated_code)
     assert "TYPE(field_type), intent(inout) :: f1, chi(3)" in generated_code
     assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
 
-def test_vector_field_2():
+def test_vector_field_2(tmpdir):
     ''' Tests that a vector field is indexed correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     # all references to chi_proxy should be chi_proxy(1)
     assert "chi_proxy%" not in generated_code
     assert generated_code.count("chi_proxy(1)%vspace") == 5
@@ -3141,9 +3159,6 @@ def test_halo_dirty_4():
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
-        "      CALL chi_proxy(1)%set_dirty()\n"
-        "      CALL chi_proxy(2)%set_dirty()\n"
-        "      CALL chi_proxy(3)%set_dirty()\n"
         "      CALL f1_proxy%set_dirty()\n")
     assert expected in generated_code
 
@@ -3469,7 +3484,7 @@ def test_fs_anyspace_and_readwrite_error():
                 in str(excinfo.value))
 
 
-def test_halo_exchange_view(capsys):
+def test_halo_exchange_view(tmpdir,capsys):
     ''' test that the halo exchange view method returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
@@ -3500,7 +3515,7 @@ def test_halo_exchange_view(capsys):
     assert expected in result
 
 
-def test_no_mesh_mod():
+def test_no_mesh_mod(tmpdir):
     '''test that we do not add a mesh module to the PSy layer if one is
     not required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3508,12 +3523,14 @@ def test_no_mesh_mod():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     result = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "USE mesh_mod, ONLY: mesh_type" not in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" not in result
     assert "mesh => a_proxy%vspace%get_mesh()" not in result
 
 
-def test_mesh_mod():
+def test_mesh_mod(tmpdir):
     '''test that a mesh module is added to the PSy layer and a mesh object
     is created when required. One is required when we determine loop
     bounds for distributed memory '''
@@ -3522,6 +3539,7 @@ def test_mesh_mod():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
     assert "USE mesh_mod, ONLY: mesh_type" in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" in result
     output = ("      !\n"
