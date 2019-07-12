@@ -2298,9 +2298,9 @@ class ProfileRegionTrans(RegionTrans):
 
     '''
     from psyclone import psyGen, profiler
-    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.HaloExchange, psyGen.Directive,
-                        psyGen.GlobalSum, profiler.ProfileNode)
+    # Unlike other transformations we can be fairly relaxed about the nodes
+    # that a region can contain as we don't have to understand them.
+    valid_node_types = (psyGen.Node,)
 
     def __str__(self):
         return "Insert a profile start and end call."

@@ -330,7 +330,7 @@ class ProfileNode(Node):
 
         # Add the profiling-end call
         reader = FortranStringReader(
-            "CALL ProfileEnd({0})".format(region_name))
+            "CALL ProfileEnd({0})".format(var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         pecall = Fortran2003.Call_Stmt(reader)
