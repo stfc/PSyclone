@@ -65,7 +65,7 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 ``pip``::
 
   > cd <PSYCLONEHOME>
-  > pip install -e --user .
+  > pip install --user -e .
 
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
