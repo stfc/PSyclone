@@ -264,7 +264,7 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index
+        from psyclone.psyGen import object_index, Schedule
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()
@@ -280,7 +280,7 @@ class ProfileNode(Node):
             break
 
         spec_parts = walk_ast([ptree], [Fortran2003.Specification_Part])
-        spec_part = spec_parts[0]  #TODO check no. of spec. parts found
+        spec_part = spec_parts[0]
 
         # Get the existing use statements
         use_stmts = walk_ast(spec_part.content, [Fortran2003.Use_Stmt])
@@ -315,7 +315,11 @@ class ProfileNode(Node):
         spec_part.content.append(decln)
 
         # Find the parent in the parse tree
-        content_ast = self.children[0].ast
+        if isinstance(self.children[0], Schedule):
+            # TODO #435 Schedule should really have a valid ast pointer.
+            content_ast = self.children[0][0].ast
+        else:
+            content_ast = self.children[0].ast
         fp_parent = content_ast._parent
 
         # Find the location of the AST of our first child node in the

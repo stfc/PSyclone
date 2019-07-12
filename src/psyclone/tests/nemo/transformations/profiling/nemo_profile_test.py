@@ -39,12 +39,14 @@
 '''
 
 from __future__ import absolute_import, print_function
+import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-
+from psyclone.transformations import TransformationError
 
 # The PSyclone API under test
 API = "nemo"
+
 
 def test_profile_single_loop(parser):
     ''' Check that the correct code is added to the generated Fortran
@@ -59,8 +61,8 @@ def test_profile_single_loop(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ProfileRegionTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0])
+    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    schedule, _ = ptrans.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd\n"
@@ -92,10 +94,10 @@ def test_profile_two_loops(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ProfileRegionTrans')
+    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
     # Create two separate profiling regions
-    schedule, _ = acc_trans.apply(schedule.children[1])
-    schedule, _ = acc_trans.apply(schedule.children[0])
+    schedule, _ = ptrans.apply(schedule.children[1])
+    schedule, _ = ptrans.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd\n"
@@ -132,12 +134,9 @@ def test_profile_codeblock(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ProfileRegionTrans')
-    # Create two separate profiling regions
-    schedule, _ = acc_trans.apply(schedule.children[0])
-    schedule.view()
+    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    schedule, _ = ptrans.apply(schedule.children[0])
     code = str(psy.gen)
-    print(code)
     assert (
         "  CALL ProfileStart('cb_test', 'region_0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
@@ -145,3 +144,57 @@ def test_profile_codeblock(parser):
         "  END DO\n"
         "  CALL ProfileEnd(psy_profile0)\n" in code)
 
+
+def test_profile_inside_if(parser):
+    ''' Check that we can put a profiling region inside an If block. '''
+    reader = FortranStringReader("subroutine inside_if_test()\n"
+                                 "use kind_mod, only: wp\n"
+                                 "real :: sto_tmp2(jpj)\n"
+                                 "logical :: do_this = .true.\n"
+                                 "if(do_this)then\n"
+                                 "  do ji = 1,jpj\n"
+                                 "    write(*,*) sto_tmp2(ji)\n"
+                                 "  end do\n"
+                                 "endif\n"
+                                 "end subroutine inside_if_test\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    schedule, _ = ptrans.apply(schedule.children[0].if_body[0])
+    gen_code = str(psy.gen)
+    assert ("  IF (do_this) THEN\n"
+            "    CALL ProfileStart(" in gen_code)
+    assert ("    CALL ProfileEnd(psy_profile0)\n"
+            "  END IF\n" in gen_code)
+
+
+def test_profile_single_line_if(parser):
+    ''' Test that we can put a single-line if statement inside a
+    profiling region. '''
+    reader = FortranStringReader("subroutine one_line_if_test()\n"
+                                 "use kind_mod, only: wp\n"
+                                 "real :: sto_tmp2(jpj)\n"
+                                 "logical :: do_this = .true.\n"
+                                 "if(do_this) write(*,*) sto_tmp2(ji)\n"
+                                 "end subroutine one_line_if_test\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    # Check that we refuse to attempt to split the body of the If from
+    # its parent (as it is a one-line statement). This limitation will
+    # be removed once we use the PSyIR Fortran backend in the NEMO API
+    # (as opposed to manipulating the fparser2 parse tree).
+    # TODO #435
+    with pytest.raises(TransformationError) as err:
+        schedule, _ = ptrans.apply(schedule[0].if_body)
+    assert "child of a single-line if" in str(err.value)
+    # But we should be able to put the whole If statement in a profiling
+    # region...
+    schedule, _ = ptrans.apply(schedule[0])
+    gen_code = str(psy.gen)
+    assert (
+        "  CALL ProfileStart('one_line_if_test', 'region_0', psy_profile0)\n"
+        "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
+        "  CALL ProfileEnd(psy_profile0)\n" in gen_code)
