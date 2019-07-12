@@ -65,6 +65,11 @@ from psyclone.psyGen import TransInfo
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
+PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
+
+# Whether or not to automatically add profiling calls around
+# un-accelerated regions
+_AUTO_PROFILE = True
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -171,34 +176,68 @@ def add_kernels(children):
                      inclusion in an ACC KERNELS region.
     :type children: list of :py:class:`psyclone.psyGen.Node`
 
+    :returns: True if any KERNELS regions are successfully added.
+    :rtype: bool
+
     '''
     from psyclone.psyGen import IfBlock
+    added_kernels = False
     if not children:
-        return
+        return added_kernels
 
     node_list = []
+    excluded_list = []
     for child in children[:]:
         # Can this node be included in a kernels region?
         if not valid_kernel(child):
             # It can't so we put what we have so far inside a kernels region
             # provided it contains one or more loops
             if have_loops(node_list):
-                try_kernels_trans(node_list)
+                success = try_kernels_trans(node_list)
+                added_kernels |= success
+                if not success:
+                    # Transformation failed so put the list of nodes in a
+                    # profiling region
+                    add_profile_region(node_list)
             # A node that cannot be included in a kernels region marks the
             # end of the current candidate region so reset the list.
             node_list = []
             # Now we go down a level and try again
             if isinstance(child, IfBlock):
-                add_kernels(child.if_body)
-                add_kernels(child.else_body)
+                success1 = add_kernels(child.if_body)
+                success2 = add_kernels(child.else_body)
+                success = success1 or success2
             else:
-                add_kernels(child.children)
+                success = add_kernels(child.children)
+            if success:
+                # We managed to create one or more KERNELS region(s) below
+                # this child so this marks the end of any candidate
+                # profiling region
+                add_profile_region(excluded_list)
+                excluded_list = []
+            else:
+                # Keep a list of nodes that we've not put inside
+                # kernels regions
+                excluded_list.append(child)
+            added_kernels |= success
         else:
-            # Otherwise we add this node to our list for the current region
+            # We can - add this node to our list for the current region
             node_list.append(child)
+            # This marks the end of any region where we've failed to add
+            # a KERNELS region so add profiling
+            add_profile_region(excluded_list)
+            excluded_list = []
     if have_loops(node_list):
-        try_kernels_trans(node_list)
+        success = try_kernels_trans(node_list)
+        added_kernels |= success
+    add_profile_region(excluded_list)
 
+    return added_kernels
+
+
+def add_profile_region(nodes):
+    if nodes and _AUTO_PROFILE:
+        _, _ = PROFILE_TRANS.apply(nodes)
 
 def try_kernels_trans(nodes):
     '''
@@ -209,14 +248,19 @@ def try_kernels_trans(nodes):
     :param nodes: list of Nodes to enclose within a Kernels region.
     :type nodes: list of :py:class:`psyclone.psyGen.Node`
 
+    :returns: True if the transformation was successful, False otherwise.
+    :rtype: bool
+
     '''
     from psyclone.psyGen import InternalError
     from psyclone.transformations import TransformationError
     try:
         _, _ = ACC_KERN_TRANS.apply(nodes, default_present=False)
+        return True
     except (TransformationError, InternalError) as err:
         print("Failed to transform nodes: {0}", nodes)
         print("Error was: {0}".format(str(err)))
+        return False
 
 
 def trans(psy):
