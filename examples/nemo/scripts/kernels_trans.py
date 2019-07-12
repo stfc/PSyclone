@@ -70,9 +70,9 @@ ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
-# In future we will either in-line such functions or add ACC ROUTINE
-# directives to them.
-NEMO_FUNCTIONS = set(["solfrac"])
+NEMO_FUNCTIONS = set(["solfrac", "alfa_charn", "One_on_L", "psi_m_coare",
+                      "psi_h_coare", "visc_air", "psi_m_ecmwf", "psi_h_ecmwf",
+                      "Ri_bulk"])
 
 
 def valid_kernel(node):
@@ -88,12 +88,23 @@ def valid_kernel(node):
 
     '''
     from psyclone.nemo import NemoKern
-    from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array
+    from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array, \
+        Assignment, Operation, BinaryOperation, NaryOperation
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
-    excluded_nodes = (CodeBlock, IfBlock)
-    if node.walk([node], excluded_nodes):
-        return False
+    # Rather than walk the tree multiple times, look for both excluded node
+    # types and possibly problematic operations
+    excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation)
+    excluded_nodes = node.walk([node], excluded_node_types)
+
+    for node in excluded_nodes:
+        if isinstance(node, (CodeBlock, IfBlock)):
+            return False
+        #if isinstance(node, Operation):
+        #    if (node.operator == BinaryOperation.Operator.SUM or
+        #        node.operator == NaryOperation.Operator.SUM):
+        #        import pdb; pdb.set_trace()
+
     # For now we don't support putting things like:
     #    if(do_this)my_array(:,:) = 1.0
     # inside a kernels region. Once we generate Fortran instead of modifying
@@ -105,9 +116,12 @@ def valid_kernel(node):
     # Check that there are no derived-type references in the sub-tree.
     # We exclude NemoKern nodes from this check as calling .ast on
     # them causes problems.
+    # Should not have to do this as derived-types should end up in CodeBlocks
+    # but this does not happen for implicit loops.
     if not isinstance(node, NemoKern):
         if walk_ast([node.ast], [Fortran2003.Data_Ref]):
             return False
+
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
     refs = node.walk([node], Array)
@@ -118,9 +132,15 @@ def valid_kernel(node):
         sched = kern.get_kernel_schedule()
         refs += sched.walk(sched.children, Array)
     if refs:
-        ref_names = set([ref.name.lower() for ref in refs])
-        if NEMO_FUNCTIONS.intersection(ref_names):
-            return False
+        for ref in refs:
+            if ref.name.lower() in NEMO_FUNCTIONS:
+                # This reference has the name of a known function. Is it on
+                # the LHS or RHS of an assignment?
+                ref_parent = ref.parent
+                if isinstance(ref_parent, Assignment) and ref is ref_parent.lhs:
+                    # We're writing to it so it's not a function call.
+                    continue
+                return False
     return True
 
 
