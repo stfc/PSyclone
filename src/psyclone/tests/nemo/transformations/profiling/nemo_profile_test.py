@@ -67,13 +67,13 @@ def test_profile_single_loop(parser):
         "  USE kind_mod, ONLY: wp\n" in code)
     assert (
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-        "  TYPE(ProfileData), SAVE :: profile0\n" in code)
+        "  TYPE(ProfileData), SAVE :: psy_profile0\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'region_0', profile0)\n"
+        "  CALL ProfileStart('do_loop', 'region_0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL ProfileEnd(profile0)\n" in code)
+        "  CALL ProfileEnd(psy_profile0)\n" in code)
 
 
 def test_profile_two_loops(parser):
@@ -103,20 +103,20 @@ def test_profile_two_loops(parser):
     assert code.count("USE profile_mod") == 1
     assert (
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-        "  TYPE(ProfileData), SAVE :: profile0\n"
-        "  TYPE(ProfileData), SAVE :: profile1\n" in code)
+        "  TYPE(ProfileData), SAVE :: psy_profile0\n"
+        "  TYPE(ProfileData), SAVE :: psy_profile1\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'region_0', profile0)\n"
+        "  CALL ProfileStart('do_loop', 'region_0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL ProfileEnd(profile0)\n" in code)
+        "  CALL ProfileEnd(psy_profile0)\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'region_1', profile1)\n"
+        "  CALL ProfileStart('do_loop', 'region_1', psy_profile1)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp2(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL ProfileEnd(profile1)\n" in code)
+        "  CALL ProfileEnd(psy_profile1)\n" in code)
 
 
 def test_profile_codeblock(parser):
@@ -139,9 +139,9 @@ def test_profile_codeblock(parser):
     code = str(psy.gen)
     print(code)
     assert (
-        "  CALL ProfileStart('cb_test', 'region_0', profile0)\n"
+        "  CALL ProfileStart('cb_test', 'region_0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
         "    WRITE(*, FMT = *) sto_tmp2(ji)\n"
         "  END DO\n"
-        "  CALL ProfileEnd(profile0)\n" in code)
+        "  CALL ProfileEnd(psy_profile0)\n" in code)
 

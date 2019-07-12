@@ -298,12 +298,13 @@ class ProfileNode(Node):
             use = Fortran2003.Use_Stmt(reader)
             spec_part.content.insert(0, use)
 
-        # Create a name for this region
+        # Create a name for this region by finding where this profiling
+        # node is in the list of profiling nodes in this Invoke.
         sched = self.root
         pnodes = sched.walk(sched.children, ProfileNode)
         region_idx = pnodes.index(self)
         region_name = "region_{0}".format(region_idx)
-        var_name = "profile{0}".format(region_idx)
+        var_name = "psy_profile{0}".format(region_idx)
 
         # Create a variable for this profiling region
         reader = FortranStringReader(
