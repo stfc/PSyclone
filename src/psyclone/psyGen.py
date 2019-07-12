@@ -3058,7 +3058,7 @@ class Loop(Node):
         else:
             raise InternalError(
                 "This Loop construct already has 4 children. (Note: to add"
-                "child to the loop body use: node.loop_body.append(child))")
+                "child to the loop body use: node.loop_body.addchild(child))")
 
     @property
     def start_expr(self):
@@ -3136,7 +3136,7 @@ class Loop(Node):
                 "Loop malformed or incomplete. It should have at least 2 "
                 "children, but found {0}.".format(len(self.children)))
 
-        return self._children[3]._children
+        return self._children[3]
 
     @property
     def dag_name(self):

@@ -263,7 +263,7 @@ class LoopFuseTrans(Transformation):
         keep = Memento(schedule, self, [node1, node2])
 
         # add loop contents of node2 to node1
-        node1.loop_body.extend(node2.loop_body)
+        node1.loop_body._children.extend(node2.loop_body)
 
         # change the parent of the loop contents of node2 to node1
         for child in node2.loop_body:
@@ -1213,10 +1213,10 @@ class ColourTrans(Transformation):
         else:  # no distributed memory
             colour_loop.set_upper_bound("ncolour")
         # Add this loop as a child of our loop over colours
-        colours_loop.loop_body.append(colour_loop)
+        colours_loop.loop_body.addchild(colour_loop)
 
         # add contents of node to colour loop
-        colour_loop.loop_body.extend(node.loop_body)
+        colour_loop.loop_body._children.extend(node.loop_body)
 
         # change the parent of the node's contents to the colour loop
         for child in node.loop_body:

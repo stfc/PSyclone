@@ -40,8 +40,6 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
-        Arguments, Argument, GenerationError, Literal, Reference, Schedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
     Schedule
@@ -287,7 +285,7 @@ class DynKernCallFactory(object):
         kern.load(call, cloop)
 
         # Add the kernel as a child of the loop
-        cloop.loop_body.append(kern)
+        cloop.loop_body.addchild(kern)
         kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object

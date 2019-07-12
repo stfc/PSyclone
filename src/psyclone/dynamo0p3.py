@@ -8541,7 +8541,7 @@ class DynKernCallFactory(object):
         kern.load(call)
 
         # Add the kernel as a child of the loop
-        cloop.loop_body.append(kern)
+        cloop.loop_body.addchild(kern)
         kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object

@@ -302,10 +302,10 @@ class GOKernCallFactory(object):
         ''' Creates a kernel call and associated Loop structure '''
         outer_loop = GOLoop(parent=parent, loop_type="outer")
         inner_loop = GOLoop(parent=outer_loop.children[3], loop_type="inner")
-        outer_loop.loop_body.append(inner_loop)
+        outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
         gocall.load(call, parent=inner_loop.children[3])
-        inner_loop.loop_body.append(gocall)
+        inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner
