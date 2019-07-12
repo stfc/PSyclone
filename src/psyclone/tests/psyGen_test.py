@@ -2803,9 +2803,24 @@ def test_assignment_semantic_navigation():
     '''Test that the Assignment navigation properties reference the expected
     children'''
     assignment = Assignment()
+
+    # lhs should fail if first child is not present
+    with pytest.raises(InternalError) as err:
+        _ = assignment.lhs
+    print(err)
+    assert "' malformed or incomplete. It needs at least 1 child to have " \
+        "a lhs." in str(err)
+
     ref = Reference("a", assignment)
-    lit = Literal("1", assignment)
     assignment.addchild(ref)
+
+    # rhs should fail if second child is not present
+    with pytest.raises(InternalError) as err:
+        _ = assignment.rhs
+    assert " malformed or incomplete. It needs at least 2 children to have " \
+        "a rhs." in str(err)
+
+    lit = Literal("1", assignment)
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]

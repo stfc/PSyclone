@@ -5716,12 +5716,12 @@ class Assignment(Node):
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
-        :raises InternalError: Node has lest children than expected
+        :raises InternalError: Node has fewer children than expected.
         '''
         if not self._children:
             raise InternalError(
-                "Assignment '{}' malformed or incomplete. It "
-                "needs at least 1 children to have a lhs.".format(str(self)))
+                "Assignment '{0}' malformed or incomplete. It "
+                "needs at least 1 child to have a lhs.".format(repr(self)))
 
         return self._children[0]
 
@@ -5736,8 +5736,8 @@ class Assignment(Node):
         '''
         if len(self._children) < 2:
             raise InternalError(
-                "Assignment '{}' malformed or incomplete. It "
-                "needs at least 2 children to have a rhs.".format(str(self)))
+                "Assignment '{0}' malformed or incomplete. It "
+                "needs at least 2 children to have a rhs.".format(repr(self)))
 
         return self._children[1]
 

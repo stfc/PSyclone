@@ -34,7 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.c module'''
+'''Performs pytest tests on the psyclone.psyir.backend.c module'''
 
 import pytest
 from psyclone.psyir.backend.base import VisitorError
@@ -50,16 +50,24 @@ def test_cw_gen_declaration():
     '''
     cwriter = CWriter()
 
-    # Basic entry
+    # Basic entries
     symbol = Symbol("dummy1", "integer")
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
+    symbol = Symbol("dummy1", "character")
+    result = cwriter.gen_declaration(symbol)
+    assert result == "char dummy1"
+
+    symbol = Symbol("dummy1", "boolean")
+    result = cwriter.gen_declaration(symbol)
+    assert result == "bool dummy1"
+
     # Array argument
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = Symbol("dummy2", "real", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.READ))
     result = cwriter.gen_declaration(symbol)
-    assert result == "int * restrict dummy2"
+    assert result == "double * restrict dummy2"
 
     # Array with unknown intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
@@ -81,6 +89,7 @@ def test_cw_gen_local_variable(monkeypatch):
     # Local variables are declared as single statements
     symbol = Symbol("dummy1", "integer")
     result = cwriter.gen_local_variable(symbol)
+    # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
 
 
@@ -147,7 +156,8 @@ def test_cw_assignment_and_reference():
     # Generate C from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
-    assert "PSyIR Reference node should not have any children." in str(excinfo)
+    assert  "Expecting a Reference with no children but found: " \
+        in str(excinfo)
 
 
 def test_cw_array():
@@ -162,6 +172,12 @@ def test_cw_array():
     b = Literal('0.0', parent=assignment)
     assignment.addchild(a)
     assignment.addchild(b)
+
+    # An array without any children (dimensions) should produce an error.
+    with pytest.raises(VisitorError) as excinfo:
+        result = cwriter(assignment)
+    assert "Arrays must have at least 1 dimension but found node: '" \
+        in str(excinfo)
 
     # Dimensions can be references, literals or operations
     a.addchild(Reference('b', parent=a))
@@ -241,8 +257,6 @@ def test_cw_codeblock():
     '''
 
     cblock = CodeBlock([])
-
-    # Generate Fortran from the PSyIR schedule
     cwriter = CWriter()
 
     with pytest.raises(VisitorError) as error:
@@ -252,7 +266,7 @@ def test_cw_codeblock():
 
 def test_cw_unaryoperator():
     '''Check the CWriter class unary_operation method correctly prints out
-    the C representation. Uses -1 as the example.
+    the C representation of any given UnaryOperation.
 
     '''
     cwriter = CWriter()
@@ -301,7 +315,7 @@ def test_cw_unaryoperator():
 
 def test_cw_binaryoperator():
     '''Check the CWriter class binary_operation method correctly
-    prints out the Fortran representation of an intrinsic.
+    prints out the C representation of any given BinaryOperation.
 
     '''
     cwriter = CWriter()

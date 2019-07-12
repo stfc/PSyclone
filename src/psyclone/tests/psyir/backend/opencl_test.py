@@ -91,7 +91,7 @@ def test_oclw_gen_array_length_variables():
     '''
     oclwriter = OpenCLWriter()
 
-    # An scalar should not return any LEN variables
+    # A scalar should not return any LEN variables
     symbol1 = Symbol("dummy2LEN1", "integer")
     result = oclwriter.gen_array_length_variables(symbol1)
     assert result == ""
@@ -114,7 +114,7 @@ def test_oclw_gen_array_length_variables():
     symtab.add(symbol2)
     symtab.add(symbol3)
 
-    # If there are no name clashed, generatre array length variables.
+    # If there are no name clashes, generate array length variables.
     result = oclwriter.gen_array_length_variables(symbol2, symtab)
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
