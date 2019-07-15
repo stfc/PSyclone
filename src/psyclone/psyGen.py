@@ -2471,10 +2471,10 @@ class OMPParallelDirective(OMPDirective):
         # Now determine scalar variables that must be private:
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
-        for var_name in var_accesses.get_all_vars():
-            accesses = var_accesses.get_varinfo(var_name).get_all_accesses()
+        for var_name in var_accesses.all_vars:
+            accesses = var_accesses[var_name].all_accesses
             # Ignore variables that have indices, we only look at scalar
-            if accesses[0].get_indices() is not None:
+            if accesses[0].indices is not None:
                 continue
 
             # If a variable is only accessed once, it is either an error
@@ -2484,7 +2484,7 @@ class OMPParallelDirective(OMPDirective):
 
             # We have at least two accesses. If the first one is a write,
             # assume the variable should be private:
-            if accesses[0].get_access_type() == AccessType.WRITE:
+            if accesses[0].access_type == AccessType.WRITE:
                 result.add(var_name.lower())
 
         # Convert the set into a list and sort it, so that we get
@@ -5962,11 +5962,11 @@ class Assignment(Node):
         # It is important that a new instance is used to handle the LHS,
         # since an assert in 'change_read_to_write' makes sure that there
         # is only one access to the variable!
-        accesses_left = VariablesAccessInfo(var_accesses.get_location())
+        accesses_left = VariablesAccessInfo(var_accesses.location)
         self.lhs.reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
-        var_info = accesses_left.get_varinfo(self.lhs.name)
+        var_info = accesses_left[self.lhs.name]
         var_info.change_read_to_write()
 
         # Merge the data (that shows now WRITE for the variable) with the
@@ -6404,8 +6404,8 @@ class Array(Reference):
             list_indices.append(child)
 
         if list_indices:
-            var_info = var_accesses.get_varinfo(self._reference)
-            var_info.get_all_accesses()[0].set_indices(list_indices)
+            var_info = var_accesses[self._reference]
+            var_info.all_accesses[0].indices = list_indices
 
     def gen_c_code(self, indent=0):
         '''

@@ -89,7 +89,15 @@ class AccessInfo(object):
                                 "which does not have 'READ' access.")
         self._access_type = AccessType.WRITE
 
-    def set_indices(self, indices):
+    @property
+    def indices(self):
+        ''':returns: The indices used in this access. Can be None.
+        :rtype: List of :py:class:`psyclone.psyGen.Node` instances, or None.
+        '''
+        return self._indices
+
+    @indices.setter
+    def indices(self, indices):
         '''Sets the indices for this AccessInfo instance.
 
         :param indices: List of indices used in the access.
@@ -97,24 +105,21 @@ class AccessInfo(object):
         '''
         self._indices = indices[:]
 
-    def get_indices(self):
-        ''':returns: The indices used in this access. Can be None.
-        :rtype: List of :py:class:`psyclone.psyGen.Node` instances, or None.
-        '''
-        return self._indices
-
-    def get_access_type(self):
+    @property
+    def access_type(self):
         ''':returns: the access type.
         :rtype: :py:class:`psyclone.core.access_type.AccessType`'''
         return self._access_type
 
-    def get_location(self):
+    @property
+    def location(self):
         ''':returns: the location information for this access.
         :rtype: int'''
         return self._location
 
-    def get_node(self):
-        ''':returns: the node at which this access happens.
+    @property
+    def node(self):
+        ''':returns: the PSyIR node at which this access happens.
         :rtype: :py:class:`psyclone.psyGen.Node` '''
         return self._node
 
@@ -124,14 +129,15 @@ class VariableAccessInfo(object):
     '''This class stores a list with all accesses to one variable.
 
     :param str var_name: Name of the variable.
-    '''
 
+    '''
     def __init__(self, var_name):
         self._var_name = var_name
         # This is the list of AccessInfo instances for this variable.
         self._accesses = []
 
-    def get_var_name(self):
+    @property
+    def var_name(self):
         ''':returns: the name of the variable whose access info is managed.
         :rtype: str
         '''
@@ -139,12 +145,13 @@ class VariableAccessInfo(object):
 
     def is_written(self):
         '''Checks if the specified variable name is at least written once.
+
         :returns: true if the specified variable name is written (at least \
             once).
         :rtype: bool
         '''
         for access_info in self._accesses:
-            if access_info.get_access_type() == AccessType.WRITE:
+            if access_info.access_type == AccessType.WRITE:
                 return True
         return False
 
@@ -155,11 +162,12 @@ class VariableAccessInfo(object):
         :rtype: bool
         '''
         for access_info in self._accesses:
-            if access_info.get_access_type() == AccessType.READ:
+            if access_info.access_type == AccessType.READ:
                 return True
         return False
 
-    def get_all_accesses(self):
+    @property
+    def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
         :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo` \
             instances.
@@ -202,8 +210,8 @@ class VariablesAccessInfo(object):
     can be used to easily determine if one access is before another.
 
     :param int location: The index for the first statement, default is 0.
-    '''
 
+    '''
     def __init__(self, location=0):
         self._var_to_varinfo = {}
         self._location = location
@@ -226,7 +234,8 @@ class VariablesAccessInfo(object):
             output_list.append("{0}: {1}".format(var_name, mode))
         return ", ".join(output_list)
 
-    def get_location(self):
+    @property
+    def location(self):
         ''':returns: the current location.
         :rtype: int'''
         return self._location
@@ -246,8 +255,8 @@ class VariablesAccessInfo(object):
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None.
         :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
-        '''
 
+        '''
         if var_name in self._var_to_varinfo:
             self._var_to_varinfo[var_name].add_access(access_type,
                                                       self._location, node,
@@ -257,15 +266,15 @@ class VariablesAccessInfo(object):
             var_info.add_access(access_type, self._location, node, indices)
             self._var_to_varinfo[var_name] = var_info
 
-    def get_all_vars(self):
+    @property
+    def all_vars(self):
         ''':returns: all variables contained in this instance.
         :type: List of str.
         '''
         return list(self._var_to_varinfo.keys())
 
-    def get_varinfo(self, name):
-        '''Returns the variable access information about the specified
-        variable.
+    def __getitem__(self, name):
+        '''Returns the access information for the specified variable.
 
         :param str name: The variable name to get the access info for.
         :returns: The VariableAccessInfo for the variable
@@ -283,12 +292,12 @@ class VariablesAccessInfo(object):
         :type other_access_info: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        for var_name in other_access_info.get_all_vars():
-            var_info = other_access_info.get_varinfo(var_name)
-            for access_info in var_info.get_all_accesses():
-                self.add_access(var_name, access_info.get_access_type(),
-                                access_info.get_node(),
-                                access_info.get_indices())
+        for var_name in other_access_info.all_vars:
+            var_info = other_access_info[var_name]
+            for access_info in var_info.all_accesses:
+                self.add_access(var_name, access_info.access_type,
+                                access_info.node,
+                                access_info.indices)
 
     def is_written(self, var_name):
         '''Checks if the specified variable name is at least written once.
@@ -297,9 +306,10 @@ class VariablesAccessInfo(object):
         :returns: true if the specified variable name is written (at least \
             once).
         :rtype: bool
-        :raises: KeyError if the variable names can not be found.'''
+        :raises: KeyError if the variable names cannot be found.
 
-        var_access_info = self.get_varinfo(var_name)
+        '''
+        var_access_info = self[var_name]
         return var_access_info.is_written()
 
     def is_read(self, var_name):
@@ -311,5 +321,5 @@ class VariablesAccessInfo(object):
         :rtype: bool
         :raises: KeyError if the variable names can not be found.'''
 
-        var_access_info = self.get_varinfo(var_name)
+        var_access_info = self[var_name]
         return var_access_info.is_read()

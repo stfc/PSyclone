@@ -139,11 +139,11 @@ def test_if_statement(parser):
     assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
                                 "q: READWRITE, r: READ"
     # Test that the two accesses to 'q' indeed show up as
-    q_accesses = var_accesses.get_varinfo("q").get_all_accesses()
+    q_accesses = var_accesses["q"].all_accesses
     assert len(q_accesses) == 2
-    assert q_accesses[0].get_access_type() == AccessType.READ
-    assert q_accesses[1].get_access_type() == AccessType.WRITE
-    assert q_accesses[0].get_location() < q_accesses[1].get_location()
+    assert q_accesses[0].access_type == AccessType.READ
+    assert q_accesses[1].access_type == AccessType.WRITE
+    assert q_accesses[0].location < q_accesses[1].location
 
 
 @pytest.mark.xfail(reason="Calls in nemo not yet supported")
@@ -298,32 +298,32 @@ def test_location(parser):
     schedule.reference_accesses(var_accesses)
     print(var_accesses)
     # Test accesses for a:
-    a_accesses = var_accesses.get_varinfo("a").get_all_accesses()
-    assert a_accesses[0].get_location() == 0
-    assert a_accesses[1].get_location() == 1
-    assert a_accesses[2].get_location() == 6
-    assert a_accesses[3].get_location() == 12
+    a_accesses = var_accesses["a"].all_accesses
+    assert a_accesses[0].location == 0
+    assert a_accesses[1].location == 1
+    assert a_accesses[2].location == 6
+    assert a_accesses[3].location == 12
 
     # b should have the same locations as a:
-    b_accesses = var_accesses.get_varinfo("b").get_all_accesses()
+    b_accesses = var_accesses["b"].all_accesses
     assert len(a_accesses) == len(b_accesses)
     for (index, access) in enumerate(a_accesses):
-        assert b_accesses[index].get_location() == access.get_location()
+        assert b_accesses[index].location == access.location
 
-    q_accesses = var_accesses.get_varinfo("q").get_all_accesses()
-    assert q_accesses[0].get_location() == 2
-    assert q_accesses[1].get_location() == 4
+    q_accesses = var_accesses["q"].all_accesses
+    assert q_accesses[0].location == 2
+    assert q_accesses[1].location == 4
 
     # Test jj for the loop statement. Note that 'jj' has one read and
     # one write access for the DO statement
-    jj_accesses = var_accesses.get_varinfo("jj").get_all_accesses()
-    assert jj_accesses[0].get_location() == 7
-    assert jj_accesses[1].get_location() == 7
-    assert jj_accesses[2].get_location() == 9
-    assert jj_accesses[3].get_location() == 9
+    jj_accesses = var_accesses["jj"].all_accesses
+    assert jj_accesses[0].location == 7
+    assert jj_accesses[1].location == 7
+    assert jj_accesses[2].location == 9
+    assert jj_accesses[3].location == 9
 
-    ji_accesses = var_accesses.get_varinfo("ji").get_all_accesses()
-    assert ji_accesses[0].get_location() == 8
-    assert ji_accesses[1].get_location() == 8
-    assert ji_accesses[2].get_location() == 9
-    assert ji_accesses[3].get_location() == 9
+    ji_accesses = var_accesses["ji"].all_accesses
+    assert ji_accesses[0].location == 8
+    assert ji_accesses[1].location == 8
+    assert ji_accesses[2].location == 9
+    assert ji_accesses[3].location == 9
