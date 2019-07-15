@@ -58,7 +58,6 @@ $ psyclone -s ./kernel_constants.py \
 from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
-from psyclone.psyir.backend.fortran import FortranWriter
 
 # The number of layers to use when modifying a kernel to make the
 # associated kernel value constant (rather than passing it in by

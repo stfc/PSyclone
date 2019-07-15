@@ -3883,7 +3883,16 @@ class CodedKern(Kern):
             os.close(fdesc)
 
     def _rename_psyir(self, suffix):
-        ''' XXX '''
+        '''Rename the PSyIR module and kernel names by adding the supplied
+        suffix to the names. This change affects the KernCall and
+        KernelSchedule nodes. Currently it is only possible to set the
+        kernel name in a KernCall node. The kernel module is then
+        inferred from this by assuming a fixxed connection between
+        them (which is not always the case).
+
+        :param str suffix: the string to insert into the quantity names.
+
+        '''
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
@@ -7721,5 +7730,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(str(node.items[0]), parent=parent)
+
 
 __all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation']
