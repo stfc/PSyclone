@@ -3065,9 +3065,11 @@ class Loop(Node):
         ''' Return the PSyIR Node representing the Loop start expression.
 
         :return: Loop start expression.
+
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: If the Loop node does not have the correct \
             number of children.
+
         '''
         if len(self.children) < 4:
             raise InternalError(
@@ -3077,18 +3079,30 @@ class Loop(Node):
 
     @start_expr.setter
     def start_expr(self, expr):
-        # TODO: Error checking, just works if start children already
-        # initialised
-        self._children[0] = expr
+        ''' Setter for Loop start_expr attribute.
+
+        :param expr: New PSyIR start expression.
+        :type expr: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: If the start expression child does not exist.
+
+        '''
+        try:
+            self._children[0] = expr
+        except KeyError:
+            raise InternalError(
+                "")
 
     @property
     def stop_expr(self):
         ''' Return the PSyIR Node representing the Loop stop expression.
 
         :return: Loop stop expression.
+
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: If the Loop node does not have the correct \
             number of children.
+
         '''
         if len(self.children) < 4:
             raise InternalError(
@@ -3098,17 +3112,30 @@ class Loop(Node):
 
     @stop_expr.setter
     def stop_expr(self, expr):
-        # TODO: Error checking, just works if stop children already initialised
-        self._children[1] = expr
+        ''' Setter for Loop stop_expr attribute.
+
+        :param expr: New PSyIR stop expression.
+        :type expr: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: If the stop expression child does not exist.
+
+        '''
+        try:
+            self._children[1] = expr
+        except KeyError:
+            raise InternalError(
+                "")
 
     @property
     def step_expr(self):
         ''' Return the PSyIR Node representing the Loop step expression.
 
         :return: Loop step expression.
+
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: If the Loop node does not have the correct \
             number of children.
+
         '''
         if len(self.children) < 4:
             raise InternalError(
@@ -3118,19 +3145,31 @@ class Loop(Node):
 
     @step_expr.setter
     def step_expr(self, expr):
-        # TODO: Error checking, just works if step children already initialised
-        self._children[2] = expr
+        ''' Setter for Loop step_expr attribute.
+
+        :param expr: New PSyIR step expression.
+        :type expr: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: If the step expression child does not exist.
+
+        '''
+        try:
+            self._children[2] = expr
+        except KeyError:
+            raise InternalError(
+                "")
 
     @property
     def loop_body(self):
-        ''' Return children of the Schedule executed in each loop iteration.
+        ''' Return PSyIR Schedule with the loop body statements.
 
-        :return: Statements to be executed in a Loop iteration.
-        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :return: PSyIR Schdeule with the loop body statements
+        :rtype: list of :py:class:`psyclone.psyGen.Schedule`
+
         :raises InternalError: If the Loop node does not have the correct \
             number of children.
-        '''
 
+        '''
         if len(self.children) < 4:
             raise InternalError(
                 "Loop malformed or incomplete. It should have at least 2 "
@@ -3253,11 +3292,13 @@ class Loop(Node):
         return self._variable_name
 
     def __str__(self):
-        result = str(self.__class__) + "[id:'" + self._id + "', variable:'"
-        result += self._variable_name + "']\n"
+        name = str(self.__class__)  # Give Loop sub-classes a specialized name
+        result = name + "["
+        result += "id:'" + self._id
+        result += "', variable:'" + self._variable_name + "']\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "EndLoop"
+        result += "End" + name
         return result
 
     def has_inc_arg(self):
