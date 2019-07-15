@@ -3366,11 +3366,14 @@ class Loop(Node):
             for child in self.loop_body:
                 child.gen_code(parent)
         else:
+            from psyclone.psyir.backend.fortran import FortranWriter
             from psyclone.f2pygen import DoGen, DeclGen
-            # TODO: I need new Fortran Backend for self.start_expr.gen_code
+            # Start_expr and stop_expr are generated with the FortranWriter
+            # backend, the rest of the loop with fpygen.
+            fwriter = FortranWriter()
             do = DoGen(parent, self._variable_name,
-                       self.start_expr.gen_fortran(),
-                       self.stop_expr.gen_fortran())
+                       fwriter(self.start_expr),
+                       fwriter(self.stop_expr))
             # need to add do loop before children as children may want to add
             # info outside of do loop
             parent.add(do)
@@ -6058,9 +6061,6 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
 
-    def gen_fortran(self):
-        return self._reference
-
     def gen_c_code(self, indent=0):
         '''
         Generate a string representation of this node using C language.
@@ -6503,13 +6503,10 @@ class Literal(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "["
-              + "value:'" + str(self._value) + "']")
+              + "value:'" + self._value + "']")
 
     def __str__(self):
-        return "Literal[value:'" + str(self._value) + "']\n"
-
-    def gen_fortran(self):
-        return self._value
+        return "Literal[value:'" + self._value + "']\n"
 
     def gen_c_code(self, indent=0):
         '''
@@ -7301,7 +7298,7 @@ class Fparser2ASTProcessor(object):
                                nodes_parent=ctrl)
         else:
             # Default loop increment is 1
-            default_step = Literal(parent=loop, value=1)
+            default_step = Literal("1", parent=loop)
             loop.addchild(default_step)
 
         # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
