@@ -128,6 +128,31 @@ def gen_kind(symbol):
     return kind
 
 
+def _reverse_map(op_map):
+    '''
+    Reverses the supplied fortran2psyir mapping to make a psyir2fortran
+    mapping.
+
+    :param op_map: mapping from string representation of operator to \
+                   enumerated type.
+    :type op_map: :py:class:`collections.OrderedDict`
+
+    :returns: a mapping from PSyIR operation to the equivalent Fortran string.
+    :rtype: dict with :py:class:`psyclone.psyGen.Operation.Operator` keys and
+            str values.
+
+    '''
+    mapping = {}
+    for operator in op_map:
+        mapping_key = op_map[operator]
+        mapping_value = operator
+        # Only choose the first mapping value when there is more
+        # than one.
+        if mapping_key not in mapping:
+            mapping[mapping_key] = mapping_value
+    return mapping
+
+
 class FortranWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
@@ -264,31 +289,46 @@ class FortranWriter(PSyIRVisitor):
         # reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping
         from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
-        mapping = {}
-        for operator in f2psyir.binary_operators:
-            mapping_key = f2psyir.binary_operators[operator]
-            mapping_value = operator
-            # Only choose the first mapping value when there is more
-            # than one.
-            if mapping_key not in mapping:
-                mapping[mapping_key] = mapping_value
+        mapping = _reverse_map(f2psyir.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
             oper = mapping[node.operator]
             # This is a binary operation
-            return "{0}{1}{2}".format(lhs, oper, rhs)
-        except KeyError:
-            # There is currently no mapping available for binary
-            # intrinsics (see #414) so a temporary solution is used
-            # that relies on the PSyIR name being the same as the
-            # Fortran Intrinsic name.
-            oper = node.operator.name
-            if oper in FORTRAN_INTRINSICS:
+            if oper.upper() in FORTRAN_INTRINSICS:
                 # This is a binary intrinsic function.
-                return "{0}({1},{2})".format(oper, lhs, rhs)
-        raise VisitorError("Unexpected binary op '{0}'."
-                           "".format(node.operator))
+                return "{0}({1}, {2})".format(oper.upper(), lhs, rhs)
+            return "{0} {1} {2}".format(lhs, oper, rhs)
+        except KeyError:
+            raise VisitorError("Unexpected binary op '{0}'."
+                               "".format(node.operator))
+
+    def naryoperation_node(self, node):
+        '''This method is called when an NaryOperation instance is found in
+        the PSyIR tree.
+
+        :param node: An NaryOperation PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.NaryOperation`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if an unexpected N-ary operator is found.
+
+        '''
+        # Reverse the fortran2psyir mapping to make a psyir2fortran
+        # mapping.
+        from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
+        mapping = _reverse_map(f2psyir.nary_operators)
+        arg_list = []
+        for child in node.children:
+            arg_list.append(self._visit(child))
+        try:
+            oper = mapping[node.operator]
+            return "{0}({1})".format(oper.upper(), ", ".join(arg_list))
+        except KeyError:
+            raise VisitorError("Unexpected N-ary op '{0}'".
+                               format(node.operator))
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
@@ -379,6 +419,35 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
+    def loop_node(self, node):
+        '''This method is called when a Loop instance is found in the
+        PSyIR tree.
+
+        :param node: An Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        start = self._visit(node.start_expr)
+        stop = self._visit(node.stop_expr)
+        step = self._visit(node.step_expr)
+        variable_name = node.variable_name
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        result = (
+            "{0}do {1} = {2}, {3}, {4}\n"
+            "{5}"
+            "{0}enddo\n"
+            "".format(self._nindent, variable_name, start, stop, step, body))
+        return result
+
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
@@ -389,34 +458,25 @@ class FortranWriter(PSyIRVisitor):
         :returns: The Fortran code as a string.
         :rtype: str
 
+        :raises VisitorError: if an unexpected Unary op is encountered.
+
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
         from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
-        mapping = {}
-        for operator in f2psyir.unary_operators:
-            mapping_key = f2psyir.unary_operators[operator]
-            mapping_value = operator
-            # Only choose the first mapping value when there is more
-            # than one.
-            if mapping_key not in mapping:
-                mapping[mapping_key] = mapping_value
+        mapping = _reverse_map(f2psyir.unary_operators)
 
         content = self._visit(node.children[0])
         try:
             oper = mapping[node.operator]
             # This is a unary operation
+            if oper.upper() in FORTRAN_INTRINSICS:
+                # This is a unary intrinsic function.
+                return "{0}({1})".format(oper.upper(), content)
             return "{0}{1}".format(oper, content)
         except KeyError:
-            # There is currently no mapping available for unary
-            # intrinsics (see #414) so a temporary solution is used
-            # that relies on the PSyIR name being the same as the
-            # Fortran Intrinsic name.
-            oper = node.operator.name
-            if oper in FORTRAN_INTRINSICS:
-                # This is a unary intrinsic function.
-                return "{0}({1})".format(oper, content)
-        raise VisitorError("Unexpected unary op '{0}'.".format(node.operator))
+            raise VisitorError("Unexpected unary op '{0}'.".format(
+                node.operator))
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

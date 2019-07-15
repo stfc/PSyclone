@@ -662,7 +662,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
@@ -685,7 +685,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Make the list of arguments invalid by duplicating (a copy of)
     # this argument. We take a copy because otherwise, when we change
@@ -713,7 +713,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     arg._access = AccessType.READ
     with pytest.raises(GenerationError) as excinfo:

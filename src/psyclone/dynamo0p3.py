@@ -56,7 +56,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    CodedKern
 
 # First section : Parser specialisations and classes
 
@@ -5266,7 +5267,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
@@ -5363,7 +5364,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -6011,9 +6012,10 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
+        # Generate the upper and lower loop bounds
+        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+
         Loop.gen_code(self, parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":
@@ -6539,20 +6541,22 @@ class DynKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        parent_loop = self.parent.parent
+
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
+        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
                                           arg_accesses=[AccessType.READ,
                                                         AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_halo_depth > 1:
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_halo_depth))
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map
@@ -8534,10 +8538,11 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.addchild(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)

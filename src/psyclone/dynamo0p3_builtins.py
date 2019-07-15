@@ -43,7 +43,7 @@
 from __future__ import absolute_import
 from psyclone import psyGen
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import BuiltIn, NameSpaceFactory
+from psyclone.psyGen import BuiltIn, NameSpaceFactory, Schedule
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
@@ -109,8 +109,10 @@ class DynBuiltInCallFactory(object):
                                                     str(builtin)))
         # Set-up its state
         dofloop.load(builtin)
-        # As it is the innermost loop it has the kernel as a child
-        dofloop.addchild(builtin)
+        # As it is the innermost loop it has the kernel as the loop body
+        # child.
+        dofloop.loop_body.addchild(builtin)
+        builtin.parent = dofloop.children[3]
 
         # Return the outermost loop
         return dofloop

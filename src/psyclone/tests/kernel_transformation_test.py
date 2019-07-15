@@ -101,7 +101,7 @@ def test_accroutine():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
@@ -147,7 +147,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
@@ -196,7 +196,7 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
@@ -374,9 +374,14 @@ def test_builtin_no_trans():
             "kernel 'x_plus_y' is of type " in str(err))
 
 
-def test_no_inline_before_trans(monkeypatch):
+def test_no_inline_before_trans(monkeypatch, tmpdir):
     ''' Check that we reject attempts to transform kernels that have been
     marked for module in-lining. Issue #229. '''
+
+    # Even though this code will raise an exception at the end, it will
+    # still create an (empty) file 'testkern_any_space_2_0_mod.f90'.
+    # So change to tmpdir to avoid this.
+    old_pwd = tmpdir.chdir()
     from psyclone.transformations import KernelModuleInlineTrans
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
@@ -396,6 +401,7 @@ def test_no_inline_before_trans(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen).lower()
     assert "Cannot module-inline a transformed kernel " in str(err)
+    old_pwd.chdir()
 
 
 def test_no_inline_after_trans(monkeypatch):

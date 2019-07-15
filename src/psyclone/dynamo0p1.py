@@ -41,7 +41,8 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    CodedKern, Arguments, Argument, GenerationError
+    CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
+    Schedule
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -250,13 +251,15 @@ class DynLoop(Loop):
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and then call the base
             class to generate the code '''
-        self._start = "1"
+        self.start_expr = Literal("1", parent=self)
         if self._loop_type == "colours":
-            self._stop = "ncolour"
+            self.stop_expr = Reference("ncolour", parent=self)
         elif self._loop_type == "colour":
-            self._stop = "ncp_ncolour(colour)"
+            self.stop_expr = ArrayReference("ncp_ncolour", parent=self)
+            self.stop_expr.addchild(Reference("colour"), parent=self.stop_expr)
         else:
-            self._stop = self.field_name+"%get_ncell()"
+            self.stop_expr = Reference(self.field_name+"%get_ncell()",
+                                       parent=self)
         Loop.gen_code(self, parent)
 
 
@@ -282,7 +285,8 @@ class DynKernCallFactory(object):
         kern.load(call, cloop)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.addchild(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)

@@ -140,13 +140,13 @@ def test_openmp_loop_fuse_trans():
                                 lf_schedule.children[1])
     # fuse all inner loops
     lf_schedule, _ = lftrans.apply(schedule.children[0].
-                                   children[0],
+                                   loop_body[0],
                                    schedule.children[0].
-                                   children[1])
+                                   loop_body[1])
     schedule, _ = lftrans.apply(lf_schedule.children[0].
-                                children[0],
+                                loop_body[0],
                                 lf_schedule.children[0].
-                                children[1])
+                                loop_body[1])
 
     # Add an OpenMP directive around the fused loop
     lf_schedule, _ = ompf.apply(schedule.children[0])

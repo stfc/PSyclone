@@ -54,7 +54,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType, \
-    ACCEnterDataDirective
+    Literal, Reference, ACCEnterDataDirective
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -439,6 +439,7 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
@@ -764,8 +765,9 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string describing this Loop object '''
-        step = self._step
-        if not step:
+        try:
+            step = str(self.step_expr)
+        except InternalError:
             step = "1"
 
         result = ("Loop[" + self._id + "]: " + self._variable_name +
@@ -810,9 +812,11 @@ class GOLoop(Loop):
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
         # Generate the upper and lower loop bounds
-        self._start = self._lower_bound()
-        self._stop = self._upper_bound()
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
+
         Loop.gen_code(self, parent)
 
 
@@ -839,14 +843,12 @@ class GOKernCallFactory(object):
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
         looping structure as well as the call to the kernel itself. '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
+        outer_loop = GOLoop(parent=parent, loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop.children[3], loop_type="inner")
+        outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
+        gocall.load(call, parent=inner_loop.children[3])
+        inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner
