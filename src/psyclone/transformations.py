@@ -2682,6 +2682,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
+        # Flag that the kernel has been modified
+        kernel.modified = True
+
         return schedule, keep
 
     def _validate(self, node, cellshape, element_order, number_of_layers,

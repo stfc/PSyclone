@@ -79,7 +79,6 @@ def trans(psy):
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()
-    fortran_writer = FortranWriter()
 
     for invoke in psy.invokes.invoke_list:
         print("invoke '{0}'".format(invoke.name))
@@ -92,9 +91,5 @@ def trans(psy):
                                   quadrature=CONSTANT_QUADRATURE)
             except TransformationError:
                 print("    Failed to modify kernel '{0}'".format(kernel.name))
-
-            kernel_schedule = kernel.get_kernel_schedule()
-            kern_code = fortran_writer(kernel_schedule)
-            print(kern_code)
 
     return psy

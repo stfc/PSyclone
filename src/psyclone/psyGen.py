@@ -3807,7 +3807,15 @@ class CodedKern(Kern):
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
         # the  PSYCLONE_KERNELS_FILE environment variable)
         if not self.root.opencl:
-            self._rename_ast(new_suffix)
+            if self._kern_schedule:
+                # A PSyIR kernel schedule has been created. This means
+                # that the PSyIR has been modified. Therefore modify
+                # the PSyIR rather than the parse tree. This test is
+                # only required whilst old style (direct fp2)
+                # transformations still exist.
+                self._rename_psyir(new_suffix)
+            else:
+                self._rename_ast(new_suffix)
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
@@ -3823,9 +3831,26 @@ class CodedKern(Kern):
 
         if self.root.opencl:
             new_kern_code = self.get_kernel_schedule().gen_ocl()
+        elif self._kern_schedule:
+            # A PSyIR kernel schedule has been created. This means
+            # that the PSyIR has been modified. Therefore use the
+            # chosen PSyIR back-end to write out the modified kernel
+            # code. At the moment there is no way to choose which
+            # back-end to use, so simply use the Fortran one (and
+            # limit the line length). This test is only required
+            # whilst old style (direct fp2) transformations still
+            # exist.
+            from psyclone.psyir.backend.fortran import FortranWriter
+            fortran_writer = FortranWriter()
+            new_kern_code = fortran_writer(self.get_kernel_schedule())
+            fll = FortLineLength()
+            new_kern_code = fll.process(new_kern_code)
         else:
-            # Generate the Fortran for this transformed kernel, ensuring that
-            # we limit the line lengths
+            # This is an old style transformation which modifes the
+            # fp2 parse tree directly. Therefore use the fp2
+            # representation to generate the Fortran for this
+            # transformed kernel, ensuring that limit the line length
+            # is limited.
             fll = FortLineLength()
             new_kern_code = fll.process(str(self.ast))
 
@@ -3854,6 +3879,28 @@ class CodedKern(Kern):
             os.write(fdesc, new_kern_code.encode())
             # Close the new kernel file
             os.close(fdesc)
+
+    def _rename_psyir(self, suffix):
+        ''' XXX '''
+        # Use the suffix to create a new kernel name.  This will
+        # conform to the PSyclone convention of ending in "_code"
+        orig_mod_name = self.module_name[:]
+        orig_kern_name = self.name[:]
+
+        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
+        new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
+
+        # Change the name of this kernel and the associated
+        # module. These names are used when generating the PSy-layer.
+        self.name = new_kern_name[:]
+        self._module_name = new_mod_name[:]
+
+        # Update the PSyIR with the new names. Note there is currently
+        # an assumption in the PSyIR that the module name has the same
+        # root name as the subroutine name. These names are used when
+        # generating the modified kernel code.
+        kern_schedule = self.get_kernel_schedule()
+        kern_schedule.name = new_kern_name[:]
 
     def _rename_ast(self, suffix):
         '''
