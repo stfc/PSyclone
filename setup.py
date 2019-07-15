@@ -102,7 +102,7 @@ if __name__ == '__main__':
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pytest"],
+            'test': ["pytest<5.0"], # TODO: Issue 438. Fix > 5.0 broken tests.
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
