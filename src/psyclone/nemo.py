@@ -44,15 +44,10 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, CodedKern, InternalError, NameSpaceFactory, \
-    Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
+    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
+    Fparser2ASTProcessor
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
-
-# The base colour map doesn't have CodeBlock as that is currently
-# a NEMO-API-specific entity.
-NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
-NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
@@ -63,6 +58,17 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         super(NemoFparser2ASTProcessor, self).__init__()
 
     def _create_frontend_loop(self, parent, variable_name):
+        '''
+        Specialized method to create a NemoLoop instead of a
+        generic Loop.
+
+        :param parent: The parent of the node.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str variable_name: Name of the iteration variable
+
+        :return: A new NemoLoop instance
+        :rtype: :py:class:`psyclone.nemo.NemoLoop`
+        '''
         loop = NemoLoop(parent=parent, variable_name=variable_name,
                         preinit=False)
 
@@ -78,9 +84,19 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         return loop
 
     def _create_frontend_loopbody(self, loop_body, node):
+        '''
+        Specialized method to create a Nemo loop bodies. If the schedule
+        matches with a NemoKern, it will add a NemoKern instead of statements
+        in the loop_body.
+
+        :param loop_body: Body of the loop being created.
+        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :param node: fparser node being processed.
+        :type node: :py:class:`fparser.two.utils.Base`
+        '''
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
-        fakeparent = Node()
+        fakeparent = Schedule()
         self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
                            nodes_parent=node)
 
@@ -100,13 +116,15 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
 
     def _create_child(self, child, parent=None):
         '''
-        Adds Nemo API specific processors for certain fparser2 types
-        before calling the parent _create_child.
+        Before executing the generic _create_child, it checks if the parsed
+        AST is a NemoImplicitLoop because this is not handled yet by the
+        generic fparser2ASTProcessor.
 
-        :param child: node in fparsHer2 AST.
-        :type child:  :py:class:`fprser.two.utils.Base`
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: Parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :return: Returns the PSyIR representation of child or None if \
                  there isn't one.
         :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
@@ -402,21 +420,12 @@ class NemoLoop(Loop):
     :param parent: parent of this NemoLoop in the PSyclone AST.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-
     def __init__(self, parent=None, variable_name='', preinit=False):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
                       variable_name=variable_name,
                       preinit=preinit,
                       valid_loop_types=valid_loop_types)
-
-    def __str__(self):
-        result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
-                  "\n")
-        for entity in self._children:
-            result += str(entity) + "\n"
-        result += "EndLoop"
-        return result
 
     @property
     def kernel(self):
@@ -451,7 +460,6 @@ class NemoImplicitLoop(NemoLoop):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-
     def __init__(self, ast, parent=None):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,

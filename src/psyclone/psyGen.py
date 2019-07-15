@@ -3253,7 +3253,7 @@ class Loop(Node):
         return self._variable_name
 
     def __str__(self):
-        result = "Loop[id:'" + self._id + "', variable:'"
+        result = str(self.__class__) +"[id:'" + self._id + "', variable:'"
         result += self._variable_name + "']\n"
         for entity in self._children:
             result += str(entity) + "\n"

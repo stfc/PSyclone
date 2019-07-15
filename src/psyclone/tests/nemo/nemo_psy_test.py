@@ -306,8 +306,7 @@ def test_no_implicit_loop_in_kernel(parser):
 
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
-    from psyclone.psyGen import colored
-    from psyclone.nemo import NEMO_SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -321,9 +320,9 @@ def test_schedule_view(capsys):
     output, _ = capsys.readouterr()
 
     # Have to allow for colouring of output text
-    loop_str = colored("Loop", NEMO_SCHEDULE_COLOUR_MAP["Loop"])
-    kern_str = colored("CodedKern", NEMO_SCHEDULE_COLOUR_MAP["CodedKern"])
-    sched_str = colored("InvokeSchedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
+    loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    kern_str = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+    sched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     expected_sched = (
         sched_str + "[]\n"
