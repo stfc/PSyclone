@@ -32,14 +32,19 @@
 ! Authors J. Henrichs, Bureau of Meteorology
 
 
-!> An implemention of profile_mod which wraps the use of the Dr Hook.
+!> An implemention of profile_mod which wraps the use of Dr Hook.
 
 module profile_mod
 
   use parkind1, only : jprb
   type :: ProfileData
+     ! The opaque DrHook handle for a specific region
      real(kind=jprb) :: zhook_handle
+     ! The name of the subroutine and module to be used by DrHook
      character(:), allocatable :: name
+     ! True if this instance of ProfileData has the name already
+     ! initialised. This way the copy of subroutine name is only
+     ! done first time ProfileStart is called.
      logical                   :: initialised = .false.
   end type ProfileData
 
@@ -66,8 +71,8 @@ contains
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    character*(*) :: module_name, region_name
-    type(ProfileData) :: profile_data
+    character*(*), intent(in) :: module_name, region_name
+    type(ProfileData), intent(inout) :: profile_data
 
     if (lhook .and. .not. profile_data%initialised) then
       profile_data%name = module_name//":"//region_name
@@ -85,7 +90,7 @@ contains
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    type(ProfileData) :: profile_data
+    type(ProfileData), intent(inout) :: profile_data
     
     if(lhook) call dr_hook(profile_data%name, 1, profile_data%zhook_handle)
   end subroutine ProfileEnd

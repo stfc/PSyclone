@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,3 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-
-
-F90?=gfortran
-FFLAGS?=-g
-
-name=simple_timing
-libname:=lib$(name).a
-
-.PHONY: default
-
-default: $(libname)
-
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $@ $(name).o
-
-clean:
-	rm -f $(libname) $(name).o profile_mod.mod
-

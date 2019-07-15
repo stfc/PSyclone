@@ -195,7 +195,8 @@ cd dynamo/scripts
 for script in "colouring_and_omp.py" \
 		  "loop_fuse.py" \
 		  "redundant_dofs.py" \
-		  "redundant_setval_c.py"; do
+		  "redundant_setval_c.py" \
+		  "kernel_print.py"; do
     echo "script" ${script} "..."
     ${PSYCLONE} -s ./${script} ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
 done

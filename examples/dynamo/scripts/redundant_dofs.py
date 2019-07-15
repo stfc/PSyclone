@@ -63,7 +63,7 @@ def trans(psy):
                 # we may have more than one kernel in the loop so
                 # check that none of them are reductions
                 reduction = False
-                for call in loop.calls():
+                for call in loop.kernels():
                     if call.is_reduction:
                         reduction = True
                         break

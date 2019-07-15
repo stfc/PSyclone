@@ -68,7 +68,7 @@ def trans(psy):
                 # check that all of them are in the list of accepted
                 # kernel names
                 setcalls = True
-                for call in loop.calls():
+                for call in loop.kernels():
                     if call.name not in KERNEL_NAMES:
                         setcalls = False
                         break
