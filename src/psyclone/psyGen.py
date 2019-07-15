@@ -3809,10 +3809,12 @@ class CodedKern(Kern):
         if not self.root.opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
-                # that the PSyIR has been modified. Therefore modify
-                # the PSyIR rather than the parse tree. This test is
-                # only required whilst old style (direct fp2)
-                # transformations still exist.
+                # that the PSyIR has been modified and will be used to
+                # generate modified kernel code. Therefore the PSyIR
+                # should be modified rather than the parse tree. This
+                # if test, and the associated else, are only required
+                # whilst old style (direct fp2) transformations still
+                # exist.
                 self._rename_psyir(new_suffix)
             else:
                 self._rename_ast(new_suffix)

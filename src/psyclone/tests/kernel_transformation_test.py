@@ -42,7 +42,8 @@ import pytest
 from fparser.two.utils import walk_ast
 from dynamo0p3_build import Dynamo0p3Build
 from psyclone_test_utils import get_invoke
-from psyclone.transformations import TransformationError, ACCRoutineTrans
+from psyclone.transformations import TransformationError, ACCRoutineTrans, \
+    Dynamo0p3KernelConstTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
@@ -340,9 +341,9 @@ def test_2kern_trans(tmpdir, monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
     assert len(kernels) == 5
-    rtrans = ACCRoutineTrans()
-    _, _ = rtrans.apply(kernels[1])
-    _, _ = rtrans.apply(kernels[2])
+    ktrans = Dynamo0p3KernelConstTrans()
+    _, _ = ktrans.apply(kernels[1], number_of_layers=100)
+    _, _ = ktrans.apply(kernels[2], number_of_layers=100)
     # Generate the code (this triggers the generation of new kernels)
     code = str(psy.gen).lower()
     # Find the tags added to the kernel/module names
@@ -351,9 +352,10 @@ def test_2kern_trans(tmpdir, monkeypatch):
         assert ("use testkern_any_space_2{0}_mod, only: "
                 "testkern_any_space_2{0}_code".format(tag) in code)
         assert "call testkern_any_space_2{0}_code(".format(tag) in code
-        assert os.path.isfile(
-            os.path.join(str(tmpdir),
-                         "testkern_any_space_2{0}_mod.f90".format(tag)))
+        filepath = os.path.join(str(tmpdir),
+                                "testkern_any_space_2{0}_mod.f90".format(tag))
+        assert os.path.isfile(filepath)
+        assert "nlayers = 100" in open(filepath).read()
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)

@@ -637,3 +637,42 @@ def test_fw_codeblock():
         "    a=1\n"
         "PRINT *, 'I am a code block'\n"
         "    PRINT *, 'with more than one line'\n" in result)
+
+
+@pytest.mark.xfail(reason="issue #430 : module name should be specified")
+def test_module_name(monkeypatch):
+    '''Check the FortranWriter class outputs the module name specified in
+    the original kernel.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,b,c)\n"
+        "  real, intent(out) :: a(:)\n"
+        "  real, intent(in) :: b(:)\n"
+        "  integer, intent(in) :: c\n"
+        "  a = b/c\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+
+    assert(
+        "module test\n"
+        "  use constants_mod, only : r_def, i_def\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine tmp(a,b,c)\n"
+        "    real(r_def), dimension(:), intent(out) :: a\n"
+        "    real(r_def), dimension(:), intent(in) :: b\n"
+        "    integer(i_def), intent(in) :: c\n"
+        "\n"
+        "    a=b / c\n"
+        "\n"
+        "  end subroutine tmp\n"
+        "end module test") in result
