@@ -7231,17 +7231,38 @@ class Fparser2ASTProcessor(object):
         '''
         return None
 
-    def _create_frontend_loop(self, parent, variable_name):
+    def _create_loop(self, parent, variable_name):
+        '''
+        Create a Loop instance. This is done outside _do_construct_handler
+        because some APIs may want to instantiate a specialized Loop.
+
+        :param parent: The parent of the node.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str variable_name: Name of the iteration variable
+
+        :return: A new Loop instance
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        '''
         return Loop(parent=parent, variable_name=variable_name, preinit=False)
 
-    def _create_frontend_loopbody(self, loop_body, node):
-        ''' By default continue parsing the tree inside the loop. '''
+    def _process_loopbody(self, loop_body, node):
+        ''' Process the loop body. This is done outside _do_construct_handler
+        becayse some APIs may want to perform specialized actions. By default
+        continue processing the tree nodes inside the loop body.
+
+        :param loop_body: Schedule representing the body of the loop.
+        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :param node: fparser loop node being processed.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+        '''
         self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
                            nodes_parent=node)
 
     def _do_construct_handler(self, node, parent):
         '''
-        Transforms an fparser2 Do Construct to the PSyIR representation.
+        Transforms a fparser2 Do Construct into its PSyIR representation.
 
         :param node: node in fparser2 tree.
         :type node: \
@@ -7274,7 +7295,7 @@ class Fparser2ASTProcessor(object):
         # Loop variable will be an instance of Fortran2003.Name
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
-        loop = self._create_frontend_loop(parent, variable_name)
+        loop = self._create_loop(parent, variable_name)
         loop._ast = node
 
         # Get the loop limits. These are given in a list which is the second
@@ -7305,7 +7326,7 @@ class Fparser2ASTProcessor(object):
         loop_body = Schedule(parent=loop)
         loop_body._ast = node
         loop.addchild(loop_body)
-        self._create_frontend_loopbody(loop_body, node)
+        self._process_loopbody(loop_body, node)
 
         return loop
 

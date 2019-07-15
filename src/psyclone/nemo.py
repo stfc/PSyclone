@@ -57,7 +57,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     def __init__(self):
         super(NemoFparser2ASTProcessor, self).__init__()
 
-    def _create_frontend_loop(self, parent, variable_name):
+    def _create_loop(self, parent, variable_name):
         '''
         Specialized method to create a NemoLoop instead of a
         generic Loop.
@@ -83,16 +83,17 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
 
         return loop
 
-    def _create_frontend_loopbody(self, loop_body, node):
+    def _process_loopbody(self, loop_body, node):
         '''
-        Specialized method to create a Nemo loop bodies. If the schedule
+        Specialized method to process Nemo loop bodies. If the schedule
         matches with a NemoKern, it will add a NemoKern instead of statements
         in the loop_body.
 
-        :param loop_body: Body of the loop being created.
+        :param loop_body: Schedule representing the body of the loop.
         :type loop_body: :py:class:`psyclone.psyGen.Schedule`
-        :param node: fparser node being processed.
-        :type node: :py:class:`fparser.two.utils.Base`
+        :param node: fparser loop node being processed.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
         '''
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
