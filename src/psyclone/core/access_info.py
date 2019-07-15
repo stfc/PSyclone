@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-'''This module management of variable access information.'''
+'''This module provides management of variable access information.'''
 
 from __future__ import print_function, absolute_import
 
@@ -44,8 +44,8 @@ from psyclone.core.access_type import AccessType
 class AccessInfo(object):
     '''This class stores information about a single access
     pattern of one variable (e.g. variable is read at a certain location).
-    A location is a number which can be used to compare different access
-    (i.e. if one access is happening before another). Each consecutive
+    A location is a number which can be used to compare different accesses
+    (i.e. if one access happens before another). Each consecutive
     location will have an increasing location number, but read and write
     accesses in the same statement will have the same location number.
     If the variable accessed is an array, this class will also store
@@ -62,8 +62,8 @@ class AccessInfo(object):
         (e.g. Reference, ...)
     :param node: Node in PSyIR in which the access happens, defaults to None.
     :type node: :py:class:`psyclone.psyGen.Node` instance.
-    '''
 
+    '''
     def __init__(self, access_type, location, node, indices=None):
         self._location = location
         self._access_type = access_type
@@ -78,8 +78,15 @@ class AccessInfo(object):
         '''This changes the access mode from READ to WRITE.
         This is used for processing assignment statements,
         where the LHS is first considered to be READ,
-        and which is then changed to be WRITE.'''
-        assert self._access_type == AccessType.READ
+        and which is then changed to be WRITE.
+
+        :raises InternalError: if the variable originally does not have\
+            READ access.
+        '''
+        if self._access_type != AccessType.READ:
+            from psyclone.psyGen import InternalError
+            raise InternalError("Trying to change variable to 'WRITE' "
+                                "which does not have 'READ' access.")
         self._access_type = AccessType.WRITE
 
     def set_indices(self, indices):
