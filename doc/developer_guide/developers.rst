@@ -781,14 +781,14 @@ method, rather than `visit`).
 Available back-ends
 ===================
 
-Currently, there are two back-ends capable to generating Kernel
+Currently, there are two back-ends capable of generating Kernel
 code (a KernelSchedule with all its children), these are:
 
 - `FortranWriter()` in `psyclone.psyir.backend.fortran`
 - `OpenCLWriter()` in `psyclone.psyir.backend.opencl`
 
 Additionally, there is a `psyclone.psyir.backend.c` back-end, but at the
-moment it is just capable of processing partial PSyIR expressions.
+moment it is only capable of processing partial PSyIR expressions.
 
 Parsing Code
 ############

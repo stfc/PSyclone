@@ -246,7 +246,7 @@ class CWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: If this node has more than one child.
-        :raises NotImplementedError: If the operator in not supported by the \
+        :raises NotImplementedError: If the operator is not supported by the \
             C backend.
 
         '''
@@ -317,7 +317,7 @@ class CWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: If this node has fewer children than expected.
-        :raises NotImplementedError: If the operator in not supported by the \
+        :raises NotImplementedError: If the operator is not supported by the \
             C backend.
 
         '''

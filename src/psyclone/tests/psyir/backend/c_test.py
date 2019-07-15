@@ -75,6 +75,13 @@ def test_cw_gen_declaration():
     result = cwriter.gen_declaration(symbol)
     assert result == "int * restrict dummy2"
 
+    # Check invalid datatype produces and error
+    symbol._datatype = "invalid"
+    with pytest.raises(NotImplementedError) as error:
+        _ = cwriter.gen_declaration(symbol)
+    assert "Could not generate the C definition for the variable 'dummy2', " \
+        "type 'invalid' is currently not supported." in str(error)
+
 
 def test_cw_gen_local_variable(monkeypatch):
     '''Check the CWriter class gen_local_variable method produces
@@ -156,7 +163,7 @@ def test_cw_assignment_and_reference():
     # Generate C from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
-    assert  "Expecting a Reference with no children but found: " \
+    assert "Expecting a Reference with no children but found: " \
         in str(excinfo)
 
 

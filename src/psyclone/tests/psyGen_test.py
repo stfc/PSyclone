@@ -2807,7 +2807,6 @@ def test_assignment_semantic_navigation():
     # lhs should fail if first child is not present
     with pytest.raises(InternalError) as err:
         _ = assignment.lhs
-    print(err)
     assert "' malformed or incomplete. It needs at least 1 child to have " \
         "a lhs." in str(err)
 
