@@ -2312,7 +2312,7 @@ class OCLTrans(Transformation):
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
-        for kern in sched.kern_calls():
+        for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
             global_symbols = ksched.symbol_table.global_symbols
