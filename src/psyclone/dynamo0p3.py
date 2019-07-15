@@ -6013,6 +6013,7 @@ class DynLoop(Loop):
                                   "parallel region.")
 
         # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
         self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
 

@@ -765,10 +765,7 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string describing this Loop object '''
-        try:
-            step = str(self.step_expr)
-        except InternalError:
-            step = "1"
+        step = str(self.step_expr)
 
         result = ("Loop[" + self._id + "]: " + self._variable_name +
                   "=" + self._id + " lower=" + self._lower_bound() +
@@ -814,6 +811,7 @@ class GOLoop(Loop):
                                              index_offset))
 
         # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound should generate PSyIR
         self.start_expr = Literal(self._lower_bound(), parent=self)
         self.stop_expr = Literal(self._upper_bound(), parent=self)
 
@@ -844,10 +842,10 @@ class GOKernCallFactory(object):
         ''' Create a new instance of a call to a GO kernel. Includes the
         looping structure as well as the call to the kernel itself. '''
         outer_loop = GOLoop(parent=parent, loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop.children[3], loop_type="inner")
+        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
         outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop.children[3])
+        gocall.load(call, parent=inner_loop.loop_body)
         inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by

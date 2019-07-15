@@ -264,13 +264,14 @@ class GOLoop(Loop):
                 index = "1"
             elif self._loop_type == "outer":
                 index = "2"
-            # TODO: Needs to be a binary operation
+            # TODO: Issue 440. Implement SIZE intrinsic in PSyIR
             self.stop_expr = Literal("SIZE(" + self.field_name + "," +
                                      index + ")", parent=self)
 
         else:  # one of our spaces so use values provided by the infrastructure
 
             # loop bounds
+            # TODO: Issue 440. Implement derive types in PSyIR
             if self._loop_type == "inner":
                 self.start_expr = Reference(
                     self.field_space + "%istart", parent=self)
@@ -301,10 +302,10 @@ class GOKernCallFactory(object):
     def create(call, parent=None):
         ''' Creates a kernel call and associated Loop structure '''
         outer_loop = GOLoop(parent=parent, loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop.children[3], loop_type="inner")
+        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
         outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop.children[3])
+        gocall.load(call, parent=inner_loop.loop_body)
         inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
