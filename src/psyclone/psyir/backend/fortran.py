@@ -221,9 +221,10 @@ class FortranWriter(PSyIRVisitor):
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
+        module_name = node.name.rstrip("_code") + "_mod"
         result = (
             "{0}module {1}\n"
-            "".format(self._nindent, node.name+"_mod"))
+            "".format(self._nindent, module_name))
 
         self._depth += 1
         args = [symbol.name for symbol in node.symbol_table.argument_list]
