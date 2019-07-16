@@ -151,3 +151,60 @@ def test_variables_access_info():
         var_accesses.is_read("does_not_exist")
     with pytest.raises(KeyError):
         var_accesses.is_written("does_not_exist")
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_merge():
+    # pylint: disable=invalid-name
+    '''Tests the merge operation of VariablesAccessInfo.
+    '''
+    # First create one instance representing for example:
+    # a=b; c=d
+    var_accesses1 = VariablesAccessInfo()
+    node = Node()
+    var_accesses1.add_access("b", AccessType.READ, node)
+    var_accesses1.add_access("a", AccessType.WRITE, node)
+    var_accesses1.next_location()
+    var_accesses1.add_access("d", AccessType.READ, node)
+    var_accesses1.add_access("c", AccessType.WRITE, node)
+    c_accesses = var_accesses1["c"]
+    assert len(c_accesses.all_accesses) == 1
+    assert c_accesses[0].access_type == AccessType.WRITE
+
+    # First create one instance representing for example:
+    # e=f; g=h
+    var_accesses2 = VariablesAccessInfo()
+    var_accesses2.add_access("f", AccessType.READ, node)
+    var_accesses2.add_access("e", AccessType.WRITE, node)
+    var_accesses2.next_location()
+    var_accesses2.add_access("h", AccessType.READ, node)
+    var_accesses2.add_access("g", AccessType.WRITE, node)
+
+    # Now merge the second instance into the first one
+    var_accesses1.merge(var_accesses2)
+
+    # The e=f access pattern should have the same location
+    # as the c=d (since there is no next_location after
+    # adding the b=a access):
+    c_accesses = var_accesses1["c"]
+    e_accesses = var_accesses1["e"]
+    assert c_accesses[0].access_type == AccessType.WRITE
+    assert e_accesses[0].access_type == AccessType.WRITE
+    assert c_accesses[0].location == e_accesses[0].location
+
+    # Test that the g=h part has a higher location than the
+    # c=d data. This makes sure that merge() increases the
+    # location number of accesses when merging.
+    c_accesses = var_accesses1["c"]
+    g_accesses = var_accesses1["g"]
+    h_accesses = var_accesses1["h"]
+    assert c_accesses[0].location < g_accesses[0].location
+    assert g_accesses[0].location == h_accesses[0].location
+
+    # Also make sure that the access location was properly increased
+    # Originally we had locations 0,1. Then we merged accesses with
+    # location 0,1 in - the one at 0 is merged with the current 1,
+    # and the new location 1 increases the current location from
+    # 1 to 2:
+    # pylint: disable=protected-access
+    assert var_accesses1._location == 2

@@ -313,12 +313,30 @@ class VariablesAccessInfo(object):
         :type other_access_info: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
+
+        # For each variable add all accesses. After merging the new data,
+        # we need to increase the location so that all further added data
+        # will have a location number that is larger.
+        max_new_location = 0
         for var_name in other_access_info.all_vars:
             var_info = other_access_info[var_name]
             for access_info in var_info.all_accesses:
-                self.add_access(var_name, access_info.access_type,
-                                access_info.node,
-                                access_info.indices)
+                # Keep track of how much we need to update the next location
+                # in this object:
+                if access_info.location > max_new_location:
+                    max_new_location = access_info.location
+                new_location = access_info.location + self._location
+                if var_name in self._var_to_varinfo:
+                    var_info = self._var_to_varinfo[var_name]
+                else:
+                    var_info = VariableAccessInfo(var_name)
+                    self._var_to_varinfo[var_name] = var_info
+
+                var_info.add_access(access_info.access_type, new_location,
+                                    access_info.node, access_info.indices)
+        # Increase the current location of this instance by the amount of
+        # locations just merged in
+        self._location = self._location + max_new_location
 
     def is_written(self, var_name):
         '''Checks if the specified variable name is at least written once.
