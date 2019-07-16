@@ -144,7 +144,7 @@ def parser():
 
 @pytest.fixture
 def kernel_output_dir(tmpdir, monkeypatch):
-    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
+    '''Sets the PSyclone _kernel_output_dir Config parameter to tmpdir.'''
     from psyclone.configuration import Config
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
