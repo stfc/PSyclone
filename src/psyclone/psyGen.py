@@ -47,6 +47,7 @@ import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.f2pygen import DirectiveGen
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -4875,15 +4876,20 @@ class ACCKernelsDirective(ACCDirective):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_code(self, _):
+    def gen_code(self, parent):
         '''
-        :raises InternalError: the ACC Kernels directive is currently only \
-                               supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
-                               fparser2 parse tree.
+        Generate the f2pygen AST entries in the Schedule for this OpenACC Kernels
+        directive.
+
+        :param parent: the parent Node in the Schedule to which to add this \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
-        raise InternalError(
-            "ACCKernelsDirective.gen_code should not have been called.")
+        parent.add(DirectiveGen(parent, "acc", "begin", "kernels", ""))
+        for child in self.children:
+            child.gen_code(parent)
+        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
 
     def update(self):
         '''

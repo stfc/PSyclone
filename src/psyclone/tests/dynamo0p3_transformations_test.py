@@ -6617,6 +6617,25 @@ def test_intergrid_err(dist_mem):
     assert expected_err in str(excinfo)
 
 
+def test_acc_kernels():
+    '''Test that an OpenACC Kernels directive can be added to the PSy
+    layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCKernelsTrans
+    acc_kern_trans = ACCKernelsTrans()
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_kern_trans.apply(sched.children)
+    code = psy.gen
+    print (code)
+    exit(1)
+
+
 def test_no_acc():
     '''
     Check that attempting to add any sort of OpenACC directive to a

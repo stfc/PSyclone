@@ -3009,10 +3009,11 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    from psyclone import nemo, psyGen
+    from psyclone import nemo, psyGen, dynamo0p3
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
                         psyGen.Operation, psyGen.Literal,
-                        psyGen.Assignment, psyGen.Reference)
+                        psyGen.Assignment, psyGen.Reference,
+                        dynamo0p3.DynLoop, dynamo0p3.DynKern)
 
     @property
     def name(self):
@@ -3070,12 +3071,14 @@ class ACCKernelsTrans(RegionTrans):
         OpenACC kernels ... end kernels directives.
         '''
         from psyclone.nemo import NemoInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyGen import Loop
-        # Check that the API is valid
+        # Check that the front-end is valid
         sched = node_list[0].root
-        if not isinstance(sched, NemoInvokeSchedule):
-            raise NotImplementedError("OpenACC kernels regions are currently "
-                                      "only supported for the nemo API")
+        if not isinstance(sched, (NemoInvokeSchedule, DynInvokeSchedule)):
+            raise NotImplementedError(
+                "OpenACC kernels regions are currently only supported for the "
+                "nemo and dynamo0.3 front-ends")
         super(ACCKernelsTrans, self)._validate(node_list)
 
         # Check that we have at least one loop within the proposed region
