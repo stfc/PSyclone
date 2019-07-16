@@ -2015,6 +2015,17 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Finally, those transformations that act on a Kernel must sub-class the
+``KernelTrans`` class:
+
+.. autoclass:: psyclone.transformations.KernelTrans
+   :members:
+   :private-members:
+   :noindex:
+
+In all cases, the `apply` method of any sub-class *must* ensure that
+the `validate` method of the parent class is called.
+
 Module: psyGen
 ==============
 
@@ -2066,8 +2077,11 @@ only used in ``DynKernelArguments.raw_arg_list()``.
 classes make use of ``DynCollection`` sub-classes in order
 to ensure that argument naming is consistent.
 
+Transformations
+###############
+
 Kernel Transformations
-----------------------
+======================
 
 PSyclone is able to perform kernel transformations. Currently it has
 two ways to apply transformations: by directly manipulating the language
@@ -2107,9 +2121,6 @@ The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
-
-Transformations
-###############
 
 OpenACC
 =======
