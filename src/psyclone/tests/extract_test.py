@@ -426,27 +426,15 @@ def test_extract_node_representation(capsys):
     assert schedule.children[1].dag_name == "extract_1"
 
     # Test __str__ method
-    correct = ("""Schedule:
-Loop[id:'', variable:'cell']
-kern call: testkern_code
-EndLoop
-ExtractStart
-Loop[id:'', variable:'cell']
-kern call: testkern_code
-EndLoop
-Loop[id:'', variable:'cell']
-kern call: ru_code
-EndLoop
-ExtractEnd
-Loop[id:'', variable:'cell']
-kern call: ru_code
-EndLoop
-Loop[id:'', variable:'cell']
-kern call: testkern_code
-EndLoop
-End Schedule""")
-    return  # TODO: I need to fix str/view for Loops before submitting this PR
-    assert correct in str(schedule)
+    assert "\nExtractStart\n" in str(schedule)
+    assert "\nExtractEnd\n" in str(schedule)
+    # Count the loops inside and outside the extract to check it is in
+    # the right place
+    [before, after] = str(schedule).split("ExtractStart")
+    [inside, after] = after.split("ExtractEnd")
+    assert before.count("Loop[") == 1
+    assert inside.count("Loop[") == 2
+    assert after.count("Loop[") == 2
 
 
 def test_single_node_dynamo0p3():

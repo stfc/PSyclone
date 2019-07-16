@@ -3274,7 +3274,7 @@ def test_kernelschedule_can_be_printed():
     assignment.addchild(rhs)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
     assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End Schedule" in str(kschedule)
+    assert "End KernelSchedule" in str(kschedule)
 
 
 def test_kernelschedule_abstract_methods():

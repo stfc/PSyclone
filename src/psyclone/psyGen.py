@@ -1584,8 +1584,8 @@ class Schedule(Node):
     def __str__(self):
         result = "Schedule:\n"
         for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
+            result += str(entity)
+        result += "End Schedule\n"
         return result
 
 
@@ -1668,8 +1668,8 @@ class InvokeSchedule(Schedule):
     def __str__(self):
         result = "InvokeSchedule:\n"
         for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
+            result += str(entity)
+        result += "End InvokeSchedule\n"
         return result
 
     def gen_code(self, parent):
@@ -3292,13 +3292,14 @@ class Loop(Node):
         return self._variable_name
 
     def __str__(self):
-        name = str(self.__class__)  # Give Loop sub-classes a specialized name
+        # Give Loop sub-classes a specialized name
+        name = self.__class__.__name__
         result = name + "["
         result += "id:'" + self._id
         result += "', variable:'" + self._variable_name + "']\n"
         for entity in self._children:
-            result += str(entity) + "\n"
-        result += "End" + name
+            result += str(entity)
+        result += "End " + name + "\n"
         return result
 
     def has_inc_arg(self):
@@ -3715,7 +3716,7 @@ class CodedKern(Kern):
         return self._kern_schedule
 
     def __str__(self):
-        return "kern call: "+self._name
+        return "kern call: " + self._name
 
     @property
     def module_name(self):
@@ -5874,8 +5875,8 @@ class KernelSchedule(Schedule):
     def __str__(self):
         result = "KernelSchedule[name:'" + self._name + "']:\n"
         for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
+            result += str(entity)
+        result += "End KernelSchedule\n"
         return result
 
 
