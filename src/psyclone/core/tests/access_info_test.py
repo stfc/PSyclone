@@ -84,11 +84,23 @@ def test_variable_access_info():
     assert vai.is_read() is False
     assert vai.all_accesses == []
 
-    vai.add_access(AccessType.READ, Node(), 1)
+    vai.add_access(AccessType.READ, Node(), 2)
     assert vai.is_read()
     vai.change_read_to_write()
     assert not vai.is_read()
     assert vai.is_written()
+
+    assert vai.all_accesses[0] == vai[0]
+    with pytest.raises(IndexError) as err:
+        _ = vai[1]
+
+    # Add a READ access - now we should not be able to
+    # change read to write anymore:
+    vai.add_access(AccessType.READ, Node(), 1)
+    with pytest.raises(InternalError) as err:
+        vai.change_read_to_write()
+    assert "Variable 'var_name' had 2 accesses listed, "\
+           "not one in change_read_to_write." in str(err)
 
 
 # -----------------------------------------------------------------------------

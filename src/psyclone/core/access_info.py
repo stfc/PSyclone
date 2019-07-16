@@ -166,6 +166,14 @@ class VariableAccessInfo(object):
                 return True
         return False
 
+    def __getitem__(self, index):
+        ''':Return: the access information for the specified index.
+        :rtype: py:class:`psyclone.core.access_info.AccessInfo`
+
+        :raises IndexError: If there is no access with the specified index.
+        '''
+        return self._accesses[index]
+
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
@@ -198,7 +206,12 @@ class VariableAccessInfo(object):
         VariableAccessInfo class, it is guaranteed that there is only
         one entry for the variable.
          '''
-        assert len(self._accesses) == 1
+        if len(self._accesses) != 1:
+            from psyclone.psyGen import InternalError
+            raise InternalError("Variable '{0}' had {1} accesses listed, "
+                                "not one in change_read_to_write.".
+                                format(self._var_name,
+                                       len(self._accesses)))
         self._accesses[0].change_read_to_write()
 
 

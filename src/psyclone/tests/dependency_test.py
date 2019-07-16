@@ -111,7 +111,7 @@ def test_indirect_addressing(parser):
     psy = PSyFactory(API).create(ast)
     schedule = psy.invokes.get("test_prog").schedule
 
-    indirect_addressing = schedule.children[0]
+    indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
     var_accesses = VariablesAccessInfo()
     indirect_addressing.reference_accesses(var_accesses)
