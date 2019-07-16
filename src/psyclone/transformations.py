@@ -54,17 +54,17 @@ VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
-    an intergrid kernel as a child.
+    an intergrid kernel amongst its descendants.
 
-    This is used to ensure that we reject any attempt to apply
-    loop-fusion and redundant-computation transformations to loops containing
-    inter-grid kernels (since support for those is not yet implemented).
+    This is used ensure any attempt to apply loop-fusion and redundant-
+    computation transformations to loops containing inter-grid kernels is
+    rejected (since support for those is not yet implemented).
 
     :param node: The PSyIR node to check.
     :type node: :py:class:`psyGen.Node`
 
     :raises TransformationError: if the supplied node has an inter-grid \
-                                 kernel as a child.
+                                 kernel as a descendant.
 
     '''
     if not node.children:
@@ -179,8 +179,8 @@ class KernelTrans(Transformation):
     @staticmethod
     def validate(kern):
         '''
-        Checks that the supplied node is a Kernel and that we can construct
-        the PSyIR of its contents.
+        Checks that the supplied node is a Kernel and that it is possible to
+        construct the PSyIR of its contents.
 
         :param kern: the kernel which is the target of the transformation.
         :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class.
@@ -1325,7 +1325,7 @@ class KernelModuleInlineTrans(KernelTrans):
         :raises TransformationError: if the supplied kernel has itself been \
                                      transformed (Issue #229).
         '''
-        KernelTrans.validate(node)
+        super(KernelModuleInlineTrans, self).validate(node)
 
         if inline and node.modified:
             raise TransformationError("Cannot inline kernel {0} because it "
@@ -3033,7 +3033,7 @@ class ACCRoutineTrans(KernelTrans):
                                       format(kern.name))
 
         # Perform general validation checks. In particular this checks that
-        # we can construct the PSyIR of the kernel body.
+        # PSyIR of the kernel body can be constructed.
         KernelTrans.validate(kern)
 
         # Check that the kernel does not access any data via a module 'use'
@@ -3043,8 +3043,9 @@ class ACCRoutineTrans(KernelTrans):
         if global_symbols:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
-                "symbols with 'global' scope: {1}. PSyclone cannot currently"
-                " transform kernels that access data not passed by argument.".
+                "symbols with 'global' scope: {1}. PSyclone cannot currently "
+                "transform kernels for execution on an OpenACC device if "
+                "they access data not passed by argument.".
                 format(kern.name, [sym.name for sym in global_symbols]))
 
 
@@ -3192,7 +3193,7 @@ class ACCDataTrans(RegionTrans):
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, psyGen.IfBlock, psyGen.Literal,
                         psyGen.Assignment, psyGen.Reference,
-                        psyGen.BinaryOperation)
+                        psyGen.Operation)
 
     @property
     def name(self):
