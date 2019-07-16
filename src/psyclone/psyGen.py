@@ -1534,7 +1534,7 @@ class Node(object):
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
-        just recurses down to all children:
+        just recurses down to all children.
 
         :param var_accesses: Stores the output results.
         :type var_accesses: \
@@ -3206,7 +3206,10 @@ class Loop(Node):
         '''Get all variable access information. It combines the data from
         the loop bounds (start, stop, end step), as well as the loop body.
         The loop variable is marked as READWRITE, start, stop, step as READ.
-        :param var_accesses: \
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
@@ -3384,7 +3387,10 @@ class Kern(Node):
         '''Get all variable access information. The API specific classes
         add the accesses to the arguments. So the code here only calls
         the baseclass, and increases the location.
-        :param var_accesses: \
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         super(Kern, self).reference_accesses(var_accesses)
@@ -4882,8 +4888,11 @@ class IfBlock(Node):
         '''Get all variable access information. It combines the data from
         the condition, if-body and (if available) else-body. This could
         later be extended to handle cases where a variable is only written
-        in of the two branches.
-        :param var_accesses: \
+        in one the two branches.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
@@ -5955,12 +5964,15 @@ class Assignment(Node):
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node. The assigned-to
         variable will be set to 'WRITE'.
-        :param var_accesses: \
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
         # It is important that a new instance is used to handle the LHS,
-        # since an assert in 'change_read_to_write' makes sure that there
+        # since a check in 'change_read_to_write' makes sure that there
         # is only one access to the variable!
         accesses_left = VariablesAccessInfo(var_accesses.location)
         self.lhs.reference_accesses(accesses_left)
@@ -6040,9 +6052,12 @@ class Reference(Node):
         return "Reference[name:'" + self._reference + "']\n"
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node. The assigned-to
-        variable will be set to 'WRITE'.
-        :param var_accesses: \
+        '''Get all variable access information from this node, i.e.
+        it sets this variable to be read.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         var_accesses.add_access(self._reference, AccessType.READ, self)
@@ -6396,8 +6411,8 @@ class Array(Reference):
         super(Array, self).reference_accesses(var_accesses)
 
         # Now add all children: Note that the class Reference
-        # does not recurse to the children, so at this stage no
-        # index information has been stored:
+        # does not recurse to the children (which store the indices), so at
+        # this stage no index information has been stored:
         list_indices = []
         for child in self._children:
             child.reference_accesses(var_accesses)

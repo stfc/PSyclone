@@ -356,7 +356,10 @@ class NemoKern(CodedKern):
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. It calls the corresponding
         kernel schedule function.
-        :param var_accesses: \
+
+        :param var_accesses: VariablesAccessInfo that stores the information\
+            about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         self._kern_schedule.reference_accesses(var_accesses)
@@ -487,7 +490,10 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         TODO: The start, stop and step values are only strings, so we
         can't get access information. It might then also be possible to
         just fall back to Loop.reference_accesses (which then should work).
-        :param var_accesses: \
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 

@@ -167,7 +167,8 @@ def test_do_loop(parser):
     ''' Check the handling of do loops.
     TODO: this only tests a nemo do loop. At this stage the loop
     boundaries in nemo are only strings (not instances of Reference or so),
-    so in case of a loop like: "do jj=1, n", N would
+    so in case of a loop like: "do jj=1, n", N is not be listed as
+    a READ access.
     '''
     reader = FortranStringReader('''program test_prog
                                  do jj=1, 10
@@ -188,7 +189,7 @@ def test_do_loop(parser):
                                 "t: READ"
 
 
-@pytest.mark.xfail(reason="Nemo converts all loop limits to strings")
+@pytest.mark.xfail(reason="NEMO API converts all loop limits to strings")
 def test_do_loop_not_working_yet(parser):
     ''' Check the handling of do loops.
     At this stage the loop boundaries in nemo are only strings (not
@@ -234,7 +235,6 @@ def test_goloop():
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    print(var_accesses)
     assert str(var_accesses) == "cu_fld: WRITE, i: READWRITE, j: READWRITE, "\
                                 "p_fld: READ, u_fld: READ"
     # TODO: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
@@ -248,7 +248,7 @@ def test_dynamo():
     are reported based on the user's point of view, not the code actually
     created by PSyclone, e.g. it shows a dependency on 'some_field', but not
     on some_field_proxy etc. Also the dependency is at this stage taken
-    from the kernel declaration, not the actual kernel usage.
+    from the kernel metadata, not the actual kernel usage.
     '''
     from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -289,6 +289,7 @@ def test_location(parser):
                                     enddo
                                  enddo
                                  a = b
+                                 x = x + 1
                                  end program test_prog''')
     ast = parser(reader)
     psy = PSyFactory(API).create(ast)
@@ -296,7 +297,6 @@ def test_location(parser):
 
     var_accesses = VariablesAccessInfo()
     schedule.reference_accesses(var_accesses)
-    print(var_accesses)
     # Test accesses for a:
     a_accesses = var_accesses["a"].all_accesses
     assert a_accesses[0].location == 0
@@ -327,3 +327,9 @@ def test_location(parser):
     assert ji_accesses[1].location == 8
     assert ji_accesses[2].location == 9
     assert ji_accesses[3].location == 9
+
+    # Verify that x=x+1 shows the READ access before the write access
+    x_accesses = var_accesses["x"].all_accesses    # x=x+1
+    assert x_accesses[0].access_type == AccessType.READ
+    assert x_accesses[1].access_type == AccessType.WRITE
+    assert x_accesses[0].location == x_accesses[1].location

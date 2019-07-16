@@ -6159,13 +6159,14 @@ class DynKern(CodedKern):
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
-        according to the kernel declaration.
-        :param var_accesses: \
+        according to the kernel metadata
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            # If arg is a grid type argument, it does not have
-            # the access mode defined. So take it from the arg_descriptor:
             if arg.vector_size > 0:
                 # It's an array, so add an arbitrary index value for the
                 # stored indices (which is at this stage the only way to
@@ -6174,6 +6175,8 @@ class DynKern(CodedKern):
             else:
                 var_accesses.add_access(arg.name, arg.access, self)
         super(DynKern, self).reference_accesses(var_accesses)
+        # Set the current location index to the next location, since after
+        # this kernel a new statement starts.
         var_accesses.next_location()
 
     def load(self, call, parent=None):

@@ -213,7 +213,11 @@ class VariablesAccessInfo(object):
 
     '''
     def __init__(self, location=0):
+        # This dictionary stores the mapping of variable names to the
+        # corresponding VariableAccessInfo instance.
         self._var_to_varinfo = {}
+
+        # Stores the current location information
         self._location = location
 
     def __str__(self):
@@ -221,7 +225,8 @@ class VariablesAccessInfo(object):
         and their access mode.
 
         :returns: One line string listing all variables and their access mode.
-        :rtype: str'''
+        :rtype: str
+        '''
         all_vars = list(self._var_to_varinfo.keys())
         all_vars.sort()
         output_list = []
@@ -241,13 +246,14 @@ class VariablesAccessInfo(object):
         return self._location
 
     def next_location(self):
-        '''Increases the location number.
-        '''
+        '''Increases the location number.'''
         self._location = self._location + 1
 
     def add_access(self, var_name, access_type, node, indices=None):
         '''Adds access information for the specified variable.
 
+        :param str var_name: Name of the variable for which an access is\
+            added.
         :param access_type: The type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
@@ -269,7 +275,7 @@ class VariablesAccessInfo(object):
     @property
     def all_vars(self):
         ''':returns: all variables contained in this instance.
-        :type: List of str.
+        :rtype: List of str.
         '''
         return list(self._var_to_varinfo.keys())
 
@@ -277,8 +283,10 @@ class VariablesAccessInfo(object):
         '''Returns the access information for the specified variable.
 
         :param str name: The variable name to get the access info for.
+
         :returns: The VariableAccessInfo for the variable
         :rtype: :py:class:`psyclone.core.access_info.VariableAccessInfo`
+
         :raises: KeyError if there is no information for the specified \
             variable.
         '''
@@ -303,9 +311,11 @@ class VariablesAccessInfo(object):
         '''Checks if the specified variable name is at least written once.
 
         :param str var_name: Name of the variable
+
         :returns: true if the specified variable name is written (at least \
             once).
         :rtype: bool
+
         :raises: KeyError if the variable names cannot be found.
 
         '''

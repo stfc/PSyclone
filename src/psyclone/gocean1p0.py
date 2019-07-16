@@ -885,8 +885,11 @@ class GOKern(CodedKern):
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
-        according to the kernel declaration.
-        :param var_accesses: \
+        according to the kernel metadata.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
