@@ -67,12 +67,12 @@ application. For instance, the following:
 
     psyclone -api "gocean1.0" -s ./acc_transform.py alg.f90
 
-causes PSyclone to raise a TransformationError.  This is because the
+causes PSyclone to raise a TransformationError. This is because the
 data_mod::gravity variable read by `kern_use_var` is not available on
-the remote device.  This problem is the subject of Issue #323 which
+the remote device. This problem is the subject of Issue #323 which
 proposes to extend PSyclone to convert any module data accessed by a
-kernel into a kernel argument.  In addition, although the kernels
-named in the Invoke have been transformed, the other kernels that they
+kernel into a kernel argument. In addition, although the kernels
+named in the Invoke would be transformed, the other kernels that they
 then call have not and this means that they won't be compiled for
 execution on the OpenACC device. Support for recursive kernel
 transformation is the subject of Issue #342.
