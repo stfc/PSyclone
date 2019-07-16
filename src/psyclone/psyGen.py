@@ -5983,8 +5983,8 @@ class Assignment(Node):
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function:
-        var_accesses.merge(accesses_left)
         self.rhs.reference_accesses(var_accesses)
+        var_accesses.merge(accesses_left)
         var_accesses.next_location()
 
     def gen_c_code(self, indent=0):
@@ -6420,7 +6420,9 @@ class Array(Reference):
 
         if list_indices:
             var_info = var_accesses[self._reference]
-            var_info.all_accesses[0].indices = list_indices
+            # The last entry in all_accesses is the one added above
+            # in super(Array...). Add the indices to that entry.
+            var_info.all_accesses[-1].indices = list_indices
 
     def gen_c_code(self, indent=0):
         '''
