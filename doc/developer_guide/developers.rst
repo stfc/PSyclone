@@ -535,12 +535,12 @@ Variable Accesses
 
 Especially in the NEMO API, it is not possible to rely on pre-defined
 kernel information to determine dependencies between loops. So an additional,
-somewhat lower-level API is being implemented that can be used to determine
+somewhat lower-level API has been implemented that can be used to determine
 variable accesses (READ and WRITE), which is based on the PSyIR information only,
-not on any kernel information. The information about all variable usage
+not on any kernel metadata information. The information about all variable usage
 of a node can be gathered by creating an object of type
 ``psyclone.core.access_info.VariablesAccessInfo``, and then calling
-the function ``reference_accesses`` for the node:
+the function ``reference_accesses()`` for the node:
 
 .. autofunction:: psyclone.psyGen.Node.reference_accesses
 
@@ -548,7 +548,15 @@ the function ``reference_accesses`` for the node:
     :members:
 
 This class collects information for each variable used in the tree
-starting with the given node. For each variable an instance of
+starting with the given node. A VariablesAccessInfo instance can store
+information about variables in any arbitrary code, not only for a PSyIR
+node. You can pass it to more than one ``reference_accesses()`` function
+to add more variable access information, or use the ``merge()`` function to
+combine two VariablesAccessInfo objects into one. It is up to the user to
+keep track of which access information is stored in an VariablesAccessInfo
+instance.
+
+For each variable used an instance of
 ``psyclone.core.access_info.VariableAccessInfo`` is created, which collects
 all accesses for that variable using ``psyclone.config.access_info.AccessInfo``
 instances:
@@ -559,9 +567,57 @@ instances:
 .. autoclass:: psyclone.core.access_info.AccessInfo
     :members:
 
-Here a simple example on how to use this API. This is from the
+Access Location
+---------------
+
+Variable accesses are stored in the order in which they happen. For example,
+an assignment ``a=a+1`` will store two access for the variable ``a``, the
+first one being a READ access, followed by a WRITE access, since this is the
+order in which the accesses are executed.
+Additionally, the function ``reference_accessess()`` keeps track of the location
+at which the accesses happen. A location is an integer number, starting with 0,
+which is increased for each new statement. This makes it possible to
+compare accesses to variables: if two accesses have the same location value,
+it means the accesses happen in the same statement, for example ``a=a+1``:
+the READ and WRITe access to ``a`` will have the same location number. If on the
+other hand the accesses happen in two separate statements, e.g. ``a=b+1; c=a+1``
+then the first access to ``a`` (and the access to ``b``) will have a smaller
+location number than the second access to ``a`` (and the access to ``c``).
+If two statements have consecutive locations, this does not necessarily mean
+that the statements are executed one after another. For example in if-statements
+the statements in the if-body are counted first, then the statements in the
+else-body. It is the responsibility of the user to handle these cases - for
+example by creating separate instances for statements in the if-body and for
+the else-body. 
+
+.. note:: In the case described above the first statement of the if-body will
+    have the same location number as the first statement of the else-body. So
+    you can only compare location numbers from the same VariablesAccessInformation
+    instance. If you merge two instances together, the locations of the merged-in
+    instance will be appropriately increased to follow the locations of the
+    instance to which it is merged.
+
+
+The location number is not exactly a line number - several statements can be
+on one line, which will get different location numbers. And certain lines
+will not have a location number (e.g. comment lines).
+
+As stated above, one instance of VariablesAccessInfo can be extended by adding
+additional variable information. It is the responsibility of the user to make
+sure the accesses are added in the right order - the VariablesAccessInfo object
+will always assume accesses happen at the current location, and a call to 
+``next_location()`` is required to increase the location number.
+
+.. note:: It is not possible to add a access information about an earlier
+     usage to an existing VariablesAccessInfo object. 
+
+
+Access Example
+--------------
+
+Below we show a simple example of how to use this API. This is from the
 ``psyclone.psyGen.OMPParallelDirective`` (so ``self`` is an instance of this
-transformation), and this code is used to determine a list with all scalar
+node), and this code is used to determine a list of all the scalar
 variables that must be declared as thread-private::
 
   var_accesses = VariablesAccessInfo()
