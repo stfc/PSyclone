@@ -3220,7 +3220,7 @@ class Loop(Node):
         :type indent: integer
         '''
         print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}']".
+              "[type='{0}', field_space='{1}', it_space='{2}']".
               format(self._loop_type, self._field_space, self.iteration_space))
         for entity in self._children:
             entity.view(indent=indent + 1)

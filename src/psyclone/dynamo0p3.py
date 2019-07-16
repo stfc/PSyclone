@@ -5520,7 +5520,7 @@ class DynLoop(Loop):
         else:
             upper_bound = self._upper_bound_name
         print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}', "
+              "[type='{0}', field_space='{1}', it_space='{2}', "
               "upper_bound='{3}']".format(self._loop_type,
                                           self._field_space.orig_name,
                                           self.iteration_space, upper_bound))

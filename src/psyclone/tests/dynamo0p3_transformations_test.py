@@ -1301,7 +1301,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     for loop in schedule[index].children[0].loop_body.children:
         schedule, _ = otrans.apply(loop)
 
-    return # Shouldn't this fail?
+    return  # Shouldn't this fail?
     code = str(psy.gen)
     assert "      ncolour = mesh%get_ncolours()" in code
     assert "      cmap => mesh%get_colour_map()\n" in code
@@ -3721,7 +3721,6 @@ def test_repr_3_builtins_2_reductions_do():
                     "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 
 
-@pytest.mark.xfail(reason="Fix before submitting PR")
 def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     '''test that we generate a correct view() for OpenMP do
     reductions. Also test with and without annexed dofs being computed
@@ -3734,11 +3733,13 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
 
     # Ensure we check for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -3762,50 +3763,74 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     result, _ = capsys.readouterr()
     if dist_mem:  # annexed can be True or False
         expected = (
-            sched + "[invoke='invoke_0', dm=True]\n"
+            isched + "[invoke='invoke_0', dm=True]\n"
             "    " + directive+"[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " x_innerproduct_y(asum,f1,f2)\n"
             "    " + gsum + "[scalar='asum']\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='nannexed']\n"
-            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " inc_a_times_x(asum,f1)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " sum_x(bsum,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " sum_x(bsum,f2)\n"
             "    " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
     else:  # not dist_mem. annexed can be True or False
         expected = (
-            sched + "[invoke='invoke_0', dm=False]\n"
+            isched + "[invoke='invoke_0', dm=False]\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " x_innerproduct_y(asum,f1,f2)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " inc_a_times_x(asum,f1)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " sum_x(bsum,f2)\n")
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " sum_x(bsum,f2)\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
