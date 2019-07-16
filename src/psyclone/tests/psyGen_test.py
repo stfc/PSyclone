@@ -3933,6 +3933,28 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
+def test_symboltable_global_symbols():
+    ''' Test that the global_symbols property returns those symbols with
+    'global' scope (i.e. that represent data that exists outside the current
+    scoping unit) but are not routine arguments. '''
+    sym_table = SymbolTable()
+    assert sym_table.global_symbols == []
+    # Add some local symbols
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", [None]))
+    assert sym_table.global_symbols == []
+    # Add some global symbols
+    sym_table.add(Symbol("gvar1", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    assert sym_table.lookup("gvar1") in sym_table.global_symbols
+    sym_table.add(
+        Symbol("gvar2", "real", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)))
+    gsymbols = sym_table.global_symbols
+    assert len(gsymbols) == 1
+    assert sym_table.lookup("gvar2") not in gsymbols
+
+
 def test_symboltable_gen_c_local_variables():
     ''' Test that it returns a concatenation of just the multiple local
     symbols definitions .
