@@ -1584,8 +1584,8 @@ class Schedule(Node):
     def __str__(self):
         result = "Schedule:\n"
         for entity in self._children:
-            result += str(entity)
-        result += "End Schedule\n"
+            result += str(entity) + "\n"
+        result += "End Schedule"
         return result
 
 
@@ -1668,7 +1668,7 @@ class InvokeSchedule(Schedule):
     def __str__(self):
         result = "InvokeSchedule:\n"
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
         result += "End InvokeSchedule\n"
         return result
 
@@ -3298,7 +3298,7 @@ class Loop(Node):
         result += "id:'" + self._id
         result += "', variable:'" + self._variable_name + "']\n"
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
         result += "End " + name + "\n"
         return result
 
@@ -6143,7 +6143,7 @@ class Operation(Node):
         result = "{0}[operator:'{1}']\n".format(type(self).__name__,
                                                 self._operator.name)
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
         return result
 
 
@@ -6507,7 +6507,7 @@ class Literal(Node):
               + "value:'" + self._value + "']")
 
     def __str__(self):
-        return "Literal[value:'" + self._value + "']\n"
+        return "Literal[value:'" + self._value + "']"
 
     def gen_c_code(self, indent=0):
         '''

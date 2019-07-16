@@ -344,7 +344,7 @@ class GOInvokeSchedule(InvokeSchedule):
         :param int indent: optional argument indicating the level of
         indentation to add before outputting the class information.'''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "',Constant loop bounds=" +
+              self.invoke.name + "', Constant loop bounds=" +
               str(self._const_loop_bounds) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -767,9 +767,8 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
         step = str(self.step_expr)
 
-        result = ("Loop[" + self._id + "]: " + self._variable_name +
-                  "=" + self._id + " lower=" + self._lower_bound() +
-                  "," + self._upper_bound() + "," + step + "\n")
+        result = "Loop[id='" + self._id + "', "
+        result += "variable='" + self._variable_name + "']\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "EndLoop"

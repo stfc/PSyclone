@@ -860,26 +860,43 @@ def test_goschedule_view(capsys):
     out, _ = capsys.readouterr()
 
     # Ensure we check for the correct (colour) control codes in the output
-    sched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
     expected_output = (
-        sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer',field_space='go_cu',"
+        isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        "    " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='go_cu',"
+        "        " + lit + "[value:'NOT_INITIALISED']\n"
+        "        " + lit + "[value:'NOT_INITIALISED']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + sched + "[]\n"
+        "            " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "            " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
+        "                " + lit + "[value:'NOT_INITIALISED']\n"
+        "                " + lit + "[value:'NOT_INITIALISED']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + sched + "[]\n"
+        "                    " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer',field_space='go_every',"
+        "    " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='go_every',"
+        "        " + lit + "[value:'NOT_INITIALISED']\n"
+        "        " + lit + "[value:'NOT_INITIALISED']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + sched + "[]\n"
+        "            " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "            " + call + " time_smooth_code(u_fld,unew_fld,uold_fld) "
-        "[module_inline=False]")
+        "                " + lit + "[value:'NOT_INITIALISED']\n"
+        "                " + lit + "[value:'NOT_INITIALISED']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + sched + "[]\n"
+        "                    " + call + " time_smooth_code(u_fld,unew_fld,"
+        "uold_fld) [module_inline=False]")
 
-    return  # TODO: Fix views before pushing PR
     assert expected_output in out
 
 
@@ -894,21 +911,41 @@ def test_goschedule_str():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+
     expected_sched = (
         "GOInvokeSchedule(Constant loop bounds=True):\n"
-        "Loop[]: j= lower=2,jstop,1\n"
-        "Loop[]: i= lower=2,istop+1,1\n"
+        "Loop[id='', variable='j']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "Loop[id='', variable='i']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
+        "End Schedule\n"
         "EndLoop\n"
+        "End Schedule\n"
         "EndLoop\n"
-        "Loop[]: j= lower=1,jstop+1,1\n"
-        "Loop[]: i= lower=1,istop+1,1\n"
+        "Loop[id='', variable='j']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "Loop[id='', variable='i']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: time_smooth_code\n"
+        "End Schedule\n"
         "EndLoop\n"
+        "End Schedule\n"
         "EndLoop\n"
         "End Schedule\n")
     sched_str = str(schedule)
-    return  # TODO: Fix views before pushing PR
     assert sched_str in expected_sched
 
     # Switch-off constant loop bounds
@@ -917,15 +954,35 @@ def test_goschedule_str():
 
     expected_sched = (
         "GOInvokeSchedule(Constant loop bounds=False):\n"
-        "Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1\n"
-        "Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1\n"
+        "Loop[id='', variable='j']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "Loop[id='', variable='i']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
+        "End Schedule\n"
         "EndLoop\n"
+        "End Schedule\n"
         "EndLoop\n"
-        "Loop[]: j= lower=1,SIZE(uold_fld%data, 2),1\n"
-        "Loop[]: i= lower=1,SIZE(uold_fld%data, 1),1\n"
+        "Loop[id='', variable='j']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "Loop[id='', variable='i']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: time_smooth_code\n"
+        "End Schedule\n"
         "EndLoop\n"
+        "End Schedule\n"
         "EndLoop\n"
         "End Schedule\n")
     assert sched_str in expected_sched
@@ -1291,14 +1348,23 @@ def test05p1_kernel_add_iteration_spaces():
     schedule = invoke.schedule
     expected_sched = (
         "GOInvokeSchedule(Constant loop bounds=True):\n"
-        "Loop[]: j= lower=1,2,1\n"
-        "Loop[]: i= lower=3,istop,1\n"
+        "Loop[id='', variable='j']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "Loop[id='', variable='i']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'NOT_INITIALISED']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
+        "End Schedule\n"
         "EndLoop\n"
+        "End Schedule\n"
         "EndLoop\n"
         "End Schedule\n")
     sched_str = str(schedule)
-    return  # TODO: Fix view before pushing PR
     assert sched_str in expected_sched
 
     # Note that this output can not be test compiled, since dl_esm_inf

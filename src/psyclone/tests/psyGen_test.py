@@ -2984,7 +2984,7 @@ def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1")
-    assert "Literal[value:'1']\n" in str(literal)
+    assert "Literal[value:'1']" in str(literal)
 
 
 def test_literal_gen_c_code():
