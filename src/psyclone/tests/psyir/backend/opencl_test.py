@@ -136,8 +136,10 @@ def test_oclw_kernelschedule():
     # produce a NotImplementedError.
     oclwriter = OpenCLWriter()
     kschedule = KernelSchedule("kname")
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(NotImplementedError) as error:
         _ = oclwriter(kschedule)
+    assert "Abstract property. Which symbols are data arguments is " \
+        "API-specific." in str(error)
 
     # Mock abstract properties. (pytest monkeypatch does not work
     # with properties, used sub-class instead)

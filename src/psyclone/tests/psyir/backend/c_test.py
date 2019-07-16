@@ -175,10 +175,10 @@ def test_cw_array():
     cwriter = CWriter()
 
     assignment = Assignment()
-    a = Array('a', parent=assignment)
-    b = Literal('0.0', parent=assignment)
-    assignment.addchild(a)
-    assignment.addchild(b)
+    arr = Array('a', parent=assignment)
+    lit = Literal('0.0', parent=assignment)
+    assignment.addchild(arr)
+    assignment.addchild(lit)
 
     # An array without any children (dimensions) should produce an error.
     with pytest.raises(VisitorError) as excinfo:
@@ -187,16 +187,16 @@ def test_cw_array():
         in str(excinfo)
 
     # Dimensions can be references, literals or operations
-    a.addchild(Reference('b', parent=a))
-    a.addchild(Literal('1', parent=a))
-    uop = UnaryOperation(UnaryOperation.Operator.MINUS, parent=a)
+    arr.addchild(Reference('b', parent=arr))
+    arr.addchild(Literal('1', parent=arr))
+    uop = UnaryOperation(UnaryOperation.Operator.MINUS, parent=arr)
     uop.addchild(Literal('2', parent=uop))
-    a.addchild(uop)
+    arr.addchild(uop)
 
     result = cwriter(assignment)
     # Results is reversed and flatten (row-major 1D)
     # dimensions are called <name>LEN<dimension> by convention
-    assert "a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b] = 0.0;\n" == result
+    assert result == "a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b] = 0.0;\n"
 
 
 def test_cw_ifblock():
@@ -236,7 +236,7 @@ def test_cw_ifblock():
     ifblock.else_body.addchild(ifblock2)
 
     result = cwriter(ifblock)
-    assert (
+    assert result == (
         "if (a) {\n"
         "  return;\n"
         "} else {\n"
@@ -245,7 +245,7 @@ def test_cw_ifblock():
         "  } else {\n"
         "    return;\n"
         "  }\n"
-        "}\n") == result
+        "}\n")
 
 
 def test_cw_return():
@@ -309,10 +309,10 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=abstract-method
+    # pylint: disable=abstract-method, too-few-public-methods
     class Unsupported():
         '''Dummy class'''
-    # pylint: enable=abstract-method
+    # pylint: enable=abstract-method, too-few-public-methods
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
@@ -363,10 +363,10 @@ def test_cw_binaryoperator():
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=abstract-method
+    # pylint: disable=abstract-method, too-few-public-methods
     class Unsupported():
         '''Dummy class'''
-    # pylint: enable=abstract-method
+    # pylint: enable=abstract-method, too-few-public-methods
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)

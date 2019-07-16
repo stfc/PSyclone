@@ -233,7 +233,6 @@ def test_opencl_kernel_code_generation():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
     '''
-
     from psyclone.psyir.backend.opencl import OpenCLWriter
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -297,7 +296,7 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    arg3 = Symbol("buffer1", "real", shape=[10,10],
+    arg3 = Symbol("buffer1", "real", shape=[10, 10],
                   interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg3)
     kschedule.symbol_table.specify_argument_list([arg1, arg2, arg3])
@@ -319,7 +318,6 @@ def test_symtab_implementation_for_opencl():
     arg2._shape = [None]
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-        kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
             " but got an array of type 'integer' for kernel 'test'.")\
         in str(err)

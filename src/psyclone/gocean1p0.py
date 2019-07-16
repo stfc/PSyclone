@@ -53,7 +53,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType, \
+    KernelSchedule, SymbolTable, Fparser2ASTProcessor, AccessType, \
     ACCEnterDataDirective
 import psyclone.expression as expr
 
