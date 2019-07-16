@@ -5534,8 +5534,6 @@ def test_rc_wrong_parent(monkeypatch):
             "or a Loop") in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="Update RedundatComputationTrans validation"
-                          "befor submitting this PR")
 def test_rc_parent_loop_colour(monkeypatch):
     '''If the parent of the loop supplied to the redundant computation
     transformation is a loop then
@@ -5586,20 +5584,20 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
     # make the innermost loop iterate over cells (it should be
     # colour). We can ignore the previous monkeypatches as this
     # exception is encountered before the previous ones.
-    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
                         "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'colour'" in str(excinfo.value))
 
@@ -5640,8 +5638,6 @@ def test_rc_unsupported_loop_type(monkeypatch):
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="Update RedundatComputationTrans validation"
-                          "befor submitting this PR")
 def test_rc_colour_no_loop_decrease():
     '''Test that we raise an exception if we try to reduce the size of a
     loop halo depth when using the redundant computation
@@ -5689,8 +5685,6 @@ def test_rc_colour_no_loop_decrease():
             "transformation does nothing") in str(excinfo)
 
 
-@pytest.mark.xfail(reason="Update RedundatComputationTrans validation"
-                          "befor submitting this PR")
 def test_rc_colour(tmpdir):
     '''Test that we can redundantly compute over a colour in a coloured
     loop.'''
@@ -5741,8 +5735,6 @@ def test_rc_colour(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.xfail(reason="Update RedundatComputationTrans validation"
-                          "befor submitting this PR")
 def test_rc_max_colour(tmpdir):
     '''Test that we can redundantly compute over a colour to the maximum
     depth in a coloured loop.'''

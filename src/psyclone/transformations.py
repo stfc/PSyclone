@@ -1934,7 +1934,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
-        # check loop's parent is the schedule, or its parent is a
+        # Check loop's parent is the InvokeSchedule, or its nested in a
         # colours loop and perform other colour(s) loop checks,
         # otherwise halo exchange placement might fail. The only
         # current example where the placement would fail is when
@@ -1942,7 +1942,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        if not isinstance(node.parent, (DynInvokeSchedule, Loop)):
+        if not (isinstance(node.parent, DynInvokeSchedule) or
+                isinstance(node.parent.parent, Loop)):
             if isinstance(node.parent, Directive):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
@@ -1956,20 +1957,21 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "apply method the parent of the supplied loop must be "
                     "the DynInvokeSchedule, or a Loop, but found {0}".
                     format(type(node.parent)))
-        if isinstance(node.parent, Loop):
+        if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method, if the parent of the supplied Loop is "
                     "also a Loop then the supplied Loop must iterate over "
                     "'colour', but found '{0}'".format(node.loop_type))
-            if node.parent.loop_type != "colours":
+            if node.parent.parent.loop_type != "colours":
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method, if the parent of the supplied Loop is "
                     "also a Loop then the parent must iterate over "
-                    "'colours', but found '{0}'".format(node.parent.loop_type))
-            if not isinstance(node.parent.parent, DynInvokeSchedule):
+                    "'colours', but found '{0}'"
+                    "".format(node.parent.parent.loop_type))
+            if not isinstance(node.parent.parent.parent, DynInvokeSchedule):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method, if the parent of the supplied Loop is "
