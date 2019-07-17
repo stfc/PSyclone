@@ -2900,7 +2900,7 @@ def test_reference_can_be_printed():
     kschedule.symbol_table.add(Symbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
-    assert "Reference[name:'rname']\n" in str(ref)
+    assert "Reference[name:'rname']" in str(ref)
 
 
 def test_reference_gen_c_code():
@@ -3045,14 +3045,14 @@ def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
+    assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("2", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(binary_operation)
-    assert "Literal[value:'2']\n" in str(binary_operation)
+    assert "Literal[value:'2']" in str(binary_operation)
 
 
 def test_binaryoperation_gen_c_code():
@@ -3139,11 +3139,11 @@ def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
+    assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(unary_operation)
+    assert "Literal[value:'1']" in str(unary_operation)
 
 
 def test_unaryoperation_gen_c_code():
@@ -3205,14 +3205,14 @@ def test_naryoperation_can_be_printed():
     '''Test that an Nary Operation instance can always be printed (i.e. is
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    assert "NaryOperation[operator:'MAX']\n" in str(nary_operation)
+    assert "NaryOperation[operator:'MAX']" in str(nary_operation)
     nary_operation.addchild(Literal("1", parent=nary_operation))
     nary_operation.addchild(Literal("2", parent=nary_operation))
     nary_operation.addchild(Literal("3", parent=nary_operation))
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(nary_operation)
     assert "Literal[value:'2']\n" in str(nary_operation)
-    assert "Literal[value:'3']\n" in str(nary_operation)
+    assert "Literal[value:'3']" in str(nary_operation)
 
 
 # Test Return class

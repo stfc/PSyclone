@@ -426,6 +426,7 @@ def test_extract_node_representation(capsys):
     assert schedule.children[1].dag_name == "extract_1"
 
     # Test __str__ method
+    print(str(schedule))
     assert "\nExtractStart\n" in str(schedule)
     assert "\nExtractEnd\n" in str(schedule)
     # Count the loops inside and outside the extract to check it is in

@@ -281,44 +281,42 @@ def test_schedule_view(capsys):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
-    return  # TODO: How should __str__ look? FIX before PR
-    assert "NemoLoop[levels]: jk=1,jpk,1" in sched_str
-    assert "NemoLoop[lat]: jj=1,jpj,1" in sched_str
-    assert "NemoLoop[lon]: ji=1,jpi,1" in sched_str
+    assert "NemoLoop[id:'', variable:'ji', loop_type:'lon']" in sched_str
+    assert "NemoLoop[id:'', variable:'jj', loop_type:'lat']" in sched_str
+    assert "NemoLoop[id:'', variable:'jk', loop_type:'levels']" in sched_str
     sched.view()
     output, _ = capsys.readouterr()
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     kern_str = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
-    sched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Schedule"])
+    ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     expected_sched = (
-        sched_str + "[]\n"
-        "    " + loop_str + "[type='levels',field_space='None',"
+        isched_str + "[]\n"
+        "    " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n"
-        "        " + loop_str + "[type='lat',field_space='None',"
+        "        " + lit_str + "[value:'1']\n"
+        "        " + ref_str + "[name:'jpk']\n"
+        "        " + lit_str + "[value:'1']\n"
+        "        " + sched_str + "[]\n"
+        "            " + loop_str + "[type='lat', field_space='None', "
         "it_space='None']\n"
-        "            " + loop_str + "[type='lon',field_space='None',"
+        "                " + lit_str + "[value:'1']\n"
+        "                " + ref_str + "[name:'jpj']\n"
+        "                " + lit_str + "[value:'1']\n"
+        "                " + sched_str + "[]\n"
+        "                    " + loop_str + "[type='lon', field_space='None', "
         "it_space='None']\n"
-        "                " + kern_str + "[]\n"
-        "    " + loop_str + "[type='levels',field_space='None',"
-        "it_space='None']\n"
-        "        " + loop_str + "[type='lat',field_space='None',"
-        "it_space='None']\n"
-        "            " + loop_str + "[type='lon',field_space='None',"
-        "it_space='None']\n"
-        "                ")
+        "                        " + lit_str + "[value:'1']\n"
+        "                        " + ref_str + "[name:'jpi']\n"
+        "                        " + lit_str + "[value:'1']\n"
+        "                        " + sched_str + "[]\n"
+        "                            " + kern_str + "[]\n")
     assert expected_sched in output
-    expected_sched2 = (
-        loop_str + "[type='levels',field_space='None',"
-        "it_space='None']\n"
-        "        " + loop_str + "[type='lat',field_space='None',"
-        "it_space='None']\n"
-        "            " + loop_str + "[type='lon',field_space='None',"
-        "it_space='None']\n"
-        "                ")
-    assert expected_sched2 in output
 
 
 def test_kern_inside_if():
@@ -361,7 +359,6 @@ def test_kern_sched_parents(parser):
     # Get its schedule
     sched = kernels[0].get_kernel_schedule()
     # Check that the children of the schedule have it as their parent
-    return  # TODO: Should they?
     for child in sched.children:
         assert child.parent is sched
 

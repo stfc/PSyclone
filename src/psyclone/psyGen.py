@@ -3296,10 +3296,11 @@ class Loop(Node):
         name = self.__class__.__name__
         result = name + "["
         result += "id:'" + self._id
-        result += "', variable:'" + self._variable_name + "']\n"
+        result += "', variable:'" + self._variable_name
+        result += "', loop_type:'" + self._loop_type + "']\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End " + name + "\n"
+        result += "End " + name
         return result
 
     def has_inc_arg(self):
@@ -6060,7 +6061,7 @@ class Reference(Node):
               + self._reference + "']")
 
     def __str__(self):
-        return "Reference[name:'" + self._reference + "']\n"
+        return "Reference[name:'" + self._reference + "']"
 
     def gen_c_code(self, indent=0):
         '''
@@ -6144,6 +6145,10 @@ class Operation(Node):
                                                 self._operator.name)
         for entity in self._children:
             result += str(entity) + "\n"
+
+        # Delete last line break
+        if result[-1] == "\n":
+            result = result[:-1]
         return result
 
 
@@ -6427,9 +6432,9 @@ class Array(Reference):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "Array" + super(Array, self).__str__()
+        result = "Array" + super(Array, self).__str__() + "\n"
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
         return result
 
     def gen_c_code(self, indent=0):

@@ -107,8 +107,6 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
             # the schedule of this kernel.
             nemokern = NemoKern(fakeparent.children, node, parent=loop_body)
             loop_body.children.append(nemokern)
-            for child in fakeparent.children:
-                child.parent = nemokern
         else:
             # Otherwise just connect the new children into the tree.
             loop_body.children.extend(fakeparent.children)
