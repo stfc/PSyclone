@@ -84,21 +84,10 @@ def test_profile_basic(capsys):
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
-    correct = (
-        '''{0}[invoke='invoke_0',Constant loop bounds=True]
-    {3}
-        {1}[type='outer',field_space='go_cv',it_space='go_internal_pts']
-            {1}[type='inner',field_space='go_cv',it_space='go_internal_pts']
-                {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
-        '''[module_inline=False]
-        {1}[type='outer',field_space='go_ct',it_space='go_all_pts']
-            {1}[type='inner',field_space='go_ct',it_space='go_all_pts']
-                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
-        '''[module_inline=False]'''.format(coloured_schedule, coloured_loop,
-                                           coloured_kern, coloured_profile)
-    )
-    return  # TODO: new Loop __str__ before PR
-    assert correct in out
+    correct_re = (".*" + coloured_schedule + ".*"
+                  r"    .*" + coloured_profile + ".*"
+                  r"        .*" + coloured_loop + ".*")
+    assert re.search(correct_re, out.replace("\n", ""))
 
     prt = ProfileRegionTrans()
 
@@ -112,17 +101,37 @@ def test_profile_basic(capsys):
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[]: j= lower=2,jstop-1,1
+Loop[id='', variable='j']
 ProfileStart[var=profile_1]
-Loop[]: i= lower=2,istop,1
-kern call: compute_cv_code
-EndLoop
+Literal[value:'NOT_INITIALISED']
 ProfileEnd
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+kern call: compute_cv_code
+End Schedule
 EndLoop
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop+1,1
+End Schedule
+EndLoop
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_ssh_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
 ProfileEnd
 End Schedule""")
@@ -435,25 +444,53 @@ def test_transform(capsys):
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_ssh_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_u_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
-Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_v_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
 ProfileEnd
 End Schedule""")
-
-    return  # TODO: new Loop __str__ before PR
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
@@ -461,22 +498,52 @@ End Schedule""")
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_ssh_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
 ProfileStart[var=profile_1]
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_u_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
 ProfileEnd
-Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
+Loop[id='', variable='j']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
+Loop[id='', variable='i']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'NOT_INITIALISED']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_v_code
+End Schedule
 EndLoop
+End Schedule
 EndLoop
 ProfileEnd
 End Schedule""")
