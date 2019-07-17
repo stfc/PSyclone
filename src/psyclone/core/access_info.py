@@ -222,16 +222,14 @@ class VariablesAccessInfo(object):
     which is an integer number that is increased for each new statement. It
     can be used to easily determine if one access is before another.
 
-    :param int location: The index for the first statement, default is 0.
-
     '''
-    def __init__(self, location=0):
+    def __init__(self):
         # This dictionary stores the mapping of variable names to the
         # corresponding VariableAccessInfo instance.
         self._var_to_varinfo = {}
 
         # Stores the current location information
-        self._location = location
+        self._location = 0
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables

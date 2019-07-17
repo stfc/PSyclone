@@ -133,12 +133,10 @@ def test_variables_access_info():
     # Check that the location pointer is pointing to the next statement:
     assert var_accesses.location == 2
 
-    # Create a new instance, which starts with statement number 999
-    var_accesses2 = VariablesAccessInfo(999)
+    # Create a new instance
+    var_accesses2 = VariablesAccessInfo()
     var_accesses2.add_access("new_var", AccessType.READ, node)
     var_accesses2.add_access("written", AccessType.READ, node)
-    new_var_accesses = var_accesses2["new_var"].all_accesses
-    assert new_var_accesses[0].location == 999
 
     # Now merge the new instance with the previous instance:
     var_accesses.merge(var_accesses2)
