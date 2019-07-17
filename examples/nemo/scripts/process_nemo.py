@@ -83,6 +83,8 @@ if __name__ == "__main__":
                         "files")
     parser.add_argument('-s', dest='script_file',
                         help="PSyclone transformation script")
+    parser.add_argument('-x', dest='exit_on_error', action='store_true',
+                        help="eXit immediately if PSyclone fails")
     args = parser.parse_args()
 
     # Keep a list of files for which PSyclone fails
@@ -107,6 +109,8 @@ if __name__ == "__main__":
         except SystemExit as err:
             print("Running PSyclone on {0} failed\n".format(ffile))
             print("Error was:\n{0}".format(str(err)))
+            if args.exit_on_error:
+                exit(1)
             failed_files.append(ffile)
     print("All done.")
     if failed_files:
