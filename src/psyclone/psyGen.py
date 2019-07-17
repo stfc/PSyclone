@@ -7431,7 +7431,7 @@ class Fparser2ASTProcessor(object):
                 new_parent = parent
 
             if node.items[0]:
-                # Have lower limit
+                # A lower limit is specified
                 geop = BinaryOperation(BinaryOperation.Operator.GE,
                                        parent=new_parent)
                 self.process_nodes(parent=geop,
@@ -7442,7 +7442,7 @@ class Fparser2ASTProcessor(object):
                                    nodes_parent=node)
                 new_parent.addchild(geop)
             if node.items[1]:
-                # Have upper limit
+                # An upper limit is specified
                 leop = BinaryOperation(BinaryOperation.Operator.LE,
                                        parent=new_parent)
                 self.process_nodes(parent=leop,
