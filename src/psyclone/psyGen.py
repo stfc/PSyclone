@@ -7281,7 +7281,9 @@ class Fparser2ASTProcessor(object):
         from fparser.two import Fortran2003
         ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
         if not ctrl:
-            raise InternalError("")
+            raise InternalError(
+                "Unrecognised form of DO loop - failed to find Loop_Control "
+                "element in the node '{0}'.".format(str(node)))
         if ctrl[0].items[0]:
             # If this is a DO WHILE then the first element of items will not
             # be None. (See `fparser.two.Fortran2003.Loop_Control`.)

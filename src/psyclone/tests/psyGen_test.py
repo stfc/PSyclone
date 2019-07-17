@@ -5310,3 +5310,59 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2endsub], None)
     assert not fake_parent.children  # No new children created
+
+
+DO_WHILE_PROG = ("program do_while_prog\n"
+                 "integer :: my_sum\n"
+                 "my_sum = 0\n"
+                 "do while(.true.)\n"
+                 "  my_sum = my_sum + 1\n"
+                 "end do\n"
+                 "end program do_while_prog\n")
+
+
+def test_fparser2astprocessor_do_construct_while(f2008_parser):
+    ''' Check that do while constructs are placed in Codeblocks '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader('''
+        do while(a .gt. b)\n
+            c = c + 1\n
+        end do\n
+        ''')
+    fparser2while = Execution_Part.match(reader)[0][0]
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    processor.process_nodes(fake_parent, [fparser2while], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+def test_missing_loop_control(f2008_parser, monkeypatch):
+    ''' Check that encountering a loop in the fparser parse tree that is
+    missing a Loop_Control element raises an InternalError. '''
+    from fparser.two.utils import walk_ast
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two import Fortran2003
+    reader = FortranStringReader('''
+        do while(a .gt. b)\n
+            c = c + 1\n
+        end do\n
+        ''')
+    fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
+    processor = Fparser2ASTProcessor()
+
+    # We have to break the fparser2 parse tree in order to trigger the
+    # internal error
+    ctrl = walk_ast(fparser2while.content[0].items, [Fortran2003.Loop_Control])
+    # 'items' is a tuple and therefore immutable so make a new list
+    item_list = list(fparser2while.content[0].items)
+    # Create a new tuple for the items member without the Loop_Control
+    item_list.remove(ctrl[0])
+    fparser2while.content[0].items = tuple(item_list)
+    monkeypatch.setattr(fparser2while, "tostr", lambda: "<fparser2while>")
+
+    fake_parent = Node()
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2while], None)
+    assert "Unrecognised form of DO loop - failed to find Loop_Control " \
+        "element in the node '<fparser2while>'." in str(err)

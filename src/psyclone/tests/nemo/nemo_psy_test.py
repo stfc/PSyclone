@@ -52,14 +52,6 @@ API = "nemo"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
-DO_WHILE_PROG = ("program do_while_prog\n"
-                 "integer :: my_sum\n"
-                 "my_sum = 0\n"
-                 "do while(.true.)\n"
-                 "  my_sum = my_sum + 1\n"
-                 "end do\n"
-                 "end program do_while_prog\n")
-
 
 def test_unamed_unit(parser):
     '''
@@ -131,29 +123,6 @@ def test_do_while():
     assert isinstance(sched.children[0], CodeBlock)
     assert isinstance(sched.children[1], nemo.NemoLoop)
     assert isinstance(sched.children[3], CodeBlock)
-
-
-def test_missing_loop_control(parser):
-    ''' Check that encountering a loop in the fparser parse tree that is
-    missing a Loop_Control element raises an InternalError. '''
-    from fparser.two.utils import walk_ast
-    reader = FortranStringReader(DO_WHILE_PROG)
-    prog = parser(reader)
-    # We have to break the fparser2 parse tree in order to trigger the
-    # internal error
-    loops = walk_ast(prog.content,
-                     [Fortran2003.Nonlabel_Do_Stmt])
-    ctrl = walk_ast(loops[0].items, [Fortran2003.Loop_Control])
-    # 'items' is a tuple and therefore immutable so make a new list
-    item_list = list(loops[0].items)
-    # Create a new tuple for the items member without the Loop_Control
-    item_list.remove(ctrl[0])
-    loops[0].items = tuple(item_list)
-    with pytest.raises(InternalError) as err:
-        _ = PSyFactory(API, distributed_memory=False).create(prog)
-    # TODO: New error message and move test to a generic Loop test case
-    # assert ("Unrecognised form of DO loop - failed to find Loop_Control "
-    #        "element in parse tree" in str(err))
 
 
 def test_multi_kern():
