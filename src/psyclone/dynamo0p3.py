@@ -8247,7 +8247,35 @@ class DynKernelArguments(Arguments):
                   OpenACC device before the associated kernel can be launched.
         :rtype: list of str
         '''
-        return ["A", "B"]
+        class KernCallAccArgList(KernCallArgList):
+            ''' xxx '''
+            def field_vector(self, argvect):
+                ''' xxx '''
+                for idx in range(1, argvect.vector_size+1):
+                    text1 = argvect.proxy_name + "(" + str(idx) + ")"
+                    self._arglist.append(text1)
+                    text2 = text1 + "%data"
+                    self._arglist.append(text2)
+
+            def field(self, arg):
+                ''' xxx '''
+                text1 = arg.proxy_name
+                self._arglist.append(text1)
+                text2 = text1 + "%data"
+                self._arglist.append(text2)
+
+            def fs_compulsory_field(self, function_space):
+                ''' xxx '''
+                undf_name = get_fs_undf_name(function_space)
+                self._arglist.append(undf_name)
+                map_name = get_fs_map_name(function_space)
+                self._arglist.append(map_name)
+                if self._cell_ref_name not in self._arglist:
+                    self._arglist.append(self._cell_ref_name)
+
+        create_acc_arg_list = KernCallAccArgList(self._parent_call)
+        create_acc_arg_list.generate()
+        return create_acc_arg_list.arglist
 
     @property
     def fields(self):
@@ -8258,6 +8286,8 @@ class DynKernelArguments(Arguments):
         :returns: List of names of (Fortran) field objects.
         :rtype: list of str
         '''
+        # This should probably be in psyGen as it just a copy of the gocean version
+        exit(1)
         args = args_filter(self._args, arg_types=["field"])
         return [arg.name for arg in args]
 
@@ -8271,6 +8301,8 @@ class DynKernelArguments(Arguments):
         :returns: A list of the names of scalar arguments in this object.
         :rtype: list of str
         '''
+        # This should probably be in psyGen as it just a copy of the gocean version
+        exit(1)
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
@@ -8596,15 +8628,16 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
                        assignment nodes.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import AssignGen
-        obj_list = []
-        for pdir in self._acc_dirs:
-            for var in pdir.fields:
-                if var not in obj_list:
-                    parent.add(AssignGen(parent,
-                                         lhs=var+"%data_on_device",
-                                         rhs=".true."))
-                    obj_list.append(var)
+        # I'm not sure what this is for so commenting it out for the moment
+        #from psyclone.f2pygen import AssignGen
+        #obj_list = []
+        #for pdir in self._acc_dirs:
+        #    for var in pdir.fields:
+        #        if var not in obj_list:
+        #            parent.add(AssignGen(parent,
+        #                                 lhs=var+"%data_on_device",
+        #                                 rhs=".true."))
+        #            obj_list.append(var)
         return
 
 
