@@ -93,7 +93,7 @@ def test_assignment(parser):
     increment_access.reference_accesses(var_accesses)
     assert str(var_accesses) == "c: READWRITE, i: READ"
 
-    # Using an intrinsic (looks like an array access): d(i, j) = sqrt(e(i, j))
+    # Using an intrinsic:
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
     var_accesses = VariablesAccessInfo()
