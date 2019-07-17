@@ -1268,6 +1268,7 @@ class Node(object):
     @abc.abstractmethod
     def view(self, indent=0):
         '''Abstract function to prints a text representation of the node.
+
         :param int indent: depth of indent for output text.
         '''
 
@@ -1324,6 +1325,7 @@ class Node(object):
         '''
         Find a Node's position relative to its parent Node (starting
         with 0 if it does not have a parent).
+
         :returns: relative position of a Node to its parent
         :rtype: int
         '''
@@ -1337,9 +1339,11 @@ class Node(object):
         Find a Node's absolute position in the tree (starting with 0 if
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
+
         :returns: absolute position of a Node in the tree
-        :raises InternalError: if the absolute position cannot be found
         :rtype: int
+
+        :raises InternalError: if the absolute position cannot be found
         '''
         if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
@@ -1512,8 +1516,9 @@ class Node(object):
 
     def gen_code(self, parent):
         '''Abstract base class for code generation function.
+
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyGen.Node`
         '''
         raise NotImplementedError("Please implement me")
 
