@@ -487,7 +487,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The loop variable is
         set as READ and WRITE. Then the loop body's access is added.
-        TODO: The start, stop and step values are only strings, so we
+        TODO #400: The start, stop and step values are only strings, so we
         can't get access information. It might then also be possible to
         just fall back to Loop.reference_accesses (which then should work).
 

@@ -165,9 +165,9 @@ def test_call(parser):
 
 def test_do_loop(parser):
     ''' Check the handling of do loops.
-    TODO: this only tests a nemo do loop. At this stage the loop
+    TODO #400: this only tests a nemo do loop. At this stage the loop
     boundaries in nemo are only strings (not instances of Reference or so),
-    so in case of a loop like: "do jj=1, n", N is not be listed as
+    so in case of a loop like: "do jj=1, n", `n` is not be listed as
     a READ access.
     '''
     reader = FortranStringReader('''program test_prog
@@ -192,8 +192,8 @@ def test_do_loop(parser):
 @pytest.mark.xfail(reason="NEMO API converts all loop limits to strings")
 def test_do_loop_not_working_yet(parser):
     ''' Check the handling of do loops.
-    At this stage the loop boundaries in nemo are only strings (not
-    instances of Reference or so), so lower or upper loop boundaries
+    TODO #400: At this stage the loop boundaries in nemo are only strings
+    (not instances of Reference or so), so lower or upper loop boundaries
     are not reported as 'READ'.
     '''
     reader = FortranStringReader('''program test_prog
@@ -211,16 +211,17 @@ def test_do_loop_not_working_yet(parser):
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    # TODO: n is not reported at the moment
+    # TODO #400: n is not reported at the moment
     assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, n: READ, "\
                                 "s: WRITE, t: READ"
 
 
-@pytest.mark.xfail(reason="Gocean loops boundaries are also strings")
+@pytest.mark.xfail(reason="Gocean loops boundaries are also strings #400/#441")
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
-    TODO: Does not work atm, GOLoops also have start/stop as strings,
-    which are even not defined. Only after genCode will they be defined.
+    TODO #400/#441: Does not work atm, GOLoops also have start/stop as
+    strings, which are even not defined. Only after genCode will they be
+    defined.
     '''
     from psyclone.parse.algorithm import parse
 
@@ -237,12 +238,12 @@ def test_goloop():
     do_loop.reference_accesses(var_accesses)
     assert str(var_accesses) == "cu_fld: WRITE, i: READWRITE, j: READWRITE, "\
                                 "p_fld: READ, u_fld: READ"
-    # TODO: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
+    # TODO #441: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
 
 
-@pytest.mark.xfail(reason="Dynamoloops boundaries are also strings")
+@pytest.mark.xfail(reason="Dynamoloops boundaries are also strings #400")
 def test_dynamo():
     '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
     are reported based on the user's point of view, not the code actually
@@ -261,9 +262,9 @@ def test_dynamo():
 
     var_accesses = VariablesAccessInfo()
     schedule.reference_accesses(var_accesses)
-    # TODO: atm there is an empty entry (": READ") at the beginning of the
-    # dependency string, caused by the loop
-    # boundaries, which are not yet proper PSyIR objects.
+    # TODO #400: atm there is an empty entry (": READ") at the beginning of
+    # the dependency string, caused by the loop boundaries, which are not
+    # yet proper PSyIR objects.
     # 'cell' is the loop variable automatically created by PSyclone.
     assert str(var_accesses) == "a: READ, cell: READWRITE, f1: WRITE, "\
         "f2: READ, m1: READ, m2: READ"
