@@ -60,6 +60,7 @@ region.
 
 from __future__ import print_function
 from psyclone.psyGen import TransInfo
+from psyclone.transformations import TransformationError
 
 
 # Get the PSyclone transformations we will use
@@ -186,7 +187,6 @@ def add_kernels(children):
         return added_kernels
 
     node_list = []
-    excluded_list = []
     for child in children[:]:
         # Can this node be included in a kernels region?
         if not valid_kernel(child):
@@ -195,10 +195,6 @@ def add_kernels(children):
             if have_loops(node_list):
                 success = try_kernels_trans(node_list)
                 added_kernels |= success
-                if not success:
-                    # Transformation failed so put the list of nodes in a
-                    # profiling region
-                    add_profile_region(node_list)
             # A node that cannot be included in a kernels region marks the
             # end of the current candidate region so reset the list.
             node_list = []
@@ -209,35 +205,60 @@ def add_kernels(children):
                 success = success1 or success2
             else:
                 success = add_kernels(child.children)
-            if success:
-                # We managed to create one or more KERNELS region(s) below
-                # this child so this marks the end of any candidate
-                # profiling region
-                add_profile_region(excluded_list)
-                excluded_list = []
-            else:
-                # Keep a list of nodes that we've not put inside
-                # kernels regions
-                excluded_list.append(child)
             added_kernels |= success
         else:
             # We can - add this node to our list for the current region
             node_list.append(child)
-            # This marks the end of any region where we've failed to add
-            # a KERNELS region so add profiling
-            add_profile_region(excluded_list)
-            excluded_list = []
     if have_loops(node_list):
         success = try_kernels_trans(node_list)
         added_kernels |= success
-    add_profile_region(excluded_list)
 
     return added_kernels
 
 
+def add_profiling(children):
+    '''
+    '''
+    from psyclone.psyGen import IfBlock, ACCDirective, Assignment
+    added_kernels = False
+    if not children:
+        return added_kernels
+
+    node_list = []
+    for child in children[:]:
+        # Can this node be included in a profiling region?
+        if child.walk([child], ACCDirective):
+            # It can't so we put what we have so far inside a profiling region
+            add_profile_region(node_list)
+            # A node that cannot be included in a profiling region marks the
+            # end of the current candidate region so reset the list.
+            node_list = []
+            # Now we go down a level and try again
+            if isinstance(child, IfBlock):
+                add_profiling(child.if_body)
+                add_profiling(child.else_body)
+            elif isinstance(child, (Assignment, ACCDirective)):
+                # We don't attempt to put profiling in below OpenACC
+                # directives or within Assignments
+                pass
+            else:
+                add_profiling(child.children)
+        else:
+            # We can - add this node to our list for the current region
+            node_list.append(child)
+    add_profile_region(node_list)
+
+
 def add_profile_region(nodes):
+    '''
+    '''
     if nodes and _AUTO_PROFILE:
-        _, _ = PROFILE_TRANS.apply(nodes)
+        try:
+            _, _ = PROFILE_TRANS.apply(nodes)
+        except TransformationError:
+            import pdb; pdb.set_trace()
+            pass
+
 
 def try_kernels_trans(nodes):
     '''
@@ -253,7 +274,6 @@ def try_kernels_trans(nodes):
 
     '''
     from psyclone.psyGen import InternalError
-    from psyclone.transformations import TransformationError
     try:
         _, _ = ACC_KERN_TRANS.apply(nodes, default_present=False)
         return True
@@ -285,6 +305,8 @@ def trans(psy):
             continue
 
         add_kernels(sched.children)
+        add_profiling(sched.children)
+
         sched.view()
 
         invoke.schedule = sched
