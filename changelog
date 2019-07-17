@@ -176,6 +176,14 @@
         55) PR #428 for #427. Fix to test suite so that empty, transformed
         kernel files are not created in the CWD.
 
+        56) PR #439 and Issue #438. Instruct pip to install the version of
+        pytest prior to 5.0 (as changes to the structure of the exception
+        object break a lot of our tests).
+
+        57) PR #420 for #418. Moves the C/OpenCL generation functionality out
+        of the Node class and implements it as PSyIR backends using the
+        Visitor Pattern.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
