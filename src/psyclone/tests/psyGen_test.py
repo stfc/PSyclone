@@ -839,19 +839,18 @@ def test_ompdo_directive_class_view(capsys):
 
             out, _ = capsys.readouterr()
             expected_output = (
-                colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
-                case["current_string"] + "\n"
-                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
-                "[type='',field_space='w1',it_space='cells', "
+                "Directive[OMP parallel do]\n"
+                "    Loop[type='', field_space='w1', it_space='cells', "
                 "upper_bound='ncells']\n"
-                "        "+colored("CodedKern",
-                                   SCHEDULE_COLOUR_MAP["CodedKern"]) +
-                " testkern_code(a,f1,f2,m1,m2) "
-                "[module_inline=False]")
+                "        Literal[value:'NOT_INITIALISED']\n"
+                "        Literal[value:'NOT_INITIALISED']\n"
+                "        Literal[value:'1']\n"
+                "        Schedule[]\n"
+                "            CodedKern testkern_code(a,f1,f2,m1,m2) "
+                "[module_inline=False]\n")
             print(out)
             print(expected_output)
-            # TODO: Decide what view() should show!
-            # assert expected_output in out
+            assert expected_output in out
 
 
 def test_acc_dir_view(capsys):
@@ -882,8 +881,6 @@ def test_acc_dir_view(capsys):
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Parallel]")
-
-    # TODO: Should this work? It is pointing at the start cond?
 
     # Loop directive
     new_sched, _ = acclt.apply(new_sched.children[1].children[0])
