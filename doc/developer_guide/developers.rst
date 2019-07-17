@@ -1,4 +1,4 @@
-.. _developers-guide:
+﻿.. _developers-guide:
 
 Developers' guide
 *****************
@@ -579,7 +579,7 @@ at which the accesses happen. A location is an integer number, starting with 0,
 which is increased for each new statement. This makes it possible to
 compare accesses to variables: if two accesses have the same location value,
 it means the accesses happen in the same statement, for example ``a=a+1``:
-the READ and WRITe access to ``a`` will have the same location number. If on the
+the READ and WRITE access to ``a`` will have the same location number. If on the
 other hand the accesses happen in two separate statements, e.g. ``a=b+1; c=a+1``
 then the first access to ``a`` (and the access to ``b``) will have a smaller
 location number than the second access to ``a`` (and the access to ``c``).
@@ -608,7 +608,7 @@ sure the accesses are added in the right order - the VariablesAccessInfo object
 will always assume accesses happen at the current location, and a call to 
 ``next_location()`` is required to increase the location number.
 
-.. note:: It is not possible to add a access information about an earlier
+.. note:: It is not possible to add access information about an earlier
      usage to an existing VariablesAccessInfo object. 
 
 
