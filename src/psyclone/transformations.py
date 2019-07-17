@@ -803,26 +803,6 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      sequential=self._sequential)
         return directive
 
-    def _validate(self, node, collapse=None):
-        '''
-        Does OpenACC-specific validation checks before calling the
-        _validate method of the base class.
-
-        :param node: the proposed target of the !$acc loop directive.
-        :type node: :py:class:`psyclone.psyGen.Node`.
-        :param int collapse: number of loops to collapse or None.
-        :raises NotImplementedError: if an API other than GOcean 1.0 is \
-                                     being used.
-        '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.nemo import NemoInvokeSchedule
-        sched = node.root
-        if not isinstance(sched, (GOInvokeSchedule, NemoInvokeSchedule)):
-            raise NotImplementedError(
-                "OpenACC loop transformations are currently only supported "
-                "for the gocean 1.0 and nemo APIs")
-        super(ACCLoopTrans, self)._validate(node, collapse)
-
     def apply(self, node, collapse=None, independent=True, sequential=False):
         '''
         Apply the ACCLoop transformation to the specified node in a
@@ -1633,12 +1613,11 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
-    from psyclone import gocean1p0, nemo, psyGen
-    valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
-                        nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
-                        psyGen.ACCLoopDirective, psyGen.Assignment,
-                        psyGen.Reference, psyGen.Literal,
-                        psyGen.BinaryOperation)
+    from psyclone import gocean1p0, nemo, psyGen, dynamo0p3
+    valid_node_types = (
+        psyGen.Loop, psyGen.Kern, psyGen.IfBlock,
+        psyGen.ACCLoopDirective, psyGen.Assignment, psyGen.Reference,
+        psyGen.Literal, psyGen.BinaryOperation)
 
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
@@ -1656,25 +1635,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         :rtype: str
         '''
         return "ACCParallelTrans"
-
-    def _validate(self, node_list):
-        '''
-        OpenACC-specific validation checks that the supplied list
-        of nodes can be enclosed in a parallel region.
-
-        :param node_list: proposed list of nodes to put inside region.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
-        :raises NotImplementedError: if an API other than GOcean 1.0 is \
-                                     being used.
-        '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.nemo import NemoInvokeSchedule
-        sched = node_list[0].root
-        if not isinstance(sched, (GOInvokeSchedule, NemoInvokeSchedule)):
-            raise NotImplementedError(
-                "OpenACC parallel regions are currently only "
-                "supported for the gocean 1.0 and nemo APIs")
-        super(ACCParallelTrans, self)._validate(node_list)
 
 
 class GOConstLoopBoundsTrans(Transformation):
@@ -2808,12 +2768,16 @@ class ACCEnterDataTrans(Transformation):
                 :py:class:`psyclone.undoredo.Memento`)
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
 
         # Ensure that the proposed transformation is valid
         self._validate(sched)
 
         if isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
+                AccEnterDataDir
+        elif isinstance(sched, DynInvokeSchedule):
+            from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that _validate() has done its job
@@ -2846,6 +2810,7 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.psyGen import Schedule, Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
 
         super(ACCEnterDataTrans, self)._validate(sched)
 
@@ -2854,7 +2819,7 @@ class ACCEnterDataTrans(Transformation):
                                       "directive to something that is "
                                       "not a Schedule")
 
-        if not isinstance(sched, GOInvokeSchedule):
+        if not isinstance(sched, (GOInvokeSchedule, DynInvokeSchedule)):
             raise NotImplementedError(
                 "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
                 "a schedule of type {0}".format(type(sched)))

@@ -6631,9 +6631,88 @@ def test_acc_kernels():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     _ = acc_kern_trans.apply(sched.children)
-    code = psy.gen
+    code = str(psy.gen)
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n") in code
+
+
+def test_acc_enter():
+    '''Test that an OpenACC Enter directive can be added to the PSy
+    layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCEnterDataTrans
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
     print (code)
     exit(1)
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n") in code
+
+
+def test_acc_parallel():
+    '''Test that an OpenACC Parallel directive can be added to the PSy
+    layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    print (code)
+    exit(1)
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n") in code
+
+
+def test_acc_loop():
+    '''Test that an OpenACC Loop directive can be added to the PSy
+    layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCLoopTrans
+    acc_loop_trans = ACCLoopTrans()
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_loop_trans.apply(sched.children[0])
+    code = str(psy.gen)
+    assert (
+        "      !$acc loop\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end loop\n") in code
 
 
 def test_no_acc():

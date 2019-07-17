@@ -56,7 +56,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern
+    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective, \
+    args_filter
 
 # First section : Parser specialisations and classes
 
@@ -8239,6 +8240,40 @@ class DynKernelArguments(Arguments):
 
         return self._raw_arg_list
 
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched.
+        :rtype: list of str
+        '''
+        return ["A", "B"]
+
+    @property
+    def fields(self):
+        '''
+        Provides the list of names of field objects that are required by
+        the kernel associated with this Arguments object.
+
+        :returns: List of names of (Fortran) field objects.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["field"])
+        return [arg.name for arg in args]
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["scalar"])
+        return [arg.name for arg in args]
+
 
 class DynKernelArgument(KernelArgument):
     ''' Provides information about individual Dynamo kernel call
@@ -8545,6 +8580,33 @@ class DynKernCallFactory(object):
         # Return the outermost loop
         return cloop
 
+class DynACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into the f2pygen AST to flag that each of the
+        objects required by the kernels in the data region is now on the
+        device. We do this by setting the data_on_device attribute to .true.
+
+        :param parent: The node in the f2pygen AST to which to add the \
+                       assignment nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import AssignGen
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    parent.add(AssignGen(parent,
+                                         lhs=var+"%data_on_device",
+                                         rhs=".true."))
+                    obj_list.append(var)
+        return
+
 
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
@@ -8589,4 +8651,5 @@ __all__ = [
     'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
-    'DynKernCallFactory']
+    'DynKernCallFactory',
+    'DynACCEnterDataDirective']
