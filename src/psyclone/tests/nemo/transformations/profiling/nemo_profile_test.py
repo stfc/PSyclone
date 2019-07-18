@@ -42,7 +42,7 @@ from __future__ import absolute_import, print_function
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.transformations import TransformationError
+from psyclone.transformations import TransformationError, ProfileRegionTrans
 
 # The PSyclone API under test
 API = "nemo"
@@ -61,7 +61,7 @@ def test_profile_single_loop(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    ptrans = ProfileRegionTrans()
     schedule, _ = ptrans.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
@@ -94,7 +94,7 @@ def test_profile_two_loops(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    ptrans = ProfileRegionTrans()
     # Create two separate profiling regions
     schedule, _ = ptrans.apply(schedule.children[1])
     schedule, _ = ptrans.apply(schedule.children[0])
@@ -134,7 +134,7 @@ def test_profile_codeblock(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    ptrans = ProfileRegionTrans()
     schedule, _ = ptrans.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
@@ -160,7 +160,7 @@ def test_profile_inside_if(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    ptrans = ProfileRegionTrans()
     schedule, _ = ptrans.apply(schedule.children[0].if_body[0])
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
@@ -198,3 +198,70 @@ def test_profile_single_line_if(parser):
         "  CALL ProfileStart('one_line_if_test', 'region_0', psy_profile0)\n"
         "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
         "  CALL ProfileEnd(psy_profile0)\n" in gen_code)
+
+
+def test_profiling_case(parser):
+    ''' Check that we can put profiling around a case statement. This is
+    harder than might be expected because of the complexity of mapping back
+    from the PSyIR (where SELECT CASE blocks are represented as If blocks)
+    to the fparser2 parse tree. '''
+    code = (
+        "subroutine my_test()\n"
+        "   integer :: ji, ii, je_2\n"
+        "   p_fld_crs(:,:) = 0._wp\n"
+        "   SELECT CASE ( cd_op )\n"
+        "     CASE ( 'VOL' )\n"
+        "         ALLOCATE( zsurfmsk(jpi,jpj) )\n"
+        "         zsurfmsk(:,:) =  p_e12(:,:) * p_e3(:,:,1) * p_mask(:,:,1)\n"
+        "         IF( nldj_crs == 1 .AND. mje_crs(2) < 2 ) THEN\n"
+        "            IF( mje_crs(2) - mjs_crs(2) == 1 ) THEN\n"
+        "               je_2 = mje_crs(2)\n"
+        "               DO ji = nistr, niend, nn_factx\n"
+        "                  zflcrs =  p_fld(ji  ,je_2) * zsurfmsk(ji  ,je_2)\n"
+        "                  p_fld_crs(ii,2) = zflcrs\n"
+        "               ENDDO\n"
+        "            ENDIF\n"
+        "         ELSE\n"
+        "            je_2 = mjs_crs(2)\n"
+        "         ENDIF\n"
+        "         DO jj  = njstr, njend, nn_facty\n"
+        "            DO ji = nistr, niend, nn_factx\n"
+        "               ii  = ( ji - mis_crs(2) ) * rfactx_r + 2\n"
+        "            ENDDO\n"
+        "         ENDDO\n"
+        "         DEALLOCATE( zsurfmsk )\n"
+        "     CASE ( 'SUM' )\n"
+        "        ALLOCATE( zsurfmsk(jpi,jpj) )\n"
+        "        IF( PRESENT( p_e3 ) ) THEN\n"
+        "           zsurfmsk(:,:) = p_e12(:,:) * p_e3(:,:,1) * p_mask(:,:,1)\n"
+        "        ELSE\n"
+        "           zsurfmsk(:,:) = p_e12(:,:) * p_mask(:,:,1)\n"
+        "        ENDIF\n"
+        "        DEALLOCATE(zsurfmsk)\n"
+        "   END SELECT\n"
+        "end subroutine my_test\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(prog)
+    sched = psy.invokes.invoke_list[0].schedule
+    ptrans = ProfileRegionTrans()
+    # Innermost if-body
+    ptrans.apply(sched.children[1].if_body[2].if_body[0].if_body.children)
+    # Body of second CASE
+    ptrans.apply(sched.children[1].else_body.children)
+    # Whole routine
+    ptrans.apply(sched.children)
+    sched.view()
+    code = str(psy.gen)
+    print(code)
+    assert (
+        "  TYPE(ProfileData), SAVE :: psy_profile1\n"
+        "  TYPE(ProfileData), SAVE :: psy_profile2\n"
+        "  TYPE(ProfileData), SAVE :: psy_profile0\n"
+        "  CALL ProfileStart('my_test', 'region_0', psy_profile0)\n"
+        "  p_fld_crs(:, :) = 0._wp\n" in code)
+    assert ("    CALL ProfileEnd(psy_profile2)\n"
+            "  END SELECT\n"
+            "  CALL ProfileEnd(psy_profile0)\n"
+            "END SUBROUTINE my_test\n" in code)
+    assert 0
