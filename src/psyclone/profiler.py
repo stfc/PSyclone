@@ -280,6 +280,9 @@ class ProfileNode(Node):
             break
 
         spec_parts = walk_ast([ptree], [Fortran2003.Specification_Part])
+        if not spec_parts:
+            # TODO add a Specification_Part if necessary
+            return
         spec_part = spec_parts[0]
 
         # Get the existing use statements
@@ -326,12 +329,25 @@ class ProfileNode(Node):
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
                                        content_ast)
+        # Finding the location of the end is harder as it might be the
+        # end of a clause within an If or Select block. We therefore
+        # work back up the fparser2 parse tree until we find a node that is
+        # a direct child of the parent node.
+        ast_end_index = None
         if self.children[-1].ast_end:
-            ast_end_index = object_index(fp_parent.content,
-                                         self.children[-1].ast_end)
+            ast_end = self.children[-1].ast_end
         else:
-            ast_end_index = object_index(fp_parent.content,
-                                         self.children[-1].ast)
+            ast_end = self.children[-1].ast
+        while ast_end_index is None:
+            try:
+                ast_end_index = object_index(fp_parent.content,
+                                             ast_end)
+            except ValueError:
+                # ast_end is not a child of fp_parent so go up to its parent
+                # and try again
+                ast_end = ast_end._parent
+                if not ast_end:
+                    raise InternalError("TODO")
 
         # Add the profiling-end call
         reader = FortranStringReader(
