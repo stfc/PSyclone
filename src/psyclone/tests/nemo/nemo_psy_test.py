@@ -292,7 +292,7 @@ def test_schedule_view(capsys):
     kern_str = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
     isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     expected_sched = (

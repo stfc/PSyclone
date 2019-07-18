@@ -838,15 +838,22 @@ def test_ompdo_directive_class_view(capsys):
             case["current_class"].view(omp_parallel_loop)
 
             out, _ = capsys.readouterr()
+
+            directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+            literal = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+            loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+            sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+            kern = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+
             expected_output = (
-                "Directive[OMP parallel do]\n"
-                "    Loop[type='', field_space='w1', it_space='cells', "
+                directive + "[OMP parallel do]\n"
+                "    " + loop + "[type='', field_space='w1', it_space='cells', "
                 "upper_bound='ncells']\n"
-                "        Literal[value:'NOT_INITIALISED']\n"
-                "        Literal[value:'NOT_INITIALISED']\n"
-                "        Literal[value:'1']\n"
-                "        Schedule[]\n"
-                "            CodedKern testkern_code(a,f1,f2,m1,m2) "
+                "        " + literal + "[value:'NOT_INITIALISED']\n"
+                "        " + literal + "[value:'NOT_INITIALISED']\n"
+                "        " + literal + "[value:'1']\n"
+                "        " + sched + "[]\n"
+                "            " + kern + " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]\n")
             print(out)
             print(expected_output)

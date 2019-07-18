@@ -68,6 +68,7 @@ def teardown_function():
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
@@ -77,17 +78,19 @@ def test_profile_basic(capsys):
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
-    coloured_schedule = GOInvokeSchedule([]).coloured_text
-    coloured_loop = Loop().coloured_text
-    coloured_kern = GOKern().coloured_text
-    coloured_profile = invoke.schedule.children[0].coloured_text
+    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = Loop().coloured_text
+    profile = invoke.schedule.children[0].coloured_text
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
-    correct_re = (".*" + coloured_schedule + ".*"
-                  r"    .*" + coloured_profile + ".*"
-                  r"        .*" + coloured_loop + ".*")
-    assert re.search(correct_re, out.replace("\n", ""))
+    expected = (
+        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        "    " + profile + "\n"
+        "        " + loop + "[type='outer', field_space='go_cv', "
+        "it_space='go_internal_pts']\n")
+
+    assert expected in out
 
     prt = ProfileRegionTrans()
 
