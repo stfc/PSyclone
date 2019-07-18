@@ -8248,7 +8248,11 @@ class DynKernelArguments(Arguments):
         :rtype: list of str
         '''
         class KernCallAccArgList(KernCallArgList):
-            ''' xxx '''
+            '''
+            Arguments needed by OpenACC. Scalars are (supposedly) not needed
+            but it is easier to keep them in.
+
+            '''
             def field_vector(self, argvect):
                 ''' xxx '''
                 for idx in range(1, argvect.vector_size+1):
@@ -8264,6 +8268,20 @@ class DynKernelArguments(Arguments):
                 text2 = text1 + "%data"
                 self._arglist.append(text2)
 
+            def stencil(self, arg):
+                ''' xxx '''
+                var_name = DynStencils.dofmap_name(arg)
+                self._arglist.append(var_name)
+                if self._cell_ref_name not in self._arglist:
+                    self._arglist.append(self._cell_ref_name)
+
+            def operator(self, arg):
+                ''' xxx '''
+                if arg.proxy_name_indexed not in self._arglist:
+                    self._arglist.append(arg.proxy_name_indexed)
+                self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+                self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
+
             def fs_compulsory_field(self, function_space):
                 ''' xxx '''
                 undf_name = get_fs_undf_name(function_space)
@@ -8278,20 +8296,6 @@ class DynKernelArguments(Arguments):
         return create_acc_arg_list.arglist
 
     @property
-    def fields(self):
-        '''
-        Provides the list of names of field objects that are required by
-        the kernel associated with this Arguments object.
-
-        :returns: List of names of (Fortran) field objects.
-        :rtype: list of str
-        '''
-        # This should probably be in psyGen as it just a copy of the gocean version
-        exit(1)
-        args = args_filter(self._args, arg_types=["field"])
-        return [arg.name for arg in args]
-
-    @property
     def scalars(self):
         '''
         Provides the list of names of scalar arguments required by the
@@ -8301,10 +8305,10 @@ class DynKernelArguments(Arguments):
         :returns: A list of the names of scalar arguments in this object.
         :rtype: list of str
         '''
-        # This should probably be in psyGen as it just a copy of the gocean version
-        exit(1)
-        args = args_filter(self._args, arg_types=["scalar"])
-        return [arg.name for arg in args]
+        # Return nothing for the moment as it is unclear whether
+        # scalars need to be explicitly dealt with (for OpenACC) in
+        # the dynamo api.
+        return []
 
 
 class DynKernelArgument(KernelArgument):
@@ -8618,27 +8622,14 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
     of data_on_device().
 
     '''
-    def data_on_device(self, parent):
+    def data_on_device(self, _):
         '''
-        Adds nodes into the f2pygen AST to flag that each of the
-        objects required by the kernels in the data region is now on the
-        device. We do this by setting the data_on_device attribute to .true.
+        Provide a hook to be able to add information about data being on a
+        device (or not). This is not currently used in the dynamo0p3
+        front end.
 
-        :param parent: The node in the f2pygen AST to which to add the \
-                       assignment nodes.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        # I'm not sure what this is for so commenting it out for the moment
-        #from psyclone.f2pygen import AssignGen
-        #obj_list = []
-        #for pdir in self._acc_dirs:
-        #    for var in pdir.fields:
-        #        if var not in obj_list:
-        #            parent.add(AssignGen(parent,
-        #                                 lhs=var+"%data_on_device",
-        #                                 rhs=".true."))
-        #            obj_list.append(var)
-        return
+        return None
 
 
 # The list of module members that we wish AutoAPI to generate

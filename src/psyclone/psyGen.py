@@ -1989,7 +1989,7 @@ class ACCEnterDataDirective(ACCDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
-            IfThenGen, AssignGen, CallGen, UseGen
+            AssignGen, CallGen, UseGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -2008,33 +2008,15 @@ class ACCEnterDataDirective(ACCDirective):
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
         var_str = self.list_to_string(var_list)
-
-        # 4. Declare and initialise a logical variable to keep track of
-        #    whether this is the first time we've entered this Invoke
-        name_space_manager = NameSpaceFactory().create()
-        first_time = name_space_manager.create_name(
-            root_name="first_time", context="PSyVars", label="first_time")
-        parent.add(DeclGen(parent, datatype="logical",
-                           entity_decls=[first_time],
-                           initial_values=[".True."],
-                           save=True))
-        parent.add(CommentGen(parent,
-                              " Ensure all fields are on the device and"))
-        parent.add(CommentGen(parent, " copy them over if not."))
-        # 5. Put the enter data directive inside an if-block so that we
-        #    only ever do it once
-        ifthen = IfThenGen(parent, first_time)
-        parent.add(ifthen)
-        ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
+        # 4. Add the enter data directive.
+        parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 "copyin("+var_str+")"))
-        # 6. Flag that we have now entered this routine at least once
-        ifthen.add(AssignGen(ifthen, lhs=first_time, rhs=".false."))
-        # 7. Flag that the data is now on the device. This calls down
-        #    into the API-specific subclass of this class.
-        self.data_on_device(ifthen)
+        # 5. Call an API-specific subclass of this class in case
+        # additional declarations are required.
+        self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
 
-        # 8. Ensure that any scalars are up-to-date
+        # 6. Ensure that any scalars are up-to-date
         var_list = []
         for pdir in self._acc_dirs:
             for var in pdir.scalars:
