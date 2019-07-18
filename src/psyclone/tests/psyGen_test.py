@@ -5014,6 +5014,7 @@ def test_fparser2astprocessor_handling_case_construct(f2008_parser):
     assert isinstance(ifnode.else_body[0], IfBlock)
     assert ifnode.else_body[0].condition.children[1].name == 'label2'
     assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
+    assert isinstance(ifnode.else_body[0].parent, Schedule)
     assert ifnode.else_body[0].ast is \
         fparser2case_construct.content[3]
     assert ifnode.else_body[0].children[1].ast is \
