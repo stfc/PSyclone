@@ -216,10 +216,10 @@ def test_do_loop_not_working_yet(parser):
                                 "s: WRITE, t: READ"
 
 
-@pytest.mark.xfail(reason="Gocean loops boundaries are also strings #400/#441")
+@pytest.mark.xfail(reason="Gocean loops boundaries are also strings #400/#444")
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
-    TODO #400/#441: Does not work atm, GOLoops also have start/stop as
+    TODO #400/#444: Does not work atm, GOLoops also have start/stop as
     strings, which are even not defined. Only after genCode will they be
     defined.
     '''
@@ -238,7 +238,7 @@ def test_goloop():
     do_loop.reference_accesses(var_accesses)
     assert str(var_accesses) == "cu_fld: WRITE, i: READWRITE, j: READWRITE, "\
                                 "p_fld: READ, u_fld: READ"
-    # TODO #441: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
+    # TODO #444: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
 

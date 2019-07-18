@@ -3219,7 +3219,7 @@ class Loop(Node):
         # (write access before read)
         var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
         var_accesses.add_access(self.variable_name, AccessType.READ, self)
-        # TODO #400/#441: self._start/stop/step are not defined at this stage
+        # TODO #400/#444: self._start/stop/step are not defined at this stage
         # (at least in the gocean1.0 api). ATM this results in an 'empty'
         # variable being created (name = "").
         var_accesses.add_access(self._start, AccessType.READ, self)
