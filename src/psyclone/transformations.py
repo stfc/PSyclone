@@ -1199,7 +1199,7 @@ class ColourTrans(Transformation):
 
         # create a colour loop. This loops over a particular colour and
         # can be run in parallel
-        colour_loop = node.__class__(parent=colours_loop.children[3],
+        colour_loop = node.__class__(parent=colours_loop.loop_body,
                                      loop_type="colour")
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
@@ -2144,7 +2144,7 @@ class GOLoopSwapTrans(Transformation):
                                       "an instance of '{1}."
                                       .format(node_outer, type(node_outer)))
 
-        if not node_outer.loop_body:
+        if not node_outer.loop_body or not node_outer.loop_body.children:
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have one "
@@ -2162,17 +2162,14 @@ class GOLoopSwapTrans(Transformation):
                                       "'{1}'."
                                       .format(node_outer, node_inner))
 
-        if len(node_outer.loop_body) > 1:
-            raise TransformationError("Error in GOLoopSwap transformation. "
-                                      "Supplied node '{0}' must be the outer "
-                                      "loop of a loop nest and must have "
-                                      "exactly one inner loop, but this node "
-                                      "has {1} inner statements, the first "
-                                      "two being '{2}' and '{3}'"
-                                      .format(node_outer,
-                                              len(node_outer.children),
-                                              node_outer.loop_body[0],
-                                              node_outer.loop_body[1]))
+        if len(node_outer.loop_body.children) > 1:
+            raise TransformationError(
+                "Error in GOLoopSwap transformation. Supplied node '{0}' must"
+                " be the outer loop of a loop nest and must have exactly one "
+                "inner loop, but this node has {1} inner statements, the "
+                "first two being '{2}' and '{3}'"
+                "".format(node_outer, len(node_outer.loop_body.children),
+                          node_outer.loop_body[0], node_outer.loop_body[1]))
 
     def apply(self, outer):  # pylint: disable=arguments-differ
         '''The argument :py:obj:`outer` must be a loop which has exactly
@@ -2192,7 +2189,6 @@ class GOLoopSwapTrans(Transformation):
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [inner, outer])
 
-        exit(0)
         # Remove outer from parent:
         index = parent.children.index(outer)
         del parent.children[index]
@@ -2201,17 +2197,17 @@ class GOLoopSwapTrans(Transformation):
         # Move inner to parent:
         inner.parent = parent
         parent.children.insert(index, inner)
-        outer.children.remove(inner)
+        outer.loop_body.children.remove(inner)
 
-        # Move inner's children to outer:
-        for child in inner.children:
-            inner.children.remove(child)
-            outer.children.append(child)
-            child.parent = outer
+        # Move inner's schedule to outer:
+        outer.children[3] = inner.loop_body
+        inner.children[3] = Schedule()
+        for child in outer.loop_body:
+            child.parent = outer.loop_body
 
         # Move outer under inner:
-        inner.children.append(outer)
-        outer.parent = inner
+        inner.loop_body.children.append(outer)
+        outer.parent = inner.loop_body
 
         return schedule, keep
 

@@ -1764,7 +1764,6 @@ def test_call_forward_dependence():
     writer = schedule.children[0].loop_body[3]
     next_read = schedule.children[0].loop_body[4]
     assert writer.forward_dependence() == next_read
-    return  # TODO: FIX this test before review
     # a) check writer returned
     first_loop = schedule.children[0].loop_body[0]
     assert first_loop.forward_dependence() == writer
@@ -2023,9 +2022,8 @@ def test_dag_names():
     schedule.children[3].loop_type = "colour"
     assert schedule.children[3].dag_name == "loop_[colour]_4"
     schedule.children[3].loop_type = ""
-    return  # TODO: Fix broken test
     assert (schedule.children[3].loop_body[0].dag_name ==
-            "kernel_testkern_code_5")
+            "kernel_testkern_code_9")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -2035,7 +2033,7 @@ def test_dag_names():
     global_sum = schedule.children[2]
     assert global_sum.dag_name == "globalsum(asum)_2"
     builtin = schedule.children[1].loop_body[0]
-    assert builtin.dag_name == "builtin_sum_x_4"
+    assert builtin.dag_name == "builtin_sum_x_12"
 
 
 def test_openmp_pdo_dag_name():

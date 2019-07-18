@@ -1277,7 +1277,6 @@ def test_module_inline_same_kernel():
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
-    return  # TODO: Is this not inlining? Fix before PR.
     # check that the subroutine has been inlined
     assert 'SUBROUTINE time_smooth_code(' in gen
     # check that the associated psy "use" does not exist
@@ -1330,24 +1329,20 @@ def test_loop_swap_correct(tmpdir):
     schedule = invoke.schedule
     schedule_str = str(schedule)
 
-    return  # TODO: Need to decide on the view output before pushing PR
-
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
-    expected_schedule = '''Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
-kern call: bc_ssh_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id='', variable='j'\].*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*kern call: bc_solid_v_code.*")
 
-    expected_schedule = '''Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
-kern call: bc_solid_u_code'''
-    assert expected_schedule in schedule_str
-
-    expected_schedule = '''Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
-kern call: bc_solid_v_code'''
-    assert expected_schedule in schedule_str
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the first loops
     swap = GOLoopSwapTrans()
@@ -1355,30 +1350,55 @@ kern call: bc_solid_v_code'''
     psy.invokes.get('invoke_loop1').schedule = swapped1
     schedule_str = str(swapped1)
 
-    expected_schedule = '''Loop[]: i= lower=2,istop,1
-Loop[]: j= lower=2,jstop,1
-kern call: bc_ssh_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id='', variable='i'\].*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the middle loops
     swapped2, _ = swap.apply(swapped1.children[1])
     psy.invokes.get('invoke_loop1').schedule = swapped2
     schedule_str = str(swapped2)
 
-    expected_schedule = '''Loop[]: i= lower=1,istop,1
-Loop[]: j= lower=1,jstop+1,1
-kern call: bc_solid_u_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id='', variable='i'\].*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the last loops
     swapped3, _ = swap.apply(swapped2.children[2])
     psy.invokes.get('invoke_loop1').schedule = swapped3
     schedule_str = str(swapped3)
 
-    expected_schedule = '''Loop[]: i= lower=1,istop+1,1
-Loop[]: j= lower=1,jstop,1
-kern call: bc_solid_v_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id='', variable='i'\].*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id='', variable='i'\].*"
+        r".*Loop\[id='', variable='j'\].*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
+
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1416,7 +1436,6 @@ def test_go_loop_swap_errors():
     fused, _ = fuse.apply(schedule.children[0], schedule.children[1])
     invoke_loop2.schedule = fused
 
-    return  # FIXME before PR
     with pytest.raises(TransformationError) as error:
         swap.apply(fused.children[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
@@ -1426,7 +1445,7 @@ def test_go_loop_swap_errors():
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
-    del fused.children[0].loop_body[0].loop_body[0]
+    del fused.children[0].loop_body[0].children[3].children[0]
 
     with pytest.raises(TransformationError) as error:
         swap.apply(fused.children[0].loop_body[0])
