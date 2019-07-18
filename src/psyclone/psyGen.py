@@ -5979,7 +5979,16 @@ class Assignment(Node):
 
         # Now change the (one) access to the assigned variable to be WRITE:
         var_info = accesses_left[self.lhs.name]
-        var_info.change_read_to_write()
+        try:
+            var_info.change_read_to_write()
+        except InternalError:
+            # An internal error typically indicates that the same variable
+            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+            # supported in PSyclone.
+            from psyclone.parse.utils import ParseError
+            raise ParseError("The variable '{0}' appears more than once on "
+                             "the left-hand side of an assignment."
+                             .format(self.lhs.name))
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function:
@@ -7836,5 +7845,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(str(node.items[0]), parent=parent)
+
 
 __all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation']

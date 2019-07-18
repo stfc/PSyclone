@@ -118,6 +118,28 @@ def test_indirect_addressing(parser):
     assert str(var_accesses) == "a: READ, g: WRITE, h: READ, i: READ"
 
 
+def test_double_variable_lhs(parser):
+    ''' A variable on the LHS of an assignment must only occur once,
+    which is a restriction of PSyclone.
+
+    '''
+    reader = FortranStringReader('''program test_prog
+                                 g(g(1)) = 1
+                                 end program test_prog''')
+    ast = parser(reader)
+    psy = PSyFactory(API).create(ast)
+    schedule = psy.invokes.get("test_prog").schedule
+
+    indirect_addressing = schedule[0]
+    assert isinstance(indirect_addressing, Assignment)
+    var_accesses = VariablesAccessInfo()
+    from psyclone.parse.utils import ParseError
+    with pytest.raises(ParseError) as err:
+        indirect_addressing.reference_accesses(var_accesses)
+    assert "The variable 'g' appears more than once on the left-hand side "\
+           "of an assignment." in str(err)
+
+
 def test_if_statement(parser):
     ''' Tests handling an if statement
     '''
