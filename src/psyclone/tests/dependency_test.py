@@ -146,7 +146,7 @@ def test_if_statement(parser):
     assert q_accesses[0].location < q_accesses[1].location
 
 
-@pytest.mark.xfail(reason="Calls in nemo not yet supported")
+@pytest.mark.xfail(reason="Calls in the NEMO API are not yet supported #446")
 def test_call(parser):
     ''' Check that we correctly handle a call in a program '''
     reader = FortranStringReader('''program test_prog
