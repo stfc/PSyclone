@@ -31,23 +31,23 @@
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab.
 
-module alg	
+module alg
 
- contains	
+contains	
 
-   subroutine do_update(fld1, fld2)	
-    use field_mod, only: r2d_field	
-    use kern_use_var_mod, only: kern_use_var	
-    use kern_call_kern_mod, only: kern_call_kern	
-    use kern_nested_use_mod, only: kern_nested_use	
-    implicit none	
-    type(r2d_field), intent(inout) :: fld1, fld2	
+  subroutine do_update(fld1, fld2)
+    use field_mod, only: r2d_field
+    use kern_use_var_mod, only: kern_use_var
+    use kern_call_kern_mod, only: kern_call_kern
+    use kern_nested_use_mod, only: kern_nested_use
+    implicit none
+    type(r2d_field), intent(inout) :: fld1, fld2
 
-     call invoke(kern_use_var(fld1),   &	
-                kern_call_kern(fld2), &	
-                kern_nested_use(fld1))	
+    call invoke(kern_use_var(fld1),   &
+                kern_call_kern(fld2), &
+                kern_nested_use(fld1))
 
-   end subroutine do_update	
+  end subroutine do_update
 
- end module alg
+end module alg
  
