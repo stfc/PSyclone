@@ -303,6 +303,7 @@ def trans(psy):
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
+        print("Transforming invoke {0}:\n".format(invoke.name))
 
         add_kernels(sched.children)
         add_profiling(sched.children)
