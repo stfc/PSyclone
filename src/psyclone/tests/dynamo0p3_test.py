@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic Met Office, C.M. Maynard, Met Office/University of Reading.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -531,7 +531,7 @@ def test_field(tmpdir):
     assert output in str(generated_code)
 
 
-def test_field_deref(tmpdir,dist_mem):
+def test_field_deref(tmpdir, dist_mem):
     ''' Tests that a call with a set of fields (some obtained by
     de-referencing derived types) and no basis functions produces
     correct code.'''
@@ -1157,20 +1157,23 @@ def test_two_int_scalars(tmpdir):
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
-        "        CALL testkern_code(nlayers, iflag, f1_proxy%data, "
+        "        CALL testkern_code(nlayers, istep, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, iscalar, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
-def test_two_scalars():
+def test_two_scalars(tmpdir):
     ''' tests that we generate correct code when a kernel has two scalar
     arguments, one real and one integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
@@ -3159,6 +3162,9 @@ def test_halo_dirty_4():
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
+        "      CALL chi_proxy(1)%set_dirty()\n"
+        "      CALL chi_proxy(2)%set_dirty()\n"
+        "      CALL chi_proxy(3)%set_dirty()\n"                                 
         "      CALL f1_proxy%set_dirty()\n")
     assert expected in generated_code
 
@@ -3484,7 +3490,7 @@ def test_fs_anyspace_and_readwrite_error():
                 in str(excinfo.value))
 
 
-def test_halo_exchange_view(tmpdir,capsys):
+def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
