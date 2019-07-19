@@ -264,7 +264,8 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, Schedule, InternalError
+        from psyclone.psyGen import object_index, Schedule
+        from psyclone.transformations import TransformationError
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()
@@ -349,7 +350,7 @@ class ProfileNode(Node):
                 if hasattr(ast_end, "_parent") and ast_end._parent:
                     ast_end = ast_end._parent
                 else:
-                    raise InternalError("TODO")
+                    raise TransformationError("TODO")
 
         # Add the profiling-end call
         reader = FortranStringReader(
