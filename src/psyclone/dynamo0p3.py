@@ -56,8 +56,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective, \
-    args_filter
+    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 
 # First section : Parser specialisations and classes
 
@@ -7097,7 +7096,7 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(name)
 
     def operator(self, arg):
-        ''' add the operator arguments to the argument list '''
+        ''' add the operator arguments to the argument list'''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
@@ -8246,15 +8245,28 @@ class DynKernelArguments(Arguments):
         :returns: the list of quantities that must be available on an \
                   OpenACC device before the associated kernel can be launched.
         :rtype: list of str
+
         '''
         class KernCallAccArgList(KernCallArgList):
             '''
-            Arguments needed by OpenACC. Scalars are (supposedly) not needed
-            but it is easier to keep them in.
+            Kernel call arguments that need to be declared by OpenACC
+            directives. KernCallArgList only needs to be specialised
+            where modified, or additional, arguments are required.
+            Scalars are apparently not required but it is valid in
+            OpenACC to include them and requires less specialisation
+            to keep them in.
 
             '''
             def field_vector(self, argvect):
-                ''' xxx '''
+                '''
+                Add the field vector associated with the argument 'argvect' to the
+                argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param argvect: the kernel argument (vector field).
+                :type argvect:  :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
                 for idx in range(1, argvect.vector_size+1):
                     text1 = argvect.proxy_name + "(" + str(idx) + ")"
                     self._arglist.append(text1)
@@ -8262,34 +8274,69 @@ class DynKernelArguments(Arguments):
                     self._arglist.append(text2)
 
             def field(self, arg):
-                ''' xxx '''
+                '''
+                Add the field associated with the argument 'arg' to the argument
+                list. OpenACC requires the field and the dereferenced
+                data to be specified.
+
+                :param arg: the kernel argument (field).
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
                 text1 = arg.proxy_name
                 self._arglist.append(text1)
                 text2 = text1 + "%data"
                 self._arglist.append(text2)
 
             def stencil(self, arg):
-                ''' xxx '''
+                '''
+                Add the stencil dofmap associated with this kernel
+                argument. OpenACC requires the full dofmap to be
+                specified.
+
+                :param arg: the meta-data description of the kernel \
+                argument with which the stencil is associated.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                print (type(arg))
+                exit(1)
                 var_name = DynStencils.dofmap_name(arg)
                 self._arglist.append(var_name)
-                if self._cell_ref_name not in self._arglist:
-                    self._arglist.append(self._cell_ref_name)
 
             def operator(self, arg):
-                ''' xxx '''
+                '''
+                Add the operator arguments to the argument list if they have not
+                already been added. OpenACC requires the derived type
+                and the dereferenced data to be specified.
+
+                :param arg: the meta-data description of the operator.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                print (type(arg))
+                exit(1)
                 if arg.proxy_name_indexed not in self._arglist:
                     self._arglist.append(arg.proxy_name_indexed)
-                self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
-                self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
+                    self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+                    self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
 
             def fs_compulsory_field(self, function_space):
-                ''' xxx '''
+                '''
+                Add compulsory arguments to the list.
+                argument. OpenACC requires the full function-space map to be
+                specified.
+
+                :param arg: the current functionspace
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                print (type(function_space))
+                exit(1)
                 undf_name = get_fs_undf_name(function_space)
                 self._arglist.append(undf_name)
                 map_name = get_fs_map_name(function_space)
                 self._arglist.append(map_name)
-                if self._cell_ref_name not in self._arglist:
-                    self._arglist.append(self._cell_ref_name)
 
         create_acc_arg_list = KernCallAccArgList(self._parent_call)
         create_acc_arg_list.generate()
@@ -8616,6 +8663,7 @@ class DynKernCallFactory(object):
         # Return the outermost loop
         return cloop
 
+
 class DynACCEnterDataDirective(ACCEnterDataDirective):
     '''
     Sub-classes ACCEnterDataDirective to provide an API-specific implementation
@@ -8625,8 +8673,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
     def data_on_device(self, _):
         '''
         Provide a hook to be able to add information about data being on a
-        device (or not). This is not currently used in the dynamo0p3
-        front end.
+        device (or not). This is currently not used in dynamo0p3.
 
         '''
         return None
