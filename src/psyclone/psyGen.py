@@ -1537,7 +1537,7 @@ class Schedule(Node):
     def dag_name(self):
         '''
         :returns: The name of this node in the dag.
-        :rtype: str
+        :rtypes: str
         '''
         return "schedule"
 

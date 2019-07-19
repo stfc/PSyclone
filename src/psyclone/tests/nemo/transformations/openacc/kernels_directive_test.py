@@ -56,20 +56,6 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "end program do_loop\n")
 
 
-def test_kernels_no_gen_code(parser):
-    ''' Check that the ACCKernels.gen_code() method raises the
-    expected error. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
-    with pytest.raises(InternalError) as err:
-        schedule.children[0].gen_code(schedule)
-    assert ("ACCKernelsDirective.gen_code should not have "
-            "been called" in str(err))
-
-
 def test_kernels_view(parser, capsys):
     ''' Test the ACCKernelsDirective.view() method. '''
     code = parser(FortranStringReader(EXPLICIT_LOOP))
