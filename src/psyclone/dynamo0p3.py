@@ -8323,16 +8323,14 @@ class DynKernelArguments(Arguments):
 
             def fs_compulsory_field(self, function_space):
                 '''
-                Add compulsory arguments to the list.
-                argument. OpenACC requires the full function-space map to be
-                specified.
+                Add compulsory arguments associated with this function space to
+                the list.  argument. OpenACC requires the full
+                function-space map to be specified.
 
-                :param arg: the current functionspace
-                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+                :param arg: the current functionspace.
+                :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
 
                 '''
-                print (type(function_space))
-                exit(1)
                 undf_name = get_fs_undf_name(function_space)
                 self._arglist.append(undf_name)
                 map_name = get_fs_map_name(function_space)

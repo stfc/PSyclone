@@ -33,7 +33,7 @@
 
 module alg
 
-contains	
+contains
 
   subroutine do_update(fld1, fld2)
     use field_mod, only: r2d_field
@@ -50,4 +50,3 @@ contains
   end subroutine do_update
 
 end module alg
- 

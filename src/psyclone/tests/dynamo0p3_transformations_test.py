@@ -6640,8 +6640,9 @@ def test_acc_kernels():
         "      !$acc end kernels\n") in code
 
 
+@pytest.mark.xfail(reason="#448 Support for ACC data directive not yet added.")
 def test_acc_data():
-    '''Test that an OpenACC Enter directive can be added to the PSy
+    '''Test that an OpenACC Data directive can be added to the PSy
     layer in the dynamo0.3 API.
 
     '''
@@ -6704,7 +6705,7 @@ def test_acc_parallel():
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,cell,ndf_w2,undf_w2,map_w2,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
         "ndf_w3,undf_w3,map_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6737,7 +6738,7 @@ def test_acc_loop():
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,cell,ndf_w2,undf_w2,map_w2,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
         "ndf_w3,undf_w3,map_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
