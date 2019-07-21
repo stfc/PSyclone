@@ -6616,51 +6616,7 @@ def test_intergrid_err(dist_mem):
         lftrans.apply(loops[0], loops[1])
     assert expected_err in str(excinfo)
 
-
-def test_acc_kernels():
-    '''Test that an OpenACC Kernels directive can be added to the PSy
-    layer in the dynamo0.3 API.
-
-    '''
-    from psyclone.transformations import ACCKernelsTrans
-    acc_kern_trans = ACCKernelsTrans()
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_kern_trans.apply(sched.children)
-    code = str(psy.gen)
-    assert (
-        "      !$acc kernels\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
-    assert (
-        "      END DO \n"
-        "      !$acc end kernels\n") in code
-
-
-@pytest.mark.xfail(reason="#448 Support for ACC data directive not yet added.")
-def test_acc_data():
-    '''Test that an OpenACC Data directive can be added to the PSy
-    layer in the dynamo0.3 API.
-
-    '''
-    from psyclone.transformations import ACCDataTrans
-    acc_data_trans = ACCDataTrans()
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_data_trans.apply(sched.children)
-    code = str(psy.gen)
-    print (code)
-    assert (
-        "      !$acc enter data copyin()\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
+# Start OpenACC section
 
 
 def test_acc_enter():
@@ -6747,6 +6703,8 @@ def test_acc_loop():
     assert (
         "      END DO \n"
         "      !$acc end parallel\n") in code
+
+# End OpenACC section
 
 
 def test_no_ocl():

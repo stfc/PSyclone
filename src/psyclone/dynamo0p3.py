@@ -7096,7 +7096,7 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(name)
 
     def operator(self, arg):
-        ''' add the operator arguments to the argument list'''
+        ''' add the operator arguments to the argument list '''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")

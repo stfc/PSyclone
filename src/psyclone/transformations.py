@@ -2978,7 +2978,7 @@ class ACCKernelsTrans(RegionTrans):
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
                         psyGen.Operation, psyGen.Literal,
                         psyGen.Assignment, psyGen.Reference,
-                        dynamo0p3.DynLoop, dynamo0p3.DynKern)
+                        dynamo0p3.DynLoop, dynamo0p3.DynKern, psyGen.BuiltIn)
 
     @property
     def name(self):
