@@ -65,7 +65,8 @@ EXCLUDED_FILES = ["bdyini.f90", "diaobs.f90", "dommsk.f90",
                   "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                   "obs_utils.f90",
                   "sbcblk.f90", "sbcblk_algo_ncar.f90", "sbcisf.f90",
-                  "sbcice_cice.f90", "storng.f90", "stopar.f90", "tide_mod.f90"]
+                  "sbcice_cice.f90", "storng.f90", "stopar.f90",
+                  "tide_mod.f90", "timing.f90"]
 
 if __name__ == "__main__":
     import glob
