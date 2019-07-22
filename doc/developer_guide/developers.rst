@@ -628,7 +628,8 @@ else-body. It is the responsibility of the user to handle these cases - for
 example by creating separate instances for statements in the if-body and for
 the else-body. 
 
-.. note:: In the case described above the first statement of the if-body will
+.. note:: When using different instances for an if- and else-body, the first
+    statement of the if-body will
     have the same location number as the first statement of the else-body. So
     you can only compare location numbers from the same VariablesAccessInformation
     instance. If you merge two instances together, the locations of the merged-in
@@ -650,8 +651,8 @@ will always assume accesses happen at the current location, and a call to
      usage to an existing VariablesAccessInfo object. 
 
 
-Access Example
---------------
+Access Examples
+---------------
 
 Below we show a simple example of how to use this API. This is from the
 ``psyclone.psyGen.OMPParallelDirective`` (so ``self`` is an instance of this
@@ -683,6 +684,29 @@ variables that must be declared as thread-private::
       # assume the variable should be private:
       if accesses[0].access_type == AccessType.WRITE:
           result.add(var_name.lower())
+
+
+The next, hypothetical example shows how the VariablesAccessInfo class can
+be used iteratively. Assume that you have a function that determines
+if the given variable accesses can be parallelised, and the aim is to
+determine the largest consecutive block of statement that can be
+executed in parallel. The acceses of one statement at a time can be added
+until we find accesses that would prevent parallelisation::
+
+   # Create an empty instance to store accesses
+   accesses = VariablesAccessInfo()
+   list_of_parallelisable_statements = []
+   while next_statement is not None:
+       # Add the variable accesses of the next statement to
+       # the existing accesses:
+       next_statement.reference_accesses(accesses)
+       # Stop when the next statement can not be parallelised
+       # together with the previous accesses:
+       if not can_be_parallelised(accesses):
+           break
+       list_of_parallelisable_statements.append(next_statement)
+       # Assume there is a function that gives you the next statement:
+       next_statement = next_statement.next()
 
 
 .. note:: There is a certain overlap in the dependency analysis code
