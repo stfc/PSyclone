@@ -2557,19 +2557,6 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     assert len(indices) == vector_size
 
 
-def test_loop_props():
-    ''' Tests for the properties of a Loop object. '''
-    from psyclone.psyGen import Loop
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
-    sched = invoke.schedule
-    loop = sched.children[0].loop_body[0]
-    assert isinstance(loop, Loop)
-    with pytest.raises(GenerationError) as err:
-        loop.loop_type = "not_a_valid_type"
-    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err))
-
-
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
@@ -2713,6 +2700,70 @@ def test_codeblock_gen_c_code():
     with pytest.raises(GenerationError) as err:
         cblock.gen_c_code()
     assert "CodeBlock can not be translated to C" in str(err.value)
+
+
+# Test Loop class
+
+def test_loop_navigation_properties():
+    ''' Tests the start_expr, stop_expr, step_expr and loop_body
+    properties'''
+    from psyclone.psyGen import Loop
+    loop = Loop(preinit=False)
+
+    # Properties return an error if the node is incomplete
+    error_str = ("Loop malformed or incomplete. It should have exactly 4 "
+                 "children, but found")
+    with pytest.raises(InternalError) as err:
+        _ = loop.start_expr
+    assert error_str in str(err.value)
+
+    loop.addchild(Literal("start", parent=loop))
+    loop.addchild(Literal("stop", parent=loop))
+    loop.addchild(Literal("step", parent=loop))
+
+    # If it's not fully complete, it still returns an error
+    with pytest.raises(InternalError) as err:
+        _ = loop.start_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.stop_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.step_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.loop_body
+    assert error_str in str(err.value)
+
+    # The forth child has to be a Schedule
+    loop.addchild(Literal("loop_body", parent=loop))
+    with pytest.raises(InternalError) as err:
+        _ = loop.loop_body
+    assert "Loop malformed or incomplete. Forth children should be a " \
+        "Schedule node, but found loop with " in str(err.value)
+
+    # Fix loop and check that all properties work
+    del loop.children[3]
+    loop.addchild(Schedule(parent=loop))
+    loop.loop_body.addchild(Return(parent=loop.loop_body))
+
+    assert loop.start_expr.value == "start"
+    assert loop.stop_expr.value == "stop"
+    assert loop.step_expr.value == "step"
+    assert isinstance(loop.loop_body[0], Return)
+
+
+def test_loop_invalid_type():
+    ''' Tests assigning an invalid type to a Loop object. '''
+    from psyclone.psyGen import Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].loop_body[0]
+    assert isinstance(loop, Loop)
+    with pytest.raises(GenerationError) as err:
+        loop.loop_type = "not_a_valid_type"
+    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
+            "['inner', 'outer']" in str(err))
 
 
 # Test IfBlock class
@@ -5314,13 +5365,30 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-DO_WHILE_PROG = ("program do_while_prog\n"
-                 "integer :: my_sum\n"
-                 "my_sum = 0\n"
-                 "do while(.true.)\n"
-                 "  my_sum = my_sum + 1\n"
-                 "end do\n"
-                 "end program do_while_prog\n")
+def test_fparser2astprocessor_do_construct(f2008_parser):
+    ''' Check that do loop constructs are converted to the expected
+    PSyIR node'''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import Loop
+    reader = FortranStringReader('''
+        do i = 1, 10 , 2\n
+            sum = sum + i\n
+        end do\n
+        ''')
+    fparser2do = Execution_Part.match(reader)[0][0]
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    processor.process_nodes(fake_parent, [fparser2do], None)
+    assert fake_parent.children[0]
+    new_loop = fake_parent.children[0]
+    assert isinstance(new_loop, Loop)
+    assert new_loop.variable_name == "i"
+    assert new_loop.start_expr.value == "1"
+    assert new_loop.stop_expr.value == "10"
+    assert new_loop.step_expr.value == "2"
+    assert len(new_loop.loop_body.children) == 1
+    assert isinstance(new_loop.loop_body[0], Assignment)
 
 
 def test_fparser2astprocessor_do_construct_while(f2008_parser):

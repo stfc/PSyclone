@@ -3051,21 +3051,31 @@ class Loop(Node):
             self.addchild(Literal("1", parent=self))  # step
             self.addchild(Schedule(parent=self))  # loop body
 
+    def _check_completeness(self):
+        ''' Check that the Loop has 4 children and the 4th is a Schedule.
+
+        :raises InternalError: If the loop does not have 4 children or the
+            4th one is not a Schedule
+        '''
+        if len(self.children) < 4:
+            raise InternalError(
+                "Loop malformed or incomplete. It should have exactly 4 "
+                "children, but found loop with '{0}'.".format(str(self)))
+
+        if not isinstance(self.children[3], Schedule):
+            raise InternalError(
+                "Loop malformed or incomplete. Forth children should be a "
+                "Schedule node, but found loop with '{0}'.".format(str(self)))
+
     @property
     def start_expr(self):
         ''' Return the PSyIR Node representing the Loop start expression.
 
         :return: Loop start expression.
-
         :rtype: :py:class:`psyclone.psyGen.Node`
-        :raises InternalError: If the Loop node does not have the correct \
-            number of children.
 
         '''
-        if len(self.children) < 4:
-            raise InternalError(
-                "Loop malformed or incomplete. It should have at least 2 "
-                "children, but found {0}.".format(len(self.children)))
+        self._check_completeness()
         return self._children[0]
 
     @start_expr.setter
@@ -3075,30 +3085,19 @@ class Loop(Node):
         :param expr: New PSyIR start expression.
         :type expr: :py:class:`psyclone.psyGen.Node`
 
-        :raises InternalError: If the start expression child does not exist.
-
         '''
-        try:
-            self._children[0] = expr
-        except KeyError:
-            raise InternalError(
-                "")
+        self._check_completeness()
+        self._children[0] = expr
 
     @property
     def stop_expr(self):
         ''' Return the PSyIR Node representing the Loop stop expression.
 
         :return: Loop stop expression.
-
         :rtype: :py:class:`psyclone.psyGen.Node`
-        :raises InternalError: If the Loop node does not have the correct \
-            number of children.
 
         '''
-        if len(self.children) < 4:
-            raise InternalError(
-                "Loop malformed or incomplete. It should have at least 2 "
-                "children, but found {0}.".format(len(self.children)))
+        self._check_completeness()
         return self._children[1]
 
     @stop_expr.setter
@@ -3108,30 +3107,19 @@ class Loop(Node):
         :param expr: New PSyIR stop expression.
         :type expr: :py:class:`psyclone.psyGen.Node`
 
-        :raises InternalError: If the stop expression child does not exist.
-
         '''
-        try:
-            self._children[1] = expr
-        except KeyError:
-            raise InternalError(
-                "")
+        self._check_completeness()
+        self._children[1] = expr
 
     @property
     def step_expr(self):
         ''' Return the PSyIR Node representing the Loop step expression.
 
         :return: Loop step expression.
-
         :rtype: :py:class:`psyclone.psyGen.Node`
-        :raises InternalError: If the Loop node does not have the correct \
-            number of children.
 
         '''
-        if len(self.children) < 4:
-            raise InternalError(
-                "Loop malformed or incomplete. It should have at least 2 "
-                "children, but found {0}.".format(len(self.children)))
+        self._check_completeness()
         return self._children[2]
 
     @step_expr.setter
@@ -3141,31 +3129,19 @@ class Loop(Node):
         :param expr: New PSyIR step expression.
         :type expr: :py:class:`psyclone.psyGen.Node`
 
-        :raises InternalError: If the step expression child does not exist.
-
         '''
-        try:
-            self._children[2] = expr
-        except KeyError:
-            raise InternalError(
-                "")
+        self._check_completeness()
+        self._children[2] = expr
 
     @property
     def loop_body(self):
         ''' Return PSyIR Schedule with the loop body statements.
 
-        :return: PSyIR Schdeule with the loop body statements
+        :return: PSyIR Schedule with the loop body statements
         :rtype: list of :py:class:`psyclone.psyGen.Schedule`
 
-        :raises InternalError: If the Loop node does not have the correct \
-            number of children.
-
         '''
-        if len(self.children) < 4:
-            raise InternalError(
-                "Loop malformed or incomplete. It should have at least 2 "
-                "children, but found {0}.".format(len(self.children)))
-
+        self._check_completeness()
         return self._children[3]
 
     @property
@@ -3288,7 +3264,9 @@ class Loop(Node):
         result = name + "["
         result += "id:'" + self._id
         result += "', variable:'" + self._variable_name
-        result += "', loop_type:'" + self._loop_type + "']\n"
+        if self.loop_type:
+            result += "', loop_type:'" + self._loop_type
+        result += "']\n"
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + name
