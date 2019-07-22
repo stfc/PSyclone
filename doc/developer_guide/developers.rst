@@ -660,20 +660,28 @@ variables that must be declared as thread-private::
 
   var_accesses = VariablesAccessInfo()
   self.reference_accesses(var_accesses)
-  for var_name in var_accesses.get_all_vars():
-      accesses = var_accesses.get_varinfo(var_name).get_all_accesses()
-      # Ignore variables that have indices, we only look at scalar
-      # This tests only the first access, the assumption is that all
-      # accesses are either using an array access, or none.
-      if accesses[0].get_indices() is not None:
+  for var_name in var_accesses.all_vars:
+      accesses = var_accesses[var_name].all_accesses
+      # Ignore variables that are arrays, we only look at scalar ones.
+      # If we do have a symbol table, use it the shape of the variable
+      # to determine if the variable is scalar or not
+      if symbol_table:
+          if len(symbol_table.lookup(var_name).shape) == 0:
+              continue
+
+      # If there is no symbol table, check instead if the first access of
+      # the variable has indices, and assume it is an array if it has:
+      elif accesses[0].indices is not None:
           continue
-      # If a variable is only accessed once, it is either an error
+
+      # If a variable is only accessed once, it is either a coding error
       # or a shared variable - anyway it is not private
       if len(accesses) == 1:
           continue
+
       # We have at least two accesses. If the first one is a write,
       # assume the variable should be private:
-      if accesses[0].get_access_type() == AccessType.WRITE:
+      if accesses[0].access_type == AccessType.WRITE:
           result.add(var_name.lower())
 
 
