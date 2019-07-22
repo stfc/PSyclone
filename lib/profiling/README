@@ -8,9 +8,10 @@ interfaces:
 make all
 will compile all profiling-library interfaces included in PSyclone. The command
 make TARGET
-where TARGET is one of 'template', 'simple_timing' 'drhook' or 'dl_timer' will
-only compile the corresponding library interface. The following makefile variables
-are used and can be overwritten on the command line (e.g. make F90=mpif90):
+where TARGET is one of 'template', 'simple_timing', 'drhook', 'nvidia' or
+'dl_timer' will only compile the corresponding library interface. The
+following makefile variables are used and can be overwritten on the command
+line (e.g. make F90=mpif90):
 --------------------------------------------------------------------------
 Variable      Default                   Description
 --------------------------------------------------------------------------
@@ -89,7 +90,6 @@ psy_time_step_mod:swlat_update_c    11  0.19000E+01   0.17272E+00  0.24E-02
 * corrected for systematic error
 =============================================================================
 
-
 Dr Hook
 -------
 This wrapper library interfaces with ECMWF's Dr Hook library. This library
@@ -138,3 +138,8 @@ Profiling information for program='../bld/most', proc#1:
     8   0.00   29.165   0.000   29.083    11     0.01   2643.90   swlon_adjust_mod:swlon_adjust_code@1
     9   0.00   29.165   0.000    0.082     1     0.01     82.33   eliminate_one_node_islands_mod:eliminate_one_node_islands_code@1
 
+nvidia
+------
+
+This wrapper library uses the NVIDIA Tools eXtension (nvtx) to mark-up
+profiling regions so that they appear in the NVIDIA Visual Profiler.
