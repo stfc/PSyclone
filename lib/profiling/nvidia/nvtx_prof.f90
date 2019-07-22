@@ -6,15 +6,18 @@ module profile_mod
   private
   
   type, public :: ProfileData
-     !> The colour to use for a region (index into the col array below)
-     integer :: colour_index = 1
+     integer :: not_used = 1
   end type ProfileData
 
-  logical :: has_been_initialised = .false.
+  logical, save :: has_been_initialised = .false.
 
-  integer :: col(7) = [ Z'0000ff00', Z'000000ff', Z'00ffff00', &
-                        Z'00ff00ff', Z'0000ffff', Z'00ff0000', &
-                        Z'00ffffff']
+  ! The colour index of the last region created.
+  integer, save :: last_colour = 0
+  
+  integer, parameter :: NUM_COLOURS = 7
+  integer :: col(NUM_COLOURS) = [ Z'0000ff00', Z'000000ff', Z'00ffff00', &
+                                  Z'00ff00ff', Z'0000ffff', Z'00ff0000', &
+                                  Z'00ffffff']
   character(len=256), target :: tempName
 
   type, bind(C):: nvtxEventAttributes
@@ -77,8 +80,16 @@ contains
     character*(*), intent(in) :: module_name, region_name
     type(ProfileData) :: profile_data
 
+    ! Round-robin the colour of each region created. Although nvtxStartRange
+    ! does a mod() on the id, we don't want to risk overflow so we don't
+    ! just blindly increment it.
+    if (last_colour < NUM_COLOURS) then
+       last_colour = last_colour + 1
+    else
+       last_colour = 1
+    end if
     call nvtxStartRange(TRIM(module_name)//":"//region_name, &
-                        id=profile_data%colour_index)
+                        id=last_colour)
     
   end subroutine ProfileStart
 
@@ -96,31 +107,31 @@ contains
   end subroutine ProfileEnd
 
   ! ---------------------------------------------------------------------------
-  !> The finalise function prints the results. This subroutine must be called
-  !> for most profiling libraries, otherwise no results will be produced.
+  !> The finalise function would normally print the results. However, this
+  !> is unnecessary for the NVIDIA profiler.
   subroutine ProfileFinalise()
     implicit none
     has_been_initialised = .false.
   end subroutine ProfileFinalise
 
-subroutine nvtxStartRange(name, id)
-  character(kind=c_char, len=*), intent(in) :: name
-  integer, optional, intent(in) :: id
-  type(nvtxEventAttributes):: event
+  subroutine nvtxStartRange(name, id)
+    character(kind=c_char, len=*), intent(in) :: name
+    integer, optional, intent(in) :: id
+    type(nvtxEventAttributes):: event
 
-  tempName=trim(name)//c_null_char
+    tempName = trim(name)//c_null_char
 
-  if ( .not. present(id)) then
-    call nvtxRangePush(tempName)
-  else
-    event%color=col(mod(id,7)+1)
-    event%message=c_loc(tempName)
-    call nvtxRangePushEx(event)
-  end if
-end subroutine
+    if ( .not. present(id)) then
+       call nvtxRangePush(tempName)
+    else
+       event%color = col(mod(id, NUM_COLOURS) + 1)
+       event%message = c_loc(tempName)
+       call nvtxRangePushEx(event)
+    end if
+  end subroutine nvtxStartRange
 
-subroutine nvtxEndRange
-  call nvtxRangePop
-end subroutine
+  subroutine nvtxEndRange
+    call nvtxRangePop
+  end subroutine nvtxEndRange
 
 end module profile_mod
