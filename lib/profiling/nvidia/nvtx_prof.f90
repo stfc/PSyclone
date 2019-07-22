@@ -6,8 +6,8 @@ module profile_mod
   private
   
   type, public :: ProfileData
-     character(:), allocatable :: module_name
-     character(:), allocatable :: region_name
+     !> The colour to use for a region (index into the col array below)
+     integer :: colour_index = 1
   end type ProfileData
 
   logical :: has_been_initialised = .false.
@@ -74,11 +74,11 @@ contains
   !> profile_data: Persistent data used by the profiling library.
   subroutine ProfileStart(module_name, region_name, profile_data)
     implicit none
-
-    character*(*) :: module_name, region_name
+    character*(*), intent(in) :: module_name, region_name
     type(ProfileData) :: profile_data
 
-    call nvtxStartRange(TRIM(module_name)//":"//region_name)
+    call nvtxStartRange(TRIM(module_name)//":"//region_name, &
+                        id=profile_data%colour_index)
     
   end subroutine ProfileStart
 
