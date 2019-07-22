@@ -307,7 +307,7 @@ class ProfileNode(Node):
         sched = self.root
         pnodes = sched.walk(sched.children, ProfileNode)
         region_idx = pnodes.index(self)
-        region_name = "region_{0}".format(region_idx)
+        region_name = "r{0}".format(region_idx)
         var_name = "psy_profile{0}".format(region_idx)
 
         # Create a variable for this profiling region
