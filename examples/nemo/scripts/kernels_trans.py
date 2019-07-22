@@ -71,6 +71,7 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 # Whether or not to automatically add profiling calls around
 # un-accelerated regions
 _AUTO_PROFILE = True
+PROFILING_IGNORE = ["_init", "_rst"]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -252,11 +253,21 @@ def add_profiling(children):
 def add_profile_region(nodes):
     '''
     '''
+    from fparser.two.Fortran2003 import Call_Stmt
+    from psyclone.psyGen import CodeBlock
     if nodes and _AUTO_PROFILE:
+        # Check whether we should be adding profiling inside this routine
+        routine_name = nodes[0].root.invoke.name
+        for ignore in PROFILING_IGNORE:
+            if ignore in routine_name:
+                return
+        if len(nodes) == 1 and isinstance(nodes[0], CodeBlock):
+            # We don't put single CALLs inside profiling regions
+            if isinstance(nodes[0].ast, Call_Stmt):
+                return
         try:
             _, _ = PROFILE_TRANS.apply(nodes)
         except TransformationError:
-            import pdb; pdb.set_trace()
             pass
 
 
