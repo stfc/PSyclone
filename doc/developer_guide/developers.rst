@@ -1,4 +1,4 @@
-.. _developers-guide:
+﻿_developers-guide:
 
 Developers' guide
 *****************
@@ -72,6 +72,8 @@ the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
 :ref:`user_guide:getting-going` section.)
 
+.. _test_suite:
+
 Test Suite
 ==========
 
@@ -86,6 +88,7 @@ will be automatically found and started. If only a subset of all tests
 need to be run, ``pytest`` can be invoked from the corresponding
 subdirectory or with that subdirectory as an argument.
 
+.. _test_coverage:
 
 Coverage
 --------
