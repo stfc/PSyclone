@@ -1287,7 +1287,6 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     else:
         index = 0
 
-    # print(schedule.view())
     # colour each loop
     schedule, _ = ctrans.apply(schedule.children[index])
     schedule, _ = ctrans.apply(schedule.children[index+1])

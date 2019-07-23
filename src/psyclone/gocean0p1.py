@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-        CodedKern, Arguments, KernelArgument, Literal, Schedule
+    CodedKern, Arguments, KernelArgument, Literal, Schedule
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -248,7 +248,7 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
-        # Pre-initialise the Loop children
+        # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
         self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
         self.addchild(Literal("1", parent=self))  # step

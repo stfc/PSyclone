@@ -440,7 +440,7 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
 
-        # Pre-initialise the Loop children
+        # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
         self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
         self.addchild(Literal("1", parent=self))  # step

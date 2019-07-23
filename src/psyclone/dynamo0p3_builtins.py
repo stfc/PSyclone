@@ -43,7 +43,7 @@
 from __future__ import absolute_import
 from psyclone import psyGen
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import BuiltIn, NameSpaceFactory, Schedule
+from psyclone.psyGen import BuiltIn, NameSpaceFactory
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 

@@ -119,8 +119,11 @@ class RegionTrans(Transformation):
                          if not isinstance(item, Schedule)]
             for item in flat_list:
                 if not isinstance(item, self.valid_node_types):
-                    # TODO: Quickfix added, look what is the best solution
-                    # for this, are basic PSyIR node going to appear.
+                    # TODO: To the reviewer, Literals and References appear
+                    # everywhere now, should they be in all transformations
+                    # 'valid_node_types' or is it OK to skip them here. Also
+                    # note that upcoming dependence analysis can potentially
+                    # be more smart here about the Reference validation.
                     if isinstance(item, (Literal, Reference)):
                         continue
                     raise TransformationError(
@@ -251,8 +254,8 @@ class LoopFuseTrans(Transformation):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
                                       "next to each other")
+
         # Check iteration space is the same
-        # TODO: Do I have to check the start/stop/step_expr now???
         if node1.iteration_space != node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same "

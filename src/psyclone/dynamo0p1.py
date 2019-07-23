@@ -240,7 +240,7 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
-        # Pre-initialise the Loop children
+        # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
         self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
         self.addchild(Literal("1", parent=self))  # step
