@@ -2566,9 +2566,6 @@ def test_node_abstract_methods():
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop, parent=None)
     assert "Please implement me" in str(err)
-    with pytest.raises(NotImplementedError) as err:
-        Node.gen_c_code(loop)
-    assert "Please implement me" in str(err)
 
 
 def test_kern_ast():
@@ -2691,15 +2688,6 @@ def test_codeblock_can_be_printed():
     cblock = CodeBlock([])
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
-
-
-def test_codeblock_gen_c_code():
-    '''Test that a CodeBlock node fails to generate c code with a
-    GenerationError'''
-    cblock = CodeBlock([])
-    with pytest.raises(GenerationError) as err:
-        cblock.gen_c_code()
-    assert "CodeBlock can not be translated to C" in str(err.value)
 
 
 # Test Loop class
@@ -2867,40 +2855,6 @@ def test_ifblock_properties():
     assert ifblock.else_body[0] is ret2
 
 
-def test_ifblock_gen_c_code():
-    '''Test that an IfBlock node can generate its C representation'''
-
-    ifblock = IfBlock()
-    with pytest.raises(InternalError) as err:
-        _ = ifblock.gen_c_code()
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 0." in str(err.value))
-
-    ref1 = Reference('condition1', parent=ifblock)
-    ifblock.addchild(ref1)
-    with pytest.raises(InternalError) as err:
-        _ = ifblock.gen_c_code()
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 1." in str(err.value))
-
-    sch = Schedule(parent=ifblock)
-    ifblock.addchild(sch)
-    ret = Return(parent=sch)
-    sch.addchild(ret)
-
-    assert "if (condition1) {\n" in ifblock.gen_c_code()
-    assert "return;\n" in ifblock.gen_c_code()
-    assert "}" in ifblock.gen_c_code()
-    assert "else" not in ifblock.gen_c_code()
-
-    sch = Schedule(parent=ifblock)
-    ifblock.addchild(sch)
-    ret = Return(parent=sch)
-    sch.addchild(ret)
-    assert "if (condition1) {\n    return;\n} else {\n    return;\n}\n" \
-        in ifblock.gen_c_code()
-
-
 # Test Assignment class
 
 def test_assignment_view(capsys):
@@ -2925,28 +2879,27 @@ def test_assignment_semantic_navigation():
     '''Test that the Assignment navigation properties reference the expected
     children'''
     assignment = Assignment()
+
+    # lhs should fail if first child is not present
+    with pytest.raises(InternalError) as err:
+        _ = assignment.lhs
+    assert "' malformed or incomplete. It needs at least 1 child to have " \
+        "a lhs." in str(err)
+
     ref = Reference("a", assignment)
-    lit = Literal("1", assignment)
     assignment.addchild(ref)
+
+    # rhs should fail if second child is not present
+    with pytest.raises(InternalError) as err:
+        _ = assignment.rhs
+    assert " malformed or incomplete. It needs at least 2 children to have " \
+        "a rhs." in str(err)
+
+    lit = Literal("1", assignment)
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]
 
-
-def test_assignment_gen_c_code():
-    '''Test that an Assignment node can generate its C representation'''
-
-    # Test with 'a=1'
-    assignment = Assignment()
-    with pytest.raises(GenerationError) as err:
-        _ = assignment.gen_c_code()
-    assert("Assignment malformed or incomplete. It should have "
-           "exactly 2 children, but found 0." in str(err.value))
-    ref = Reference("a", assignment)
-    lit = Literal("1", assignment)
-    assignment.addchild(ref)
-    assignment.addchild(lit)
-    assert assignment.gen_c_code() == 'a = 1;'
 
 # Test Reference class
 
@@ -2972,12 +2925,6 @@ def test_reference_can_be_printed():
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']" in str(ref)
-
-
-def test_reference_gen_c_code():
-    '''Test that a Reference node can generate its C representation'''
-    ref = Reference("a", None)
-    assert ref.gen_c_code() == 'a'
 
 
 # Test Array class
@@ -3006,32 +2953,6 @@ def test_array_can_be_printed():
     assert "ArrayReference[name:'aname']\n" in str(array)
 
 
-def test_array_gen_c_code():
-    '''Test that an Array node can generate its C representation'''
-
-    # Test 0 dimensions
-    array = Array("array1", None)
-    with pytest.raises(GenerationError) as err:
-        _ = array.gen_c_code()
-    assert "Array must have at least 1 dimension." in str(err.value)
-
-    # Test access element '1'
-    lit = Literal("1", array)
-    array.addchild(lit)
-    assert array.gen_c_code() == 'array1[1]'
-
-    # Test access element (1,2)
-    lit2 = Literal("2", array)
-    array.addchild(lit2)
-    assert array.gen_c_code() == 'array1[2 * array1LEN1 + 1]'
-
-    # Test access element (1,2,3)
-    lit3 = Literal("3", array)
-    array.addchild(lit3)
-    assert array.gen_c_code() == 'array1[3 * array1LEN2 * '\
-        'array1LEN1 + 2 * array1LEN1 + 1]'
-
-
 # Test Literal class
 def test_literal_value():
     '''Test the value property returns the value of the Literal object.
@@ -3056,22 +2977,6 @@ def test_literal_can_be_printed():
     initialised fully)'''
     literal = Literal("1")
     assert "Literal[value:'1']" in str(literal)
-
-
-def test_literal_gen_c_code():
-    '''Test that a Literal node can generate its C representation'''
-    lit = Literal("1", None)
-    assert lit.gen_c_code() == '1'
-
-    # Test that D scientific notation is replaced by 'e'
-    lit = Literal("3e5", None)
-    assert lit.gen_c_code() == '3e5'
-    lit = Literal("3d5", None)
-    assert lit.gen_c_code() == '3e5'
-    lit = Literal("3D5", None)
-    assert lit.gen_c_code() == '3e5'
-    lit = Literal("3D+5", None)
-    assert lit.gen_c_code() == '3e+5'
 
 
 # Test BinaryOperation class
@@ -3126,50 +3031,6 @@ def test_binaryoperation_can_be_printed():
     assert "Literal[value:'2']" in str(binary_operation)
 
 
-def test_binaryoperation_gen_c_code():
-    '''Test that a BinaryOperation node can generate its C representation'''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    with pytest.raises(GenerationError) as err:
-        _ = binary_operation.gen_c_code()
-    assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but found 0." in str(err.value))
-    ref1 = Reference("a", binary_operation)
-    ref2 = Reference("b", binary_operation)
-    binary_operation.addchild(ref1)
-    binary_operation.addchild(ref2)
-    assert binary_operation.gen_c_code() == '(a + b)'
-
-    # Test all supported Operators
-    test_list = ((BinaryOperation.Operator.ADD, '(a + b)'),
-                 (BinaryOperation.Operator.SUB, '(a - b)'),
-                 (BinaryOperation.Operator.MUL, '(a * b)'),
-                 (BinaryOperation.Operator.DIV, '(a / b)'),
-                 (BinaryOperation.Operator.REM, '(a % b)'),
-                 (BinaryOperation.Operator.POW, 'pow(a, b)'),
-                 (BinaryOperation.Operator.EQ, '(a == b)'),
-                 (BinaryOperation.Operator.NE, '(a != b)'),
-                 (BinaryOperation.Operator.GT, '(a > b)'),
-                 (BinaryOperation.Operator.GE, '(a >= b)'),
-                 (BinaryOperation.Operator.LT, '(a < b)'),
-                 (BinaryOperation.Operator.LE, '(a <= b)'),
-                 (BinaryOperation.Operator.AND, '(a && b)'),
-                 (BinaryOperation.Operator.OR, '(a || b)'),
-                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'))
-
-    for operator, expected in test_list:
-        binary_operation._operator = operator
-        assert binary_operation.gen_c_code() == expected
-
-    # Test that an unsupported operator raises a error
-    class Unsupported():
-        '''Dummy class'''
-    binary_operation._operator = Unsupported
-    with pytest.raises(NotImplementedError) as err:
-        _ = binary_operation.gen_c_code()
-    assert "The gen_c_code backend does not support the '" in str(err)
-    assert "' operator." in str(err)
-
-
 # Test UnaryOperation class
 def test_unaryoperation_initialization():
     ''' Check the initialization method of the UnaryOperation class works
@@ -3215,45 +3076,6 @@ def test_unaryoperation_can_be_printed():
     unary_operation.addchild(op1)
     # Check the node children are also printed
     assert "Literal[value:'1']" in str(unary_operation)
-
-
-def test_unaryoperation_gen_c_code():
-    '''Test that a UnaryOperation node can generate its C representation'''
-    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    with pytest.raises(GenerationError) as err:
-        _ = unary_operation.gen_c_code()
-    assert("UnaryOperation malformed or incomplete. It should have "
-           "exactly 1 child, but found 0." in str(err.value))
-    ref1 = Literal("a", unary_operation)
-    unary_operation.addchild(ref1)
-    assert unary_operation.gen_c_code() == '(-a)'
-
-    # Test all supported Operators
-    test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
-                 (UnaryOperation.Operator.MINUS, '(-a)'),
-                 (UnaryOperation.Operator.SQRT, 'sqrt(a)'),
-                 (UnaryOperation.Operator.NOT, '(!a)'),
-                 (UnaryOperation.Operator.COS, 'cos(a)'),
-                 (UnaryOperation.Operator.SIN, 'sin(a)'),
-                 (UnaryOperation.Operator.TAN, 'tan(a)'),
-                 (UnaryOperation.Operator.ACOS, 'acos(a)'),
-                 (UnaryOperation.Operator.ASIN, 'asin(a)'),
-                 (UnaryOperation.Operator.ATAN, 'atan(a)'),
-                 (UnaryOperation.Operator.ABS, 'abs(a)'),
-                 (UnaryOperation.Operator.REAL, 'float(a)'))
-
-    for operator, expected in test_list:
-        unary_operation._operator = operator
-        assert unary_operation.gen_c_code() == expected
-
-    # Test that an unsupported operator raises a error
-    class Unsupported():
-        '''Dummy class'''
-    unary_operation._operator = Unsupported
-    with pytest.raises(NotImplementedError) as err:
-        _ = unary_operation.gen_c_code()
-    assert "The gen_c_code backend does not support the '" in str(err)
-    assert "' operator." in str(err)
 
 
 def test_naryoperation_view(capsys):
@@ -3305,12 +3127,6 @@ def test_return_can_be_printed():
     assert "Return[]\n" in str(return_stmt)
 
 
-def test_return_gen_c_code():
-    '''Test that a Return node can generate its C representation'''
-    return_stmt = Return()
-    assert return_stmt.gen_c_code() == 'return;'
-
-
 # Test KernelSchedule Class
 
 def test_kernelschedule_view(capsys):
@@ -3346,17 +3162,6 @@ def test_kernelschedule_can_be_printed():
     assert "Schedule[name:'kname']:\n" in str(kschedule)
     assert "Assignment" in str(kschedule)  # Check children are printed
     assert "End KernelSchedule" in str(kschedule)
-
-
-def test_kernelschedule_abstract_methods():
-    ''' Test that the abstract methods produce the appropriate error.'''
-
-    kschedule = KernelSchedule("kname")
-
-    with pytest.raises(NotImplementedError) as error:
-        kschedule.gen_ocl()
-    assert "A generic implementation of this method is not available."\
-        in str(error.value)
 
 
 def test_kernelschedule_name_setter():
@@ -3665,29 +3470,6 @@ def test_symbol_copy_properties():
     assert symbol.shape == []
     assert symbol.scope == "local"
     assert symbol.constant_value == 7
-
-
-def test_symbol_gen_c_definition():
-    '''Test that the Symbol gen_c_definition method generates the expected
-    C definitions, or raises an error if the type is not supported.
-    '''
-    sym_1 = Symbol("name", "integer", [])
-    assert sym_1.gen_c_definition() == "int name"
-
-    sym_2 = Symbol("name", "character", [None])
-    assert sym_2.gen_c_definition() == "char * restrict name"
-
-    sym_3 = Symbol("name", "real", [None, None])
-    assert sym_3.gen_c_definition() == "double * restrict name"
-
-    sym_4 = Symbol("name", "boolean", [])
-    assert sym_4.gen_c_definition() == "bool name"
-
-    sym_1._datatype = "invalid"
-    with pytest.raises(NotImplementedError) as err:
-        _ = sym_1.gen_c_definition()
-    assert ("Could not generate the C definition for the variable 'name', "
-            "type 'invalid' is currently not supported.") in str(err)
 
 
 # Test SymbolTable Class
@@ -4009,36 +3791,20 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
-def test_symboltable_gen_c_local_variables():
-    ''' Test that it returns a concatenation of just the multiple local
-    symbols definitions .
-    '''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_table.add(Symbol("var3", "real", [None]))
-    sym_v1 = sym_table.lookup('var1')
-    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
-    sym_table.specify_argument_list([sym_v1])
-
-    c_local_vars = sym_table.gen_c_local_variables()
-    assert sym_table.lookup("var1").gen_c_definition() not in c_local_vars
-    assert sym_table.lookup("var2").gen_c_definition() in c_local_vars
-    assert sym_table.lookup("var3").gen_c_definition() in c_local_vars
-
-
-def test_symboltable_abstract_methods():
-    '''Test that the SymbolTable abstract methods raise the appropriate
+def test_symboltable_abstract_properties():
+    '''Test that the SymbolTable abstract properties raise the appropriate
     error.'''
     sym_table = SymbolTable()
 
-    for method in [sym_table.gen_ocl_argument_list,
-                   sym_table.gen_ocl_iteration_indices,
-                   sym_table.gen_ocl_array_length]:
-        with pytest.raises(NotImplementedError) as error:
-            method()
-        assert "A generic implementation of this method is not available."\
-            in str(error.value)
+    with pytest.raises(NotImplementedError) as error:
+        _ = sym_table.data_arguments
+    assert "Abstract property. Which symbols are data arguments is " \
+        "API-specific." in str(error.value)
+
+    with pytest.raises(NotImplementedError) as error:
+        _ = sym_table.iteration_indices
+    assert "Abstract property. Which symbols are iteration indices is " \
+        "API-specific." in str(error.value)
 
 
 # Test Fparser2ASTProcessor

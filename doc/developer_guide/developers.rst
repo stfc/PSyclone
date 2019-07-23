@@ -778,6 +778,18 @@ hide users from the use of the visitor pattern. This is the interface
 to expose to users (which is why `_visit` is used for the visitor
 method, rather than `visit`).
 
+Available back-ends
+===================
+
+Currently, there are two back-ends capable of generating Kernel
+code (a KernelSchedule with all its children), these are:
+
+- `FortranWriter()` in `psyclone.psyir.backend.fortran`
+- `OpenCLWriter()` in `psyclone.psyir.backend.opencl`
+
+Additionally, there is a `psyclone.psyir.backend.c` back-end, but at the
+moment it is only capable of processing partial PSyIR expressions.
+
 Parsing Code
 ############
 
