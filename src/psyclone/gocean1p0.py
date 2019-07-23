@@ -54,7 +54,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, Fparser2ASTProcessor, AccessType, \
-    Literal, Reference, ACCEnterDataDirective
+    Literal, Reference, ACCEnterDataDirective, Schedule
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on

@@ -57,7 +57,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
-    CodedKern
+    CodedKern, Schedule
 
 # First section : Parser specialisations and classes
 
