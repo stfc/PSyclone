@@ -166,3 +166,24 @@ def test_fusetrans_error_incomplete():
 
     # Validation should now pass
     fuse._validate(loop1, loop2)
+
+
+def test_fusetrans_error_not_same_parent():
+    ''' Check that we reject attempts to fuse loops which don't share the
+    same parent '''
+    from psyclone.psyGen import Loop, Schedule, Literal, Return
+    from psyclone.transformations import LoopFuseTrans, TransformationError
+    sch1 = Schedule()
+    sch2 = Schedule()
+    loop1 = Loop(variable_name="i", parent=sch1, preinit=True)
+    loop2 = Loop(variable_name="j", parent=sch2, preinit=True)
+    sch1.addchild(loop1)
+    sch2.addchild(loop2)
+
+    fuse = LoopFuseTrans()
+
+    # Check first loop
+    with pytest.raises(TransformationError) as err:
+        fuse._validate(loop1, loop2)
+    assert "Error in LoopFuse transformation. Loops do not have the " \
+        "same parent" in str(err.value)

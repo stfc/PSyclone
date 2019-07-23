@@ -244,7 +244,7 @@ class LoopFuseTrans(Transformation):
         # check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
             raise TransformationError("Error in LoopFuse transformation. "
-                                      "loops do not have the same parent")
+                                      "Loops do not have the same parent")
 
         # check node1 and node2 are next to each other
         if abs(node1.position-node2.position) != 1:
