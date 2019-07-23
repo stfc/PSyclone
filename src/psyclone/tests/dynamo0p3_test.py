@@ -1084,10 +1084,10 @@ def test_two_int_scalars(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     
     expected = (
-        "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep, iscalar)\n"
+        "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(in) :: iflag, istep, iscalar\n"
+        "      INTEGER, intent(in) :: iflag, istep\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
@@ -1157,8 +1157,8 @@ def test_two_int_scalars(tmpdir):
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
-        "        CALL testkern_code(nlayers, istep, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, iscalar, ndf_w1, "
+        "        CALL testkern_code(nlayers, 1, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, iflag, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code

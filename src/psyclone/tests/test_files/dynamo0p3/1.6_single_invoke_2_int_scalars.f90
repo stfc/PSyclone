@@ -43,10 +43,10 @@ program single_invoke
   use constants_mod, only: r_def, i_def
   implicit none
   type(field_type) :: f1, f2, m1, m2
-  integer(i_def)   :: iflag, istep, iscalar
+  integer(i_def)   :: iflag, istep
 
   call invoke(                                  &
        testkern_type(iflag,f1,f2,m1,m2,istep),  &
-       testkern_type(istep,f1,f2,m1,m2,iscalar)   )
+       testkern_type(1,f1,f2,m1,m2,iflag)   )
 
 end program single_invoke
