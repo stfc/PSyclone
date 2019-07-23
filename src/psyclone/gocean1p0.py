@@ -425,7 +425,8 @@ class GOLoop(Loop):
         :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
 
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=VALID_LOOP_TYPES,
+                      preinit=True)
         self.loop_type = loop_type
 
         # We set the loop variable name in the constructor so that it is

@@ -5475,7 +5475,8 @@ class DynLoop(Loop):
 
     def __init__(self, parent=None, loop_type=""):
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
+                      valid_loop_types=VALID_LOOP_TYPES,
+                      preinit=True)
         self.loop_type = loop_type
 
         # Get the namespace manager instance so we can look-up

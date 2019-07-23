@@ -847,8 +847,8 @@ def test_ompdo_directive_class_view(capsys):
 
             expected_output = (
                 directive + "[OMP parallel do]\n"
-                "    " + loop + "[type='', field_space='w1', it_space='cells', "
-                "upper_bound='ncells']\n"
+                "    " + loop + "[type='', field_space='w1', it_space='cells',"
+                " upper_bound='ncells']\n"
                 "        " + literal + "[value:'NOT_INITIALISED']\n"
                 "        " + literal + "[value:'NOT_INITIALISED']\n"
                 "        " + literal + "[value:'1']\n"
@@ -2708,7 +2708,7 @@ def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     properties'''
     from psyclone.psyGen import Loop
-    loop = Loop(preinit=False)
+    loop = Loop()
 
     # Properties return an error if the node is incomplete
     error_str = ("Loop malformed or incomplete. It should have exactly 4 "
@@ -2734,6 +2734,15 @@ def test_loop_navigation_properties():
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
     assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.start_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.stop_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.step_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
 
     # The forth child has to be a Schedule
     loop.addchild(Literal("loop_body", parent=loop))
@@ -2742,7 +2751,7 @@ def test_loop_navigation_properties():
     assert "Loop malformed or incomplete. Forth children should be a " \
         "Schedule node, but found loop with " in str(err.value)
 
-    # Fix loop and check that all properties work
+    # Fix loop and check that Getters properties work
     del loop.children[3]
     loop.addchild(Schedule(parent=loop))
     loop.loop_body.addchild(Return(parent=loop.loop_body))
@@ -2751,6 +2760,15 @@ def test_loop_navigation_properties():
     assert loop.stop_expr.value == "stop"
     assert loop.step_expr.value == "step"
     assert isinstance(loop.loop_body[0], Return)
+
+    # Test Setters
+    loop.start_expr = Literal("newstart", parent=loop)
+    loop.stop_expr = Literal("newstop", parent=loop)
+    loop.step_expr = Literal("newstep", parent=loop)
+
+    assert loop.start_expr.value == "newstart"
+    assert loop.stop_expr.value == "newstop"
+    assert loop.step_expr.value == "newstep"
 
 
 def test_loop_invalid_type():

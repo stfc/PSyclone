@@ -3021,7 +3021,7 @@ class Loop(Node):
     def __init__(self, parent=None,
                  variable_name="",
                  valid_loop_types=None,
-                 preinit=True):
+                 preinit=False):
         Node.__init__(self, parent=parent)
 
         # we need to determine whether this is a built-in or kernel
@@ -7219,7 +7219,7 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Loop`
 
         '''
-        return Loop(parent=parent, variable_name=variable_name, preinit=False)
+        return Loop(parent=parent, variable_name=variable_name)
 
     def _process_loopbody(self, loop_body, node):
         ''' Process the loop body. This is done outside _do_construct_handler

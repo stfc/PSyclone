@@ -211,14 +211,16 @@ class LoopFuseTrans(Transformation):
         :type node1: :py:class:`psyclone.psyGen.Node`
         :param node2: the second node we are checking
         :type node2: :py:class:`psyclone.psyGen.Node`
-        :raises TransformationError: if one or both of the nodes is/are not a
-        :py:class:`psyclone.psyGen.Loop`
-        :raises TransformationError: if the nodes do not have the same parent
-        :raises TransformationError: if the nodes are not next to each
-        other in the tree
-        :raises TransformationError: if the
-        :py:class:`psyclone.psyGen.Loop`s do not have the same
-        iteration space
+
+        :raises TransformationError: if one or both of the nodes is/are not a \
+            :py:class:`psyclone.psyGen.Loop`.
+        :raises TransformationError: if one or both nodes are not fully-formed.
+        :raises TransformationError: if the nodes do not have the same parent.
+        :raises TransformationError: if the nodes are not next to each \
+            other in the tree.
+        :raises TransformationError: if the \
+            :py:class:`psyclone.psyGen.Loop`s do not have the same\
+            iteration space.
         '''
 
         # Check that the supplied Node is a Loop
@@ -228,17 +230,22 @@ class LoopFuseTrans(Transformation):
                                       "At least one of the nodes is not "
                                       "a loop")
 
-            # If they are loops, they must be fully-formed.
-            if len(node1.children) != 4:
-                raise TransformationError("")
+        # If they are loops, they must be fully-formed.
+        if len(node1.children) != 4:
+            raise TransformationError(
+                "Error in LoopFuse transformation. The first loop "
+                "does not have 4 children.")
 
-            if len(node2.children) != 4:
-                raise TransformationError("")
+        if len(node2.children) != 4:
+            raise TransformationError(
+                "Error in LoopFuse transformation. The second loop "
+                "does not have 4 children.")
 
         # check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "loops do not have the same parent")
+
         # check node1 and node2 are next to each other
         if abs(node1.position-node2.position) != 1:
             raise TransformationError("Error in LoopFuse transformation. "

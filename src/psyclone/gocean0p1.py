@@ -240,7 +240,8 @@ class GOLoop(Loop):
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=["inner", "outer"])
+                      valid_loop_types=["inner", "outer"],
+                      preinit=True)
         self.loop_type = loop_type
 
         if self._loop_type == "inner":

@@ -126,3 +126,43 @@ def test_ifblock_children_region():
         super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
     assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
             in str(err))
+
+
+def test_fusetrans_error_incomplete():
+    ''' Check that we reject attempts to fuse loops which are incomplete. '''
+    from psyclone.psyGen import Loop, Schedule, Literal, Return
+    from psyclone.transformations import LoopFuseTrans, TransformationError
+    sch = Schedule()
+    loop1 = Loop(variable_name="i", parent=sch)
+    loop2 = Loop(variable_name="j", parent=sch)
+    sch.addchild(loop1)
+    sch.addchild(loop2)
+
+    fuse = LoopFuseTrans()
+
+    # Check first loop
+    with pytest.raises(TransformationError) as err:
+        fuse._validate(loop1, loop2)
+    assert "Error in LoopFuse transformation. The first loop does not have " \
+        "4 children." in str(err.value)
+
+    loop1.addchild(Literal("start", parent=loop1))
+    loop1.addchild(Literal("stop", parent=loop1))
+    loop1.addchild(Literal("step", parent=loop1))
+    loop1.addchild(Schedule(parent=loop1))
+    loop1.loop_body.addchild(Return(parent=loop1.loop_body))
+
+    # Check second loop
+    with pytest.raises(TransformationError) as err:
+        fuse._validate(loop1, loop2)
+    assert "Error in LoopFuse transformation. The second loop does not have " \
+        "4 children." in str(err.value)
+
+    loop2.addchild(Literal("start", parent=loop2))
+    loop2.addchild(Literal("stop", parent=loop2))
+    loop2.addchild(Literal("step", parent=loop2))
+    loop2.addchild(Schedule(parent=loop2))
+    loop2.loop_body.addchild(Return(parent=loop2.loop_body))
+
+    # Validation should now pass
+    fuse._validate(loop1, loop2)

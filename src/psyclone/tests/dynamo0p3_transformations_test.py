@@ -1024,6 +1024,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
             assert same_space_warning not in str(excinfo.value)
 
 
+@pytest.mark.xfail(reason="Needs a new way to produce Unexpected Exception")
 def test_loop_fuse_unexpected_error(dist_mem):
     ''' Test that we catch an unexpected error when loop fusing. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),

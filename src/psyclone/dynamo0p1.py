@@ -229,7 +229,8 @@ class DynLoop(Loop):
     '''
     def __init__(self, parent=None, loop_type=""):
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=["", "colours", "colour"])
+                      valid_loop_types=["", "colours", "colour"],
+                      preinit=True)
         self.loop_type = loop_type
 
         # Work out the variable name from  the loop type

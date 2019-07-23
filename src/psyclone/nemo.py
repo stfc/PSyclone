@@ -69,8 +69,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         :return: A new NemoLoop instance
         :rtype: :py:class:`psyclone.nemo.NemoLoop`
         '''
-        loop = NemoLoop(parent=parent, variable_name=variable_name,
-                        preinit=False)
+        loop = NemoLoop(parent=parent, variable_name=variable_name)
 
         loop_type_mapping = Config.get().api_conf("nemo")\
             .get_loop_type_mapping()
@@ -419,11 +418,10 @@ class NemoLoop(Loop):
     :param parent: parent of this NemoLoop in the PSyclone AST.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, parent=None, variable_name='', preinit=False):
+    def __init__(self, parent=None, variable_name=''):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
                       variable_name=variable_name,
-                      preinit=preinit,
                       valid_loop_types=valid_loop_types)
 
     @property
