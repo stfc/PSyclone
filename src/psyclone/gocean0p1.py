@@ -240,14 +240,19 @@ class GOLoop(Loop):
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=["inner", "outer"],
-                      preinit=True)
+                      valid_loop_types=["inner", "outer"])
         self.loop_type = loop_type
 
         if self._loop_type == "inner":
             self._variable_name = "i"
         elif self._loop_type == "outer":
             self._variable_name = "j"
+
+        # Pre-initialise the Loop children
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
 
     def gen_code(self, parent):
 

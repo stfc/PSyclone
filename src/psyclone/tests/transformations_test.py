@@ -175,10 +175,20 @@ def test_fusetrans_error_not_same_parent():
     from psyclone.transformations import LoopFuseTrans, TransformationError
     sch1 = Schedule()
     sch2 = Schedule()
-    loop1 = Loop(variable_name="i", parent=sch1, preinit=True)
-    loop2 = Loop(variable_name="j", parent=sch2, preinit=True)
+    loop1 = Loop(variable_name="i", parent=sch1)
+    loop2 = Loop(variable_name="j", parent=sch2)
     sch1.addchild(loop1)
     sch2.addchild(loop2)
+
+    loop1.addchild(Literal("1", parent=loop1))  # start
+    loop1.addchild(Literal("10", parent=loop1))  # stop
+    loop1.addchild(Literal("1", parent=loop1))  # step
+    loop1.addchild(Schedule(parent=loop1))  # loop body
+
+    loop2.addchild(Literal("1", parent=loop2))  # start
+    loop2.addchild(Literal("10", parent=loop2))  # stop
+    loop2.addchild(Literal("1", parent=loop2))  # step
+    loop2.addchild(Schedule(parent=loop2))  # loop body
 
     fuse = LoopFuseTrans()
 

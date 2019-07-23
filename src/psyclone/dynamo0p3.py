@@ -5475,8 +5475,7 @@ class DynLoop(Loop):
 
     def __init__(self, parent=None, loop_type=""):
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES,
-                      preinit=True)
+                      valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
         # Get the namespace manager instance so we can look-up
@@ -5496,6 +5495,12 @@ class DynLoop(Loop):
                             label="dof_loop_idx")
         else:
             self._variable_name = "cell"
+
+        # Pre-initialise the Loop children
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
 
         # At this stage we don't know what our loop bounds are
         self._lower_bound_name = None

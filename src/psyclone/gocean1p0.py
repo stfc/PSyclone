@@ -425,8 +425,7 @@ class GOLoop(Loop):
         :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
 
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES,
-                      preinit=True)
+                      valid_loop_types=VALID_LOOP_TYPES,)
         self.loop_type = loop_type
 
         # We set the loop variable name in the constructor so that it is
@@ -440,6 +439,12 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+
+        # Pre-initialise the Loop children
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
 
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()

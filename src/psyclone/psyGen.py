@@ -3003,17 +3003,14 @@ class Loop(Node):
     :param parent: Parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
     :param str variable_name: Optional name of the loop iterator \
-    variable. Defaults to an empty string.
+        variable. Defaults to an empty string.
     :param valid_loop_types: A list of loop types that are specific \
-    to a particular API.
+        to a particular API.
     :type valid_loop_types: list of str
 
     '''
 
-    def __init__(self, parent=None,
-                 variable_name="",
-                 valid_loop_types=None,
-                 preinit=False):
+    def __init__(self, parent=None, variable_name="", valid_loop_types=None):
         Node.__init__(self, parent=parent)
 
         # we need to determine whether this is a built-in or kernel
@@ -3035,13 +3032,6 @@ class Loop(Node):
 
         self._variable_name = variable_name
         self._id = ""
-
-        if preinit:
-            # Pre-initialise the Loop children
-            self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-            self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-            self.addchild(Literal("1", parent=self))  # step
-            self.addchild(Schedule(parent=self))  # loop body
 
     def _check_completeness(self):
         ''' Check that the Loop has 4 children and the 4th is a Schedule.
