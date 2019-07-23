@@ -3710,7 +3710,7 @@ class CodedKern(Kern):
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
-        my_schedule = self.ancestor(Schedule)
+        my_schedule = self.ancestor(InvokeSchedule)
         for kernel in self.walk(my_schedule.children, Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
