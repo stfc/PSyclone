@@ -14,10 +14,11 @@
 
 import os
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-# sys.path.insert(0, os.path.abspath('.'))
+# A simple function interface_example.py is included in this directory to
+# show proper sphinx documentation of code. In order to find this file,
+# the current directory must be added to Python's system path:
+import sys
+sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ----------------------------------------------------
 

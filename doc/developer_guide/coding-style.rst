@@ -88,7 +88,7 @@ The interface to any new or modified routine in PSyclone must be fully documente
     psyclone.
         '''
 
-.. autofunction:: psyclone.generator.generate
+.. autofunction:: interface_example.generate
 
 Some important details:
 
