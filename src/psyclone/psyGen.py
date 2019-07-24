@@ -7063,9 +7063,9 @@ class Fparser2ASTProcessor(object):
         :param nodes: the nodes representing the label-list of the current \
                       CASE() clause.
         :type nodes: list of :py:class:`fparser.two.Fortran2003.Name` or \
-                     :py:class:`fparser.two.Fortran2003.Case_Value_Range`.
+                     :py:class:`fparser.two.Fortran2003.Case_Value_Range`
         :param nodes_parent: the parent in the fparser2 parse tree of the \
-                             nodes making up the label-list. 
+                             nodes making up the label-list.
         :type nodes_parent: sub-class of :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`
@@ -7103,7 +7103,7 @@ class Fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        node._parent = node_parent  # Retrofit parent information
+        node.parent = node_parent  # Retrofit parent information
 
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
