@@ -893,7 +893,11 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            var_accesses.add_access(arg.name, arg.access, self)
+            if arg.type == "field":
+                # In case of an array
+                var_accesses.add_access(arg.name, arg.access, self, [1])
+            else:
+                var_accesses.add_access(arg.name, arg.access, self)
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -1969,8 +1973,8 @@ class GOSymbolTable(SymbolTable):
 
     @property
     def data_arguments(self):
-        '''In the GOcean API the data arguments start from the third item in the
-        argument list.
+        '''In the GOcean API the data arguments start from the third item in
+        the argument list.
 
         :return: List of symbols representing the data arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
