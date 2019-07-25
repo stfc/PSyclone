@@ -6167,13 +6167,13 @@ class DynKern(CodedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            if arg.vector_size > 0:
+            if arg.type in GH_VALID_SCALAR_NAMES:
+                var_accesses.add_access(arg.name, arg.access, self)
+            else:
                 # It's an array, so add an arbitrary index value for the
                 # stored indices (which is at this stage the only way to
                 # indicate an array access).
                 var_accesses.add_access(arg.name, arg.access, self, [1])
-            else:
-                var_accesses.add_access(arg.name, arg.access, self)
         super(DynKern, self).reference_accesses(var_accesses)
         # Set the current location index to the next location, since after
         # this kernel a new statement starts.
