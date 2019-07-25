@@ -4882,7 +4882,7 @@ class IfBlock(Node):
         '''Get all variable access information. It combines the data from
         the condition, if-body and (if available) else-body. This could
         later be extended to handle cases where a variable is only written
-        in one the two branches.
+        in one of the two branches.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.

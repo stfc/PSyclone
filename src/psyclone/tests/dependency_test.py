@@ -190,7 +190,8 @@ def test_do_loop(parser):
     TODO #400: this only tests a nemo do loop. At this stage the loop
     boundaries in nemo are only strings (not instances of Reference or so),
     so in case of a loop like: "do jj=1, n", `n` is not be listed as
-    a READ access.
+    a READ access. Once #400 is fixed, this test can be removed, since
+    the current test_do_loop_not_working_yet test will cover this.
     '''
     reader = FortranStringReader('''program test_prog
                                  do jj=1, 10
@@ -211,7 +212,7 @@ def test_do_loop(parser):
                                 "t: READ"
 
 
-@pytest.mark.xfail(reason="NEMO API converts all loop limits to strings")
+@pytest.mark.xfail(reason="NEMO API converts all loop limits to strings, #400")
 def test_do_loop_not_working_yet(parser):
     ''' Check the handling of do loops.
     TODO #400: At this stage the loop boundaries in nemo are only strings
@@ -242,8 +243,8 @@ def test_do_loop_not_working_yet(parser):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #400/#444: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after genCode will they be
-    defined.
+    strings, which are even not defined. Only after genCode is called will
+    they be defined.
     '''
     from psyclone.parse.algorithm import parse
 

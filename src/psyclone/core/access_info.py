@@ -114,6 +114,7 @@ class AccessInfo(object):
     @property
     def location(self):
         ''':returns: the location information for this access.
+        Please see the Developers' Guide for more information.
         :rtype: int'''
         return self._location
 
@@ -252,7 +253,10 @@ class VariablesAccessInfo(object):
 
     @property
     def location(self):
-        ''':returns: the current location.
+        '''Returns the current location of this instance, which is
+        the location at which the next accesses will be stored.
+        See the Developers' Guide for more information.
+        :returns: the current location of this object.
         :rtype: int'''
         return self._location
 
