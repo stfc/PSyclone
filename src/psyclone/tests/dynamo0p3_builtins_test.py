@@ -2585,6 +2585,6 @@ def mesh_code_present(field_str, code):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => " + field_str + "%get_mesh()\n"
+        "      mesh => " + field_str + "_proxy%vspace%get_mesh()\n"
         "      !\n")
     assert output_dm_1 in code
