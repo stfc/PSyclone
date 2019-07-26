@@ -104,6 +104,35 @@ def test_variable_access_info():
 
 
 # -----------------------------------------------------------------------------
+def test_variable_access_info_read_write():
+    # pylint: disable=invalid-name
+    '''Test the handling of READWRITE accesses. A READWRITE indicates both
+    a read and a write access, but if a variable as a READ and a WRITE
+    access, this is not one READWRITE access. A READWRITE access is only
+    used in subroutine calls (depending on kernel metadata)
+    '''
+
+    vai = VariableAccessInfo("var_name")
+    assert vai.has_read_write() is False
+
+    # Add a READ and WRITE access at the same location, and make sure it
+    # is not reported as READWRITE access
+    vai.add_access(AccessType.READ, Node(), 2)
+    vai.add_access(AccessType.WRITE, Node(), 2)
+    assert vai.has_read_write() is False
+
+    vai.add_access(AccessType.READWRITE, Node(), 2)
+    assert vai.has_read_write()
+
+    # Create a new instance, and add only one READWRITE access:
+    vai = VariableAccessInfo("var_name")
+    vai.add_access(AccessType.READWRITE, Node(), 2)
+    assert vai.has_read_write()
+    assert vai.is_read()
+    assert vai.is_written()
+
+
+# -----------------------------------------------------------------------------
 def test_variables_access_info():
     '''Test the implementation of VariablesAccessInfo, a class that manages
     a list of variables, each with a list of accesses.
@@ -121,7 +150,7 @@ def test_variables_access_info():
     var_accesses.next_location()
     var_accesses.add_access("read_written", AccessType.WRITE, node)
     var_accesses.add_access("read_written", AccessType.READ, node)
-    assert str(var_accesses) == "read: READ, read_written: READWRITE, "\
+    assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
     assert set(var_accesses.all_vars) == set(["read", "written",
                                               "read_written"])
@@ -141,7 +170,7 @@ def test_variables_access_info():
     # Now merge the new instance with the previous instance:
     var_accesses.merge(var_accesses2)
     assert str(var_accesses) == "new_var: READ, read: READ, " \
-                                "read_written: READWRITE, written: READWRITE"
+                                "read_written: READ+WRITE, written: READ+WRITE"
 
     with pytest.raises(KeyError):
         _ = var_accesses["does_not_exist"]

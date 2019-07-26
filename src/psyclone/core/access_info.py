@@ -152,7 +152,7 @@ class VariableAccessInfo(object):
         :rtype: bool
         '''
         for access_info in self._accesses:
-            if access_info.access_type == AccessType.WRITE:
+            if access_info.access_type in AccessType.all_write_accesses():
                 return True
         return False
 
@@ -163,7 +163,19 @@ class VariableAccessInfo(object):
         :rtype: bool
         '''
         for access_info in self._accesses:
-            if access_info.access_type == AccessType.READ:
+            if access_info.access_type in AccessType.all_read_accesses():
+                return True
+        return False
+
+    def has_read_write(self):
+        '''Checks if the specified variable name has at least on READWRITE
+        access.
+
+        :returns: true if the specified variable name is read (at least once).
+        :rtype: bool
+        '''
+        for access_info in self._accesses:
+            if access_info.access_type == AccessType.READWRITE:
                 return True
         return False
 
@@ -244,10 +256,16 @@ class VariablesAccessInfo(object):
         output_list = []
         for var_name in all_vars:
             mode = ""
-            if self.is_read(var_name):
-                mode = mode+"READ"
-            if self.is_written(var_name):
-                mode = mode+"WRITE"
+            if self.has_read_write(var_name):
+                mode = "READWRITE"
+            else:
+                if self.is_read(var_name):
+                    if self.is_written(var_name):
+                        mode = "READ+WRITE"
+                    else:
+                        mode = "READ"
+                elif self.is_written(var_name):
+                    mode = "WRITE"
             output_list.append("{0}: {1}".format(var_name, mode))
         return ", ".join(output_list)
 
@@ -366,3 +384,16 @@ class VariablesAccessInfo(object):
 
         var_access_info = self[var_name]
         return var_access_info.is_read()
+
+    def has_read_write(self, var_name):
+        '''Checks if the specified variable name has at least one READWRITE
+        access (which is typically only used in a function call)
+
+        :param str var_name: Name of the variable
+        :returns: true if the specified variable name is read (at least \
+            once).
+        :rtype: bool
+        :raises: KeyError if the variable names can not be found.'''
+
+        var_access_info = self[var_name]
+        return var_access_info.has_read_write()

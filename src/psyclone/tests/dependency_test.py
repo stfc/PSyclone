@@ -91,7 +91,7 @@ def test_assignment(parser):
     assert isinstance(increment_access, Assignment)
     var_accesses = VariablesAccessInfo()
     increment_access.reference_accesses(var_accesses)
-    assert str(var_accesses) == "c: READWRITE, i: READ"
+    assert str(var_accesses) == "c: READ+WRITE, i: READ"
 
     # Using an intrinsic:
     sqrt_access = schedule.children[3]
@@ -159,7 +159,7 @@ def test_if_statement(parser):
     var_accesses = VariablesAccessInfo()
     if_stmt.reference_accesses(var_accesses)
     assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
-                                "q: READWRITE, r: READ"
+                                "q: READ+WRITE, r: READ"
     # Test that the two accesses to 'q' indeed show up as
     q_accesses = var_accesses["q"].all_accesses
     assert len(q_accesses) == 2
@@ -208,7 +208,7 @@ def test_do_loop(parser):
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, s: WRITE, "\
+    assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, s: WRITE, "\
                                 "t: READ"
 
 
