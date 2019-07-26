@@ -12,7 +12,7 @@ NVTX is a part of the CUDA toolkit which may be freely downloaded from
 https://developer.nvidia.com/cuda-toolkit. However, it is not required
 to build this wrapper - it is only needed when doing the final linking
 of the application to be profiled. Since the NVTX library is in C,
-this wrapper uses the ISO C-Fortran interface and is heavily based on
+this wrapper uses the Fortran ISO C Binding and is heavily based on
 the example module provided by Massimiliano Fatica at
 https://devblogs.nvidia.com/customize-cuda-fortran-profiling-nvtx/.
 
