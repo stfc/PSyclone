@@ -167,6 +167,26 @@
 
         52) PR #297. Adds support for the Dr Hook profiling library.
 
+        53) PR #413 for #411. Adds support for semantic navigation of the
+        PSyIR tree.
+
+        54) PR #376 for #368. Introduces PSyIR back-end infrastructure using the
+        Visitor Pattern and creates a PSyIR-to-Fortran back-end.
+
+        55) PR #428 for #427. Fix to test suite so that empty, transformed
+        kernel files are not created in the CWD.
+
+        56) PR #439 and Issue #438. Instruct pip to install the version of
+        pytest prior to 5.0 (as changes to the structure of the exception
+        object break a lot of our tests).
+
+        57) PR #420 for #418. Moves the C/OpenCL generation functionality out
+        of the Node class and implements it as PSyIR backends using the
+        Visitor Pattern.
+
+	58) PR #434 for #354. Add support for translating ranges in
+	Fortran case statements into PSyIR.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
@@ -262,6 +282,9 @@ release 1.7.0 20th December 2018
 
 	28) #317 and PR #330. Fix to allow module use statements to be
 	added to functions.
+
+	29) #330 and PR #422. Adds PSyIR node to represent Nary operators and
+	increases the number of supported operators.
 
 release 1.6.1 6th December 2018
 
