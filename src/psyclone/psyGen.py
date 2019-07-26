@@ -7103,7 +7103,7 @@ class Fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        node.parent = node_parent  # Retrofit parent information
+        node._parent = node_parent  # Retrofit parent information
 
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
