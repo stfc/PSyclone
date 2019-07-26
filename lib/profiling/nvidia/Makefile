@@ -31,12 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology,
+#          A. R. Porter, STFC Daresbury Laboratory.
 
+# Makefile for the PSyclone wrapper to the NVTX profiling library.
 
 F90?=gfortran
 FFLAGS?=-g
-#FFLAGS += -I$(DL_TIMER_INCLUDE)
 
 name=nvtx_prof
 libname=lib$(name).a
@@ -49,4 +50,3 @@ $(libname): $(name).f90
 
 clean:
 	rm -f $(libname) $(name).o profile_mod.mod
-
