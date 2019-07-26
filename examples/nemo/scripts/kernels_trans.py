@@ -71,7 +71,10 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 # Whether or not to automatically add profiling calls around
 # un-accelerated regions
 _AUTO_PROFILE = True
-PROFILING_IGNORE = ["_init", "_rst"]
+PROFILING_IGNORE = ["_init", "_rst", "iom",
+                    # These are small functions that the addition of profiing
+                    # prevents from being in-lined
+                    "interp1", "interp2", "interp3", "integ_spline"]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -94,23 +97,31 @@ def valid_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoKern
+    from psyclone.nemo import NemoKern, NemoLoop
     from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array, \
         Assignment, Operation, BinaryOperation, NaryOperation
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation)
+    excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation,
+                           NemoLoop)
     excluded_nodes = node.walk([node], excluded_node_types)
 
     for node in excluded_nodes:
         if isinstance(node, (CodeBlock, IfBlock)):
             return False
-        #if isinstance(node, Operation):
-        #    if (node.operator == BinaryOperation.Operator.SUM or
-        #        node.operator == NaryOperation.Operator.SUM):
-        #        import pdb; pdb.set_trace()
+
+        if isinstance(node, Operation):
+            if node.operator == BinaryOperation.Operator.SUM or \
+               node.operator == NaryOperation.Operator.SUM:
+                #import pdb; pdb.set_trace()
+                pass
+        # Need to check for SUM inside implicit loop, e.g.:
+        #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
+        if isinstance(node, NemoLoop):
+            if contains_unsupported_sum(node.ast):
+                return False
 
     # For now we don't support putting things like:
     #    if(do_this)my_array(:,:) = 1.0
@@ -137,18 +148,45 @@ def valid_kernel(node):
     kernels = node.walk([node], NemoKern)
     for kern in kernels:
         sched = kern.get_kernel_schedule()
-        refs += sched.walk(sched.children, Array)
-    if refs:
-        for ref in refs:
-            if ref.name.lower() in NEMO_FUNCTIONS:
-                # This reference has the name of a known function. Is it on
-                # the LHS or RHS of an assignment?
-                ref_parent = ref.parent
-                if isinstance(ref_parent, Assignment) and ref is ref_parent.lhs:
-                    # We're writing to it so it's not a function call.
-                    continue
+        refs += sched.walk(sched.children, (Array, NemoLoop))
+    for ref in refs:
+        if isinstance(ref, Array) and ref.name.lower() in NEMO_FUNCTIONS:
+            # This reference has the name of a known function. Is it on
+            # the LHS or RHS of an assignment?
+            ref_parent = ref.parent
+            if isinstance(ref_parent, Assignment) and ref is ref_parent.lhs:
+                # We're writing to it so it's not a function call.
+                continue
+            return False
+        if isinstance(ref, NemoLoop):
+            if contains_unsupported_sum(ref.ast):
                 return False
     return True
+
+
+def contains_unsupported_sum(fpnode):
+    '''
+    Examines the fparser2 parse tree represented by fpnode and returns True
+    if it contains a use of the SUM intrinisc with a 'dim' argument. (If
+    such a construct is included in a KERNELS region then the code produced
+    by v. 18.10 of the PGI compiler seg. faults.)
+
+    :returns: True if SUM(array(:,:), dim=blah) is found, False otherwise.
+    :rtype: bool
+
+    '''
+    from fparser.two.utils import walk_ast
+    from fparser.two import Fortran2003
+    intrinsics = walk_ast([fpnode], [Fortran2003.Intrinsic_Function_Reference])
+    for intrinsic in intrinsics:
+        if str(intrinsic.items[0]).lower() == "sum":
+            # items[1] contains the Actual_Arg_Spec_List
+            actual_args = walk_ast(intrinsic.items[1].items,
+                                   [Fortran2003.Actual_Arg_Spec])
+            for arg in actual_args:
+                if str(arg.items[0]).lower() == "dim":
+                    return True
+    return False
 
 
 def have_loops(nodes):
