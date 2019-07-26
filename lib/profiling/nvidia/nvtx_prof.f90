@@ -127,7 +127,7 @@ contains
     else
        last_colour = 1
     end if
-    call nvtxStartRange(TRIM(module_name)//":"//region_name, &
+    call nvtxStartRange(trim(module_name)//":"//region_name, &
                         id=last_colour)
     
   end subroutine ProfileStart
