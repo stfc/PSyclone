@@ -94,7 +94,7 @@ def trans(psy):
     # Loop over Nodes and check whether they contain the call to
     # the specified Kernel
     for child in schedule.children:
-        for kernel in child.kern_calls():
+        for kernel in child.coded_kernels():
             # Extract the Node with the specified Kernel call from
             # this Invoke
             if kernel.name.lower() == KERNEL_NAME and \

@@ -115,7 +115,7 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -397,8 +397,8 @@ def test_dynkern_setup(monkeypatch):
     kern = schedule.children[3].children[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
     # them in the _setup() routine.
-    from psyclone.psyGen import Kern
-    monkeypatch.setattr(Kern, "__init__",
+    from psyclone.psyGen import CodedKern
+    monkeypatch.setattr(CodedKern, "__init__",
                         lambda me, ktype, kcall, parent, check: None)
     from psyclone.parse.algorithm import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",

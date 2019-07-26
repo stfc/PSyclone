@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,29 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: R. W. Ford, STFC Daresbury Laboratory
+
+'''PSyclone script demonstrating that kernels that have been
+transformed into the PSyIR can be transformed back into Fortran by
+using the FortranWriter class.
+
+'''
+from __future__ import print_function
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
-F90?=gfortran
-FFLAGS?=-g
+def trans(psy):
+    '''Print out Fortran versions of all kernels found in this file.'''
+    fortran_writer = FortranWriter()
 
-name=simple_timing
-libname:=lib$(name).a
+    # Loop over all of the Invokes in the PSy object.
+    for invoke in psy.invokes.invoke_list:
+        schedule = invoke.schedule
 
-.PHONY: default
+        # Loop over all of the Kernels in this Schedule.
+        for kernel in schedule.coded_kernels():
+            kernel_schedule = kernel.get_kernel_schedule()
+            kern = fortran_writer(kernel_schedule)
+            print(kern)
 
-default: $(libname)
-
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $@ $(name).o
-
-clean:
-	rm -f $(libname) $(name).o profile_mod.mod
-
+    return psy

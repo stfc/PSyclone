@@ -1986,7 +1986,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                         "In the Dynamo0p3RedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so this transformation does nothing")
-                for call in node.calls():
+                for call in node.kernels():
                     for arg in call.arguments.args:
                         if arg.stencil:
                             raise TransformationError(
@@ -2485,7 +2485,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>>
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
-    >>> for kernel in schedule.kern_calls():
+    >>> for kernel in schedule.coded_kernels():
     >>>     new_schedule, _ = trans.apply(kernel)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
@@ -2905,7 +2905,7 @@ class ACCRoutineTrans(Transformation):
         '!$acc routine' OpenACC directive.
 
         :param kern: The kernel object to transform.
-        :type kern: :py:class:`psyclone.psyGen.Call`
+        :type kern: :py:class:`psyclone.psyGen.Kern`
         :returns: (transformed kernel, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
                 :py:class:`psyclone.undoredo.Memento`).
@@ -2966,7 +2966,7 @@ class ACCRoutineTrans(Transformation):
         Perform checks that the supplied kernel can be transformed.
 
         :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Call`
+        :type kern: :py:class:`psyclone.psyGen.Kern`
 
         :raises TransformationError: if the target kernel is a built-in.
 
@@ -3011,7 +3011,7 @@ class ACCKernelsTrans(RegionTrans):
     '''
     from psyclone import nemo, psyGen
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
-                        psyGen.BinaryOperation, psyGen.Literal,
+                        psyGen.Operation, psyGen.Literal,
                         psyGen.Assignment, psyGen.Reference)
 
     @property

@@ -50,10 +50,10 @@ Schedules:
  >>> Schedule[invoke='invoke_0']
  >>>    Loop[type='outer',field_space='cu',it_space='internal_pts']
  >>>        Loop[type='inner',field_space='cu',it_space='internal_pts']
- >>>            Call compute_cu_code(cu_fld,p_fld,u_fld)
+ >>>            CodedKern compute_cu_code(cu_fld,p_fld,u_fld)
  >>>    Loop[type='outer',field_space='cv',it_space='internal_pts']
  >>>        Loop[type='inner',field_space='cv',it_space='internal_pts']
- >>>            Call compute_cv_code(cv_fld,p_fld,v_fld)
+ >>>            CodedKern compute_cv_code(cv_fld,p_fld,v_fld)
  >>>...
 
 '''

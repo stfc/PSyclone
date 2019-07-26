@@ -232,17 +232,17 @@ For example, looking for `matrix_vector_code` call in
     Schedule[invoke='invoke_0' dm=False]
         ...
         Loop[type='',field_space='any_space_1',it_space='cells', upper_bound='ncells']
-            KernCall matrix_vector_code(m_lumped,ones,mb) [module_inline=False]
+            CodedKern matrix_vector_code(m_lumped,ones,mb) [module_inline=False]
         Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
-            Call x_divideby_y(self_mb_lumped_inv,ones,m_lumped)
+            BuiltIn x_divideby_y(self_mb_lumped_inv,ones,m_lumped)
 
     - Invoke 'invoke_1' with the Schedule:
     Schedule[invoke='invoke_1' dm=False]
         ...
         Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
-            Call setval_c(self_rhs_u,0.0_r_def)
+            BuiltIn setval_c(self_rhs_u,0.0_r_def)
         Loop[type='',field_space='any_space_1',it_space='cells', upper_bound='ncells']
-            KernCall matrix_vector_code(self_rhs_u,self_mb_rb,self_q) [module_inline=False]
+            CodedKern matrix_vector_code(self_rhs_u,self_mb_rb,self_q) [module_inline=False]
         ...
 
 Example 13: Kernel Constants
