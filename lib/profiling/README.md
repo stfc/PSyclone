@@ -10,16 +10,15 @@ interfaces:
 
 will compile all profiling-library interfaces included in
 PSyclone. The command `make TARGET` where `TARGET` is one of
-'template', 'simple_timing', 'drhook', 'nvidia' or 'dl_timer' will
+`template`, `simple_timing`, `drhook`, `nvidia` or `dl_timer` will
 only compile the corresponding library interface. The following
 makefile variables are used and can be overwritten on the command line
-(e.g. make F90=mpif90):
+(e.g. `make F90=mpif90`):
 
------------|---------------------|----------------------------------------
-Variable   |  Default                   Description
------------|---------------------|----------------------------------------
-F90        |  gfortran           |      Name of the compiler.
-FFLAGS     |  -g                 |      Flags to use when compiling.
+ Variable   |  Default         | Description
+ ---------- | ---------------- | ----------------------------- 
+F90         |  gfortran        | Name of the compiler.
+FFLAGS      |  -g              | Flags to use when compiling.
 
 Using `make clean` will clean all compiled library interfaces. You can
 also compile each library interface by changing into the corresponding
@@ -30,14 +29,16 @@ profile_mod` statements, the location of the `profile_mod.mod` file
 must be provided as an include path when compiling the application
 source.
 
-# template #
+# Wrappers #
+
+## template ##
 
 This is a very simple example library that just prints the name of the
 subroutines used (e.g. ProfileStart) and name of the module and region.
 It uses the ProfileData variables to make the module and region name
 available in the ProfileEnd call.
 
-# simple_timing #
+## simple_timing ##
 
 This is a simple, stand-alone library that measures the real time of
 a region, and prints a summary at the end. It is NOT thread-safe.
@@ -57,7 +58,7 @@ Example output:
      psy_time_step_mod::swlat_update_code                      11      1.87500000             0.167968750             0.170454547             0.179687500    
      ===========================================
 
-# dl_timer #
+## dl_timer ##
 
 This is a wrapper library that maps the PSyclone profiling API
 to the dl_timer API. A copy of dl_timer can be downloaded from
@@ -100,7 +101,7 @@ Example output:
     * corrected for systematic error
     =============================================================================
 
-# Dr Hook #
+## Dr Hook ##
 
 This wrapper library interfaces with ECMWF's Dr Hook library. This
 library appears not to be available as open source on a public
@@ -126,33 +127,31 @@ two options to specify the path to the Dr Hook installation:
 It is not known whether a proper Dr Hook installation will install
 include and mod files in a separate directory.
 
-
 Example profiling output (some spaces removed to shorten the lines):
-										    Profiling information for program='../bld/most', proc#1:
-										            No. of instrumented routines called : 9
-										            Instrumentation started : 20190124 191207
-										            Instrumentation   ended : 20190124 191319
-										            Instrumentation overhead: 0.00%
-										            Memory usage : 20 MBytes (heap), 20 MBytes (rss), 0 MBytes (stack), 0 (paging)
-										            Wall-time is 29.17 sec on proc#1 (1 procs, 1 threads)
-										            Thread#1:       29.17 sec (100.00%)
 
-										        # % Time   Cumul     Self   Total  # of calls   Self       Total    Routine@<thread-id>
-										                                                         (Size; Size/sec; Size/call; MinSize; MaxSize)
-										           (self)  (sec)    (sec)   (sec)            ms/call     ms/call
+    No. of instrumented routines called : 9
+    Instrumentation started : 20190124 191207
+    Instrumentation   ended : 20190124 191319
+    Instrumentation overhead: 0.00%
+    Memory usage : 20 MBytes (heap), 20 MBytes (rss), 0 MBytes (stack), 0 (paging)
+    Wall-time is 29.17 sec on proc#1 (1 procs, 1 threads)
+    Thread#1:       29.17 sec (100.00%)
+    
+    # % Time   Cumul     Self   Total  # of calls   Self       Total    Routine@<thread-id>
+                                                     (Size; Size/sec; Size/call; MinSize; MaxSize)
+       (self)  (sec)    (sec)   (sec)            ms/call     ms/call
 
-										        1  31.69    9.243   9.243    9.243    11   840.27    840.27   swlat_mod:swlat_code@1
-										        2  28.50   17.554   8.312    8.312    11   755.59    755.59   swlon_mod:swlon_code@1
-										        3  12.47   21.191   3.636    3.636    11   330.58    330.59   swlat_update_mod:swlat_update_code@1
-										        4  11.73   24.612   3.421    3.421    11   311.01    311.02   swlon_update_mod:swlon_update_code@1
-										        5   7.74   26.869   2.257    2.257    11   205.15    205.15   swlat_adjust_mod:swlat_adjust_code@1
-										        6   7.59   29.083   2.214    2.214    11   201.27    201.27   swlon_adjust_mod:swlon_adjust_code_1@1
-										        7   0.28   29.165   0.082    0.082     1    82.32     82.32   eliminate_one_node_islands_mod:eliminate_one_node_islands_code_1@1
-										        8   0.00   29.165   0.000   29.083    11     0.01   2643.90   swlon_adjust_mod:swlon_adjust_code@1
-										        9   0.00   29.165   0.000    0.082     1     0.01     82.33   eliminate_one_node_islands_mod:eliminate_one_node_islands_code@1
+    1  31.69    9.243   9.243    9.243    11   840.27    840.27   swlat_mod:swlat_code@1
+    2  28.50   17.554   8.312    8.312    11   755.59    755.59   swlon_mod:swlon_code@1
+    3  12.47   21.191   3.636    3.636    11   330.58    330.59   swlat_update_mod:swlat_update_code@1
+    4  11.73   24.612   3.421    3.421    11   311.01    311.02   swlon_update_mod:swlon_update_code@1
+    5   7.74   26.869   2.257    2.257    11   205.15    205.15   swlat_adjust_mod:swlat_adjust_code@1
+    6   7.59   29.083   2.214    2.214    11   201.27    201.27   swlon_adjust_mod:swlon_adjust_code_1@1
+    7   0.28   29.165   0.082    0.082     1    82.32     82.32   eliminate_one_node_islands_mod:eliminate_one_node_islands_code_1@1
+    8   0.00   29.165   0.000   29.083    11     0.01   2643.90   swlon_adjust_mod:swlon_adjust_code@1
+    9   0.00   29.165   0.000    0.082     1     0.01     82.33   eliminate_one_node_islands_mod:eliminate_one_node_islands_code@1
 
-nvidia
-------
+## NVIDIA ##
 
 This wrapper library uses the NVIDIA Tools Extension (NVTX) to mark-up
 profiling regions so that they appear in the NVIDIA Visual Profiler (nvvp).
