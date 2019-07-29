@@ -3934,7 +3934,6 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
 
         # Use the suffix we have determined to create a new kernel name.
         # This will conform to the PSyclone convention of ending in "_code"
@@ -6350,7 +6349,7 @@ class Fparser2ASTProcessor(object):
         ('sum', NaryOperation.Operator.SUM)])
 
     def __init__(self):
-        from fparser.two import Fortran2003, utils
+        from fparser.two import utils
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
@@ -6530,8 +6529,6 @@ class Fparser2ASTProcessor(object):
         :raises GenerationError: Unable to generate a kernel schedule from the
                                  provided fpaser2 parse tree.
         '''
-        from fparser.two import Fortran2003
-
         def first_type_match(nodelist, typekind):
             '''
             Returns the first instance of the specified type in the given
@@ -6624,7 +6621,6 @@ class Fparser2ASTProcessor(object):
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
         shape = []
 
         # Traverse shape specs in Depth-first-search order
@@ -6681,7 +6677,6 @@ class Fparser2ASTProcessor(object):
                                  not have the expected structure.
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
 
         def iterateitems(nodes):
             '''
@@ -6968,7 +6963,6 @@ class Fparser2ASTProcessor(object):
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         '''
-        from fparser.two import Fortran2003
 
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
@@ -7094,7 +7088,6 @@ class Fparser2ASTProcessor(object):
             unsupported structure and should be placed in a CodeBlock.
 
         '''
-        from fparser.two import Fortran2003
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
             raise InternalError(
@@ -7612,8 +7605,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Array`
 
         '''
-        from fparser.two import Fortran2003
-
         reference_name = node.items[0].string.lower()
 
         if hasattr(parent.root, 'symbol_table'):
