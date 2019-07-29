@@ -6167,7 +6167,7 @@ class DynKern(CodedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            if arg.type in GH_VALID_SCALAR_NAMES:
+            if arg.is_scalar():
                 var_accesses.add_access(arg.name, arg.access, self)
             else:
                 # It's an array, so add an arbitrary index value for the
@@ -8377,6 +8377,11 @@ class DynKernelArgument(KernelArgument):
     def type(self):
         ''' Returns the type of this argument. '''
         return self._type
+
+    def is_scalar(self):
+        ''':return: If this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type in GH_VALID_SCALAR_NAMES
 
     @property
     def mesh(self):

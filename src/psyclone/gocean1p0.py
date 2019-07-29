@@ -80,25 +80,29 @@ VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 VALID_STENCIL_NAMES = ["go_pointwise"]
 
 # A dictionary giving the mapping from meta-data names for
-# properties of the grid to their names in the Fortran grid_type.
-GRID_PROPERTY_DICT = {"go_grid_area_t": "area_t",
-                      "go_grid_area_u": "area_u",
-                      "go_grid_area_v": "area_v",
-                      "go_grid_mask_t": "tmask",
-                      "go_grid_dx_t": "dx_t",
-                      "go_grid_dx_u": "dx_u",
-                      "go_grid_dx_v": "dx_v",
-                      "go_grid_dy_t": "dy_t",
-                      "go_grid_dy_u": "dy_u",
-                      "go_grid_dy_v": "dy_v",
-                      "go_grid_lat_u": "gphiu",
-                      "go_grid_lat_v": "gphiv",
-                      "go_grid_dx_const": "dx",
-                      "go_grid_dy_const": "dy",
-                      "go_grid_x_min_index": "subdomain%internal%xstart",
-                      "go_grid_x_max_index": "subdomain%internal%xstop",
-                      "go_grid_y_min_index": "subdomain%internal%ystart",
-                      "go_grid_y_max_index": "subdomain%internal%ystop"}
+# properties of the grid to their names and type in the Fortran grid_type.
+GRID_PROPERTY_DICT = {"go_grid_area_t": ("area_t", "array"),
+                      "go_grid_area_u": ("area_u", "array"),
+                      "go_grid_area_v": ("area_v", "array"),
+                      "go_grid_mask_t": ("tmask", "array"),
+                      "go_grid_dx_t": ("dx_t", "array"),
+                      "go_grid_dx_u": ("dx_u", "array"),
+                      "go_grid_dx_v": ("dx_v", "array"),
+                      "go_grid_dy_t": ("dy_t", "array"),
+                      "go_grid_dy_u": ("dy_u", "array"),
+                      "go_grid_dy_v": ("dy_v", "array"),
+                      "go_grid_lat_u": ("gphiu", "array"),
+                      "go_grid_lat_v": ("gphiv", "array"),
+                      "go_grid_dx_const": ("dx", "scalar"),
+                      "go_grid_dy_const": ("dy", "scalar"),
+                      "go_grid_x_min_index": ("subdomain%internal%xstart",
+                                              "scalar"),
+                      "go_grid_x_max_index": ("subdomain%internal%xstop",
+                                              "scalar"),
+                      "go_grid_y_min_index": ("subdomain%internal%ystart",
+                                              "scalar"),
+                      "go_grid_y_max_index": ("subdomain%internal%ystop",
+                                              "scalar")}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -893,11 +897,12 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         for arg in self.arguments.args:
-            if arg.type == "field":
-                # In case of an array
-                var_accesses.add_access(arg.name, arg.access, self, [1])
-            else:
+            if arg.is_scalar():
                 var_accesses.add_access(arg.name, arg.access, self)
+            else:
+                # In case of an array for now add an arbitrary array
+                # reference so it is properly recognised as an array access
+                var_accesses.add_access(arg.name, arg.access, self, [1])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -1280,8 +1285,7 @@ class GOKernelArguments(Arguments):
                         "Error: kernel {0} requires grid property {1} but "
                         "does not have any arguments that are fields".
                         format(self._parent_call.name, arg.name))
-                else:
-                    arguments.append(grid_arg.name+"%grid%"+arg.name)
+                arguments.append(grid_arg.name+"%grid%"+arg.dereference_name)
             else:
                 raise InternalError("Kernel {0}, argument {1} has "
                                     "unrecognised type: '{2}'".
@@ -1401,6 +1405,11 @@ class GOKernelArgument(KernelArgument):
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
 
+    def is_scalar(self):
+        ''':return: If this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type == "scalar"
+
 
 class GOKernelGridArgument(Argument):
     '''
@@ -1416,13 +1425,18 @@ class GOKernelGridArgument(Argument):
     '''
     def __init__(self, arg):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
-        if arg.grid_prop in GRID_PROPERTY_DICT:
-            self._name = GRID_PROPERTY_DICT[arg.grid_prop]
-        else:
+        if arg.grid_prop not in GRID_PROPERTY_DICT:
             raise GenerationError("Unrecognised grid property specified. "
                                   "Expected one of {0} but found '{1}'".
                                   format(str(GRID_PROPERTY_DICT.keys()),
                                          arg.grid_prop))
+        # Each entry is a pair (name, type). Name can be subdomain%internal...
+        # so only take the last part after the last % as name.
+        self._name = GRID_PROPERTY_DICT[arg.grid_prop][0].split("%")[-1]
+        # Store the full name used in dereferencing the grid properties.
+        self._dereference_name = GRID_PROPERTY_DICT[arg.grid_prop][0]
+        # Store the original property name for easy lookup in is_scalar()
+        self._property_name = arg.grid_prop
 
         # This object always represents an argument that is a grid_property
         self._type = "grid_property"
@@ -1436,11 +1450,24 @@ class GOKernelGridArgument(Argument):
         return self._name
 
     @property
+    def dereference_name(self):
+        ''' Returns dereference string required to access a property in
+        a dl_esm field (e.g. "subdomain%internal%xstart"). This name is
+        used in the generated code like so: <fld>%grid%name '''
+        return self._dereference_name
+
+    @property
     def type(self):
         ''' The type of this argument. We have this for compatibility with
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''
         return self._type
+
+    def is_scalar(self):
+        ''':return: If this variable is a scalar variable or not.
+        :rtype: bool'''
+        # The constructur guarantees that _pro_name is a valid key!
+        return GRID_PROPERTY_DICT[self._property_name][1] == "scalar"
 
     @property
     def text(self):
@@ -1792,8 +1819,14 @@ class GO1p0Descriptor(Descriptor):
     @property
     def type(self):
         ''' The type of this argument - whether it is a scalar, a field or
-            a grid-property. The latter are special because they must be
-            supplied by the PSy layer. '''
+        a grid-property. The latter are special because they must be
+        supplied by the PSy layer.
+
+        :return; The type of this argument, either 'field', 'scalar', or \
+            'grid_property'
+        :rtype: str
+
+        '''
         return self._type
 
 

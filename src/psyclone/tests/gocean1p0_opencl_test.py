@@ -190,13 +190,14 @@ def test_set_kern_float_arg(outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, tmask)
+    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, '''+\
+    '''xstop, tmask)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
       REAL(KIND=go_wp), intent(in), target :: a_scalar
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: ssh_fld, tmask
+      INTEGER(KIND=c_intptr_t), target :: ssh_fld, xstop, tmask
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
       INTEGER, target :: nx
 '''
@@ -208,8 +209,10 @@ def test_set_kern_float_arg(outputdir):
       CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
       CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(tmask), C_LOC(tmask))
+      CALL check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)

@@ -45,7 +45,7 @@ from psyclone import nemo
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
-
+from psyclone_test_utils import get_invoke
 
 # Constants
 API = "nemo"
@@ -246,24 +246,41 @@ def test_goloop():
     strings, which are even not defined. Only after genCode is called will
     they be defined.
     '''
-    from psyclone.parse.algorithm import parse
 
-    _, invoke_info = parse(os.path.join(os.path.
-                                        dirname(os.path.
-                                                abspath(__file__)),
-                                        "test_files", "gocean1p0",
-                                        "single_invoke_two_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invoke_info)
-    do_loop = psy.invokes.get("invoke_0").schedule.children[0]
+    _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
+                           "gocean1.0", name="invoke_0")
+    do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    assert str(var_accesses) == "cu_fld: WRITE, i: READWRITE, j: READWRITE, "\
-                                "p_fld: READ, u_fld: READ"
+    assert str(var_accesses) == ": READ, a_scalar: READ, i: READWRITE, "\
+                                "j: READWRITE, " "ssh_fld: READWRITE, "\
+                                "tmask: READ"
     # TODO #444: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
+
+
+def test_goloop_partially():
+    ''' Check the handling of non-NEMO do loops.
+    TODO #400: This test is identical to test_goloop above, but is asserts in a
+    way that works before #400 is fixed, so that we make sure we test the rest
+    of the gocean variable access handling.
+    '''
+    _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
+                            "gocean1.0", name="invoke_0")
+    do_loop = invoke.schedule.children[0]
+    assert isinstance(do_loop, Loop)
+
+    # The third argument is GO_GRID_X_MAX_INDEX, which is scalar
+    assert do_loop.args[2].is_scalar()
+    # The fourth argument is GO_GRID_MASK_T, which is an array
+    assert not do_loop.args[3].is_scalar()
+
+    var_accesses = VariablesAccessInfo()
+    do_loop.reference_accesses(var_accesses)
+    assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
+           "ssh_fld: READWRITE, tmask: READ" in str(var_accesses)
 
 
 @pytest.mark.xfail(reason="Dynamoloops boundaries are also strings #400")
@@ -291,6 +308,36 @@ def test_dynamo():
     # 'cell' is the loop variable automatically created by PSyclone.
     assert str(var_accesses) == "a: READ, cell: READWRITE, f1: WRITE, "\
         "f2: READ, m1: READ, m2: READ"
+
+
+def test_dynamo_partially():
+    '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
+    are reported based on the user's point of view, not the code actually
+    created by PSyclone, e.g. it shows a dependency on 'some_field', but not
+    on some_field_proxy etc. Also the dependency is at this stage taken
+    from the kernel metadata, not the actual kernel usage.
+    TODO #400: this test is identical to test_dynamo() above, but it
+    asserts in a way that works. This makes sure that we test the handling
+    of variables accesses in dynamo basically works, otherwise errors
+    might not be noticed by any test.
+    '''
+    from psyclone.parse.algorithm import parse
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+
+    var_accesses = VariablesAccessInfo()
+    schedule.reference_accesses(var_accesses)
+    # TODO #400: atm there is an empty entry (": READ") at the beginning of
+    # the dependency string, caused by the loop boundaries, which are not
+    # yet proper PSyIR objects.
+    # 'cell' is the loop variable automatically created by PSyclone.
+    assert "a: READ, cell: READ+WRITE, f1: WRITE, f2: READ, m1: READ, "\
+            "m2: READ" in str(var_accesses)
 
 
 def test_location(parser):

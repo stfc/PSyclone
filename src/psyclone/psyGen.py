@@ -4630,6 +4630,11 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
+    @abc.abstractmethod
+    def is_scalar(self):
+        ''':return: If this variable is a scalar variable or not.
+        :rtype: bool'''
+
 
 class TransInfo(object):
     '''
