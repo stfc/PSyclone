@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified work Copyright (c) 2019 by J. Henrichs, Bureau of Meteorology
 
 '''This module implements the PSyclone NEMO API by specialising
    the required base classes for both code generation (PSy, Invokes,
@@ -146,9 +147,8 @@ class NemoInvokes(Invokes):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
     def __init__(self, ast):
-        from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
-            Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
-            Subroutine_Stmt, Name
+        from fparser.two.Fortran2003 import Main_Program,  \
+            Subroutine_Subprogram, Function_Subprogram, Function_Stmt, Name
 
         self.invoke_map = {}
         self.invoke_list = []
@@ -167,16 +167,15 @@ class NemoInvokes(Invokes):
 
         # Analyse each routine we've found
         for subroutine in routines:
-            # Get the name of this (sub)routine
-            substmt = walk_ast(subroutine.content,
-                               [Subroutine_Stmt, Function_Stmt, Program_Stmt])
-            if isinstance(substmt[0], Function_Stmt):
-                for item in substmt[0].items:
+            # Get the name of this subroutine, program or function
+            substmt = subroutine.content[0]
+            if isinstance(substmt, Function_Stmt):
+                for item in substmt.items:
                     if isinstance(item, Name):
                         sub_name = str(item)
                         break
             else:
-                sub_name = str(substmt[0].get_name())
+                sub_name = str(substmt.get_name())
 
             my_invoke = NemoInvoke(subroutine, name=sub_name)
             self.invoke_map[sub_name] = my_invoke
