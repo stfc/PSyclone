@@ -56,14 +56,6 @@ def setup():
     Config._instance = None
 
 
-@pytest.fixture
-def outputdir(tmpdir, monkeypatch):
-    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-    return tmpdir
-
-
 # ----------------------------------------------------------------------------
 def test_opencl_compiler_works(outputdir):
     ''' Check that the specified compiler works for a hello-world

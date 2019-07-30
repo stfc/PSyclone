@@ -39,7 +39,7 @@
 
 from __future__ import absolute_import
 import pytest
-
+from psyclone.configuration import Config
 
 # fixtures defined here are available to all tests
 @pytest.fixture(scope="module", params=[False, True])
@@ -91,7 +91,6 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
-    from psyclone.configuration import Config
     import os
     config_file = Config.get_repository_config_file()
 
@@ -140,3 +139,11 @@ def parser():
     '''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create()
+
+
+@pytest.fixture(scope="function")
+def outputdir(tmpdir, monkeypatch):
+    '''Sets the PSyclone _kernel_output_dir Config parameter to tmpdir.'''
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    return tmpdir

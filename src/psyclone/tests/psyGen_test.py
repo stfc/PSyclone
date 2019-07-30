@@ -5306,17 +5306,12 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-def test_modified_kern_line_length(tmpdir, monkeypatch):
+def test_modified_kern_line_length(outputdir, monkeypatch, tmpdir):
     '''Modified Fortran kernels are written to file linewrapped at 132
     characters. This test checks that this linewrapping works.
 
     '''
     from psyclone.transformations import Dynamo0p3KernelConstTrans
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_output_dir", "")
-    # Change to temp dir (so kernel written there)
-    old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
@@ -5334,4 +5329,3 @@ def test_modified_kern_line_length(tmpdir, monkeypatch):
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
     assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
-    old_cwd.chdir()
