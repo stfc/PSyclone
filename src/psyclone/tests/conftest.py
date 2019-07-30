@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
 
+
 # fixtures defined here are available to all tests
 @pytest.fixture(scope="module", params=[False, True])
 def annexed(request):
