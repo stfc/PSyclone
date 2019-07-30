@@ -896,13 +896,25 @@ class GOKern(CodedKern):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
+
+        # Grid properties are accessed using one of the fields. This stores
+        # the field used to avoid repeatedly determining the best field:
+        grid_for_property = None
         for arg in self.arguments.args:
+            if arg.type == "grid_property":
+                if grid_for_property is None:
+                    grid_for_property = self._arguments.find_grid_access()
+                var_name = grid_for_property.name + "%data%" + \
+                    arg.dereference_name
+            else:
+                var_name = arg.name
+
             if arg.is_scalar():
-                var_accesses.add_access(arg.name, arg.access, self)
+                var_accesses.add_access(var_name, arg.access, self)
             else:
                 # In case of an array for now add an arbitrary array
                 # reference so it is properly recognised as an array access
-                var_accesses.add_access(arg.name, arg.access, self, [1])
+                var_accesses.add_access(var_name, arg.access, self, [1])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 

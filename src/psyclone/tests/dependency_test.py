@@ -268,7 +268,7 @@ def test_goloop_partially():
     of the gocean variable access handling.
     '''
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                            "gocean1.0", name="invoke_0")
+                           "gocean1.0", name="invoke_0")
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
 
@@ -280,7 +280,8 @@ def test_goloop_partially():
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
     assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
-           "ssh_fld: READWRITE, tmask: READ" in str(var_accesses)
+           "ssh_fld: READWRITE, ssh_fld%data%subdomain%internal%xstop: READ, "\
+           "ssh_fld%data%tmask: READ" in str(var_accesses)
 
 
 @pytest.mark.xfail(reason="Dynamoloops boundaries are also strings #400")
@@ -337,7 +338,7 @@ def test_dynamo_partially():
     # yet proper PSyIR objects.
     # 'cell' is the loop variable automatically created by PSyclone.
     assert "a: READ, cell: READ+WRITE, f1: WRITE, f2: READ, m1: READ, "\
-            "m2: READ" in str(var_accesses)
+        "m2: READ" in str(var_accesses)
 
 
 def test_location(parser):
