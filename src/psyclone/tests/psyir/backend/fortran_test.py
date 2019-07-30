@@ -640,7 +640,7 @@ def test_fw_codeblock():
 
 
 @pytest.mark.xfail(reason="issue #430 : module name should be specified")
-def test_module_name(monkeypatch):
+def test_module_name():
     '''Check the FortranWriter class outputs the module name specified in
     the original kernel.
 

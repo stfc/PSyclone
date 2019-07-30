@@ -2486,7 +2486,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
-    >>>     new_schedule, _ = trans.apply(kernel)
+    >>>     new_schedule, _ = trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
 

@@ -217,6 +217,9 @@ class FortranWriter(PSyIRVisitor):
         :returns: The Fortran code as a string.
         :rtype: str
 
+        :raises VisitorError: if the name attribute of the supplied \
+        node is empty or None.
+
         '''
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
@@ -257,7 +260,7 @@ class FortranWriter(PSyIRVisitor):
         self._depth -= 1
         result += (
             "{0}end module {1}\n"
-            "".format(self._nindent, node.name+"_mod"))
+            "".format(self._nindent, module_name))
         return result
 
     def assignment_node(self, node):
