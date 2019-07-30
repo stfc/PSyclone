@@ -263,8 +263,8 @@ def test_field_prolong(tmpdir):
             "      ! Look-up mesh objects and loop limits for inter-grid "
             "kernels\n"
             "      !\n"
-            "      mesh_field1 => field1%get_mesh()\n"
-            "      mesh_field2 => field2%get_mesh()\n"
+            "      mesh_field1 => field1_proxy%vspace%get_mesh()\n"
+            "      mesh_field2 => field2_proxy%vspace%get_mesh()\n"
             "      mmap_field1_field2 => mesh_field2%get_mesh_map"
             "(mesh_field1)\n"
             "      cell_map_field2 => mmap_field1_field2%"
@@ -357,8 +357,8 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
             "      ! Look-up mesh objects and loop limits for inter-grid "
             "kernels\n"
             "      !\n"
-            "      mesh_field2 => field2%get_mesh()\n"
-            "      mesh_field1 => field1%get_mesh()\n"
+            "      mesh_field2 => field2_proxy%vspace%get_mesh()\n"
+            "      mesh_field1 => field1_proxy%vspace%get_mesh()\n"
             "      mmap_field2_field1 => mesh_field1%get_mesh_map("
             "mesh_field2)\n"
             "      cell_map_field1 => mmap_field2_field1%"
@@ -443,8 +443,8 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         "      ! Look-up mesh objects and loop limits for inter-grid "
         "kernels\n"
         "      !\n"
-        "      mesh_fld_f => fld_f%get_mesh()\n"
-        "      mesh_fld_m => fld_m%get_mesh()\n"
+        "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
+        "      mesh_fld_m => fld_m_proxy%vspace%get_mesh()\n"
         "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
         "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n")
 
@@ -455,7 +455,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      ncell_fld_f = mesh_fld_f%get_last_halo_cell(depth=2)\n"
             "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%"
             "get_ntarget_cells_per_source_cell()\n"
-            "      mesh_fld_c => fld_c%get_mesh()\n"
+            "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
             "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
             "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n"
             "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
@@ -466,7 +466,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      ncell_fld_f = fld_f_proxy%vspace%get_ncell()\n"
             "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%"
             "get_ntarget_cells_per_source_cell()\n"
-            "      mesh_fld_c => fld_c%get_mesh()\n"
+            "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
             "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
             "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n"
             "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
@@ -475,7 +475,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     assert expected in output
 
     # Check that we haven't got duplicated output
-    assert output.count("mesh_fld_m => fld_m%get_mesh") == 1
+    assert output.count("mesh_fld_m => fld_m_proxy%vspace%get_mesh") == 1
     assert output.count("ncell_fld_m = ") == 1
     assert output.count("ncell_fld_f = ") == 1
 

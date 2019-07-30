@@ -326,28 +326,6 @@ def test_no_outer_loop_gocean1p0():
 # --------------------------------------------------------------------------- #
 
 
-def test_extract_node_genccode():
-    ''' Test that trying to apply the gen_c_code method of ExtractNode
-    class raises appropriate error. '''
-
-    etrans = DynamoExtractRegionTrans()
-
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule, _ = etrans.apply(schedule.children[1])
-    # ExtractNode is inserted at the original place of the first
-    # extracted Node
-    extract_node = schedule.children[1]
-    with pytest.raises(NotImplementedError) as excinfo:
-        ExtractNode.gen_c_code(extract_node)
-    assert ("Generation of C code is not supported "
-            "for code extraction") in str(excinfo)
-
-
 def test_extract_node_position():
     ''' Test that Extract Transformation inserts the ExtractNode
     at the position of the first Node a Schedule in the Node list
