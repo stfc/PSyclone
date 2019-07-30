@@ -5320,6 +5320,11 @@ def test_modified_kern_line_length(tmpdir, monkeypatch):
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
+    # This example does not conform to the <name>_code, <name>_mod
+    # convention so monkeypatch it to avoid the PSyIR code generation
+    # raising an exception. This limitation is the subject of issue
+    # #393.
+    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
     _, _ = ktrans.apply(kernels[0], number_of_layers=100)
     # Generate the code (this triggers the generation of new kernels)

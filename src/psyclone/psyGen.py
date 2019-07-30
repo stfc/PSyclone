@@ -3765,7 +3765,7 @@ class CodedKern(Kern):
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
         orig_mod_name = self.module_name[:]
-        if orig_mod_name.endswith("_mod"):
+        if orig_mod_name.lower().endswith("_mod"):
             old_base_name = orig_mod_name[:-4]
         else:
             old_base_name = orig_mod_name[:]
@@ -3815,6 +3815,24 @@ class CodedKern(Kern):
                 # if test, and the associated else, are only required
                 # whilst old style (direct fp2) transformations still
                 # exist.
+
+                # First check that the kernel module name and
+                # subroutine name conform to the <name>_mod and
+                # <name>_code convention as this is currently assumed
+                # when recreating the kernel module name from the
+                # PSyIR in the Fortran back end. This limitation is
+                # the subject of #393.
+
+                if self.name.lower().rstrip("_code") != \
+                   self.module_name.lower().rstrip("_mod") or \
+                   not self.name.lower().endswith("_code") or \
+                   not self.module_name.lower().endswith("_mod"):
+                    raise NotImplementedError(
+                        "PSyclone back-end code generation relies on kernel "
+                        "modules conforming to the <name>_mod and <name>_code "
+                        "convention. However, found '{0}', '{1}'."
+                        "".format(self.module_name, self.name))
+                # Rename PSyIR module and kernel names.
                 self._rename_psyir(new_suffix)
             else:
                 self._rename_ast(new_suffix)
@@ -3851,8 +3869,8 @@ class CodedKern(Kern):
             # This is an old style transformation which modifes the
             # fp2 parse tree directly. Therefore use the fp2
             # representation to generate the Fortran for this
-            # transformed kernel, ensuring that limit the line length
-            # is limited.
+            # transformed kernel, ensuring that the line length is
+            # limited.
             fll = FortLineLength()
             new_kern_code = fll.process(str(self.ast))
 
@@ -3886,9 +3904,11 @@ class CodedKern(Kern):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
         KernelSchedule nodes. Currently it is only possible to set the
-        kernel name in a KernCall node. The kernel module is then
-        inferred from this by assuming a fixxed connection between
-        them (which is not always the case).
+        kernel subroutine name in a KernCall node. The kernel module
+        name is then inferred from the subroutine name by assuming
+        there is a naming convention (<name>_code and <name>_mod),
+        which is not always the case. This limitation is the subject
+        of #393.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -3909,7 +3929,8 @@ class CodedKern(Kern):
         # Update the PSyIR with the new names. Note there is currently
         # an assumption in the PSyIR that the module name has the same
         # root name as the subroutine name. These names are used when
-        # generating the modified kernel code.
+        # generating the modified kernel code. This limitation is the
+        # subject of #393.
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
 

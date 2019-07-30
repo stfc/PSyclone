@@ -234,6 +234,76 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     old_cwd.chdir()
 
 
+@pytest.mark.parametrize(
+    "mod_name,sub_name",
+    [("testkern_mod", "testkern"),
+     ("testkern", "testkern_code"),
+     ("testkern1_mod", "testkern2_code")])
+def test_kernel_conformance_error(mod_name, sub_name, monkeypatch, tmpdir):
+    '''Check that an exception is raised if a kernel does not conform to
+    the <name>_mod, <name>_code convention and is output via a PSyIR
+    back-end. This limitation is the subject of issue #393.
+
+    '''
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
+    # Change to temp dir. Although the file is not written to, it is still created.
+    old_cwd = tmpdir.chdir()
+    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.coded_kernels()
+    kern = kernels[0]
+    ktrans = Dynamo0p3KernelConstTrans()
+    _, _ = ktrans.apply(kern, number_of_layers=100)
+    # Modify the kernel module and subroutine names.
+    monkeypatch.setattr(kern, "_module_name", mod_name)
+    monkeypatch.setattr(kern, "_name", sub_name)
+    # Generate the code - this should raise an error as the kernel
+    # does not conform to the <name>_mod, >name>_code convention.
+    with pytest.raises(NotImplementedError) as excinfo:
+        kern.rename_and_write()
+    assert ("PSyclone back-end code generation relies on kernel modules "
+            "conforming to the <name>_mod and <name>_code convention. "
+            "However, found '{0}', '{1}'.".format(mod_name, sub_name)
+            in str(excinfo))
+    old_cwd.chdir()
+
+
+@pytest.mark.parametrize(
+    "mod_name,sub_name",
+    [("testkern_mod", "testkern_code"),
+     ("testkern_MOD", "testkern_CODE"),
+     ("TESTKERN_mod", "testkern_code"),
+     ("testkern_mod", "TESTKERN_code"),
+     ("TESTKERN_MoD", "TESTKERN_CoDe")])
+def test_kern_case_insensitive(mod_name, sub_name, tmpdir, monkeypatch):
+    '''Check that the test to see if a kernel conforms to the <name>_mod,
+    <name>_code convention is case insensitive. This check also tests that the
+    removal of _mod to create part of the output filename is case
+    insensitive.
+
+    '''
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
+    # Change to temp dir (so kernel written there)
+    old_cwd = tmpdir.chdir()
+    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    kern = kernels[0]
+    ktrans = Dynamo0p3KernelConstTrans()
+    _, _ = ktrans.apply(kern, number_of_layers=100)
+    monkeypatch.setattr(kern, "_module_name", mod_name)
+    monkeypatch.setattr(kern, "_name", sub_name)
+    # Generate the code - this should not raise an exception.
+    kern.rename_and_write()
+    filename = os.path.join(str(tmpdir), mod_name[:8]+"_0_mod.f90")
+    assert os.path.isfile(filename)
+    old_cwd.chdir()
+
+
 def test_new_kern_single_error(tmpdir, monkeypatch):
     ''' Check that we do not overwrite an existing, different kernel if
     there is a name clash and kernel-naming is 'single'. '''
