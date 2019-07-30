@@ -286,10 +286,10 @@ navigation won't be future-proof.
 
 To solve this issue some nodes also provide methods for semantic navigation:
 
-- Schedule: subscript operator for indexing the statements inside the
+- `Schedule`: subscript operator for indexing the statements inside the
   Schedule. (e.g. `sched[3]` or `sched[2:4]`)
-- Assignment: `rhs` and `lhs` properties.
-- IfBlocks: `condition`, `if_body` and `else_body` properties.
+- `Assignment`: `rhs` and `lhs` properties.
+- `IfBlocks`: `condition`, `if_body` and `else_body` properties.
 
 These are the recommended methods to navigate the tree for analysis or
 operations that depend on the Node type.
@@ -306,8 +306,8 @@ Schedule
 ========
 
 The Schedule node represents a sequence of statements. It is a important node
-in PSyclone because two of its specialisations: InvokeSchedule and
-KernelSchedule (described below), are used as the root nodes of PSy-layer
+in PSyclone because two of its specialisations: `InvokeSchedule` and
+`KernelSchedule` (described below), are used as the root nodes of PSy-layer
 invokes and kernel subroutines. This makes them the starting points for any
 walking of the PSyIR tree in PSyclone transformation scripts and a common
 target for the application of transformations.
@@ -319,7 +319,7 @@ target for the application of transformations.
 InvokeSchedule
 --------------
 
-The InvokeSchedule is a PSyIR node that represents an invoke subroutine in
+The `InvokeSchedule` is a PSyIR node that represents an invoke subroutine in
 the PSy-layer. It extends the `psyclone.psyGen.Schedule` functionality
 with a `psyclone.psyGen.NameSpace` and a reference to its associated
 `psyclone.psyGen.Invoke` object.
@@ -332,10 +332,10 @@ with a `psyclone.psyGen.NameSpace` and a reference to its associated
 KernelSchedule
 ---------------
 
-The KernelSchedule is a PSyIR node that represents a kernel subroutine. It
+The `KernelSchedule` is a PSyIR node that represents a kernel subroutine. It
 extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
-(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
-(`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
+(`psyclone.psyGen.SymbolTable`) that keeps a record of the symbols
+(`psyclone.psyGen.Symbol`) used in the kernel scope. A `Symbol` is defined as:
 
 .. autoclass:: psyclone.psyGen.Symbol
     :members:
@@ -349,13 +349,13 @@ The Symbol Table has the following interface:
 Control Flow Nodes
 ==================
 
-The PSyIR has two control flow nodes: IfBlock and Loop. These nodes represent
+The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These nodes represent
 the canonical structure with which conditional branching constructs and
 iteration constructs are built. Additional language-specific syntax for branching
 and iteration will be normalized to use these same constructs.
 For example, Fortran has the additional branching constructs `ELSE IF`
-and `CASE`: when a Fortran code is translated into the PSyIR, Psyclone will
-build a semantically equivalent implementation using IfBlocks.
+and `CASE`: when a Fortran code is translated into the PSyIR, PSyclone will
+build a semantically equivalent implementation using `IfBlocks`.
 However, the necessary nodes in the new tree structure will be annotated
 with information to enable the original language-specific syntax to be
 recreated if required.
@@ -412,7 +412,7 @@ Dependence Analysis in PSyclone produces ordering constraints between
 instances of the `Argument` class within a PSyIR.
 
 The `Argument` class is used to specify the data being passed into and
-out of instances of the `Kern` class, `HaloExchange` Class and
+out of instances of the `Kern` class, `HaloExchange` class and
 `GlobalSum` class (and their subclasses).
 
 As an illustration consider the following invoke::
@@ -577,8 +577,8 @@ somewhat lower-level API has been implemented that can be used to determine
 variable accesses (READ and WRITE), which is based on the PSyIR information only,
 not on any kernel metadata information. The information about all variable usage
 of a node can be gathered by creating an object of type
-``psyclone.core.access_info.VariablesAccessInfo``, and then calling
-the function ``reference_accesses()`` for the node:
+`psyclone.core.access_info.VariablesAccessInfo`, and then calling
+the function `reference_accesses()` for the node:
 
 .. autofunction:: psyclone.psyGen.Node.reference_accesses
 
@@ -586,17 +586,17 @@ the function ``reference_accesses()`` for the node:
     :members:
 
 This class collects information for each variable used in the tree
-starting with the given node. A VariablesAccessInfo instance can store
+starting with the given node. A `VariablesAccessInfo` instance can store
 information about variables in any arbitrary code, not only for a PSyIR
-node. You can pass it to more than one ``reference_accesses()`` function
-to add more variable access information, or use the ``merge()`` function to
-combine two VariablesAccessInfo objects into one. It is up to the user to
-keep track of which access information is stored in an VariablesAccessInfo
+node. You can pass it to more than one `reference_accesses()` function
+to add more variable access information, or use the `merge()` function to
+combine two `VariablesAccessInfo` objects into one. It is up to the user to
+keep track of which access information is stored in a `VariablesAccessInfo`
 instance.
 
 For each variable used an instance of
-``psyclone.core.access_info.VariableAccessInfo`` is created, which collects
-all accesses for that variable using ``psyclone.config.access_info.AccessInfo``
+`psyclone.core.access_info.VariableAccessInfo` is created, which collects
+all accesses for that variable using `psyclone.config.access_info.AccessInfo`
 instances:
 
 .. autoclass:: psyclone.core.access_info.VariableAccessInfo
@@ -609,29 +609,29 @@ Access Location
 ---------------
 
 Variable accesses are stored in the order in which they happen. For example,
-an assignment ``a=a+1`` will store two access for the variable ``a``, the
+an assignment `a=a+1` will store two access for the variable `a`, the
 first one being a READ access, followed by a WRITE access, since this is the
 order in which the accesses are executed.
-Additionally, the function ``reference_accessess()`` keeps track of the location
+Additionally, the function `reference_accessess()` keeps track of the location
 at which the accesses happen. A location is an integer number, starting with 0,
 which is increased for each new statement. This makes it possible to
 compare accesses to variables: if two accesses have the same location value,
-it means the accesses happen in the same statement, for example ``a=a+1``:
-the READ and WRITE access to ``a`` will have the same location number. If on the
-other hand the accesses happen in two separate statements, e.g. ``a=b+1; c=a+1``
-then the first access to ``a`` (and the access to ``b``) will have a smaller
-location number than the second access to ``a`` (and the access to ``c``).
+it means the accesses happen in the same statement, for example `a=a+1`:
+the READ and WRITE access to `a` will have the same location number. If on the
+other hand the accesses happen in two separate statements, e.g. `a=b+1; c=a+1`
+then the first access to `a` (and the access to `b`) will have a smaller
+location number than the second access to `a` (and the access to `c`).
 If two statements have consecutive locations, this does not necessarily mean
 that the statements are executed one after another. For example in if-statements
 the statements in the if-body are counted first, then the statements in the
 else-body. It is the responsibility of the user to handle these cases - for
-example by creating separate instances for statements in the if-body and for
-the else-body. 
+example by creating separate `VariablesAccessInfo` for statements in the if-body
+and for the else-body.
 
 .. note:: When using different instances for an if- and else-body, the first
     statement of the if-body will
     have the same location number as the first statement of the else-body. So
-    you can only compare location numbers from the same VariablesAccessInformation
+    you can only compare location numbers from the same `VariablesAccessInformation`
     instance. If you merge two instances together, the locations of the merged-in
     instance will be appropriately increased to follow the locations of the
     instance to which it is merged.
@@ -641,21 +641,21 @@ The location number is not exactly a line number - several statements can be
 on one line, which will get different location numbers. And certain lines
 will not have a location number (e.g. comment lines).
 
-As stated above, one instance of VariablesAccessInfo can be extended by adding
+As stated above, one instance of `VariablesAccessInfo` can be extended by adding
 additional variable information. It is the responsibility of the user to make
-sure the accesses are added in the right order - the VariablesAccessInfo object
+sure the accesses are added in the right order - the `VariablesAccessInfo` object
 will always assume accesses happen at the current location, and a call to 
-``next_location()`` is required to increase the location number.
+`next_location()` is required to increase the location number.
 
 .. note:: It is not possible to add access information about an earlier
-     usage to an existing VariablesAccessInfo object. 
+     usage to an existing `VariablesAccessInfo` object. 
 
 
 Access Examples
 ---------------
 
 Below we show a simple example of how to use this API. This is from the
-``psyclone.psyGen.OMPParallelDirective`` (so ``self`` is an instance of this
+`psyclone.psyGen.OMPParallelDirective` (so `self` is an instance of this
 node), and this code is used to determine a list of all the scalar
 variables that must be declared as thread-private::
 
@@ -664,10 +664,10 @@ variables that must be declared as thread-private::
   for var_name in var_accesses.all_vars:
       accesses = var_accesses[var_name].all_accesses
       # Ignore variables that are arrays, we only look at scalar ones.
-      # If we do have a symbol table, use it the shape of the variable
+      # If we do have a symbol table, use the shape of the variable
       # to determine if the variable is scalar or not
       if symbol_table:
-          if len(symbol_table.lookup(var_name).shape) == 0:
+          if len(symbol_table.lookup(var_name).shape) > 0:
               continue
 
       # If there is no symbol table, check instead if the first access of
@@ -686,11 +686,11 @@ variables that must be declared as thread-private::
           result.add(var_name.lower())
 
 
-The next, hypothetical example shows how the VariablesAccessInfo class can
-be used iteratively. Assume that you have a function that determines
+The next, hypothetical example shows how the `VariablesAccessInfo` class
+can be used iteratively. Assume that you have a function that determines
 if the given variable accesses can be parallelised, and the aim is to
-determine the largest consecutive block of statement that can be
-executed in parallel. The acceses of one statement at a time can be added
+determine the largest consecutive block of statements that can be
+executed in parallel. The accesses of one statement at a time are added
 until we find accesses that would prevent parallelisation::
 
    # Create an empty instance to store accesses
@@ -712,7 +712,7 @@ until we find accesses that would prevent parallelisation::
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          reference_accesses for a Dynamo or GOcean kernel, the 
+          `reference_accesses()` for a Dynamo or GOcean kernel, the 
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.
