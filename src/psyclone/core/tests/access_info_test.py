@@ -90,6 +90,13 @@ def test_variable_access_info():
     assert not vai.is_read()
     assert vai.is_written()
 
+    # Now we have one write access, which we should not be able to
+    # change to write again:
+    with pytest.raises(InternalError) as err:
+        vai.change_read_to_write()
+    assert "Trying to change variable 'var_name' to 'WRITE' which "\
+        "does not have 'READ' access." in str(err)
+
     assert vai.all_accesses[0] == vai[0]
     with pytest.raises(IndexError) as err:
         _ = vai[1]

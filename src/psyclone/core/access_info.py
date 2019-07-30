@@ -225,6 +225,13 @@ class VariableAccessInfo(object):
                                 "not one in change_read_to_write.".
                                 format(self._var_name,
                                        len(self._accesses)))
+
+        if self._accesses[0].access_type != AccessType.READ:
+            from psyclone.psyGen import InternalError
+            raise InternalError("Trying to change variable '{0}' to 'WRITE' "
+                                "which does not have 'READ' access."
+                                .format(self.var_name))
+
         self._accesses[0].change_read_to_write()
 
 
