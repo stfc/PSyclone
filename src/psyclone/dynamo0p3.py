@@ -73,8 +73,16 @@ VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
                          "any_space_7", "any_space_8", "any_space_9"]
+                         
+VALID_ANY_D_SPACE_NAMES = ["any_d_space_1", "any_d_space_2",
+                           "any_d_space_3", "any_d_space_4",
+                           "any_d_space_5", "any_d_space_6",
+                           "any_d_space_7", "any_d_space_8",
+                           "any_d_space_9", "any_d_space_10"]
 
-VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
+VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
+                             VALID_ANY_SPACE_NAMES + \
+                             VALID_ANY_D_SPACE_NAMES
 
 # Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
@@ -334,9 +342,9 @@ def get_fs_operator_name(operator_name, function_space, qr_var=None,
 def mangle_fs_name(args, fs_name):
     ''' Construct the mangled version of a function-space name given
     a list of kernel arguments '''
-    if fs_name not in VALID_ANY_SPACE_NAMES:
-        # If the supplied function-space name is not any any-space then
-        # we don't need to mangle the name
+    if fs_name not in VALID_ANY_SPACE_NAMES + VALID_ANY_D_SPACE_NAMES:
+        # If the supplied function-space name is not any any_space 
+        # or any_d_space then we don't need to mangle the name
         return fs_name
     for arg in args:
         for fspace in arg.function_spaces:
@@ -385,8 +393,8 @@ class FunctionSpace(object):
     def __init__(self, name, kernel_args):
         self._orig_name = name
         self._kernel_args = kernel_args
-        if self._orig_name not in VALID_ANY_SPACE_NAMES:
-            # We only need to name-mangle any-space spaces
+        if self._orig_name not in VALID_ANY_SPACE_NAMES + VALID_ANY_D_SPACE_NAMES:
+            # We only need to name-mangle any_space and any_d_space spaces
             self._mangled_name = self._orig_name
         else:
             # We do not construct the name-mangled name at this point
@@ -638,6 +646,12 @@ class DynArgDescriptor03(Descriptor):
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
+            if self._function_space1.lower() in VALID_ANY_D_SPACE_NAMES \
+               and self._access_type == AccessType.INC:
+                raise ParseError(
+                    "In the Dynamo0.3 API a field on any_d_space cannot "
+                    "have 'gh_inc' access because it is treated "
+                    "as discontinuous")      
             # TODO: extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_type == AccessType.READWRITE:
@@ -649,9 +663,9 @@ class DynArgDescriptor03(Descriptor):
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
-                    "In the dynamo0.3 API a field on any_space cannot "
+                    "In the Dynamo0.3 API a field on any_space cannot "
                     "have 'gh_readwrite' access because it is treated "
-                    "as continuous")
+                    "as continuous")              
             if stencil and self._access_type != AccessType.READ:
                 raise ParseError("a stencil must be read only so its access "
                                  "should be gh_read")
@@ -5568,13 +5582,13 @@ class DynLoop(Loop):
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
-                      DISCONTINUOUS_FUNCTION_SPACES):
+                      DISCONTINUOUS_FUNCTION_SPACES + VALID_ANY_D_SPACE_NAMES):
                     self.set_upper_bound("ncells")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
-                    # We don't know whether any-space is continuous or not
+                    # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
                     self.set_upper_bound("cell_halo", index=1)
@@ -8198,9 +8212,10 @@ class DynKernelArguments(Arguments):
         # check first for any modified field on a continuous function
         # space, failing that we try any_space function spaces
         # (because we must assume such a space is continuous) and
-        # finally we try discontinuous function spaces. We do this
-        # because if a quantity on a continuous FS is modified then
-        # our iteration space must be larger (include L1 halo cells)
+        # finally we try discontinuous function spaces including 
+        # any_d_space. We do this because if a quantity on a continuous
+        # FS is modified then our iteration space must be larger
+        # (include L1 halo cells)
         write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
@@ -8208,7 +8223,8 @@ class DynKernelArguments(Arguments):
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
-                           DISCONTINUOUS_FUNCTION_SPACES]:
+                           DISCONTINUOUS_FUNCTION_SPACES,
+                           VALID_ANY_D_SPACE_NAMES]:
                 for arg in fld_args:
                     if arg.function_space.orig_name in spaces:
                         return arg
@@ -8496,7 +8512,7 @@ class DynKernelArgument(KernelArgument):
     def discontinuous(self):
         '''Returns True if this argument is known to be on a discontinuous
         function space, otherwise returns False.'''
-        if self.function_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+        if self.function_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES + VALID_ANY_D_SPACE_NAMES:
             return True
         if self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
             # we will eventually look this up based on our dependence
