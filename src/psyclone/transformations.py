@@ -46,7 +46,8 @@ import six
 from psyclone.psyGen import Transformation, InternalError, Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
-from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES
+from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
+    VALID_ANY_D_SPACE_NAMES
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -983,10 +984,11 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         OMPParallelLoopTrans._validate(self, node)
 
         # If the loop is not already coloured then check whether or not
-        # it should be. If the field space is discontinuous then we don't
-        # need to worry about colouring.
-        from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
-        if node.field_space.orig_name not in DISCONTINUOUS_FUNCTION_SPACES:
+        # it should be. If the field space is discontinuous (including
+        # any_d_space) then we don't need to worry about colouring.
+        from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
+        if node.field_space.orig_name not in \
+           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -1368,8 +1370,9 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
-        if node.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+        from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
+        if node.field_space.orig_name in \
+           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
@@ -2661,8 +2664,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if info.function_space.lower() in (VALID_ANY_SPACE_NAMES +
+                                                   VALID_ANY_D_SPACE_NAMES +
                                                    ["any_w2"]):
-                    # skip any_space_* and any_w2
+                    # skip any_space_*, any_d_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "
                         "{1}".format(info.position, info.function_space))

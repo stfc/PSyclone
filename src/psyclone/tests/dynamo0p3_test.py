@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic Met Office, C.M. Maynard, Met Office/University of Reading.
+# Modified I. Kavcic Met Office,
+#          C. M. Maynard, Met Office/University of Reading.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -51,7 +52,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, KernCallArgList
+    VALID_ANY_SPACE_NAMES, VALID_ANY_D_SPACE_NAMES, KernCallArgList
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -551,7 +552,7 @@ def test_field_deref(tmpdir, dist_mem):
         assert output in generated_code
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    
+
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
@@ -827,7 +828,7 @@ def test_real_scalar(tmpdir):
     generated_code = str(psy.gen)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    
+
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
@@ -912,9 +913,10 @@ def test_int_scalar(tmpdir):
     generated_code = str(psy.gen)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    
+
     expected = (
-        "    SUBROUTINE invoke_0_testkern_one_int_scalar_type(f1, iflag, f2, m1, m2)\n"
+        "    SUBROUTINE invoke_0_testkern_one_int_scalar_type"
+        "(f1, iflag, f2, m1, m2)\n"
         "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER, intent(in) :: iflag\n"
@@ -997,8 +999,8 @@ def test_two_real_scalars(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
-    
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
@@ -1082,7 +1084,7 @@ def test_two_int_scalars(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    
+
     expected = (
         "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
@@ -1172,8 +1174,8 @@ def test_two_scalars(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
-    
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
@@ -1272,7 +1274,7 @@ def test_vector_field():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    
+
     assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
             generated_code)
     assert "TYPE(field_type), intent(inout) :: f1, chi(3)" in generated_code
@@ -1287,7 +1289,7 @@ def test_vector_field_2(tmpdir):
     generated_code = str(psy.gen)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    
+
     # all references to chi_proxy should be chi_proxy(1)
     assert "chi_proxy%" not in generated_code
     assert generated_code.count("chi_proxy(1)%vspace") == 5
@@ -3164,7 +3166,7 @@ def test_halo_dirty_4():
         "      !\n"
         "      CALL chi_proxy(1)%set_dirty()\n"
         "      CALL chi_proxy(2)%set_dirty()\n"
-        "      CALL chi_proxy(3)%set_dirty()\n"                                 
+        "      CALL chi_proxy(3)%set_dirty()\n"
         "      CALL f1_proxy%set_dirty()\n")
     assert expected in generated_code
 
@@ -3459,6 +3461,21 @@ def test_fs_discontinuous_and_inc_error():
                 in str(excinfo.value))
 
 
+def test_fs_any_d_space_and_inc_error():
+    ''' Test that an error is raised if any_d_space and
+    gh_inc are provided for the same field in the metadata '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    for fspace in VALID_ANY_D_SPACE_NAMES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w3)",
+                            "arg_type(gh_field,gh_inc, " +
+                            fspace + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("field on any_d_space cannot have 'gh_inc' access"
+                in str(excinfo.value))
+
+
 def test_fs_continuous_and_readwrite_error():
     ''' Test that an error is raised if a continuous function space and
     gh_readwrite are provided for the same field in the metadata '''
@@ -3545,7 +3562,7 @@ def test_mesh_mod(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "USE mesh_mod, ONLY: mesh_type" in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" in result
     output = ("      !\n"

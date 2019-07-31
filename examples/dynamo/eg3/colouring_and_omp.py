@@ -42,7 +42,7 @@ from __future__ import print_function
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
 from psyclone.psyGen import Loop
-from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
 
 def trans(psy):
@@ -63,7 +63,7 @@ def trans(psy):
         for child in schedule.children:
             if isinstance(child, Loop) \
                and child.field_space.orig_name \
-               not in DISCONTINUOUS_FUNCTION_SPACES \
+               not in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
                and child.iteration_space == "cells":
                 cschedule, _ = ctrans.apply(child)
         # Then apply OpenMP to each of the colour loops
