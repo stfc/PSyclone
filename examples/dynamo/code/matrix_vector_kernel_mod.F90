@@ -37,6 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified by R. W. Ford, STFC Daresbury Lab
 !
 module matrix_vector_kernel_mod
 
@@ -62,7 +63,7 @@ module matrix_vector_kernel_mod
          /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: matrix_vector_code
+    procedure, nopass :: matrix_vector_kernel_code
   end type
 
   !------------------------------------------------------------------------------
@@ -77,7 +78,7 @@ module matrix_vector_kernel_mod
   !------------------------------------------------------------------------------
   ! Contained functions/subroutines
   !------------------------------------------------------------------------------
-  public matrix_vector_code
+  public matrix_vector_kernel_code
 
 contains
 
@@ -102,13 +103,13 @@ contains
 !! @param[in] undf2 Unique number of degrees of freedom for the input field 
 !! @param[in] map2 Dofmap for the cell at the base of the column for the
 !!            input field
-subroutine matrix_vector_code(cell,              &
-                              nlayers,           &
-                              lhs, x,            & 
-                              ncell_3d,          &
-                              matrix,            &
-                              ndf1, undf1, map1, &
-                              ndf2, undf2, map2)
+subroutine matrix_vector_kernel_code(cell,              &
+                                     nlayers,           &
+                                     lhs, x,            & 
+                                     ncell_3d,          &
+                                     matrix,            &
+                                     ndf1, undf1, map1, &
+                                     ndf2, undf2, map2)
  
   implicit none
 
@@ -138,6 +139,6 @@ subroutine matrix_vector_code(cell,              &
     end do
   end do
  
-end subroutine matrix_vector_code
+end subroutine matrix_vector_kernel_code
 
 end module matrix_vector_kernel_mod
