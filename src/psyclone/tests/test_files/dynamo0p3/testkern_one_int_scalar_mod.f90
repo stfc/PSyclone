@@ -31,30 +31,42 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
-!        C.M. Maynard Met Office/University of Reading
+! Author R. Ford STFC Daresbury Lab, C.M. Maynard Met Office/University of Reading
 
-program single_invoke
+module testkern_one_int_scalar_mod
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+  
+  type, public, extends(kernel_type) :: testkern_one_int_scalar_type
+     private
+     type(arg_type), dimension(5) :: meta_args = &
+          (/ arg_type(gh_field,   gh_write,w1), &
+             arg_type(gh_integer, gh_read    ), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_field,   gh_read, w3)  &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, public, nopass :: code => testkern_code
+  end type testkern_one_int_scalar_type
+contains
 
-  ! Description: three kernels specified in an invoke call where the
-  ! one integer is pulled out of a derived type for the first and
-  ! is obtained from a type-bound routine in the second and third.
-  ! In the third the type-bound routine takes an argument and in the
-  ! fourth this argument is itself obtained by dereferencing another
-  ! derived type.
-  use testkern_one_int_scalar_mod, only: testkern_one_int_scalar_type
-  use inf,      only: field_type
-  implicit none
-  type(field_type) :: f1, f2, m1, m2
-  type(some_type)  :: my_obj 
-  type(some_type2) :: int_wrapper
-  integer :: switch = 4
+  subroutine testkern_code(nlayers, afield1, iflag, afield2, afield3, afield4, &
+       ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2,                       &
+       ndf_w3, undf_w3, map_w3 )
+    implicit none
+    integer(kind=i_def),               intent(in)  :: nlayers 
+    real(kind=r_def), dimension(:),    intent(out) :: afield1
+    integer(kind=i_def),               intent(in)  :: iflag
+    real(kind=r_def), dimension(:),    intent(in)  :: afield2, afield3, afield4
+    integer(kind=i_def),               intent(in)  :: ndf_w1, undf_w1
+    integer(kind=i_def), dimension(:), intent(in)  :: map_w1
+    integer(kind=i_def),               intent(in)  :: ndf_w2, undf_w2
+    integer(kind=i_def), dimension(:), intent(in)  :: map_w2
+    integer(kind=i_def),               intent(in)  :: ndf_w3, undf_w3
+    integer(kind=i_def), dimension(:), intent(in)  :: map_w3    
+  end subroutine testkern_code
 
-  call invoke(                                                      &
-       testkern_one_int_scalar_type(f1,my_obj%iflag,f2,m1,m2),                     &
-       testkern_one_int_scalar_type(f1,my_obj%get_flag(),f2,m1,m2),                &
-       testkern_one_int_scalar_type(f1,my_obj%get_flag(switch),f2,m1,m2),          &
-       testkern_one_int_scalar_type(f1,my_obj%get_flag(int_wrapper%data),f2,m1,m2) &
-          )
-
-end program single_invoke
+end module testkern_one_int_scalar_mod
