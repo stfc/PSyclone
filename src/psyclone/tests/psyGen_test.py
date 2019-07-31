@@ -5005,7 +5005,7 @@ def test_fparser2astprocessor_handling_case_construct(f2008_parser):
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
-    assert ifnode.ast is fparser2case_construct.content[1]
+    assert ifnode.ast is fparser2case_construct.content[2]
     assert ifnode.ast_end is fparser2case_construct.content[2]
     assert 'was_case' in ifnode.annotations
     assert ifnode.condition.children[0].name == 'selector'
@@ -5016,7 +5016,7 @@ def test_fparser2astprocessor_handling_case_construct(f2008_parser):
     assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
     assert isinstance(ifnode.else_body[0].parent, Schedule)
     assert ifnode.else_body[0].ast is \
-        fparser2case_construct.content[3]
+        fparser2case_construct.content[4]
     assert ifnode.else_body[0].children[1].ast is \
         fparser2case_construct.content[4]
     assert ifnode.else_body[0].children[1].ast_end is \

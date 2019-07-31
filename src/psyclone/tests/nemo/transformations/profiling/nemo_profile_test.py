@@ -71,7 +71,7 @@ def test_profile_single_loop(parser):
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
         "  TYPE(ProfileData), SAVE :: psy_profile0\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'region_0', psy_profile0)\n"
+        "  CALL ProfileStart('do_loop', 'r0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
@@ -108,13 +108,13 @@ def test_profile_two_loops(parser):
         "  TYPE(ProfileData), SAVE :: psy_profile0\n"
         "  TYPE(ProfileData), SAVE :: psy_profile1\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'region_0', psy_profile0)\n"
+        "  CALL ProfileStart('do_loop', 'r0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
         "  CALL ProfileEnd(psy_profile0)\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'region_1', psy_profile1)\n"
+        "  CALL ProfileStart('do_loop', 'r1', psy_profile1)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp2(ji) = 1.0D0\n"
         "  END DO\n"
@@ -138,7 +138,7 @@ def test_profile_codeblock(parser):
     schedule, _ = ptrans.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
-        "  CALL ProfileStart('cb_test', 'region_0', psy_profile0)\n"
+        "  CALL ProfileStart('cb_test', 'r0', psy_profile0)\n"
         "  DO ji = 1, jpj\n"
         "    WRITE(*, FMT = *) sto_tmp2(ji)\n"
         "  END DO\n"
@@ -195,7 +195,7 @@ def test_profile_single_line_if(parser):
     schedule, _ = ptrans.apply(schedule[0])
     gen_code = str(psy.gen)
     assert (
-        "  CALL ProfileStart('one_line_if_test', 'region_0', psy_profile0)\n"
+        "  CALL ProfileStart('one_line_if_test', 'r0', psy_profile0)\n"
         "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
         "  CALL ProfileEnd(psy_profile0)\n" in gen_code)
 
@@ -251,17 +251,22 @@ def test_profiling_case(parser):
     ptrans.apply(sched.children[1].else_body.children)
     # Whole routine
     ptrans.apply(sched.children)
-    sched.view()
     code = str(psy.gen)
-    print(code)
     assert (
         "  TYPE(ProfileData), SAVE :: psy_profile1\n"
         "  TYPE(ProfileData), SAVE :: psy_profile2\n"
         "  TYPE(ProfileData), SAVE :: psy_profile0\n"
-        "  CALL ProfileStart('my_test', 'region_0', psy_profile0)\n"
+        "  CALL ProfileStart('my_test', 'r0', psy_profile0)\n"
         "  p_fld_crs(:, :) = 0._wp\n" in code)
+    assert ("      IF (mje_crs(2) - mjs_crs(2) == 1) THEN\n"
+            "        CALL ProfileStart('my_test', 'r1', psy_profile1)\n"
+            in code)
+    assert ("        END DO\n"
+            "        CALL ProfileEnd(psy_profile1)\n"
+            "      END IF\n" in code)
+    assert ("  CASE ('SUM')\n"
+            "    CALL ProfileStart('my_test', 'r2', psy_profile2)\n" in code)
     assert ("    CALL ProfileEnd(psy_profile2)\n"
             "  END SELECT\n"
             "  CALL ProfileEnd(psy_profile0)\n"
-            "END SUBROUTINE my_test\n" in code)
-    assert 0
+            "END SUBROUTINE my_test" in code)

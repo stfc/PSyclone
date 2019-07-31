@@ -346,7 +346,6 @@ class ProfileNode(Node):
             except ValueError:
                 # ast_end is not a child of fp_parent so go up to its parent
                 # and try again
-                ast_end = ast_end._parent
                 if hasattr(ast_end, "_parent") and ast_end._parent:
                     ast_end = ast_end._parent
                 else:
