@@ -1537,7 +1537,7 @@ class Schedule(Node):
     def dag_name(self):
         '''
         :returns: The name of this node in the dag.
-        :rtypes: str
+        :rtype: str
         '''
         return "schedule"
 
@@ -2001,8 +2001,12 @@ class ACCEnterDataDirective(ACCDirective):
         # 3. Convert this list of objects into a comma-delimited string
         var_str = self.list_to_string(var_list)
         # 4. Add the enter data directive.
+        if var_str:
+            copy_in_str = "copyin("+var_str+")"
+        else:
+            copy_in_str = ""
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
-                                "copyin("+var_str+")"))
+                                copy_in_str))
         # 5. Call an API-specific subclass of this class in case
         # additional declarations are required.
         self.data_on_device(parent)

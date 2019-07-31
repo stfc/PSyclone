@@ -51,7 +51,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, KernCallArgList
+    VALID_ANY_SPACE_NAMES, KernCallArgList, DynACCEnterDataDirective
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -6411,3 +6411,91 @@ def test_kerncallarglist_positions_quad(dist_mem):
     assert create_arg_list.ndf_positions[0] == (8, "w1")
     assert create_arg_list.ndf_positions[1] == (12, "w2")
     assert create_arg_list.ndf_positions[2] == (16, "w3")
+
+
+# (1/3) Method acc_args in Class DynKernelArguments
+def test_dynkernelarguments_acc_args_1():
+    '''Test that the acc_args method in the DynKernelArguments class
+    returns the expected arguments.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    acc_args = kern_args.acc_args
+    assert acc_args == [
+        'nlayers', 'a', 'f1_proxy', 'f1_proxy%data', 'f2_proxy',
+        'f2_proxy%data', 'm1_proxy', 'm1_proxy%data', 'm2_proxy',
+        'm2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2',
+        'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
+
+
+# (2/3) Method acc_args in Class DynKernelArguments
+def test_dynkernelarguments_acc_args_2():
+    '''Test that the acc_args method in the DynKernelArguments class
+    returns the expected arguments when there is a field vector.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only_vector.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_w3_only_vector_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    acc_args = kern_args.acc_args
+    assert acc_args == [
+        'nlayers', 'f1_proxy(1)', 'f1_proxy(1)%data', 'f1_proxy(2)',
+        'f1_proxy(2)%data', 'f1_proxy(3)', 'f1_proxy(3)%data', 'f2_proxy(1)',
+        'f2_proxy(1)%data', 'f2_proxy(2)', 'f2_proxy(2)%data', 'f2_proxy(3)',
+        'f2_proxy(3)%data', 'ndf_w3', 'undf_w3', 'map_w3']
+
+
+# (3/3) Method acc_args in Class DynKernelArguments
+def test_dynkernelarguments_acc_args_3():
+    '''Test that the acc_args method in the DynKernelArguments class
+    returns the expected arguments when there is an operator.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "10_operator.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_operator_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    acc_args = kern_args.acc_args
+    assert acc_args == [
+        'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
+        'mm_w0_proxy%local_stencil', 'chi_proxy(1)', 'chi_proxy(1)%data',
+        'chi_proxy(2)', 'chi_proxy(2)%data', 'chi_proxy(3)',
+        'chi_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
+        'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
+        'weights_xy_qr', 'weights_z_qr']
+
+
+# (1/1) Method scalars in Class DynKernelArguments
+def test_dynkernelarguments_scalars():
+    '''Test that the scalars method in the DynKernelArguments class
+    returns an empty string. This is because dynamo0p3 currently does
+    nothing with scalars when adding in OpenACC directives (which is
+    where this method is used).
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    assert kern_args.scalars == []
+
+
+# (1/1) Method data_on_device in Class DynACCEnterDataDirective
+def test_dynaccenterdatadirective_dataondevice():
+    '''Test that the data_on_device method in the DynACCEnterDataDirective
+    class returns None. This is because dynamo0p3 currently does not
+    make use of this option.
+
+    '''
+    directive = DynACCEnterDataDirective()
+    assert directive.data_on_device(None) is None

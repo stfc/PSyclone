@@ -8320,8 +8320,6 @@ class DynKernelArguments(Arguments):
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
                 '''
-                print (type(arg))
-                exit(1)
                 if arg.proxy_name_indexed not in self._arglist:
                     self._arglist.append(arg.proxy_name_indexed)
                     self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
