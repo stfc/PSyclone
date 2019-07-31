@@ -73,7 +73,7 @@ def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -96,7 +96,7 @@ def test_dynscalars_err(monkeypatch):
     from psyclone.dynamo0p3 import DynScalarArgs
     from psyclone import dynamo0p3
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -117,7 +117,7 @@ def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -140,7 +140,7 @@ def test_kernstubarglist_arglist_error():
     '''Check that we raise an exception if we call the arglist method in
     kernstubarglist without first calling the generate method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
