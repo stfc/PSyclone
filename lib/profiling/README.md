@@ -154,6 +154,22 @@ Example profiling output (some spaces removed to shorten the lines):
 ## NVIDIA ##
 
 This wrapper library uses the NVIDIA Tools Extension (NVTX) to mark-up
-profiling regions so that they appear in the NVIDIA Visual Profiler (nvvp).
-This is then very useful for identifying regions of an application that are
-not running on the GPU.
+profiling regions so that they appear in the NVIDIA profiling tools
+(nvprof or the visual profiler, nvvp).  This is then very useful for
+identifying regions of an application that are not running on the
+GPU.
+
+Example output (from nvprof):
+
+    ==1678== NVTX result:
+    ==1678==   Thread "<unnamed>" (id = 66653056)
+    ==1678==     Domain "<unnamed>"
+    ==1678==       Range "inc_field_mod:inc_field_code"
+                Type  Time(%)      Time  Calls       Avg       Min       Max  Name
+              Range:  100.00%  758.78us     10  75.878us  43.322us  348.23us  inc_field_mod:inc_field_code
+     GPU activities:   72.71%  58.911us     34  1.7320us  1.3760us  8.3520us  [CUDA memcpy HtoD]
+                       22.12%  17.920us     10  1.7920us  1.6320us  3.0080us  invoke_0_inc_field_36_gpu
+                        5.17%  4.1920us      3  1.3970us  1.3760us  1.4080us  [CUDA memset]
+          API calls:   59.10%  122.02us     34  3.5880us  2.4540us  14.057us  cuMemcpyHtoDAsync
+                       34.73%  71.711us     10  7.1710us  4.6830us  25.625us  cuLaunchKernel
+                        6.17%  12.729us      3  4.2430us  2.3700us  7.7330us  cuMemsetD32Async
