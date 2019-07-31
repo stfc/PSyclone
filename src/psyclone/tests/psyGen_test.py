@@ -2107,7 +2107,7 @@ def test_acc_dag_names():
     name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
 
-
+# (1/4) Method __init__ in Class ACCEnterDataDirective
 def test_acc_datadevice_virtual():
     ''' Check that we can't instantiate an instance of
     ACCEnterDataDirective. '''
@@ -2118,6 +2118,17 @@ def test_acc_datadevice_virtual():
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err))
+
+# (2/4) Method view() in ACCEnterDataDirective
+# Covered in test test_acc_dir_view
+
+# (3/4) Method dag_name in ACCEnterDataDirective
+# Covered in test_acc_dag_names
+
+# (4/4) Method gen_code in ACCEnterDataDirective
+****** ACCEnterDataTrans chooses between GOACCEnterDataDirective and DynACCEnterDataDirective depending on the type of schedule found (GOInvokeSchedule or DynInvokeSchedule respectively).
+****** Must be separate tests for GO and Dyn
+**************# WILL BE Covered in dynamo0p3_test.py:XXX??? is covered in gocean1p0_transformations_test.py::test_acc_data_grid_copyin
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
