@@ -85,6 +85,18 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
+  ! Distinct any_d_space id's. Separate id's required as we may have
+  ! groups of fields that must be on the same space within a kernel
+  integer, public, parameter :: ANY_D_SPACE_1  = 251
+  integer, public, parameter :: ANY_D_SPACE_2  = 252
+  integer, public, parameter :: ANY_D_SPACE_3  = 253
+  integer, public, parameter :: ANY_D_SPACE_4  = 254
+  integer, public, parameter :: ANY_D_SPACE_5  = 255
+  integer, public, parameter :: ANY_D_SPACE_6  = 256
+  integer, public, parameter :: ANY_D_SPACE_7  = 257
+  integer, public, parameter :: ANY_D_SPACE_8  = 258
+  integer, public, parameter :: ANY_D_SPACE_9  = 259
+  integer, public, parameter :: ANY_D_SPACE_10 = 260
 
   ! Function space attributes
   integer, public, parameter :: GH_BASIS                     = 301
