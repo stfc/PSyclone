@@ -2694,7 +2694,7 @@ def test_codeblock_can_be_printed():
 
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
-    properties'''
+    setter and getter properties'''
     from psyclone.psyGen import Loop
     loop = Loop()
 
@@ -2704,6 +2704,20 @@ def test_loop_navigation_properties():
     with pytest.raises(InternalError) as err:
         _ = loop.start_expr
     assert error_str in str(err.value)
+
+    # Expressions that are not PSyIR as not accepted
+    with pytest.raises(TypeError) as err:
+        loop.start_expr = "start"
+    assert "Only PSyIR nodes can be assigned as the Loop start expression" \
+        ", but found '" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        loop.stop_expr = "stop"
+    assert "Only PSyIR nodes can be assigned as the Loop stop expression" \
+        ", but found '" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        loop.step_expr = "step"
+    assert "Only PSyIR nodes can be assigned as the Loop step expression" \
+        ", but found '" in str(err.value)
 
     loop.addchild(Literal("start", parent=loop))
     loop.addchild(Literal("stop", parent=loop))
@@ -2732,11 +2746,11 @@ def test_loop_navigation_properties():
         loop.step_expr = Literal("invalid", parent=loop)
     assert error_str in str(err.value)
 
-    # The forth child has to be a Schedule
+    # The fourth child has to be a Schedule
     loop.addchild(Literal("loop_body", parent=loop))
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
-    assert "Loop malformed or incomplete. Forth children should be a " \
+    assert "Loop malformed or incomplete. Fourth children should be a " \
         "Schedule node, but found loop with " in str(err.value)
 
     # Fix loop and check that Getters properties work

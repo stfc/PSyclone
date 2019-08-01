@@ -54,19 +54,16 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     '''
     Specialisation of Fparser2ASTProcessor for the Nemo API.
     '''
-    def __init__(self):
-        super(NemoFparser2ASTProcessor, self).__init__()
-
     def _create_loop(self, parent, variable_name):
         '''
         Specialized method to create a NemoLoop instead of a
         generic Loop.
 
-        :param parent: The parent of the node.
+        :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param str variable_name: Name of the iteration variable
+        :param str variable_name: name of the iteration variable.
 
-        :return: A new NemoLoop instance
+        :return: a new NemoLoop instance.
         :rtype: :py:class:`psyclone.nemo.NemoLoop`
         '''
         loop = NemoLoop(parent=parent, variable_name=variable_name)
@@ -88,7 +85,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         matches with a NemoKern, it will add a NemoKern instead of statements
         in the loop_body.
 
-        :param loop_body: Schedule representing the body of the loop.
+        :param loop_body: schedule representing the body of the loop.
         :type loop_body: :py:class:`psyclone.psyGen.Schedule`
         :param node: fparser loop node being processed.
         :type node: \
@@ -120,10 +117,10 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
-        :return: Returns the PSyIR representation of child or None if \
+        :return: returns the PSyIR representation of child or None if \
                  there isn't one.
         :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
@@ -186,7 +183,7 @@ class NemoInvokes(Invokes):
     Class capturing information on all 'Invokes' (program units) within
     a single NEMO source file.
 
-    :param ast: The fparser2 AST for the whole Fortran source file
+    :param ast: the fparser2 AST for the whole Fortran source file.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
     def __init__(self, ast):
@@ -291,7 +288,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
 
-    :param invoke: The Invoke to which this NemoInvokeSchedule belongs.
+    :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
     :param ast: the fparser2 AST of the NEMO code for which to generate \
                 a NemoInvokeSchedule.
@@ -335,7 +332,7 @@ class NemoKern(CodedKern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
-    :param parse_tree: Reference to the innermost loop in the fparser2 parse \
+    :param parse_tree: reference to the innermost loop in the fparser2 parse \
                        tree that encloses this kernel.
     :type parse_tree: \
               :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
@@ -370,9 +367,9 @@ class NemoKern(CodedKern):
         loops or 'CodeBlocks' (code not represented in the PSyIR such as
         subroutine calls or IO operations).
 
-        :param node: Node in the PSyIR to check.
+        :param node: node in the PSyIR to check.
         :type node: :py:class:`psyclone.psyGen.Node`
-        :returns: True if this node conforms to the rules for a kernel.
+        :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
@@ -417,6 +414,8 @@ class NemoLoop(Loop):
 
     :param parent: parent of this NemoLoop in the PSyclone AST.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param str variable_name: optional name of the loop iterator \
+        variable. Defaults to an empty string.
     '''
     def __init__(self, parent=None, variable_name=''):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()

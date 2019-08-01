@@ -3000,11 +3000,11 @@ class Loop(Node):
     represents the equivalent to Fortran do loops. This means the loop is
     bounded by start/stop/step expressions evaluated before the loop starts.)
 
-    :param parent: Parent of this node in the PSyIR.
+    :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
-    :param str variable_name: Optional name of the loop iterator \
+    :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
-    :param valid_loop_types: A list of loop types that are specific \
+    :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
 
@@ -3046,14 +3046,13 @@ class Loop(Node):
 
         if not isinstance(self.children[3], Schedule):
             raise InternalError(
-                "Loop malformed or incomplete. Forth children should be a "
+                "Loop malformed or incomplete. Fourth children should be a "
                 "Schedule node, but found loop with '{0}'.".format(str(self)))
 
     @property
     def start_expr(self):
-        ''' Return the PSyIR Node representing the Loop start expression.
-
-        :return: Loop start expression.
+        '''
+        :return: the PSyIR Node representing the Loop start expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3067,15 +3066,20 @@ class Loop(Node):
         :param expr: New PSyIR start expression.
         :type expr: :py:class:`psyclone.psyGen.Node`
 
+        :raises TypeError: if expr is not a PSyIR node.
+
         '''
+        if not isinstance(expr, Node):
+            raise TypeError(
+                "Only PSyIR nodes can be assigned as the Loop start expression"
+                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[0] = expr
 
     @property
     def stop_expr(self):
-        ''' Return the PSyIR Node representing the Loop stop expression.
-
-        :return: Loop stop expression.
+        '''
+        :return: the PSyIR Node representing the Loop stop expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3089,15 +3093,20 @@ class Loop(Node):
         :param expr: New PSyIR stop expression.
         :type expr: :py:class:`psyclone.psyGen.Node`
 
+        :raises TypeError: if expr is not a PSyIR node.
+
         '''
+        if not isinstance(expr, Node):
+            raise TypeError(
+                "Only PSyIR nodes can be assigned as the Loop stop expression"
+                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[1] = expr
 
     @property
     def step_expr(self):
-        ''' Return the PSyIR Node representing the Loop step expression.
-
-        :return: Loop step expression.
+        '''
+        :return: the PSyIR Node representing the Loop step expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3111,15 +3120,20 @@ class Loop(Node):
         :param expr: New PSyIR step expression.
         :type expr: :py:class:`psyclone.psyGen.Node`
 
+        :raises TypeError: if expr is not a PSyIR node.
+
         '''
+        if not isinstance(expr, Node):
+            raise TypeError(
+                "Only PSyIR nodes can be assigned as the Loop step expression"
+                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[2] = expr
 
     @property
     def loop_body(self):
-        ''' Return PSyIR Schedule with the loop body statements.
-
-        :return: PSyIR Schedule with the loop body statements
+        '''
+        :return: the PSyIR Schedule with the loop body statements.
         :rtype: list of :py:class:`psyclone.psyGen.Schedule`
 
         '''
@@ -3241,7 +3255,7 @@ class Loop(Node):
         return self._variable_name
 
     def __str__(self):
-        # Give Loop sub-classes a specialized name
+        # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
         result += "id:'" + self._id
@@ -3309,24 +3323,39 @@ class Loop(Node):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        def is_unit_literal(expr):
+            ''' Check if the given expression is equal to the literal '1'.
+
+            :param expr: a PSyIR expression.
+            :type expr: :py:class:`psyclone.psyGen.Node`
+
+            :return: True if it is equal to the literal '1', false otherwise.
+            '''
+            return isinstance(expr, Literal) and expr.value == '1'
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self.root.opencl or (self.start_expr == Literal("1") and
-                                self.stop_expr == Literal("1")):
+        if self.root.opencl or (is_unit_literal(self.start_expr) and
+                                is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)
         else:
             from psyclone.psyir.backend.fortran import FortranWriter
             from psyclone.f2pygen import DoGen, DeclGen
-            # Start_expr and stop_expr are generated with the FortranWriter
-            # backend, the rest of the loop with fpygen.
+            # start/stop/step_expr are generated with the FortranWriter
+            # backend, the rest of the loop with f2pygen.
             fwriter = FortranWriter()
+            if is_unit_literal(self.step_expr):
+                step_str = None
+            else:
+                import pdb; peb.set_trace()
+                step_str = fwriter(self.step_expr)
             do = DoGen(parent, self._variable_name,
                        fwriter(self.start_expr),
-                       fwriter(self.stop_expr))
+                       fwriter(self.stop_expr),
+                       step_str)
             # need to add do loop before children as children may want to add
             # info outside of do loop
             parent.add(do)
@@ -6886,13 +6915,13 @@ class Fparser2ASTProcessor(object):
     def _create_loop(self, parent, variable_name):
         '''
         Create a Loop instance. This is done outside _do_construct_handler
-        because some APIs may want to instantiate a specialized Loop.
+        because some APIs may want to instantiate a specialised Loop.
 
-        :param parent: The parent of the node.
+        :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param str variable_name: Name of the iteration variable
+        :param str variable_name: name of the iteration variable.
 
-        :return: A new Loop instance
+        :return: a new Loop instance.
         :rtype: :py:class:`psyclone.psyGen.Loop`
 
         '''
@@ -6900,7 +6929,7 @@ class Fparser2ASTProcessor(object):
 
     def _process_loopbody(self, loop_body, node):
         ''' Process the loop body. This is done outside _do_construct_handler
-        becayse some APIs may want to perform specialized actions. By default
+        because some APIs may want to perform specialised actions. By default
         continue processing the tree nodes inside the loop body.
 
         :param loop_body: Schedule representing the body of the loop.
@@ -6909,6 +6938,7 @@ class Fparser2ASTProcessor(object):
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
         '''
+        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
         self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
                            nodes_parent=node)
 
@@ -6919,13 +6949,13 @@ class Fparser2ASTProcessor(object):
         :param node: node in fparser2 tree.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-        :param parent: Parent node of the PSyIR node we are constructing.
+        :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Loop`
 
-        :raises InternalError: If the fparser2 tree has an unexpected \
+        :raises InternalError: if the fparser2 tree has an unexpected \
             structure.
         '''
         from fparser.two.utils import walk_ast
@@ -6976,7 +7006,7 @@ class Fparser2ASTProcessor(object):
             default_step = Literal("1", parent=loop)
             loop.addchild(default_step)
 
-        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
+        # Create Loop body Schedule
         loop_body = Schedule(parent=loop)
         loop_body._ast = node
         loop.addchild(loop_body)

@@ -423,7 +423,7 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Loop instance is found in the
         PSyIR tree.
 
-        :param node: An Loop PSyIR node.
+        :param node: a Loop PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Loop`
 
         :returns: The Fortran code as a string.

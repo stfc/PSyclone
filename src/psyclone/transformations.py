@@ -273,11 +273,11 @@ class LoopFuseTrans(Transformation):
         keep = Memento(schedule, self, [node1, node2])
 
         # add loop contents of node2 to node1
-        node1.loop_body._children.extend(node2.loop_body)
+        node1.loop_body.children.extend(node2.loop_body)
 
         # change the parent of the loop contents of node2 to node1
         for child in node2.loop_body:
-            child.parent = node1.children[3]
+            child.parent = node1.loop_body
 
         # remove node2
         node2.parent.children.remove(node2)
@@ -1226,11 +1226,11 @@ class ColourTrans(Transformation):
         colours_loop.loop_body.addchild(colour_loop)
 
         # add contents of node to colour loop
-        colour_loop.loop_body._children.extend(node.loop_body)
+        colour_loop.loop_body.children.extend(node.loop_body)
 
         # change the parent of the node's contents to the colour loop
         for child in node.loop_body:
-            child.parent = colour_loop.children[3]
+            child.parent = colour_loop.loop_body
 
         # remove original loop
         node_parent.children.remove(node)
@@ -1944,8 +1944,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
-        # Check loop's parent is the InvokeSchedule, or its nested in a
-        # colours loop and perform other colour(s) loop checks,
+        # Check loop's parent is the InvokeSchedule, or that it is nested
+        # in a colours loop and perform other colour(s) loop checks,
         # otherwise halo exchange placement might fail. The only
         # current example where the placement would fail is when
         # directives have already been added. This could be fixed but
@@ -2199,23 +2199,23 @@ class GOLoopSwapTrans(Transformation):
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [inner, outer])
 
-        # Remove outer from parent:
+        # Remove outer from parent
         index = parent.children.index(outer)
         del parent.children[index]
         outer.parent = None
 
-        # Move inner to parent:
+        # Move inner to parent
         inner.parent = parent
         parent.children.insert(index, inner)
         outer.loop_body.children.remove(inner)
 
-        # Move inner's schedule to outer:
+        # Move inner's schedule to outer
         outer.children[3] = inner.loop_body
-        inner.children[3] = Schedule()
         for child in outer.loop_body:
             child.parent = outer.loop_body
 
-        # Move outer under inner:
+        # Move outer under inner (create new Schedule to remove old entries)
+        inner.children[3] = Schedule()
         inner.loop_body.children.append(outer)
         outer.parent = inner.loop_body
 
