@@ -904,7 +904,7 @@ class GOKern(CodedKern):
             if arg.type == "grid_property":
                 if grid_for_property is None:
                     grid_for_property = self._arguments.find_grid_access()
-                var_name = grid_for_property.name + "%data%" + \
+                var_name = grid_for_property.name + "%grid%" + \
                     arg.dereference_name
             else:
                 var_name = arg.name

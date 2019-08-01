@@ -280,8 +280,8 @@ def test_goloop_partially():
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
     assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
-           "ssh_fld: READWRITE, ssh_fld%data%subdomain%internal%xstop: READ, "\
-           "ssh_fld%data%tmask: READ" in str(var_accesses)
+           "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "\
+           "ssh_fld%grid%tmask: READ" in str(var_accesses)
 
 
 @pytest.mark.xfail(reason="Dynamoloops boundaries are also strings #400")
