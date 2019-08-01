@@ -2954,7 +2954,6 @@ class ACCKernelsTrans(RegionTrans):
     '''
     Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
     region (i.e. within "!$acc kernels" ... "!$acc end kernels" directives).
-    Currently only supported for the NEMO API.
 
     For example:
 

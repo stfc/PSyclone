@@ -71,11 +71,11 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenCL transformations
-	  for the GOcean 1.0 API and OpenACC transformations for the
-	  GOcean 1.0 and NEMO APIs. Attempts to apply these
-	  transformations to (members of) schedules from other
-	  APIs will be rejected. 
+.. note:: PSyclone currently only supports OpenCL transformations for
+	  the GOcean 1.0 API, the OpenACC Data transformation is
+	  limited to the NEMO and GOcean 1.0 APIs and the OpenACC
+	  Kernels transformation is limited to the NEMO and Dynamo0.3
+	  APIs.
 
 ####
 
@@ -579,21 +579,22 @@ device, OpenACC directives must also be added to a code in order to
 tell the compiler how it should be parallelised. PSyclone provides the
 ``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
 transformations for this purpose. The simplest of these is
-``ACCKernelsTrans`` (currently only supported for the NEMO API) which
-encloses the code represented by a sub-tree of the PSyIR within an
-OpenACC ``kernels`` region.  This essentially gives free-reign to the
-compiler to automatically parallelise any suitable loops within the
-specified region. An example of the use of ``ACCDataTrans`` and
-``ACCKernelsTrans`` may be found in PSyclone/examples/nemo/eg3.
+``ACCKernelsTrans`` (currently only supported for the NEMO and
+Dynamo0.3 APIs) which encloses the code represented by a sub-tree of
+the PSyIR within an OpenACC ``kernels`` region.  This essentially
+gives free-reign to the compiler to automatically parallelise any
+suitable loops within the specified region. An example of the use of
+``ACCDataTrans`` and ``ACCKernelsTrans`` may be found in
+PSyclone/examples/nemo/eg3 and an example of ``ACCKernelsTrans`` may
+be found in PSyclone/examples/dynamo/eg14.
 
-However, as with any "automatic" approach, a more
-performant solution can almost always be obtained by providing the
-compiler with more explicit direction on how to parallelise the code.
-The ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow
-the user to define thread-parallel regions and, within those, define
-which loops should be parallelised. (Note that these two transformations
-are currently only supported for the GOcean1.0 and NEMO APIs.) For an
-example of their use please see PSyclone/examples/gocean/eg2.
+However, as with any "automatic" approach, a more performant solution
+can almost always be obtained by providing the compiler with more
+explicit direction on how to parallelise the code.  The
+``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow the
+user to define thread-parallel regions and, within those, define which
+loops should be parallelised. For an example of their use please see
+PSyclone/examples/gocean/eg2 or PSyclone/examples/dynamo/eg14.
 
 In order for a given section of code to be executed on a GPU, any
 routines called from within that section must also have been compiled
@@ -606,4 +607,5 @@ PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
 directive added. Again, please see PSyclone/examples/gocean/eg2 for an
-example.
+example. This transformation is currently not supported for kernels in
+the Dynamo0.3 API.
