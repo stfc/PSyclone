@@ -119,13 +119,6 @@ class RegionTrans(Transformation):
                          if not isinstance(item, Schedule)]
             for item in flat_list:
                 if not isinstance(item, self.valid_node_types):
-                    # TODO: To the reviewer, Literals and References appear
-                    # everywhere now, should they be in all transformations
-                    # 'valid_node_types' or is it OK to skip them here. Also
-                    # note that upcoming dependence analysis can potentially
-                    # be more smart here about the Reference validation.
-                    if isinstance(item, (Literal, Reference)):
-                        continue
                     raise TransformationError(
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
@@ -1593,7 +1586,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     from psyclone import psyGen
     # The types of node that this transformation can enclose
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.OMPDirective, psyGen.GlobalSum)
+                        psyGen.OMPDirective, psyGen.GlobalSum,
+                        psyGen.Literal, psyGen.Reference)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
@@ -2325,7 +2319,8 @@ class ProfileRegionTrans(RegionTrans):
     from psyclone import psyGen, profiler
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.HaloExchange, psyGen.Directive,
-                        psyGen.GlobalSum, profiler.ProfileNode)
+                        psyGen.GlobalSum, profiler.ProfileNode,
+                        psyGen.Literal, psyGen.Reference)
 
     def __str__(self):
         return "Insert a profile start and end call."
@@ -3470,7 +3465,7 @@ class ExtractRegionTrans(RegionTrans):
     from psyclone import psyGen
     # The types of node that this transformation can enclose
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive)
+                        psyGen.Directive, psyGen.Literal, psyGen.Reference)
 
     def __str__(self):
         return ("Create a sub-tree of the PSyIR that has ExtractNode "
