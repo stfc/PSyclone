@@ -2111,7 +2111,7 @@ halo exchanges can be found in ``examples/dynamo/eg11``.
 
 The **Dynamo0p3KernelConstTrans** transformation is only valid for the
 "Dynamo0p3" API. This is because the properties that it makes constant
-are specific to the "Dynamo0p3" API
+are API specific.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means

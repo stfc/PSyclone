@@ -190,8 +190,8 @@ to the specified Kernel:
 
   > python find_kernel.py
 
-Example 13
-^^^^^^^^^^
+Example 13 : Kernel transformation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates how an LFRic kernel can be transformed. The example
 transformation makes Kernel values constant where appropriate. For

@@ -36,10 +36,12 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
 
+from __future__ import absolute_import
+
 import pytest
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
-import fparser.two.Fortran2003 as Fortran2003
+from fparser.two import Fortran2003
 from fparser.api import get_reader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \

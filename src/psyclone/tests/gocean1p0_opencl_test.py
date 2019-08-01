@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by R. W.  Siso, STFC Daresbury Lab.
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Tests for OpenCL PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -58,7 +58,7 @@ def setup():
 
 
 # ----------------------------------------------------------------------------
-def test_opencl_compiler_works(outputdir):
+def test_opencl_compiler_works(kernel_outputdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
     that all compiles tests are skipped if only the '--compile'
@@ -71,18 +71,18 @@ program hello
   write (*,*) "Hello"
 end program hello
 '''
-    old_pwd = outputdir.chdir()
+    old_pwd = kernel_outputdir.chdir()
     try:
         with open("hello_world_opencl.f90", "w") as ffile:
             ffile.write(example_ocl_code)
-        GOcean1p0OpenCLBuild(outputdir).\
+        GOcean1p0OpenCLBuild(kernel_outputdir).\
             compile_file("hello_world_opencl.f90",
                          link=True)
     finally:
         old_pwd.chdir()
 
 
-def test_use_stmts(outputdir):
+def test_use_stmts(kernel_outputdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -98,10 +98,10 @@ def test_use_stmts(outputdir):
       use iso_c_binding'''
     assert expected in generated_code
     assert "if (first_time) then" in generated_code
-    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init(outputdir):
+def test_psy_init(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -129,12 +129,12 @@ def test_psy_init(outputdir):
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.xfail(reason="Uses a variable defined in another module."
                           " Will be fixed with issue #315")
-def test_set_kern_args(outputdir):
+def test_set_kern_args(kernel_outputdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -171,10 +171,10 @@ def test_set_kern_args(outputdir):
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
             "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
-    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg(outputdir):
+def test_set_kern_float_arg(kernel_outputdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -205,7 +205,7 @@ def test_set_kern_float_arg(outputdir):
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():

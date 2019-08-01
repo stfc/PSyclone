@@ -5163,7 +5163,7 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-def test_modified_kern_line_length(outputdir, monkeypatch, tmpdir):
+def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     '''Modified Fortran kernels are written to file linewrapped at 132
     characters. This test checks that this linewrapping works.
 
@@ -5181,7 +5181,7 @@ def test_modified_kern_line_length(outputdir, monkeypatch, tmpdir):
     _, _ = ktrans.apply(kernels[0], number_of_layers=100)
     # Generate the code (this triggers the generation of new kernels)
     _ = str(psy.gen)
-    filepath = os.path.join(str(tmpdir), "testkern_0_mod.f90")
+    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
     assert os.path.isfile(filepath)
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.

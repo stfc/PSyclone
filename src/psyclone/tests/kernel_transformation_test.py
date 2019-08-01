@@ -137,7 +137,7 @@ def test_accroutine_empty_kernel():
     assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
-def test_new_kernel_file(outputdir, tmpdir, monkeypatch):
+def test_new_kernel_file(kernel_outputdir, monkeypatch):
     ''' Check that we write out the transformed kernel to the CWD. '''
     from fparser.two import Fortran2003, parser
     from fparser.common.readfortran import FortranFileReader
@@ -158,7 +158,8 @@ def test_new_kernel_file(outputdir, tmpdir, monkeypatch):
     assert "call continuity{0}_code(".format(tag) in code
     # The kernel and module name should have gained the tag just identified
     # and be written to the CWD
-    filename = os.path.join(str(tmpdir), "continuity{0}_mod.f90".format(tag))
+    filename = os.path.join(str(kernel_outputdir),
+                            "continuity{0}_mod.f90".format(tag))
     assert os.path.isfile(filename)
     # Parse the new kernel file
     f2003_parser = parser.ParserFactory().create()
@@ -182,10 +183,10 @@ def test_new_kernel_file(outputdir, tmpdir, monkeypatch):
 
     from gocean1p0_build import GOcean1p0Build
     # If compilation fails this will raise an exception
-    GOcean1p0Build(tmpdir).compile_file(filename)
+    GOcean1p0Build(kernel_outputdir).compile_file(filename)
 
 
-def test_new_kernel_dir(outputdir, tmpdir, monkeypatch):
+def test_new_kernel_dir(kernel_outputdir):
     ''' Check that we write out the transformed kernel to a specified
     directory. '''
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
@@ -195,12 +196,12 @@ def test_new_kernel_dir(outputdir, tmpdir, monkeypatch):
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     _ = str(psy.gen)
-    file_list = os.listdir(str(tmpdir))
+    file_list = os.listdir(str(kernel_outputdir))
     assert len(file_list) == 1
     assert file_list[0] == 'continuity_0_mod.f90'
 
 
-def test_new_kern_no_clobber(outputdir, tmpdir, monkeypatch):
+def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     ''' Check that we create a new kernel with a new name when kernel-naming
     is set to 'multiple' and we would otherwise get a name clash. '''
     # Ensure kernel-output directory is uninitialised
@@ -212,14 +213,14 @@ def test_new_kern_no_clobber(outputdir, tmpdir, monkeypatch):
     kern = kernels[0]
     old_mod_name = kern.module_name[:]
     # Create a file with the same name as we would otherwise generate
-    with open(os.path.join(str(tmpdir),
+    with open(os.path.join(str(kernel_outputdir),
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     _ = str(psy.gen).lower()
-    filename = os.path.join(str(tmpdir), old_mod_name+"_1_mod.f90")
+    filename = os.path.join(str(kernel_outputdir), old_mod_name+"_1_mod.f90")
     assert os.path.isfile(filename)
 
 
@@ -228,7 +229,8 @@ def test_new_kern_no_clobber(outputdir, tmpdir, monkeypatch):
     [("testkern_mod", "testkern"),
      ("testkern", "testkern_code"),
      ("testkern1_mod", "testkern2_code")])
-def test_kernel_conformance_error(mod_name, sub_name, outputdir, monkeypatch):
+def test_kernel_conformance_error(mod_name, sub_name, kernel_outputdir,
+                                  monkeypatch):
     '''Check that an exception is raised if a kernel does not conform to
     the <name>_mod, <name>_code convention and is output via a PSyIR
     back-end. This limitation is the subject of issue #393.
@@ -260,7 +262,7 @@ def test_kernel_conformance_error(mod_name, sub_name, outputdir, monkeypatch):
      ("TESTKERN_mod", "testkern_code"),
      ("testkern_mod", "TESTKERN_code"),
      ("TESTKERN_MoD", "TESTKERN_CoDe")])
-def test_kern_case_insensitive(mod_name, sub_name, outputdir, tmpdir,
+def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
                                monkeypatch):
     '''Check that the test to see if a kernel conforms to the <name>_mod,
     <name>_code convention is case insensitive. This check also tests that the
@@ -278,11 +280,11 @@ def test_kern_case_insensitive(mod_name, sub_name, outputdir, tmpdir,
     monkeypatch.setattr(kern, "_name", sub_name)
     # Generate the code - this should not raise an exception.
     kern.rename_and_write()
-    filename = os.path.join(str(tmpdir), mod_name[:8]+"_0_mod.f90")
+    filename = os.path.join(str(kernel_outputdir), mod_name[:8]+"_0_mod.f90")
     assert os.path.isfile(filename)
 
 
-def test_new_kern_single_error(outputdir, tmpdir, monkeypatch):
+def test_new_kern_single_error(kernel_outputdir, monkeypatch):
     ''' Check that we do not overwrite an existing, different kernel if
     there is a name clash and kernel-naming is 'single'. '''
     # Ensure kernel-output directory is uninitialised
@@ -294,7 +296,7 @@ def test_new_kern_single_error(outputdir, tmpdir, monkeypatch):
     kern = kernels[0]
     old_mod_name = kern.module_name[:]
     # Create a file with the same name as we would otherwise generate
-    with open(os.path.join(str(tmpdir),
+    with open(os.path.join(str(kernel_outputdir),
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
@@ -307,10 +309,11 @@ def test_new_kern_single_error(outputdir, tmpdir, monkeypatch):
     assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
-            "scheme is set to 'single'".format(str(tmpdir)) in str(err))
+            "scheme is set to 'single'".format(str(kernel_outputdir))
+            in str(err))
 
 
-def test_new_same_kern_single(outputdir, tmpdir, monkeypatch):
+def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     ''' Check that we do not overwrite an existing, identical kernel if
     there is a name clash and kernel-naming is 'single'. '''
     # Ensure kernel-output directory is uninitialised
@@ -332,11 +335,11 @@ def test_new_same_kern_single(outputdir, tmpdir, monkeypatch):
     new_kernels[1].rename_and_write()
     assert new_kernels[1]._name == "testkern_0_code"
     assert new_kernels[1].module_name == "testkern_0_mod"
-    out_files = os.listdir(str(tmpdir))
+    out_files = os.listdir(str(kernel_outputdir))
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
-def test_1kern_trans(outputdir, tmpdir, monkeypatch):
+def test_1kern_trans(kernel_outputdir):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
@@ -359,10 +362,10 @@ def test_1kern_trans(outputdir, tmpdir, monkeypatch):
     first = code.find("call testkern_code(")
     second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(kernel_outputdir).code_compiles(psy)
 
 
-def test_2kern_trans(outputdir, tmpdir, monkeypatch):
+def test_2kern_trans(kernel_outputdir):
     ''' Check that we generate correct code when we transform two kernels
     within a single invoke. '''
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
@@ -381,13 +384,13 @@ def test_2kern_trans(outputdir, tmpdir, monkeypatch):
         assert ("use testkern_any_space_2{0}_mod, only: "
                 "testkern_any_space_2{0}_code".format(tag) in code)
         assert "call testkern_any_space_2{0}_code(".format(tag) in code
-        filepath = os.path.join(str(tmpdir),
+        filepath = os.path.join(str(kernel_outputdir),
                                 "testkern_any_space_2{0}_mod.f90".format(tag))
         assert os.path.isfile(filepath)
         assert "nlayers = 100" in open(filepath).read()
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(kernel_outputdir).code_compiles(psy)
 
 
 def test_builtin_no_trans():
@@ -404,7 +407,7 @@ def test_builtin_no_trans():
             "kernel 'x_plus_y' is of type " in str(err))
 
 
-def test_no_inline_before_trans(outputdir, monkeypatch):
+def test_no_inline_before_trans(kernel_outputdir, monkeypatch):
     ''' Check that we reject attempts to transform kernels that have been
     marked for module in-lining. Issue #229. '''
 

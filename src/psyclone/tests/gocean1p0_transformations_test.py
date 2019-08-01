@@ -66,13 +66,6 @@ def setup():
     Config._instance = None
 
 
-@pytest.fixture
-def outputdir(tmpdir, monkeypatch):
-    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-
-
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
@@ -1449,7 +1442,7 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
 
-def test_ocl_apply(outputdir):
+def test_ocl_apply(kernel_outputdir):
     ''' Check that OCLTrans generates correct code '''
     from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
