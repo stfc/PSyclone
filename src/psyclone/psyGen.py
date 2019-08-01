@@ -4818,7 +4818,11 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        parent.add(DirectiveGen(parent, "acc", "begin", "kernels", ""))
+        data_movement = ""
+        if self._default_present:
+            data_movement = "default(present)"
+        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
+                                data_movement))
         for child in self.children:
             child.gen_code(parent)
         parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))

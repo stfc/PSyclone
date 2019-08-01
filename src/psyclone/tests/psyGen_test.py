@@ -57,7 +57,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, Loop, \
-    ACCEnterDataDirective
+    ACCEnterDataDirective, ACCKernelsDirective
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -66,7 +66,7 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
-    ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans
+    ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
 
@@ -2103,6 +2103,115 @@ def test_acc_dag_names():
     name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
 
+# Class ACCKernelsDirective start
+
+# (1/1) Method __init__
+def test_acckernelsdirective_init():
+    '''Test an ACCKernelsDirective can be created and that the optional
+    arguments are set and can be set as expected.
+
+    '''
+    directive = ACCKernelsDirective()
+    assert directive._default_present
+    assert directive.parent is None
+    assert directive.children == []
+    directive = ACCKernelsDirective(default_present=False)
+    assert not directive._default_present
+
+
+# (1/1) Method dag_name
+def test_acckernelsdirective_dagname():
+    '''Check that the dag_name method in the ACCKernelsDirective class
+    behaves as expected.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+    assert sched.children[0].dag_name == "ACC_kernels_1"
+
+
+# (1/1) Method view
+def test_acckernelsdirective_view(capsys):
+    '''Check that the view method in the ACCKernelsDirective class behaves
+    as expected.
+
+    '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    colour = SCHEDULE_COLOUR_MAP["Directive"]
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+
+    sched.children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Kernels]")
+    assert "Loop" in out
+    assert "CodedKern" in out
+
+
+# (1/1) Method gen_code
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_gencode(default_present):
+    '''Check that the gen_code method in the ACCKernelsDirective class
+    generates the expected code. Use the dynamo0.3 API.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched, default_present=default_present)
+
+    code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " default(present)"
+    assert (
+        "      !$acc kernels{0}\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n" in code)
+
+
+# (1/1) Method update
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_update(parser, default_present):
+    '''Check that the update method in the ACCKernelsDirective class
+    generates the expected code. Use the nemo API.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader("program implicit_loop\n"
+                                 "real(kind=wp) :: sto_tmp(5,5)\n"
+                                 "sto_tmp(:,:) = 0.0_wp\n"
+                                 "end program implicit_loop\n")
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels_trans = ACCKernelsTrans()
+    schedule, _ = kernels_trans.apply(schedule.children[0:1],
+                                      default_present=default_present)
+    gen_code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " DEFAULT(PRESENT)"
+    assert ("  !$ACC KERNELS{0}\n"
+            "  sto_tmp(:, :) = 0.0_wp\n"
+            "  !$ACC END KERNELS\n".format(string) in gen_code)
+
+# Class ACCKernelsDirective end
 
 # Class ACCEnterDataDirective start
 
