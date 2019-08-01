@@ -805,9 +805,9 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     def apply(self, node, collapse=None, independent=True, sequential=False):
         '''
-        Apply the ACCLoop transformation to the specified node in a
-        GOInvokeSchedule. This node must be a Loop since this transformation
-        corresponds to inserting a directive immediately before a loop, e.g.:
+        Apply the ACCLoop transformation to the specified node. This node
+        must be a Loop since this transformation corresponds to
+        inserting a directive immediately before a loop, e.g.:
 
         .. code-block:: fortran
 
@@ -830,6 +830,7 @@ class ACCLoopTrans(ParallelLoopTrans):
                                  PARALLEL regions).
         :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
                   :py:class:`psyclone.undoredo.Memento`)
+
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
