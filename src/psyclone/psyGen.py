@@ -2012,24 +2012,6 @@ class ACCEnterDataDirective(ACCDirective):
         self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
 
-        # 6. Ensure that any scalars are up-to-date
-        var_list = []
-        for pdir in self._acc_dirs:
-            for var in pdir.scalars:
-                if var not in var_list:
-                    var_list.append(var)
-        if var_list:
-            # We need to 'use' the openacc module in order to access
-            # the OpenACC run-time library
-            parent.add(UseGen(parent, name="openacc", only=True,
-                              funcnames=["acc_update_device"]))
-            parent.add(
-                CommentGen(parent,
-                           " Ensure all scalars on the device are up-to-date"))
-            for var in var_list:
-                parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
-            parent.add(CommentGen(parent, ""))
-
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''

@@ -6412,8 +6412,9 @@ def test_kerncallarglist_positions_quad(dist_mem):
     assert create_arg_list.ndf_positions[1] == (12, "w2")
     assert create_arg_list.ndf_positions[2] == (16, "w3")
 
+# Class DynKernelArguments start
 
-# (1/3) Method acc_args in Class DynKernelArguments
+# (1/4) Method acc_args
 def test_dynkernelarguments_acc_args_1():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments.
@@ -6432,7 +6433,7 @@ def test_dynkernelarguments_acc_args_1():
         'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (2/3) Method acc_args in Class DynKernelArguments
+# (2/4) Method acc_args
 def test_dynkernelarguments_acc_args_2():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is a field vector.
@@ -6452,8 +6453,28 @@ def test_dynkernelarguments_acc_args_2():
         'f2_proxy(3)%data', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (3/3) Method acc_args in Class DynKernelArguments
+# (3/4) Method acc_args
 def test_dynkernelarguments_acc_args_3():
+    '''Test that the acc_args method in the DynKernelArguments class
+    returns the expected arguments when there is a stencil.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "19.1_single_stencil.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    acc_args = kern_args.acc_args
+    assert acc_args == [
+        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy', 'f2_proxy%data',
+        'f2_stencil_size', 'f2_stencil_dofmap', 'f3_proxy', 'f3_proxy%data',
+        'f4_proxy', 'f4_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
+        'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
+
+
+# (4/4) Method acc_args
+def test_dynkernelarguments_acc_args_4():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is an operator.
 
@@ -6474,7 +6495,7 @@ def test_dynkernelarguments_acc_args_3():
         'weights_xy_qr', 'weights_z_qr']
 
 
-# (1/1) Method scalars in Class DynKernelArguments
+# (1/1) Method scalars
 def test_dynkernelarguments_scalars():
     '''Test that the scalars method in the DynKernelArguments class
     returns an empty string. This is because dynamo0p3 currently does
@@ -6490,7 +6511,7 @@ def test_dynkernelarguments_scalars():
     assert kern_args.scalars == []
 
 
-# (1/1) Method data_on_device in Class DynACCEnterDataDirective
+# (1/1) Method data_on_device
 def test_dynaccenterdatadirective_dataondevice():
     '''Test that the data_on_device method in the DynACCEnterDataDirective
     class returns None. This is because dynamo0p3 currently does not
@@ -6499,3 +6520,5 @@ def test_dynaccenterdatadirective_dataondevice():
     '''
     directive = DynACCEnterDataDirective()
     assert directive.data_on_device(None) is None
+
+# Class DynKernelArguments end

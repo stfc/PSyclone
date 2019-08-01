@@ -6635,7 +6635,7 @@ def test_acc_enter():
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin()\n"
+        "      !$acc enter data\n"
         "      !\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
 

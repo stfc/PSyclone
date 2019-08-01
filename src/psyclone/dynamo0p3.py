@@ -8305,8 +8305,6 @@ class DynKernelArguments(Arguments):
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
                 '''
-                print (type(arg))
-                exit(1)
                 var_name = DynStencils.dofmap_name(arg)
                 self._arglist.append(var_name)
 
