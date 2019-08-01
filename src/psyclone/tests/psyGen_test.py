@@ -2105,6 +2105,7 @@ def test_acc_dag_names():
 
 # Class ACCKernelsDirective start
 
+
 # (1/1) Method __init__
 def test_acckernelsdirective_init():
     '''Test an ACCKernelsDirective can be created and that the optional
@@ -2215,6 +2216,7 @@ def test_acckernelsdirective_update(parser, default_present):
 
 # Class ACCEnterDataDirective start
 
+
 # (1/1) Method __init__
 def test_acc_datadevice_virtual():
     ''' Check that we can't instantiate an instance of
@@ -2231,6 +2233,7 @@ def test_acc_datadevice_virtual():
 
 # (1/1) Method dag_name
 # Covered in test_acc_dag_names
+
 
 # (1/4) Method gen_code
 def test_accenterdatadirective_gencode_1():

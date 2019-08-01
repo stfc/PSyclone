@@ -264,6 +264,33 @@ code
 Location of LFRic algorithm and kernel code that is used by two or
 more examples.
 
+Example 14: OpenACC
+-------------------
+
+This example shows how OpenACC directives can be added to the LFRic
+PSy-layer. This is work in progress so the resultant code is not
+expected to run correctly but it gives a starting point for
+evaluation.
+
+1) Adding OpenACC kernels directives. -nodm is used as an exception is
+raised if haloexchanges are found within an OpenACC kernels region.
+::
+    cd eg14/
+    psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+
+2) Adding OpenACC enter data, parallel and loop directives. -nodm is
+used as an exception is raised if haloexchanges are found withing an
+OpenACC parallel region.
+::
+    cd eg14/
+    psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+
+3) Adding OpenACC enter data, parallel and loop directives in the
+presence of halo exchanges.
+::
+    cd eg14/
+    psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+
 scripts
 -------
 

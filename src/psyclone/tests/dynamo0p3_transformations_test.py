@@ -6618,6 +6618,7 @@ def test_intergrid_err(dist_mem):
 
 # Start OpenACC section
 
+
 # Class ACCEnterDataTrans start
 def test_accenterdatatrans():
     '''Test that an ACCEnterDataTrans transformation can add an OpenACC
@@ -6664,6 +6665,7 @@ def test_acckernelstrans():
 
 # Class ACCKernelsTrans end
 
+
 # Class ACCParallelTrans start
 def test_accparalleltrans():
     '''
@@ -6696,6 +6698,7 @@ def test_accparalleltrans():
 
 # Class ACCParallelTrans end
 # Class ACCLoopTrans start
+
 
 def test_acclooptrans():
     '''Test that an ACCLoopTrans transformation can add an OpenACC Loop

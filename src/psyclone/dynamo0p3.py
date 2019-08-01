@@ -8265,12 +8265,13 @@ class DynKernelArguments(Arguments):
             '''
             def field_vector(self, argvect):
                 '''
-                Add the field vector associated with the argument 'argvect' to the
-                argument list. OpenACC requires the field and the
+                Add the field vector associated with the argument 'argvect' to
+                the argument list. OpenACC requires the field and the
                 dereferenced data to be specified.
 
                 :param argvect: the kernel argument (vector field).
-                :type argvect:  :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+                :type argvect:  :py:class:`psyclone.dynamo0p3.\
+                                DynKernelArgument`
 
                 '''
                 for idx in range(1, argvect.vector_size+1):
@@ -8281,9 +8282,9 @@ class DynKernelArguments(Arguments):
 
             def field(self, arg):
                 '''
-                Add the field associated with the argument 'arg' to the argument
-                list. OpenACC requires the field and the dereferenced
-                data to be specified.
+                Add the field associated with the argument 'arg' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
 
                 :param arg: the kernel argument (field).
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -8310,9 +8311,10 @@ class DynKernelArguments(Arguments):
 
             def operator(self, arg):
                 '''
-                Add the operator arguments to the argument list if they have not
-                already been added. OpenACC requires the derived type
-                and the dereferenced data to be specified.
+                Add the operator arguments to the argument list if
+                they have not already been added. OpenACC requires the
+                derived type and the dereferenced data to be
+                specified.
 
                 :param arg: the meta-data description of the operator.
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -8320,8 +8322,9 @@ class DynKernelArguments(Arguments):
                 '''
                 if arg.proxy_name_indexed not in self._arglist:
                     self._arglist.append(arg.proxy_name_indexed)
-                    self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
-                    self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
+                    self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
+                    self._arglist.append(arg.proxy_name_indexed +
+                                         "%local_stencil")
 
             def fs_compulsory_field(self, function_space):
                 '''

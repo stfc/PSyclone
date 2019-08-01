@@ -1980,8 +1980,7 @@ class ACCEnterDataDirective(ACCDirective):
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
-            AssignGen, CallGen, UseGen
+        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -4810,8 +4809,8 @@ class ACCKernelsDirective(ACCDirective):
 
     def gen_code(self, parent):
         '''
-        Generate the f2pygen AST entries in the Schedule for this OpenACC Kernels
-        directive.
+        Generate the f2pygen AST entries in the Schedule for this
+        OpenACC Kernels directive.
 
         :param parent: the parent Node in the Schedule to which to add this \
                        content.
