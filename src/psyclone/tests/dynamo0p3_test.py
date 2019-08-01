@@ -916,7 +916,7 @@ def test_int_scalar(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     expected = (
-        "    SUBROUTINE invoke_0_testkern_one_int_scalar_type(f1, iflag,"
+        "    SUBROUTINE invoke_0_testkern_one_int_scalar_type(f1, iflag, "
         "f2, m1, m2)\n"
         "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
