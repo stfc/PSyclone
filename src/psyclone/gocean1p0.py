@@ -81,6 +81,8 @@ VALID_STENCIL_NAMES = ["go_pointwise"]
 
 # A dictionary giving the mapping from meta-data names for
 # properties of the grid to their names and type in the Fortran grid_type.
+# i.e. they can be accessed in Fortran by doing grid%<name>,
+# e.g. grid%area_t or grid%subdomain%internal%xstart.
 GRID_PROPERTY_DICT = {"go_grid_area_t": ("area_t", "array"),
                       "go_grid_area_u": ("area_u", "array"),
                       "go_grid_area_v": ("area_v", "array"),
@@ -899,12 +901,13 @@ class GOKern(CodedKern):
 
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
-        grid_for_property = None
+        field_for_grid_property = None
         for arg in self.arguments.args:
             if arg.type == "grid_property":
-                if grid_for_property is None:
-                    grid_for_property = self._arguments.find_grid_access()
-                var_name = grid_for_property.name + "%grid%" + \
+                if not field_for_grid_property:
+                    field_for_grid_property = \
+                        self._arguments.find_grid_access()
+                var_name = field_for_grid_property.name + "%grid%" + \
                     arg.dereference_name
             else:
                 var_name = arg.name
@@ -1418,7 +1421,7 @@ class GOKernelArgument(KernelArgument):
         return self._arg.function_space
 
     def is_scalar(self):
-        ''':return: If this variable is a scalar variable or not.
+        ''':return: whether this variable is a scalar variable or not.
         :rtype: bool'''
         return self.type == "scalar"
 
@@ -1463,9 +1466,10 @@ class GOKernelGridArgument(Argument):
 
     @property
     def dereference_name(self):
-        ''' Returns dereference string required to access a property in
-        a dl_esm field (e.g. "subdomain%internal%xstart"). This name is
-        used in the generated code like so: <fld>%grid%name '''
+        ''':returns: the dereference string required to access a property in\
+        a dl_esm field (e.g. "subdomain%internal%xstart"). This name is\
+        used in the generated code like so: <fld>%grid%dereference_name
+        :rtype: str'''
         return self._dereference_name
 
     @property
@@ -1834,7 +1838,7 @@ class GO1p0Descriptor(Descriptor):
         a grid-property. The latter are special because they must be
         supplied by the PSy layer.
 
-        :return; The type of this argument, either 'field', 'scalar', or \
+        :return: The type of this argument, either 'field', 'scalar', or \
             'grid_property'
         :rtype: str
 

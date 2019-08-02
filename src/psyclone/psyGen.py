@@ -4631,7 +4631,7 @@ class KernelArgument(Argument):
 
     @abc.abstractmethod
     def is_scalar(self):
-        ''':return: If this variable is a scalar variable or not.
+        ''':return: whether this variable is a scalar variable or not.
         :rtype: bool'''
 
 

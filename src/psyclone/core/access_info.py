@@ -169,7 +169,7 @@ class VariableAccessInfo(object):
         return False
 
     def has_read_write(self):
-        '''Checks if the specified variable name has at least on READWRITE
+        '''Checks if the specified variable name has at least one READWRITE
         access.
 
         :returns: true if the specified variable name is read (at least once).
@@ -376,7 +376,7 @@ class VariablesAccessInfo(object):
             once).
         :rtype: bool
 
-        :raises: KeyError if the variable names cannot be found.
+        :raises: KeyError if the variable name cannot be found.
 
         '''
         var_access_info = self[var_name]
@@ -399,8 +399,8 @@ class VariablesAccessInfo(object):
         access (which is typically only used in a function call)
 
         :param str var_name: Name of the variable
-        :returns: true if the specified variable name is read (at least \
-            once).
+        :returns: true if the specified variable name has (at least one) \
+            READWRITE access.
         :rtype: bool
         :raises: KeyError if the variable names can not be found.'''
 

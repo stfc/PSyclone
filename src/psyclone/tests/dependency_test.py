@@ -263,7 +263,7 @@ def test_goloop():
 
 def test_goloop_partially():
     ''' Check the handling of non-NEMO do loops.
-    TODO #400: This test is identical to test_goloop above, but is asserts in a
+    TODO #400: This test is identical to test_goloop above, but it asserts in a
     way that works before #400 is fixed, so that we make sure we test the rest
     of the gocean variable access handling.
     '''

@@ -8385,7 +8385,7 @@ class DynKernelArgument(KernelArgument):
         return self._type
 
     def is_scalar(self):
-        ''':return: If this variable is a scalar variable or not.
+        ''':return: whether this variable is a scalar variable or not.
         :rtype: bool'''
         return self.type in GH_VALID_SCALAR_NAMES
 
