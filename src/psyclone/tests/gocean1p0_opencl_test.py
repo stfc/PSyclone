@@ -191,8 +191,8 @@ def test_set_kern_float_arg():
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, '''+\
-    '''xstop, tmask)
+    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, ''' + \
+        '''xstop, tmask)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
