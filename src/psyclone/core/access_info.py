@@ -254,7 +254,19 @@ class VariablesAccessInfo(object):
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables
-        and their access mode.
+        and their access mode. The output is one of: READ, WRITE, READ+WRITE,
+        or READWRITE for each variable accessed.
+        READ+WRITE is used if the statement (or set of statements)
+        contain individual read and write accesses, e.g. 'a=a+1'. In this
+        case two accesses to `a` will be recorded, but the summary displayed
+        using this function will be 'READ+WRITE'. Same applies if this object
+        stores variable access information about more than one statement, e.g.
+        'a=b; b=1'. There would be two different accesses to 'b' with two
+        different locations, but the string representation would show this as
+        READ+WRITE. If a variable is is passed to a kernel for which no
+        individual variable information is available, and the metadata for
+        this kernel indicates a READWRITE access, this is marked as READWRITE
+        in the string output.
 
         :returns: One line string listing all variables and their access mode.
         :rtype: str

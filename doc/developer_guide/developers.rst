@@ -574,8 +574,10 @@ Variable Accesses
 Especially in the NEMO API, it is not possible to rely on pre-defined
 kernel information to determine dependencies between loops. So an additional,
 somewhat lower-level API has been implemented that can be used to determine
-variable accesses (READ and WRITE), which is based on the PSyIR information only,
-not on any kernel metadata information. The information about all variable usage
+variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
+Only exception is if a kernel is called, then the metadata for the kernel
+declaration will be used to determine the variable accesses for the call
+statement. The information about all variable usage
 of a node can be gathered by creating an object of type
 `psyclone.core.access_info.VariablesAccessInfo`, and then calling
 the function `reference_accesses()` for the node:
@@ -584,6 +586,7 @@ the function `reference_accesses()` for the node:
 
 .. autoclass:: psyclone.core.access_info.VariablesAccessInfo
     :members:
+    :special-members: __str__
 
 This class collects information for each variable used in the tree
 starting with the given node. A `VariablesAccessInfo` instance can store
