@@ -768,19 +768,29 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
-    # -------------------------------------------------------------------------
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of this Loop node to stdout.
+
+        :param int indent: Depth of indent for output text
+        '''
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound should generate PSyIR
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
+
+        super(GOLoop, self).view(indent)
+
     def __str__(self):
         ''' Returns a string describing this Loop object '''
-        step = str(self.step_expr)
 
-        result = "Loop[id='" + self._id + "', "
-        result += "variable='" + self._variable_name + "']\n"
-        for entity in self._children:
-            result += str(entity)+"\n"
-        result += "EndLoop"
-        return result
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound should generate PSyIR
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
 
-    # -------------------------------------------------------------------------
+        return super(GOLoop, self).__str__()
+
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.

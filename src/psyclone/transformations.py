@@ -2210,6 +2210,7 @@ class GOLoopSwapTrans(Transformation):
 
         # Move outer under inner (create new Schedule to remove old entries)
         inner.children[3] = Schedule()
+        inner.loop_body.parent = inner
         inner.loop_body.children.append(outer)
         outer.parent = inner.loop_body
 

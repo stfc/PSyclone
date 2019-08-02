@@ -104,41 +104,38 @@ def test_profile_basic(capsys):
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[id='', variable='j']
-ProfileStart[var=profile_1]
-Literal[value:'NOT_INITIALISED']
-ProfileEnd
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'2']
+Literal[value:'jstop-1']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'2']
+Literal[value:'istop']
 Literal[value:'1']
 Schedule:
 kern call: compute_cv_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+End GOLoop
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop+1']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop+1']
 Literal[value:'1']
 Schedule:
 kern call: bc_ssh_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
+End GOLoop
 ProfileEnd
 End Schedule""")
-
     assert correct in new_sched_str
 
     Profiler.set_options(None)
@@ -447,51 +444,51 @@ def test_transform(capsys):
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'2']
+Literal[value:'jstop']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'2']
+Literal[value:'istop']
 Literal[value:'1']
 Schedule:
 kern call: bc_ssh_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+End GOLoop
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop+1']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop']
 Literal[value:'1']
 Schedule:
 kern call: bc_solid_u_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+End GOLoop
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop+1']
 Literal[value:'1']
 Schedule:
 kern call: bc_solid_v_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
+End GOLoop
 ProfileEnd
 End Schedule""")
     assert correct in str(sched1)
@@ -501,53 +498,53 @@ End Schedule""")
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'2']
+Literal[value:'jstop']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'2']
+Literal[value:'istop']
 Literal[value:'1']
 Schedule:
 kern call: bc_ssh_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
+End GOLoop
 ProfileStart[var=profile_1]
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop+1']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop']
 Literal[value:'1']
 Schedule:
 kern call: bc_solid_u_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
+End GOLoop
 ProfileEnd
-Loop[id='', variable='j']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop']
 Literal[value:'1']
 Schedule:
-Loop[id='', variable='i']
-Literal[value:'NOT_INITIALISED']
-Literal[value:'NOT_INITIALISED']
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop+1']
 Literal[value:'1']
 Schedule:
 kern call: bc_solid_v_code
 End Schedule
-EndLoop
+End GOLoop
 End Schedule
-EndLoop
+End GOLoop
 ProfileEnd
 End Schedule""")
     assert correct in str(sched2)

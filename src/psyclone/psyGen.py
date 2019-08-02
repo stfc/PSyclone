@@ -3179,8 +3179,7 @@ class Loop(Node):
         Write out a textual summary of this Loop node to stdout
         and then call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text
         '''
         print(self.indent(indent) + self.coloured_text +
               "[type='{0}', field_space='{1}', it_space='{2}']".
