@@ -3,6 +3,17 @@
 Coding and Documentation Style
 ******************************
 
+Documentation Style
+###################
+When writing documentation, each reference to a PSyclone class or function
+should be set in italic, i.e. using a single backtick. except in headings
+The first time a
+class or function is mentioned, use the full Python path, e.g.:
+`psyclone.core.access_info.VariableAccessInfo`. After that just use the
+class name (again in italics).
+File names and shell command should be set in double back-ticks (\`\`).
+
+
 Coding Style
 ############
 Any new PSyclone code must confirm to Python's pep8 specification, and
@@ -55,106 +66,46 @@ Interface Description
 #####################
 
 
-The interface to any new or modified routine in PSyclone must be fully documented using Sphinx mark-up. An example of how to do this is shown below::
-    
-    def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
-              kernel_path="", line_length=False):
-        '''
-        Takes a GungHo algorithm specification as input and outputs an AST of
-        this specification and an object containing information about the
-        invocation calls in the algorithm specification and any associated kernel
-        implementations.
-    
-        :param str alg_filename: the file containing the algorithm specification.
-        :param str invoke_name: the expected name of the invocation calls in the\
-                                algorithm specification
-        :param str inf_name: the expected module name of any required\
-                             infrastructure routines.
-        :param str kernel_path: the path to search for kernel source files (if\
-                                different from the location of the algorithm\
-                                source).
-        :param line_length: a logical flag specifying whether we\
-                            care about line lengths being longer ...
-        :type line_length: bool
-    
-        :return: A 2-tuple containing the top-level node in the AST and an object\
-                 describing all of the invoke()'s found in the Algorithm file
-        :rtype: :py:class:`psyclone.psyGen.SubroutineGen`, \
-                :py:class:`psyclone.parser.Invokes`
-    
-        :raises IOError: If the filename or search path does not exist.
-        :raises ParseError: If there is an error in the parsing.
-        :raises RuntimeError: If there is an error in the parsing.
-    psyclone.
-        '''
+The interface to any new or modified routine in PSyclone must be fully documented using Sphinx mark-up. An example of how to do this is shown below:
 
-.. autofunction:: interface_example.generate
+    .. literalinclude:: interface_example.py
+
+Example layout of the interface description above: 
+
+.. autofunction:: interface_example.some_function
 
 Some important details:
 
   #) There are up to four major sections in each interface description: function
      description, parameter description and type, return value and type, and
-     exceptions. The formatting for each section is slightly different:
+     exceptions. The function description is required, all other sections only
+     need to be written i
+     The formatting for each section is slightly different:
 
          .. tabularcolumns:: |l|L|
          
          ===================== ======================================================
          Section               Formatting
          ===================== ======================================================
-         function description  Sentences describing the function and the return value
-                               should start with a capital letter, and end with a
-                               full stop.
-         parameter description This should start with a lowercase letter and end with
-                               a full stop.
-         parameter type        Start with a lowercase latter, but no punctuation 
-                               at the end. References to other classes within
-                               PSyclone should be written as 
+         function description  The description of the function must start with
+                               a capital letter, and end with a full stop.
+         parameter description Start the parameter description with a lowercase 
+                               letter and end with a full stop. The parameter type
+                               declaration must start with a lowercase letter, and
+                               no punctuation at then end. References to other
+                               classes within PSyclone should be written as
                                ``:py:class:`psyclone.filename.py.Class```.
-         return value          This should start with a capital letter, and end with
-                               a full stop.
-         return type           This must start with a lowercase letter, and not have
-                               any punctuation at the end. Similar to type above this
-                               should use sphinx formatting to reference other
-                               PSyclone classes.
-         exceptions            This must start with a lower case letter, and end with
-                               a full stop.  
+         return value          The description of the return value should start with
+                               a capital letter, and end with a full stop. The type
+                               can either be a lower case one word entry
+                               (``:py:class:`psyclone.filename.py.Class```, 'int'
+                               etc), or can also be a full sentence, then starting
+                               with a capital letter and full punctuation.
+         exceptions            These must start with a lower case letter, and end
+                               with a full stop.
          ===================== ======================================================
 
 
-
-Some important details:
-
-  #) There are up to four major sections in each interface description:
-
-     - function description
-
-       Sentences describing the function and the return value should start with
-       a capital letter, and end with a full stop.
-     - parameter and parameter type description
-
-       Both parameter and its type should start with a lowercase letter. The
-       parameter must end with a full stop, but no punctuation character at
-       the end of the type.
-     - return value and return type description
-
-     - exceptions
-
-       These descriptions should start with a lowercase latter, and end with
-       a full stop. 
-
-     Each of these sections must be
-     separated by an empty line. Between the entries in one section there must
-     not be an empty line.
-  #) Sentences describing the function and the return value should start with
-     a capital letter, and end with a full stop.
-  #) Sentences describing a parameter, or exception
-     should start with a lowercase letter, and end with a full stop.
-  #) The type of a parameter should be set in lower case
-     letters, with no punctuation characters at the end. In HTML the type is
-     set in parenthesis after the name of the parameter, which would include
-     punctuation characters: 
-     ``parent (psyclone.f2pygen.SubroutineGen.) – the parent...``
-  #) 
   #) If a parameter description, type, return value or exception is continued
      to the next line, there must be a '\'' continuation symbol at the end of
      each line. Align each continued line to start at the same column that the
@@ -165,5 +116,5 @@ Some important details:
      separate :type my_arg: line.
   #) The closing ''' of the interface description can be at the end of a text
      line if the overall description is short. Otherwise it should be on a
-     separate line, and there should be an empty line before the '''.
-
+     separate line. An optional empty line between interface description and code
+     should be included in the comment section.
