@@ -874,7 +874,7 @@ def test_two_eval_diff_space(tmpdir):
     assert expected_code in gen_code
 
 
-def test_two_eval_same_var_same_space(tmpdir):
+def test_two_eval_same_var_same_space(tmpdir): ## Change/add???
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
     same space '''
@@ -1399,10 +1399,10 @@ def test_basis_evaluator():
 BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write, any_space_1) &
+     type(arg_type), meta_args(1) =                  &
+          (/ arg_type(gh_field, gh_inc, any_space_1) &
            /)
-     type(func_type), meta_funcs(1) =    &
+     type(func_type), meta_funcs(1) =         &
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer :: iterates_over = cells
@@ -1418,9 +1418,21 @@ end module dummy_mod
 
 
 def test_basis_unsupported_space():
-    ''' Test that an error is raised when a basis function is on an
-    unsupported space (currently any_space_*) '''
+    ''' Test that an error is raised when a basis function is on
+    an unsupported space (currently any_space_* and any_d_space_*)
+    in kernel stub generation '''
+    # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert 'Unsupported space for basis function' in str(excinfo.value)
+    # Test any_d_space_*
+    code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1", "any_d_space_5")
+    code = code.replace("gh_inc", "gh_readwrite")
+    ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
@@ -1707,8 +1719,8 @@ def test_2eval_stubgen():
 DIFF_BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write, any_space_1) &
+     type(arg_type), meta_args(1) =                  &
+          (/ arg_type(gh_field, gh_inc, any_space_1) &
            /)
      type(func_type), meta_funcs(1) =    &
           (/ func_type(any_space_1, gh_diff_basis) &
@@ -1727,8 +1739,22 @@ end module dummy_mod
 
 def test_diff_basis_unsupp_space():
     ''' Test that an error is raised when a differential basis
-    function is on an unsupported space (currently any_space_*)'''
+    function is on an unsupported space (currently any_space_*
+    and any_d_space_*) in kernel stub generation '''
+    # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert 'Unsupported space for differential basis function' \
+        in str(excinfo.value)
+    # Test any_d_space_*
+    code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
+                                                "any_d_space_5")
+    code = code.replace("gh_inc", "gh_readwrite")
+    ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)

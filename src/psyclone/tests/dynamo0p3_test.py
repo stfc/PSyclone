@@ -1817,6 +1817,80 @@ def test_op_any_space_different_space_2(tmpdir):
         generated_code
 
 
+def test_any_d_space_1(tmpdir):
+    ''' Tests that any_d_space is implemented correctly in the PSy
+    layer. Includes multiple declarations of the same space, field
+    vectors and any_d_space used with operators (same and different
+    "to" and "from" spaces). '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11.4_any_d_space.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
+    assert ("INTEGER, pointer :: map_any_d_space_1_f1(:,:) => null()" in
+            generated_code)
+    assert ("INTEGER ndf_any_d_space_1_f1, undf_any_d_space_1_f1" in
+            generated_code)
+    assert ("ndf_any_d_space_1_f1 = f1_proxy(1)%vspace%get_ndf()" in
+            generated_code)
+    assert ("undf_any_d_space_1_f1 = f1_proxy(1)%vspace%get_undf()" in
+            generated_code)
+    assert ("map_any_d_space_1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()" in
+            generated_code)
+    assert ("ndf_any_d_space_3_op4 = op4_proxy%fs_to%get_ndf()" in
+            generated_code)
+    assert ("ndf_any_d_space_7_op4 = op4_proxy%fs_from%get_ndf()" in
+            generated_code)
+    assert ("CALL testkern_any_d_space_1_code(cell, nlayers, "
+            "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
+            "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
+            "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
+            "ndf_any_d_space_1_f1, undf_any_d_space_1_f1, "
+            "map_any_d_space_1_f1(:,cell), ndf_any_d_space_2_f2, "
+            "undf_any_d_space_2_f2, map_any_d_space_2_f2(:,cell), "
+            "ndf_any_d_space_3_op4, ndf_any_d_space_7_op4)"
+            in generated_code)
+
+
+def test_any_d_space_2(tmpdir):
+    ''' Tests that any_d_space is implemented correctly in the PSy
+    layer when including multiple spaces, operators on same and different
+    "to" and "from" spaces) and basis/differential basis functions '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11.5_any_d_space.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert ("ndf_any_d_space_4_f1 = f1_proxy%vspace%get_ndf()" in
+            generated_code)
+    assert ("undf_any_d_space_4_f1 = f1_proxy%vspace%get_undf()" in
+            generated_code)
+    assert ("map_any_d_space_4_f1 => f1_proxy%vspace%get_whole_dofmap()" in
+            generated_code)
+    assert ("ndf_any_d_space_1_op1 = op1_proxy%fs_to%get_ndf()" in
+            generated_code)
+    assert ("ndf_any_d_space_2_op1 = op1_proxy%fs_from%get_ndf()" in
+            generated_code)
+    assert ("dim_any_d_space_4_f1 = f1_proxy%vspace%get_dim_space()" in
+            generated_code)
+    assert ("diff_dim_any_d_space_4_f1 = f1_proxy%vspace%get_dim_space_diff()"
+            in generated_code)
+    assert ("ALLOCATE (basis_any_d_space_1_op1_qr(dim_any_d_space_1_op1, "
+            "ndf_any_d_space_1_op1" in generated_code)
+    assert ("ALLOCATE (diff_basis_any_d_space_4_f1_qr"
+            "(diff_dim_any_d_space_4_f1, ndf_any_d_space_4_f1" in
+            generated_code)
+    assert ("CALL qr%compute_function(BASIS, op1_proxy%fs_to, "
+            "dim_any_d_space_1_op1, ndf_any_d_space_1_op1, "
+            "basis_any_d_space_1_op1_qr)" in generated_code)
+    assert ("CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
+            "diff_dim_any_d_space_4_f1, ndf_any_d_space_4_f1, "
+            "diff_basis_any_d_space_4_f1_qr)" in generated_code)
+
+
 def test_invoke_uniq_declns():
     ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid type '''

@@ -1,0 +1,96 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2019, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author I. Kavcic, Met Office
+
+module testkern_any_d_space_1_mod
+
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
+  ! Description: test for any_d_space producing correct code when there are
+  ! 1) multiple declarations of the same any_d_space space,
+  ! 2) other any_d_space spaces in the arguments,
+  ! 3) no functions (e.g. basis, diff_basis) declared,
+  ! 4) any_d_space used with an operator,
+  ! 5) different to- and from- any_d_space spaces used with an operator.
+
+  type, public, extends(kernel_type) :: testkern_any_d_space_1_type
+    type(arg_type) :: meta_args(5) = (/                                     &
+         arg_type(GH_FIELD*3,  GH_READ,      ANY_D_SPACE_1),                &         
+         arg_type(GH_FIELD,    GH_READWRITE, ANY_D_SPACE_2),                &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_D_SPACE_1, ANY_D_SPACE_1), &
+         arg_type(GH_OPERATOR, GH_WRITE,     ANY_D_SPACE_3, ANY_D_SPACE_7), &
+         arg_type(GH_REAL,     GH_READ)                                     &
+         /)
+    integer :: iterates_over = CELLS
+  contains
+    procedure, nopass :: testkern_any_d_space_1_code
+  end type testkern_any_d_space_1_type
+
+contains
+
+  subroutine testkern_any_d_space_1_code(cell, nlayers,                &
+                                         field1_x, field1_y, field1_z, &
+                                         field2,                       &
+                                         ncell_3d_op3, op3,            & 
+                                         ncell_3d_op4, op4,            & 
+                                         rscalar,                      & 
+                                         ndf1, undf1, map1,            &  
+                                         ndf2, undf2, map2,            &  
+                                         ndf_to_op4, ndf_from_op4)
+
+      implicit none
+
+      integer(kind=i_def), intent(in) :: nlayers
+      integer(kind=i_def), intent(in) :: ndf1, ndf2
+      integer(kind=i_def), intent(in) :: undf1, undf2, 
+      integer(kind=i_def), intent(in) :: ndf_to_op4, ndf_from_op4
+      integer(kind=i_def), intent(in) :: cell
+      integer(kind=i_def), intent(in) :: ncell_3d_op3
+      integer(kind=i_def), intent(in) :: ncell_3d_op4
+      integer(kind=i_def), intent(in), dimension(ndf1) :: map1
+      integer(kind=i_def), intent(in), dimension(ndf2) :: map2
+      real(kind=r_def), intent(in) :: rscalar
+      real(kind=r_def), intent(in), dimension(undf1)    :: field1_x, field1_y, &
+                                                           field1_z
+      real(kind=r_def), intent(inout), dimension(undf2) :: field2
+      real(kind=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d_op3)                :: op3
+      real(kind=r_def), intent(out), dimension(ndf_to_op4,ndf_from_op4,ncell_3d_op4) :: op4
+
+  end subroutine testkern_any_d_space_1_code
+
+end module testkern_any_d_space_1_mod

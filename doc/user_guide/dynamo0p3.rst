@@ -357,6 +357,8 @@ the source of the kernels.  This section explains the rules for the
 other three, user-supplied kernel types and then goes on to describe
 their metadata and subroutine arguments.
 
+.. _dynamo0.3-user-kernel-rules:
+
 Rules for all User-Supplied Kernels
 +++++++++++++++++++++++++++++++++++
 
@@ -369,18 +371,23 @@ types.
     over that space.
 
  2) The continuity of the iteration space of the Kernel is determined
-    from the function space of the modified argument
-    (see :ref:`dynamo0.3-function-space`).
+    from the function space of the modified argument (see Section
+    :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
     If more than one argument is modified then the iteration space is taken
-    to be the largest required by any of those arguments. e.g. if a Kernel
-    writes to two fields, the first on W3 (discontinuous) and the
-    second on W1 (continuous), then the iteration space of that Kernel
+    to be the largest required by any of those arguments. E.g. if a Kernel
+    writes to two fields, the first on ``W3`` (discontinuous) and the
+    second on ``W1`` (continuous), then the iteration space of that Kernel
     will be determined by the field on the continuous space.
 
- 3) If the function space of the modified argument(s) cannot be
-    determined then they are assumed to be continuous. This is
-    the case if any of the modified arguments are declared as ``ANY_SPACE``
-    and their actual space cannot be determined statically. This assumption
+ 3) If any of the modified arguments are declared with the generic
+    function space metadata (e.g. ``ANY_SPACE_n``, see
+    :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
+    and their actual space cannot be determined statically then the
+    iteration space is assumed to be
+
+    1) discontinuous for ``ANY_D_SPACE_n``;
+
+    2) continuous for ``ANY_SPACE_n`` and ``ANY_W2``.  This assumption
     is always safe but leads to additional computation if the quantities
     being updated are actually on discontinuous function spaces.
 
@@ -409,9 +416,9 @@ Rules specific to General-Purpose Kernels without CMA Operators
     same or different function spaces.
 
  3) A Kernel may not write to a scalar argument. (Only
-    :ref:`dynamo0.3-built-ins` are permitted to do this.) Any scalar
-    aguments must therefore be declared in the metadata as
-    ``GH_READ`` - see below.
+    :ref:`built-ins <dynamo0.3-built-ins`> are permitted to do this.) Any
+    scalar aguments must therefore be declared in the metadata as
+    ``GH_READ`` - see :ref:`below <dynamo0.3-valid-access>`.
 
 .. _dynamo0.3-cma-mdata-rules:
 
@@ -655,9 +662,9 @@ operator to a field might look like:
        /)
 
 In some cases a Kernel may be written so that it works for fields and/or
-operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
-``w2v``. In this case the metadata should be specified as being
-``any_w2``.
+operators from any type of ``w2`` space (see Section
+:ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
+In this case the metadata should be specified as being ``any_w2``.
 
 .. Warning:: in the current implementation it is assumed that all
              fields and/or operators specifying ``any_w2`` within a
@@ -667,11 +674,16 @@ operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
 
 It may be that a Kernel is written such that a field and/or operators
 may be on/map-between any function space(s). In this case the metadata
-should be specified as being one of ``any_space_1``, ``any_space_2``,
-..., ``any_space_9``. The reason for having different names is that a
-Kernel might be written to allow 2 or more arguments to be able to
-support any function space but for a particular call the function
-spaces may have to be the same as each other.
+should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_9``
+(see :ref:`Supported Function Spaces <dynamo0.3-function-space>`). If
+the generic function spaces are known to be discontinuous the metadata
+may be specified as being one of ``ANY_D_SPACE_1``, ..., ``ANY_D_SPACE_10``
+in order to avoid unnecessary computation into the halos (see rules for
+:ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
+The reason for having different names is that a Kernel might be written
+to allow 2 or more arguments to be able to support any function space
+but for a particular call the function spaces may have to be the same
+as each other.
 
 In the example below, the first field entry supports any function space but
 it must be the same as the operator's ``to`` function space. Similarly,
@@ -688,31 +700,13 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        /)
 
 Note also that the scope of this naming of any-space function spaces is
-restricted to the argument list of individual kernels. i.e. if an
+restricted to the argument list of individual kernels. I.e. if an
 Invoke contains say, two kernel calls that each support arguments on
 any function space, e.g. ``ANY_SPACE_1``, there is no requirement that
 these two function spaces be the same. Put another way, if an Invoke
 contained two calls of a kernel with arguments described by the above
 metadata then the first field argument passed to each kernel call
 need not be on the same space.
-
-.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
-          ``GH_READWRITE`` as its access pattern must be a discontinuous
-          function in the horizontal (see :ref:`dynamo0.3-valid-access`
-          below). That means it must belong to ``w3``, ``wtheta`` or
-          ``w2v`` function spaces (see :ref:`dynamo0.3-function-space`).
-          A ``GH_FIELD`` that specifies ``GH_INC`` as its access
-          pattern may be continuous in the vertical (and discontinuous
-          in the horizontal), continuous in the horizontal (and
-          discontinuous in the vertical), or continuous in both. In
-          each case the code is the same. However, if a field is
-          discontinuous in the horizontal then it will not need
-          colouring and, if is described as being on any space, there
-          is currently no way to determine this from the metadata
-          (unless we can statically determine the space of the field
-          being passed in). At the moment this type of Kernel is
-          always treated as if it is continuous in the horizontal,
-          even if it is not.
 
 .. _dynamo0.3-valid-access:
 
@@ -730,10 +724,10 @@ the function space it is on. Valid values are given in the table
 below.
 
 ======================	============================    =========================
-Argument Type     	Function space                  Access type
+Argument Type           Function Space                  Access Type
 ======================	============================    =========================
 *GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
-GH_REAL           	n/a                             GH_SUM (Built-ins only)
+GH_REAL                 n/a                             GH_SUM (Built-ins only)
 GH_FIELD                Discontinuous                   GH_WRITE, GH_READWRITE
 GH_FIELD                Continuous                      GH_INC
 GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
@@ -745,7 +739,19 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
           currently support integer reductions, integer scalar arguments
           are restricted to having read-only access.*
 
-There is no restriction on the number and function-spaces of other
+.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
+          ``GH_READWRITE`` as its access pattern must be a discontinuous
+          function in the horizontal (see :ref:`dynamo0.3-function-space`
+          for list of discontinuous function spaces) and it will not
+          need colouring. If the field is described as being on any space,
+          there is currently no way to determine this from the metadata
+          (unless we can statically determine the space of the field
+          being passed in). At the moment this type of Kernel is always
+          treated as if it is continuous in the horizontal, even if it is
+          not (see rules for :ref:`user-supplied kernels
+          <dynamo0.3-user-kernel-rules>` above).
+
+There is no restriction on the number and function spaces of other
 quantities that a general-purpose kernel can modify other than that it
 must modify at least one. The rules for kernels involving CMA operators,
 however, are stricter and only one argument may be modified (the CMA
@@ -808,8 +814,8 @@ spaces described below.
   All dofs lie within the cell volume and are not shared across the
   cell boundaries.
 
-Additional function spaces required for representation of scalar or
-component-wise vector variables are:
+Other spaces required for representation of scalar or component-wise
+vector variables are:
 
 * ``wtheta`` is the space of scalar functions based on the vertical
   part of ``w2``, discontinuous in the horizontal and continuous
@@ -823,25 +829,47 @@ component-wise vector variables are:
   part of ``w2``, continuous in the horizontal and discontinuous
   in the vertical.
 
+In addition to the specific function space metadata, there are also
+three generic function space metadata descriptors mentioned in
+sections above:
+
+* ``ANY_SPACE_n``, *n = 1, 2, ... 9*, for when the function space
+  of the modified argument(s) cannot be determined and/or for when a
+  Kernel has been written so that it works with fields on any of the
+  available spaces;
+
+* ``ANY_D_SPACE_n``, *n = 1, 2, ... 10*, for when the function space
+  of the modified argument(s) cannot be determined but is known to be
+  discontinuous and/or for when a Kernel has been written so that it
+  works with fields on any of the discontinuous spaces;
+
+* ``ANY_W2`` for any type of ``w2`` function spaces (``w2``, ``w2h``
+  or ``w2v``).
+
+As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
+``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
+continuous while ``ANY_D_SPACE_n`` spaces are treated as discontinuous.
+
 Since the Dynamo0.3 API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
-horizontal continuity.
+**continuity in the horizontal**. For example, a ``GH_FIELD`` that
+specifies ``GH_INC`` as its access pattern (see
+:ref:dynamo0.3-valid-access: above) may be continuous in the vertical
+(and discontinuous in the horizontal), continuous in the horizontal
+(and discontinuous in the vertical), or continuous in both. In each
+case the code is the same. This principle of horizontal continuity also
+applies to the three generic ``ANY_*_*`` function space identifiers
+above. The valid metadata values for continuous and discontinuous
+function apaces are summarised in the table below.
 
-* **Continuous** function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
-
-* **Discontinuous** function spaces are ``w3``, ``wtheta`` and ``w2v``.
-
-Two additonal function space metadata descriptors as mentioned in
-sections above are:
-
-* ``ANY_W2`` for any type of ``w2`` function spaces;
-
-* ``ANY_SPACE`` for when the function space of the modified argument(s)
-  cannot be determined and/or for when a Kernel has been written so that
-  it works with fields on any of the available spaces.
-
-As mentioned previously, both ``ANY_W2`` and ``ANY_SPACE`` function
-space types are treated as continuous.
+=========================	====================================
+Function Space Continuity   Function Space Metadata
+=========================	====================================
+**Continuous**              | ``W0``, ``W1``, ``W2``, ``W2H``,
+                            | ``ANY_SPACE_n``, ``ANY_W2``
+**Discontinuous**           | ``W3``, ``WTHETA``, ``W2V``,
+                            | ``ANY_D_SPACE_n``
+=========================   ====================================
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -1011,6 +1039,8 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.:
         arg_type(GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in metadata for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
+
+.. _dynamo0.3-meta-funcs:
 
 meta_funcs
 ##########
@@ -2094,7 +2124,7 @@ as the equivalent generic ones in all cases excepting
 **same_space** has been added to the **apply** method. The reason for
 this is to allow loop fusion when one or more of the iteration-spaces
 is determined by a function space that is unknown by PSyclone at
-compile time. This is the case when the **ANY_SPACE** function space
+compile time. This is the case when the **ANY_SPACE_????** function space
 is specified in the Kernel metadata. By default PSyclone will not
 allow loop fusion if it does not know the spaces are the same. The
 **same_space** option allows the user to specify that
