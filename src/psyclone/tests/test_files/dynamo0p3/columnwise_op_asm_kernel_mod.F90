@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                    &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
                                     GH_READ, GH_WRITE,                      &
-                                    ANY_SPACE_1, ANY_SPACE_2,               &
+                                    ANY_D_SPACE_1, ANY_D_SPACE_2,           &
                                     GH_COLUMN_BANDED_DOFMAP,                &
                                     CELLS 
 
@@ -60,9 +60,9 @@ implicit none
 
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                        &
-       arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)  &
+  type(arg_type) :: meta_args(2) = (/                                            &
+       arg_type(GH_OPERATOR,            GH_READ,  ANY_D_SPACE_1, ANY_D_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_D_SPACE_1, ANY_D_SPACE_2)  &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -89,7 +89,7 @@ contains
     return
   end function columnwise_constructor
 
-  !> @brief The subroutine which is called directly from the PSY layer and
+  !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
   !> @detail Given an LMA representation of the operator mapping between two
   !> horizontally discontinuous spaces, assemble the columnwise matrix
@@ -133,16 +133,17 @@ contains
     implicit none
     
     ! Arguments
-    integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
+    integer(kind=i_def), intent(in) :: cell,  nlayers
+    integer(kind=i_def), intent(in) :: ncell_3d, ncell_2d
     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
     integer(kind=i_def), intent(in) :: ndf_to, ndf_from
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
+    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in)   :: column_banded_dofmap_to
+    integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
     real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
-    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to
-    integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
 
-    write (*,*) "Hello CMA World"
+    write(*,*) "Hello CMA World"
 
   end subroutine columnwise_op_asm_kernel_code
 

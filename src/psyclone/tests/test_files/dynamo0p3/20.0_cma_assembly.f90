@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,9 @@
 
 program single_invoke_cma
 
-  ! Description: single CMA-assembly kernel specified in an invoke
+  ! Description: single CMA-assembly kernel specified in an invoke,
+  ! assembled from LMA representation of the operator mapping between
+  ! two horizontally discontinuous spaces (both any_d_space_*)
 
   use inf,                          only: field_type
   use operator_mod,                 only: columnwise_operator_type
