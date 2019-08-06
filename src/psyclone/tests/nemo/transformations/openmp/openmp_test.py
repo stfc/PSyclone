@@ -128,7 +128,8 @@ def test_omp_parallel_multi():
     new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
     new_sched.view()
     gen_code = str(psy.gen).lower()
-    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,zmsku)\n"
+    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
+            "zmsku)\n"
             "    do jj = 1, jpjm1\n"
             "      do ji = 1, fs_jpim1\n"
             "        zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * "
