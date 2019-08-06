@@ -276,6 +276,16 @@ class CWriter(PSyIRVisitor):
             '''
             return function_str + "(" + expr_str + ")"
 
+        def cast_format(type_str, expr_str):
+            '''
+            :param str type_str: Name of the new type.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary casting expression.
+            :rtype: str
+            '''
+            return "(" + type_str + ")" + expr_str
+
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
         from psyclone.psyGen import UnaryOperation
@@ -290,7 +300,7 @@ class CWriter(PSyIRVisitor):
             UnaryOperation.Operator.ACOS: ("acos", function_format),
             UnaryOperation.Operator.ATAN: ("atan", function_format),
             UnaryOperation.Operator.ABS: ("abs", function_format),
-            UnaryOperation.Operator.REAL: ("float", function_format),
+            UnaryOperation.Operator.REAL: ("float", cast_format),
             UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
 
