@@ -74,6 +74,7 @@ VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
 # Valid any_space metadata (general FS, treated as continuous)
+# TODO (issue #455): add any_space_10
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
                          "any_space_7", "any_space_8", "any_space_9"]
@@ -667,14 +668,14 @@ class DynArgDescriptor03(Descriptor):
                     "In the Dynamo0.3 API a field on any_d_space cannot "
                     "have 'gh_inc' access because it is treated "
                     "as discontinuous")
-            # TODO: extend for "gh_write"
+            # TODO (issue #138): extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
-            # TODO: extend for "gh_write"
+            # TODO (issue #138): extend for "gh_write"
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(

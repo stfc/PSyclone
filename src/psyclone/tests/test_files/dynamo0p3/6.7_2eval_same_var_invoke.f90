@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -25,21 +25,26 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-!
-! Author: A. R. Porter STFC Daresbury Lab
 !-------------------------------------------------------------------------------
+! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
+
 program eval_invoke
 
   ! Test program containing a single invoke of two kernels, each requiring
   ! an evaluator and writing to a field declared to be on the same space
-  use testkern_eval_anyspace1, only: testkern_eval_anyspace1_type
-  use testkern_eval_anyspace2, only: testkern_eval_anyspace2_type
-  implicit none
-  type(field_type)      :: f0, f1, f2, f3
 
-  call invoke(                                    &
-       testkern_eval_anyspace1_type(f0,f1,f2),    &
-       testkern_eval_anyspace2_type(f0,f1,f3)     &
+  use inf,                          only: field_type
+  use testkern_eval_anydspace1_mod, only: testkern_eval_anydspace1_type
+  use testkern_eval_anydspace2_mod, only: testkern_eval_anydspace2_type
+
+  implicit none
+
+  type(field_type) :: f0, f1, f2, f3
+
+  call invoke(                                     &
+       testkern_eval_anydspace1_type(f0,f1,f2),    &
+       testkern_eval_anydspace2_type(f0,f1,f3)     &
        )
 
 end program eval_invoke
