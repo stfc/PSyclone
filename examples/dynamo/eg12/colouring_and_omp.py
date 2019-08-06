@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 
 ''' File containing a PSyclone transformation script for the Dynamo0p3
 API to apply colouring and OpenMP generically. This can be applied via
-the -s option in the generator.py script. '''
+the -s option in the "psyclone" script. '''
 from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
@@ -58,7 +58,7 @@ def trans(psy):
         schedule = invoke.schedule
 
         # Colour all of the loops over cells unless they are on
-        # discontinuous spaces (W3, WTHETA and W2V)
+        # discontinuous spaces (W3, WTHETA, W2V and ANY_D_SPACE_n)
         cschedule = schedule
         for child in schedule.children:
             if isinstance(child, Loop) \
