@@ -3011,7 +3011,7 @@ class ACCKernelsTrans(RegionTrans):
     '''
     from psyclone import nemo, psyGen
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
-                        psyGen.BinaryOperation, psyGen.Literal,
+                        psyGen.Operation, psyGen.Literal,
                         psyGen.Assignment, psyGen.Reference)
 
     @property

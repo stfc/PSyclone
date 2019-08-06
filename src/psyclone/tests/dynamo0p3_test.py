@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic Met Office, C.M. Maynard, Met Office/University of Reading.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -531,7 +531,7 @@ def test_field(tmpdir):
     assert output in str(generated_code)
 
 
-def test_field_deref(dist_mem):
+def test_field_deref(tmpdir, dist_mem):
     ''' Tests that a call with a set of fields (some obtained by
     de-referencing derived types) and no basis functions produces
     correct code.'''
@@ -549,6 +549,9 @@ def test_field_deref(dist_mem):
     if dist_mem:
         output = "      USE mesh_mod, ONLY: mesh_type\n"
         assert output in generated_code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
@@ -583,7 +586,7 @@ def test_field_deref(dist_mem):
             "      !\n"
             "      ! Create a mesh object\n"
             "      !\n"
-            "      mesh => f1%get_mesh()\n"
+            "      mesh => f1_proxy%vspace%get_mesh()\n"
         )
         assert output in generated_code
     output = (
@@ -711,7 +714,7 @@ def test_field_fs(tmpdir):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -814,7 +817,7 @@ def test_field_fs(tmpdir):
     assert output in generated_code
 
 
-def test_real_scalar():
+def test_real_scalar(tmpdir):
     ''' tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields)'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -822,6 +825,9 @@ def test_real_scalar():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
@@ -850,7 +856,7 @@ def test_real_scalar():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -895,7 +901,7 @@ def test_real_scalar():
     assert expected in generated_code
 
 
-def test_int_scalar():
+def test_int_scalar(tmpdir):
     ''' tests that we generate correct code when a kernel takes a single,
     integer scalar argument (plus fields) '''
     _, invoke_info = parse(
@@ -904,9 +910,12 @@ def test_int_scalar():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     expected = (
-        "    SUBROUTINE invoke_0_testkern_type(f1, iflag, f2, m1, m2)\n"
-        "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
+        "    SUBROUTINE invoke_0_testkern_one_int_scalar_type(f1, iflag, f2, m1, m2)\n"
+        "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER, intent(in) :: iflag\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
@@ -932,7 +941,7 @@ def test_int_scalar():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -978,7 +987,7 @@ def test_int_scalar():
     assert expected in generated_code
 
 
-def test_two_real_scalars():
+def test_two_real_scalars(tmpdir):
     ''' tests that we generate correct code when a kernel has two real,
     scalar arguments '''
     _, invoke_info = parse(
@@ -987,6 +996,9 @@ def test_two_real_scalars():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
@@ -1015,7 +1027,7 @@ def test_two_real_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1061,7 +1073,7 @@ def test_two_real_scalars():
     assert expected in generated_code
 
 
-def test_two_int_scalars():
+def test_two_int_scalars(tmpdir):
     ''' tests that we generate correct code when a kernel has two integer,
     scalar arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1069,6 +1081,8 @@ def test_two_int_scalars():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     expected = (
         "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
@@ -1097,7 +1111,7 @@ def test_two_int_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1143,20 +1157,23 @@ def test_two_int_scalars():
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
-        "        CALL testkern_code(nlayers, 1_i_def, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
+        "        CALL testkern_code(nlayers, 1, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, iflag, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
-def test_two_scalars():
+def test_two_scalars(tmpdir):
     ''' tests that we generate correct code when a kernel has two scalar
     arguments, one real and one integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
@@ -1187,7 +1204,7 @@ def test_two_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1255,21 +1272,25 @@ def test_vector_field():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+    
     assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
             generated_code)
     assert "TYPE(field_type), intent(inout) :: f1, chi(3)" in generated_code
     assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
 
-def test_vector_field_2():
+def test_vector_field_2(tmpdir):
     ''' Tests that a vector field is indexed correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    
     # all references to chi_proxy should be chi_proxy(1)
     assert "chi_proxy%" not in generated_code
-    assert generated_code.count("chi_proxy(1)%vspace") == 4
+    assert generated_code.count("chi_proxy(1)%vspace") == 5
     # use each chi field individually in the kernel
     assert ("chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data" in
             generated_code)
@@ -1380,7 +1401,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => mapping%get_mesh()\n"
+        "      mesh => mapping_proxy%fs_from%get_mesh()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -1503,7 +1524,7 @@ def test_operator_nofield_different_space(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert "mesh => my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
@@ -1522,7 +1543,7 @@ def test_operator_nofield_scalar():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
-    assert "mesh => my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
@@ -1548,7 +1569,7 @@ def test_operator_nofield_scalar_deref(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         if dist_mem:
-            assert "mesh => opbox_my_mapping%get_mesh()" in gen
+            assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
         assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
         assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
         assert ("qr_get_instance%compute_function(BASIS, "
@@ -3143,7 +3164,7 @@ def test_halo_dirty_4():
         "      !\n"
         "      CALL chi_proxy(1)%set_dirty()\n"
         "      CALL chi_proxy(2)%set_dirty()\n"
-        "      CALL chi_proxy(3)%set_dirty()\n"
+        "      CALL chi_proxy(3)%set_dirty()\n"                                 
         "      CALL f1_proxy%set_dirty()\n")
     assert expected in generated_code
 
@@ -3500,7 +3521,7 @@ def test_halo_exchange_view(capsys):
     assert expected in result
 
 
-def test_no_mesh_mod():
+def test_no_mesh_mod(tmpdir):
     '''test that we do not add a mesh module to the PSy layer if one is
     not required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3508,12 +3529,14 @@ def test_no_mesh_mod():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     result = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "USE mesh_mod, ONLY: mesh_type" not in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" not in result
-    assert "mesh => a%get_mesh()" not in result
+    assert "mesh => a_proxy%vspace%get_mesh()" not in result
 
 
-def test_mesh_mod():
+def test_mesh_mod(tmpdir):
     '''test that a mesh module is added to the PSy layer and a mesh object
     is created when required. One is required when we determine loop
     bounds for distributed memory '''
@@ -3522,12 +3545,13 @@ def test_mesh_mod():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
     assert "USE mesh_mod, ONLY: mesh_type" in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" in result
     output = ("      !\n"
               "      ! Create a mesh object\n"
               "      !\n"
-              "      mesh => a%get_mesh()\n")
+              "      mesh => a_proxy%vspace%get_mesh()\n")
     assert output in result
 
 # when we add build tests we should test that we can we get the mesh
