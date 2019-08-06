@@ -226,6 +226,12 @@ If you do not have it then py.test can again be installed using
 ``pip`` or from here http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
+
+.. warning:: At the moment, Psyclone tests do not work with pytest version
+             5.0 or higher. `pip install psyclone` or `pip install -e .`
+             from the psyclone directory install the appropriate version
+             of pytest.
+
 .. _getting_going_env:
 
 Environment

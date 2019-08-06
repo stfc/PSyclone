@@ -65,7 +65,7 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 ``pip``::
 
   > cd <PSYCLONEHOME>
-  > pip install -e --user .
+  > pip install --user -e .
 
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
@@ -780,6 +780,18 @@ The primary reason for providing the above (functor) interface is to
 hide users from the use of the visitor pattern. This is the interface
 to expose to users (which is why `_visit` is used for the visitor
 method, rather than `visit`).
+
+Available back-ends
+===================
+
+Currently, there are two back-ends capable of generating Kernel
+code (a KernelSchedule with all its children), these are:
+
+- `FortranWriter()` in `psyclone.psyir.backend.fortran`
+- `OpenCLWriter()` in `psyclone.psyir.backend.opencl`
+
+Additionally, there is a `psyclone.psyir.backend.c` back-end, but at the
+moment it is only capable of processing partial PSyIR expressions.
 
 Parsing Code
 ############
