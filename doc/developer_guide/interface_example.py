@@ -11,28 +11,27 @@ def some_function(filename, kernel_path, node=None):
                          the parameter declaration, which can be used for\
                          any standard Python data type like str, bool, \
                          int, float.
-    :param str kernel_path: No empty line between different parameters.\
+    :param str kernel_path: no empty line between different parameters.\
                             If you need more than one line, add a backslash\
                             to the end of each line, otherwise sphinx\
                             will not layout the text correctly.
-    :param node: a node in the PSyIR (PSyclone Intermediate Representation).\
-                 The parameter type can also be declared in a stand-alone\
+    :param node: the parameter type can also be declared in a stand-alone\
                  line which follows immediately after the corresponding\
-                 :param: line. The actual type should only contain the
+                 :param: line. The actual type should only contain the\
                  type, no filler words like 'return type is integer'.\
                  Notice the empty line between parameter and return\
                  documentation.
     :type node: :py:class:`psyclone.psyGen.Node`
 
     :return: A new node in the PSyIR. The return type must always be\
-             specified in a separate line with a :rtype: entry. An empty\
+             specified in a separate line with an :rtype: entry. An empty\
              line separates the return documentation and the exceptions.
     :rtype: :py:class:`psyclone.psyGen.Node`
 
     :raises IOError: lower case start with punctuation at the end.
-    :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: list the same exception more than once if\
                              it can be raised by different errors.
+    :raises GenerationError: same exception, raised by a different error.
 
     For example:
 

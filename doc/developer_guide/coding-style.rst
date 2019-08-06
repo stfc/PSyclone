@@ -94,11 +94,11 @@ Some important details:
                                declaration must start with a lowercase letter, and
                                no punctuation at then end. References to other
                                classes within PSyclone should be written as
-                               ``:py:class:`psyclone.filename.py.Class```.
+                               ``:py:class:`psyclone.filename.Class```.
          return value          The description of the return value should start with
                                a capital letter, and end with a full stop. The type
                                can either be a lower case one word entry
-                               (``:py:class:`psyclone.filename.py.Class```, 'int'
+                               (``:py:class:`psyclone.filename.Class```, 'int'
                                etc), or can also be a full sentence, then starting
                                with a capital letter and full punctuation.
          exceptions            These must start with a lower case letter, and end
