@@ -39,7 +39,7 @@ backend.
 
 '''
 from __future__ import print_function
-from psyclone.psyir.backend.sir import SIRPSyIRVisitor
+from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.printer import PrinterPSyIRVisitor
 
 def trans(psy):
@@ -53,14 +53,14 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    sir_psyir_visitor = SIRPSyIRVisitor()
+    sir_writer = SIRWriter()
     printer_psyir_visitor = PrinterPSyIRVisitor()
     
     # For each Invoke
     for invoke in psy.invokes.invoke_list:
         sched = invoke.schedule
-        kern = sir_psyir_visitor.visit(sched)
-        #kern = printer_psyir_visitor.visit(sched)
+        kern = sir_writer(sched)
+        #kern = printer_psyir_visitor(sched)
         print(kern)
     exit(1)
     return psy

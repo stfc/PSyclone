@@ -62,18 +62,20 @@ def get_stencil(node):
     return "[{0}]".format(",".join(dims))
 
 
-class SIRPSyIRVisitor(PSyIRVisitor):
+class SIRWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-SIR back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
     '''
-    def __init__(self, skip_nodes=False, indent=None, start_depth=0):
-        super(SIRPSyIRVisitor, self).__init__(skip_nodes, indent, start_depth)
+    def __init__(self, skip_nodes=False, indent_string="  ",
+                 initial_indent_depth=0):
+        super(SIRWriter, self).__init__(skip_nodes, indent_string,
+                                        initial_indent_depth)
         self._field_names = set()
 
         
-    def node(self, node):
+    def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
         down the node hierarchy.
 
@@ -88,12 +90,12 @@ class SIRPSyIRVisitor(PSyIRVisitor):
                                              type(node).__name__)
         self._depth += 1
         for child in node.children:
-            result += self.visit(child)
+            result += self._visit(child)
         self._depth -= 1
         result += "{0}[ {1} end ]\n".format(self._nindent, type(node).__name__)
         return result
 
-    def nemoloop(self, node):
+    def nemoloop_node(self, node):
         '''Supported NEMO loops are triply nested with expected indices (not
         yet checked) and should contain a nemokern. If this is not the
         case then we are not able to translate so raise an
@@ -117,7 +119,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
                   "0, 0)\n".format(self._nindent))
         result += ("{0}bodyAST = makeAST([\n".format(self._nindent))
         self._depth += 1
-        result += self.nemokern(node.children[0].children[0].children[0])
+        result += self.nemokern_node(node.children[0].children[0].children[0])
         self._depth -= 1
         if result[-1] == "\n" and result[-2] == ",":
             result = result[:-2] + "\n"
@@ -127,7 +129,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
                    "".format(self._nindent))
         return result
 
-    def nemokern(self, node):
+    def nemokern_node(self, node):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
 
@@ -141,10 +143,10 @@ class SIRPSyIRVisitor(PSyIRVisitor):
         result = ""
         schedule = node.get_kernel_schedule()
         for child in schedule.children:
-            result += self.visit(child)
+            result += self._visit(child)
         return result
 
-    def nemoinvokeschedule(self, node):
+    def nemoinvokeschedule_node(self, node):
         '''This method is called when a NemoInvokeSchedule instance is found
         in the PSyIR tree.
 
@@ -165,7 +167,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
 
         exec_statements = ""
         for child in node.children:
-            exec_statements += self.visit(child)
+            exec_statements += self._visit(child)
         result += (
             "{0}\n"
             "".format(exec_statements))
@@ -185,7 +187,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
             "{0}])\n".format(self._nindent, self._indent))
         return result
 
-    def assignment(self, node):
+    def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the
         PSyIR tree.
 
@@ -197,8 +199,8 @@ class SIRPSyIRVisitor(PSyIRVisitor):
 
         '''
         self._depth += 1
-        lhs = self.visit(node.children[0])
-        rhs = self.visit(node.children[1])
+        lhs = self._visit(node.children[0])
+        rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}makeAssignmentStmt(\n{1},\n{2}".format(self._nindent, lhs, rhs)
         if result[-1] == '\n':
@@ -208,7 +210,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
         result += "{0}{1}\"=\"),\n".format(self._nindent, self._indent)
         return result
 
-    def binaryoperation(self, node):
+    def binaryoperation_node(self, node):
         '''This method is called when a BinaryOperation instance is found in
         the PSyIR tree.
 
@@ -230,9 +232,9 @@ class SIRPSyIRVisitor(PSyIRVisitor):
             if mapping_key not in mapping:
                 mapping[mapping_key] = mapping_value
         self._depth += 1
-        lhs = self.visit(node.children[0])
+        lhs = self._visit(node.children[0])
         oper = mapping[node._operator]
-        rhs = self.visit(node.children[1])
+        rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}makeBinaryOperator(\n{1}".format(self._nindent, lhs)
         if result[-1] == '\n':
@@ -242,7 +244,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
         result += "{0}{1}\"{2}\",\n{3}\n{0}{1})\n".format(self._nindent, self._indent, oper, rhs)
         return result
 
-    def reference(self, node):
+    def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
@@ -260,7 +262,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
                 "PSyIR Reference node should not have any children.")
         return "{0}makeVarAccessExpr(\"{1}\")".format(self._nindent, node._reference)
 
-    def array(self, node):
+    def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
 
@@ -276,7 +278,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
         self._field_names.add(node.name)
         return result
 
-    def literal(self, node):
+    def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -290,7 +292,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
         result = node._value
         return "{0}makeLiteralAccessExpr(\"{1}\", BuiltinType.Float)".format(self._nindent, result) 
 
-    def unaryoperation(self, node):
+    def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
@@ -318,7 +320,7 @@ class SIRPSyIRVisitor(PSyIRVisitor):
         result = node.children[0]._value
         return "{0}makeLiteralAccessExpr(\"{1}{2}\", BuiltinType.Float)".format(self._nindent, oper, result) 
 
-    def codeblock(self, node):
+    def codeblock_node(self, node):
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. It returns the content of the CodeBlock as a
         Fortran string, indenting as appropriate.
