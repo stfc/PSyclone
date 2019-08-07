@@ -96,7 +96,7 @@ Some important details:
                                classes within PSyclone should be written as
                                ``:py:class:`psyclone.filename.Class```.
          return value          The description of the return value should start with
-                               a capital letter, and end with a full stop. The type
+                               a lowercase letter, and end with a full stop. The type
                                can either be a lower case one word entry
                                (``:py:class:`psyclone.filename.Class```, 'int'
                                etc), or can also be a full sentence, then starting

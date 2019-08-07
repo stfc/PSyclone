@@ -23,7 +23,7 @@ def some_function(filename, kernel_path, node=None):
                  documentation.
     :type node: :py:class:`psyclone.psyGen.Node`
 
-    :return: A new node in the PSyIR. The return type must always be\
+    :return: a new node in the PSyIR. The return type must always be\
              specified in a separate line with an :rtype: entry. An empty\
              line separates the return documentation and the exceptions.
     :rtype: :py:class:`psyclone.psyGen.Node`
