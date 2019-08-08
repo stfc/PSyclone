@@ -45,7 +45,21 @@ from psyclone.psyGen import Reference, BinaryOperation, Literal, \
 from psyclone.nemo import NemoLoop, NemoKern
 
 def gen_stencil(node):
-    ''' xxx '''
+    '''Given an array access as input, determine the form of stencil
+    access and return it in the form expected by the SIR as a
+    string. Raise an exception if the array access is not a recognised
+    stencil access.
+
+    :param node: an array access.
+    :type node: :py:class:`psyclone.psyGen.Array`
+
+    :returns: the SIR stencil access format for the array access.
+    :rtype: str
+
+    :raises VisitorError: if the node is not the expected type or the \
+    array access is not in a recognised stencil form.
+
+    '''
     if not isinstance(node, Array):
         raise VisitorError(
             "gen_stencil expected an Array as input but found '{0}'."
@@ -57,14 +71,23 @@ def gen_stencil(node):
         elif isinstance(child, BinaryOperation):
             if isinstance(child.children[0], Reference) and \
                isinstance(child.children[1], Literal):
-                if child._operator.name == "SUB":
+                if child.operator.name == "SUB":
                     dims.append("-"+child.children[1]._value)
-                else:
-                    # assumed to be ADD
+                elif child.operator.name == "ADD":
                     dims.append(child.children[1]._value)
+                else:
+                    raise VisitorError(
+                        "gen_stencil unsupported stencil operator found "
+                        "'{0}'. Expecting '+' or '-'."
+                        "".format(child._operator.name))
+            else:
+                raise VisitorError(
+                    "gen_stencil unsupported stencil index found '{0}'."
+                    "".format(str(child)))
         else:
-            raise ValueError("Unsupported (non-stencil) index found '{0}'.".format(str(child)))
-                
+            raise VisitorError(
+                "gen_stencil unsupported (non-stencil) index found '{0}'."
+                "".format(str(child)))
     return "[{0}]".format(",".join(dims))
 
 

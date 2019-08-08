@@ -37,35 +37,9 @@
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
 
 import pytest
-# from psyclone.tests.psyir.backend.fortran_test import create_schedule
+from fortran_test import create_schedule
 from psyclone.psyir.backend.sir import gen_stencil
 from psyclone.psyir.backend.base import VisitorError
-
-
-def create_schedule(code):
-    '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and Fparser2ASTProcessor.
-
-    :param str code: Fortran code.
-
-    :returns: PSyIR tree representing the Fortran code.
-    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
-
-    '''
-    from fparser.two.parser import ParserFactory
-    from fparser.common.readfortran import FortranStringReader
-    import fparser.two.Fortran2003 as Fortran2003
-    from psyclone.psyGen import Fparser2ASTProcessor
-
-    reader = FortranStringReader(code)
-    f2003_parser = ParserFactory().create(std="f2003")
-    parse_tree = f2003_parser(reader)
-
-    # Generate PSyIR schedule from fparser2 parse tree
-    processor = Fparser2ASTProcessor()
-    schedule = processor.generate_schedule("tmp", parse_tree)
-
-    return schedule
 
 
 # [1/3] function gen_stencil
@@ -78,7 +52,8 @@ def test_gen_stencil_1():
                            ("i+1,j-1", "[1,-1]"),
                            ("m+7", "[7]"),
                            (" i + 1 , j , k - 1 ", "[1,0,-1]"),
-                           ("i+1,j-2,k+3,l-4", "[1,-2,3,-4]")]:
+                           ("i+1,j-2,k+3,l-4", "[1,-2,3,-4]"),
+                           ("i+(1), j-(2)", "[1,-2]")]:
         code = (
             "module test\n"
             "contains\n"
@@ -120,7 +95,7 @@ def test_gen_stencil_3():
     int" is supported.
 
     '''
-    for form in ["1+i", "-1+i", "i+j", "i+(1)", "i+1+1", ":", "1", "i*2"]:
+    for form in ["1", "1+i", "-1+i", "i+j", "i+1+1", "i+(1+1)", "i*2"]:
         code = (
             "module test\n"
             "contains\n"
@@ -133,7 +108,12 @@ def test_gen_stencil_3():
         schedule = create_schedule(code)
         assignment = schedule.children[0]
         array_reference = assignment.children[0]
-        with pytest.raises(ValueError) as excinfo:
-            print (array_reference)
-            _ = gen_stencil(array_reference)
-        #assert "XXX" in excinfo.value
+        with pytest.raises(VisitorError) as excinfo:
+            result = gen_stencil(array_reference)
+        if form in ["1"]:
+            error = "unsupported (non-stencil) index found"
+        elif form in ["i*2"]:
+            error = "unsupported stencil operator found"
+        else:
+            error = "unsupported stencil index found"
+        assert error in str(excinfo.value)
