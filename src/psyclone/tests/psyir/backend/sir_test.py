@@ -414,4 +414,24 @@ def test_sirwriter_nemoloop_node_6(parser):
     assert "Child of child of child of loop should be a NemoKern." in str(excinfo.value)
 
 
+# (1/1) Method nemokern_node
+# def test_sirwriter_nemokern_node_1(parser):
+# (1/1) Method nemoinvokeschedule_node
+# def test_sirwriter_nemoinvokeschedule_node_1(parser):
+# (1/1) Method assignment_node
+# def test_sirwriter_assignment_node_1(parser):
+# (1/1) Method binaryoperation_node
+# def test_sirwriter_binaryoperation_node_1(parser):
+# (1/1) Method reference_node
+# def test_sirwriter_reference_node_1(parser):
+# (1/1) Method array_node
+# def test_sirwriter_array_node_1(parser):
+# (1/1) Method literal_node
+# def test_sirwriter_reference_node_1(parser):
+# (1/1) Method unaryoperation_node
+# def test_sirwriter_unary_node_1(parser):
+# (1/1) Method codeblock_node
+# def test_sirwriter_codeblock_node_1(parser):
+
+
 # Class SIRWriter end

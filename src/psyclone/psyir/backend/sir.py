@@ -97,6 +97,17 @@ class SIRWriter(PSyIRVisitor):
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
+    :param bool skip_nodes: if skip_nodes is False then an exception \
+    is raised if a visitor method for a PSyIR node has not been \
+    implemented, otherwise the visitor continues, printing out a \
+    representation of the unsupported node. This is an optional \
+    argument which defaults to False.
+    :param indent_string: Specifies what to use for indentation. This \
+    is an optional argument that defaults to two spaces.
+    :type indent_string: str or NoneType
+    :param int initial_indent_depth: Specifies how much indentation to \
+    start with. This is an optional argument that defaults to 0.
+
     '''
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0):
@@ -134,8 +145,17 @@ class SIRWriter(PSyIRVisitor):
     def nemoloop_node(self, node):
         '''Supported NEMO loops are triply nested with expected indices (not
         yet checked) and should contain a nemokern. If this is not the
-        case then we are not able to translate so raise an
+        case then it is not possible to translate so raise an
         exception.
+
+        :param node: a nemoLoop PSyIR node.
+        :type node: subclass of :py:class:`psyclone.nemo.NemoLoop`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if the loop is not triply nested with \
+        computation within the triply nested loop.
 
         '''
         if not (len(node.children) == 1 and
