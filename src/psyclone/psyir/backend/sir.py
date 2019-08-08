@@ -41,11 +41,15 @@ gen() method to generate Fortran.
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
-    Fparser2ASTProcessor as f2psyir
+    Fparser2ASTProcessor as f2psyir, Array
 from psyclone.nemo import NemoLoop, NemoKern
 
-def get_stencil(node):
+def gen_stencil(node):
     ''' xxx '''
+    if not isinstance(node, Array):
+        raise VisitorError(
+            "gen_stencil expected an Array as input but found '{0}'."
+            "".format(type(node)))
     dims = []
     for child in node.children:
         if isinstance(child, Reference):
@@ -58,7 +62,9 @@ def get_stencil(node):
                 else:
                     # assumed to be ADD
                     dims.append(child.children[1]._value)
-
+        else:
+            raise ValueError("Unsupported (non-stencil) index found '{0}'.".format(str(child)))
+                
     return "[{0}]".format(",".join(dims))
 
 
@@ -273,7 +279,7 @@ class SIRWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        stencil = get_stencil(node)
+        stencil = gen_stencil(node)
         result = "{0}makeFieldAccessExpr(\"{1}\",{2})".format(self._nindent, node.name, stencil)
         self._field_names.add(node.name)
         return result

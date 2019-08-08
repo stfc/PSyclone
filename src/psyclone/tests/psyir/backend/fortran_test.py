@@ -34,7 +34,7 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
+'''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
 
 import pytest
 from fparser.two.parser import ParserFactory
