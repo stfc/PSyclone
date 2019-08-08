@@ -65,7 +65,7 @@ export LDFLAGS="-acc -ta=tesla,cc70"
 
 ## Profiling ##
 
-Building the `profile` target causes PSyclone to use the `acc_prof_transformpy`
+Building the `profile` target causes PSyclone to use the `acc_prof_transform.py`
 script. This uses `acc_transform.py` to do the same OpenACC transformations but
 then adds a profiling region around the body of the whole PSy layer routine.
 Compilation of this example requires that the CUDA toolkit be installed. The
