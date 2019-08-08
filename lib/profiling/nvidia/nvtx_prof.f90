@@ -39,10 +39,15 @@ module profile_mod
   private
 
   !> The derived type passed to us from the profiled application. Required for
-  !! consistency with the PSyclone Profiling interface but not actually used
-  !! in this wrapper.
+  !! consistency with the PSyclone Profiling interface and used here to
+  !! prevent repeated string operations.
   type, public :: ProfileData
-     logical :: not_used = .TRUE.
+     !> Whether or not we've seen this region before
+     logical :: initialised = .false.
+     !> The colour assigned to this region
+     integer :: colour_index = 1
+     !> Name assigned to the region
+     character(kind=C_CHAR, len=256) :: name = ""
   end type ProfileData
 
   ! The colour index of the last region created.
@@ -57,7 +62,7 @@ module profile_mod
                                   Z'00ffffff']
 
   !> Holds the name of the region being created
-  character(len=256), target :: tempName
+  character(kind=C_CHAR, len=256), target :: tempName
 
   !> Struct passed into nvtxRangePushEx
   type, bind(C):: nvtxEventAttributes
@@ -112,24 +117,37 @@ contains
   !! module_name:  Name of the module in which the region is
   !! region_name:  Name of the region (could be name of an invoke, or
   !!               subroutine name).
-  !! profile_data: Persistent data that can be used by the profiling library
-  !!               but isn't in this case.
+  !! profile_data: Persistent data - holds the selected colour and name of
+  !!               this region.
   subroutine ProfileStart(module_name, region_name, profile_data)
     implicit none
     character*(*), intent(in) :: module_name, region_name
-    type(ProfileData) :: profile_data
+    type(ProfileData), target, intent(inout) :: profile_data
+    ! Locals
+    type(nvtxEventAttributes) :: event
 
-    ! Round-robin the colour of each region created. Although nvtxStartRange
-    ! does a mod() on the id, we don't want to risk overflow so we don't
-    ! just blindly increment it.
-    if (last_colour < NUM_COLOURS) then
-       last_colour = last_colour + 1
-    else
-       last_colour = 1
+    if(.not. profile_data%initialised)then
+       ! This is the first time we've seen this region. Construct and
+       ! save its name to save on future string operations.
+       profile_data%initialised = .true.
+
+       ! Round-robin the colour of each region created.
+       if (last_colour < NUM_COLOURS) then
+          last_colour = last_colour + 1
+       else
+          last_colour = 1
+       end if
+       profile_data%colour_index = last_colour
+
+       profile_data%name = trim(module_name)//":"//trim(region_name) &
+                           &   //C_NULL_CHAR
     end if
-    call nvtxStartRange(trim(module_name)//":"//region_name, &
-                        id=last_colour)
     
+    event%color = col(profile_data%colour_index)
+    event%message = c_loc(profile_data%name)
+    
+    call nvtxRangePushEx(event)
+
   end subroutine ProfileStart
 
   !> Ends a profiling area.
@@ -138,44 +156,15 @@ contains
     implicit none
     type(ProfileData) :: profile_data
     
-    call nvtxEndRange()
+    call nvtxRangePop()
     
   end subroutine ProfileEnd
 
   !> The finalise function would normally print the results. However, this
-  !> is unnecessary for the NVTX library.
+  !> is unnecessary for the NVTX library so we do nothing.
   subroutine ProfileFinalise()
     implicit none
     return
   end subroutine ProfileFinalise
-
-  !> Wrapper routine to create an NVTX Range. If present, id is an index
-  !! into the `col` array of colours.
-  subroutine nvtxStartRange(name, id)
-    implicit none
-    !> The name of the region we are starting
-    character(kind=C_CHAR, len=*), intent(in) :: name
-    !> Which colour to use for this region (indexes into the `col` array)
-    integer,             optional, intent(in) :: id
-    ! Locals
-    type(nvtxEventAttributes) :: event
-
-    tempName = trim(name)//C_NULL_CHAR
-
-    if ( .not. present(id)) then
-       call nvtxRangePush(tempName)
-    else
-       event%color = col(mod(id, NUM_COLOURS) + 1)
-       event%message = c_loc(tempName)
-       call nvtxRangePushEx(event)
-    end if
-  end subroutine nvtxStartRange
-
-  !> Wrapper routine to end the Range that's currently on top of
-  !! the stack.
-  subroutine nvtxEndRange
-    implicit none
-    call nvtxRangePop()
-  end subroutine nvtxEndRange
 
 end module profile_mod
