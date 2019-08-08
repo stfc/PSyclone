@@ -140,16 +140,16 @@ class SIRWriter(PSyIRVisitor):
         '''
         if not (len(node.children) == 1 and
                 isinstance(node.children[0], NemoLoop)):
-            raise VisitorError("Child of loop should be a loop")
+            raise VisitorError("Child of loop should be a single loop.")
 
         if not (len(node.children[0].children) == 1 and
                 isinstance(node.children[0].children[0], NemoLoop)):
-            raise VisitorError("Child of child of loop should be a loop")
+            raise VisitorError("Child of child of loop should be a single loop.")
 
         if not isinstance(node.children[0].children[0].children[0],
                           NemoKern):
             raise VisitorError(
-                "Child of child of child of loop should be a NemoKern")
+                "Child of child of child of loop should be a NemoKern.")
 
         result = ("{0}interval = makeInterval(Interval.Start, Interval.End, "
                   "0, 0)\n".format(self._nindent))

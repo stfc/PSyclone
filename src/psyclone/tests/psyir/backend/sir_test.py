@@ -40,13 +40,23 @@ import pytest
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyGen import Node
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyGen import PSyFactory
 
 
 def create_schedule(code):
-    ''' xxx '''
+    '''Utility function that returns a PSyIR tree from Fortran
+    code using fparser2 and NemoFparser2ASTProcessor.
+
+    :param str code: Fortran code.
+
+    :returns: PSyIR tree representing the Fortran code.
+    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
+
+    '''
     from psyclone.nemo import NemoFparser2ASTProcessor
-    from fortran_test import create_schedule as create_base_schedule
-    return create_base_schedule(code, ASTProcessor=NemoFparser2ASTProcessor)
+    from fortran_test import create_schedule as create_schedule
+    return create_schedule(code, ASTProcessor=NemoFparser2ASTProcessor)
 
 
 # (1/3) function gen_stencil
@@ -199,31 +209,209 @@ def test_sirwriter_node_1():
     assert "    makeAssignmentStmt(" in result
 
 
-# (1/1) Method nemoloop_node
-def test_sirwriter_nemoloop_node_1():
-    '''Check the nemoloop_node method of the SIRWriter class is called for
-    nemo loops. Raise the appropriate exception loops are not triply
-    nested. Also check for SIR indentation.
+# (1/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_1(parser):
+    '''Check the nemoloop_node method of the SIRWriter class outputs the
+    expected SIR code with two triply nested loops. Also test that it
+    supports sir indentation.
+
+    '''
+    code = (
+        "subroutine tmp(b,n)\n"
+        "  integer,intent(in) :: n\n"
+        "  real :: a(n,n,n), b(n,n,n)\n"
+        "  integer :: i,j,k\n"
+        "  do i=1,n\n"
+        "    do j=1,n\n"
+        "      do k=1,n\n"
+        "        a(i,j,k) = 1.0\n"
+        "      end do\n"
+        "    end do\n"
+        "  end do\n"
+        "  do i=1,n\n"
+        "    do j=1,n\n"
+        "      do k=1,n\n"
+        "        a(i,j,k) = a(i,j,k) + b(i,j,k)\n"
+        "      end do\n"
+        "    end do\n"
+        "  end do\n"
+        "end subroutine tmp\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    result = sir_writer(schedule)
+    assert result.count(
+        "interval = makeInterval(Interval.Start, Interval.End, 0, 0)\n"
+        "bodyAST = makeAST([\n") == 2
+    assert result.count(
+        "])\n"
+        "verticalRegionFns.append(makeVerticalRegionDeclStmt(bodyAST, "
+        "interval, VerticalRegion.Forward))\n") == 2
+    # Check for indentation.
+    assert result.count("  makeAssignmentStmt(\n") == 2
+
+
+# (2/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_2(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the first child of a loop is not a loop.
+    '''
+    code = (
+        "module test\n"
+        "  contains\n"
+        "  subroutine tmp(b,n)\n"
+        "    integer,intent(in) :: n\n"
+        "    real :: a(n,n,n)\n"
+        "    integer :: i,j,k\n"
+        "    do i=1,n\n"
+        "      b(i,1,1) = 2.0\n"
+        "      do j=1,n\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine tmp\n"
+        "end module test\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Child of loop should be a single loop" in str(excinfo.value)
+
+
+# (3/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_3(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if a loop has more than one child.
 
     '''
     code = (
         "module test\n"
         "  contains\n"
-        "  subroutine tmp(n)\n"
+        "  subroutine tmp(b,n)\n"
+        "    integer,intent(in) :: n\n"
+        "    real :: a(n,n,n)\n"
+        "    integer :: i,j,k\n"
+        "    do i=1,n\n"
+        "      do j=1,n\n"
+        "      end do\n"
+        "      do j=1,n\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine tmp\n"
+        "end module test\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Child of loop should be a single loop" in str(excinfo.value)
+
+
+# (4/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_4(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the first child of the child of a loop is not a loop
+    (i.e. not triply nested).
+
+    '''
+    code = (
+        "module test\n"
+        "  contains\n"
+        "  subroutine tmp(b,n)\n"
+        "    integer,intent(in) :: n\n"
+        "    real :: a(n,n,n)\n"
+        "    integer :: i,j,k\n"
+        "    do i=1,n\n"
+        "      do j=1,n\n"
+        "        b(i,j,1) = 2.0\n"
+        "        do k=1,n\n"
+        "        end do\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine tmp\n"
+        "end module test\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Child of child of loop should be a single loop" in str(excinfo.value)
+
+
+# (5/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_5(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the child of a loop has more than one child (i.e. not
+    triply nested).
+
+    '''
+    code = (
+        "module test\n"
+        "  contains\n"
+        "  subroutine tmp(b,n)\n"
         "    integer,intent(in) :: n\n"
         "    real :: a(n,n,n)\n"
         "    integer :: i,j,k\n"
         "    do i=1,n\n"
         "      do j=1,n\n"
         "        do k=1,n\n"
-        "          a(i,j,k) = 1.0\n"
+        "        end do\n"
+        "        do k=1,n\n"
         "        end do\n"
         "      end do\n"
         "    end do\n"
         "  end subroutine tmp\n"
         "end module test\n")
-    schedule = create_schedule(code)
-    exit(1)
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Child of child of loop should be a single loop" in str(excinfo.value)
+
+
+# (6/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_6(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the content of the triply nested loop is not a
+    NemoKern.
+
+    '''
+    code = (
+        "module test\n"
+        "  contains\n"
+        "  subroutine tmp(b,n)\n"
+        "    integer,intent(in) :: n\n"
+        "    real :: a(n,n,n,3)\n"
+        "    integer :: i,j,k,l\n"
+        "    do i=1,n\n"
+        "      do j=1,n\n"
+        "        do k=1,n\n"
+        "          do l=1,3\n"
+        "          end do\n"
+        "        end do\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine tmp\n"
+        "end module test\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Child of child of child of loop should be a NemoKern." in str(excinfo.value)
 
 
 # Class SIRWriter end
