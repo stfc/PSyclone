@@ -155,7 +155,7 @@ def test_fw_gen_declaration():
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
 
 
-def create_schedule(code):
+def create_schedule(code, ASTProcessor=Fparser2ASTProcessor):
     '''Utility function that returns a PSyIR tree from Fortran
     code using fparser2 and Fparser2ASTProcessor.
 
@@ -170,7 +170,7 @@ def create_schedule(code):
     parse_tree = f2003_parser(reader)
 
     # Generate PSyIR schedule from fparser2 parse tree
-    processor = Fparser2ASTProcessor()
+    processor = ASTProcessor()
     schedule = processor.generate_schedule("tmp", parse_tree)
 
     return schedule

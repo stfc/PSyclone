@@ -44,6 +44,7 @@ from psyclone.psyGen import Reference, BinaryOperation, Literal, \
     Fparser2ASTProcessor as f2psyir, Array
 from psyclone.nemo import NemoLoop, NemoKern
 
+
 def gen_stencil(node):
     '''Given an array access as input, determine the form of stencil
     access and return it in the form expected by the SIR as a
@@ -102,11 +103,11 @@ class SIRWriter(PSyIRVisitor):
         super(SIRWriter, self).__init__(skip_nodes, indent_string,
                                         initial_indent_depth)
         self._field_names = set()
-
         
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
-        down the node hierarchy.
+        down the node hierarchy. If skip_nodes is set to False then
+        raise an exception.
 
         :param node: An unsupported PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyGen.Node`
@@ -114,7 +115,13 @@ class SIRWriter(PSyIRVisitor):
         :returns: The Fortran code as a string.
         :rtype: str
 
+        :raises VisitorError: if skip_nodes is set to False.
+
         '''
+        if not self._skip_nodes:
+            raise VisitorError(
+                "Class SIRWriter method node_node(), unsupported node "
+                "found '{0}'".format(type(node)))
         result = "{0}[ {1} start ]\n".format(self._nindent,
                                              type(node).__name__)
         self._depth += 1

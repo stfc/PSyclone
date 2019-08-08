@@ -37,12 +37,19 @@
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
 
 import pytest
-from fortran_test import create_schedule
-from psyclone.psyir.backend.sir import gen_stencil
+from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyGen import Node
 
 
-# [1/3] function gen_stencil
+def create_schedule(code):
+    ''' xxx '''
+    from psyclone.nemo import NemoFparser2ASTProcessor
+    from fortran_test import create_schedule as create_base_schedule
+    return create_base_schedule(code, ASTProcessor=NemoFparser2ASTProcessor)
+
+
+# (1/3) function gen_stencil
 def test_gen_stencil_1():
     '''Check the gen_stencil function produces the expected dimension
     strings.
@@ -70,7 +77,7 @@ def test_gen_stencil_1():
         assert result == expected
 
 
-# [2/3] function gen_stencil
+# (2/3) function gen_stencil
 def test_gen_stencil_2():
     '''Check the gen_stencil function raises an exception when
     a node of the wrong type is provided.
@@ -88,7 +95,7 @@ def test_gen_stencil_2():
     assert "gen_stencil expected an Array as input" in str(excinfo.value)
 
 
-# [3/3] function gen_stencil
+# (3/3) function gen_stencil
 def test_gen_stencil_3():
     '''Check the gen_stencil function raises an exception when an
     unsupported form of indexing is found. Currently only "var +/-
@@ -117,3 +124,106 @@ def test_gen_stencil_3():
         else:
             error = "unsupported stencil index found"
         assert error in str(excinfo.value)
+
+
+# Class SIRWriter start
+
+
+# (1/2) Method __init__
+def test_sirwriter_init_1():
+    '''Check the __init__ function of the SIRWriter class sets default and
+    initial values as expected.
+
+    '''
+    sir_writer = SIRWriter()
+    assert sir_writer._field_names == set()
+    assert not sir_writer._skip_nodes
+    assert sir_writer._indent == "  "
+    assert sir_writer._depth == 0
+
+
+# (2/2) Method __init__
+def test_sirwriter_init_2():
+    '''Check the __init__ function of the SIRWriter class can change
+    default values as expected.
+
+    '''
+    sir_writer = SIRWriter(skip_nodes=True, indent_string="[ooaah]",
+                           initial_indent_depth=3)
+    assert sir_writer._skip_nodes
+    assert sir_writer._indent == "[ooaah]"
+    assert sir_writer._depth == 3
+
+
+# (1/1) Method node_node
+def test_sirwriter_node_1():
+    '''Check the node_node method of the SIRWriter class is called when an
+    unsupported node is found and that it raises the appropriate
+    exception if skip_nodes is false and continues (outputting
+    information about the unsupported node) if skip_nodes is
+    True. Also check for SIR indentation.
+
+    '''
+    code = (
+        "module test\n"
+        "contains\n"
+        "  subroutine tmp()\n"
+        "    real :: a(1)\n"
+        "    integer :: i\n"
+        "    a(i) = 1.0\n"
+        "  end subroutine tmp\n"
+        "end module test\n")
+    schedule = create_schedule(code)
+
+    # pylint: disable=abstract-method
+    # modify the reference to b to be something unsupported
+    class Unsupported(Node):
+        '''A PSyIR node that will not be supported by the SIR writer.'''
+    # pylint: enable=abstract-method
+
+    unsupported = Unsupported()
+
+    # Add the unsupported node as the root of the tree
+    unsupported.children = [schedule]
+
+    sir_writer = SIRWriter(skip_nodes=False)
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer(unsupported)
+    assert "unsupported node found" in str(excinfo.value)
+
+    sir_writer = SIRWriter(skip_nodes=True)
+    result = sir_writer(unsupported)
+    assert "[ Unsupported start ]" in result
+    assert "[ Unsupported end ]" in result
+    # Check indentation works.
+    assert "    makeAssignmentStmt(" in result
+
+
+# (1/1) Method nemoloop_node
+def test_sirwriter_nemoloop_node_1():
+    '''Check the nemoloop_node method of the SIRWriter class is called for
+    nemo loops. Raise the appropriate exception loops are not triply
+    nested. Also check for SIR indentation.
+
+    '''
+    code = (
+        "module test\n"
+        "  contains\n"
+        "  subroutine tmp(n)\n"
+        "    integer,intent(in) :: n\n"
+        "    real :: a(n,n,n)\n"
+        "    integer :: i,j,k\n"
+        "    do i=1,n\n"
+        "      do j=1,n\n"
+        "        do k=1,n\n"
+        "          a(i,j,k) = 1.0\n"
+        "        end do\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine tmp\n"
+        "end module test\n")
+    schedule = create_schedule(code)
+    exit(1)
+
+
+# Class SIRWriter end
