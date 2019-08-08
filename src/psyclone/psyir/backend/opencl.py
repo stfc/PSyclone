@@ -165,6 +165,7 @@ class OpenCLWriter(CWriter):
         code = self._nindent + "__kernel void " + node.name + "(\n"
         self._depth += 1
         arguments = []
+        arguments.append(self._nindent + 'int width')
         for symbol in data_args:
             arguments.append(self._nindent + self.gen_declaration(symbol))
         code += ",\n".join(arguments) + "\n"
