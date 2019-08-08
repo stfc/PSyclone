@@ -42,7 +42,11 @@ NVIDIA's Visual Profiler.
 
 Currently the wrapper library is configured with seven distinct
 colours and assigns these to profile regions in a round-robin
-fashion. i.e. each successive call to `ProfileStart()` causes a new
-colour to be chosen from the list.  Once the end of the list is
-reached, the library simply goes back to the first entry in the list.
+fashion. i.e. each new region that is created by a call to `ProfileStart()`
+causes a new colour to be chosen from the list.  This colour and the
+name of the region are stored in the persistent `ProfileData` structure
+associated with that region for use in subsequent profiling calls. Once the
+end of the list of available colours is reached, the library simply goes
+back to the first entry in the list.
+
 
