@@ -79,7 +79,11 @@ PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc",
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
-ACC_IGNORE = ["turb_ncar", "ice_dyn_adv"]
+ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
+              "ice_dyn_adv", # No significant compute
+              "ice_cor" # Non-performant because PSyIR doesn't yet support
+                        # array ranges as function arguments
+              ]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -301,18 +305,30 @@ def add_profiling(children):
 
 def add_profile_region(nodes):
     '''
+    Attempt to put the supplied list of nodes within a profiling region.
+
+    :param nodes: list of sibling PSyIR nodes to enclose.
+    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+
     '''
     from fparser.two.Fortran2003 import Call_Stmt
-    from psyclone.psyGen import CodeBlock
+    from psyclone.psyGen import CodeBlock, IfBlock
     if nodes and _AUTO_PROFILE:
         # Check whether we should be adding profiling inside this routine
         routine_name = nodes[0].root.invoke.name
         for ignore in PROFILING_IGNORE:
             if ignore in routine_name:
                 return
-        if len(nodes) == 1 and isinstance(nodes[0], CodeBlock):
-            # We don't put single CALLs inside profiling regions
-            if isinstance(nodes[0].ast, Call_Stmt):
+        if len(nodes) == 1:
+            if isinstance(nodes[0], CodeBlock):
+                # We don't put single CALLs inside profiling regions
+                if isinstance(nodes[0].ast, Call_Stmt):
+                    return
+            elif isinstance(nodes[0], IfBlock) and \
+                 "was_single_stmt" in nodes[0]._annotations and \
+                 isinstance(nodes[0].if_body[0], CodeBlock):
+                # We also don't put single statements consisting of
+                # 'IF(condition) CALL blah()' inside profiling regions
                 return
         try:
             _, _ = PROFILE_TRANS.apply(nodes)
