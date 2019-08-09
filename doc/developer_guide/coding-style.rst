@@ -106,14 +106,14 @@ Some important details:
 
 
   #) If a parameter description, type, return value or exception is continued
-     to the next line, there must be a '\'' continuation symbol at the end of
+     to the next line, there must be a '\\\\' continuation symbol at the end of
      each line. Align each continued line to start at the same column that the
      previous line starts with in the text.
   #) If an argument type is a Python built-in (e.g. str, int or bool) then the
      type can be specified in-line with the argument description. However, if it
      is of a derived type then, for clarity, it should be specified in a
      separate :type my_arg: line.
-  #) The closing ''' of the interface description can be at the end of a text
+  #) The closing \\'\\'\\' of the interface description can be at the end of a text
      line if the overall description is short. Otherwise it should be on a
      separate line. An optional empty line between interface description and code
      should be included in the comment section.
