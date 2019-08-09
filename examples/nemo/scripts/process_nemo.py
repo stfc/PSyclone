@@ -56,7 +56,6 @@ EXCLUDED_FILES = ["bdyini.f90", "diaobs.f90", "dommsk.f90",
                   "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
                   "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
                   "ice.f90", # lines are too long
-                  "icealb.f90", "icecor.f90",
                   "icedyn_adv_pra.f90", # lines are too long
                   "iceforcing.f90",
                   "iceistate.f90", "iceitd.f90", "icetab.f90",
