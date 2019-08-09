@@ -975,9 +975,10 @@ def test_multi_different_kernel_omp(
 
 
 def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
-    '''Test that we raise an appropriate error if the user attempts to
-    fuse loops that are on different spaces. We test with annexed is
-    False as this is how the test has been set up.
+    '''Test that we raise an appropriate error if the user attempts
+    fuse loops that are on different spaces (unless they are both on
+    discontinuous spaces). We test with annexed is False as this is
+    how the test has been set up.
 
     '''
     config = Config.get()
@@ -1010,18 +1011,15 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
             _, _ = ftrans.apply(schedule.children[index],
                                 schedule.children[index+1],
                                 same_space=same_space)
-        assert "Error in DynamoLoopFuse transformation" in \
-            str(excinfo.value)
-        assert "Cannot fuse loops that are over different spaces" in \
-            str(excinfo.value)
-        same_space_warning = ("Note, the same_space flag was set, but "
-                              "does not apply because neither field "
-                              "is ANY_SPACE.")
 
         if same_space:
-            assert same_space_warning in str(excinfo.value)
+            assert ("The 'same_space' flag was set, but does not apply "
+                    "because neither field is 'ANY_SPACE'" in
+                    str(excinfo.value))
         else:
-            assert same_space_warning not in str(excinfo.value)
+            assert ("Cannot fuse loops that are over different spaces "
+                    "'w2' and 'w1' unless they are both discontinuous"
+                    in str(excinfo.value))
 
 
 def test_loop_fuse_unexpected_error(dist_mem):
@@ -1041,7 +1039,7 @@ def test_loop_fuse_unexpected_error(dist_mem):
 
     ftrans = DynamoLoopFuseTrans()
 
-    # cause an unexpected error
+    # Cause an unexpected error
     schedule.children[index].children = None
 
     with pytest.raises(TransformationError) as excinfo:
@@ -2480,7 +2478,7 @@ def test_multi_reduction_real_fuse():
                                            schedule.children[1],
                                            same_space=True)
             assert (
-                "Error in DynamoLoopFuse transformation. Cannot fuse loops "
+                "Error in DynamoLoopFuse transformation: Cannot fuse loops "
                 "when each loop already contains a "
                 "reduction") in str(excinfo.value)
 
@@ -3152,7 +3150,7 @@ def test_loop_fuse_error(dist_mem):
         schedule, _ = ftrans.apply(schedule.children[0],
                                    schedule.children[1])
     assert ("One or more of the iteration spaces is unknown "
-            "('any_space') so loop fusion might be "
+            "('ANY_SPACE') so loop fusion might be "
             "invalid") in str(excinfo.value)
 
 # Repeat the reduction tests for the reproducible version
@@ -5294,7 +5292,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
+    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
             "are not the same. Found '3' and '1'" in str(excinfo.value))
     # now redundantly compute to the full halo
     rc_trans.apply(schedule.children[index+1])
@@ -5309,7 +5307,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
+    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
 
 
@@ -5330,7 +5328,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         # Indices of loops to fuse in the schedule
         f_trans.apply(schedule.children[2], schedule.children[3])
-    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
     # Now test for f1 write to read dependency
@@ -5342,7 +5340,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     rc_trans.apply(schedule.children[0], depth=3)
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
-    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
 
