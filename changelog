@@ -194,6 +194,13 @@
         60) PR #452 for #397. Removes unnecessary walk_ast() call from the
         NemoInvokes constructor.
 
+        61) PR #424 for #399. Adds dependence-analysis functionality to
+        the PSyIR (for reasoning about existing code such as in kernels or
+        the NEMO API).
+
+        62) PR #464 for #443. Adds a coding-style guide to the Developers'
+        Guide.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

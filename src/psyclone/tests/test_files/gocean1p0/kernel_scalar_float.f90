@@ -14,9 +14,10 @@ module kernel_scalar_float
   !=======================================
 
   type, extends(kernel_type) :: bc_ssh
-     type(go_arg), dimension(3) :: meta_args =              &
+     type(go_arg), dimension(4) :: meta_args =                 &
           (/ go_arg(GO_READ,      GO_R_SCALAR, GO_POINTWISE),  &
              go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
+             go_arg(GO_READ,      GO_GRID_X_MAX_INDEX),        &
              go_arg(GO_READ,      GO_GRID_MASK_T)              &
            /)
 
@@ -67,10 +68,12 @@ module kernel_scalar_float
 
 contains
   
-  subroutine bc_ssh_code(ji, jj, rtime, ssha, tmask)
+  subroutine bc_ssh_code(ji, jj, rtime, ssha, max_x_index, tmask)
     implicit none
     integer, intent(in)  :: ji, jj
-    integer, dimension(:,:),  intent(in)    :: tmask
+    integer, dimension(:,:),  intent(in)       :: tmask
+    ! Unused, only for testing
+    integer, intent(in)                        :: max_x_index
     real(go_wp),                 intent(in)    :: rtime
     real(go_wp), dimension(:,:), intent(inout) :: ssha
     ! Locals
