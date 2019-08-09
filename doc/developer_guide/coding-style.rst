@@ -6,7 +6,7 @@ Coding and Documentation Style
 Documentation Style
 ###################
 When writing documentation, each reference to a PSyclone class or function
-should be set in italic (i.e. using a single backtick) except in headings.
+should be set in italics (i.e. enclosed by single backticks) except in headings.
 The first time a class or function is mentioned, use the full Python path, e.g.:
 `psyclone.core.access_info.VariableAccessInfo`. After that just use the
 class name (again in italics).
@@ -78,7 +78,7 @@ Some important details:
   #) There are up to four major sections in each interface description: function
      description, parameter description and type, return value and type, and
      exceptions. The function description is required, all other sections only
-     need to be written if they are applicable for the code being documented.
+     need be provided if they are applicable for the code being documented.
      The formatting for each section is slightly different:
 
          .. tabularcolumns:: |l|L|
@@ -107,13 +107,20 @@ Some important details:
 
   #) If a parameter description, type, return value or exception is continued
      to the next line, there must be a '\\\\' continuation symbol at the end of
-     each line. Align each continued line to start at the same column that the
-     previous line starts with in the text.
+     each line. Align each continued line with the column at which the
+     description begins on the previous line. If this would create lines that
+     are too short then the first continued line may be indented less, e.g.::
+
+         '''
+         :param some_very_long_variable_name: this is some argument that has \
+		a very long name and therefore it does not make sense to indent \
+		continued lines to align with the start of the description.
+	 '''
   #) If an argument type is a Python built-in (e.g. str, int or bool) then the
      type can be specified in-line with the argument description. However, if it
      is of a derived type then, for clarity, it should be specified in a
      separate :type my_arg: line.
-  #) The closing \\'\\'\\' of the interface description can be at the end of a text
-     line if the overall description is short. Otherwise it should be on a
-     separate line. An optional empty line between interface description and code
-     should be included in the comment section.
+  #) The closing \\'\\'\\' of the interface description can be at the end of a
+     text line if the overall description is short. Otherwise it should be on a
+     separate line. An optional empty line between interface description and
+     code should be included in the comment section.
