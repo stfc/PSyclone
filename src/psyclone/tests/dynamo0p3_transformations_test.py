@@ -325,7 +325,7 @@ def test_colouring_not_a_loop(dist_mem):
 
 def test_no_colour_dofs(dist_mem):
     ''' Test that we raise the correct exception when attempting to apply
-    the loop-colouring tranformation to a loop that is over dofs rather than
+    the loop-colouring transformation to a loop that is over dofs rather than
     cells. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -974,6 +974,32 @@ def test_multi_different_kernel_omp(
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
+def test_loop_fuse_invalid_space(monkeypatch):
+    ''' Test that we raise an appropriate error if the user attempts
+    fuse loops that are on invalid spaces.
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    first_invoke = psy.invokes.invoke_list[0]
+    schedule = first_invoke.schedule
+    first_kernel_args = schedule.coded_kernels()[0].arguments
+    # Get argument on the "write" space w1
+    _, fspace = first_kernel_args.get_arg_on_space_name("w1")
+    # Make function space invalid
+    monkeypatch.setattr(fspace, "_orig_name", "not_a_space_name")
+
+    # Apply transformation and raise the error
+    ftrans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = ftrans.apply(schedule.children[0],
+                            schedule.children[1])
+    assert ("One or both function spaces 'not_a_space_name' and 'w1' have "
+            "invalid names" in str(excinfo.value))
+
+
 def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
     '''Test that we raise an appropriate error if the user attempts
     fuse loops that are on different spaces (unless they are both on
@@ -1014,7 +1040,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         if same_space:
             assert ("The 'same_space' flag was set, but does not apply "
-                    "because neither field is 'ANY_SPACE'" in
+                    "because neither field is on 'ANY_SPACE'" in
                     str(excinfo.value))
         else:
             assert ("Cannot fuse loops that are over different spaces "
@@ -1045,7 +1071,7 @@ def test_loop_fuse_unexpected_error(dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ftrans.apply(schedule.children[index],
                             schedule.children[index+1])
-    assert 'Unexpected exception' in str(excinfo.value)
+    assert "Unexpected exception" in str(excinfo.value)
 
 
 def test_loop_fuse(dist_mem):

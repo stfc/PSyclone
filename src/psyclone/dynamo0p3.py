@@ -3373,11 +3373,10 @@ class DynBasisFunctions(DynCollection):
               ["w1", "w2", "w2h", "w2v", "any_w2"]):
             first_dim = "3"
         else:
-            # It is not possible to determine explicit first dimension
-            # from the metadata for any_space and any_d_space. This is
-            # not required for the basis declarations and allocations
-            # in the PSy layer but it is required for the kernel stub
-            # generation when meta_funcs metadata are specified.
+            # It is not possible to determine explicitly the first basis
+            # function array dimension from the metadata for any_space and
+            # any_d_space. This information needs to be passed from the PSy
+            # layer to the kernels, which will be enabled in issue #461.
             raise GenerationError(
                 "Unsupported space for basis function, "
                 "expecting one of {0} but found "
@@ -3423,11 +3422,11 @@ class DynBasisFunctions(DynCollection):
               ["w0", "w1", "w3", "wtheta"]):
             first_dim = "3"
         else:
-            # It is not possible to determine explicit first dimension
-            # from the metadata for any_space and any_d_space. This is
-            # not required for the differential basis declarations and
-            # allocations in the PSy layer but it is required for the
-            # kernel stub generation when meta_funcs metadata are specified.
+            # It is not possible to determine explicitly the first
+            # differential basis function array dimension from the metadata
+            # for any_space and any_d_space. This information needs to be
+            # passed from the PSy layer to the kernels, which will be enabled
+            # in issue #461.
             raise GenerationError(
                 "Unsupported space for differential basis function, expecting "
                 "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,

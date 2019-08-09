@@ -1549,10 +1549,9 @@ def test_node_args():
     loop2_args = loop2.args
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
-    # 4) Loopfuse
+    # 4) Loop fuse
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.children[0]
     kern2 = loop.children[1]
