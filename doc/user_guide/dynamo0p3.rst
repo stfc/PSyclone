@@ -1053,7 +1053,7 @@ functions for W1.
 meta_reference_element
 ######################
 
-A kernel that requires properties of the reference element in LFRIc
+A kernel that requires properties of the reference element in LFRic
 specifies those properties through the ``meta_reference_element``
 metadata entry.  (If no reference element properties are required then
 this metadata should be omitted.)  Consider the following example
@@ -1065,8 +1065,8 @@ kernel metadata::
 	   arg_type(gh_field, gh_write, w0) /)
     type(reference_element_data_type), dimension(2) :: &
       meta_reference_element =                         &
-        (/ reference_element_data_type(number_horizontal_faces), &
-	   reference_element_data_type(normal_to_face) /)
+        (/ reference_element_data_type(face_normals_horizontal),
+	   reference_element_data_type(face_normals_vertical) /)
   contains
     procedure, nopass :: code => testkern_code
   end type testkern_type
@@ -1075,18 +1075,20 @@ This metadata specifies that the ``testkern_type`` kernel requires two
 properties of the reference element. The supported properties are
 listed below:
 
-======================= ===================================================
-Name                    Description
-======================= ===================================================
-number_horizontal_faces Number of horizontal faces on the reference element.
-number_vertical_faces   Number of vertical faces on the reference element.
-normal_to_face          Array of normals pointing in the positive (x, y, z)
-                        axis direction for each face (whether horizontal or
-			vertical) indexed as (face, component).
-out_face_normal         Array of outward-pointing normals for each face
-                        (whether horizontal or vertical) indexed as
-			(component, face).
-======================= ===================================================
+=========================== ===================================================
+Name                        Description
+=========================== ===================================================
+horizontal_face_normals     Array of normals pointing in the positive (x, y, z)
+                            axis direction for each horizontal face indexed as
+			    (face, component).
+vertical_face_normals       Array of normals pointing in the positive (x, y, z)
+                            axis direction for each vertical face indexed as
+			    (face, component).
+horizontal_face_out_normals Array of outward-pointing normals for each
+                            horizontal face indexed as (component, face).
+vertical_face_out_normals   Array of outward-pointing normals for each
+                            vertical face indexed as (component, face).
+=========================== ===================================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1262,17 +1264,17 @@ rules, along with PSyclone's naming conventions, are:
            freedom for the function space. The name of the array is
            ``"orientation_"<field_function_space>``.
 	   
-5) If either the ``normal_to_face`` or ``out_face_normal`` properties
-   of the reference element are required then pass the number of
-   horizontal faces of the reference element (``nfaces_re_h``). Then,
+5) If either the ``horizontal_face_normals`` or ``horizontal_face_out_normals``
+   properties of the reference element are required then pass the number of
+   horizontal faces of the reference element (``nfaces_re_h``). Similarly,
+   if either ``vertical_face_normals`` or ``vertical_face_out_normals`` are
+   required then pass the number of vertical faces (``nfaces_re_v``). Then,
    in the order specified in the ``meta_reference_element`` metadata:
 
-   1) For ``normal_to_face``, pass a rank-2 integer array
-      with dimensions ``(nfaces_re_h, 3)``.
-   2) For ``out_face_normal``, pass a rank-2 integer array with dimensions
-      ``(3, nfaces_re_h)``.
-   3) For ``number_horizontal_faces``, if not already supplied, pass the
-      ``nfaces_re_h`` integer.
+   1) For ``horizontal/vertical_face_normals``, pass a rank-2 integer array
+      with dimensions ``(nfaces_re_h/v, 3)``.
+   2) For ``horizontal/vertical_face_out_normals``, pass a rank-2 integer
+      array with dimensions ``(3, nfaces_re_h/v)``.
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``):
 
@@ -1347,7 +1349,7 @@ reference element::
           (/ arg_type(gh_operator, gh_write, w0, w1), &
              arg_type(gh_field*3, gh_read, w0) /)
      type(reference_element_data_type) :: meta_reference_element(1) =  &
-          (/ reference_element_data_type(normal_to_face) /)
+          (/ reference_element_data_type(horizontal_face_normals) /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_operator_code
@@ -1358,7 +1360,7 @@ reference element and the array of face normals::
   
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       nfaces_re_h, face_normals)
+       nfaces_re_h, h_face_normals)
 
 Rules for CMA Kernels
 #####################
