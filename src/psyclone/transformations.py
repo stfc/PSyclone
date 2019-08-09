@@ -402,7 +402,6 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      the second Loop reads the result of \
                                      the reduction.
         :raises TransformationError: if there is an unexpected exception.
-
         '''
 
         # Set the 'same_space' flag value
@@ -520,9 +519,11 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     def apply(self, node1, node2, same_space=False):
         ''' Fuses two `psyclone.dynamo0p3.DynLoop` Loops after performing
         validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class. The optional `same_space` flag asserts that an
-        unknown iteration space (i.e. `ANY_SPACE`) matches the other
-        iteration space. This is set at the user's own risk.
+        of the base class. The optional `same_space` flag, set to `True`,
+        asserts that an unknown iteration space (i.e. `ANY_SPACE`) matches
+        the other iteration space. This is set at the user's own risk. If
+        both iteration spaces are discontinuous the Loops can be fused
+        without having to use the `same_space` flag.
 
         :param node1: the first Loop to fuse.
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`

@@ -140,7 +140,7 @@ vector size of 3.
 Scalar
 ++++++
 
-In Dynamo 0.3 API a scalar is a single value variable that can be
+In Dynamo0.3 API a scalar is a single value variable that can be
 either real or integer. Real scalars are identified with ``GH_REAL``
 and integer scalars are identified with ``GH_INTEGER`` metadata.
 
@@ -154,7 +154,7 @@ metadata.
 Column-Wise Operator
 ++++++++++++++++++++
 
-The Dynamo 0.3 API has support for the construction and use of
+The Dynamo0.3 API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
 identifier is ``GH_COLUMNWISE_OPERATOR``. As the name suggests,
 these are operators constructed for a whole column of the mesh.
@@ -207,7 +207,7 @@ A full example of CMA operator construction is available in
 Quadrature
 ++++++++++
 
-Kernels conforming to the Dynamo 0.3 API may require quadrature
+Kernels conforming to the Dynamo0.3 API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
 the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
 must be passed to the kernel from the Algorithm layer in the form of a
@@ -350,7 +350,7 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo API there are four
+in the :ref:`kernel-layer` section. In the Dynamo0.3 API there are four
 different Kernel types; general purpose, CMA, inter-grid and
 :ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
@@ -425,7 +425,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
 Rules for Kernels that work with CMA Operators
 ++++++++++++++++++++++++++++++++++++++++++++++
 
-The Dynamo 0.3 API has support for kernels that assemble, apply (or
+The Dynamo0.3 API has support for kernels that assemble, apply (or
 inverse-apply) column-wise/Column Matrix Assembly (CMA) operators.
 Such operators may also be used by matrix-matrix kernels. There are
 thus three types of CMA-related kernels.  Since, by definition, CMA
@@ -632,7 +632,7 @@ For example:
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
        /)
 
-.. note:: In the Dynamo 0.3 API only :ref:`dynamo0.3-built-ins` are permitted
+.. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to real
           scalars (``GH_REAL``) as the LFRic infrastructure does not
@@ -761,9 +761,9 @@ on different function spaces then PSyclone generates loop bounds
 appropriate to the largest iteration space. This means that if a
 single kernel updates one quantity on a continuous function space and
 one on a discontinuous space then the resulting loop will include
-cells in the level 1 halo since they are required for a quantity on a
+cells in the level-1 halo since they are required for a quantity on a
 continuous space. As a consequence, any quantities on a discontinuous
-space will then be computed redundantly in the level 1 halo. Currently
+space will then be computed redundantly in the level-1 halo. Currently
 PSyclone makes no attempt to take advantage of this (by e.g. setting
 the appropriate level-1 halo to 'clean').
 
@@ -1493,9 +1493,9 @@ Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
+:ref:`built-ins` section.  In the Dynamo0.3 API, calls to
 Built-ins generally follow a convention that the field/scalar written
-to comes first in the argument list. Dynamo 0.3 Built-ins must conform to the
+to comes first in the argument list. Dynamo0.3 Built-ins must conform to the
 following four rules:
 
  1) Built-in kernels must have one and only one modified (i.e. written
@@ -2089,7 +2089,7 @@ the boundary between processors must be replicated (as different cells
 share the same dof). Only one processor can own a dof, therefore
 processors will have continuous fields which contain dofs that the
 processor does not own. These unowned dofs are called `annexed` in the
-dynamo0.3 api and are a separate, but related, concept to field halos.
+Dynamo0.3 API and are a separate, but related, concept to field halos.
 
 When a kernel that iterates over cells needs to read a continuous
 field then the annexed dofs must be up-to-date on all processors. If
@@ -2108,29 +2108,32 @@ to the :ref:`dynamo0.3-developers` developers section.
 Transformations
 ---------------
 
-This section describes the dynamo-api-specific transformations. In all
-cases, excepting **Dynamo0p3RedundantComputationTrans** and
+This section describes the Dynamo0.3-API-specific transformations. In
+all cases, excepting **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchangeTrans**, these transformations are
 specialisations of generic transformations described in the
 :ref:`transformations` section. The difference between these
 transformations and the generic ones is that these perform
-dynamo-api-specific checks to make sure the transformations are
+Dynamo0.3-API-specific checks to make sure the transformations are
 valid. In practice these transformations perform the required checks
 then call the generic ones internally.
 
-The use of the dynamo-api-specific transformations is exactly the same
+The use of the Dynamo0.3-API-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
 **DynamoLoopFuseTrans**. In this case an additional optional argument
 **same_space** has been added to the **apply** method. The reason for
-this is to allow loop fusion when one or more of the iteration-spaces
-is determined by a function space that is unknown by PSyclone at
-compile time. This is the case when the **ANY_SPACE_????** function space
-is specified in the Kernel metadata. By default PSyclone will not
-allow loop fusion if it does not know the spaces are the same. The
-**same_space** option allows the user to specify that
-the spaces are the same. This option should therefore be used with
-caution. Note, if PSyclone knows the spaces are different this option
-has no effect and the transformation will always raise an exception.
+this is to allow loop fusion when one or more of the iteration spaces
+is determined by a function space that is unknown by PSyclone at compile
+time. This is the case when the ``ANY_SPACE_n`` function space is specified
+in the Kernel metadata. The ``same_space=True`` option allows the user to
+specify that the spaces are the same. This option should therefore be used
+with caution. PSyclone will raise an error if **same_space** is used when at
+least one of the function spaces is not ``ANY_SPACE_n``. As a general rule
+PSyclone will not allow loop  fusion if it does not know the spaces are the
+same. The exception are loops over discontinuous spaces (see
+:ref:`dynamo0.3-function-space` for list of discontinuous function spaces)
+for which loop fusion is allowed (unless the loop bounds become different
+due to a prior transformation).
 
 The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
@@ -2143,7 +2146,7 @@ The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
 that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
-all versions of the Dynamo API.
+all versions of the Dynamo0.3 API.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
 	  supported for loops that contain inter-grid kernels. Attempting

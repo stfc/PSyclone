@@ -976,7 +976,7 @@ def test_multi_different_kernel_omp(
 
 def test_loop_fuse_invalid_space(monkeypatch):
     ''' Test that we raise an appropriate error if the user attempts
-    fuse loops that are on invalid spaces.
+    to fuse loops that are on invalid spaces.
     '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",

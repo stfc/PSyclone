@@ -1421,7 +1421,7 @@ def test_basis_unsupported_space():
     ''' Test that an error is raised when a basis function is on
     an unsupported space (currently any_space_* and any_d_space_*)
     in kernel stub generation. This restriction will be removed in
-    issue #461 '''
+    issue #461. '''
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1742,7 +1742,7 @@ def test_diff_basis_unsupp_space():
     ''' Test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*
     and any_d_space_*) in kernel stub generation. This restriction
-    will be removed in issue #461 '''
+    will be removed in issue #461. '''
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
