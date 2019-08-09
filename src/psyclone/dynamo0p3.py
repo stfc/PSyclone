@@ -709,6 +709,7 @@ class DynArgDescriptor03(Descriptor):
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
+            self._vector_size = 0
 
         # We should never get to here
         else:
@@ -3057,7 +3058,8 @@ class DynMeshes(object):
             # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
-            rhs = self._first_var.name_indexed + "%get_mesh()"
+            rhs = "%".join([self._first_var.proxy_name_indexed,
+                            self._first_var.ref_name(), "get_mesh()"])
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
             if self._needs_colourmap:
@@ -3105,13 +3107,18 @@ class DynMeshes(object):
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=dig.fine.name_indexed + "%get_mesh()"))
+                              rhs="%".join([dig.fine.proxy_name_indexed,
+                                            dig.fine.ref_name(),
+                                            "get_mesh()"])))
+
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=dig.coarse.name_indexed + "%get_mesh()"))
+                              rhs="%".join([dig.coarse.proxy_name_indexed,
+                                            dig.coarse.ref_name(),
+                                            "get_mesh()"])))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
@@ -6156,6 +6163,28 @@ class DynKern(CodedKern):
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel metadata
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments.args:
+            if arg.is_scalar():
+                var_accesses.add_access(arg.name, arg.access, self)
+            else:
+                # It's an array, so add an arbitrary index value for the
+                # stored indices (which is at this stage the only way to
+                # indicate an array access).
+                var_accesses.add_access(arg.name, arg.access, self, [1])
+        super(DynKern, self).reference_accesses(var_accesses)
+        # Set the current location index to the next location, since after
+        # this kernel a new statement starts.
+        var_accesses.next_location()
+
     def load(self, call, parent=None):
         '''
         Sets up kernel information with the call object which is
@@ -8354,6 +8383,11 @@ class DynKernelArgument(KernelArgument):
     def type(self):
         ''' Returns the type of this argument. '''
         return self._type
+
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type in GH_VALID_SCALAR_NAMES
 
     @property
     def mesh(self):

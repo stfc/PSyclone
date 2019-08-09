@@ -46,7 +46,7 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core.access_info import VariablesAccessInfo, AccessType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -1278,6 +1278,7 @@ class Node(object):
     @abc.abstractmethod
     def view(self, indent=0):
         '''Abstract function to prints a text representation of the node.
+
         :param int indent: depth of indent for output text.
         '''
 
@@ -1334,6 +1335,7 @@ class Node(object):
         '''
         Find a Node's position relative to its parent Node (starting
         with 0 if it does not have a parent).
+
         :returns: relative position of a Node to its parent
         :rtype: int
         '''
@@ -1347,9 +1349,11 @@ class Node(object):
         Find a Node's absolute position in the tree (starting with 0 if
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
+
         :returns: absolute position of a Node in the tree
-        :raises InternalError: if the absolute position cannot be found
         :rtype: int
+
+        :raises InternalError: if the absolute position cannot be found
         '''
         if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
@@ -1522,16 +1526,9 @@ class Node(object):
 
     def gen_code(self, parent):
         '''Abstract base class for code generation function.
+
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
-        '''
-        raise NotImplementedError("Please implement me")
-
-    def gen_c_code(self, indent=0):
-        '''Abstract method for the generation of C source code
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: is an abstract method.
+        :type parent: :py:class:`psyclone.psyGen.Node`
         '''
         raise NotImplementedError("Please implement me")
 
@@ -1541,6 +1538,17 @@ class Node(object):
         method of any children. '''
         for child in self._children:
             child.update()
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The default implementation
+        just recurses down to all children.
+
+        :param var_accesses: Stores the output results.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for child in self._children:
+            child.reference_accesses(var_accesses)
 
 
 class Schedule(Node):
@@ -2457,24 +2465,40 @@ class OMPParallelDirective(OMPDirective):
         :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
         '''
-        result = []
-        # get variable names from all loops that are a child of this node
-        for loop in self.loops():
-            # We must allow for implicit loops (e.g. in the NEMO API) that
-            # have no associated variable name
-            if loop.variable_name and \
-               loop.variable_name.lower() not in result:
-                result.append(loop.variable_name.lower())
-        # Get variable names from all kernels that are a child of this node
+        result = set()
+        # get variable names from all calls that are a child of this node
         for call in self.kernels():
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
                         "call '{0}' has a local variable but its "
                         "name is not set.".format(call.name))
-                if variable_name.lower() not in result:
-                    result.append(variable_name.lower())
-        return result
+                result.add(variable_name.lower())
+
+        # Now determine scalar variables that must be private:
+        var_accesses = VariablesAccessInfo()
+        self.reference_accesses(var_accesses)
+        for var_name in var_accesses.all_vars:
+            accesses = var_accesses[var_name].all_accesses
+            # Ignore variables that have indices, we only look at scalar
+            if accesses[0].indices is not None:
+                continue
+
+            # If a variable is only accessed once, it is either an error
+            # or a shared variable - anyway it is not private
+            if len(accesses) == 1:
+                continue
+
+            # We have at least two accesses. If the first one is a write,
+            # assume the variable should be private:
+            if accesses[0].access_type == AccessType.WRITE:
+                result.add(var_name.lower())
+
+        # Convert the set into a list and sort it, so that we get
+        # reproducible results
+        list_result = list(result)
+        list_result.sort()
+        return list_result
 
     def _not_within_omp_parallel_region(self):
         ''' Check that this Directive is not within any other
@@ -2761,8 +2785,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                  self._children[0].ast)
 
         # Create the start directive
+        private_vars = self._get_private_list()
         text = ("!$omp parallel do default(shared), private({0}), "
-                "schedule({1})".format(",".join(self._get_private_list()),
+                "schedule({1})".format(",".join(private_vars),
                                        self._omp_schedule))
         startdir = Comment(FortranStringReader(text,
                                                ignore_comments=False))
@@ -3184,6 +3209,35 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It combines the data from
+        the loop bounds (start, stop, end step), as well as the loop body.
+        The loop variable is marked as READWRITE, start, stop, step as READ.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # It is important to first add the WRITE access, since this way
+        # the dependency analysis for declaring openmp private variables
+        # will automatically declare the loop variables to be private
+        # (write access before read)
+        var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
+        var_accesses.add_access(self.variable_name, AccessType.READ, self)
+        # TODO #400/#444: self._start/stop/step are not defined at this stage
+        # (at least in the gocean1.0 api). ATM this results in an 'empty'
+        # variable being created (name = "").
+        var_accesses.add_access(self._start, AccessType.READ, self)
+        var_accesses.add_access(self._stop, AccessType.READ, self)
+        var_accesses.add_access(self._step, AccessType.READ, self)
+        var_accesses.next_location()
+
+        for child in self.children:
+            child.reference_accesses(var_accesses)
+            var_accesses.next_location()
+
     def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
@@ -3335,6 +3389,19 @@ class Kern(Node):
               self.name + "(" + self.arguments.names + ")")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The API specific classes
+        add the accesses to the arguments. So the code here only calls
+        the baseclass, and increases the location.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        super(Kern, self).reference_accesses(var_accesses)
+        var_accesses.next_location()
 
     @property
     def coloured_text(self):
@@ -3837,7 +3904,9 @@ class CodedKern(Kern):
                                       "kernel ({0})".format(self.name))
 
         if self.root.opencl:
-            new_kern_code = self.get_kernel_schedule().gen_ocl()
+            from psyclone.psyir.backend.opencl import OpenCLWriter
+            ocl_writer = OpenCLWriter()
+            new_kern_code = ocl_writer(self.get_kernel_schedule())
         else:
             # Generate the Fortran for this transformed kernel, ensuring that
             # we limit the line lengths
@@ -3880,7 +3949,6 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
 
         # Use the suffix we have determined to create a new kernel name.
         # This will conform to the PSyclone convention of ending in "_code"
@@ -4245,10 +4313,16 @@ class Argument(object):
 
         '''
         self._call = call
-        self._text = arg_info.text
-        self._orig_name = arg_info.varname
-        self._form = arg_info.form
-        self._is_literal = arg_info.is_literal()
+        if arg_info is not None:
+            self._text = arg_info.text
+            self._orig_name = arg_info.varname
+            self._form = arg_info.form
+            self._is_literal = arg_info.is_literal()
+        else:
+            self._text = ""
+            self._orig_name = ""
+            self._form = ""
+            self._is_literal = False
         self._access = access
         self._name_space_manager = NameSpaceFactory().create()
 
@@ -4570,6 +4644,11 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
+    @abc.abstractmethod
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+
 
 class TransInfo(object):
     '''
@@ -4818,35 +4897,27 @@ class IfBlock(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0):
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It combines the data from
+        the condition, if-body and (if available) else-body. This could
+        later be extended to handle cases where a variable is only written
+        in one of the two branches.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        Generate a string representation of this node using C language.
 
-        :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
-        :rtype: str
-        :raises InternalError: If any mandatory children of the IfBlock \
-            node are missing.
-        '''
-        if len(self.children) < 2:
-            raise InternalError("IfBlock malformed or "
-                                "incomplete. It should have at least 2 "
-                                "children, but found {0}."
-                                "".format(len(self.children)))
+        # The first child is the if condition - all variables are read-only
+        self.condition.reference_accesses(var_accesses)
+        var_accesses.next_location()
+        self.if_body.reference_accesses(var_accesses)
+        var_accesses.next_location()
 
-        retval = self.indent(indent) + "if ("
-        retval += self.condition.gen_c_code() + ") {\n"
-        for statement in self.if_body:
-            retval += statement.gen_c_code(indent + 1) + "\n"
-
-        if len(self.children) == 3:
-            retval += self.indent(indent) + "} else {\n"
-            for statement in self.else_body:
-                retval += statement.gen_c_code(indent + 1) + "\n"
-
-        retval += self.indent(indent) + "}\n"
-
-        return retval
+        if self.else_body:
+            self.else_body.reference_accesses(var_accesses)
+            var_accesses.next_location()
 
 
 class ACCKernelsDirective(ACCDirective):
@@ -5333,38 +5404,6 @@ class Symbol(object):
                                     type(new_value)))
         self._constant_value = new_value
 
-    def gen_c_definition(self):
-        '''
-        Generates string representing the C language definition of the symbol.
-
-        :returns: The C definition of the symbol.
-        :rtype: str
-        :raises NotImplementedError: if there are some symbol types or nodes \
-                                     which are not implemented yet.
-        '''
-        code = ""
-        if self.datatype == "real":
-            code = code + "double "
-        elif self.datatype == "integer":
-            code = code + "int "
-        elif self.datatype == "character":
-            code = code + "char "
-        elif self.datatype == "boolean":
-            code = code + "bool "
-        else:
-            raise NotImplementedError(
-                "Could not generate the C definition for the variable '{0}', "
-                "type '{1}' is currently not supported."
-                "".format(self.name, self.datatype))
-
-        # If the argument is an array, in C language we define it
-        # as an unaliased pointer.
-        if self.is_array:
-            code += "* restrict "
-
-        code += self.name
-        return code
-
     def __str__(self):
         ret = self.name + ": <" + self.datatype + ", "
         if self.is_array:
@@ -5645,45 +5684,29 @@ class SymbolTable(object):
         return [sym for sym in self._symbols.values() if sym.scope == "global"
                 and not isinstance(sym.interface, Symbol.Argument)]
 
-    def gen_c_local_variables(self, indent=0):
+    @property
+    def iteration_indices(self):
         '''
-        Generate C code that defines all local symbols in the Symbol Table.
+        :return: List of symbols representing kernel iteration indices.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
-        :param int indent: Indentation level
-        :returns: C languague definition of the local symbols.
-        :rtype: str
-        '''
-        code = ""
-        for symbol in self.local_symbols:
-            code += Node.indent(indent) + symbol.gen_c_definition() + ";\n"
-        return code
-
-    def gen_ocl_argument_list(self, indent=0):
-        '''
-        Generate OpenCL argument list.
-
-        :raises NotImplementedError: is an abstract method.
+        :raises NotImplementedError: this method is abstract.
         '''
         raise NotImplementedError(
-            "A generic implementation of this method is not available.")
+            "Abstract property. Which symbols are iteration indices is"
+            " API-specific.")
 
-    def gen_ocl_iteration_indices(self, indent=0):
+    @property
+    def data_arguments(self):
         '''
-        Generate OpenCL iteration indices declaration.
+        :return: List of symbols representing kernel data arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
-        :raises NotImplementedError: is an abstract method.
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
-    def gen_ocl_array_length(self, indent=0):
-        '''
-        Generate OpenCL array length variable declarations.
-
-        :raises NotImplementedError: is an abstract method.
+        :raises NotImplementedError: this method is abstract.
         '''
         raise NotImplementedError(
-            "A generic implementation of this method is not available.")
+            "Abstract property. Which symbols are data arguments is"
+            " API-specific.")
 
     def view(self):
         '''
@@ -5747,17 +5770,6 @@ class KernelSchedule(Schedule):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_ocl(self, indent=0):
-        '''
-        Generate a string representation of this node in the OpenCL language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: OpenCL language code representing the node.
-        :rtype: str
-        '''
-        raise NotImplementedError(
-            "A generic implementation of this method is not available.")
-
     def __str__(self):
         result = "KernelSchedule[name:'" + self._name + "']:\n"
         for entity in self._children:
@@ -5816,15 +5828,6 @@ class CodeBlock(Node):
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :raises GenerationError: gen_c_code always fails for CodeBlocks.
-        '''
-        raise GenerationError("CodeBlock can not be translated to C")
-
 
 class Assignment(Node):
     '''
@@ -5845,7 +5848,14 @@ class Assignment(Node):
         :returns: the child node representing the Left-Hand Side of the \
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: Node has fewer children than expected.
         '''
+        if not self._children:
+            raise InternalError(
+                "Assignment '{0}' malformed or incomplete. It "
+                "needs at least 1 child to have a lhs.".format(repr(self)))
+
         return self._children[0]
 
     @property
@@ -5854,7 +5864,14 @@ class Assignment(Node):
         :returns: the child node representing the Right-Hand Side of the \
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: Node has lest children than expected
         '''
+        if len(self._children) < 2:
+            raise InternalError(
+                "Assignment '{0}' malformed or incomplete. It "
+                "needs at least 2 children to have a rhs.".format(repr(self)))
+
         return self._children[1]
 
     @property
@@ -5884,23 +5901,40 @@ class Assignment(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node. The assigned-to
+        variable will be set to 'WRITE'.
 
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        if len(self.children) != 2:
-            raise GenerationError("Assignment malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
 
-        return self.indent(indent) \
-            + self.children[0].gen_c_code() + " = " \
-            + self.children[1].gen_c_code() + ";"
+        # It is important that a new instance is used to handle the LHS,
+        # since a check in 'change_read_to_write' makes sure that there
+        # is only one access to the variable!
+        accesses_left = VariablesAccessInfo()
+        self.lhs.reference_accesses(accesses_left)
+
+        # Now change the (one) access to the assigned variable to be WRITE:
+        var_info = accesses_left[self.lhs.name]
+        try:
+            var_info.change_read_to_write()
+        except InternalError:
+            # An internal error typically indicates that the same variable
+            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+            # supported in PSyclone.
+            from psyclone.parse.utils import ParseError
+            raise ParseError("The variable '{0}' appears more than once on "
+                             "the left-hand side of an assignment."
+                             .format(self.lhs.name))
+
+        # Merge the data (that shows now WRITE for the variable) with the
+        # parameter to this function:
+        self.rhs.reference_accesses(var_accesses)
+        var_accesses.merge(accesses_left)
+        var_accesses.next_location()
 
 
 class Reference(Node):
@@ -5948,15 +5982,16 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node, i.e.
+        it sets this variable to be read.
 
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        return self._reference
+        var_accesses.add_access(self._reference, AccessType.READ, self)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -6070,74 +6105,6 @@ class UnaryOperation(Operation):
         return colored("UnaryOperation",
                        SCHEDULE_COLOUR_MAP["Operation"])
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-
-        :return: C language code representing the node.
-        :rtype: str
-
-        :raises GenerationError: If the node or its children are invalid.
-        :raises NotImplementedError: If the operator is not supported.
-
-        '''
-        if len(self.children) != 1:
-            raise GenerationError("UnaryOperation malformed or "
-                                  "incomplete. It should have exactly 1 "
-                                  "child, but found {0}."
-                                  "".format(len(self.children)))
-
-        def operator_format(operator_str, expr_str):
-            '''
-            :param str operator_str: String representing the operator.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language operator expression.
-            :rtype: str
-            '''
-            return "(" + operator_str + expr_str + ")"
-
-        def function_format(function_str, expr_str):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr_str + ")"
-
-        # Define a map with the operator string and the formatter function
-        # associated with each UnaryOperation.Operator
-        opmap = {
-            UnaryOperation.Operator.MINUS: ("-", operator_format),
-            UnaryOperation.Operator.PLUS: ("+", operator_format),
-            UnaryOperation.Operator.NOT: ("!", operator_format),
-            UnaryOperation.Operator.SIN: ("sin", function_format),
-            UnaryOperation.Operator.COS: ("cos", function_format),
-            UnaryOperation.Operator.TAN: ("tan", function_format),
-            UnaryOperation.Operator.ASIN: ("asin", function_format),
-            UnaryOperation.Operator.ACOS: ("acos", function_format),
-            UnaryOperation.Operator.ATAN: ("atan", function_format),
-            UnaryOperation.Operator.ABS: ("abs", function_format),
-            UnaryOperation.Operator.REAL: ("float", function_format),
-            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
-            }
-
-        # If the instance operator exists in the map, use its associated
-        # operator and formatter to generate the code, otherwise raise
-        # an Error.
-        try:
-            opstring, formatter = opmap[self._operator]
-        except KeyError:
-            raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
-                "".format(self._operator))
-
-        return formatter(opstring, self.children[0].gen_c_code())
-
 
 class BinaryOperation(Operation):
     '''
@@ -6172,78 +6139,6 @@ class BinaryOperation(Operation):
         '''
         return colored("BinaryOperation",
                        SCHEDULE_COLOUR_MAP["Operation"])
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        :raises GenerationError: If the node or its children are invalid.
-        :raises NotImplementedError: If the operator is not supported.
-        '''
-
-        if len(self.children) != 2:
-            raise GenerationError("BinaryOperation malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
-
-        def operator_format(operator_str, expr1, expr2):
-            '''
-            :param str operator_str: String representing the operator.
-            :param str expr1: String representation of the LHS operand.
-            :param str expr2: String representation of the RHS operand.
-
-            :returns: C language operator expression.
-            :rtype: str
-            '''
-            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
-
-        def function_format(function_str, expr1, expr2):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr1: String representation of the first operand.
-            :param str expr2: String representation of the second operand.
-
-            :returns: C language binary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr1 + ", " + expr2 + ")"
-
-        # Define a map with the operator string and the formatter function
-        # associated with each BinaryOperation.Operator
-        opmap = {
-            BinaryOperation.Operator.ADD: ("+", operator_format),
-            BinaryOperation.Operator.SUB: ("-", operator_format),
-            BinaryOperation.Operator.MUL: ("*", operator_format),
-            BinaryOperation.Operator.DIV: ("/", operator_format),
-            BinaryOperation.Operator.REM: ("%", operator_format),
-            BinaryOperation.Operator.POW: ("pow", function_format),
-            BinaryOperation.Operator.EQ: ("==", operator_format),
-            BinaryOperation.Operator.NE: ("!=", operator_format),
-            BinaryOperation.Operator.LT: ("<", operator_format),
-            BinaryOperation.Operator.LE: ("<=", operator_format),
-            BinaryOperation.Operator.GT: (">", operator_format),
-            BinaryOperation.Operator.GE: (">=", operator_format),
-            BinaryOperation.Operator.AND: ("&&", operator_format),
-            BinaryOperation.Operator.OR: ("||", operator_format),
-            BinaryOperation.Operator.SIGN: ("copysign", function_format),
-            }
-
-        # If the instance operator exists in the map, use its associated
-        # operator and formatter to generate the code, otherwise raise
-        # an Error.
-        try:
-            opstring, formatter = opmap[self._operator]
-        except KeyError:
-            raise NotImplementedError(
-                "The gen_c_code backend does not support the '{0}' operator."
-                "".format(self._operator))
-
-        return formatter(opstring, self.children[0].gen_c_code(),
-                         self.children[1].gen_c_code())
 
 
 class NaryOperation(Operation):
@@ -6318,36 +6213,29 @@ class Array(Reference):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0):
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All variables used as indices
+        in the access of the array will be added as READ.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        Generate a string representation of this node using C language.
 
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        code = super(Array, self).gen_c_code() + "["
+        # This will set the array-name as READ
+        super(Array, self).reference_accesses(var_accesses)
 
-        dimensions_remaining = len(self._children)
-        if dimensions_remaining < 1:
-            raise GenerationError("Array must have at least 1 dimension.")
+        # Now add all children: Note that the class Reference
+        # does not recurse to the children (which store the indices), so at
+        # this stage no index information has been stored:
+        list_indices = []
+        for child in self._children:
+            child.reference_accesses(var_accesses)
+            list_indices.append(child)
 
-        # In C array expressions should be reversed from the PSyIR order
-        # (column-major to row-major order) and flattened (1D).
-        for child in reversed(self._children):
-            code = code + child.gen_c_code()
-            # For each dimension bigger than one, it needs to write the
-            # appropriate operation to flatten the array. By convention,
-            # the array dimensions are <name>LEN<DIM>.
-            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
-            for dim in reversed(range(1, dimensions_remaining)):
-                dimstring = self._reference + "LEN" + str(dim)
-                code = code + " * " + dimstring
-            dimensions_remaining = dimensions_remaining - 1
-            code = code + " + "
-
-        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
-        return code
+        if list_indices:
+            var_info = var_accesses[self._reference]
+            # The last entry in all_accesses is the one added above
+            # in super(Array...). Add the indices to that entry.
+            var_info.all_accesses[-1].indices = list_indices
 
 
 class Literal(Node):
@@ -6395,20 +6283,6 @@ class Literal(Node):
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
 
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :returns: C language code representing the node.
-        :rtype: str
-        '''
-        str_value = self._value
-        # C Scientific notation is always an 'e' letter
-        str_value = str_value.replace('d', 'e')
-        str_value = str_value.replace('D', 'e')
-        return str_value
-
 
 class Return(Node):
     '''
@@ -6442,16 +6316,6 @@ class Return(Node):
 
     def __str__(self):
         return "Return[]\n"
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
-        :rtype: str
-        '''
-        return self.indent(indent) + "return;"
 
 
 class Fparser2ASTProcessor(object):
@@ -6511,7 +6375,7 @@ class Fparser2ASTProcessor(object):
         ('sum', NaryOperation.Operator.SUM)])
 
     def __init__(self):
-        from fparser.two import Fortran2003, utils
+        from fparser.two import utils
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
@@ -6691,8 +6555,6 @@ class Fparser2ASTProcessor(object):
         :raises GenerationError: Unable to generate a kernel schedule from the
                                  provided fpaser2 parse tree.
         '''
-        from fparser.two import Fortran2003
-
         def first_type_match(nodelist, typekind):
             '''
             Returns the first instance of the specified type in the given
@@ -6785,7 +6647,6 @@ class Fparser2ASTProcessor(object):
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
         shape = []
 
         # Traverse shape specs in Depth-first-search order
@@ -6842,7 +6703,6 @@ class Fparser2ASTProcessor(object):
                                  not have the expected structure.
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
 
         def iterateitems(nodes):
             '''
@@ -7131,7 +6991,6 @@ class Fparser2ASTProcessor(object):
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         '''
-        from fparser.two import Fortran2003
 
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
@@ -7257,7 +7116,6 @@ class Fparser2ASTProcessor(object):
             unsupported structure and should be placed in a CodeBlock.
 
         '''
-        from fparser.two import Fortran2003
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
             raise InternalError(
@@ -7282,14 +7140,12 @@ class Fparser2ASTProcessor(object):
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
-                # Case value Ranges not supported yet, if found we
-                # raise a NotImplementedError that the process_node()
-                # will catch and generate a CodeBlock instead.
+                if not isinstance(child.items[0], Fortran2003.Case_Selector):
+                    raise InternalError(
+                        "Unexpected parse tree structure. Expected child of "
+                        "Case_Stmt to be a Case_Selector but got: '{0}'".
+                        format(type(child.items[0]).__name__))
                 case_expression = child.items[0].items[0]
-                if isinstance(case_expression,
-                              (Fortran2003.Case_Value_Range,
-                               Fortran2003.Case_Value_Range_List)):
-                    raise NotImplementedError("Case Value Range Statement")
                 if case_expression is None:
                     # This is a 'case default' clause - store its position.
                     # We do this separately as this clause is special and
@@ -7310,49 +7166,49 @@ class Fparser2ASTProcessor(object):
             start_idx = clause_indices[idx]
             end_idx = clause_indices[idx+1]
             clause = node.content[start_idx]
+            case = clause.items[0]
 
-            if isinstance(clause, Fortran2003.Case_Stmt):
-                case = clause.items[0]
-                if isinstance(case, Fortran2003.Case_Selector):
-                    ifblock = IfBlock(parent=currentparent,
-                                      annotation='was_case')
-                    ifblock.ast = node.content[start_idx]
-                    ifblock.ast_end = node.content[end_idx - 1]
+            ifblock = IfBlock(parent=currentparent,
+                              annotation='was_case')
+            ifblock.ast = node.content[start_idx]
+            ifblock.ast_end = node.content[end_idx - 1]
 
-                    # Add condition: selector == case
-                    bop = BinaryOperation(BinaryOperation.Operator.EQ,
-                                          parent=ifblock)
+            if isinstance(case.items[0],
+                          Fortran2003.Case_Value_Range_List):
+                # We have a list of conditions in one CASE stmt which
+                # we need to combine with OR operators
+                self._process_case_value_list(selector,
+                                              case.items[0].items,
+                                              case.items[0], ifblock)
+            else:
+                # We only have a single condition
+                # TODO once fparser/#170 is done we might never take
+                # this branch...
+                self._process_case_value(selector, case.items[0],
+                                         case, ifblock)
 
-                    self.process_nodes(parent=bop,
-                                       nodes=[selector],
-                                       nodes_parent=node)
-                    self.process_nodes(parent=bop,
-                                       nodes=[case.items[0]],
-                                       nodes_parent=node)
-                    ifblock.addchild(bop)
+            # Add If_body
+            ifbody = Schedule(parent=ifblock)
+            self.process_nodes(parent=ifbody,
+                               nodes=node.content[start_idx + 1:
+                                                  end_idx],
+                               nodes_parent=node)
+            ifblock.addchild(ifbody)
+            ifbody.ast = node.content[start_idx + 1]
+            ifbody.ast_end = node.content[end_idx - 1]
 
-                    # Add If_body
-                    ifbody = Schedule(parent=ifblock)
-                    self.process_nodes(parent=ifbody,
-                                       nodes=node.content[start_idx + 1:
-                                                          end_idx],
-                                       nodes_parent=node)
-                    ifblock.addchild(ifbody)
-                    ifbody.ast = node.content[start_idx + 1]
-                    ifbody.ast_end = node.content[end_idx - 1]
+            if rootif:
+                # If rootif is already initialised we chain the new
+                # case in the last else branch.
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                elsebody.addchild(ifblock)
+                elsebody.ast = node.content[start_idx + 1]
+                elsebody.ast_end = node.content[end_idx - 1]
+            else:
+                rootif = ifblock
 
-                    if rootif:
-                        # If rootif is already initialised we chain the new
-                        # case in the last else branch.
-                        elsebody = Schedule(parent=currentparent)
-                        currentparent.addchild(elsebody)
-                        elsebody.addchild(ifblock)
-                        elsebody.ast = node.content[start_idx + 1]
-                        elsebody.ast_end = node.content[end_idx - 1]
-                    else:
-                        rootif = ifblock
-
-                    currentparent = ifblock
+            currentparent = ifblock
 
         if default_clause_idx:
             # Finally, add the content of the 'default' clause as a last
@@ -7374,6 +7230,125 @@ class Fparser2ASTProcessor(object):
             elsebody.ast = node.content[start_idx + 1]
             elsebody.ast_end = node.content[end_idx - 1]
         return rootif
+
+    def _process_case_value_list(self, selector, nodes, nodes_parent, parent):
+        '''
+        Processes the supplied list of fparser2 nodes representing case-value
+        expressions and constructs the equivalent PSyIR representation.
+        e.g. for:
+
+               SELECT CASE(my_flag)
+               CASE(var1, var2:var3, :var5)
+                 my_switch = .true.
+               END SELECT
+
+        the equivalent logical expression is:
+
+        my_flag == var1 OR (myflag>=var2 AND myflag <= var3) OR my_flag <= var5
+
+        and the corresponding structure of the PSyIR that we create is:
+
+                    OR
+                   /  \
+                 EQ    OR
+                      /  \
+                   AND    LE
+                  /  \
+                GE    LE
+
+        :param selector: the fparser2 parse tree representing the \
+                      selector_expression in SELECT CASE(selector_expression).
+        :type selector: sub-class of :py:class:`fparser.two.utils.Base`
+        :param nodes: the nodes representing the label-list of the current \
+                      CASE() clause.
+        :type nodes: list of :py:class:`fparser.two.Fortran2003.Name` or \
+                     :py:class:`fparser.two.Fortran2003.Case_Value_Range`
+        :param nodes_parent: the parent in the fparser2 parse tree of the \
+                             nodes making up the label-list.
+        :type nodes_parent: sub-class of :py:class:`fparser.two.utils.Base`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        if len(nodes) == 1:
+            # Only one item in list so process it
+            self._process_case_value(selector, nodes[0], nodes_parent, parent)
+            return
+        # More than one item in list. Create an OR node with the first item
+        # on the list as one arg then recurse down to handle the remainder
+        # of the list.
+        orop = BinaryOperation(BinaryOperation.Operator.OR,
+                               parent=parent)
+        self._process_case_value(selector, nodes[0], nodes_parent, orop)
+        self._process_case_value_list(selector, nodes[1:], nodes_parent, orop)
+        parent.addchild(orop)
+
+    def _process_case_value(self, selector, node, node_parent, parent):
+        '''
+        Handles an individual condition inside a CASE statement. This can
+        be a single scalar expression (e.g. CASE(1)) or a range specification
+        (e.g. CASE(lim1:lim2)).
+
+        :param selector: the node in the fparser2 parse tree representing the
+                         'some_expr' of the SELECT CASE(some_expr).
+        :type selector: sub-class of :py:class:`fparser.two.utils.Base`
+        :param node: the node representing the case-value expression in the \
+                     fparser2 parse tree.
+        :type node: sub-class of :py:class:`fparser.two.utils.Base`
+        :param node_parent: the parent in the fparser2 parse tree of the \
+                            node representing this case-value.
+        :type node_parent: sub-class of :py:class:`fparser.two.utils.Base`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        node._parent = node_parent  # Retrofit parent information
+
+        if isinstance(node, Fortran2003.Case_Value_Range):
+            # The case value is a range (e.g. lim1:lim2)
+            if node.items[0] and node.items[1]:
+                # Have lower and upper limits so need a parent AND
+                aop = BinaryOperation(BinaryOperation.Operator.AND,
+                                      parent=parent)
+                parent.addchild(aop)
+                new_parent = aop
+            else:
+                # No need to create new parent node
+                new_parent = parent
+
+            if node.items[0]:
+                # A lower limit is specified
+                geop = BinaryOperation(BinaryOperation.Operator.GE,
+                                       parent=new_parent)
+                self.process_nodes(parent=geop,
+                                   nodes=[selector],
+                                   nodes_parent=node)
+                self.process_nodes(parent=geop,
+                                   nodes=[node.items[0]],
+                                   nodes_parent=node)
+                new_parent.addchild(geop)
+            if node.items[1]:
+                # An upper limit is specified
+                leop = BinaryOperation(BinaryOperation.Operator.LE,
+                                       parent=new_parent)
+                self.process_nodes(parent=leop,
+                                   nodes=[selector],
+                                   nodes_parent=node)
+                self.process_nodes(parent=leop,
+                                   nodes=[node.items[1]],
+                                   nodes_parent=node)
+                new_parent.addchild(leop)
+        else:
+            # The case value is some scalar initialisation expression
+            bop = BinaryOperation(BinaryOperation.Operator.EQ,
+                                  parent=parent)
+            parent.addchild(bop)
+            self.process_nodes(parent=bop,
+                               nodes=[selector],
+                               nodes_parent=node)
+            self.process_nodes(parent=bop,
+                               nodes=[node],
+                               nodes_parent=node_parent)
 
     def _return_handler(self, _, parent):
         '''
@@ -7658,8 +7633,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Array`
 
         '''
-        from fparser.two import Fortran2003
-
         reference_name = node.items[0].string.lower()
 
         if hasattr(parent.root, 'symbol_table'):
@@ -7700,5 +7673,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(str(node.items[0]), parent=parent)
+
 
 __all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation']

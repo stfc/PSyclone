@@ -326,28 +326,6 @@ def test_no_outer_loop_gocean1p0():
 # --------------------------------------------------------------------------- #
 
 
-def test_extract_node_genccode():
-    ''' Test that trying to apply the gen_c_code method of ExtractNode
-    class raises appropriate error. '''
-
-    etrans = DynamoExtractRegionTrans()
-
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule, _ = etrans.apply(schedule.children[1])
-    # ExtractNode is inserted at the original place of the first
-    # extracted Node
-    extract_node = schedule.children[1]
-    with pytest.raises(NotImplementedError) as excinfo:
-        ExtractNode.gen_c_code(extract_node)
-    assert ("Generation of C code is not supported "
-            "for code extraction") in str(excinfo)
-
-
 def test_extract_node_position():
     ''' Test that Extract Transformation inserts the ExtractNode
     at the position of the first Node a Schedule in the Node list
@@ -542,7 +520,7 @@ def test_single_node_ompparalleldo_gocean1p0():
         "      ! ExtractStart\n"
         "      ! CALL write_extract_arguments(argument_list)\n"
         "      !\n"
-        "      !$omp parallel do default(shared), private(j,i), "
+        "      !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
         "      DO j=2,jstop+1\n"
         "        DO i=2,istop\n"
@@ -588,7 +566,7 @@ def test_node_list_ompparallel_gocean1p0():
         "      ! ExtractStart\n"
         "      ! CALL write_extract_arguments(argument_list)\n"
         "      !\n"
-        "      !$omp parallel default(shared), private(j,i)\n"
+        "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop+1\n"

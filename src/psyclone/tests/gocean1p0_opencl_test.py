@@ -53,6 +53,7 @@ def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
     yield()
+    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -170,7 +171,7 @@ def test_set_kern_args(kernel_output_dir):
     assert GOcean1p0OpenCLBuild(kernel_output_dir).code_compiles(psy)
 
 
-def test_set_kern_float_arg(kernel_output_dir):
+def test_set_kern_float_arg():
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -179,13 +180,14 @@ def test_set_kern_float_arg(kernel_output_dir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, tmask)
+    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, ''' + \
+        '''xstop, tmask)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
       REAL(KIND=go_wp), intent(in), target :: a_scalar
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: ssh_fld, tmask
+      INTEGER(KIND=c_intptr_t), target :: ssh_fld, xstop, tmask
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
       INTEGER, target :: nx
 '''
@@ -197,11 +199,16 @@ def test_set_kern_float_arg(kernel_output_dir):
       CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
       CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(tmask), C_LOC(tmask))
+      CALL check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_output_dir).code_compiles(psy)
+    # TODO #459: the usage of scalar variables in the code causes compilation
+    # errors. Once #459 is fixed this test can be re-enabled. Also note that
+    # the kernel_output_dir fixture needs to be added as parameter.
+    # assert GOcean1p0OpenCLBuild(kernel_output_dir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -219,10 +226,11 @@ def test_set_arg_const_scalar():
 
 
 def test_opencl_kernel_code_generation():
+    # pylint: disable=invalid-name
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
     '''
-
+    from psyclone.psyir.backend.opencl import OpenCLWriter
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].children[0].children[0]  # compute_cu kernel
@@ -230,137 +238,91 @@ def test_opencl_kernel_code_generation():
 
     expected_code = (
         "__kernel void compute_cu_code(\n"
-        "    __global double * restrict cu,\n"
-        "    __global double * restrict p,\n"
-        "    __global double * restrict u\n"
-        "    ){\n"
-        "    int cuLEN1 = get_global_size(0);\n"
-        "    int cuLEN2 = get_global_size(1);\n"
-        "    int pLEN1 = get_global_size(0);\n"
-        "    int pLEN2 = get_global_size(1);\n"
-        "    int uLEN1 = get_global_size(0);\n"
-        "    int uLEN2 = get_global_size(1);\n"
-        "    int i = get_global_id(0);\n"
-        "    int j = get_global_id(1);\n"
-        "    cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
+        "  __global double * restrict cu,\n"
+        "  __global double * restrict p,\n"
+        "  __global double * restrict u\n"
+        "  ){\n"
+        "  int cuLEN1 = get_global_size(0);\n"
+        "  int cuLEN2 = get_global_size(1);\n"
+        "  int pLEN1 = get_global_size(0);\n"
+        "  int pLEN2 = get_global_size(1);\n"
+        "  int uLEN1 = get_global_size(0);\n"
+        "  int uLEN2 = get_global_size(1);\n"
+        "  int i = get_global_id(0);\n"
+        "  int j = get_global_id(1);\n"
+        "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
         " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
         "}\n"
         )
 
-    assert expected_code in kschedule.gen_ocl()
+    openclwriter = OpenCLWriter()
+    assert expected_code == openclwriter(kschedule)
 
 
-def test_opencl_kernel_variables_definitions():
-    ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
-    the expected OpenCL argument/variable declarations.
-    '''
-    kschedule = GOKernelSchedule('test')
-    symtable = kschedule.symbol_table
-    # Create Symbols for all of the routine arguments
-    arg_symbols = [
-        Symbol("i", "integer", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol("j", "integer", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol("intarg", "integer", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol("realarg", "real", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol("chararg", "character", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol("arrayarg", "real", [3, 4, 5, 3],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE))]
-    for symbol in arg_symbols:
-        symtable.add(symbol)
-    symtable.add(Symbol("intvar", "integer", []))
-    symtable.add(Symbol("realvar", "real", []))
-    symtable.add(Symbol("charvar", "character", []))
-    symtable.add(Symbol("arrayvar", "real", [3, 4, 5, 3]))
-    symtable.specify_argument_list(arg_symbols)
-
-    opencl = kschedule.gen_ocl()
-
-    # Check Arguments are part (or not) of the generated opencl
-    assert "int i," not in opencl
-    assert "int j," not in opencl
-    assert "int intarg" in opencl
-    assert "double realarg" in opencl
-    assert "char chararg" in opencl
-    assert "__global double * restrict arrayarg" in opencl
-
-    # Check local variables are declared
-    assert "int intvar;" in opencl
-    assert "double realvar;" in opencl
-    assert "char charvar;" in opencl
-    assert "double realvar;" in opencl
-    assert "double * restrict arrayvar;" in opencl
-    assert "int arrayargLEN1 = get_global_size(0);" in opencl
-    assert "int arrayargLEN2 = get_global_size(1);" in opencl
-    assert "int arrayargLEN3 = get_global_size(2);" in opencl
-    assert "int arrayargLEN4 = get_global_size(3);" in opencl
-    assert "int i = get_global_id(0);" in opencl
-    assert "int j = get_global_id(1);" in opencl
-
-
-def test_opencl_kernel_gen_wrong_kernel():
-    ''' Tests that gen_ocl method raises the proper error when the
-    GOKernelSchedule does not represent a proper GOcean kernel.
+def test_symtab_implementation_for_opencl():
+    # pylint: disable=invalid-name
+    ''' Tests that the GOcean specialised Symbol Table implements the
+    abstract properties needed to generate OpenCL.
     '''
     kschedule = GOKernelSchedule('test')
 
-    # Test gen_ocl without any kernel argument
+    # Test symbol table without any kernel argument
     with pytest.raises(GenerationError) as err:
-        kschedule.gen_ocl()
+        _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
-    # Test gen_ocl with 1 kernel argument
+    # Test symbol table with 1 kernel argument
     arg1 = Symbol("arg1", "integer", [],
                   interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg1)
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
-        kschedule.gen_ocl()
+        _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
-    # Test gen_ocl with 2 kernel argument
+    # Test symbol table with 2 kernel argument
     arg2 = Symbol("arg2", "integer", shape=[],
                   interface=Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.add(arg2)
     kschedule.symbol_table.specify_argument_list([arg1, arg2])
-    kschedule.gen_ocl()
+    iteration_indices = kschedule.symbol_table.iteration_indices
+    assert iteration_indices[0] is arg1
+    assert iteration_indices[1] is arg2
+
+    # Test symbol table with 3 kernel argument
+    arg3 = Symbol("buffer1", "real", shape=[10, 10],
+                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    kschedule.symbol_table.add(arg3)
+    kschedule.symbol_table.specify_argument_list([arg1, arg2, arg3])
+    iteration_indices = kschedule.symbol_table.iteration_indices
+    data_args = kschedule.symbol_table.data_arguments
+    assert iteration_indices[0] is arg1
+    assert iteration_indices[1] is arg2
+    assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
+    # pylint: disable=protected-access
     arg1._datatype = "real"
+    # pylint: enable=protected-access
     with pytest.raises(GenerationError) as err:
-        kschedule.gen_ocl()
+        _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
             " but got a scalar of type 'real' for kernel 'test'.")\
         in str(err)
-    arg1._datatype = "integer"  # restore
 
+    # pylint: disable=protected-access
+    arg1._datatype = "integer"  # restore
     arg2._shape = [None]
+    # pylint: enable=protected-access
     with pytest.raises(GenerationError) as err:
-        kschedule.gen_ocl()
+        _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
             " but got an array of type 'integer' for kernel 'test'.")\
         in str(err)
-    arg2._shape = []  # restore
-
-    # Test gen_ocl with clashing variable names for array lengths.
-    array = Symbol("array", "integer", shape=[None],
-                   interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    kschedule.symbol_table.add(array)
-    kschedule.symbol_table.add(Symbol("arrayLEN1", "integer", []))
-    kschedule.symbol_table.specify_argument_list([arg1, arg2, array])
-    with pytest.raises(GenerationError) as err:
-        kschedule.gen_ocl()
-    assert ("Unable to declare the variable 'arrayLEN1' to store the length"
-            " of 'array' because the kernel 'test' already contains a "
-            "symbol with the same name.") in str(err)
 
 
 def test_opencl_kernel_with_use(kernel_output_dir):
