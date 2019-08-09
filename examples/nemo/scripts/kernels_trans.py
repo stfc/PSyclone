@@ -71,18 +71,24 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 # Whether or not to automatically add profiling calls around
 # un-accelerated regions
 _AUTO_PROFILE = True
-PROFILING_IGNORE = ["_init", "_rst", "iom",
+# If routine names contain these substrings then we do not profile them
+PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc",
                     # These are small functions that the addition of profiing
                     # prevents from being in-lined
                     "interp1", "interp2", "interp3", "integ_spline"]
+
+# Routines we do not attempt to add any OpenACC to (because it breaks with
+# the PGI compiler or because it just isn't worth it)
+ACC_IGNORE = ["turb_ncar", "ice_dyn_adv"]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = set(["solfrac", "alfa_charn", "One_on_L", "psi_m_coare",
-                      "psi_h_coare", "visc_air", "psi_m_ecmwf", "psi_h_ecmwf",
-                      "Ri_bulk"])
+NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "solfrac", "One_on_L",
+                      "psi_h", "psi_m", "psi_m_coare",
+                      "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
+                      "Ri_bulk", "visc_air"])
 
 
 def valid_kernel(node):
@@ -109,8 +115,13 @@ def valid_kernel(node):
     excluded_nodes = node.walk([node], excluded_node_types)
 
     for node in excluded_nodes:
-        if isinstance(node, (CodeBlock, IfBlock)):
+        if isinstance(node, CodeBlock):
             return False
+
+        if isinstance(node, IfBlock):
+            # We permit single-statement IF blocks inside KERNELS regions
+            if "was_single_stmt" not in node._annotations:
+                return False
 
         if isinstance(node, Operation):
             if node.operator == BinaryOperation.Operator.SUM or \
@@ -352,9 +363,19 @@ def trans(psy):
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
-        print("Transforming invoke {0}:\n".format(invoke.name))
 
-        add_kernels(sched.children)
+        # Attempt to add OpenACC directives unless this routine is one
+        # we ignore
+        if invoke.name.lower() not in ACC_IGNORE:
+            print("Transforming invoke {0}:".format(invoke.name))
+            add_kernels(sched.children)
+        else:
+            print("Addition of OpenACC to routine {0} disabled!".
+                  format(invoke.name.lower()))
+
+        # Add profiling instrumentation
+        print("Adding profiling of non-OpenACC regions to routine {0}".
+              format(invoke.name))
         add_profiling(sched.children)
 
         sched.view()
