@@ -270,3 +270,23 @@ def test_profiling_case(parser):
             "  END SELECT\n"
             "  CALL ProfileEnd(psy_profile0)\n"
             "END SUBROUTINE my_test" in code)
+
+
+def test_profiling_without_spec_part(parser):
+    ''' Check that attempting to add profiling to a routine that has no
+    Specification_Part (i.e. no declarations) raises a NotImplementedError
+    (this restriction will be lifted by #435). '''
+    code = (
+        "subroutine no_decs()\n"
+        "  write(*,*) 'This is just a test'\n"
+        "end subroutine no_decs\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(prog)
+    sched = psy.invokes.invoke_list[0].schedule
+    ptrans = ProfileRegionTrans()
+    _, _ = ptrans.apply(sched.children)
+    with pytest.raises(NotImplementedError) as err:
+        _ = psy.gen
+    assert ("Addition of profiling regions to routines without any "
+            "existing declarations is not supported" in str(err.value))

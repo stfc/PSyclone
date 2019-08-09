@@ -282,8 +282,12 @@ class ProfileNode(Node):
 
         spec_parts = walk_ast([ptree], [Fortran2003.Specification_Part])
         if not spec_parts:
-            # TODO add a Specification_Part if necessary
-            return
+            # This limitation will be removed when we use the Fortran
+            # backend of the PSyIR (#435)
+            raise NotImplementedError(
+                "Addition of profiling regions to routines without any "
+                "existing declarations is not supported and '{0}' has no "
+                "Specification-Part".format(routine_name))
         spec_part = spec_parts[0]
 
         # Get the existing use statements
