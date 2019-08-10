@@ -417,7 +417,7 @@ def test_sirwriter_nemoloop_node_6(parser):
 CODE = (
     "module test\n"
     "  contains\n"
-    "  subroutine tmp(b,n)\n"
+    "  subroutine tmp(n)\n"
     "    integer,intent(in) :: n\n"
     "    real :: a(n,n,n)\n"
     "    integer :: i,j,k\n"
@@ -512,8 +512,54 @@ def test_sirwriter_assignment_node_(parser):
         in result)
 
 
-# (1/1) Method binaryoperation_node
-# def test_sirwriter_binaryoperation_node_1(parser):
+# (1/2) Method binaryoperation_node
+def test_sirwriter_binaryoperation_node_1(parser):
+    '''Check the binaryoperation_node method of the SIRWriter class
+    outputs the expected SIR code. Check all supported mappings.
+
+    '''
+    for oper in ["+", "-", "*", "/"]:
+        reader = FortranStringReader(
+            CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper)))
+        prog = parser(reader)
+        psy = PSyFactory(api="nemo").create(prog)
+        schedule = psy.invokes.invoke_list[0].schedule
+        kernel = schedule.children[0].children[0].children[0].children[0]
+        kernel_schedule = kernel.get_kernel_schedule()
+        rhs = kernel_schedule.children[0].rhs
+        sir_writer = SIRWriter()
+        result = sir_writer.binaryoperation_node(rhs)
+        assert (
+            "makeBinaryOperator(\n"
+            "  makeVarAccessExpr(\"b\"),\n"
+            "  \"{0}\",\n"
+            "  makeVarAccessExpr(\"c\")\n"
+            "  )\n".format(oper) in result)
+
+
+# (2/2) Method binaryoperation_node
+def test_sirwriter_binaryoperation_node_2(parser):
+    '''Check the binaryoperation_node method of the SIRWriter class raises
+    the expected exception if an unsupported binary operator is found.
+
+    '''
+    # Choose the power function (**) as there are no examples of its
+    # use in the SIR.
+    oper = "**"
+    reader = FortranStringReader(
+        CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper)))
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    rhs = kernel_schedule.children[0].rhs
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer.binaryoperation_node(rhs)
+    assert "unsupported operator 'Operator.POW' found" in (str(excinfo.value))
+
+
 # (1/1) Method reference_node
 # def test_sirwriter_reference_node_1(parser):
 # (1/1) Method array_node

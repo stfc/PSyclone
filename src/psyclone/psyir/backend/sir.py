@@ -277,19 +277,20 @@ class SIRWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping
-        mapping = {}
-        for operator in f2psyir.binary_operators:
-            mapping_key = f2psyir.binary_operators[operator]
-            mapping_value = operator
-            # Only choose the first mapping value when there is more
-            # than one.
-            if mapping_key not in mapping:
-                mapping[mapping_key] = mapping_value
+        binary_operators = {
+            BinaryOperation.Operator.ADD: '+',
+            BinaryOperation.Operator.SUB: '-',
+            BinaryOperation.Operator.MUL: '*',
+            BinaryOperation.Operator.DIV: '/'}
+            
         self._depth += 1
         lhs = self._visit(node.children[0])
-        oper = mapping[node._operator]
+        try:
+            oper = binary_operators[node._operator]
+        except KeyError:
+            raise VisitorError(
+                "Method binaryoperation_node in class SIRWriter, unsupported "
+                "operator '{0}' found.".format(str(node._operator)))
         rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}makeBinaryOperator(\n{1}".format(self._nindent, lhs)
