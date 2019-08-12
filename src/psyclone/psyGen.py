@@ -3029,9 +3029,16 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
-    '''Represents a loop in the PSyIR. (Note: currently this loop only
-    represents the equivalent to Fortran do loops. This means the loop is
-    bounded by start/stop/step expressions evaluated before the loop starts.)
+    '''
+    Node representing a loop within the PSyIR. It has 4 mandatory children:
+    the first one represents the loop lower bound, the second one reprensents
+    the loop upper bound, the third one reprensents the step value and the
+    forth one is always a PSyIR Schedule node containing the statements inside
+    the loop body.
+
+    (Note: currently this loop only represents the equivalent to Fortran do
+    loops. This means the loop is bounded by start/stop/step expressions
+    evaluated before the loop starts.)
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
@@ -4907,7 +4914,7 @@ class DummyTransformation(Transformation):
 
 class IfBlock(Node):
     '''
-    Class representing an if-block within the PSyIR. It has two mandatory
+    Node representing an if-block within the PSyIR. It has two mandatory
     children: the first one represents the if-condition and the second one
     the if-body; and an optional third child representing the else-body.
 
