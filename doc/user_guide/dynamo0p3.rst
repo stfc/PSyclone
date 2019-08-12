@@ -989,9 +989,9 @@ metadata for such a kernel is given below:
 
 ::
 
-  type(arg_type) :: meta_args(2) = (/                               &
-      arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
-      arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+  type(arg_type) :: meta_args(2) = (/                                      &
+      arg_type(GH_FIELD, GH_READWRITE, ANY_D_SPACE_1, mesh_arg=GH_COARSE), &
+      arg_type(GH_FIELD, GH_READ,      ANY_D_SPACE_2, mesh_arg=GH_FINE  )  &
       /)
 
 Note that an inter-grid kernel must have at least one field (or field-

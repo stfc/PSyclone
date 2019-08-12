@@ -44,9 +44,10 @@ module dg_matrix_vector_kernel_mod
                                 GH_FIELD, GH_OPERATOR, &
                                 GH_READ, GH_WRITE,     &
                                 ANY_D_SPACE_1,         &
+                                ANY_D_SPACE_2,         &
                                 CELLS
+
   use constants_mod,     only : r_def, i_def
-  use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
 
   implicit none
@@ -57,11 +58,12 @@ module dg_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: dg_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                    &
-        arg_type(GH_FIELD,    GH_WRITE, W3),               &
-        arg_type(GH_FIELD,    GH_READ,  ANY_D_SPACE_1),    &
-        arg_type(GH_OPERATOR, GH_READ,  W3, ANY_D_SPACE_1) &
+    type(arg_type) :: meta_args(3) = (/                                   &
+        arg_type(GH_FIELD,    GH_READWRITE, ANY_D_SPACE_1),               &
+        arg_type(GH_FIELD,    GH_READ,      ANY_D_SPACE_2),               &
+        arg_type(GH_OPERATOR, GH_READ,      ANY_D_SPACE_1, ANY_D_SPACE_2) &
         /)
+
     integer :: iterates_over = CELLS
   contains
     procedure, nopass :: dg_matrix_vector_code
@@ -110,7 +112,9 @@ subroutine dg_matrix_vector_code(cell,              &
                                  matrix,            &
                                  ndf1, undf1, map1, &
                                  ndf2, undf2, map2)
- 
+
+  implicit none
+
   ! Arguments
   integer(kind=i_def),                  intent(in)    :: cell, nlayers, &
                                                          ncell_3d

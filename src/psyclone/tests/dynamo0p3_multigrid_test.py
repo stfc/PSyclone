@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic Met Office
 
 ''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
     using pytest. '''
@@ -162,15 +163,17 @@ def test_args_same_space_error():
     ''' Check that we reject a kernel if arguments on different meshes
     are specified as being on the same function space '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = RESTRICT_MDATA.replace("ANY_SPACE_2", "ANY_SPACE_1", 1)
+    code = RESTRICT_MDATA.replace("ANY_SPACE", "ANY_D_SPACE")
+    code = code.replace("_2", "_1")
+    code = code.replace("GH_INC", "GH_READWRITE")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("inter-grid kernels must be on different function spaces if they "
             "are on different meshes. However kernel restrict_kernel_type "
-            "has a field on function space(s) ['any_space_1'] on each of the "
-            "mesh types ['gh_coarse', 'gh_fine']." in str(excinfo))
+            "has a field on function space(s) ['any_d_space_1'] on each of "
+            "the mesh types ['gh_coarse', 'gh_fine']." in str(excinfo))
 
 
 def test_only_field_args():
