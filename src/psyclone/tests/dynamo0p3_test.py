@@ -1843,7 +1843,7 @@ def test_op_any_d_space_1(tmpdir):
             generated_code)
     assert ("ndf_any_d_space_7_op4 = op4_proxy%fs_from%get_ndf()" in
             generated_code)
-    assert ("CALL testkern_any_d_space_1_code(cell, nlayers, "
+    assert ("CALL testkern_any_d_space_op_1_code(cell, nlayers, "
             "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
             "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
             "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
