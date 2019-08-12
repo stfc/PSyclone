@@ -3046,7 +3046,7 @@ class Loop(Node):
 
         if not isinstance(self.children[3], Schedule):
             raise InternalError(
-                "Loop malformed or incomplete. Fourth children should be a "
+                "Loop malformed or incomplete. Fourth child should be a "
                 "Schedule node, but found loop with '{0}'.".format(str(self)))
 
     @property
@@ -3134,7 +3134,7 @@ class Loop(Node):
     def loop_body(self):
         '''
         :return: the PSyIR Schedule with the loop body statements.
-        :rtype: list of :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
 
         '''
         self._check_completeness()
@@ -3331,6 +3331,7 @@ class Loop(Node):
             :return: True if it is equal to the literal '1', false otherwise.
             '''
             return isinstance(expr, Literal) and expr.value == '1'
+
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
@@ -3349,8 +3350,8 @@ class Loop(Node):
             if is_unit_literal(self.step_expr):
                 step_str = None
             else:
-                import pdb; peb.set_trace()
                 step_str = fwriter(self.step_expr)
+
             do = DoGen(parent, self._variable_name,
                        fwriter(self.start_expr),
                        fwriter(self.stop_expr),

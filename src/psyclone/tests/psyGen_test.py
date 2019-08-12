@@ -846,17 +846,10 @@ def test_ompdo_directive_class_view(capsys):
             kern = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
 
             expected_output = (
-                directive + "[OMP parallel do]\n"
+                directive + case["current_string"] + "\n"
                 "    " + loop + "[type='', field_space='w1', it_space='cells',"
-                " upper_bound='ncells']\n"
-                "        " + literal + "[value:'NOT_INITIALISED']\n"
-                "        " + literal + "[value:'NOT_INITIALISED']\n"
-                "        " + literal + "[value:'1']\n"
-                "        " + sched + "[]\n"
-                "            " + kern + " testkern_code(a,f1,f2,m1,m2) "
-                "[module_inline=False]\n")
-            print(out)
-            print(expected_output)
+                )
+
             assert expected_output in out
 
 
@@ -2003,7 +1996,6 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].loop_body[0].loop_body[0]
@@ -2705,7 +2697,7 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    # Expressions that are not PSyIR as not accepted
+    # Expressions that are not PSyIR are not accepted
     with pytest.raises(TypeError) as err:
         loop.start_expr = "start"
     assert "Only PSyIR nodes can be assigned as the Loop start expression" \
@@ -2750,7 +2742,7 @@ def test_loop_navigation_properties():
     loop.addchild(Literal("loop_body", parent=loop))
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
-    assert "Loop malformed or incomplete. Fourth children should be a " \
+    assert "Loop malformed or incomplete. Fourth child should be a " \
         "Schedule node, but found loop with " in str(err.value)
 
     # Fix loop and check that Getters properties work

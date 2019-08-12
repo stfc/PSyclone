@@ -638,6 +638,7 @@ def test_fw_codeblock():
         "PRINT *, 'I am a code block'\n"
         "    PRINT *, 'with more than one line'\n" in result)
 
+
 def test_fw_loop():
     '''Check the FortranWriter class loop method
     correctly prints out the Fortran representation.
@@ -649,6 +650,7 @@ def test_fw_loop():
         "contains\n"
         "subroutine tmp()\n"
         "  integer :: i, sum\n"
+        "  sum = 0\n"
         "  do i = 1, 20, 2\n"
         "    sum = sum + i\n"
         "  end do\n"

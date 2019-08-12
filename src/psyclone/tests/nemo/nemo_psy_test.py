@@ -44,7 +44,6 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
 
 # Constants
 API = "nemo"

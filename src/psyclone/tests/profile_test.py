@@ -41,7 +41,6 @@ import re
 import pytest
 
 from psyclone.generator import GenerationError
-from psyclone.gocean1p0 import GOKern, GOInvokeSchedule
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, NameSpace
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
