@@ -43,12 +43,14 @@
 
 from __future__ import print_function, absolute_import
 import copy
+from fparser.two.utils import walk_ast, get_child
+from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
     Fparser2ASTProcessor
 from fparser.two.utils import walk_ast, get_child
-from fparser.two import Fortran2003
 
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
@@ -392,6 +394,17 @@ class NemoKern(CodedKern):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[]")
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It calls the corresponding
+        kernel schedule function.
+
+        :param var_accesses: VariablesAccessInfo that stores the information\
+            about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        self._kern_schedule.reference_accesses(var_accesses)
 
     @property
     def ast(self):

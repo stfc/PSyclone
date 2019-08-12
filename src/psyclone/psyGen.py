@@ -46,7 +46,7 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core.access_info import VariablesAccessInfo, AccessType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -1263,6 +1263,7 @@ class Node(object):
     @abc.abstractmethod
     def view(self, indent=0):
         '''Abstract function to prints a text representation of the node.
+
         :param int indent: depth of indent for output text.
         '''
 
@@ -1319,6 +1320,7 @@ class Node(object):
         '''
         Find a Node's position relative to its parent Node (starting
         with 0 if it does not have a parent).
+
         :returns: relative position of a Node to its parent
         :rtype: int
         '''
@@ -1332,9 +1334,11 @@ class Node(object):
         Find a Node's absolute position in the tree (starting with 0 if
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
+
         :returns: absolute position of a Node in the tree
-        :raises InternalError: if the absolute position cannot be found
         :rtype: int
+
+        :raises InternalError: if the absolute position cannot be found
         '''
         if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
@@ -1507,8 +1511,9 @@ class Node(object):
 
     def gen_code(self, parent):
         '''Abstract base class for code generation function.
+
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyGen.Node`
         '''
         raise NotImplementedError("Please implement me")
 
@@ -1518,6 +1523,17 @@ class Node(object):
         method of any children. '''
         for child in self._children:
             child.update()
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The default implementation
+        just recurses down to all children.
+
+        :param var_accesses: Stores the output results.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for child in self._children:
+            child.reference_accesses(var_accesses)
 
 
 class Schedule(Node):
@@ -2434,24 +2450,40 @@ class OMPParallelDirective(OMPDirective):
         :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
         '''
-        result = []
-        # get variable names from all loops that are a child of this node
-        for loop in self.loops():
-            # We must allow for implicit loops (e.g. in the NEMO API) that
-            # have no associated variable name
-            if loop.variable_name and \
-               loop.variable_name.lower() not in result:
-                result.append(loop.variable_name.lower())
-        # Get variable names from all kernels that are a child of this node
+        result = set()
+        # get variable names from all calls that are a child of this node
         for call in self.kernels():
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
                         "call '{0}' has a local variable but its "
                         "name is not set.".format(call.name))
-                if variable_name.lower() not in result:
-                    result.append(variable_name.lower())
-        return result
+                result.add(variable_name.lower())
+
+        # Now determine scalar variables that must be private:
+        var_accesses = VariablesAccessInfo()
+        self.reference_accesses(var_accesses)
+        for var_name in var_accesses.all_vars:
+            accesses = var_accesses[var_name].all_accesses
+            # Ignore variables that have indices, we only look at scalar
+            if accesses[0].indices is not None:
+                continue
+
+            # If a variable is only accessed once, it is either an error
+            # or a shared variable - anyway it is not private
+            if len(accesses) == 1:
+                continue
+
+            # We have at least two accesses. If the first one is a write,
+            # assume the variable should be private:
+            if accesses[0].access_type == AccessType.WRITE:
+                result.add(var_name.lower())
+
+        # Convert the set into a list and sort it, so that we get
+        # reproducible results
+        list_result = list(result)
+        list_result.sort()
+        return list_result
 
     def _not_within_omp_parallel_region(self):
         ''' Check that this Directive is not within any other
@@ -2738,8 +2770,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                  self._children[0].ast)
 
         # Create the start directive
+        private_vars = self._get_private_list()
         text = ("!$omp parallel do default(shared), private({0}), "
-                "schedule({1})".format(",".join(self._get_private_list()),
+                "schedule({1})".format(",".join(private_vars),
                                        self._omp_schedule))
         startdir = Comment(FortranStringReader(text,
                                                ignore_comments=False))
@@ -3267,6 +3300,34 @@ class Loop(Node):
         result += "End " + name
         return result
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It combines the data from
+        the loop bounds (start, stop, end step), as well as the loop body.
+        The loop variable is marked as READWRITE, start, stop, step as READ.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # It is important to first add the WRITE access, since this way
+        # the dependency analysis for declaring openmp private variables
+        # will automatically declare the loop variables to be private
+        # (write access before read)
+        var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
+        var_accesses.add_access(self.variable_name, AccessType.READ, self)
+
+        # Accesses of the start/stop/step expressions
+        self.start_expr.reference_accesses(var_accesses)
+        self.stop_expr.reference_accesses(var_accesses)
+        self.step_expr.reference_accesses(var_accesses)
+        var_accesses.next_location()
+
+        for child in self.loop_body.children:
+            child.reference_accesses(var_accesses)
+            var_accesses.next_location()
+
     def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
@@ -3441,6 +3502,19 @@ class Kern(Node):
               self.name + "(" + self.arguments.names + ")")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The API specific classes
+        add the accesses to the arguments. So the code here only calls
+        the baseclass, and increases the location.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        super(Kern, self).reference_accesses(var_accesses)
+        var_accesses.next_location()
 
     @property
     def coloured_text(self):
@@ -3988,7 +4062,6 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
 
         # Use the suffix we have determined to create a new kernel name.
         # This will conform to the PSyclone convention of ending in "_code"
@@ -4353,10 +4426,16 @@ class Argument(object):
 
         '''
         self._call = call
-        self._text = arg_info.text
-        self._orig_name = arg_info.varname
-        self._form = arg_info.form
-        self._is_literal = arg_info.is_literal()
+        if arg_info is not None:
+            self._text = arg_info.text
+            self._orig_name = arg_info.varname
+            self._form = arg_info.form
+            self._is_literal = arg_info.is_literal()
+        else:
+            self._text = ""
+            self._orig_name = ""
+            self._form = ""
+            self._is_literal = False
         self._access = access
         self._name_space_manager = NameSpaceFactory().create()
 
@@ -4678,6 +4757,11 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
+    @abc.abstractmethod
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+
 
 class TransInfo(object):
     '''
@@ -4925,6 +5009,28 @@ class IfBlock(Node):
         for entity in self._children:
             result += str(entity)
         return result
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It combines the data from
+        the condition, if-body and (if available) else-body. This could
+        later be extended to handle cases where a variable is only written
+        in one of the two branches.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # The first child is the if condition - all variables are read-only
+        self.condition.reference_accesses(var_accesses)
+        var_accesses.next_location()
+        self.if_body.reference_accesses(var_accesses)
+        var_accesses.next_location()
+
+        if self.else_body:
+            self.else_body.reference_accesses(var_accesses)
+            var_accesses.next_location()
 
 
 class ACCKernelsDirective(ACCDirective):
@@ -5897,6 +6003,41 @@ class Assignment(Node):
             result += str(entity)
         return result
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node. The assigned-to
+        variable will be set to 'WRITE'.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # It is important that a new instance is used to handle the LHS,
+        # since a check in 'change_read_to_write' makes sure that there
+        # is only one access to the variable!
+        accesses_left = VariablesAccessInfo()
+        self.lhs.reference_accesses(accesses_left)
+
+        # Now change the (one) access to the assigned variable to be WRITE:
+        var_info = accesses_left[self.lhs.name]
+        try:
+            var_info.change_read_to_write()
+        except InternalError:
+            # An internal error typically indicates that the same variable
+            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+            # supported in PSyclone.
+            from psyclone.parse.utils import ParseError
+            raise ParseError("The variable '{0}' appears more than once on "
+                             "the left-hand side of an assignment."
+                             .format(self.lhs.name))
+
+        # Merge the data (that shows now WRITE for the variable) with the
+        # parameter to this function:
+        self.rhs.reference_accesses(var_accesses)
+        var_accesses.merge(accesses_left)
+        var_accesses.next_location()
+
 
 class Reference(Node):
     '''
@@ -5942,6 +6083,17 @@ class Reference(Node):
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']"
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node, i.e.
+        it sets this variable to be read.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        var_accesses.add_access(self._reference, AccessType.READ, self)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -6167,6 +6319,30 @@ class Array(Reference):
             result += str(entity) + "\n"
         return result
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All variables used as indices
+        in the access of the array will be added as READ.
+        :param var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # This will set the array-name as READ
+        super(Array, self).reference_accesses(var_accesses)
+
+        # Now add all children: Note that the class Reference
+        # does not recurse to the children (which store the indices), so at
+        # this stage no index information has been stored:
+        list_indices = []
+        for child in self._children:
+            child.reference_accesses(var_accesses)
+            list_indices.append(child)
+
+        if list_indices:
+            var_info = var_accesses[self._reference]
+            # The last entry in all_accesses is the one added above
+            # in super(Array...). Add the indices to that entry.
+            var_info.all_accesses[-1].indices = list_indices
+
 
 class Literal(Node):
     '''
@@ -6305,7 +6481,7 @@ class Fparser2ASTProcessor(object):
         ('sum', NaryOperation.Operator.SUM)])
 
     def __init__(self):
-        from fparser.two import Fortran2003, utils
+        from fparser.two import utils
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
@@ -6487,8 +6663,6 @@ class Fparser2ASTProcessor(object):
         :raises GenerationError: Unable to generate a kernel schedule from the
                                  provided fpaser2 parse tree.
         '''
-        from fparser.two import Fortran2003
-
         def first_type_match(nodelist, typekind):
             '''
             Returns the first instance of the specified type in the given
@@ -6581,7 +6755,6 @@ class Fparser2ASTProcessor(object):
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
         shape = []
 
         # Traverse shape specs in Depth-first-search order
@@ -6638,7 +6811,6 @@ class Fparser2ASTProcessor(object):
                                  not have the expected structure.
         '''
         from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
 
         def iterateitems(nodes):
             '''
@@ -7027,7 +7199,6 @@ class Fparser2ASTProcessor(object):
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         '''
-        from fparser.two import Fortran2003
 
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
@@ -7153,7 +7324,6 @@ class Fparser2ASTProcessor(object):
             unsupported structure and should be placed in a CodeBlock.
 
         '''
-        from fparser.two import Fortran2003
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
             raise InternalError(
@@ -7671,8 +7841,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Array`
 
         '''
-        from fparser.two import Fortran2003
-
         reference_name = node.items[0].string.lower()
 
         if hasattr(parent.root, 'symbol_table'):
