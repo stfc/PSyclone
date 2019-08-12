@@ -450,7 +450,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                         "fusion might be invalid. If you know the spaces "
                         "are the same then please set the 'same_space' "
                         "optional argument to 'True'.".format(self.name))
-                # 2.3.2) Check whether specific function spaces are the.
+                # 2.3.2) Check whether specific function spaces are the
                 # same. If they are not, the loop fusion is still possible
                 # but only when both function spaces are discontinuous
                 # (w3, w2v, wtheta or any_d_space)

@@ -104,7 +104,7 @@ module testkern_qr
      integer, parameter :: iterates_over = cells
      integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
-     procedure() :: code => testkern_qr_code
+     procedure, nopass :: code => testkern_qr_code
   end type testkern_qr_type
 contains
   subroutine testkern_qr_code(a,b,c,d)
@@ -2637,7 +2637,7 @@ module stencil_mod
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => stencil_code
+     procedure, nopass :: code => stencil_code
   end type stencil_type
 contains
   subroutine stencil_code()
@@ -5329,7 +5329,7 @@ module testkern
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
+     procedure, nopass :: code => testkern_code
   end type testkern_type
 contains
   subroutine testkern_code(a,b)

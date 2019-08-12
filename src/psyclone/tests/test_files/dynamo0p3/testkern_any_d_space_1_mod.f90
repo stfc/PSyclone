@@ -77,7 +77,7 @@ contains
 
       integer(kind=i_def), intent(in) :: nlayers
       integer(kind=i_def), intent(in) :: ndf1, ndf2
-      integer(kind=i_def), intent(in) :: undf1, undf2, 
+      integer(kind=i_def), intent(in) :: undf1, undf2
       integer(kind=i_def), intent(in) :: ndf_to_op4, ndf_from_op4
       integer(kind=i_def), intent(in) :: cell
       integer(kind=i_def), intent(in) :: ncell_3d_op3
