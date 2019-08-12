@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
-    Fparser2ASTProcessor
+    Fparser2ASTProcessor, colored, SCHEDULE_COLOUR_MAP
 from fparser.two.utils import walk_ast, get_child
 
 
@@ -475,6 +475,18 @@ class NemoImplicitLoop(NemoLoop):
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
+    @property
+    def coloured_text(self):
+        '''
+        Returns a string containing the name of this node along with
+        control characters for colouring in terminals that support it.
+
+        :returns: The name of this node, possibly with control codes for
+                  colouring
+        :rtype: string
+        '''
+        return colored("NemoImplicitLoop", SCHEDULE_COLOUR_MAP["Loop"])
+
     def __str__(self):
         # Display the LHS of the assignment in the str representation
         return "NemoImplicitLoop[{0}]\n".format(self._ast.items[0])
@@ -540,3 +552,17 @@ class NemoImplicitLoop(NemoLoop):
                 if colons:
                     return False
         return True
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The loop variable is
+        set as READ and WRITE. Then the loop body's access is added.
+        TODO #400: The start, stop and step values are only strings, so we
+        can't get access information. It might then also be possible to
+        just fall back to Loop.reference_accesses (which then should work).
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        var_accesses.next_location()

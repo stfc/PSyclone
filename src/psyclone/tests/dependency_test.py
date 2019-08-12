@@ -187,37 +187,6 @@ def test_call(parser):
 
 def test_do_loop(parser):
     ''' Check the handling of do loops.
-    TODO #400: this only tests a nemo do loop. At this stage the loop
-    boundaries in nemo are only strings (not instances of Reference or so),
-    so in case of a loop like: "do jj=1, n", `n` is not be listed as
-    a READ access. Once #400 is fixed, this test can be removed, since
-    the current test_do_loop_not_working_yet test will cover this.
-    '''
-    reader = FortranStringReader('''program test_prog
-                                 do jj=1, 10
-                                    do ji=1, 10
-                                       s(ji, jj)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 end program test_prog''')
-    ast = parser(reader)
-    psy = PSyFactory(API).create(ast)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
-    var_accesses = VariablesAccessInfo()
-    do_loop.reference_accesses(var_accesses)
-    assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, s: WRITE, "\
-                                "t: READ"
-
-
-@pytest.mark.xfail(reason="NEMO API converts all loop limits to strings, #400")
-def test_do_loop_not_working_yet(parser):
-    ''' Check the handling of do loops.
-    TODO #400: At this stage the loop boundaries in nemo are only strings
-    (not instances of Reference or so), so lower or upper loop boundaries
-    are not reported as 'READ'.
     '''
     reader = FortranStringReader('''program test_prog
                                  do jj=1, n
@@ -234,15 +203,14 @@ def test_do_loop_not_working_yet(parser):
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    # TODO #400: n is not reported at the moment
-    assert str(var_accesses) == "ji: READWRITE, jj: READWRITE, n: READ, "\
+    assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "\
                                 "s: WRITE, t: READ"
 
 
-@pytest.mark.xfail(reason="Gocean loops boundaries are also strings #400/#444")
+@pytest.mark.xfail(reason="Gocean loops boundaries are also strings #440")
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
-    TODO #400/#444: Does not work atm, GOLoops also have start/stop as
+    TODO #440: Does not work atm, GOLoops also have start/stop as
     strings, which are even not defined. Only after genCode is called will
     they be defined.
     '''
@@ -253,18 +221,18 @@ def test_goloop():
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo()
     do_loop.reference_accesses(var_accesses)
-    assert str(var_accesses) == ": READ, a_scalar: READ, i: READWRITE, "\
-                                "j: READWRITE, " "ssh_fld: READWRITE, "\
+    assert str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "\
+                                "j: READ+WRITE, " "ssh_fld: READ+WRITE, "\
                                 "tmask: READ"
-    # TODO #444: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
+    # TODO #440: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
 
 
 def test_goloop_partially():
     ''' Check the handling of non-NEMO do loops.
-    TODO #400: This test is identical to test_goloop above, but it asserts in a
-    way that works before #400 is fixed, so that we make sure we test the rest
+    TODO #440: This test is identical to test_goloop above, but it asserts in a
+    way that works before #440 is fixed, so that we make sure we test the rest
     of the gocean variable access handling.
     '''
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
@@ -284,7 +252,6 @@ def test_goloop_partially():
            "ssh_fld%grid%tmask: READ" in str(var_accesses)
 
 
-@pytest.mark.xfail(reason="Dynamoloops boundaries are also strings #400")
 def test_dynamo():
     '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
     are reported based on the user's point of view, not the code actually
@@ -303,42 +270,8 @@ def test_dynamo():
 
     var_accesses = VariablesAccessInfo()
     schedule.reference_accesses(var_accesses)
-    # TODO #400: atm there is an empty entry (": READ") at the beginning of
-    # the dependency string, caused by the loop boundaries, which are not
-    # yet proper PSyIR objects.
-    # 'cell' is the loop variable automatically created by PSyclone.
-    assert str(var_accesses) == "a: READ, cell: READWRITE, f1: WRITE, "\
+    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: WRITE, "\
         "f2: READ, m1: READ, m2: READ"
-
-
-def test_dynamo_partially():
-    '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
-    are reported based on the user's point of view, not the code actually
-    created by PSyclone, e.g. it shows a dependency on 'some_field', but not
-    on some_field_proxy etc. Also the dependency is at this stage taken
-    from the kernel metadata, not the actual kernel usage.
-    TODO #400: this test is identical to test_dynamo() above, but it
-    asserts in a way that works. This makes sure that we test the handling
-    of variables accesses in dynamo basically works, otherwise errors
-    might not be noticed by any test.
-    '''
-    from psyclone.parse.algorithm import parse
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-
-    var_accesses = VariablesAccessInfo()
-    schedule.reference_accesses(var_accesses)
-    # TODO #400: atm there is an empty entry (": READ") at the beginning of
-    # the dependency string, caused by the loop boundaries, which are not
-    # yet proper PSyIR objects.
-    # 'cell' is the loop variable automatically created by PSyclone.
-    assert "a: READ, cell: READ+WRITE, f1: WRITE, f2: READ, m1: READ, "\
-        "m2: READ" in str(var_accesses)
 
 
 def test_location(parser):
