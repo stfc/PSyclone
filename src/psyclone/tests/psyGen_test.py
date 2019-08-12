@@ -2778,6 +2778,26 @@ def test_loop_invalid_type():
             "['inner', 'outer']" in str(err))
 
 
+def test_loop_gen_code():
+    ''' Check that the Loop gen_code method prints the proper loop '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # By default DynLoop has step = 1 and it is not printed in the Fortran DO
+    gen = str(psy.gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+
+    # Change step to 2
+    loop = psy.invokes.get('invoke_important_invoke').schedule[3]
+    loop.step_expr = Literal("2", parent=loop)
+
+    # Now it is printed in the Fortran DO with the expression  ",2" at the end
+    gen = str(psy.gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
+
+
 # Test IfBlock class
 
 def test_ifblock_invalid_annotation():
