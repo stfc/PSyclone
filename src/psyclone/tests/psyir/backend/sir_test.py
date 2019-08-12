@@ -544,7 +544,7 @@ def test_sirwriter_binaryoperation_node_2(parser):
 
     '''
     # Choose the power function (**) as there are no examples of its
-    # use in the SIR.
+    # use in the SIR so no mapping is currently provided.
     oper = "**"
     reader = FortranStringReader(
         CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper)))
@@ -560,12 +560,102 @@ def test_sirwriter_binaryoperation_node_2(parser):
     assert "unsupported operator 'Operator.POW' found" in (str(excinfo.value))
 
 
-# (1/1) Method reference_node
-# def test_sirwriter_reference_node_1(parser):
+# (1/2) Method reference_node
+def test_sirwriter_reference_node_1(parser):
+    '''Check the reference_node method of the SIRWriter class outputs the
+    expected SIR when given a PSyIR Reference node.
+
+    '''
+    reader = FortranStringReader(CODE)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    lhs = kernel_schedule.children[0].lhs
+    sir_writer = SIRWriter()
+    assert (sir_writer.reference_node(lhs.children[0]) ==
+            "makeVarAccessExpr(\"i\")")
+    assert (sir_writer.reference_node(lhs.children[1]) ==
+            "makeVarAccessExpr(\"j\")")
+    assert (sir_writer.reference_node(lhs.children[2]) ==
+            "makeVarAccessExpr(\"k\")")
+
+
+# (2/2) Method reference_node
+def test_sirwriter_reference_node_2(parser):
+    '''Check the reference_node method of the SIRWriter class raises an
+    exception if the PSyIR Reference node has children.
+
+    '''
+    reader = FortranStringReader(CODE)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        # Use a node which has children to raise the exception.
+        _ = sir_writer.reference_node(schedule)
+    assert ("SIR Reference node is not expected to have any children"
+            in str(excinfo.value))
+
+
 # (1/1) Method array_node
-# def test_sirwriter_array_node_1(parser):
-# (1/1) Method literal_node
-# def test_sirwriter_reference_node_1(parser):
+def test_sirwriter_array_node(parser):
+    '''Check the array_node method of the SIRWriter class outputs the
+    expected SIR when given a PSyIR Array node.
+
+    '''
+    reader = FortranStringReader(CODE)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    lhs = kernel_schedule.children[0].lhs
+    sir_writer = SIRWriter()
+    assert (sir_writer.array_node(lhs) ==
+            "makeFieldAccessExpr(\"a\",[0,0,0])")
+
+
+# (1/2) Method literal_node
+def test_sirwriter_literal_node_1(parser):
+    '''Check the array_node method of the SIRWriter class outputs the
+    expected SIR when given a PSyIR Literal node with a 'real' value.
+
+    '''
+    reader = FortranStringReader(CODE)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    rhs = kernel_schedule.children[0].rhs
+    sir_writer = SIRWriter()
+    assert (sir_writer.literal_node(rhs) ==
+            "makeLiteralAccessExpr(\"1.0\", BuiltinType.Float)")
+
+
+# (2/2) Method literal_node
+@pytest.mark.xfail(reason="#468 PSyIR does not capture the type of literals")
+def test_sirwriter_literal_node_2(parser):
+    '''Check the array_node method of the SIRWriter class outputs the
+    expected SIR when given a PSyIR Literal node with an 'integer'
+    value.
+
+    '''
+    reader = FortranStringReader(CODE.replace("1.0", "1"))
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    rhs = kernel_schedule.children[0].rhs
+    sir_writer = SIRWriter()
+    assert (sir_writer.literal_node(rhs) ==
+            "makeLiteralAccessExpr(\"1\", BuiltinType.Integer)")
+
+
 # (1/1) Method unaryoperation_node
 # def test_sirwriter_unary_node_1(parser):
 # (1/1) Method codeblock_node

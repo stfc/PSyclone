@@ -316,8 +316,9 @@ class SIRWriter(PSyIRVisitor):
         '''
         if node.children:
             raise VisitorError(
-                "PSyIR Reference node should not have any children.")
-        return "{0}makeVarAccessExpr(\"{1}\")".format(self._nindent, node._reference)
+                "Method reference_node in class SIRWriter: SIR Reference "
+                "node is not expected to have any children.")
+        return "{0}makeVarAccessExpr(\"{1}\")".format(self._nindent, node.name)
 
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
