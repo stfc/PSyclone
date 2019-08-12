@@ -33,13 +33,13 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
 
-program any_d_space_example_1
+program any_d_space_op_example_1
 
   ! Description: single kernel call in an invoke where the arguments are
   ! specified as any_d_space
-  use testkern_any_d_space_1_mod, only : testkern_any_d_space_1_type
-  use inf,                        only : field_type, &
-                                         operator_type
+  use testkern_any_d_space_op_1_mod, only : testkern_any_d_space_op_1_type
+  use inf,                           only : field_type, &
+                                            operator_type
 
   implicit none
 
@@ -47,6 +47,6 @@ program any_d_space_example_1
   type(operator_type)   :: op3, op4
   real(r_def)           :: rdt
 
-  call invoke(testkern_any_d_space_1_type(f1, f2, op3, op4, rdt))
+  call invoke(testkern_any_d_space_op_1_type(f1, f2, op3, op4, rdt))
 
-end program any_d_space_example_1
+end program any_d_space_op_example_1

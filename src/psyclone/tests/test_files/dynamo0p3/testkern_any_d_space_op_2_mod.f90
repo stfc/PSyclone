@@ -33,7 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
 
-module testkern_any_d_space_2_mod
+module testkern_any_d_space_op_2_mod
 
   use argument_mod
   use kernel_mod
@@ -47,7 +47,7 @@ module testkern_any_d_space_2_mod
   ! 3) any_d_space used with an operator,
   ! 3) basis and diff_basis functions declared.
 
-  type, public, extends(kernel_type) :: testkern_any_d_space_2_type
+  type, public, extends(kernel_type) :: testkern_any_d_space_op_2_type
     type(arg_type) :: meta_args(3) = (/                                     &
          arg_type(GH_FIELD,    GH_READ,      ANY_D_SPACE_4),                &
          arg_type(GH_OPERATOR, GH_READ,      ANY_D_SPACE_1, ANY_D_SPACE_2), &
@@ -60,12 +60,12 @@ module testkern_any_d_space_2_mod
     integer :: iterates_over = CELLS
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
-    procedure, nopass :: testkern_any_d_space_2_code
-  end type testkern_any_d_space_2_type
+    procedure, nopass :: testkern_any_d_space_op_2_code
+  end type testkern_any_d_space_op_2_type
 
 contains
 
-  subroutine testkern_any_d_space_2_code(cell, nlayers,                     &
+  subroutine testkern_any_d_space_op_2_code(cell, nlayers,                  &
                                          field1,                            &
                                          ncell_3d_op1, op1,                 &
                                          ncell_3d_op2, op2,                 &
@@ -93,6 +93,6 @@ contains
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z
 
-  end subroutine testkern_any_d_space_2_code
+  end subroutine testkern_any_d_space_op_2_code
 
-end module testkern_any_d_space_2_mod
+end module testkern_any_d_space_op_2_mod

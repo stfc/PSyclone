@@ -1716,7 +1716,7 @@ def test_operator_read_level1_halo():
 
 
 def test_any_space_1(tmpdir):
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
@@ -1752,7 +1752,7 @@ def test_any_space_1(tmpdir):
 
 
 def test_any_space_2():
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes multiple declarations of the same space, no
     func_type declarations and any_space used with an
     operator. '''
@@ -1775,7 +1775,7 @@ def test_any_space_2():
 
 
 def test_op_any_space_different_space_1():
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
@@ -1817,7 +1817,7 @@ def test_op_any_space_different_space_2(tmpdir):
         generated_code
 
 
-def test_any_d_space_1(tmpdir):
+def test_op_any_d_space_1(tmpdir):
     ''' Tests that any_d_space is implemented correctly in the PSy
     layer. Includes multiple declarations of the same space, field
     vectors and any_d_space used with operators (same and different
@@ -1854,7 +1854,7 @@ def test_any_d_space_1(tmpdir):
             in generated_code)
 
 
-def test_any_d_space_2(tmpdir):
+def test_op_any_d_space_2(tmpdir):
     ''' Tests that any_d_space is implemented correctly in the PSy
     layer when including multiple spaces, operators on same and different
     "to" and "from" spaces) and basis/differential basis functions '''
@@ -3083,7 +3083,7 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space '''
+    any_space or any_d_space '''
     from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
@@ -3536,8 +3536,8 @@ def test_fs_discontinuous_and_inc_error():
 
 
 def test_fs_any_d_space_and_inc_error():
-    ''' Test that an error is raised if any_d_space and
-    gh_inc are provided for the same field in the metadata '''
+    ''' Test that an error is raised if any_d_space (discontinuous)
+    and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in VALID_ANY_D_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
@@ -5451,11 +5451,13 @@ def test_itn_space_fld_and_op_writers(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_w3(tmpdir):
-    ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W3 (discontinuous) '''
+def test_itn_space_any_any_d(tmpdir):
+    ''' Check that generated loop over cells has correct upper bound
+    when a kernel writes to fields on any_space (continuous) and
+    any_d_space (discontinuous) '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
+        os.path.join(BASE_PATH,
+                     "1.5.3_single_invoke_write_any_any_d_space.f90"),
         api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API,
@@ -5478,7 +5480,7 @@ def test_itn_space_any_w3(tmpdir):
 
 def test_itn_space_any_w1():
     ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W1 (continuous) '''
+    a kernel writes to fields on any_space and W1 (continuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
         api=TEST_API)
@@ -5772,10 +5774,10 @@ def test_anyw2_stencils():
         assert output in generated_code
 
 
-def test_no_halo_for_discontinous(tmpdir):
+def test_no_halo_for_discontinuous(tmpdir):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
-    field), we only read from a discontinous field and there are no
+    field), we only read from a discontinuous field and there are no
     stencil accesses '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w2v.f90"),
@@ -5861,8 +5863,8 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
 
 
 def test_arg_discontinuous(monkeypatch, annexed):
-    '''Test that the discontinuous method in the dynamo argument class
-    returns the correct values. Check that the code is generated
+    ''' Test that the discontinuous method in the Dynamo0.3 API argument
+    class returns the correct values. Check that the code is generated
     correctly when annexed dofs are and are not computed by default as
     the number of halo exchanges produced is different in the two
     cases.
@@ -5874,10 +5876,12 @@ def test_arg_discontinuous(monkeypatch, annexed):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     if annexed:
-        # no halo exchanges produced for the w3 example
+        # no halo exchanges produced for the w3 example (reads from
+        # continuous spaces)
         idchld_list = [0, 0, 0]
     else:
-        # 3 halo exchanges produced for the w3 example
+        # 3 halo exchanges produced for the w3 example (reads from
+        # continuous spaces)
         idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
@@ -5894,6 +5898,23 @@ def test_arg_discontinuous(monkeypatch, annexed):
         field = kernel.arguments.args[idarg]
         assert field.space == fspace
         assert field.discontinuous
+
+    # 2 any_d_space returns true
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_any_d_space.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    if annexed:
+        index = 0
+    else:
+        # 2 halo exchanges produced (reads from two continuous spaces)
+        index = 2
+    kernel = schedule.children[index].children[0]
+    field = kernel.arguments.args[0]
+    assert field.space == 'any_d_space_1'
+    assert field.discontinuous
 
     # 2 any_space field returns false
     _, info = parse(os.path.join(BASE_PATH,

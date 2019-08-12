@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic, Met Office
+! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program any_d_space_op_example_2
+program single_invoke_fs
 
-  ! Description: single kernel call in an invoke where the arguments are
-  ! specified as any_d_space, with basis/differential basis functions
-  use testkern_any_d_space_op_2_mod, only : testkern_any_d_space_op_2_type
-  use inf,                           only : field_type,    &
-                                            operator_type, &
-                                            quadrature_rule
+  ! Description: single function that writes to fields on any_space (continuous)
+  ! and any_d_space (discontinuous)
+  use testkern_write_any_any_d_mod, only: testkern_write_any_any_d_type
+  use inf,                          only: field_type
 
   implicit none
 
-  type(field_type)      :: f1
-  type(operator_type)   :: op1, op2
-  type(quadrature_rule) :: qr
+  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
 
-  call invoke(testkern_any_d_space_op_2_type(f1, op1, op2, qr))
+  call invoke( testkern_write_any_any_d_type(f1, m1, m2, f2, f3, f4, m3) )
 
-end program any_d_space_op_example_2
+end program single_invoke_fs

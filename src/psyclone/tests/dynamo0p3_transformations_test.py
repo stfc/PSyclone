@@ -7382,13 +7382,13 @@ def test_kern_const_apply(capsys):
         element_order_expected
 
 
-def test_kern_const_anyspace_apply(capsys):
-    '''Check that we generate the expected output from the apply method
-    when a function space is specified as any_space (as these are
-    skipped by the transformation).
+def test_kern_const_anyspace_anydspace_apply(capsys):
+    ''' Check that we generate the expected output from the apply method
+    when a function space is specified as any_space and any_d_space (as
+    these are skipped by the transformation).
 
     '''
-    kernel = create_kernel("1.5.3_single_invoke_write_anyspace_w3.f90")
+    kernel = create_kernel("1.5.3_single_invoke_write_any_any_d_space.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
@@ -7397,11 +7397,12 @@ def test_kern_const_anyspace_apply(capsys):
     assert result == (
         "    Skipped dofs, arg position 9, function space any_space_1\n"
         "    Modified ndf_w2, arg position 12, function space w2, value 6.\n"
-        "    Modified ndf_w3, arg position 15, function space w3, value 1.\n"
-        "    Modified ndf_wtheta, arg position 18, function space wtheta, "
+        "    Modified ndf_w1, arg position 15, function space w1, value 12.\n"
+        "    Skipped dofs, arg position 18, function space any_d_space_1\n"
+        "    Modified ndf_wtheta, arg position 21, function space wtheta, "
         "value 2.\n"
-        "    Modified ndf_w2h, arg position 21, function space w2h, value 4.\n"
-        "    Modified ndf_w2v, arg position 24, function space w2v, "
+        "    Modified ndf_w2h, arg position 24, function space w2h, value 4.\n"
+        "    Modified ndf_w2v, arg position 27, function space w2v, "
         "value 2.\n")
 
 

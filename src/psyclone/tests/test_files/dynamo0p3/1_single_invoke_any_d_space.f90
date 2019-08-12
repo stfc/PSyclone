@@ -31,23 +31,21 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic, Met Office
+! Author I. Kavcic Met Office
 
-program any_d_space_op_example_2
+program single_invoke_anyd1
 
-  ! Description: single kernel call in an invoke where the arguments are
-  ! specified as any_d_space, with basis/differential basis functions
-  use testkern_any_d_space_op_2_mod, only : testkern_any_d_space_op_2_type
-  use inf,                           only : field_type,    &
-                                            operator_type, &
-                                            quadrature_rule
+  ! Description: single function in an invoke iterating over any_d_space_1
+  ! (discontinuous and reading from any_space_1 and any_w2 (continuous)
+  use testkern_any_d_any_space_mod, only: testkern_any_d_any_space_type
+  use inf,                          only: field_type
 
   implicit none
 
-  type(field_type)      :: f1
-  type(operator_type)   :: op1, op2
-  type(quadrature_rule) :: qr
+  type(field_type) :: f1, f2, f3
 
-  call invoke(testkern_any_d_space_op_2_type(f1, op1, op2, qr))
+  call invoke(                                   &
+       testkern_any_d_any_space_type(f1, f2, f3) &
+             )
 
-end program any_d_space_op_example_2
+end program single_invoke_anyd1
