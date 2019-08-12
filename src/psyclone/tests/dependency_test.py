@@ -207,6 +207,49 @@ def test_do_loop(parser):
                                 "s: WRITE, t: READ"
 
 
+@pytest.mark.xfail(reason="Implicit loops are not supported. TODO #440")
+def test_nemo_implicit_loop(parser):
+    ''' Check the handling of ImplicitLoops access information.
+    '''
+    reader = FortranStringReader('''program test_prog
+                                 do jj=1, n
+                                    s(:, jj)=t(:, jj)+a
+                                 enddo
+                                 end program test_prog''')
+    ast = parser(reader)
+    psy = PSyFactory(API).create(ast)
+    schedule = psy.invokes.get("test_prog").schedule
+
+    do_loop = schedule.children[0]
+    assert isinstance(do_loop, nemo.NemoLoop)
+    var_accesses = VariablesAccessInfo()
+    do_loop.reference_accesses(var_accesses)
+    assert str(var_accesses) == "jj: READ+WRITE, n: READ, a: READ"
+
+
+def test_nemo_implicit_loop_partial(parser):
+    ''' Check the handling of ImplicitLoops access information.
+    '''
+    # TODO 440: Same as the test above but does not check the
+    # variables in the implicit loop construct, this test can
+    # be deleted when the issue is fixed and the above test
+    # passes.
+    reader = FortranStringReader('''program test_prog
+                                 do jj=1, n
+                                    s(:, jj)=t(:, jj)+a
+                                 enddo
+                                 end program test_prog''')
+    ast = parser(reader)
+    psy = PSyFactory(API).create(ast)
+    schedule = psy.invokes.get("test_prog").schedule
+
+    do_loop = schedule.children[0]
+    assert isinstance(do_loop, nemo.NemoLoop)
+    var_accesses = VariablesAccessInfo()
+    do_loop.reference_accesses(var_accesses)
+    assert str(var_accesses) == "jj: READ+WRITE, n: READ"  # a is missing
+
+
 @pytest.mark.xfail(reason="Gocean loops boundaries are also strings #440")
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.

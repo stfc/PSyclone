@@ -564,5 +564,4 @@ class NemoImplicitLoop(NemoLoop):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-
         var_accesses.next_location()
