@@ -339,7 +339,9 @@ class NemoKern(CodedKern):
         # that 'node' is always part of the result of walk. So if there
         # is a loop or CodeBlock inside, walk will return more than one
         # element (the first being the node)
-        assert isinstance(node, NemoLoop)
+        if not isinstance(node, NemoLoop):
+            raise InternalError("Expected 'NemoLoop' in 'match', got '{0}'.".
+                                format(type(node)))
         nodes = node.walk((CodeBlock, NemoLoop))
 
         # A kernel cannot contain loops or other unrecognised code (including

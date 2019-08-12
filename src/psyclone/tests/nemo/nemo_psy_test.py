@@ -274,6 +274,15 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     assert not nemo.NemoKern.match(loop)
 
 
+def test_match():
+    ''' Check that match raises InternalError in case of
+    incorrect parameters.'''
+
+    with pytest.raises(InternalError) as err:
+        nemo.NemoKern.match("invalid string type")
+    assert "Expected 'NemoLoop' in 'match', got '<class 'str'>" in str(err)
+
+
 def test_no_explicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an explicit loop. '''
