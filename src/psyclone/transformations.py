@@ -359,12 +359,13 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         '''
         LoopFuseTrans._validate(self, node1, node2)
 
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node1)
-        check_intergrid(node2)
-
         from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
         try:
+
+            # Check that we don't have an inter-grid kernel
+            check_intergrid(node1)
+            check_intergrid(node2)
+
             if node1.field_space.orig_name in VALID_FUNCTION_SPACES and \
                node2.field_space.orig_name in VALID_FUNCTION_SPACES:
                 if node1.field_space.orig_name != node2.field_space.orig_name:

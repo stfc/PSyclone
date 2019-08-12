@@ -168,7 +168,6 @@ def test_loop_fuse_different_iterates_over():
                              newsched.children[1])
 
 
-@pytest.mark.xfail(reason="Needs a new way to produce Unexpected Exception")
 def test_loop_fuse_unexpected_error():
     ''' Test that we catch an unexpected error when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0)
@@ -177,7 +176,7 @@ def test_loop_fuse_unexpected_error():
     lftrans = GOceanLoopFuseTrans()
 
     # cause an unexpected error
-    schedule.children[0].children = None
+    schedule.children[0].loop_body.children = None
 
     # Attempt to fuse two loops that are iterating over different
     # things
