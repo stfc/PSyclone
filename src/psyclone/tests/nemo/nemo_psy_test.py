@@ -280,7 +280,9 @@ def test_match():
 
     with pytest.raises(InternalError) as err:
         nemo.NemoKern.match("invalid string type")
-    assert "Expected 'NemoLoop' in 'match', got '<class 'str'>" in str(err)
+    # Different error message in python2 vs python3
+    assert "Expected 'NemoLoop' in 'match', got '<class 'str'>" in str(err) or\
+        "Expected 'NemoLoop' in 'match', got '<type 'str'>" in str(err)
 
 
 def test_no_explicit_loop_in_kernel(parser):
