@@ -2832,6 +2832,7 @@ class ACCEnterDataTrans(Transformation):
         return sched, keep
 
     def _validate(self, sched):
+        # pylint: disable=arguments-differ
         '''
         Check that we can safely apply the OpenACC enter-data transformation
         to the supplied Schedule.
@@ -2843,7 +2844,7 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
-        from psyclone.psyGen import Schedule, Directive, \
+        from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
 
@@ -2861,10 +2862,9 @@ class ACCEnterDataTrans(Transformation):
 
         # Check that we don't already have a data region of any sort
         directives = sched.walk(Directive)
-        data_directives = [True if isinstance(ddir, (ACCDataDirective,
-                                                     ACCEnterDataDirective))
-                           else False for ddir in directives]
-        if True in data_directives:
+        if any(isinstance(ddir, (ACCDataDirective,
+                                 ACCEnterDataDirective))
+               for ddir in directives):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 
@@ -3079,13 +3079,11 @@ class ACCKernelsTrans(RegionTrans):
         super(ACCKernelsTrans, self)._validate(node_list)
 
         # Check that we have at least one loop within the proposed region
-        found = False
         for node in node_list:
             loops = node.walk(Loop)
-            if loops or isinstance(node, Loop):
-                found = True
+            if loops:
                 break
-        if not found:
+        else:
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
 

@@ -1394,12 +1394,12 @@ class Node(object):
         of classes. In the latter case all nodes are returned that are
         instances of any classes in the tuple.
 
-        :param my_type: The class(es) for which the instances are collected.
-        :type my_type: Either a single :py:class:`psyclone.Node` class\
+        :param my_type: the class(es) for which the instances are collected.
+        :type my_type: either a single :py:class:`psyclone.Node` class\
             or a tuple of such classes.
-        :return: List with all nodes that are instances of my_type \
+        :return: list with all nodes that are instances of my_type \
             starting at and including this node.
-        :rtype: List of :py:class:`psyclone.Node` instances.
+        :rtype: list of :py:class:`psyclone.Node` instances.
         '''
         local_list = []
         if isinstance(self, my_type):
@@ -2478,7 +2478,7 @@ class OMPParallelDirective(OMPDirective):
         # We need to recurse down through all our children and check
         # whether any of them are an OMPDirective.
         node_list = self.walk(OMPDirective)
-        if len(node_list) == 0:
+        if not node_list:
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
             pass
