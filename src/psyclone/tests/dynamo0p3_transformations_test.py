@@ -6465,7 +6465,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     loops = schedule.walk(psyGen.Loop)
     loop = loops[1]
     # To a prolong kernel
-    new_sched, _ = ctrans.apply(loop)
+    _, _ = ctrans.apply(loop)
     # Update our list of loops
     loops = schedule.walk(psyGen.Loop)
     # Trigger the error by calling the internal method to get the upper
