@@ -3754,7 +3754,7 @@ class CodedKern(Kern):
         # If this kernel has not been transformed we do nothing
         if not self.modified and not self.root.opencl:
             return
-
+        
         # Remove any "_mod" if the file follows the PSyclone naming convention
         orig_mod_name = self.module_name[:]
         if orig_mod_name.endswith("_mod"):
@@ -3771,7 +3771,14 @@ class CodedKern(Kern):
         fdesc = None
         while not fdesc:
             name_idx += 1
-            new_suffix = "_{0}".format(name_idx)
+
+            # Choose suffix
+            if Config.get().kernel_naming == "single":
+                new_suffix = self.name
+            else:
+                new_suffix = self.name + "_{0}".format(name_idx)
+
+            # Choose file extension
             if self.root.opencl:
                 new_name = old_base_name + new_suffix + ".cl"
             else:
