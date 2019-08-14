@@ -656,10 +656,93 @@ def test_sirwriter_literal_node_2(parser):
             "makeLiteralAccessExpr(\"1\", BuiltinType.Integer)")
 
 
-# (1/1) Method unaryoperation_node
-# def test_sirwriter_unary_node_1(parser):
-# (1/1) Method codeblock_node
-# def test_sirwriter_codeblock_node_1(parser):
+# (1/4) Method unaryoperation_node
+def test_sirwriter_unaryoperation_node_1(parser):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR code. Check all supported mappings - currently
+    there is only one.
 
+    '''
+    for oper in ["-"]:  # Currently only one supported mapping
+        reader = FortranStringReader(
+            CODE.replace("1.0", "{0}1.0".format(oper)))
+        prog = parser(reader)
+        psy = PSyFactory(api="nemo").create(prog)
+        schedule = psy.invokes.invoke_list[0].schedule
+        kernel = schedule.children[0].children[0].children[0].children[0]
+        kernel_schedule = kernel.get_kernel_schedule()
+        rhs = kernel_schedule.children[0].rhs
+        sir_writer = SIRWriter()
+        result = sir_writer.unaryoperation_node(rhs)
+        assert (
+            "makeLiteralAccessExpr(\"-1.0\", BuiltinType.Float)"
+            "".format(oper) in result)
+
+
+# (2/4) Method unaryoperation_node
+def test_sirwriter_unary_node_2(parser):
+    '''Check the unaryoperation_node method of the SIRWriter class raises
+    the expected exception if an unsupported unary operator is found.
+
+    '''
+    # Choose the sin function as there are no examples of its
+    # use in the SIR so no mapping is currently provided.
+    oper = "sin"
+    reader = FortranStringReader(
+        CODE.replace("1.0", "{0}(1.0)".format(oper)))
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    rhs = kernel_schedule.children[0].rhs
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer.unaryoperation_node(rhs)
+    assert "unsupported operator 'Operator.SIN' found" in (str(excinfo.value))
+
+
+# (3/4) Method unaryoperation_node
+def test_sirwriter_unary_node_3(parser):
+    '''Check the unaryoperation_node method of the SIRWriter class raises
+    the expected exception if the subject of the unary operator is not
+    a literal value (as currently only '-' is supported and it is only
+    supported for literal values).
+
+    '''
+    reader = FortranStringReader(CODE.replace("1.0", "-a(i,j,k)"))
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    rhs = kernel_schedule.children[0].rhs
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer.unaryoperation_node(rhs)
+    assert ("Child of unary operator should be a literal."
+            in (str(excinfo.value)))
+
+
+# (4/4) Method unaryoperation_node
+@pytest.mark.xfail(reason="#468 PSyIR does not capture the type of literals")
+def test_sirwriter_unary_node_4(parser):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is an
+    integer literal.
+
+    '''
+    reader = FortranStringReader(CODE.replace("1.0", "1"))
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0].children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    rhs = kernel_schedule.children[0].rhs
+    sir_writer = SIRWriter()
+    result = sir_writer.unaryoperation_node(rhs)
+    assert (
+        "makeLiteralAccessExpr(\"-1\", BuiltinType.Integer)"
+        "".format(oper) in result)
 
 # Class SIRWriter end

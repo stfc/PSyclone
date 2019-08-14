@@ -41,7 +41,7 @@ gen() method to generate Fortran.
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
-    Fparser2ASTProcessor as f2psyir, Array
+    Fparser2ASTProcessor as f2psyir, Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
 
 
@@ -80,7 +80,7 @@ def gen_stencil(node):
                     raise VisitorError(
                         "gen_stencil unsupported stencil operator found "
                         "'{0}'. Expecting '+' or '-'."
-                        "".format(child._operator.name))
+                        "".format(child.operator.name))
             else:
                 raise VisitorError(
                     "gen_stencil unsupported stencil index found '{0}'."
@@ -102,7 +102,7 @@ class SIRWriter(PSyIRVisitor):
     implemented, otherwise the visitor continues, printing out a \
     representation of the unsupported node. This is an optional \
     argument which defaults to False.
-    :param indent_string: Specifies what to use for indentation. This \
+    :param indent_string: specifies what to use for indentation. This \
     is an optional argument that defaults to two spaces.
     :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
@@ -120,10 +120,10 @@ class SIRWriter(PSyIRVisitor):
         down the node hierarchy. If skip_nodes is set to False then
         raise an exception.
 
-        :param node: An unsupported PSyIR node.
+        :param node: an unsupported PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyGen.Node`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         :raises VisitorError: if skip_nodes is set to False.
@@ -151,7 +151,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a nemoLoop PSyIR node.
         :type node: subclass of :py:class:`psyclone.nemo.NemoLoop`
 
-        :returns: the Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         :raises VisitorError: if the loop is not triply nested with \
@@ -189,10 +189,10 @@ class SIRWriter(PSyIRVisitor):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
 
-        :param node: A NemoKern PSyIR node.
+        :param node: a NemoKern PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoKern`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         '''
@@ -210,10 +210,10 @@ class SIRWriter(PSyIRVisitor):
         output as it is required for LFRic code. When issue #375 has
         been addressed this module can be added only when required.
 
-        :param node: A KernelSchedule PSyIR node.
+        :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         '''
@@ -247,10 +247,10 @@ class SIRWriter(PSyIRVisitor):
         '''This method is called when an Assignment instance is found in the
         PSyIR tree.
 
-        :param node: An Assignment PSyIR node.
+        :param node: an Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Assigment`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         '''
@@ -258,7 +258,8 @@ class SIRWriter(PSyIRVisitor):
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         self._depth -= 1
-        result = "{0}makeAssignmentStmt(\n{1},\n{2}".format(self._nindent, lhs, rhs)
+        result = ("{0}makeAssignmentStmt(\n{1},\n{2}"
+                  "".format(self._nindent, lhs, rhs))
         if result[-1] == '\n':
             result = result[:-1] + ",\n"
         else:
@@ -270,11 +271,14 @@ class SIRWriter(PSyIRVisitor):
         '''This method is called when a BinaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: A BinaryOperation PSyIR node.
+        :param node: a BinaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
+
+        :raises VisitorError: if there is no mapping from the PSyIR \
+        operator to SIR.
 
         '''
         binary_operators = {
@@ -282,15 +286,15 @@ class SIRWriter(PSyIRVisitor):
             BinaryOperation.Operator.SUB: '-',
             BinaryOperation.Operator.MUL: '*',
             BinaryOperation.Operator.DIV: '/'}
-            
+
         self._depth += 1
         lhs = self._visit(node.children[0])
         try:
-            oper = binary_operators[node._operator]
+            oper = binary_operators[node.operator]
         except KeyError:
             raise VisitorError(
                 "Method binaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node._operator)))
+                "operator '{0}' found.".format(str(node.operator)))
         rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}makeBinaryOperator(\n{1}".format(self._nindent, lhs)
@@ -298,20 +302,21 @@ class SIRWriter(PSyIRVisitor):
             result = result[:-1] + ",\n"
         else:
             result += ",\n"
-        result += "{0}{1}\"{2}\",\n{3}\n{0}{1})\n".format(self._nindent, self._indent, oper, rhs)
+        result += ("{0}{1}\"{2}\",\n{3}\n{0}{1})\n"
+                   "".format(self._nindent, self._indent, oper, rhs))
         return result
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
-        :param node: A Reference PSyIR node.
+        :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Reference`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
-        :raises VisitorError: If this node has children.
+        :raises VisitorError: if this node has children.
 
         '''
         if node.children:
@@ -324,10 +329,10 @@ class SIRWriter(PSyIRVisitor):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
 
-        :param node: An Array PSyIR node.
+        :param node: an Array PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Array`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         '''
@@ -340,54 +345,46 @@ class SIRWriter(PSyIRVisitor):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
-        :param node: A Literal PSyIR node.
+        :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Literal`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
         '''
         result = node._value
-        return "{0}makeLiteralAccessExpr(\"{1}\", BuiltinType.Float)".format(self._nindent, result) 
+        # There is an assumption here that the literal is a float (see #468)
+        return ("{0}makeLiteralAccessExpr(\"{1}\", BuiltinType.Float)"
+                "".format(self._nindent, result))
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: A UnaryOperation PSyIR node.
+        :param node: a UnaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
 
-        :returns: The Fortran code as a string.
+        :returns: the SIR code as a string.
         :rtype: str
 
+        :raises VisitorError: if there is no mapping from the PSyIR \
+        operator to SIR, or if the child of the PSyIR operator is not \
+        a literal (as only -<literal> is currently supported).
+
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = {}
-        for operator in f2psyir.unary_operators:
-            mapping_key = f2psyir.unary_operators[operator]
-            mapping_value = operator
-            # Only choose the first mapping value when there is more
-            # than one.
-            if mapping_key not in mapping:
-                mapping[mapping_key] = mapping_value
-        oper = mapping[node._operator]
+        # Currently only '-' is supported in the SIR mapping.
+        unary_operators = {
+            UnaryOperation.Operator.MINUS: '-'}
+        try:
+            oper = unary_operators[node.operator]
+        except KeyError:
+            raise VisitorError(
+                "Method unaryoperation_node in class SIRWriter, unsupported "
+                "operator '{0}' found.".format(str(node.operator)))
+        # Currently only '-<literal>' is supported in the SIR mapping.
         if not (len(node.children) == 1 and isinstance(node.children[0], Literal)):
-            raise VisitorError("Child of unary operator should be a literal")
-
-        result = node.children[0]._value
-        return "{0}makeLiteralAccessExpr(\"{1}{2}\", BuiltinType.Float)".format(self._nindent, oper, result) 
-
-    def codeblock_node(self, node):
-        '''This method is called when a CodeBlock instance is found in the
-        PSyIR tree. It returns the content of the CodeBlock as a
-        Fortran string, indenting as appropriate.
-
-        :param node: A CodeBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.CodeBlock`
-
-        :returns: The Fortran code as a string.
-        :rtype: str
-
-        '''
-        return "{0}[ CodeBlock ]".format(self._nindent)
+            raise VisitorError("Child of unary operator should be a literal.")
+        result = node.children[0].value
+        # There is an assumption here that the literal is a float (see #468)
+        return ("{0}makeLiteralAccessExpr(\"{1}{2}\", BuiltinType.Float)"
+                "".format(self._nindent, oper, result))
