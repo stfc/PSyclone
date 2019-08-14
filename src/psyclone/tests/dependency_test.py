@@ -250,7 +250,7 @@ def test_nemo_implicit_loop_partial(parser):
     assert str(var_accesses) == "jj: READ+WRITE, n: READ"  # a is missing
 
 
-@pytest.mark.xfail(reason="Gocean loops boundaries are also strings #440")
+@pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as

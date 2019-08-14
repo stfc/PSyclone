@@ -42,15 +42,12 @@
 '''
 
 from __future__ import print_function, absolute_import
-import copy
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
     Fparser2ASTProcessor, colored, SCHEDULE_COLOUR_MAP
-from fparser.two.utils import walk_ast, get_child
 
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
@@ -554,11 +551,15 @@ class NemoImplicitLoop(NemoLoop):
         return True
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The loop variable is
-        set as READ and WRITE. Then the loop body's access is added.
-        TODO #400: The start, stop and step values are only strings, so we
-        can't get access information. It might then also be possible to
-        just fall back to Loop.reference_accesses (which then should work).
+        ''' This method should get all variable access information in this
+        PSyIR node, but at the moment ImplicitLoops reference_access are not
+        implemented and this method just increases the var_accesses location
+        counter.
+
+        TODO #440: ImplicitLoops should be implemented as a PSyIR Loops or
+        be a special PSyIR node, any implementation would need to fix the
+        reference_access method.
+
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \

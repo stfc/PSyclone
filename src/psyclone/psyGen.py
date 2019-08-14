@@ -3031,9 +3031,9 @@ class HaloExchange(Node):
 class Loop(Node):
     '''
     Node representing a loop within the PSyIR. It has 4 mandatory children:
-    the first one represents the loop lower bound, the second one reprensents
-    the loop upper bound, the third one reprensents the step value and the
-    forth one is always a PSyIR Schedule node containing the statements inside
+    the first one represents the loop lower bound, the second one represents
+    the loop upper bound, the third one represents the step value and the
+    fourth one is always a PSyIR Schedule node containing the statements inside
     the loop body.
 
     (Note: currently this loop only represents the equivalent to Fortran do
@@ -3309,8 +3309,9 @@ class Loop(Node):
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. It combines the data from
-        the loop bounds (start, stop, end step), as well as the loop body.
-        The loop variable is marked as READWRITE, start, stop, step as READ.
+        the loop bounds (start, stop and step), as well as the loop body.
+        The loop variable is marked as 'READ+WRITE' and references in start,
+        stop and step are marked as 'READ'.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
@@ -3345,12 +3346,13 @@ class Loop(Node):
         return False
 
     def unique_modified_args(self, arg_type):
-        '''Return all unique arguments of type arg_type from Kernels in this
-        loop that are modified.
+        '''Return all unique arguments of the given type from kernels inside
+        this loop that are modified.
+
         :param str arg_type: the type of kernel argument (e.g. field, \
                              operator) to search for.
-        :returns: all unique arguments of type arg_type from Kernels in this
-        loop that are modified.
+        :returns: All unique arguments of the given type from kernels inside \
+            this loop that are modified.
         :rtype: List of :py:class:`psyclone.psyGen.DynKernelArgument`.
         '''
         arg_names = []
