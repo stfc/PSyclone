@@ -86,9 +86,12 @@ def test_variable_access_info():
 
     vai.add_access(AccessType.READ, Node(), 2)
     assert vai.is_read()
+    assert vai.is_read_only()
     vai.change_read_to_write()
     assert not vai.is_read()
     assert vai.is_written()
+    assert not vai.is_read_only()
+    assert not vai.is_array()
 
     # Now we have one write access, which we should not be able to
     # change to write again:
@@ -124,19 +127,31 @@ def test_variable_access_info_read_write():
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
-    vai.add_access(AccessType.READ, Node(), 2)
-    vai.add_access(AccessType.WRITE, Node(), 2)
+    node = Node()
+    vai.add_access(AccessType.READ, 2, node)
+    assert vai[0].node == node
+    assert vai[0].location == 2
+    vai.add_access(AccessType.WRITE, 2, Node())
     assert vai.has_read_write() is False
 
-    vai.add_access(AccessType.READWRITE, Node(), 2)
+    vai.add_access(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
     vai = VariableAccessInfo("var_name")
-    vai.add_access(AccessType.READWRITE, Node(), 2)
+    vai.add_access(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
+
+    vai_array = VariableAccessInfo("array")
+    vai_array.add_access(AccessType.READ, 2, Node(), [1])
+    vai_array.add_access(AccessType.WRITE, 3, Node(), ["i"])
+    assert vai_array.is_array()
+
+    # Adding a non-array access marks this as not array:
+    vai_array.add_access(AccessType.WRITE, 3, Node())
+    assert not vai_array.is_array()
 
 
 # -----------------------------------------------------------------------------
@@ -185,6 +200,10 @@ def test_variables_access_info():
         var_accesses.is_read("does_not_exist")
     with pytest.raises(KeyError):
         var_accesses.is_written("does_not_exist")
+
+    assert "READWRITE" not in str(var_accesses)
+    var_accesses.add_access("readwrite", AccessType.READWRITE, node)
+    assert "READWRITE" in str(var_accesses)
 
 
 # -----------------------------------------------------------------------------
