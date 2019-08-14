@@ -57,8 +57,8 @@ def trans(psy):
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
 
-        # Colour all of the loops over cells unless they are on
-        # discontinuous spaces (W3, WTHETA, W2V and ANY_D_SPACE_n)
+        # Colour all of the loops over cells unless they are on discontinuous
+        # spaces (W3, WTHETA, W2V and ANY_DISCONTINUOUS_SPACE_n)
         cschedule = schedule
         for child in schedule.children:
             if isinstance(child, Loop) \

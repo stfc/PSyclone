@@ -6164,7 +6164,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch, annexed):
+def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
@@ -6175,25 +6175,28 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api=TEST_API)
+    _, invoke_info = parse(
+       os.path.join(BASE_PATH,
+                    "1_single_invoke_any_discontinuous_space.f90"),
+       api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     if annexed:
         # no halo exchanges generated
         loop = schedule.children[0]
     else:
-        # 3 halo exchanges generated
-        loop = schedule.children[3]
+        # 2 halo exchanges generated
+        loop = schedule.children[2]
     kernel = loop.children[0]
-    f1_arg = kernel.arguments.args[1]
-    #
+    f2_arg = kernel.arguments.args[1]
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
-        _ = loop._halo_read_access(f1_arg)
+        _ = loop._halo_read_access(f2_arg)
     assert ("Internal error in _halo_read_access. It should not be "
             "possible to get to here. loop upper bound name is 'invalid' "
-            "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
+            "and arg 'f2' access is 'gh_read'.") in str(excinfo.value)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_new_halo_exch_vect_field(monkeypatch):

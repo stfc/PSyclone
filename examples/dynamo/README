@@ -187,7 +187,7 @@ that by prolonging it twice:
     cd eg10/
     psyclone intergrid_3levels.x90
 
-This example also demonstrates the use of `ANY_D_SPACE` metadata.
+This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE` metadata.
 
 Example 11: Asynchronous halo exchanges
 ---------------------------------------
