@@ -40,15 +40,15 @@
 ! Modified I. Kavcic Met Office
 
 ! Kernel which applies a columnwise assembled operator to a field on
-! ANY_D_SPACE_1 (discontinuous)
-module columnwise_op_app_any_d_space_kernel_mod
+! any discontinuous space
+module columnwise_op_app_anydspace_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,              &
-                                    GH_FIELD, GH_COLUMNWISE_OPERATOR, &
-                                    GH_READ, GH_WRITE,                &
-                                    ANY_D_SPACE_1, ANY_SPACE_1,       &
-                                    GH_COLUMN_INDIRECTION_DOFMAP,     &
+use argument_mod,            only : arg_type, func_type,                    &
+                                    GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
+                                    GH_READ, GH_WRITE,                      &
+                                    ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1, &
+                                    GH_COLUMN_INDIRECTION_DOFMAP,           &
                                     CELLS 
 
 use constants_mod,           only : r_def, i_def
@@ -59,84 +59,88 @@ implicit none
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, extends(kernel_type) :: columnwise_op_app_any_d_space_kernel_type
+type, public, extends(kernel_type) :: columnwise_op_app_anydspace_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                         &
-       arg_type(GH_FIELD,               GH_WRITE, ANY_D_SPACE_1),             &
+       arg_type(GH_FIELD,               GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_1),               &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_D_SPACE_1, ANY_SPACE_1) &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
+                                                  ANY_SPACE_1)                &
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass :: columnwise_op_app_any_d_space_kernel_code
-end type columnwise_op_app_any_d_space_kernel_type
+  procedure, nopass :: columnwise_op_app_anydspace_kernel_code
+end type columnwise_op_app_anydspace_kernel_type
 
 !-------------------------------------------------------------------------------
 ! Constructors
 !-------------------------------------------------------------------------------
 
 ! Overload the default structure constructor for function space
-interface columnwise_op_app_any_d_space_kernel_type
-   module procedure columnwise_op_app_any_d_space_kernel_constructor
+interface columnwise_op_app_anydspace_kernel_type
+   module procedure columnwise_op_app_anydspace_kernel_constructor
 end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_app_any_d_space_kernel_code
+public columnwise_op_app_anydspace_kernel_code
 
 contains
   
-  type(columnwise_op_app_any_d_space_kernel_type) function &
-       columnwise_op_app_any_d_space_kernel_constructor() result(self)
+  type(columnwise_op_app_anydspace_kernel_type) function &
+       columnwise_op_app_anydspace_kernel_constructor() result(self)
     implicit none
     return
-  end function columnwise_op_app_any_d_space_kernel_constructor
+  end function columnwise_op_app_anydspace_kernel_constructor
 
-  subroutine columnwise_op_app_any_d_space_kernel_code(                       &
-                                           cell,                              &
-                                           ncell_2d,                          &
-                                           field1,                            &
-                                           field2,                            &
-                                           cma_op, cma_op_nrow,               &
-                                           cma_op_ncol,                       &
-                                           cma_op_bandwidth,                  &
-                                           cma_op_alpha,                      &
-                                           cma_op_beta,                       &
-                                           cma_op_gamma_m,                    &
-                                           cma_op_gamma_p,                    &
-                                           ndf_any_d_space_1,                 &
-                                           undf_any_d_space_1,                &
-                                           map_any_d_space_1,                 &
-                                           cma_indirection_map_any_d_space_1, &
-                                           ndf_any_space_1,                   &
-                                           undf_any_space_1,                  &
-                                           map_any_space_1,                   &
-                                           cma_indirection_map_any_space_1)
+  subroutine columnwise_op_app_anydspace_kernel_code(                         &
+                               cell,                                          &
+                               ncell_2d,                                      &
+                               field1,                                        &
+                               field2,                                        &
+                               cma_op, cma_op_nrow,                           &
+                               cma_op_ncol,                                   &
+                               cma_op_bandwidth,                              &
+                               cma_op_alpha,                                  &
+                               cma_op_beta,                                   &
+                               cma_op_gamma_m,                                &
+                               cma_op_gamma_p,                                &
+                               ndf_any_discontinuous_space_1,                 &
+                               undf_any_discontinuous_space_1,                &
+                               map_any_discontinuous_space_1,                 &
+                               cma_indirection_map_any_discontinuous_space_1, &
+                               ndf_any_space_1,                               &
+                               undf_any_space_1,                              &
+                               map_any_space_1,                               &
+                               cma_indirection_map_any_space_1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: cell, ncell_2d
-    integer(kind=i_def), intent(in) :: ndf_any_d_space_1
+    integer(kind=i_def), intent(in) :: ndf_any_discontinuous_space_1
     integer(kind=i_def), intent(in) :: ndf_any_space_1
-    integer(kind=i_def), intent(in) :: undf_any_d_space_1
+    integer(kind=i_def), intent(in) :: undf_any_discontinuous_space_1
     integer(kind=i_def), intent(in) :: undf_any_space_1
     integer(kind=i_def), intent(in) :: cma_op_nrow
     integer(kind=i_def), intent(in) :: cma_op_ncol
     integer(kind=i_def), intent(in) :: cma_op_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_alpha, cma_op_beta
     integer(kind=i_def), intent(in) :: cma_op_gamma_m, cma_op_gamma_p
-    integer(kind=i_def), intent(in), dimension(ndf_any_d_space_1) :: map_any_d_space_1
+    integer(kind=i_def), intent(in), dimension(ndf_any_discontinuous_space_1) :: &
+                                     map_any_discontinuous_space_1
     integer(kind=i_def), intent(in), dimension(ndf_any_space_1)   :: map_any_space_1
-    integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: cma_indirection_map_any_d_space_1
-    integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_any_space_1
-    real(kind=r_def), intent(out), dimension(undf_any_d_space_1) :: field1
+    integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: &
+                                     cma_indirection_map_any_discontinuous_space_1
+    integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: &
+                                     cma_indirection_map_any_space_1
+    real(kind=r_def), intent(out), dimension(undf_any_discontinuous_space_1) :: field1
     real(kind=r_def), intent(in), dimension(undf_any_space_1)    :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on &
-                discontinuous space ANY_D_SPACE_1"
+                discontinuous space ANY_DISCONTINUOUS_SPACE_1"
 
-  end subroutine columnwise_op_app_any_d_space_kernel_code
+  end subroutine columnwise_op_app_anydspace_kernel_code
 
-end module columnwise_op_app_any_d_space_kernel_mod
+end module columnwise_op_app_anydspace_kernel_mod

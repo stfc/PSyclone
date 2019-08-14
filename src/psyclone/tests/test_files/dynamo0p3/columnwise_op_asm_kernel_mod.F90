@@ -43,11 +43,12 @@
 module columnwise_op_asm_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                    &
-                                    GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
-                                    GH_READ, GH_WRITE,                      &
-                                    ANY_D_SPACE_1, ANY_D_SPACE_2,           &
-                                    GH_COLUMN_BANDED_DOFMAP,                &
+use argument_mod,            only : arg_type, func_type,                 &
+                                    GH_OPERATOR, GH_COLUMNWISE_OPERATOR, &
+                                    GH_READ, GH_WRITE,                   &
+                                    ANY_DISCONTINUOUS_SPACE_1,           &
+                                    ANY_DISCONTINUOUS_SPACE_2,           &
+                                    GH_COLUMN_BANDED_DOFMAP,             &
                                     CELLS 
 
 use constants_mod,           only : r_def, i_def
@@ -60,9 +61,11 @@ implicit none
 
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                            &
-       arg_type(GH_OPERATOR,            GH_READ,  ANY_D_SPACE_1, ANY_D_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_D_SPACE_1, ANY_D_SPACE_2)  &
+  type(arg_type) :: meta_args(2) = (/                                         &
+       arg_type(GH_OPERATOR,            GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
+                                                  ANY_DISCONTINUOUS_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1,  &
+                                                  ANY_DISCONTINUOUS_SPACE_2)  &
        /)
   integer :: iterates_over = CELLS
 contains

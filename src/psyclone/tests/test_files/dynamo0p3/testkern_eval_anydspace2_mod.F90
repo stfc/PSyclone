@@ -36,14 +36,14 @@ module testkern_eval_anydspace2_mod
   use constants_mod, only: r_def, i_def
 
   type, extends(kernel_type) :: testkern_eval_anydspace2_type
-     type(arg_type)  :: meta_args(3) =  (/           &
-       arg_type(GH_FIELD, GH_WRITE,  ANY_D_SPACE_1), &
-       arg_type(GH_FIELD, GH_READ,   W0),            &
-       arg_type(GH_FIELD, GH_READ,   W1)             &
+     type(arg_type)  :: meta_args(3) =  (/                      &
+       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_FIELD, GH_READ,  W0),                        &
+       arg_type(GH_FIELD, GH_READ,  W1)                         &
        /)
-     type(func_type) :: meta_funcs(2) = (/           &
-       func_type(W0, GH_BASIS),                      &
-       func_type(W1, GH_DIFF_BASIS)                  &
+     type(func_type) :: meta_funcs(2) = (/                      &
+       func_type(W0, GH_BASIS),                                 &
+       func_type(W1, GH_DIFF_BASIS)                             &
        /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
@@ -53,31 +53,31 @@ module testkern_eval_anydspace2_mod
 
 contains
 
-  subroutine testkern_eval_anydspace2_code(nlayers,                   &
-                                           field1, field2, field3,    &
-                                           ndf_any_d_space_1,         &
-                                           undf_any_d_space_1,        &
-                                           map_any_d_space_1,         &
-                                           ndf_w0, undf_w0, map_w0,   &
-                                           basis_w0_on_any_d_space_1, &
-                                           ndf_w1, undf_w1, map_w1,   &
-                                           diff_basis_w1_on_any_d_space_1)
+  subroutine testkern_eval_anydspace2_code(nlayers,                 &
+                                           field1, field2, field3,  &
+                                           ndf_anydspace_1,         &
+                                           undf_anydspace_1,        &
+                                           map_anydspace_1,         &
+                                           ndf_w0, undf_w0, map_w0, &
+                                           basis_w0_on_anydspace_1, &
+                                           ndf_w1, undf_w1, map_w1, &
+                                           diff_basis_w1_on_anydspace_1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_any_d_space_1
+    integer(kind=i_def), intent(in) :: ndf_anydspace_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: ndf_w1
-    integer(kind=i_def), intent(in) :: undf_any_d_space_1, undf_w0, undf_w1
-    integer(kind=i_def), intent(in), dimension(ndf_any_d_space_1) :: map_any_d_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_w0)            :: map_w0
-    integer(kind=i_def), intent(in), dimension(ndf_w1)            :: map_w1
-    real(kind=r_def), intent(out), dimension(undf_any_d_space_1)  :: field1
-    real(kind=r_def), intent(in), dimension(undf_w0)              :: field2
-    real(kind=r_def), intent(in), dimension(undf_w1)              :: field3
-    real(kind=r_def), intent(in), dimension(1,ndf_w0,ndf_any_d_space_1) :: basis_w0_on_any_d_space_1
-    real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_any_d_space_1) :: diff_basis_w1_on_any_d_space_1
+    integer(kind=i_def), intent(in) :: undf_anydspace_1, undf_w0, undf_w1
+    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
+    integer(kind=i_def), intent(in), dimension(ndf_w0)          :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w1)          :: map_w1
+    real(kind=r_def), intent(out), dimension(undf_anydspace_1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_w0)           :: field2
+    real(kind=r_def), intent(in), dimension(undf_w1)           :: field3
+    real(kind=r_def), intent(in), dimension(1,ndf_w0,ndf_anydspace_1) :: basis_w0_on_anydspace_1
+    real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_anydspace_1) :: diff_basis_w1_on_anydspace_1
 
   end subroutine testkern_eval_anydspace2_code
 

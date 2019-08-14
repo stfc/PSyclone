@@ -39,10 +39,9 @@ program single_invokes_cma_discontinuous
   ! Description: two single invokes containing multiple CMA-related kernels
   ! on discontinuous spaces ANY_D_SPACE_1 and W2V
 
-  use inf,                              only: field_type, &
-                                              columnwise_operator_type
-  use columnwise_op_app_any_d_space_kernel_mod,  only: &
-                            columnwise_op_app_any_d_space_kernel_type
+  use inf, only: field_type, columnwise_operator_type
+  use columnwise_op_app_anydspace_kernel_mod, only: &
+                            columnwise_op_app_anydspace_kernel_type
   use columnwise_op_app_w2v_kernel_mod, only: &
                             columnwise_op_app_w2v_kernel_type
 
@@ -53,7 +52,7 @@ program single_invokes_cma_discontinuous
   type(columnwise_operator_type) :: cma_op1, cma_op2
 
   call invoke( &
-         columnwise_op_app_any_d_space_kernel_type(field_a, field_b, cma_op1) )
+         columnwise_op_app_anydspace_kernel_type(field_a, field_b, cma_op1) )
   call invoke( &
          columnwise_op_app_w2v_kernel_type(field_c, field_d, cma_op2) )
 
