@@ -47,7 +47,7 @@ from psyclone.psyGen import Transformation, InternalError, Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
-    VALID_ANY_D_SPACE_NAMES
+    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -453,7 +453,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                 # 2.3.2) Check whether specific function spaces are the
                 # same. If they are not, the loop fusion is still possible
                 # but only when both function spaces are discontinuous
-                # (w3, w2v, wtheta or any_d_space)
+                # (w3, w2v, wtheta or any_discontinuous_space)
                 if node1_fs_name != node2_fs_name:
                     if not (node1_fs_name in
                             VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
@@ -1111,7 +1111,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
-        # any_d_space) then we don't need to worry about colouring.
+        # any_discontinuous_space) then we don't need to worry about
+        # colouring.
         from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
         if node.field_space.orig_name not in \
            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
@@ -2789,10 +2790,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
-                if info.function_space.lower() in (VALID_ANY_SPACE_NAMES +
-                                                   VALID_ANY_D_SPACE_NAMES +
-                                                   ["any_w2"]):
-                    # skip any_space_*, any_d_space_* and any_w2
+                if info.function_space.lower() in \
+                   (VALID_ANY_SPACE_NAMES +
+                   VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"]):
+                    # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "
                         "{1}".format(info.position, info.function_space))

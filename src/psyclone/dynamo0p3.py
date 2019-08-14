@@ -79,21 +79,22 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
                          "any_space_7", "any_space_8", "any_space_9"]
 
-# Valid any_d_space metadata (general FS known to be discontinuous)
-VALID_ANY_D_SPACE_NAMES = ["any_d_space_1", "any_d_space_2",
-                           "any_d_space_3", "any_d_space_4",
-                           "any_d_space_5", "any_d_space_6",
-                           "any_d_space_7", "any_d_space_8",
-                           "any_d_space_9", "any_d_space_10"]
+# Valid any_discontinuous_space metadata (general FS known to be discontinuous)
+VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
+    ["any_discontinuous_space_1", "any_discontinuous_space_2",
+     "any_discontinuous_space_3", "any_discontinuous_space_4",
+     "any_discontinuous_space_5", "any_discontinuous_space_6",
+     "any_discontinuous_space_7", "any_discontinuous_space_8",
+     "any_discontinuous_space_9", "any_discontinuous_space_10"]
 
 # Valid discontinuous FS names (for optimisation purposes)
 VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
-    VALID_ANY_D_SPACE_NAMES
+    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 
 # FS names consist of all valid names
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
                              VALID_ANY_SPACE_NAMES + \
-                             VALID_ANY_D_SPACE_NAMES
+                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
@@ -357,9 +358,10 @@ def get_fs_operator_name(operator_name, function_space, qr_var=None,
 def mangle_fs_name(args, fs_name):
     ''' Construct the mangled version of a function-space name given
     a list of kernel arguments '''
-    if fs_name not in VALID_ANY_SPACE_NAMES + VALID_ANY_D_SPACE_NAMES:
+    if fs_name not in VALID_ANY_SPACE_NAMES + \
+       VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
         # If the supplied function-space name is not any any_space
-        # or any_d_space then we don't need to mangle the name
+        # or any_discontinuous_space then we don't need to mangle the name
         return fs_name
     for arg in args:
         for fspace in arg.function_spaces:
@@ -409,8 +411,9 @@ class FunctionSpace(object):
         self._orig_name = name
         self._kernel_args = kernel_args
         if self._orig_name not in VALID_ANY_SPACE_NAMES + \
-           VALID_ANY_D_SPACE_NAMES:
-            # We only need to name-mangle any_space and any_d_space spaces
+           VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+            # We only need to name-mangle any_space and
+            # any_discontinuous_space spaces
             self._mangled_name = self._orig_name
         else:
             # We do not construct the name-mangled name at this point
@@ -662,11 +665,12 @@ class DynArgDescriptor03(Descriptor):
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
-            if self._function_space1.lower() in VALID_ANY_D_SPACE_NAMES \
-               and self._access_type == AccessType.INC:
+            if self._function_space1.lower() in \
+               VALID_ANY_DISCONTINUOUS_SPACE_NAMES and \
+               self._access_type == AccessType.INC:
                 raise ParseError(
-                    "In the Dynamo0.3 API a field on any_d_space cannot "
-                    "have 'gh_inc' access because it is treated "
+                    "In the Dynamo0.3 API a field on any_discontinuous_space "
+                    "cannot have 'gh_inc' access because it is treated "
                     "as discontinuous")
             # TODO (issue #138): extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
@@ -3364,8 +3368,8 @@ class DynBasisFunctions(DynCollection):
         :return: an integer length.
         :rtype: string
 
-        :raises GenerationError: if an unsupported function space is \
-                                 supplied (e.g. ANY_SPACE_*, ANY_D_SPACE_*)
+        :raises GenerationError: if an unsupported function space is supplied \
+                                 (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
         if function_space.orig_name.lower() in \
            ["w0", "w3", "wtheta"]:
@@ -3376,8 +3380,9 @@ class DynBasisFunctions(DynCollection):
         else:
             # It is not possible to determine explicitly the first basis
             # function array dimension from the metadata for any_space and
-            # any_d_space. This information needs to be passed from the PSy
-            # layer to the kernels, which will be enabled in issue #461.
+            # any_discontinuous_space. This information needs to be passed
+            # from the PSy layer to the kernels, which will be enabled
+            # in issue #461.
             raise GenerationError(
                 "Unsupported space for basis function, "
                 "expecting one of {0} but found "
@@ -3413,7 +3418,8 @@ class DynBasisFunctions(DynCollection):
         :rtype: str
 
         :raises GenerationError: if an unsupported function space is \
-                                 supplied (e.g. ANY_SPACE_*, ANY_D_SPACE_*)
+                                 supplied (e.g. ANY_SPACE_*, \
+                                 ANY_DISCONTINUOUS_SPACE_*)
 
         '''
         if function_space.orig_name.lower() in \
@@ -3425,9 +3431,9 @@ class DynBasisFunctions(DynCollection):
         else:
             # It is not possible to determine explicitly the first
             # differential basis function array dimension from the metadata
-            # for any_space and any_d_space. This information needs to be
-            # passed from the PSy layer to the kernels, which will be enabled
-            # in issue #461.
+            # for any_space and any_discontinuous_space. This information
+            # needs to be passed from the PSy layer to the kernels, which
+            # will be enabled in issue #461.
             raise GenerationError(
                 "Unsupported space for differential basis function, expecting "
                 "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
@@ -5616,7 +5622,7 @@ class DynLoop(Loop):
                 elif self.field_space.orig_name in \
                         VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
                     # Iterate to ncells for all discontinuous quantities,
-                    # including any_d_space
+                    # including any_discontinuous_space
                     self.set_upper_bound("ncells")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
@@ -8269,9 +8275,9 @@ class DynKernelArguments(Arguments):
         # space, failing that we try any_space function spaces
         # (because we must assume such a space is continuous) and
         # finally we try all discontinuous function spaces including
-        # any_d_space. We do this because if a quantity on a continuous
-        # FS is modified then our iteration space must be larger
-        # (include L1 halo cells)
+        # any_discontinuous_space. We do this because if a quantity on
+        # a continuous FS is modified then our iteration space must be
+        # larger (include L1-halo cells)
         write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
@@ -8571,7 +8577,8 @@ class DynKernelArgument(KernelArgument):
     @property
     def discontinuous(self):
         '''Returns True if this argument is known to be on a discontinuous
-        function space including any_d_space, otherwise returns False.'''
+        function space including any_discontinuous_space, otherwise
+        returns False.'''
         if self.function_space.orig_name in \
            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
             return True

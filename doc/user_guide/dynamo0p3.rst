@@ -385,7 +385,7 @@ types.
     and their actual space cannot be determined statically then the
     iteration space is assumed to be
 
-    1) discontinuous for ``ANY_D_SPACE_n``;
+    1) discontinuous for ``ANY_DISCONTINUOUS_SPACE_n``;
 
     2) continuous for ``ANY_SPACE_n`` and ``ANY_W2``.  This assumption
     is always safe but leads to additional computation if the quantities
@@ -677,8 +677,9 @@ may be on/map-between any function space(s). In this case the metadata
 should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_9``
 (see :ref:`Supported Function Spaces <dynamo0.3-function-space>`). If
 the generic function spaces are known to be discontinuous the metadata
-may be specified as being one of ``ANY_D_SPACE_1``, ..., ``ANY_D_SPACE_10``
-in order to avoid unnecessary computation into the halos (see rules for
+may be specified as being one of ``ANY_DISCONTINUOUS_SPACE_1``, ...,
+``ANY_DISCONTINUOUS_SPACE_10`` in order to avoid unnecessary computation
+into the halos (see rules for
 :ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
 The reason for having different names is that a Kernel might be written
 to allow 2 or more arguments to be able to support any function space
@@ -838,17 +839,18 @@ sections above:
   Kernel has been written so that it works with fields on any of the
   available spaces;
 
-* ``ANY_D_SPACE_n``, *n = 1, 2, ... 10*, for when the function space
-  of the modified argument(s) cannot be determined but is known to be
-  discontinuous and/or for when a Kernel has been written so that it
-  works with fields on any of the discontinuous spaces;
+* ``ANY_DISCONTINUOUS_SPACE_n``, *n = 1, 2, ... 10*, for when the
+  function space of the modified argument(s) cannot be determined but
+  is known to be discontinuous and/or for when a Kernel has been written
+  so that it works with fields on any of the discontinuous spaces;
 
 * ``ANY_W2`` for any type of ``w2`` function spaces (``w2``, ``w2h``
   or ``w2v``).
 
 As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
 ``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
-continuous while ``ANY_D_SPACE_n`` spaces are treated as discontinuous.
+continuous while ``ANY_DISCONTINUOUS_SPACE_n`` spaces are treated
+as discontinuous.
 
 Since the Dynamo0.3 API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
@@ -868,7 +870,7 @@ Function Space Continuity   Function Space Metadata
 **Continuous**              | ``W0``, ``W1``, ``W2``, ``W2H``,
                             | ``ANY_SPACE_n``, ``ANY_W2``
 **Discontinuous**           | ``W3``, ``WTHETA``, ``W2V``,
-                            | ``ANY_D_SPACE_n``
+                            | ``ANY_DISCONTINUOUS_SPACE_n``
 =========================   ====================================
 
 Horizontally discontinuous function spaces and fields over them will not
@@ -989,9 +991,9 @@ metadata for such a kernel is given below:
 
 ::
 
-  type(arg_type) :: meta_args(2) = (/                                      &
-      arg_type(GH_FIELD, GH_READWRITE, ANY_D_SPACE_1, mesh_arg=GH_COARSE), &
-      arg_type(GH_FIELD, GH_READ,      ANY_D_SPACE_2, mesh_arg=GH_FINE  )  &
+  type(arg_type) :: meta_args(2) = (/                                                  &
+      arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
+      arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE  )  &
       /)
 
 Note that an inter-grid kernel must have at least one field (or field-

@@ -153,7 +153,7 @@ Example 10
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions), as well as the
-use of ``ANY_D_SPACE`` metadata.
+use of ``ANY_DISCONTINUOUS_SPACE`` metadata.
 
 Example 11
 ^^^^^^^^^^
