@@ -199,7 +199,7 @@ def test_omp_parallel_loop(tmpdir):
     invoke.schedule = omp_sched
     gen = str(psy.gen)
     gen = gen.lower()
-    expected = ("!$omp parallel do default(shared), private(j,i), "
+    expected = ("!$omp parallel do default(shared), private(i,j), "
                 "schedule(static)\n"
                 "      do j=2,jstop\n"
                 "        do i=2,istop+1\n"
@@ -215,7 +215,7 @@ def test_omp_parallel_loop(tmpdir):
     gen = str(psy.gen)
     gen = gen.lower()
     expected = (
-        "      !$omp parallel do default(shared), private(j,i), "
+        "      !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
         "      do j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
         "        do i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
