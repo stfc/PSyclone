@@ -7384,11 +7384,12 @@ def test_kern_const_apply(capsys):
 
 def test_kern_const_anyspace_anydspace_apply(capsys):
     ''' Check that we generate the expected output from the apply method
-    when a function space is specified as any_space and any_d_space (as
-    these are skipped by the transformation).
+    when a function space is specified as any_space and
+    any_discontinuous_space (as these are skipped by the transformation).
 
     '''
-    kernel = create_kernel("1.5.3_single_invoke_write_any_any_d_space.f90")
+    kernel = create_kernel("1.5.3_single_invoke_write_any_"
+                           "any_discontinuous_space.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
@@ -7398,7 +7399,8 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
         "    Skipped dofs, arg position 9, function space any_space_1\n"
         "    Modified ndf_w2, arg position 12, function space w2, value 6.\n"
         "    Modified ndf_w1, arg position 15, function space w1, value 12.\n"
-        "    Skipped dofs, arg position 18, function space any_d_space_1\n"
+        "    Skipped dofs, arg position 18, function space "
+        "any_discontinuous_space_1\n"
         "    Modified ndf_wtheta, arg position 21, function space wtheta, "
         "value 2.\n"
         "    Modified ndf_w2h, arg position 24, function space w2h, value 4.\n"

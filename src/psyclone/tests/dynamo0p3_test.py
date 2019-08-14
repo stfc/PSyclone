@@ -48,11 +48,11 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
-    DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
+    DynGlobalSum, HaloReadAccess, FunctionSpace, KernCallArgList, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, VALID_ANY_D_SPACE_NAMES, KernCallArgList
+    VALID_ANY_SPACE_NAMES, VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -1817,78 +1817,86 @@ def test_op_any_space_different_space_2(tmpdir):
         generated_code
 
 
-def test_op_any_d_space_1(tmpdir):
-    ''' Tests that any_d_space is implemented correctly in the PSy
-    layer. Includes multiple declarations of the same space, field
-    vectors and any_d_space used with operators (same and different
-    "to" and "from" spaces). '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "11.4_any_d_space.f90"),
-                           api=TEST_API)
+def test_op_any_discontinuous_space_1(tmpdir):
+    ''' Tests that any_discontinuous_space is implemented correctly
+    in the PSy layer. Includes multiple declarations of the same space,
+    field vectors and any_discontinuous_space used with operators
+    (same and different "to" and "from" spaces). '''
+    _, invoke_info = parse(
+       os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+       api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
-    assert ("INTEGER, pointer :: map_any_d_space_1_f1(:,:) => null()" in
-            generated_code)
-    assert ("INTEGER ndf_any_d_space_1_f1, undf_any_d_space_1_f1" in
-            generated_code)
-    assert ("ndf_any_d_space_1_f1 = f1_proxy(1)%vspace%get_ndf()" in
-            generated_code)
-    assert ("undf_any_d_space_1_f1 = f1_proxy(1)%vspace%get_undf()" in
-            generated_code)
-    assert ("map_any_d_space_1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()" in
-            generated_code)
-    assert ("ndf_any_d_space_3_op4 = op4_proxy%fs_to%get_ndf()" in
-            generated_code)
-    assert ("ndf_any_d_space_7_op4 = op4_proxy%fs_from%get_ndf()" in
-            generated_code)
-    assert ("CALL testkern_any_d_space_op_1_code(cell, nlayers, "
+    assert ("INTEGER, pointer :: map_any_discontinuous_space_1_f1(:,:) => "
+            " null()" in generated_code)
+    assert ("INTEGER ndf_any_discontinuous_space_1_f1, "
+            "undf_any_discontinuous_space_1_f1" in generated_code)
+    assert ("ndf_any_discontinuous_space_1_f1 = f1_proxy(1)%vspace%get_ndf()"
+            in generated_code)
+    assert ("undf_any_discontinuous_space_1_f1 = "
+            "f1_proxy(1)%vspace%get_undf()" in generated_code)
+    assert ("map_any_discontinuous_space_1_f1 => "
+            "f1_proxy(1)%vspace%get_whole_dofmap()" in generated_code)
+    assert ("ndf_any_discontinuous_space_3_op4 = "
+            "op4_proxy%fs_to%get_ndf()" in generated_code)
+    assert ("ndf_any_discontinuous_space_7_op4 = "
+            "op4_proxy%fs_from%get_ndf()" in generated_code)
+    assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, nlayers, "
             "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
             "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
             "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
-            "ndf_any_d_space_1_f1, undf_any_d_space_1_f1, "
-            "map_any_d_space_1_f1(:,cell), ndf_any_d_space_2_f2, "
-            "undf_any_d_space_2_f2, map_any_d_space_2_f2(:,cell), "
-            "ndf_any_d_space_3_op4, ndf_any_d_space_7_op4)"
-            in generated_code)
+            "ndf_any_discontinuous_space_1_f1, "
+            "undf_any_discontinuous_space_1_f1, "
+            "map_any_discontinuous_space_1_f1(:,cell), "
+            "ndf_any_discontinuous_space_2_f2, "
+            "undf_any_discontinuous_space_2_f2, "
+            "map_any_discontinuous_space_2_f2(:,cell), "
+            "ndf_any_discontinuous_space_3_op4, "
+            "ndf_any_discontinuous_space_7_op4)" in generated_code)
 
 
-def test_op_any_d_space_2(tmpdir):
-    ''' Tests that any_d_space is implemented correctly in the PSy
-    layer when including multiple spaces, operators on same and different
+def test_op_any_discontinuous_space_2(tmpdir):
+    ''' Tests that any_discontinuous_space is implemented correctly in the
+    PSy layer when including multiple spaces, operators on same and different
     "to" and "from" spaces) and basis/differential basis functions '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "11.5_any_d_space.f90"),
-                           api=TEST_API)
+    _, invoke_info = parse(
+       os.path.join(BASE_PATH, "11.5_any_discontinuous_space.f90"),
+       api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    assert ("ndf_any_d_space_4_f1 = f1_proxy%vspace%get_ndf()" in
+    assert ("ndf_any_discontinuous_space_4_f1 = f1_proxy%vspace%get_ndf()" in
             generated_code)
-    assert ("undf_any_d_space_4_f1 = f1_proxy%vspace%get_undf()" in
+    assert ("undf_any_discontinuous_space_4_f1 = "
+            "f1_proxy%vspace%get_undf()" in generated_code)
+    assert ("map_any_discontinuous_space_4_f1 => "
+            "f1_proxy%vspace%get_whole_dofmap()" in generated_code)
+    assert ("ndf_any_discontinuous_space_1_op1 = op1_proxy%fs_to%get_ndf()" in
             generated_code)
-    assert ("map_any_d_space_4_f1 => f1_proxy%vspace%get_whole_dofmap()" in
-            generated_code)
-    assert ("ndf_any_d_space_1_op1 = op1_proxy%fs_to%get_ndf()" in
-            generated_code)
-    assert ("ndf_any_d_space_2_op1 = op1_proxy%fs_from%get_ndf()" in
-            generated_code)
-    assert ("dim_any_d_space_4_f1 = f1_proxy%vspace%get_dim_space()" in
-            generated_code)
-    assert ("diff_dim_any_d_space_4_f1 = f1_proxy%vspace%get_dim_space_diff()"
-            in generated_code)
-    assert ("ALLOCATE (basis_any_d_space_1_op1_qr(dim_any_d_space_1_op1, "
-            "ndf_any_d_space_1_op1" in generated_code)
-    assert ("ALLOCATE (diff_basis_any_d_space_4_f1_qr"
-            "(diff_dim_any_d_space_4_f1, ndf_any_d_space_4_f1" in
-            generated_code)
+    assert ("ndf_any_discontinuous_space_2_op1 = "
+            "op1_proxy%fs_from%get_ndf()" in generated_code)
+    assert ("dim_any_discontinuous_space_4_f1 = "
+            "f1_proxy%vspace%get_dim_space()" in generated_code)
+    assert ("diff_dim_any_discontinuous_space_4_f1 = "
+            "f1_proxy%vspace%get_dim_space_diff()" in generated_code)
+    assert ("ALLOCATE (basis_any_discontinuous_space_1_op1_qr("
+            "dim_any_discontinuous_space_1_op1, "
+            "ndf_any_discontinuous_space_1_op1" in generated_code)
+    assert ("ALLOCATE (diff_basis_any_discontinuous_space_4_f1_qr"
+            "(diff_dim_any_discontinuous_space_4_f1, "
+            "ndf_any_discontinuous_space_4_f1" in generated_code)
     assert ("CALL qr%compute_function(BASIS, op1_proxy%fs_to, "
-            "dim_any_d_space_1_op1, ndf_any_d_space_1_op1, "
-            "basis_any_d_space_1_op1_qr)" in generated_code)
+            "dim_any_discontinuous_space_1_op1, "
+            "ndf_any_discontinuous_space_1_op1, "
+            "basis_any_discontinuous_space_1_op1_qr)" in generated_code)
     assert ("CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
-            "diff_dim_any_d_space_4_f1, ndf_any_d_space_4_f1, "
-            "diff_basis_any_d_space_4_f1_qr)" in generated_code)
+            "diff_dim_any_discontinuous_space_4_f1, "
+            "ndf_any_discontinuous_space_4_f1, "
+            "diff_basis_any_discontinuous_space_4_f1_qr)" in generated_code)
 
 
 def test_invoke_uniq_declns():
@@ -3083,7 +3091,7 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_d_space '''
+    any_space or any_discontinuous_space '''
     from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
@@ -3535,19 +3543,20 @@ def test_fs_discontinuous_and_inc_error():
                 in str(excinfo.value))
 
 
-def test_fs_any_d_space_and_inc_error():
-    ''' Test that an error is raised if any_d_space (discontinuous)
-    and gh_inc are provided for the same field in the metadata '''
+def test_fs_any_discontinuous_space_and_inc_error():
+    ''' Test that an error is raised if any_discontinuous_space
+    (discontinuous) and gh_inc are provided for the same field in
+    the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in VALID_ANY_D_SPACE_NAMES:
+    for fspace in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
                             "arg_type(gh_field,gh_inc, " +
                             fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("field on any_d_space cannot have 'gh_inc' access"
-                in str(excinfo.value))
+        assert ("field on any_discontinuous_space cannot have 'gh_inc'"
+                " access" in str(excinfo.value))
 
 
 def test_fs_continuous_and_readwrite_error():
@@ -5454,11 +5463,11 @@ def test_itn_space_fld_and_op_writers(tmpdir):
 def test_itn_space_any_any_d(tmpdir):
     ''' Check that generated loop over cells has correct upper bound
     when a kernel writes to fields on any_space (continuous) and
-    any_d_space (discontinuous) '''
+    any_discontinuous_space (discontinuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "1.5.3_single_invoke_write_any_any_d_space.f90"),
-        api=TEST_API)
+                     "1.5.3_single_invoke_write_any_any_discontinuous"
+                     "_space.f90"), api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
@@ -5899,10 +5908,11 @@ def test_arg_discontinuous(monkeypatch, annexed):
         assert field.space == fspace
         assert field.discontinuous
 
-    # 2 any_d_space returns true
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_any_d_space.f90"),
-                    api=TEST_API)
+    # 2 any_discontinuous_space returns true
+    _, info = parse(
+       os.path.join(BASE_PATH,
+                    "1_single_invoke_any_discontinuous_space.f90"),
+       api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.view()
@@ -5913,7 +5923,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
         index = 2
     kernel = schedule.children[index].children[0]
     field = kernel.arguments.args[0]
-    assert field.space == 'any_d_space_1'
+    assert field.space == 'any_discontinuous_space_1'
     assert field.discontinuous
 
     # 2 any_space field returns false

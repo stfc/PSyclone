@@ -735,8 +735,8 @@ module dummy_mod
              arg_type(gh_operator, gh_read,      w2, w2),                   &
              arg_type(gh_operator, gh_write,     w3, w3),                   &
              arg_type(gh_operator, gh_read,      any_space_1, any_space_1), &
-             arg_type(gh_operator, gh_read,      any_d_space_1,             &
-                                                 any_d_space_1)             &
+             arg_type(gh_operator, gh_read,      any_discontinuous_space_1, &
+                                                 any_discontinuous_space_1) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -762,13 +762,13 @@ def test_operators():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
-        "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, ndf_w0, ndf_w1, "
-        "ndf_w2, ndf_w3, ndf_any_space_1_op_5, ndf_any_d_space_1_op_6)\n"
+        "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, ndf_w0, ndf_w1, ndf_w2, "
+        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
-        "ndf_any_space_1_op_5, ndf_any_d_space_1_op_6\n"
+        "ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
@@ -787,8 +787,8 @@ def test_operators():
         "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
         "      INTEGER, intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_any_d_space_1_op_6,ndf_any_d_space_1_op_6,op_6_ncell_3d) :: "
-        "op_6\n"
+        "ndf_any_discontinuous_space_1_op_6,"
+        "ndf_any_discontinuous_space_1_op_6,op_6_ncell_3d) :: op_6\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -842,18 +842,19 @@ def test_stub_operator_different_spaces():
     # Check for discontinuous to- and from- spaces
     code = OPERATOR_DIFFERENT_SPACES.replace(
         "(gh_operator, gh_write, w0, w1)",
-        "(gh_operator, gh_write, w3, any_d_space_2)", 1)
+        "(gh_operator, gh_write, w3, any_discontinuous_space_2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, "
-            "ndf_any_d_space_2_op_1)") in result
-    assert "dimension(ndf_w3,ndf_any_d_space_2_op_1,op_1_ncell_3d)" in result
+            "ndf_any_discontinuous_space_2_op_1)") in result
+    assert ("dimension(ndf_w3,ndf_any_discontinuous_space_2_op_1,"
+            "op_1_ncell_3d)") in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
         "  function_space_to[2]='w3'\n"
-        "  function_space_from[3]='any_d_space_2'\n")
+        "  function_space_from[3]='any_discontinuous_space_2'\n")
     assert expected_output in result

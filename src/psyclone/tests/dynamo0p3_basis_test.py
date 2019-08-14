@@ -890,26 +890,26 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert gen_code.count(
-        "ndf_any_d_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_any_discontinuous_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_any_d_space_1_f0\n"
+        "      DO df_nodal=1,ndf_any_discontinuous_space_1_f0\n"
         "        DO df_w0=1,ndf_w0\n"
-        "          basis_w0_on_any_d_space_1_f0(:,df_w0,df_nodal) = "
-        "f1_proxy%vspace%call_function(BASIS,df_w0,"
-        "nodes_any_d_space_1_f0(:,df_nodal))\n"
+        "          basis_w0_on_any_discontinuous_space_1_f0(:,df_w0,df_nodal) "
+        "= f1_proxy%vspace%call_function(BASIS,df_w0,"
+        "nodes_any_discontinuous_space_1_f0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_any_d_space_1_f0\n"
+        "      DO df_nodal=1,ndf_any_discontinuous_space_1_f0\n"
         "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_any_d_space_1_f0(:,df_w1,df_nodal) = "
-        "f2_proxy%vspace%call_function(DIFF_BASIS,df_w1,"
-        "nodes_any_d_space_1_f0(:,df_nodal))\n"
+        "          diff_basis_w1_on_any_discontinuous_space_1_f0"
+        "(:,df_w1,df_nodal) = f2_proxy%vspace%call_function(DIFF_BASIS,"
+        "df_w1,nodes_any_discontinuous_space_1_f0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n") == 1
     assert gen_code.count(
-        "DEALLOCATE (basis_w0_on_any_d_space_1_f0, "
-        "diff_basis_w1_on_any_d_space_1_f0)") == 1
+        "DEALLOCATE (basis_w0_on_any_discontinuous_space_1_f0, "
+        "diff_basis_w1_on_any_discontinuous_space_1_f0)") == 1
 
 
 def test_two_eval_op_to_space(tmpdir):
@@ -1418,8 +1418,8 @@ end module dummy_mod
 
 
 def test_basis_unsupported_space():
-    ''' Test that an error is raised when a basis function is on
-    an unsupported space (currently any_space_* and any_d_space_*)
+    ''' Test that an error is raised when a basis function is on an
+    unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This restriction will be removed in
     issue #461. '''
     # Test any_space_*
@@ -1430,8 +1430,9 @@ def test_basis_unsupported_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert 'Unsupported space for basis function' in str(excinfo.value)
-    # Test any_d_space_*
-    code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1", "any_d_space_5")
+    # Test any_discontinuous_space_*
+    code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
+                                           "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1741,8 +1742,8 @@ end module dummy_mod
 def test_diff_basis_unsupp_space():
     ''' Test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*
-    and any_d_space_*) in kernel stub generation. This restriction
-    will be removed in issue #461. '''
+    and any_discontinuous_space_*) in kernel stub generation.
+    This restriction will be removed in issue #461. '''
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1752,9 +1753,9 @@ def test_diff_basis_unsupp_space():
         _ = kernel.gen_stub
     assert 'Unsupported space for differential basis function' \
         in str(excinfo.value)
-    # Test any_d_space_*
+    # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
-                                                "any_d_space_5")
+                                                "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
