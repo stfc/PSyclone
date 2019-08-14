@@ -854,7 +854,5 @@ def test_stub_operator_different_spaces():
             "op_1_ncell_3d)") in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
-    expected_output = (
-        "  function_space_to[2]='w3'\n"
-        "  function_space_from[3]='any_discontinuous_space_2'\n")
-    assert expected_output in result
+    assert "function_space_to[2]='w3'" in result
+    assert "function_space_from[3]='any_discontinuous_space_2'" in result

@@ -1831,7 +1831,7 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
     assert ("INTEGER, pointer :: map_any_discontinuous_space_1_f1(:,:) => "
-            " null()" in generated_code)
+            "null()" in generated_code)
     assert ("INTEGER ndf_any_discontinuous_space_1_f1, "
             "undf_any_discontinuous_space_1_f1" in generated_code)
     assert ("ndf_any_discontinuous_space_1_f1 = f1_proxy(1)%vspace%get_ndf()"
@@ -3093,6 +3093,7 @@ def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
     any_space or any_discontinuous_space '''
     from psyclone.dynamo0p3 import mangle_fs_name
+    # Test any_space
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
@@ -3544,9 +3545,8 @@ def test_fs_discontinuous_and_inc_error():
 
 
 def test_fs_any_discontinuous_space_and_inc_error():
-    ''' Test that an error is raised if any_discontinuous_space
-    (discontinuous) and gh_inc are provided for the same field in
-    the metadata '''
+    ''' Test that an error is raised if any_discontinuous_space and
+    gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
@@ -5460,14 +5460,14 @@ def test_itn_space_fld_and_op_writers(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_any_d(tmpdir):
-    ''' Check that generated loop over cells has correct upper bound
-    when a kernel writes to fields on any_space (continuous) and
-    any_discontinuous_space (discontinuous) '''
+def test_itn_space_any_any_discontinuous(tmpdir):
+    ''' Check that generated loop over cells has correct upper
+    bound when a kernel writes to fields on any_space (continuous)
+    and any_discontinuous_space '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "1.5.3_single_invoke_write_any_any_discontinuous"
-                     "_space.f90"), api=TEST_API)
+                     "1.5.3_single_invoke_write_any_anyd_space.f90"),
+        api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)

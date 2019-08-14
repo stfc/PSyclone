@@ -49,16 +49,17 @@ use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type,                     &
                                    GH_FIELD,                     &
                                    GH_READ, GH_READWRITE, CELLS, &
-                                   ANY_D_SPACE_1, ANY_D_SPACE_2, &
+                                   ANY_DISCONTINUOUS_SPACE_1,    &
+                                   ANY_DISCONTINUOUS_SPACE_2,    &
                                    GH_COARSE, GH_FINE
 
 implicit none
 
 type, public, extends(kernel_type) :: prolong_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                      &
-       arg_type(GH_FIELD, GH_READWRITE, ANY_D_SPACE_1, mesh_arg=GH_FINE),   &
-       arg_type(GH_FIELD, GH_READ,      ANY_D_SPACE_2, mesh_arg=GH_COARSE ) &
+   type(arg_type) :: meta_args(2) = (/                                                  &
+       arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_FINE),   &
+       arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_COARSE ) &
        /)
   integer :: iterates_over = CELLS
 contains

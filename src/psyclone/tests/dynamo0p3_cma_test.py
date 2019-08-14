@@ -914,7 +914,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
         assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
         assert "DO cell=1,field_c_proxy%vspace%get_ncell()" in code
     # Check any_discontinuous_space_1
-    assert ("CALL columnwise_op_app_any_discontinuous_space_kernel_code(cell, "
+    assert ("CALL columnwise_op_app_anydspace_kernel_code(cell, "
             "ncell_2d, field_a_proxy%data, field_b_proxy%data, "
             "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "

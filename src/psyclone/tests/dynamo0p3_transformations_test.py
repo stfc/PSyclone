@@ -7388,8 +7388,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
     any_discontinuous_space (as these are skipped by the transformation).
 
     '''
-    kernel = create_kernel("1.5.3_single_invoke_write_any_"
-                           "any_discontinuous_space.f90")
+    kernel = create_kernel("1.5.3_single_invoke_write_any_anyd_space.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
