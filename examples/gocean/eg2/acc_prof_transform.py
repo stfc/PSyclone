@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. Transforms the invoke with the addition of
+OpenACC directives and then encloses the whole in a profiling region. '''
 
-ALL_LIBS=template simple_timing dl_timer drhook nvidia
+from __future__ import print_function
+from acc_transform import trans as acc_trans
 
-.PHONY: default all $(ALL_LIBS) clean
 
-default: all
+def trans(psy):
+    '''
+    Take the supplied psy object, add OpenACC directives and then enclose
+    the whole schedule within a profiling region.
 
-all: $(ALL_LIBS)
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-template:
-	$(MAKE) -C template
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
-simple_timing:
-	$(MAKE) -C simple_timing
+    '''
+    from psyclone.transformations import ProfileRegionTrans
+    proftrans = ProfileRegionTrans()
 
-dl_timer:
-	$(MAKE) -C dl_timer
+    # Use the trans() routine in acc_transform.py to add the OpenACC directives
+    psy = acc_trans(psy)
 
-drhook:
-	$(MAKE) -C drhook
+    invoke = psy.invokes.get('invoke_0_inc_field')
+    schedule = invoke.schedule
 
-nvidia:
-	$(MAKE) -C nvidia
-
-clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
-
+    # Enclose everything in a profiling region
+    newschedule, _ = proftrans.apply(schedule.children)
+    invoke.schedule = newschedule
+    newschedule.view()
+    return psy

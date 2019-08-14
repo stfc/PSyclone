@@ -43,12 +43,13 @@
 
 from __future__ import print_function, absolute_import
 import copy
+from fparser.two.utils import walk_ast, get_child
+from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, CodedKern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
-from fparser.two.utils import walk_ast, get_child
-from fparser.two import Fortran2003
 
 # The base colour map doesn't have CodeBlock as that is currently
 # a NEMO-API-specific entity.
@@ -364,6 +365,17 @@ class NemoKern(CodedKern):
         '''
         print(self.indent(indent) + self.coloured_text + "[]")
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. It calls the corresponding
+        kernel schedule function.
+
+        :param var_accesses: VariablesAccessInfo that stores the information\
+            about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        self._kern_schedule.reference_accesses(var_accesses)
+
     @property
     def ast(self):
         '''
@@ -483,6 +495,34 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             result += str(entity) + "\n"
         result += "EndLoop"
         return result
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. The loop variable is
+        set as READ and WRITE. Then the loop body's access is added.
+        TODO #400: The start, stop and step values are only strings, so we
+        can't get access information. It might then also be possible to
+        just fall back to Loop.reference_accesses (which then should work).
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        var_accesses.add_access(self._variable_name, AccessType.WRITE, self)
+        var_accesses.add_access(self._variable_name, AccessType.READ, self)
+        var_accesses.next_location()
+        # TODO: atm start, stop and step are just strings, so we can't
+        # get any variable information
+        # self._start.reference_accesses(var_accesses)
+        # self._stop.reference_accesses(var_accesses)
+        # self._step.reference_accesses(var_accesses)
+        # We also can't call the base class, since it will accesses
+        # start stop etc :(
+        # super(NemoLoop, self).reference_accesses(var_accesses)
+        for child in self.children:
+            child.reference_accesses(var_accesses)
+            var_accesses.next_location()
 
     @property
     def kernel(self):
