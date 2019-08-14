@@ -33,7 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
 
-module testkern_any_d_space_op_1_mod
+module testkern_any_discontinuous_space_op_1_mod
 
   use argument_mod
   use kernel_mod
@@ -41,37 +41,42 @@ module testkern_any_d_space_op_1_mod
 
   implicit none
 
-  ! Description: test for any_d_space producing correct code when there are
-  ! 1) multiple declarations of the same any_d_space space,
-  ! 2) other any_d_space spaces in the arguments,
+  ! Description: test for any_discontinuous_space producing correct code
+  ! when there are
+  ! 1) multiple declarations of the same any_discontinuous_space,
+  ! 2) other any_discontinuous_space spaces in the arguments,
   ! 3) no functions (e.g. basis, diff_basis) declared,
-  ! 4) any_d_space used with an operator,
-  ! 5) different to- and from- any_d_space spaces used with an operator.
+  ! 4) any_discontinuous_space used with an operator,
+  ! 5) different to- and from- any_discontinuous_space spaces used with
+  !    an operator.
 
-  type, public, extends(kernel_type) :: testkern_any_d_space_op_1_type
-    type(arg_type) :: meta_args(5) = (/                                     &
-         arg_type(GH_FIELD*3,  GH_READ,      ANY_D_SPACE_1),                &
-         arg_type(GH_FIELD,    GH_READWRITE, ANY_D_SPACE_2),                &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_D_SPACE_1, ANY_D_SPACE_1), &
-         arg_type(GH_OPERATOR, GH_WRITE,     ANY_D_SPACE_3, ANY_D_SPACE_7), &
-         arg_type(GH_REAL,     GH_READ)                                     &
+  type, public, extends(kernel_type) :: testkern_any_discontinuous_space_op_1_type
+    type(arg_type) :: meta_args(5) = (/                                  &
+         arg_type(GH_FIELD*3,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+         ANY_DISCONTINUOUS_SPACE_1),                                     &
+         arg_type(GH_OPERATOR, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3,  &
+                                             ANY_DISCONTINUOUS_SPACE_7), &
+         arg_type(GH_REAL,     GH_READ)                                  &
          /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: testkern_any_d_space_op_1_code
-  end type testkern_any_d_space_op_1_type
+    procedure, nopass :: testkern_any_discontinuous_space_op_1_code
+  end type testkern_any_discontinuous_space_op_1_type
 
 contains
 
-  subroutine testkern_any_d_space_op_1_code(cell, nlayers,             &
-                                         field1_x, field1_y, field1_z, &
-                                         field2,                       &
-                                         ncell_3d_op3, op3,            &
-                                         ncell_3d_op4, op4,            &
-                                         rscalar,                      &
-                                         ndf1, undf1, map1,            &
-                                         ndf2, undf2, map2,            &
-                                         ndf_to_op4, ndf_from_op4)
+  subroutine testkern_any_discontinuous_space_op_1_code(              &
+                                        cell, nlayers,                &
+                                        field1_x, field1_y, field1_z, &
+                                        field2,                       &
+                                        ncell_3d_op3, op3,            &
+                                        ncell_3d_op4, op4,            &
+                                        rscalar,                      &
+                                        ndf1, undf1, map1,            &
+                                        ndf2, undf2, map2,            &
+                                        ndf_to_op4, ndf_from_op4)
 
       implicit none
 
@@ -91,6 +96,6 @@ contains
       real(kind=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d_op3)                :: op3
       real(kind=r_def), intent(out), dimension(ndf_to_op4,ndf_from_op4,ncell_3d_op4) :: op4
 
-  end subroutine testkern_any_d_space_op_1_code
+  end subroutine testkern_any_discontinuous_space_op_1_code
 
-end module testkern_any_d_space_op_1_mod
+end module testkern_any_discontinuous_space_op_1_mod

@@ -33,7 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic Met Office
 
-module testkern_any_d_any_space_mod
+module testkern_anyd_any_space_mod
 
   use argument_mod
   use kernel_mod
@@ -41,47 +41,47 @@ module testkern_any_d_any_space_mod
 
   implicit none
 
-  ! Description: discontinuous field readwriter (any_d_space_1) and continuous
-  ! readers (any_space_1 and any_w2)
-  type, extends(kernel_type) :: testkern_any_d_any_space_type
-     type(arg_type), dimension(3) :: meta_args =              &
-          (/ arg_type(gh_field, gh_readwrite, any_d_space_1), &
-             arg_type(gh_field, gh_read,      any_space_1),   &
-             arg_type(gh_field, gh_read,      any_w2)         &
+  ! Description: discontinuous field readwriter (any_discontinuous_space_1)
+  ! and continuous readers (any_space_1 and any_w2)
+  type, extends(kernel_type) :: testkern_anyd_any_space_type
+     type(arg_type), dimension(3) :: meta_args =                          &
+          (/ arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
+             arg_type(gh_field, gh_read,      any_space_1),               &
+             arg_type(gh_field, gh_read,      any_w2)                     &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_any_d_any_space_code
-  end type testkern_any_d_any_space_type
+     procedure, nopass :: code => testkern_anyd_any_space_code
+  end type testkern_anyd_any_space_type
 
 contains
 
-  subroutine testkern_any_d_any_space_code(nlayers,               &
-                                           field1, field2, field3 &
-                                           ndf_any_d_space_1,     &
-                                           undf_any_d_space_1,    &
-                                           map_any_d_space_1,     &
-                                           ndf_any_space_1,       &
-                                           undf_any_space_1,      &
-                                           map_any_space_1,       &
-                                           ndf_any_w2, undf_any_w2, map_any_w2)
+  subroutine testkern_anyd_any_space_code(nlayers,               &
+                                          field1, field2, field3 &
+                                          ndf_anydspace_1,       &
+                                          undf_anydspace_1,      &
+                                          map_anydspace_1,       &
+                                          ndf_any_space_1,       &
+                                          undf_any_space_1,      &
+                                          map_any_space_1,       &
+                                          ndf_any_w2, undf_any_w2, map_any_w2)
 
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_any_d_space_1
+    integer(kind=i_def), intent(in) :: ndf_anydspace_1
     integer(kind=i_def), intent(in) :: ndf_any_space_1
     integer(kind=i_def), intent(in) :: ndf_any_w2
-    integer(kind=i_def), intent(in) :: undf_any_d_space_1, &
+    integer(kind=i_def), intent(in) :: undf_anydspace_1, &
                                        undf_any_space_1, undf_any_w2
-    integer(kind=i_def), intent(in), dimension(ndf_any_d_space_1) :: map_any_d_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_any_space_1)   :: map_any_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_any_space_1)   :: map_any_w2
-    real(kind=r_def), intent(inout), dimension(undf_any_d_space_1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_any_space_1)      :: field2
-    real(kind=r_def), intent(in), dimension(undf_any_w2)           :: field3
+    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
+    integer(kind=i_def), intent(in), dimension(ndf_any_space_1) :: map_any_space_1
+    integer(kind=i_def), intent(in), dimension(ndf_any_space_1) :: map_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_anydspace_1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_any_space_1)    :: field2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)         :: field3
 
-  end subroutine testkern_any_d_any_space_code
+  end subroutine testkern_anyd_any_space_code
 
-end module testkern_any_d_any_space_mod
+end module testkern_anyd_any_space_mod

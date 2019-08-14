@@ -42,11 +42,12 @@ module testkern_wtheta_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (wtheta) and reader (any_d_space_1)
+  ! Description: discontinuous field writer (wtheta) and reader
+  ! (any_discontinuous_space_1)
   type, extends(kernel_type) :: testkern_wtheta_type
-     type(arg_type), dimension(2) :: meta_args =           &
-            (/ arg_type(gh_field, gh_write, wtheta),       &
-               arg_type(gh_field, gh_read,  any_d_space_1) &
+     type(arg_type), dimension(2) :: meta_args =                       &
+            (/ arg_type(gh_field, gh_write, wtheta),                   &
+               arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
              /)
      integer :: iterates_over = cells
    contains
@@ -55,23 +56,23 @@ module testkern_wtheta_mod
 
 contains
 
-  subroutine testkern_wtheta_code(nlayers,                               &
-                                  field1, field2,                        &
-                                  ndf_wtheta, undf_wtheta, map_wtheta,   &
-                                  ndf_any_d_space_1, undf_any_d_space_1, &
-                                  map_any_d_space_1)
+  subroutine testkern_wtheta_code(nlayers,                             &
+                                  field1, field2,                      &
+                                  ndf_wtheta, undf_wtheta, map_wtheta, &
+                                  ndf_anydspace_1, undf_anydspace_1,   &
+                                  map_anydspace_1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wtheta
     integer(kind=i_def), intent(in) :: undf_wtheta
-    integer(kind=i_def), intent(in) :: ndf_any_d_space_1
-    integer(kind=i_def), intent(in) :: undf_any_d_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_wtheta)        :: map_wtheta
-    integer(kind=i_def), intent(in), dimension(ndf_any_d_space_1) :: map_any_d_space_1
-    real(kind=r_def), intent(out), dimension(undf_wtheta)       :: field1
-    real(kind=r_def), intent(in), dimension(undf_any_d_space_1) :: field2
+    integer(kind=i_def), intent(in) :: ndf_anydspace_1
+    integer(kind=i_def), intent(in) :: undf_anydspace_1
+    integer(kind=i_def), intent(in), dimension(ndf_wtheta)      :: map_wtheta
+    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
+    real(kind=r_def), intent(out), dimension(undf_wtheta)     :: field1
+    real(kind=r_def), intent(in), dimension(undf_anydspace_1) :: field2
 
   end subroutine testkern_wtheta_code
 

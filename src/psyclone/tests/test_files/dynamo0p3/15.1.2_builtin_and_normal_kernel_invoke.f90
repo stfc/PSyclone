@@ -54,7 +54,7 @@ program single_invoke_builtin_then_kernel
        ! f2 function space w2, read
        testkern_w2_only_type(f3, f2),        &
        ! f4 function space wtheta, write
-       ! f5 function space any_d_space_1, read
+       ! f5 function space any_any_discontinuous_space_1, read
        testkern_wtheta_type(f4, f5),         &
        ! scalar, read
        ! f1 function space w1, write

@@ -36,9 +36,9 @@
 
 program single_invoke_cma
 
-  ! Description: single CMA-assembly kernel specified in an invoke,
-  ! assembled from LMA representation of the operator mapping between
-  ! two horizontally discontinuous spaces (both any_d_space_*)
+  ! Description: single CMA-assembly kernel specified in an invoke, assembled
+  ! from LMA representation of the operator mapping between two horizontally
+  ! discontinuous spaces (both any_discontinuous_space_*)
 
   use inf,                          only: field_type
   use operator_mod,                 only: columnwise_operator_type

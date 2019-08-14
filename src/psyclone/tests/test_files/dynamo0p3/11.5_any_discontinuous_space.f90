@@ -31,48 +31,25 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author I. Kavcic, Met Office
 
-module testkern_any_d_disc_only_mod
+program any_discontinuous_space_op_example_2
 
-  use argument_mod
-  use kernel_mod
-  use constants_mod
+  ! Description: single kernel call in an invoke where the arguments
+  ! are specified as any_discontinuous_space, with basis/differential
+  ! basis functions
+  use testkern_any_discontinuous_space_op_2_mod, only : &
+                  testkern_any_discontinuous_space_op_2_type
+  use inf, only : field_type,    &
+                  operator_type, &
+                  quadrature_rule
 
   implicit none
 
-  ! Description: discontinuous field readwriter (any_d_space_1) and reader (w3)
-  type, extends(kernel_type) :: testkern_any_d_disc_only_type
-     type(arg_type), dimension(2) :: meta_args =              &
-          (/ arg_type(gh_field, gh_readwrite, any_d_space_1), &
-             arg_type(gh_field, gh_read,      w3)             &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_any_d_disc_only_code
-  end type testkern_any_d_disc_only_type
+  type(field_type)      :: f1
+  type(operator_type)   :: op1, op2
+  type(quadrature_rule) :: qr
 
-contains
+  call invoke(testkern_any_discontinuous_space_op_2_type(f1, op1, op2, qr))
 
-  subroutine testkern_any_d_disc_only_code(nlayers,            &
-                                           field1, field2,     &
-                                           ndf_any_d_space_1,  &
-                                           undf_any_d_space_1, &
-                                           map_any_d_space_1,  &
-                                           ndf_w3, undf_w3, map_w3)
-
-
-    implicit none
-
-    integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_any_d_space_1
-    integer(kind=i_def), intent(in) :: ndf_w3
-    integer(kind=i_def), intent(in) :: undf_any_d_space_1, undf_w3
-    integer(kind=i_def), intent(in), dimension(ndf_any_d_space_1) :: map_any_d_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_w3)            :: map_w3
-    real(kind=r_def), intent(inout), dimension(undf_any_d_space_1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_w3)               :: field2
-
-  end subroutine testkern_any_d_disc_only_code
-
-end module testkern_any_d_disc_only_mod
+end program any_discontinuous_space_op_example_2

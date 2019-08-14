@@ -37,7 +37,7 @@
 program single_invokes_cma_discontinuous
 
   ! Description: two single invokes containing multiple CMA-related kernels
-  ! on discontinuous spaces ANY_D_SPACE_1 and W2V
+  ! on discontinuous spaces ANY_DISCONTINUOUS_SPACE_1 and W2V
 
   use inf, only: field_type, columnwise_operator_type
   use columnwise_op_app_anydspace_kernel_mod, only: &

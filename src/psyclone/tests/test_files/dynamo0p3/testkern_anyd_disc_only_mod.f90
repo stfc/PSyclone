@@ -33,19 +33,47 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic Met Office
 
-program single_invoke_anyd1
+module testkern_anyd_disc_only_mod
 
-  ! Description: single function in an invoke iterating over any_d_space_1
-  ! (discontinuous and reading from any_space_1 and any_w2 (continuous)
-  use testkern_any_d_any_space_mod, only: testkern_any_d_any_space_type
-  use inf,                          only: field_type
+  use argument_mod
+  use kernel_mod
+  use constants_mod
 
   implicit none
 
-  type(field_type) :: f1, f2, f3
+  ! Description: discontinuous field readwriter (any_discontinuous_space_1)
+  ! and reader (w3)
+  type, extends(kernel_type) :: testkern_anyd_disc_only_type
+     type(arg_type), dimension(2) :: meta_args =                          &
+          (/ arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
+             arg_type(gh_field, gh_read,      w3)                         &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_anyd_disc_only_code
+  end type testkern_anyd_disc_only_type
 
-  call invoke(                                   &
-       testkern_any_d_any_space_type(f1, f2, f3) &
-             )
+contains
 
-end program single_invoke_anyd1
+  subroutine testkern_anyd_disc_only_code(nlayers,          &
+                                          field1, field2,   &
+                                          ndf_anydspace_1,  &
+                                          undf_anydspace_1, &
+                                          map_anydspace_1,  &
+                                          ndf_w3, undf_w3, map_w3)
+
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_anydspace_1
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_anydspace_1, undf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
+    integer(kind=i_def), intent(in), dimension(ndf_w3)          :: map_w3
+    real(kind=r_def), intent(inout), dimension(undf_anydspace_1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_w3)             :: field2
+
+  end subroutine testkern_anyd_disc_only_code
+
+end module testkern_anyd_disc_only_mod

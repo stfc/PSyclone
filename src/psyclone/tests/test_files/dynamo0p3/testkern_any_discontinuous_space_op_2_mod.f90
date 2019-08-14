@@ -33,7 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
 
-module testkern_any_d_space_op_2_mod
+module testkern_any_discontinuous_space_op_2_mod
 
   use argument_mod
   use kernel_mod
@@ -41,38 +41,42 @@ module testkern_any_d_space_op_2_mod
 
   implicit none
 
-  ! Description: test for any_d_space producing correct code when there are
-  ! 1) multiple declarations of the same any_d_space space,
-  ! 2) other any_d_space spaces in the arguments,
-  ! 3) any_d_space used with an operator,
+  ! Description: test for any_discontinuous_space producing correct code
+  ! when there are
+  ! 1) multiple declarations of the same any_discontinuous_space,
+  ! 2) other any_discontinuous_space spaces in the arguments,
+  ! 3) any_discontinuous_space used with an operator,
   ! 3) basis and diff_basis functions declared.
 
-  type, public, extends(kernel_type) :: testkern_any_d_space_op_2_type
-    type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_FIELD,    GH_READ,      ANY_D_SPACE_4),                &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_D_SPACE_1, ANY_D_SPACE_2), &
-         arg_type(GH_OPERATOR, GH_READWRITE, ANY_D_SPACE_4, ANY_D_SPACE_1)  &
+  type, public, extends(kernel_type) :: testkern_any_discontinuous_space_op_2_type
+    type(arg_type) :: meta_args(3) = (/                                  &
+         arg_type(GH_FIELD,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4), &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+                                             ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4,  &
+         ANY_DISCONTINUOUS_SPACE_1)                                      &
          /)
-    type(func_type) :: meta_funcs(2) = (/                                   &
-         func_type(ANY_D_SPACE_1, GH_BASIS),                                &
-         func_type(ANY_D_SPACE_4, GH_BASIS, GH_DIFF_BASIS)                  &
+    type(func_type) :: meta_funcs(2) = (/                                &
+         func_type(ANY_DISCONTINUOUS_SPACE_1, GH_BASIS),                 &
+         func_type(ANY_DISCONTINUOUS_SPACE_4, GH_BASIS, GH_DIFF_BASIS)   &
          /)
     integer :: iterates_over = CELLS
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
-    procedure, nopass :: testkern_any_d_space_op_2_code
-  end type testkern_any_d_space_op_2_type
+    procedure, nopass :: testkern_any_discontinuous_space_op_2_code
+  end type testkern_any_discontinuous_space_op_2_type
 
 contains
 
-  subroutine testkern_any_d_space_op_2_code(cell, nlayers,                  &
-                                         field1,                            &
-                                         ncell_3d_op1, op1,                 &
-                                         ncell_3d_op2, op2,                 &
-                                         ndf_anyd4, undf_anyd4, map_anyd4,  &
-                                         basis_anyd4, diff_basis_anyd4,     &
-                                         ndf_anyd1, basis_anyd1, ndf_anyd2, &
-                                         np_xy, np_z, weights_xy, weights_z)
+  subroutine testkern_any_discontinuous_space_op_2_code(                   &
+                                        cell, nlayers,                     &
+                                        field1,                            &
+                                        ncell_3d_op1, op1,                 &
+                                        ncell_3d_op2, op2,                 &
+                                        ndf_anyd4, undf_anyd4, map_anyd4,  &
+                                        basis_anyd4, diff_basis_anyd4,     &
+                                        ndf_anyd1, basis_anyd1, ndf_anyd2, &
+                                        np_xy, np_z, weights_xy, weights_z)
 
     implicit none
 
@@ -93,6 +97,6 @@ contains
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z
 
-  end subroutine testkern_any_d_space_op_2_code
+  end subroutine testkern_any_discontinuous_space_op_2_code
 
-end module testkern_any_d_space_op_2_mod
+end module testkern_any_discontinuous_space_op_2_mod
