@@ -31,36 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Authors: J. Henrichs, Bureau of Meteorology,
+#          A. R. Porter, STFC Daresbury Laboratory.
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
+# Makefile for the PSyclone wrapper to the NVTX profiling library.
 
-ALL_LIBS=template simple_timing dl_timer drhook nvidia
+F90?=gfortran
+FFLAGS?=-g
 
-.PHONY: default all $(ALL_LIBS) clean
+name=nvtx_prof
+libname=lib$(name).a
 
-default: all
+default: $(libname)
 
-all: $(ALL_LIBS)
-
-template:
-	$(MAKE) -C template
-
-simple_timing:
-	$(MAKE) -C simple_timing
-
-dl_timer:
-	$(MAKE) -C dl_timer
-
-drhook:
-	$(MAKE) -C drhook
-
-nvidia:
-	$(MAKE) -C nvidia
+$(libname): $(name).f90
+	$(F90) -c $(FFLAGS) $<
+	ar rs $(libname) $(name).o
 
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
-
+	rm -f $(libname) $(name).o profile_mod.mod

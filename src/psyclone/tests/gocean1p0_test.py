@@ -276,12 +276,11 @@ def test_scalar_float_arg(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
-        "ssh_fld%grid%tmask)\n"
+        "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
-
     assert generated_code.find(expected_output) != -1
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1103,7 +1102,6 @@ def test_raw_arg_list_error(monkeypatch):
     _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
-    schedule.view()
     kern = schedule.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
     raw_list = kern.arguments.raw_arg_list()
