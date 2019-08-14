@@ -321,7 +321,7 @@
 <node COLOR="#000000" CREATED="0" ID="ID_1241943452" MODIFIED="0" TEXT="loop-fuse gh_inc">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" ID="ID_1910239446" MODIFIED="0" TEXT="any_d_space">
+<node COLOR="#000000" CREATED="0" ID="ID_1910239446" MODIFIED="0" TEXT="any_discontinuous_space">
 <icon BUILTIN="button_cancel"/>
 </node>
 </node>
