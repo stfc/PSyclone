@@ -3774,9 +3774,9 @@ class CodedKern(Kern):
 
             # Choose suffix
             if Config.get().kernel_naming == "single":
-                new_suffix = self.name
+                new_suffix = "_{0}".format(self.name)
             else:
-                new_suffix = self.name + "_{0}".format(name_idx)
+                new_suffix = "_{0}_{1}".format(self.name, name_idx)
 
             # Choose file extension
             if self.root.opencl:
