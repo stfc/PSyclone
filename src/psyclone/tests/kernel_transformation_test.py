@@ -217,7 +217,7 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.walk(Kern)
     kern = kernels[0]
     old_mod_name = kern.module_name[:]
     # Create a file with the same name as we would otherwise generate
@@ -338,7 +338,7 @@ def test_2kern_trans(tmpdir, monkeypatch):
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.walk(Kern)
     assert len(kernels) == 5
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kernels[1])
@@ -366,7 +366,7 @@ def test_builtin_no_trans():
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
                            api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, DynBuiltIn)
+    kernels = sched.walk(DynBuiltIn)
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
@@ -386,7 +386,7 @@ def test_no_inline_before_trans(monkeypatch, tmpdir):
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.walk(Kern)
     assert len(kernels) == 5
     inline_trans = KernelModuleInlineTrans()
     rtrans = ACCRoutineTrans()
@@ -411,7 +411,7 @@ def test_no_inline_after_trans(monkeypatch):
     _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                            idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.walk(Kern)
     assert len(kernels) == 5
     # Transform the kernel first
     inline_trans = KernelModuleInlineTrans()

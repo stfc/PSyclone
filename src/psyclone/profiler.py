@@ -207,7 +207,7 @@ class ProfileNode(Node):
             # invoked after e.g. a loop merge more kernels might be there.
             region_name = "unknown-kernel"
             module_name = "unknown-module"
-            for kernel in self.walk(self.children, Kern):
+            for kernel in self.walk(Kern):
                 region_name = kernel.name
                 module_name = kernel.module_name
                 break
