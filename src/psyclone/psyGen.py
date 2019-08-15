@@ -3351,9 +3351,9 @@ class Loop(Node):
 
         :param str arg_type: the type of kernel argument (e.g. field, \
                              operator) to search for.
-        :returns: All unique arguments of the given type from kernels inside \
+        :returns: all unique arguments of the given type from kernels inside \
             this loop that are modified.
-        :rtype: List of :py:class:`psyclone.psyGen.DynKernelArgument`.
+        :rtype: list of :py:class:`psyclone.psyGen.DynKernelArgument`
         '''
         arg_names = []
         args = []
