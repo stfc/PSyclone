@@ -3080,10 +3080,10 @@ class ACCKernelsTrans(RegionTrans):
 
         # Check that we have at least one loop within the proposed region
         for node in node_list:
-            loops = node.walk(Loop)
-            if loops:
+            if node.walk(Loop):
                 break
         else:
+            # Branch executed if loop does not exit with a break
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
 
