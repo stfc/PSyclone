@@ -653,7 +653,7 @@ class GOLoop(Loop):
             # Since this is the __str__ method we have no guarantee
             # what state we expect our object to be in so we allow
             # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
+            go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
@@ -728,7 +728,7 @@ class GOLoop(Loop):
             # Since this is the __str__ method we have no guarantee
             # what state we expect our object to be in so we allow
             # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
+            go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
@@ -808,7 +808,7 @@ class GOLoop(Loop):
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
-        go_kernels = self.walk(self.children, GOKern)
+        go_kernels = self.walk(GOKern)
         if not go_kernels:
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")

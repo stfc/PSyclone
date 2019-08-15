@@ -141,6 +141,7 @@ class NemoInvoke(Invoke):
     :param str name: the name of this Invoke (program unit).
     '''
     def __init__(self, ast, name):
+        # pylint: disable=super-init-not-called
         self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
@@ -187,6 +188,7 @@ class NemoInvokes(Invokes):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
     def __init__(self, ast):
+        # pylint: disable=super-init-not-called
         from fparser.two.Fortran2003 import Main_Program,  \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, Name
 
@@ -243,6 +245,7 @@ class NemoPSy(PSy):
                            supplied AST.
     '''
     def __init__(self, ast):
+        # pylint: disable=super-init-not-called
         names = walk_ast(ast.content, [Fortran2003.Name])
         # The name of the program unit will be the first in the list
         if not names:
@@ -296,6 +299,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
     '''
     def __init__(self, invoke, ast):
+        # pylint: disable=super-init-not-called, non-parent-init-called
         Node.__init__(self)
         NemoFparser2ASTProcessor.__init__(self)
 
@@ -340,6 +344,7 @@ class NemoKern(CodedKern):
 
     '''
     def __init__(self, psyir_nodes, parse_tree, parent=None):
+        # pylint: disable=super-init-not-called
         from psyclone.psyGen import KernelSchedule
         self._name = ""
         self._parent = parent
@@ -371,11 +376,19 @@ class NemoKern(CodedKern):
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
-        if node.walk(node.children, (CodeBlock, NemoLoop)):
-            # A kernel cannot contain unrecognised code (including IO
-            # operations and routine calls) or loops.
-            return False
-        return True
+        # This function is called with node being a Schedule. This means
+        # that 'node' is always part of the result of walk. So if there
+        # is a loop or CodeBlock inside, walk will return more than one
+        # element (the first being the node)
+        if not isinstance(node, Schedule):
+            raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
+                                format(type(node)))
+        nodes = node.walk((CodeBlock, NemoLoop))
+
+        # A kernel cannot contain loops or other unrecognised code (including
+        # IO operations and routine calls) or loops. So if there is any
+        # node in the result of the walk, this node can not be a kernel.
+        return len(nodes) == 0
 
     def local_vars(self):
         '''
@@ -441,7 +454,7 @@ class NemoLoop(Loop):
 
         :raises NotImplementedError: if the loop contains >1 kernel.
         '''
-        kernels = self.walk(self.children, NemoKern)
+        kernels = self.walk(NemoKern)
         if kernels:
             # TODO cope with case where loop contains >1 kernel (e.g.
             # following loop fusion)
@@ -466,6 +479,7 @@ class NemoImplicitLoop(NemoLoop):
 
     '''
     def __init__(self, ast, parent=None):
+        # pylint: disable=super-init-not-called, non-parent-init-called
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
                       valid_loop_types=valid_loop_types)
@@ -500,6 +514,7 @@ class NemoImplicitLoop(NemoLoop):
         :rtype: bool
 
         '''
+        # pylint: disable=too-many-return-statements
         if not isinstance(node, Fortran2003.Assignment_Stmt):
             return False
         # We are expecting something like:
