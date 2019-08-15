@@ -274,8 +274,8 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     assert not nemo.NemoKern.match(loop)
 
 
-def test_match():
-    ''' Check that match raises InternalError in case of
+def test_nemokern_match():
+    ''' Check that NemoKern.match raises an InternalError in case of
     incorrect parameters.'''
 
     with pytest.raises(InternalError) as err:
