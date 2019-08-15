@@ -1823,8 +1823,8 @@ def test_op_any_discontinuous_space_1(tmpdir):
     field vectors and any_discontinuous_space used with operators
     (same and different "to" and "from" spaces). '''
     _, invoke_info = parse(
-       os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
-       api=TEST_API)
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
@@ -1863,8 +1863,8 @@ def test_op_any_discontinuous_space_2(tmpdir):
     PSy layer when including multiple spaces, operators on same and different
     "to" and "from" spaces) and basis/differential basis functions '''
     _, invoke_info = parse(
-       os.path.join(BASE_PATH, "11.5_any_discontinuous_space.f90"),
-       api=TEST_API)
+        os.path.join(BASE_PATH, "11.5_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
@@ -5910,9 +5910,9 @@ def test_arg_discontinuous(monkeypatch, annexed):
 
     # 2 any_discontinuous_space returns true
     _, info = parse(
-       os.path.join(BASE_PATH,
-                    "1_single_invoke_any_discontinuous_space.f90"),
-       api=TEST_API)
+        os.path.join(BASE_PATH,
+                     "1_single_invoke_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.view()
@@ -6176,9 +6176,9 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
-       os.path.join(BASE_PATH,
-                    "1_single_invoke_any_discontinuous_space.f90"),
-       api=TEST_API)
+        os.path.join(BASE_PATH,
+                     "1_single_invoke_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     if annexed:

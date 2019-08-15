@@ -216,9 +216,10 @@ def test_loop_no_directive_dynamo0p3():
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.13_multikernel_invokes_w3.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "4.13_multikernel_invokes_w3_anyd.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule

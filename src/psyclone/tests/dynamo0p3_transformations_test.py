@@ -799,8 +799,8 @@ def test_omp_region_omp_do(dist_mem):
 
 
 def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
-    '''Test that we correctly generate code for the case of a single OMP
-    DO within an OMP PARALLEL region without colouring when a
+    ''' Test that we correctly generate code for the case of a single
+    OMP DO within an OMP PARALLEL region without colouring when a
     discontinuous field has readwrite access. We test when distributed
     memory is on or off. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -808,19 +808,19 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke_w3.f90"),
-                    api=TEST_API)
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "1_single_invoke_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_w3_type')
+    invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
     # Put an OMP PARALLEL around this loop
     if dist_mem and not annexed:
-        # there are 3 halo exchange calls
-        index = 3
+        # there are 2 halo exchange calls
+        index = 2
     else:
         # there are no halo exchange calls
         index = 0
@@ -846,7 +846,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     if dist_mem:
         loop_str = "cell=1,mesh%get_last_edge_cell()"
     else:
-        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -978,8 +978,7 @@ def test_loop_fuse_invalid_space(monkeypatch):
     ''' Test that we raise an appropriate error if the user attempts
     to fuse loops that are on invalid spaces.
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
@@ -1001,17 +1000,15 @@ def test_loop_fuse_invalid_space(monkeypatch):
 
 
 def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
-    '''Test that we raise an appropriate error if the user attempts
+    ''' Test that we raise an appropriate error if the user attempts
     fuse loops that are on different spaces (unless they are both on
     discontinuous spaces). We test with annexed is False as this is
     how the test has been set up.
 
     '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
     for same_space in [False, True]:
@@ -1050,8 +1047,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
 def test_loop_fuse_unexpected_error(dist_mem):
     ''' Test that we catch an unexpected error when loop fusing. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -1076,8 +1072,7 @@ def test_loop_fuse_unexpected_error(dist_mem):
 
 def test_loop_fuse(dist_mem):
     ''' Test that we are able to fuse two loops together. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -1125,8 +1120,7 @@ def test_loop_fuse(dist_mem):
 def test_loop_fuse_set_dirty():
     ''' Test that we are able to fuse two loops together and produce
     the expected set_dirty() calls. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -1145,8 +1139,7 @@ def test_loop_fuse_set_dirty():
 def test_loop_fuse_omp(dist_mem):
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -1204,18 +1197,19 @@ def test_loop_fuse_omp(dist_mem):
 
 
 def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that we can loop-fuse two loop nests and enclose them in an
-    OpenMP parallel region for a kernel with a discontinuous field has
-    readwrite access. We test when distributed memory is on or
+    ''' Test that we can loop-fuse two loop nests and enclose them in
+    an OpenMP parallel region for a kernel when discontinuous fields
+    have readwrite access. We test when distributed memory is on or
     off. Also test with and without annexed dofs being computed as
     this affects the generated code.
-
+    Note: Fusing loops over discontinuous readwriters over different
+    spaces is allowed unless their loop bounds differ due to a
+    previous transformation.
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "4.13_multikernel_invokes_w3.f90"),
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.13_multikernel_invokes_w3_anyd.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     invoke = psy.invokes.get('invoke_0')
@@ -1223,7 +1217,6 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
 
     ftrans = DynamoLoopFuseTrans()
     otrans = DynamoOMPParallelLoopTrans()
-
     if dist_mem and not annexed:
         # there are 3 halo exchange calls
         index = 3
@@ -1256,10 +1249,9 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
            "private(cell), schedule(static)" in line:
             omp_para_idx = idx
         if "CALL testkern_w3_code" in line:
-            if call1_idx == -1:
-                call1_idx = idx
-            else:
-                call2_idx = idx
+            call1_idx = idx
+        if "CALL testkern_anyd_any_space_code" in line:
+            call2_idx = idx
         if "END DO" in line:
             cell_enddo_idx = idx
         if "!$omp end parallel do" in line:
@@ -1383,8 +1375,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
 def test_loop_fuse_cma(dist_mem):
     ''' Test that we can loop fuse two loops when one contains a
     call to a CMA-related kernel. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "20.6_multi_invoke_with_cma.f90"),
                     api=TEST_API)
     ftrans = DynamoLoopFuseTrans()
@@ -5293,11 +5284,11 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(TEST_API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.6_multikernel_invokes.f90"),
-                    api="dynamo0.3")
+                    api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     if annexed:
@@ -5344,7 +5335,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     the exception is raised correctly. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
-                    api="dynamo0.3")
+                    api=TEST_API)
     # First test for f1 readwrite to read dependency
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -5916,8 +5907,7 @@ def test_rc_then_colour2(tmpdir):
 def test_loop_fuse_then_rc(tmpdir):
     '''Test that we are able to fuse two loops together, perform
     redundant computation and then colour.'''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)

@@ -457,7 +457,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                 if node1_fs_name != node2_fs_name:
                     if not (node1_fs_name in
                             VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
-                            node2_fs_name not in
+                            node2_fs_name in
                             VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
                         raise TransformationError(
                             "Error in {0} transformation: Cannot fuse loops "

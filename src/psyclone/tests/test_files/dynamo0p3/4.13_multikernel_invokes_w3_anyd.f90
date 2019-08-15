@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,22 +33,23 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic Met Office
 
-program multikernel_invokes_anyd1_w2v
+program multikernel_invokes_w3
 
-  ! Description: two functions in an invoke iterating over discontinuous
-  ! spaces and reading from discontinuous spaces
-
-  use testkern_any_d_disc_only_mod, only: testkern_any_d_disc_only_type
-  use testkern_w2v_mod,             only: testkern_w2v_type
-  use inf,                          only: field_type
+  ! Description: multiple kernel calls within an invoke iterating over
+  ! discontinuous readwriters on w3 and any_discontinuous_space_1 and
+  ! reading from continuous fields
+  use inf,                         only: field_type
+  use testkern_w3_mod,             only: testkern_w3_type
+  use testkern_anyd_any_space_mod, only: testkern_anyd_any_space_type
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4
+  type(field_type) :: f1, f2, m1, m2, m3
+  real(r_def) :: a
 
-  call invoke(                                &
-       testkern_any_d_disc_only_type(f1, f2), &
-       testkern_w2v_type(f3, f4)              &
+  call invoke(                                  &
+       testkern_w3_type(a, f1, f2, m1, m2),     &
+       testkern_anyd_any_space_type(m3, f1, m1) &
           )
 
-end program multikernel_invokes_anyd1_w2v
+end program multikernel_invokes_w3
