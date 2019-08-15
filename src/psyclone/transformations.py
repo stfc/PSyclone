@@ -115,7 +115,7 @@ class RegionTrans(Transformation):
 
         # Check that the proposed region contains only supported node types
         for child in node_list:
-            flat_list = [item for item in child.walk([child], object)
+            flat_list = [item for item in child.walk(object)
                          if not isinstance(item, Schedule)]
             for item in flat_list:
                 if not isinstance(item, self.valid_node_types):
@@ -164,7 +164,7 @@ def check_intergrid(node):
     if not node.children:
         return
     from psyclone.dynamo0p3 import DynKern
-    child_kernels = node.walk(node.children, DynKern)
+    child_kernels = node.walk(DynKern)
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
@@ -2832,6 +2832,7 @@ class ACCEnterDataTrans(Transformation):
         return sched, keep
 
     def _validate(self, sched):
+        # pylint: disable=arguments-differ
         '''
         Check that we can safely apply the OpenACC enter-data transformation
         to the supplied Schedule.
@@ -2843,7 +2844,7 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
-        from psyclone.psyGen import Schedule, Directive, \
+        from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
 
@@ -2860,11 +2861,10 @@ class ACCEnterDataTrans(Transformation):
                 "a schedule of type {0}".format(type(sched)))
 
         # Check that we don't already have a data region of any sort
-        directives = sched.walk(sched.children, Directive)
-        data_directives = [True if isinstance(ddir, (ACCDataDirective,
-                                                     ACCEnterDataDirective))
-                           else False for ddir in directives]
-        if True in data_directives:
+        directives = sched.walk(Directive)
+        if any(isinstance(ddir, (ACCDataDirective,
+                                 ACCEnterDataDirective))
+               for ddir in directives):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 
@@ -3079,13 +3079,11 @@ class ACCKernelsTrans(RegionTrans):
         super(ACCKernelsTrans, self)._validate(node_list)
 
         # Check that we have at least one loop within the proposed region
-        found = False
         for node in node_list:
-            loops = node.walk(node.children, Loop)
-            if loops or isinstance(node, Loop):
-                found = True
+            if node.walk(Loop):
                 break
-        if not found:
+        else:
+            # Branch executed if loop does not exit with a break
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
 
@@ -3191,7 +3189,7 @@ class ACCDataTrans(RegionTrans):
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
         schedule = node_list[0].root
-        acc_dirs = schedule.walk(schedule.children, ACCEnterDataDirective)
+        acc_dirs = schedule.walk(ACCEnterDataDirective)
         if acc_dirs:
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
