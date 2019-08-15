@@ -221,3 +221,14 @@ Example 3: OpenACC parallelisation of tra_adv
 
 Demonstrates the introduction of simple OpenACC parallelisation (using the
 ``data`` and ``kernels`` directives) for a NEMO tracer-advection benchmark.
+
+Example 4: Transforming Fortran code to the SIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates that simple Fortran code examples which conform to the
+NEMO API can be transformed to the Stencil Intermediate Representation
+(SIR). The SIR is the front-end language to DAWN
+(https://github.com/MeteoSwiss-APN/dawn), a tool which generates
+optimised cuda, or gridtools code. Thus these simple Fortran examples
+can be transformed to optimised cuda and/or gridtools code by using
+PSyclone and then DAWN.

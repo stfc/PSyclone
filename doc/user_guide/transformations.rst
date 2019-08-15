@@ -607,3 +607,14 @@ the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
 directive added. Again, please see PSyclone/examples/gocean/eg2 for an
 example.
+
+SIR
+---
+
+It is currently not possible for PSyclone output SIR code without
+using a script. Examples of such scripts are given in example 4 for
+the NEMO API. Whilst there are no transformations relating to the
+generation of the SIR, a script is associated with transformations and
+it is possible that transformations would be useful in the future
+e.g. to mark which bits of code should be optimised using the dawn
+tool.
