@@ -371,15 +371,12 @@ class NemoKern(CodedKern):
         subroutine calls or IO operations).
 
         :param node: node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyGen.Schedule`
         :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
-        # This function is called with node being a Schedule. This means
-        # that 'node' is always part of the result of walk. So if there
-        # is a loop or CodeBlock inside, walk will return more than one
-        # element (the first being the node)
+        # This function is called with node being a Schedule.
         if not isinstance(node, Schedule):
             raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
                                 format(type(node)))

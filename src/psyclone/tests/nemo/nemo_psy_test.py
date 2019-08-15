@@ -226,7 +226,7 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     assert nemo.NemoKern.match(loop.loop_body)
     # Create a fake CodeBlock
     cblock = CodeBlock([loop.loop_body[0].ast])
-    # Monkeypatch the Loop object so that it has a CodeBlock as a child
+    # Monkeypatch the loop_body object so that it has a CodeBlock as a child
     monkeypatch.setattr(loop.loop_body, "children", [cblock])
     # This should no longer match as a NemoKern
     assert not nemo.NemoKern.match(loop.loop_body)
@@ -260,7 +260,7 @@ def test_no_explicit_loop_in_kernel(parser):
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
     assert isinstance(loop.loop_body[0], nemo.NemoLoop)
-    # 'loop' is not a valid kernel because it itself contains a loop
+    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
     assert not nemo.NemoKern.match(loop.loop_body)
 
 
@@ -279,7 +279,7 @@ def test_no_implicit_loop_in_kernel(parser):
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
     assert isinstance(loop.loop_body[0], nemo.NemoLoop)
-    # 'loop' is not a valid kernel because it itself contains a loop
+    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
     assert not nemo.NemoKern.match(loop.loop_body)
 
 
