@@ -859,25 +859,42 @@ def test_goschedule_view(capsys):
     out, _ = capsys.readouterr()
 
     # Ensure we check for the correct (colour) control codes in the output
-    sched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
     expected_output = (
-        sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer',field_space='go_cu',"
+        isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        "    " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='go_cu',"
+        "        " + lit + "[value:'2']\n"
+        "        " + lit + "[value:'jstop']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + sched + "[]\n"
+        "            " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "            " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
+        "                " + lit + "[value:'2']\n"
+        "                " + lit + "[value:'istop+1']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + sched + "[]\n"
+        "                    " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer',field_space='go_every',"
+        "    " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='go_every',"
+        "        " + lit + "[value:'1']\n"
+        "        " + lit + "[value:'jstop+1']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + sched + "[]\n"
+        "            " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "            " + call + " time_smooth_code(u_fld,unew_fld,uold_fld) "
-        "[module_inline=False]")
-
+        "                " + lit + "[value:'1']\n"
+        "                " + lit + "[value:'istop+1']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + sched + "[]\n"
+        "                    " + call + " time_smooth_code(u_fld,unew_fld,"
+        "uold_fld) [module_inline=False]")
     assert expected_output in out
 
 
@@ -892,18 +909,39 @@ def test_goschedule_str():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+
     expected_sched = (
         "GOInvokeSchedule(Constant loop bounds=True):\n"
-        "Loop[]: j= lower=2,jstop,1\n"
-        "Loop[]: i= lower=2,istop+1,1\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'jstop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'istop+1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
-        "Loop[]: j= lower=1,jstop+1,1\n"
-        "Loop[]: i= lower=1,istop+1,1\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'jstop+1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'istop+1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: time_smooth_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
         "End Schedule\n")
     sched_str = str(schedule)
     assert sched_str in expected_sched
@@ -914,16 +952,36 @@ def test_goschedule_str():
 
     expected_sched = (
         "GOInvokeSchedule(Constant loop bounds=False):\n"
-        "Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1\n"
-        "Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'cu_fld%internal%ystart']\n"
+        "Literal[value:'cu_fld%internal%ystop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'cu_fld%internal%xstart']\n"
+        "Literal[value:'cu_fld%internal%xstop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
-        "Loop[]: j= lower=1,SIZE(uold_fld%data, 2),1\n"
-        "Loop[]: i= lower=1,SIZE(uold_fld%data, 1),1\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'SIZE(uold_fld%data, 2)']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'SIZE(uold_fld%data, 1)']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: time_smooth_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
         "End Schedule\n")
     assert sched_str in expected_sched
 
@@ -967,7 +1025,7 @@ def test_goloop_no_children():
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
-    gojloop.addchild(goiloop)
+    gojloop.loop_body.addchild(goiloop)
     # Try and generate the code for this loop even though it
     # has no children
     with pytest.raises(GenerationError):
@@ -981,12 +1039,12 @@ def test_goloop_unsupp_offset():
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
-    gojloop.addchild(goiloop)
+    gojloop.loop_body.addchild(goiloop)
     gokern = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
     gokern._index_offset = "offset_se"
-    goiloop.addchild(gokern)
+    goiloop.loop_body.addchild(gokern)
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
 
@@ -998,15 +1056,15 @@ def test_goloop_unmatched_offsets():
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
-    gojloop.addchild(goiloop)
+    gojloop.loop_body.addchild(goiloop)
     gokern1 = GOKern()
     gokern2 = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
     gokern1._index_offset = "go_offset_ne"
     gokern2._index_offset = "go_offset_sw"
-    goiloop.addchild(gokern1)
-    goiloop.addchild(gokern2)
+    goiloop.loop_body.addchild(gokern1)
+    goiloop.loop_body.addchild(gokern2)
     with pytest.raises(GenerationError) as excinfo:
         goiloop.gen_code(None)
     # Note that the kernels do not have a name, so there is a double space
@@ -1080,7 +1138,7 @@ def test_find_grid_access(monkeypatch):
     from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
-    kern = schedule.children[0].children[0].children[0]
+    kern = schedule.children[0].loop_body[0].loop_body[0]
     assert isinstance(kern, GOKern)
     arg = kern.arguments.find_grid_access()
     assert isinstance(arg, GOKernelArgument)
@@ -1102,7 +1160,7 @@ def test_raw_arg_list_error(monkeypatch):
     _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
-    kern = schedule.children[0].children[0].children[0]
+    kern = schedule.children[0].loop_body[0].loop_body[0]
     assert isinstance(kern, GOKern)
     raw_list = kern.arguments.raw_arg_list()
     assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
@@ -1130,7 +1188,7 @@ def test_invalid_access_type():
     _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
-    kern = schedule.children[0].children[0].children[0]
+    kern = schedule.children[0].loop_body[0].loop_body[0]
     # Test that assigning a non-AccessType value to a kernel argument
     # raises an exception.
     with pytest.raises(InternalError) as err:
@@ -1287,11 +1345,21 @@ def test05p1_kernel_add_iteration_spaces():
     schedule = invoke.schedule
     expected_sched = (
         "GOInvokeSchedule(Constant loop bounds=True):\n"
-        "Loop[]: j= lower=1,2,1\n"
-        "Loop[]: i= lower=3,istop,1\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'3']\n"
+        "Literal[value:'istop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
         "End Schedule\n")
     sched_str = str(schedule)
     assert sched_str in expected_sched

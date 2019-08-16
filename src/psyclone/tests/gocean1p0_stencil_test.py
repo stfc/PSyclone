@@ -267,7 +267,7 @@ def test_stencil_information(tmpdir):
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernel = schedule.children[0].children[0].children[0]
+    kernel = schedule.children[0].loop_body[0].loop_body[0]
 
     # args 1 and 3 specify pointwise as a stencil access
     for idx in [0, 2]:

@@ -75,7 +75,7 @@ if __name__ == "__main__":
     for loop in SCHED.loops():
         # TODO loop.kernel method needs extending to cope with
         # multiple kernels
-        kernels = loop.walk(loop.children, NemoKern)
+        kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
             sched, _ = OMP_TRANS.apply(loop)
 

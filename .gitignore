@@ -13,3 +13,4 @@ dag
 dag.png
 dag.svg
 dist
+src/*.egg-info

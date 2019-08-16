@@ -204,6 +204,11 @@
         63) PR #453 for #449. Adds support for NVIDIA's nvtx profiling
         API to the PSyclone profiling interface.
 
+        64) PR #454 for #410. Simplifies the Node.walk() method.
+
+        65) PR #400 towards #385. Adds support for Fortran Do loops in
+        the PSyIR - loop bounds are now captured.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
