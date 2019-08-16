@@ -2203,7 +2203,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[idx]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is an
     # operator rather than a field
@@ -6184,7 +6184,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
         # 2 halo exchanges generated
         loop = schedule.children[2]
     kernel = loop.loop_body[0]
-    f1_arg = kernel.arguments.args[1]
+    f2_arg = kernel.arguments.args[1]
     #
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:

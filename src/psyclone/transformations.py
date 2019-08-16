@@ -198,15 +198,14 @@ class LoopFuseTrans(Transformation):
         :param node2: the second Node we are checking
         :type node2: :py:class:`psyclone.psyGen.Node`
 
-        :raises TransformationError: if one or both of the nodes is/are not a \
-            :py:class:`psyclone.psyGen.Loop`.
+        :raises TransformationError: if one or both of the nodes is/are \
+                                     not a :py:class:`psyclone.psyGen.Loop`.
         :raises TransformationError: if one or both nodes are not fully-formed.
-        :raises TransformationError: if the nodes do not have the same parent.
-        :raises TransformationError: if the nodes are not next to each \
-            other in the tree.
-        :raises TransformationError: if the \
-            :py:class:`psyclone.psyGen.Loop`s do not have the same\
-            iteration space.
+        :raises TransformationError: if the Nodes do not have the same parent.
+        :raises TransformationError: if the Nodes are not next to each \
+                                     other in the tree.
+        :raises TransformationError: if the :py:class:`psyclone.psyGen.Loop`s \
+                                     do not have the same iteration space.
         '''
 
         # Check that the supplied Node is a Loop
@@ -232,7 +231,7 @@ class LoopFuseTrans(Transformation):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same parent")
 
-        # check node1 and node2 are next to each other
+        # Check node1 and node2 are next to each other
         if abs(node1.position-node2.position) != 1:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
@@ -2816,7 +2815,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             for info in arg_list_info.ndf_positions:
                 if info.function_space.lower() in \
                    (VALID_ANY_SPACE_NAMES +
-                   VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"]):
+                    VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"]):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "

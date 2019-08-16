@@ -645,7 +645,7 @@ def test_no_stub_gen():
     a kernel stub if the meta-data contains mesh information. '''
     from psyclone.gen_kernel_stub import generate
     with pytest.raises(NotImplementedError) as excinfo:
-        generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.F90"),
+        generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")
     assert ('prolong_test_kernel_code is an inter-grid kernel and stub '
             'generation is not yet supported for inter-grid kernels'
@@ -722,7 +722,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     _, _ = otrans.apply(schedule.children[0])
     # Apply colouring and OMP to the first prolong kernel
     _, _ = ctrans.apply(schedule.children[4])
-    _, _ = otrans.apply(schedule.children[4].children[0])
+    _, _ = otrans.apply(schedule.children[4].loop_body[0])
     output = str(psy.gen)
     expected = (
         "      !$omp parallel do default(shared), private(cell), "

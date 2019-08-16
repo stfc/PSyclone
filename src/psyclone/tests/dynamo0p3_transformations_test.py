@@ -1062,7 +1062,7 @@ def test_loop_fuse_unexpected_error(dist_mem):
     ftrans = DynamoLoopFuseTrans()
 
     # Cause an unexpected error
-    schedule.children[index].children = None
+    schedule.children[index].loop_body.children = None
 
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ftrans.apply(schedule.children[index],
@@ -6486,8 +6486,8 @@ def test_intergrid_colour(dist_mem):
             "colour)\n")
     assert expected in gen
     expected = (
-        "          call prolong_kernel_code(nlayers, cell_map_fld_m(:,"
-        "cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
+        "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "(:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
         "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
         "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
     assert expected in gen
@@ -6514,7 +6514,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_kernel_code' has not" in str(err))
+            "but kernel 'prolong_test_kernel_code' has not" in str(err))
     # Set-up the colourmaps
     psy.invokes.invoke_list[0].meshes._colourmap_init()
     # Check that the upper bound is now correct
@@ -6596,8 +6596,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             "        !$omp do schedule(static)\n"
             "        DO cell=1,{0}\n"
             "          !\n"
-            "          CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
-            "cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
+            "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
+            "(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
             "        END DO \n"
