@@ -41,7 +41,7 @@ gen() method to generate Fortran.
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
-    Fparser2ASTProcessor as f2psyir, Array, UnaryOperation
+    Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
 
 
@@ -73,9 +73,9 @@ def gen_stencil(node):
             if isinstance(child.children[0], Reference) and \
                isinstance(child.children[1], Literal):
                 if child.operator.name == "SUB":
-                    dims.append("-"+child.children[1]._value)
+                    dims.append("-"+child.children[1].value)
                 elif child.operator.name == "ADD":
-                    dims.append(child.children[1]._value)
+                    dims.append(child.children[1].value)
                 else:
                     raise VisitorError(
                         "gen_stencil unsupported stencil operator found "
@@ -114,7 +114,7 @@ class SIRWriter(PSyIRVisitor):
         super(SIRWriter, self).__init__(skip_nodes, indent_string,
                                         initial_indent_depth)
         self._field_names = set()
-        
+
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
         down the node hierarchy. If skip_nodes is set to False then
@@ -142,14 +142,14 @@ class SIRWriter(PSyIRVisitor):
         result += "{0}[ {1} end ]\n".format(self._nindent, type(node).__name__)
         return result
 
-    def nemoloop_node(self, node):
+    def nemoloop_node(self, loop_node):
         '''Supported NEMO loops are triply nested with expected indices (not
         yet checked) and should contain a nemokern. If this is not the
         case then it is not possible to translate so raise an
         exception.
 
-        :param node: a nemoLoop PSyIR node.
-        :type node: subclass of :py:class:`psyclone.nemo.NemoLoop`
+        :param loop_node: a nemoLoop PSyIR node.
+        :type loop_node: subclass of :py:class:`psyclone.nemo.NemoLoop`
 
         :returns: the SIR code as a string.
         :rtype: str
@@ -158,16 +158,23 @@ class SIRWriter(PSyIRVisitor):
         computation within the triply nested loop.
 
         '''
-        if not (len(node.children) == 1 and
-                isinstance(node.children[0], NemoLoop)):
+        # Check first loop has a single loop as a child.
+        loop_content = loop_node.loop_body.children
+        if not (len(loop_content) == 1 and
+                isinstance(loop_content[0], NemoLoop)):
             raise VisitorError("Child of loop should be a single loop.")
 
-        if not (len(node.children[0].children) == 1 and
-                isinstance(node.children[0].children[0], NemoLoop)):
-            raise VisitorError("Child of child of loop should be a single loop.")
+        # Check second loop has a single loop as a child.
+        loop_content = loop_content[0].loop_body.children
+        if not (len(loop_content) == 1 and
+                isinstance(loop_content[0], NemoLoop)):
+            raise VisitorError(
+                "Child of child of loop should be a single loop.")
 
-        if not isinstance(node.children[0].children[0].children[0],
-                          NemoKern):
+        # Check third loop has a single NemoKern as a child.
+        loop_content = loop_content[0].loop_body.children
+        if not (len(loop_content) == 1 and
+                isinstance(loop_content[0], NemoKern)):
             raise VisitorError(
                 "Child of child of child of loop should be a NemoKern.")
 
@@ -175,7 +182,7 @@ class SIRWriter(PSyIRVisitor):
                   "0, 0)\n".format(self._nindent))
         result += ("{0}bodyAST = makeAST([\n".format(self._nindent))
         self._depth += 1
-        result += self.nemokern_node(node.children[0].children[0].children[0])
+        result += self.nemokern_node(loop_content[0])
         self._depth -= 1
         if result[-1] == "\n" and result[-2] == ",":
             result = result[:-2] + "\n"
@@ -337,7 +344,8 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         stencil = gen_stencil(node)
-        result = "{0}makeFieldAccessExpr(\"{1}\",{2})".format(self._nindent, node.name, stencil)
+        result = ("{0}makeFieldAccessExpr(\"{1}\",{2})"
+                  "".format(self._nindent, node.name, stencil))
         self._field_names.add(node.name)
         return result
 
@@ -352,7 +360,7 @@ class SIRWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = node._value
+        result = node.value
         # There is an assumption here that the literal is a float (see #468)
         return ("{0}makeLiteralAccessExpr(\"{1}\", BuiltinType.Float)"
                 "".format(self._nindent, result))
@@ -382,7 +390,8 @@ class SIRWriter(PSyIRVisitor):
                 "Method unaryoperation_node in class SIRWriter, unsupported "
                 "operator '{0}' found.".format(str(node.operator)))
         # Currently only '-<literal>' is supported in the SIR mapping.
-        if not (len(node.children) == 1 and isinstance(node.children[0], Literal)):
+        if not (len(node.children) == 1 and
+                isinstance(node.children[0], Literal)):
             raise VisitorError("Child of unary operator should be a literal.")
         result = node.children[0].value
         # There is an assumption here that the literal is a float (see #468)
