@@ -51,7 +51,9 @@ def test_access_info():
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
     assert access_info.indices is None
+    assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
+    assert str(access_info) == "WRITE(12)"
     assert access_info.access_type == AccessType.WRITE
     with pytest.raises(InternalError) as err:
         access_info.change_read_to_write()
@@ -80,11 +82,13 @@ def test_variable_access_info():
 
     vai = VariableAccessInfo("var_name")
     assert vai.var_name == "var_name"
+    assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
     assert vai.all_accesses == []
 
-    vai.add_access(AccessType.READ, Node(), 2)
+    vai.add_access(AccessType.READ, 2, Node())
+    assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
     vai.change_read_to_write()
@@ -106,7 +110,7 @@ def test_variable_access_info():
 
     # Add a READ access - now we should not be able to
     # change read to write anymore:
-    vai.add_access(AccessType.READ, Node(), 1)
+    vai.add_access(AccessType.READ, 1, Node())
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\

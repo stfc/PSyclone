@@ -74,6 +74,12 @@ class AccessInfo(object):
         else:
             self._indices = None
 
+    def __str__(self):
+        ''':returns: a string representating showing the access mode
+        and location, e.g.: WRITE(5).
+        :rtype: str'''
+        return "{0}({1})".format(self._access_type, self._location)
+
     def change_read_to_write(self):
         '''This changes the access mode from READ to WRITE.
         This is used for processing assignment statements,
@@ -136,7 +142,16 @@ class VariableAccessInfo(object):
     def __init__(self, var_name):
         self._var_name = var_name
         # This is the list of AccessInfo instances for this variable.
+
         self._accesses = []
+
+    def __str__(self):
+        ''':returns: a string representation of this object with the format:
+        var_name:WRITE(2),WRITE(3),READ(5)
+        :type: str'''
+        return "{0}:{1}".format(self._var_name,
+                                ",".join([str(access)
+                                          for access in self._accesses]))
 
     @property
     def var_name(self):
