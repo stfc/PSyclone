@@ -5378,7 +5378,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     # Now test for f1 write to read dependency
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    call = schedule.children[0].children[0]
+    call = schedule.children[0].loop_body[0]
     f1_arg = call.arguments.args[0]
     monkeypatch.setattr(f1_arg, "_access", value=AccessType.WRITE)
     rc_trans.apply(schedule.children[0], depth=3)

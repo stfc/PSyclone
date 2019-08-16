@@ -424,13 +424,14 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         super(DynamoLoopFuseTrans, self)._validate(node1, node2)
 
         # Now test for Dynamo-specific constraints
-        # 1) Check that we don't have an inter-grid kernel
-        check_intergrid(node1)
-        check_intergrid(node2)
 
         from psyclone.dynamo0p3 import VALID_FUNCTION_SPACE_NAMES, \
             VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
         try:
+            # 1) Check that we don't have an inter-grid kernel
+            check_intergrid(node1)
+            check_intergrid(node2)
+
             # 2) Check function space names
             node1_fs_name = node1.field_space.orig_name
             node2_fs_name = node2.field_space.orig_name
