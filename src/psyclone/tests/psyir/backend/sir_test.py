@@ -168,50 +168,6 @@ def test_sirwriter_init_2():
     # pylint: enable=protected-access
 
 
-# (1/1) Method node_node
-def test_sirwriter_node_1():
-    '''Check the node_node method of the SIRWriter class is called when an
-    unsupported node is found and that it raises the appropriate
-    exception if skip_nodes is false and continues (outputting
-    information about the unsupported node) if skip_nodes is
-    True. Also check for SIR indentation.
-
-    '''
-    code = (
-        "module test\n"
-        "contains\n"
-        "  subroutine tmp()\n"
-        "    real :: a(1)\n"
-        "    integer :: i\n"
-        "    a(i) = 1.0\n"
-        "  end subroutine tmp\n"
-        "end module test\n")
-    schedule = create_schedule(code)
-
-    # pylint: disable=abstract-method
-    # modify the reference to b to be something unsupported
-    class Unsupported(Node):
-        '''A PSyIR node that will not be supported by the SIR writer.'''
-    # pylint: enable=abstract-method
-
-    unsupported = Unsupported()
-
-    # Add the unsupported node as the root of the tree
-    unsupported.children = [schedule]
-
-    sir_writer = SIRWriter(skip_nodes=False)
-    with pytest.raises(VisitorError) as excinfo:
-        sir_writer(unsupported)
-    assert "unsupported node found" in str(excinfo.value)
-
-    sir_writer = SIRWriter(skip_nodes=True)
-    result = sir_writer(unsupported)
-    assert "[ Unsupported start ]" in result
-    assert "[ Unsupported end ]" in result
-    # Check indentation works.
-    assert "    makeAssignmentStmt(" in result
-
-
 def get_schedule(parser, code):
     ''' Utility function ... '''
     reader = FortranStringReader(code)
@@ -254,6 +210,58 @@ def get_rhs(parser, code):
     return assignment.rhs
 
 
+CODE = (
+    "module test\n"
+    "  contains\n"
+    "  subroutine tmp(n)\n"
+    "    integer,intent(in) :: n\n"
+    "    real :: a(n,n,n)\n"
+    "    integer :: i,j,k\n"
+    "    do i=1,n\n"
+    "      do j=1,n\n"
+    "        do k=1,n\n"
+    "          a(i,j,k) = 1.0\n"
+    "        end do\n"
+    "      end do\n"
+    "    end do\n"
+    "  end subroutine tmp\n"
+    "end module test\n")
+
+
+# (1/1) Method node_node
+def test_sirwriter_node_1(parser):
+    '''Check the node_node method of the SIRWriter class is called when an
+    unsupported node is found and that it raises the appropriate
+    exception if skip_nodes is false and continues (outputting
+    information about the unsupported node) if skip_nodes is
+    True. Also check for SIR indentation.
+
+    '''
+    schedule = get_schedule(parser, CODE)
+
+    # pylint: disable=abstract-method
+    class Unsupported(Node):
+        '''A PSyIR node that will not be supported by the SIR writer.'''
+    # pylint: enable=abstract-method
+
+    unsupported = Unsupported()
+
+    # Add the unsupported node as the root of the tree
+    unsupported.children = [schedule]
+
+    sir_writer = SIRWriter(skip_nodes=False)
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer(unsupported)
+    assert "unsupported node found" in str(excinfo.value)
+
+    sir_writer = SIRWriter(skip_nodes=True)
+    result = sir_writer(unsupported)
+    assert "[ Unsupported start ]" in result
+    assert "[ Unsupported end ]" in result
+    # Check indentation works.
+    assert "    makeAssignmentStmt(" in result
+
+
 # (1/6) Method nemoloop_node
 def test_sirwriter_nemoloop_node_1(parser):
     '''Check the nemoloop_node method of the SIRWriter class outputs the
@@ -261,18 +269,8 @@ def test_sirwriter_nemoloop_node_1(parser):
     supports sir indentation.
 
     '''
-    code = (
-        "subroutine tmp(b,n)\n"
-        "  integer,intent(in) :: n\n"
-        "  real :: a(n,n,n), b(n,n,n)\n"
-        "  integer :: i,j,k\n"
-        "  do i=1,n\n"
-        "    do j=1,n\n"
-        "      do k=1,n\n"
-        "        a(i,j,k) = 1.0\n"
-        "      end do\n"
-        "    end do\n"
-        "  end do\n"
+    code = CODE.replace(
+        "  end subroutine tmp\n",
         "  do i=1,n\n"
         "    do j=1,n\n"
         "      do k=1,n\n"
@@ -281,6 +279,9 @@ def test_sirwriter_nemoloop_node_1(parser):
         "    end do\n"
         "  end do\n"
         "end subroutine tmp\n")
+    code = code.replace(
+        "    real :: a(n,n,n)\n",
+        "    real :: a(n,n,n), b(n,n,n)\n")
     schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     result = sir_writer(schedule)
@@ -300,148 +301,20 @@ def test_sirwriter_nemoloop_node_2(parser):
     '''Check the nemoloop_node method of the SIRWriter class raises an
     exception if the first child of a loop is not a loop.
     '''
-    code = (
-        "module test\n"
-        "  contains\n"
-        "  subroutine tmp(b,n)\n"
-        "    integer,intent(in) :: n\n"
-        "    real :: a(n,n,n)\n"
-        "    integer :: i,j,k\n"
-        "    do i=1,n\n"
-        "      b(i,1,1) = 2.0\n"
+    code = CODE.replace(
         "      do j=1,n\n"
-        "      end do\n"
-        "    end do\n"
-        "  end subroutine tmp\n"
-        "end module test\n")
+        "        do k=1,n\n"
+        "          a(i,j,k) = 1.0\n"
+        "        end do\n"
+        "      end do\n",
+        "      a(i,1,1) = 1.0\n"
+        "      do j=1,n\n"
+        "      end do\n")
     schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert "Child of loop should be a single loop" in str(excinfo.value)
-
-
-# (3/6) Method nemoloop_node
-def test_sirwriter_nemoloop_node_3(parser):
-    '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if a loop has more than one child.
-
-    '''
-    code = (
-        "module test\n"
-        "  contains\n"
-        "  subroutine tmp(b,n)\n"
-        "    integer,intent(in) :: n\n"
-        "    real :: a(n,n,n)\n"
-        "    integer :: i,j,k\n"
-        "    do i=1,n\n"
-        "      do j=1,n\n"
-        "      end do\n"
-        "      do j=1,n\n"
-        "      end do\n"
-        "    end do\n"
-        "  end subroutine tmp\n"
-        "end module test\n")
-    schedule = get_schedule(parser, code)
-    sir_writer = SIRWriter()
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer(schedule)
-    assert "Child of loop should be a single loop" in str(excinfo.value)
-
-
-# (4/6) Method nemoloop_node
-def test_sirwriter_nemoloop_node_4(parser):
-    '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if the first child of the child of a loop is not a loop
-    (i.e. not triply nested).
-
-    '''
-    code = (
-        "module test\n"
-        "  contains\n"
-        "  subroutine tmp(b,n)\n"
-        "    integer,intent(in) :: n\n"
-        "    real :: a(n,n,n)\n"
-        "    integer :: i,j,k\n"
-        "    do i=1,n\n"
-        "      do j=1,n\n"
-        "        b(i,j,1) = 2.0\n"
-        "        do k=1,n\n"
-        "        end do\n"
-        "      end do\n"
-        "    end do\n"
-        "  end subroutine tmp\n"
-        "end module test\n")
-    schedule = get_schedule(parser, code)
-    sir_writer = SIRWriter()
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer(schedule)
-    assert ("Child of child of loop should be a single loop"
-            in str(excinfo.value))
-
-
-# (5/6) Method nemoloop_node
-def test_sirwriter_nemoloop_node_5(parser):
-    '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if the child of a loop has more than one child (i.e. not
-    triply nested).
-
-    '''
-    code = (
-        "module test\n"
-        "  contains\n"
-        "  subroutine tmp(b,n)\n"
-        "    integer,intent(in) :: n\n"
-        "    real :: a(n,n,n)\n"
-        "    integer :: i,j,k\n"
-        "    do i=1,n\n"
-        "      do j=1,n\n"
-        "        do k=1,n\n"
-        "        end do\n"
-        "        do k=1,n\n"
-        "        end do\n"
-        "      end do\n"
-        "    end do\n"
-        "  end subroutine tmp\n"
-        "end module test\n")
-    schedule = get_schedule(parser, code)
-    sir_writer = SIRWriter()
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer(schedule)
-    assert ("Child of child of loop should be a single loop"
-            in str(excinfo.value))
-
-
-# (6/6) Method nemoloop_node
-def test_sirwriter_nemoloop_node_6(parser):
-    '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if the content of the triply nested loop is not a
-    NemoKern.
-
-    '''
-    code = (
-        "module test\n"
-        "  contains\n"
-        "  subroutine tmp(b,n)\n"
-        "    integer,intent(in) :: n\n"
-        "    real :: a(n,n,n,3)\n"
-        "    integer :: i,j,k,l\n"
-        "    do i=1,n\n"
-        "      do j=1,n\n"
-        "        do k=1,n\n"
-        "          do l=1,3\n"
-        "          end do\n"
-        "        end do\n"
-        "      end do\n"
-        "    end do\n"
-        "  end subroutine tmp\n"
-        "end module test\n")
-    schedule = get_schedule(parser, code)
-    sir_writer = SIRWriter()
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer(schedule)
-    assert ("Child of child of child of loop should be a NemoKern."
-            in str(excinfo.value))
 
 
 CODE = (
@@ -460,6 +333,95 @@ CODE = (
     "    end do\n"
     "  end subroutine tmp\n"
     "end module test\n")
+
+
+# (3/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_3(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if a loop has more than one child.
+
+    '''
+    code = CODE.replace(
+        "      do j=1,n\n"
+        "        do k=1,n\n"
+        "          a(i,j,k) = 1.0\n"
+        "        end do\n"
+        "      end do\n",
+        "      do j=1,n\n"
+        "      end do\n"
+        "      do j=1,n\n"
+        "      end do\n")
+    schedule = get_schedule(parser, code)
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Child of loop should be a single loop" in str(excinfo.value)
+
+
+# (4/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_4(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the first child of the child of a loop is not a loop
+    (i.e. not triply nested).
+
+    '''
+    code = CODE.replace(
+        "        do k=1,n\n"
+        "          a(i,j,k) = 1.0\n"
+        "        end do\n",
+        "        a(i,j,1) = 1.0\n"
+        "        do k=1,n\n"
+        "        end do\n")
+    schedule = get_schedule(parser, code)
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert ("Child of child of loop should be a single loop"
+            in str(excinfo.value))
+
+
+# (5/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_5(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the child of a loop has more than one child (i.e. not
+    triply nested).
+
+    '''
+    code = CODE.replace(
+        "        do k=1,n\n"
+        "          a(i,j,k) = 1.0\n"
+        "        end do\n",
+        "        do k=1,n\n"
+        "        end do\n"
+        "        do k=1,n\n"
+        "        end do\n")
+    schedule = get_schedule(parser, code)
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert ("Child of child of loop should be a single loop"
+            in str(excinfo.value))
+
+
+# (6/6) Method nemoloop_node
+def test_sirwriter_nemoloop_node_6(parser):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the content of the triply nested loop is not a
+    NemoKern.
+
+    '''
+    code = CODE.replace("          a(i,j,k) = 1.0\n",
+                        "          do l=1,3\n"
+                        "            a(i,j,k,l) = 1.0\n"
+                        "          end do\n")
+    code = code.replace("real :: a(n,n,n)", "real :: a(n,n,n,3)")
+    code = code.replace("integer :: i,j,k", "integer :: i,j,k,l")
+    schedule = get_schedule(parser, code)
+    sir_writer = SIRWriter()
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert ("Child of child of child of loop should be a NemoKern."
+            in str(excinfo.value))
 
 
 # (1/1) Method nemokern_node
