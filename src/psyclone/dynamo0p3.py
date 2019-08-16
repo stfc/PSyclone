@@ -5619,8 +5619,8 @@ class DynLoop(Loop):
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
-                elif self.field_space.orig_name in \
-                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+                elif (self.field_space.orig_name in
+                      VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
                     # Iterate to ncells for all discontinuous quantities,
                     # including any_discontinuous_space
                     self.set_upper_bound("ncells")

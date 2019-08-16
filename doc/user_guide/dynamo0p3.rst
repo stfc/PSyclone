@@ -865,13 +865,13 @@ above. The valid metadata values for continuous and discontinuous
 function apaces are summarised in the table below.
 
 =========================	====================================
-Function Space Continuity   Function Space Metadata
+Function Space Continuity	Function Space Metadata
 =========================	====================================
-**Continuous**              | ``W0``, ``W1``, ``W2``, ``W2H``,
-                            | ``ANY_SPACE_n``, ``ANY_W2``
-**Discontinuous**           | ``W3``, ``WTHETA``, ``W2V``,
-                            | ``ANY_DISCONTINUOUS_SPACE_n``
-=========================   ====================================
+**Continuous**           	| ``W0``, ``W1``, ``W2``, ``W2H``,
+                         	| ``ANY_SPACE_n``, ``ANY_W2``
+**Discontinuous**        	| ``W3``, ``WTHETA``, ``W2V``,
+                         	| ``ANY_DISCONTINUOUS_SPACE_n``
+=========================	====================================
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,

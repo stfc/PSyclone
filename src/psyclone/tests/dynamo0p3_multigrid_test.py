@@ -64,9 +64,9 @@ RESTRICT_MDATA = '''
 module restrict_mod
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                 &
-       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1, mesh_arg=GH_COARSE),    &
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, mesh_arg=GH_FINE   )  &
+   type(arg_type) :: meta_args(2) = (/                               &
+       arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
+       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -143,11 +143,11 @@ def test_all_fields_have_mesh():
     arguments are missing a mesh specifier '''
     # Add a field argument that is missing a mesh_arg specifier
     code = RESTRICT_MDATA.replace(
-        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
-        "mesh_arg=GH_FINE   )  &",
-        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
-        "mesh_arg=GH_FINE   ), &\n"
-        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2) &\n", 1)
+        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "mesh_arg=GH_FINE  )  &",
+        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "mesh_arg=GH_FINE  ), &\n"
+        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2) &\n", 1)
     code = code.replace("(2)", "(3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
@@ -183,10 +183,10 @@ def test_only_field_args():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add a scalar argument to the kernel
     code = RESTRICT_MDATA.replace(
-        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
-        "mesh_arg=GH_FINE   )  &",
-        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
-        "mesh_arg=GH_FINE   ), &\n"
+        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "mesh_arg=GH_FINE  )  &",
+        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "mesh_arg=GH_FINE  ),  &\n"
         "       arg_type(GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
     print(code)
@@ -246,7 +246,8 @@ def test_field_prolong(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         expected = (
-            "      USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
+            "      USE prolong_test_kernel_mod, "
+            "ONLY: prolong_test_kernel_code\n"
             "      USE mesh_map_mod, ONLY: mesh_map_type\n"
             "      USE mesh_mod, ONLY: mesh_type\n"
             "      TYPE(field_type), intent(inout) :: field1\n"
@@ -299,7 +300,7 @@ def test_field_prolong(tmpdir):
             assert "DO cell=1,field2_proxy%vspace%get_ncell()\n" in gen_code
 
         expected = (
-            "        CALL prolong_kernel_code(nlayers, "
+            "        CALL prolong_test_kernel_code(nlayers, "
             "cell_map_field2(:,cell), ncpc_field1_field2, ncell_field1, "
             "field1_proxy%data, field2_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
@@ -334,7 +335,8 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         defs = (
-            "      USE restrict_kernel_mod, ONLY: restrict_kernel_code\n"
+            "      USE restrict_test_kernel_mod, "
+            "ONLY: restrict_test_kernel_code\n"
             "      USE mesh_map_mod, ONLY: mesh_map_type\n"
             "      USE mesh_mod, ONLY: mesh_type\n"
             "      TYPE(field_type), intent(inout) :: field1\n"
@@ -418,7 +420,7 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
         # This is associated with the second kernel argument.
         kern_call = (
             "        !\n"
-            "        CALL restrict_kernel_code(nlayers, "
+            "        CALL restrict_test_kernel_code(nlayers, "
             "cell_map_field1(:,cell), ncpc_field2_field1, ncell_field2, "
             "field1_proxy%data, field2_proxy%data, "
             "undf_any_space_1_field1, map_any_space_1_field1(:,cell), "
@@ -442,7 +444,6 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     output = str(psy.gen)
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-
     expected = (
         "      ! Look-up mesh objects and loop limits for inter-grid "
         "kernels\n"
@@ -484,8 +485,13 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     assert output.count("ncell_fld_f = ") == 1
 
     if dist_mem:
-        # Have a potential halo exchange before 1st prolong
+        # Have two potential halo exchanges before 1st prolong because
+        # of continuous "read"er and "inc" writer
         expected = (
+            "      IF (fld_m_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL fld_m_proxy%halo_exchange(depth=1)\n"
+            "      END IF \n"
+            "      !\n"
             "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF \n"
@@ -494,13 +500,17 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert expected in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
         # of the fine(r) mesh will now be clean. Therefore, no halo
-        # swap before the next prolongation
+        # swap before the next prolongation required for fld_m
         expected = (
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
             "      !\n"
             "      CALL fld_m_proxy%set_dirty()\n"
             "      CALL fld_m_proxy%set_clean(1)\n"
+            "      !\n"
+            "      IF (fld_f_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL fld_f_proxy%halo_exchange(depth=1)\n"
+            "      END IF \n"
             "      !\n"
             "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
         assert expected in output
@@ -516,7 +526,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      !\n"
                     "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n"
                     "        !\n"
-                    "        CALL restrict_kernel_code")
+                    "        CALL restrict_test_kernel_code")
         assert expected in output
         # For the final restriction we need the L2 halo of fld_m to be
         # clean. There's no set_clean() call on fld_m because it is
@@ -528,36 +538,36 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      !\n"
                     "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n"
                     "        !\n"
-                    "        CALL restrict_kernel_code")
+                    "        CALL restrict_test_kernel_code")
         assert expected in output
     else:
         expected = (
             "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
-            "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_m_proxy%data, "
+            "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
+            "(:,cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_m_proxy%data, "
             "fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO \n"
             "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL prolong_kernel_code(nlayers, cell_map_fld_m(:,"
-            "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_f_proxy%data, "
+            "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
+            "(:,cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_f_proxy%data, "
             "fld_m_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO \n"
             "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,"
-            "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, "
+            "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
+            "(:,cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, "
             "fld_f_proxy%data, undf_any_space_1_fld_m, "
             "map_any_space_1_fld_m(:,cell), ndf_any_space_2_fld_f, "
             "undf_any_space_2_fld_f, map_any_space_2_fld_f)\n"
             "      END DO \n"
             "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL restrict_kernel_code(nlayers, cell_map_fld_c(:,"
-            "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, "
+            "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_c"
+            "(:,cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, "
             "fld_m_proxy%data, undf_any_space_1_fld_c, "
             "map_any_space_1_fld_c(:,cell), ndf_any_space_2_fld_m, "
             "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
@@ -573,10 +583,10 @@ def test_fine_halo_read():
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    hexch = schedule.children[3]
+    hexch = schedule.children[5]
     assert isinstance(hexch, DynHaloExchange)
     assert hexch.depth == 2
-    call = schedule.children[4]
+    call = schedule.children[6]
     field = call.args[1]
     hra = HaloReadAccess(field)
     assert hra._var_depth is None
@@ -635,8 +645,103 @@ def test_no_stub_gen():
     a kernel stub if the meta-data contains mesh information. '''
     from psyclone.gen_kernel_stub import generate
     with pytest.raises(NotImplementedError) as excinfo:
-        generate(os.path.join(BASE_PATH, "prolong_kernel_mod.F90"),
+        generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.F90"),
                  api="dynamo0.3")
-    assert ('prolong_kernel_code is an inter-grid kernel and stub '
+    assert ('prolong_test_kernel_code is an inter-grid kernel and stub '
             'generation is not yet supported for inter-grid kernels'
             in str(excinfo.value))
+
+
+def test_restrict_prolong_chain_anyd(tmpdir):
+    ''' Test that we generate correct code for an invoke containing a
+    chain of discontinuous restrictions and continuous prolongations '''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.2.1_intergrid_3levels_anyd.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    output = str(psy.gen)
+    # Check maps for any_discontinuous_space
+    expected = (
+        "      map_any_discontinuous_space_1_fld_m => "
+        "fld_m_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_discontinuous_space_2_fld_f => "
+        "fld_f_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_discontinuous_space_1_fld_c => "
+        "fld_c_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_discontinuous_space_2_fld_m => "
+        "fld_m_proxy%vspace%get_whole_dofmap()\n")
+    assert expected in output
+    # Check ndf and undf initialisations the second restrict kernel
+    # (fld_m to fld_c)
+    expected = (
+        "      ! Initialise number of DoFs for "
+        "any_discontinuous_space_1_fld_c\n"
+        "      !\n"
+        "      ndf_any_discontinuous_space_1_fld_c = "
+        "fld_c_proxy%vspace%get_ndf()\n"
+        "      undf_any_discontinuous_space_1_fld_c = "
+        "fld_c_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for "
+        "any_discontinuous_space_2_fld_m\n"
+        "      !\n"
+        "      ndf_any_discontinuous_space_2_fld_m = "
+        "fld_m_proxy%vspace%get_ndf()\n"
+        "      undf_any_discontinuous_space_2_fld_m = "
+        "fld_m_proxy%vspace%get_undf()\n")
+    assert expected in output
+    # Check an example of restrict loop and all upper loop bounds
+    expected = (
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      DO cell=1,mesh_fld_m%get_last_edge_cell()\n"
+        "        !\n"
+        "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,cell), "
+        "ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, fld_f_proxy%data, "
+        "undf_any_discontinuous_space_1_fld_m, "
+        "map_any_discontinuous_space_1_fld_m(:,cell), "
+        "ndf_any_discontinuous_space_2_fld_f, "
+        "undf_any_discontinuous_space_2_fld_f, "
+        "map_any_discontinuous_space_2_fld_f)\n"
+        "      END DO \n")
+    assert expected in output
+    assert "DO cell=1,mesh_fld_c%get_last_edge_cell()" in output
+    assert "DO cell=1,mesh_fld_c%get_last_halo_cell(1)" in output
+    assert "DO cell=1,mesh_fld_m%get_last_halo_cell(1)" in output
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
+    # Now do some transformations
+    from psyclone.transformations import Dynamo0p3ColourTrans, \
+        DynamoOMPParallelLoopTrans, TransformationError
+    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    # Apply OMP to the first restrict kernel
+    _, _ = otrans.apply(schedule.children[0])
+    # Apply colouring and OMP to the first prolong kernel
+    _, _ = ctrans.apply(schedule.children[4])
+    _, _ = otrans.apply(schedule.children[4].children[0])
+    output = str(psy.gen)
+    expected = (
+        "      !$omp parallel do default(shared), private(cell), "
+        "schedule(static)\n"
+        "      DO cell=1,mesh_fld_m%get_last_edge_cell()\n"
+        "        !\n"
+        "        CALL restrict_kernel_code")
+    assert expected in output
+    expected = (
+        "      DO colour=1,ncolour_fld_m\n"
+        "        !$omp parallel do default(shared), private(cell), "
+        "schedule(static)\n"
+        "        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour"
+        "(colour,1)\n"
+        "          !\n"
+        "          CALL prolong_test_kernel_code")
+    assert expected in output
+    # Try to apply colouring to the second restrict kernel
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = ctrans.apply(schedule.children[1])
+    assert ("Loops iterating over a discontinuous function space "
+            "are not currently supported." in str(excinfo.value))

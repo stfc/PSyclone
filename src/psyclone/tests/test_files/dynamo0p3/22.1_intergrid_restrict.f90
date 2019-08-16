@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,18 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke_restrict
 
   ! Description: invoke of single kernel that performs a restriction (map
   ! field from coarse to fine mesh)
-  use restrict_kernel_mod, only: restrict_kernel_type
+  use restrict_test_kernel_mod, only: restrict_test_kernel_type
+
   implicit none
+
   type(field_type) :: field1, field2
 
-  call invoke( restrict_kernel_type(field1, field2) )
+  call invoke( restrict_test_kernel_type(field1, field2) )
 
 end program single_invoke_restrict
