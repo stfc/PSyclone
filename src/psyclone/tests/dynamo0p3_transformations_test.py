@@ -6527,7 +6527,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'restrict_kernel_code' has not" in str(err))
+            "but kernel 'restrict_test_kernel_code' has not" in str(err))
 
 
 def test_intergrid_omp_parado(dist_mem, tmpdir):
@@ -6635,12 +6635,11 @@ def test_intergrid_err(dist_mem):
     # Use an example that contains both prolongation and restriction
     # kernels
     _, invoke_info = parse(os.path.join(
-        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+        BASE_PATH, "22.2.1_intergrid_3levels_anyd.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(psyGen.Loop)
-
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")

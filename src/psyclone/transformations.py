@@ -149,16 +149,12 @@ def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
     an intergrid kernel as a child.
-
     This is used to ensure that we reject any attempt to apply
     transformations to loops containing inter-grid kernels. (This restriction
     will be lifted in Issue #134 and this routine can then be removed.)
-
     # TODO remove this routine once #134 is complete.
-
     :param node: The PSyIR node to check.
     :type node: :py:class:`psyGen.Node`
-
     :raises TransformationError: if the supplied node has an inter-grid
                                  kernel as a child
     '''
