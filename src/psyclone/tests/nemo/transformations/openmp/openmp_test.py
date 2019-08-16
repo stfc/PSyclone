@@ -125,7 +125,7 @@ def test_omp_parallel_multi():
     # Apply the OMP Parallel transformation so as to enclose the last two
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
-    new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
+    new_sched, _ = otrans.apply(schedule.children[0].loop_body[2:4])
     new_sched.view()
     gen_code = str(psy.gen).lower()
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
@@ -145,7 +145,7 @@ def test_omp_parallel_multi():
             "    !$omp end parallel\n" in gen_code)
     # Check that further calls to the update() method don't change the
     # stored AST.
-    directive = new_sched.children[0].children[2]
+    directive = new_sched.children[0].loop_body[2]
     assert isinstance(directive, OMPParallelDirective)
     old_ast = directive._ast
     directive.update()
@@ -165,10 +165,10 @@ def test_omp_parallel_errs():
     # Apply the OMP Parallel transformation so as to enclose the last two
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
-    new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
-    directive = new_sched.children[0].children[2]
+    new_sched, _ = otrans.apply(schedule.children[0].loop_body[2:4])
+    directive = new_sched.children[0].loop_body[2]
     # Break the AST by deleting some of it
-    _ = new_sched.children[0]._ast.content.remove(directive._children[0]._ast)
+    _ = new_sched.children[0].ast.content.remove(directive.children[0].ast)
     with pytest.raises(InternalError) as err:
         _ = psy.gen
     assert ("Failed to find locations to insert begin/end directives" in
@@ -185,12 +185,12 @@ def test_omp_do_children_err():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
-    new_sched, _ = otrans.apply(schedule.children[0].children[2])
-    directive = new_sched.children[0].children[2]
+    new_sched, _ = otrans.apply(schedule.children[0].loop_body[2])
+    directive = new_sched.children[0].loop_body[2]
     assert isinstance(directive, OMPParallelDoDirective)
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
-    directive.children.append(new_sched.children[0].children[3])
+    directive.children.append(new_sched.children[0].loop_body[3])
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "
@@ -223,7 +223,7 @@ def test_omp_do_within_if():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
-    loop = schedule.children[0].children[1].else_body[0].else_body[0]
+    loop = schedule.children[0].loop_body[1].else_body[0].else_body[0]
     assert isinstance(loop, nemo.NemoLoop)
     # Apply the transformation to a loop within an else clause
     schedule, _ = otrans.apply(loop)

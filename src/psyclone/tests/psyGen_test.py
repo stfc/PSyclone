@@ -692,8 +692,8 @@ def test_kern_coloured_text():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    ckern = schedule.children[0].children[0]
-    bkern = schedule.children[1].children[0]
+    ckern = schedule.children[0].loop_body[0]
+    bkern = schedule.children[1].loop_body[0]
     ret_str = ckern.coloured_text
     assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
     ret_str = bkern.coloured_text
@@ -838,18 +838,18 @@ def test_ompdo_directive_class_view(capsys):
             case["current_class"].view(omp_parallel_loop)
 
             out, _ = capsys.readouterr()
+
+            directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+            literal = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+            loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+            sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+            kern = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+
             expected_output = (
-                colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
-                case["current_string"] + "\n"
-                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
-                "[type='',field_space='w1',it_space='cells', "
-                "upper_bound='ncells']\n"
-                "        "+colored("CodedKern",
-                                   SCHEDULE_COLOUR_MAP["CodedKern"]) +
-                " testkern_code(a,f1,f2,m1,m2) "
-                "[module_inline=False]")
-            print(out)
-            print(expected_output)
+                directive + case["current_string"] + "\n"
+                "    " + loop + "[type='', field_space='w1', it_space='cells',"
+                )
+
             assert expected_output in out
 
 
@@ -1139,11 +1139,11 @@ def test_argument_depends_on():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    arg_f1_inc_1 = schedule.children[0].children[0].arguments.args[0]
-    arg_f1_inc_2 = schedule.children[2].children[0].arguments.args[0]
-    arg_f2_read_1 = schedule.children[0].children[0].arguments.args[2]
-    arg_f2_inc = schedule.children[1].children[0].arguments.args[0]
-    arg_f2_read_2 = schedule.children[2].children[0].arguments.args[1]
+    arg_f1_inc_1 = schedule.children[0].loop_body[0].arguments.args[0]
+    arg_f1_inc_2 = schedule.children[2].loop_body[0].arguments.args[0]
+    arg_f2_read_1 = schedule.children[0].loop_body[0].arguments.args[2]
+    arg_f2_inc = schedule.children[1].loop_body[0].arguments.args[0]
+    arg_f2_read_2 = schedule.children[2].loop_body[0].arguments.args[1]
     # different names returns False
     assert not arg_f2_inc._depends_on(arg_f1_inc_1)
     # same name both reads returns False
@@ -1162,8 +1162,8 @@ def test_argument_depends_on():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
-    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[0]
+    arg_f1_write_1 = schedule.children[0].loop_body[0].arguments.args[1]
+    arg_f1_write_2 = schedule.children[1].loop_body[0].arguments.args[0]
     assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
@@ -1177,7 +1177,7 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns none if none found
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
@@ -1185,8 +1185,8 @@ def test_argument_find_argument():
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
-    f3_first_read = schedule.children[0].children[0].arguments.args[3]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_first_read = schedule.children[0].loop_body[0].arguments.args[3]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
     # 3: haloexchange node
@@ -1198,12 +1198,12 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) kern arg depends on halo arg
-    m2_read_arg = schedule.children[3].children[0].arguments.args[4]
+    m2_read_arg = schedule.children[3].loop_body[0].arguments.args[4]
     m2_halo_field = schedule.children[2].field
     result = m2_read_arg._find_argument(schedule.children)
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
-    result = m2_halo_field._find_argument([schedule.children[3].children[0]])
+    result = m2_halo_field._find_argument([schedule.children[3].loop_body[0]])
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
@@ -1213,12 +1213,12 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
-    kern_asum_arg = schedule.children[3].children[0].arguments.args[1]
+    kern_asum_arg = schedule.children[3].loop_body[0].arguments.args[1]
     glob_sum_arg = schedule.children[2].scalar
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
     # b) kern arg depends on globalsum arg
-    result = glob_sum_arg._find_argument([schedule.children[3].children[0]])
+    result = glob_sum_arg._find_argument([schedule.children[3].loop_body[0]])
     assert result == kern_asum_arg
 
 
@@ -1232,28 +1232,28 @@ def test_argument_find_read_arguments():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     call_nodes = schedule.kernels()
     assert f1_first_read._find_read_arguments(call_nodes) == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
     result = f3_write._find_read_arguments(call_nodes[4:])
     assert len(result) == 3
     for idx in range(3):
         loop = schedule.children[idx+4]
-        assert result[idx] == loop.children[0].arguments.args[3]
+        assert result[idx] == loop.loop_body[0].arguments.args[3]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
-    f2_write = schedule.children[0].children[0].arguments.args[0]
+    f2_write = schedule.children[0].loop_body[0].arguments.args[0]
     assert f2_write._find_read_arguments(call_nodes[1:]) == []
     # 4: Return list of readers before a subsequent writer
-    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
     result = f3_write._find_read_arguments(call_nodes)
     assert len(result) == 3
     for idx in range(3):
         loop = schedule.children[idx]
-        assert result[idx] == loop.children[0].arguments.args[3]
+        assert result[idx] == loop.loop_body[0].arguments.args[3]
 
 
 def test_globalsum_arg():
@@ -1297,20 +1297,20 @@ def test_argument_forward_read_dependencies():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     _ = schedule.kernels()
     assert f1_first_read.forward_read_dependencies() == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
     result = f3_write.forward_read_dependencies()
     assert len(result) == 3
     for idx in range(3):
         loop = schedule.children[idx+4]
-        assert result[idx] == loop.children[0].arguments.args[3]
+        assert result[idx] == loop.loop_body[0].arguments.args[3]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
-    f2_write = schedule.children[0].children[0].arguments.args[0]
+    f2_write = schedule.children[0].loop_body[0].arguments.args[0]
     assert f2_write.forward_read_dependencies() == []
 
 
@@ -1330,13 +1330,13 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     # 1: returns none if none found (check many reads)
     assert not f1_first_read.forward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
-    f3_next_read = schedule.children[4].children[0].arguments.args[3]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_next_read = schedule.children[4].loop_body[0].arguments.args[3]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
     # 3: haloexchange dependencies
@@ -1350,9 +1350,9 @@ def test_argument_forward_dependence(monkeypatch, annexed):
         index = 7
     else:
         index = 8
-    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[index-1].loop_body[0].arguments.args[0]
     f2_halo_field = schedule.children[index].field
-    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
+    f2_next_arg = schedule.children[index+1].loop_body[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1366,10 +1366,10 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[1]
-    sum_arg = schedule.children[1].children[0].arguments.args[0]
+    prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
+    sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[1]
+    next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
     assert result == sum_arg
@@ -1397,13 +1397,13 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_last_read = schedule.children[6].children[0].arguments.args[2]
+    f1_last_read = schedule.children[6].loop_body[0].arguments.args[2]
     # 1: returns none if none found (check many reads)
     assert not f1_last_read.backward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
-    f3_prev_read = schedule.children[2].children[0].arguments.args[3]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_prev_read = schedule.children[2].loop_body[0].arguments.args[3]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
     # 3: haloexchange dependencies
@@ -1417,9 +1417,9 @@ def test_argument_backward_dependence(monkeypatch, annexed):
         index = 7
     else:
         index = 8
-    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[index-1].loop_body[0].arguments.args[0]
     f2_halo_field = schedule.children[index].field
-    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
+    f2_next_arg = schedule.children[index+1].loop_body[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -1433,10 +1433,10 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[1]
-    sum_arg = schedule.children[1].children[0].arguments.args[0]
+    prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
+    sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[1]
+    next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
     assert result == global_sum_arg
@@ -1532,9 +1532,9 @@ def test_node_args():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop1 = schedule.children[0]
-    kern1 = loop1.children[0]
+    kern1 = loop1.loop_body[0]
     loop2 = schedule.children[1]
-    kern2 = loop2.children[0]
+    kern2 = loop2.loop_body[0]
     # 1) Schedule (not that this is useful)
     all_args = kern1.arguments.args
     all_args.extend(kern2.arguments.args)
@@ -1554,8 +1554,8 @@ def test_node_args():
     schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
                                same_space=True)
     loop = schedule.children[0]
-    kern1 = loop.children[0]
-    kern2 = loop.children[1]
+    kern1 = loop.loop_body[0]
+    kern2 = loop.loop_body[1]
     loop_args = loop.args
     kern_args = kern1.arguments.args
     kern_args.extend(kern2.arguments.args)
@@ -1573,8 +1573,8 @@ def test_call_args():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kern = schedule.children[0].children[0]
-    builtin = schedule.children[1].children[0]
+    kern = schedule.children[0].loop_body[0]
+    builtin = schedule.children[1].loop_body[0]
     # 1) kern
     for idx, arg in enumerate(kern.args):
         assert arg == kern.arguments.args[idx]
@@ -1754,18 +1754,18 @@ def test_call_forward_dependence():
     for _ in range(6):
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
                                    same_space=True)
-    read4 = schedule.children[0].children[4]
+    read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
     assert not read4.forward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies
     # a) check first read returned
-    writer = schedule.children[0].children[3]
-    next_read = schedule.children[0].children[4]
+    writer = schedule.children[0].loop_body[3]
+    next_read = schedule.children[0].loop_body[4]
     assert writer.forward_dependence() == next_read
     # a) check writer returned
-    first_loop = schedule.children[0].children[0]
+    first_loop = schedule.children[0].loop_body[0]
     assert first_loop.forward_dependence() == writer
 
 
@@ -1784,12 +1784,12 @@ def test_call_backward_dependence():
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
                                    same_space=True)
     # 1: loop no backwards dependence
-    call3 = schedule.children[0].children[2]
+    call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()
     # 2: call to call backward dependence
     # a) many steps
-    last_call_node = schedule.children[0].children[6]
-    prev_dep_call_node = schedule.children[0].children[3]
+    last_call_node = schedule.children[0].loop_body[6]
+    prev_dep_call_node = schedule.children[0].loop_body[3]
     assert last_call_node.backward_dependence() == prev_dep_call_node
     # b) previous
     assert prev_dep_call_node.backward_dependence() == call3
@@ -1915,7 +1915,7 @@ def test_directive_get_private(monkeypatch):
     pvars = directive._get_private_list()
     assert pvars == ['cell']
     # Now use monkeypatch to break the Call within the loop
-    call = directive.children[0].children[0].children[0]
+    call = directive.children[0].children[0].loop_body[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
@@ -1996,14 +1996,13 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     node = kern.ancestor(Node)
-    assert isinstance(node, Loop)
-    node = kern.ancestor(Node, excluding=[Loop])
-    assert node is sched
+    assert isinstance(node, Schedule)
+    node = kern.ancestor(Node, excluding=[Schedule])
+    assert node is sched.children[0].loop_body[0]
 
 
 def test_dag_names():
@@ -2022,8 +2021,8 @@ def test_dag_names():
     schedule.children[3].loop_type = "colour"
     assert schedule.children[3].dag_name == "loop_[colour]_4"
     schedule.children[3].loop_type = ""
-    assert (schedule.children[3].children[0].dag_name ==
-            "kernel_testkern_code_5")
+    assert (schedule.children[3].loop_body[0].dag_name ==
+            "kernel_testkern_code_9")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -2032,8 +2031,8 @@ def test_dag_names():
     schedule = invoke.schedule
     global_sum = schedule.children[2]
     assert global_sum.dag_name == "globalsum(asum)_2"
-    builtin = schedule.children[1].children[0]
-    assert builtin.dag_name == "builtin_sum_x_4"
+    builtin = schedule.children[1].loop_body[0]
+    assert builtin.dag_name == "builtin_sum_x_12"
 
 
 def test_openmp_pdo_dag_name():
@@ -2247,7 +2246,7 @@ def test_find_write_arguments_for_write():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     field_writer = kernel.arguments.args[1]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
@@ -2455,7 +2454,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     rc_trans.apply(schedule.children[index], depth=2)
     del schedule.children[index]
     loop = schedule.children[index+2]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
     with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
@@ -2490,7 +2489,7 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
         index = 4
     del schedule.children[index]
     loop = schedule.children[index+1]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
@@ -2528,7 +2527,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[index], depth=2)
     loop = schedule.children[index+3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
     vector_size = d_field.vector_size
     result_list = d_field.backward_write_dependencies()
@@ -2550,25 +2549,12 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     assert len(indices) == vector_size
 
 
-def test_loop_props():
-    ''' Tests for the properties of a Loop object. '''
-    from psyclone.psyGen import Loop
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
-    sched = invoke.schedule
-    loop = sched.children[0].children[0]
-    assert isinstance(loop, Loop)
-    with pytest.raises(GenerationError) as err:
-        loop.loop_type = "not_a_valid_type"
-    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err))
-
-
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    loop = sched.children[0].children[0]
+    loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop, parent=None)
     assert "Please implement me" in str(err)
@@ -2580,7 +2566,7 @@ def test_kern_ast():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
@@ -2612,7 +2598,7 @@ def test_dataaccess_vector():
     field_d_v3 = halo_exchange_d_v3.field
     # d from a kernel argument
     loop = schedule.children[6]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_arg = kernel.arguments.args[5]
 
     access = DataAccess(d_arg)
@@ -2694,6 +2680,122 @@ def test_codeblock_can_be_printed():
     cblock = CodeBlock([])
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
+
+
+# Test Loop class
+
+def test_loop_navigation_properties():
+    ''' Tests the start_expr, stop_expr, step_expr and loop_body
+    setter and getter properties'''
+    from psyclone.psyGen import Loop
+    loop = Loop()
+
+    # Properties return an error if the node is incomplete
+    error_str = ("Loop malformed or incomplete. It should have exactly 4 "
+                 "children, but found")
+    with pytest.raises(InternalError) as err:
+        _ = loop.start_expr
+    assert error_str in str(err.value)
+
+    # Expressions that are not PSyIR are not accepted
+    with pytest.raises(TypeError) as err:
+        loop.start_expr = "start"
+    assert "Only PSyIR nodes can be assigned as the Loop start expression" \
+        ", but found '" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        loop.stop_expr = "stop"
+    assert "Only PSyIR nodes can be assigned as the Loop stop expression" \
+        ", but found '" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        loop.step_expr = "step"
+    assert "Only PSyIR nodes can be assigned as the Loop step expression" \
+        ", but found '" in str(err.value)
+
+    loop.addchild(Literal("start", parent=loop))
+    loop.addchild(Literal("stop", parent=loop))
+    loop.addchild(Literal("step", parent=loop))
+
+    # If it's not fully complete, it still returns an error
+    with pytest.raises(InternalError) as err:
+        _ = loop.start_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.stop_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.step_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.loop_body
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.start_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.stop_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.step_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+
+    # The fourth child has to be a Schedule
+    loop.addchild(Literal("loop_body", parent=loop))
+    with pytest.raises(InternalError) as err:
+        _ = loop.loop_body
+    assert "Loop malformed or incomplete. Fourth child should be a " \
+        "Schedule node, but found loop with " in str(err.value)
+
+    # Fix loop and check that Getters properties work
+    del loop.children[3]
+    loop.addchild(Schedule(parent=loop))
+    loop.loop_body.addchild(Return(parent=loop.loop_body))
+
+    assert loop.start_expr.value == "start"
+    assert loop.stop_expr.value == "stop"
+    assert loop.step_expr.value == "step"
+    assert isinstance(loop.loop_body[0], Return)
+
+    # Test Setters
+    loop.start_expr = Literal("newstart", parent=loop)
+    loop.stop_expr = Literal("newstop", parent=loop)
+    loop.step_expr = Literal("newstep", parent=loop)
+
+    assert loop.start_expr.value == "newstart"
+    assert loop.stop_expr.value == "newstop"
+    assert loop.step_expr.value == "newstep"
+
+
+def test_loop_invalid_type():
+    ''' Tests assigning an invalid type to a Loop object. '''
+    from psyclone.psyGen import Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].loop_body[0]
+    assert isinstance(loop, Loop)
+    with pytest.raises(GenerationError) as err:
+        loop.loop_type = "not_a_valid_type"
+    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
+            "['inner', 'outer']" in str(err))
+
+
+def test_loop_gen_code():
+    ''' Check that the Loop gen_code method prints the proper loop '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # By default DynLoop has step = 1 and it is not printed in the Fortran DO
+    gen = str(psy.gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+
+    # Change step to 2
+    loop = psy.invokes.get('invoke_important_invoke').schedule[3]
+    loop.step_expr = Literal("2", parent=loop)
+
+    # Now it is printed in the Fortran DO with the expression  ",2" at the end
+    gen = str(psy.gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
 
 # Test IfBlock class
@@ -2848,7 +2950,7 @@ def test_reference_can_be_printed():
     kschedule.symbol_table.add(Symbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
-    assert "Reference[name:'rname']\n" in str(ref)
+    assert "Reference[name:'rname']" in str(ref)
 
 
 # Test Array class
@@ -2900,7 +3002,7 @@ def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1")
-    assert "Literal[value:'1']\n" in str(literal)
+    assert "Literal[value:'1']" in str(literal)
 
 
 # Test BinaryOperation class
@@ -2945,14 +3047,14 @@ def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
+    assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("2", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(binary_operation)
-    assert "Literal[value:'2']\n" in str(binary_operation)
+    assert "Literal[value:'2']" in str(binary_operation)
 
 
 # Test UnaryOperation class
@@ -2995,11 +3097,11 @@ def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
+    assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(unary_operation)
+    assert "Literal[value:'1']" in str(unary_operation)
 
 
 def test_naryoperation_view(capsys):
@@ -3022,14 +3124,14 @@ def test_naryoperation_can_be_printed():
     '''Test that an Nary Operation instance can always be printed (i.e. is
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    assert "NaryOperation[operator:'MAX']\n" in str(nary_operation)
+    assert "NaryOperation[operator:'MAX']" in str(nary_operation)
     nary_operation.addchild(Literal("1", parent=nary_operation))
     nary_operation.addchild(Literal("2", parent=nary_operation))
     nary_operation.addchild(Literal("3", parent=nary_operation))
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(nary_operation)
     assert "Literal[value:'2']\n" in str(nary_operation)
-    assert "Literal[value:'3']\n" in str(nary_operation)
+    assert "Literal[value:'3']" in str(nary_operation)
 
 
 # Test Return class
@@ -3085,7 +3187,7 @@ def test_kernelschedule_can_be_printed():
     assignment.addchild(rhs)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
     assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End Schedule" in str(kschedule)
+    assert "End KernelSchedule" in str(kschedule)
 
 
 def test_kernelschedule_name_setter():
@@ -5162,3 +5264,76 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2endsub], None)
     assert not fake_parent.children  # No new children created
+
+
+def test_fparser2astprocessor_do_construct(f2008_parser):
+    ''' Check that do loop constructs are converted to the expected
+    PSyIR node'''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import Loop
+    reader = FortranStringReader('''
+        do i = 1, 10 , 2\n
+            sum = sum + i\n
+        end do\n
+        ''')
+    fparser2do = Execution_Part.match(reader)[0][0]
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    processor.process_nodes(fake_parent, [fparser2do], None)
+    assert fake_parent.children[0]
+    new_loop = fake_parent.children[0]
+    assert isinstance(new_loop, Loop)
+    assert new_loop.variable_name == "i"
+    assert new_loop.start_expr.value == "1"
+    assert new_loop.stop_expr.value == "10"
+    assert new_loop.step_expr.value == "2"
+    assert len(new_loop.loop_body.children) == 1
+    assert isinstance(new_loop.loop_body[0], Assignment)
+
+
+def test_fparser2astprocessor_do_construct_while(f2008_parser):
+    ''' Check that do while constructs are placed in Codeblocks '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader('''
+        do while(a .gt. b)\n
+            c = c + 1\n
+        end do\n
+        ''')
+    fparser2while = Execution_Part.match(reader)[0][0]
+    processor = Fparser2ASTProcessor()
+    fake_parent = Node()
+    processor.process_nodes(fake_parent, [fparser2while], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+def test_missing_loop_control(f2008_parser, monkeypatch):
+    ''' Check that encountering a loop in the fparser parse tree that is
+    missing a Loop_Control element raises an InternalError. '''
+    from fparser.two.utils import walk_ast
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two import Fortran2003
+    reader = FortranStringReader('''
+        do while(a .gt. b)\n
+            c = c + 1\n
+        end do\n
+        ''')
+    fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
+    processor = Fparser2ASTProcessor()
+
+    # We have to break the fparser2 parse tree in order to trigger the
+    # internal error
+    ctrl = walk_ast(fparser2while.content[0].items, [Fortran2003.Loop_Control])
+    # 'items' is a tuple and therefore immutable so make a new list
+    item_list = list(fparser2while.content[0].items)
+    # Create a new tuple for the items member without the Loop_Control
+    item_list.remove(ctrl[0])
+    fparser2while.content[0].items = tuple(item_list)
+    monkeypatch.setattr(fparser2while, "tostr", lambda: "<fparser2while>")
+
+    fake_parent = Node()
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2while], None)
+    assert "Unrecognised form of DO loop - failed to find Loop_Control " \
+        "element in the node '<fparser2while>'." in str(err)
