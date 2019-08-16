@@ -212,6 +212,48 @@ def test_sirwriter_node_1():
     assert "    makeAssignmentStmt(" in result
 
 
+def get_schedule(parser, code):
+    ''' Utility function ... '''
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    return psy.invokes.invoke_list[0].schedule
+
+
+def get_kernel(parser, code):
+    ''' Utility function '''
+    from psyclone.nemo import NemoKern
+    schedule = get_schedule(parser, code)
+    loop1 = schedule.children[0]
+    loop2 = loop1.loop_body.children[0]
+    loop3 = loop2.loop_body.children[0]
+    kernel = loop3.loop_body.children[0]
+    assert isinstance(kernel, NemoKern)
+    return kernel
+
+
+def get_assignment(parser, code):
+    ''' Utility function ... '''
+    from psyclone.psyGen import Assignment
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    assignment = kernel_schedule.children[0]
+    assert isinstance(assignment, Assignment)
+    return assignment
+
+
+def get_lhs(parser, code):
+    ''' Utility function ... '''
+    assignment = get_assignment(parser, code)
+    return assignment.lhs
+
+    
+def get_rhs(parser, code):
+    ''' Utility function ... '''
+    assignment = get_assignment(parser, code)
+    return assignment.rhs
+
+
 # (1/6) Method nemoloop_node
 def test_sirwriter_nemoloop_node_1(parser):
     '''Check the nemoloop_node method of the SIRWriter class outputs the
@@ -239,10 +281,7 @@ def test_sirwriter_nemoloop_node_1(parser):
         "    end do\n"
         "  end do\n"
         "end subroutine tmp\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     result = sir_writer(schedule)
     assert result.count(
@@ -275,10 +314,7 @@ def test_sirwriter_nemoloop_node_2(parser):
         "    end do\n"
         "  end subroutine tmp\n"
         "end module test\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -306,10 +342,7 @@ def test_sirwriter_nemoloop_node_3(parser):
         "    end do\n"
         "  end subroutine tmp\n"
         "end module test\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -339,10 +372,7 @@ def test_sirwriter_nemoloop_node_4(parser):
         "    end do\n"
         "  end subroutine tmp\n"
         "end module test\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -374,10 +404,7 @@ def test_sirwriter_nemoloop_node_5(parser):
         "    end do\n"
         "  end subroutine tmp\n"
         "end module test\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -409,10 +436,7 @@ def test_sirwriter_nemoloop_node_6(parser):
         "    end do\n"
         "  end subroutine tmp\n"
         "end module test\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -445,16 +469,7 @@ def test_sirwriter_nemokern_node(parser):
     kernel.
 
     '''
-    from psyclone.nemo import NemoKern
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    assert isinstance(kernel, NemoKern)
+    kernel = get_kernel(parser, CODE)
     sir_writer = SIRWriter()
     result = sir_writer.nemokern_node(kernel)
     assert (
@@ -470,10 +485,7 @@ def test_sirwriter_nemoinvokeschedule_node_1(parser):
     outputs the expected SIR code.
 
     '''
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, CODE)
     sir_writer = SIRWriter()
     result = sir_writer(schedule)
     assert (
@@ -500,21 +512,7 @@ def test_sirwriter_assignment_node(parser):
     outputs the expected SIR code.
 
     '''
-    from psyclone.psyGen import Assignment
-
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    sir_writer = SIRWriter()
-    result = sir_writer(schedule)
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    assignment = kernel_schedule.children[0]
-    assert isinstance(assignment, Assignment)
+    assignment = get_assignment(parser, CODE)
     sir_writer = SIRWriter()
     result = sir_writer.assignment_node(assignment)
     assert (
@@ -531,17 +529,8 @@ def test_sirwriter_binaryoperation_node_1(parser):
 
     '''
     for oper in ["+", "-", "*", "/"]:
-        reader = FortranStringReader(
-            CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper)))
-        prog = parser(reader)
-        psy = PSyFactory(api="nemo").create(prog)
-        schedule = psy.invokes.invoke_list[0].schedule
-        loop1 = schedule.children[0]
-        loop2 = loop1.loop_body.children[0]
-        loop3 = loop2.loop_body.children[0]
-        kernel = loop3.loop_body.children[0]
-        kernel_schedule = kernel.get_kernel_schedule()
-        rhs = kernel_schedule.children[0].rhs
+        code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
+        rhs = get_rhs(parser, code)
         sir_writer = SIRWriter()
         result = sir_writer.binaryoperation_node(rhs)
         assert (
@@ -561,17 +550,8 @@ def test_sirwriter_binaryoperation_node_2(parser):
     # Choose the power function (**) as there are no examples of its
     # use in the SIR so no mapping is currently provided.
     oper = "**"
-    reader = FortranStringReader(
-        CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper)))
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    rhs = kernel_schedule.children[0].rhs
+    code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
+    rhs = get_rhs(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.binaryoperation_node(rhs)
@@ -584,16 +564,7 @@ def test_sirwriter_reference_node_1(parser):
     expected SIR when given a PSyIR Reference node.
 
     '''
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    lhs = kernel_schedule.children[0].lhs
+    lhs = get_lhs(parser, CODE)
     sir_writer = SIRWriter()
     assert (sir_writer.reference_node(lhs.children[0]) ==
             "makeVarAccessExpr(\"i\")")
@@ -609,10 +580,7 @@ def test_sirwriter_reference_node_2(parser):
     exception if the PSyIR Reference node has children.
 
     '''
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_schedule(parser, CODE)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         # Use a node which has children to raise the exception.
@@ -627,16 +595,7 @@ def test_sirwriter_array_node(parser):
     expected SIR when given a PSyIR Array node.
 
     '''
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    lhs = kernel_schedule.children[0].lhs
+    lhs = get_lhs(parser, CODE)
     sir_writer = SIRWriter()
     assert (sir_writer.array_node(lhs) ==
             "makeFieldAccessExpr(\"a\",[0,0,0])")
@@ -648,16 +607,7 @@ def test_sirwriter_literal_node_1(parser):
     expected SIR when given a PSyIR Literal node with a 'real' value.
 
     '''
-    reader = FortranStringReader(CODE)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    rhs = kernel_schedule.children[0].rhs
+    rhs = get_rhs(parser, CODE)
     sir_writer = SIRWriter()
     assert (sir_writer.literal_node(rhs) ==
             "makeLiteralAccessExpr(\"1.0\", BuiltinType.Float)")
@@ -671,16 +621,8 @@ def test_sirwriter_literal_node_2(parser):
     value.
 
     '''
-    reader = FortranStringReader(CODE.replace("1.0", "1"))
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    rhs = kernel_schedule.children[0].rhs
+    code = CODE.replace("1.0", "1")
+    rhs = get_rhs(parser, code)
     sir_writer = SIRWriter()
     assert (sir_writer.literal_node(rhs) ==
             "makeLiteralAccessExpr(\"1\", BuiltinType.Integer)")
@@ -694,17 +636,8 @@ def test_sirwriter_unaryoperation_node_1(parser):
 
     '''
     for oper in ["-"]:  # Currently only one supported mapping
-        reader = FortranStringReader(
-            CODE.replace("1.0", "{0}1.0".format(oper)))
-        prog = parser(reader)
-        psy = PSyFactory(api="nemo").create(prog)
-        schedule = psy.invokes.invoke_list[0].schedule
-        loop1 = schedule.children[0]
-        loop2 = loop1.loop_body.children[0]
-        loop3 = loop2.loop_body.children[0]
-        kernel = loop3.loop_body.children[0]
-        kernel_schedule = kernel.get_kernel_schedule()
-        rhs = kernel_schedule.children[0].rhs
+        code = CODE.replace("1.0", "{0}1.0".format(oper))
+        rhs = get_rhs(parser, code)
         sir_writer = SIRWriter()
         result = sir_writer.unaryoperation_node(rhs)
         assert "makeLiteralAccessExpr(\"-1.0\", BuiltinType.Float)" in result
@@ -718,18 +651,8 @@ def test_sirwriter_unary_node_2(parser):
     '''
     # Choose the sin function as there are no examples of its
     # use in the SIR so no mapping is currently provided.
-    oper = "sin"
-    reader = FortranStringReader(
-        CODE.replace("1.0", "{0}(1.0)".format(oper)))
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    rhs = kernel_schedule.children[0].rhs
+    code = CODE.replace("1.0", "sin(1.0)")
+    rhs = get_rhs(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.unaryoperation_node(rhs)
@@ -744,16 +667,8 @@ def test_sirwriter_unary_node_3(parser):
     supported for literal values).
 
     '''
-    reader = FortranStringReader(CODE.replace("1.0", "-a(i,j,k)"))
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    rhs = kernel_schedule.children[0].rhs
+    code = CODE.replace("1.0", "-a(i,j,k)")
+    rhs = get_rhs(parser, code)
     sir_writer = SIRWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.unaryoperation_node(rhs)
@@ -769,16 +684,8 @@ def test_sirwriter_unary_node_4(parser):
     integer literal.
 
     '''
-    reader = FortranStringReader(CODE.replace("1.0", "1"))
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    kernel_schedule = kernel.get_kernel_schedule()
-    rhs = kernel_schedule.children[0].rhs
+    code = CODE.replace("1.0", "1")
+    rhs = get_rhs(parser, code)
     sir_writer = SIRWriter()
     result = sir_writer.unaryoperation_node(rhs)
     assert "makeLiteralAccessExpr(\"-1\", BuiltinType.Integer)" in result
