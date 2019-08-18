@@ -59,7 +59,7 @@ module testkern_stencil_fs_mod
           arg_type(gh_field, gh_read, any_discontinuous_space_1,    &
                                       stencil(cross))               &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, public, nopass :: code => testkern_stencil_fs_code
   end type testkern_stencil_fs_type

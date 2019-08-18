@@ -50,7 +50,7 @@ module testkern_same_any_dscnt_space_stencil_mod
           arg_type(gh_field, gh_read,  any_discontinuous_space_1, &
                                        stencil(cross))            &
           /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, public, nopass :: code => testkern_same_any_dscnt_space_stencil_code
   end type testkern_same_any_dscnt_space_stencil_type

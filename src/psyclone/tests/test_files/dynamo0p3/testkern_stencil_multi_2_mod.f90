@@ -50,7 +50,7 @@ module testkern_stencil_multi_2_mod
           arg_type(gh_field, gh_read, any_discontinuous_space_1, &
                                           stencil(xory1d))       &
           /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, public, nopass :: code => testkern_stencil_multi_2_code
   end type testkern_stencil_multi_2_type

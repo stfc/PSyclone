@@ -6238,6 +6238,9 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
+    # First test compilation ...
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    # and then proceed to checks
     if annexed:
         # no halo exchanges generated
         loop = schedule.children[0]
@@ -6253,8 +6256,6 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     assert ("Internal error in _halo_read_access. It should not be "
             "possible to get to here. loop upper bound name is 'invalid' "
             "and arg 'f2' access is 'gh_read'.") in str(excinfo.value)
-
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_new_halo_exch_vect_field(monkeypatch):
