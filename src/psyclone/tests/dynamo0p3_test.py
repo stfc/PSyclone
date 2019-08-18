@@ -3376,15 +3376,18 @@ def test_no_set_dirty_for_operator():
     assert "is_dirty" not in result
 
 
-def test_halo_exchange_different_spaces():
-    '''test that all of our different function spaces with a stencil
-    access result in halo calls including any_space'''
+def test_halo_exchange_different_spaces(tmpdir):
+    ''' Test that all of our different function spaces with a stencil
+    access result in halo calls including any_space, any_w2 and
+    any_discontinuous_space '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.3_halo_readers_all_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert result.count("halo_exchange") == 9
+    assert result.count("halo_exchange") == 12
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_halo_exchange_vectors_1(monkeypatch, annexed):
@@ -4318,7 +4321,7 @@ def test_multiple_stencil_same_name(dist_mem):
     assert output5 in result
 
 
-def test_multi_stencil_same_name_direction(dist_mem):
+def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
     '''test the case where there is more than one stencil in a kernel with
     the same name for direction'''
     _, invoke_info = parse(
@@ -4394,8 +4397,13 @@ def test_multi_stencil_same_name_direction(dist_mem):
         "f4_proxy%data, f4_stencil_size, direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+        "map_w2(:,cell), ndf_any_discontinuous_space_1_f4, "
+        "undf_any_discontinuous_space_1_f4, "
+        "map_any_discontinuous_space_1_f4(:,cell))")
     assert output5 in result
+
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_multi_kerns_stencils_diff_fields(dist_mem):
@@ -4945,6 +4953,59 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
         "ndf_any_space_2_f2, undf_any_space_2_f2, map_any_space_2_f2)")
     assert output3 in result
+
+
+def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
+    ''' Tests for stencils and any_discontinuous_space space within
+    a single kernel and between kernels. We test when
+    any_discontinuous_space is the same and when it is different
+    within kernels and between kernels for the case of different fields.
+    When it is the same we should have the same stencil dofmap
+    (as all other stencil information is the same) and when it is
+    different we should have a different stencil dofmap (as we do not
+    know whether they are on the same space). '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "19.24_any_discontinuous_space_stencil.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
+    # Use the same stencil dofmap
+    output1 = (
+        "        CALL testkern_same_any_dscnt_space_stencil_code("
+        "nlayers, f0_proxy%data, f1_proxy%data, f1_stencil_size, "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+        "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
+        "map_wtheta(:,cell), ndf_any_discontinuous_space_1_f1, "
+        "undf_any_discontinuous_space_1_f1, "
+        "map_any_discontinuous_space_1_f1(:,cell))")
+    assert output1 in result
+    # Use a different stencil dofmap
+    output2 = (
+        "        CALL testkern_different_any_dscnt_space_stencil_code("
+        "nlayers, f3_proxy%data, f4_proxy%data, f4_stencil_size, "
+        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
+        "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
+        "map_wtheta(:,cell), ndf_any_discontinuous_space_1_f4, "
+        "undf_any_discontinuous_space_1_f4, "
+        "map_any_discontinuous_space_1_f4(:,cell), "
+        "ndf_any_discontinuous_space_2_f5, "
+        "undf_any_discontinuous_space_2_f5, "
+        "map_any_discontinuous_space_2_f5(:,cell))")
+    assert output2 in result
+    # Check for halo exchanges and correct loop bounds
+    if dist_mem:
+        assert result.count("_proxy%halo_exchange(depth=extent)") == 4
+        assert result.count("DO cell=1,mesh%get_last_edge_cell()") == 2
+    else:
+        assert "halo_exchange(depth=extent)" not in result
+        assert "DO cell=1,f0_proxy%vspace%get_ncell()" in result
+        assert "DO cell=1,f3_proxy%vspace%get_ncell()" in result
 
 
 def test_stencil_args_unique_1(dist_mem):
