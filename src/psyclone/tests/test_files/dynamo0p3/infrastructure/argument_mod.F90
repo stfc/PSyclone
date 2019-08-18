@@ -73,7 +73,7 @@ module argument_mod
   integer, public, parameter :: Wchi    = 107
   integer, public, parameter :: ANY_W2  = 108
 
-  ! Distinct any_space id's. Separate id's required as we may have
+  ! Distinct any_space IDs. Separate IDs required as we may have
   ! groups of fields that must be on the same space within a kernel
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
@@ -85,7 +85,7 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
-  ! Distinct any_discontinuous_space id's. Separate id's required
+  ! Distinct any_discontinuous_space IDs. Separate IDs required
   ! as we may have groups of fields that must be on the same space
   ! within a kernel
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251

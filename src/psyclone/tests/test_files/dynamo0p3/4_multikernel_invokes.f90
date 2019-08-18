@@ -35,7 +35,7 @@ program multikernel_invokes_1
 
   ! Multiple kernel calls within an invoke
 
-  use testkern, only : testkern_type
+  use testkern, only: testkern_type
   use inf,      only: field_type
 
   implicit none
@@ -43,9 +43,9 @@ program multikernel_invokes_1
   type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
 
-  call invoke(                       &
-       testkern_type(a,f1,f2,m1,m2), &
-       testkern_type(a,f1,f2,m1,m2)  &
+  call invoke(                           &
+       testkern_type(a, f1, f2, m1, m2), &
+       testkern_type(a, f1, f2, m1, m2)  &
        )
 
 end program multikernel_invokes_1

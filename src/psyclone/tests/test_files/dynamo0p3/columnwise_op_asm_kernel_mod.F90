@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 !> @brief Kernel which assembles a locally assembled matrix (LMA) into a
 !>        columnwise assembled matrix (CMA)
@@ -85,8 +85,9 @@ end interface
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_asm_kernel_code
+
 contains
-  
+
   type(columnwise_op_asm_kernel_type) function columnwise_constructor() result(self)
     implicit none
     return
@@ -134,7 +135,7 @@ contains
                                            column_banded_dofmap_from)
 
     implicit none
-    
+
     ! Arguments
     integer(kind=i_def), intent(in) :: cell,  nlayers
     integer(kind=i_def), intent(in) :: ncell_3d, ncell_2d

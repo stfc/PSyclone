@@ -35,9 +35,9 @@
 
 module testkern_any_discontinuous_space_op_2_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
@@ -54,7 +54,7 @@ module testkern_any_discontinuous_space_op_2_mod
          arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
                                              ANY_DISCONTINUOUS_SPACE_2), &
          arg_type(GH_OPERATOR, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4,  &
-         ANY_DISCONTINUOUS_SPACE_1)                                      &
+                                             ANY_DISCONTINUOUS_SPACE_1)  &
          /)
     type(func_type) :: meta_funcs(2) = (/                                &
          func_type(ANY_DISCONTINUOUS_SPACE_1, GH_BASIS),                 &
@@ -63,7 +63,7 @@ module testkern_any_discontinuous_space_op_2_mod
     integer :: iterates_over = CELLS
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
-    procedure, nopass :: testkern_any_discontinuous_space_op_2_code
+    procedure, public, nopass :: testkern_any_discontinuous_space_op_2_code
   end type testkern_any_discontinuous_space_op_2_type
 
 contains

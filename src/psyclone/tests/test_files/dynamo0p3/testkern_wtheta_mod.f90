@@ -31,27 +31,27 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_wtheta_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
   ! Description: discontinuous field writer (wtheta) and reader
   ! (any_discontinuous_space_1)
   type, extends(kernel_type) :: testkern_wtheta_type
-     type(arg_type), dimension(2) :: meta_args =                       &
-            (/ arg_type(gh_field, gh_write, wtheta),                   &
-               arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
-             /)
+     type(arg_type), dimension(2) :: meta_args = (/               &
+          arg_type(gh_field, gh_write, wtheta),                   &
+          arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
+          /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_wtheta_code
+     procedure, public, nopass :: code => testkern_wtheta_code
   end type testkern_wtheta_type
 
 contains

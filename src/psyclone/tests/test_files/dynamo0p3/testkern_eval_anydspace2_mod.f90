@@ -26,29 +26,31 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
 module testkern_eval_anydspace2_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod, only: r_def, i_def
+
+  implicit none
 
   type, extends(kernel_type) :: testkern_eval_anydspace2_type
-     type(arg_type)  :: meta_args(3) =  (/                      &
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-       arg_type(GH_FIELD, GH_READ,  W0),                        &
-       arg_type(GH_FIELD, GH_READ,  W1)                         &
-       /)
-     type(func_type) :: meta_funcs(2) = (/                      &
-       func_type(W0, GH_BASIS),                                 &
-       func_type(W1, GH_DIFF_BASIS)                             &
-       /)
+     type(arg_type)  :: meta_args(3) = (/                          &
+          arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+          arg_type(GH_FIELD, GH_READ,  W0),                        &
+          arg_type(GH_FIELD, GH_READ,  W1)                         &
+          /)
+     type(func_type) :: meta_funcs(2) = (/                         &
+          func_type(W0, GH_BASIS),                                 &
+          func_type(W1, GH_DIFF_BASIS)                             &
+          /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
    contains
-     procedure, nopass :: code => testkern_eval_anydspace2_code
+     procedure, public, nopass :: code => testkern_eval_anydspace2_code
   end type testkern_eval_anydspace2_type
 
 contains

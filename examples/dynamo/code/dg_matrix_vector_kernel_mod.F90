@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I. Kavcic, Met Office
+! Modified I. Kavcic, Met Office
 !
 module dg_matrix_vector_kernel_mod
 
@@ -58,12 +58,12 @@ module dg_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: dg_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                 &
-        arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_1),               &
-        arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
-                                            ANY_SPACE_1) &
-        /)
+    type(arg_type) :: meta_args(3) = (/                                  &
+         arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_1),               &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+                                             ANY_SPACE_1)                &
+         /)
 
     integer :: iterates_over = CELLS
   contains

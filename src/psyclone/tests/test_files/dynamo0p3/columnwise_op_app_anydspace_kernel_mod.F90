@@ -37,7 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 ! Kernel which applies a columnwise assembled operator to a field on
 ! any discontinuous space
@@ -87,7 +87,7 @@ end interface
 public columnwise_op_app_anydspace_kernel_code
 
 contains
-  
+
   type(columnwise_op_app_anydspace_kernel_type) function &
        columnwise_op_app_anydspace_kernel_constructor() result(self)
     implicit none

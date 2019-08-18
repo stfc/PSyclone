@@ -39,8 +39,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified, A. R. Porter, STFC Daresbury Lab
-! Modified, I. Kavcic, Met Office
+! Modified A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module restrict_kernel_mod
 
@@ -57,10 +57,10 @@ implicit none
 
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                                  &
-       arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
-       arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE   ) &
-       /)
+   type(arg_type) :: meta_args(2) = (/                                                   &
+        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
+        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE   ) &
+        /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass :: restrict_kernel_code

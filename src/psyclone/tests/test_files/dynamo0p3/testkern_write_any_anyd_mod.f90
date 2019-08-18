@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 ! A kernel which writes to two fields, one on any_space and one on
 ! any_discontinuous_space_1. The generated loop bounds in the PSy layer
@@ -40,27 +40,27 @@
 ! (because we have to allow for the any_space space being continuous).
 module testkern_write_any_anyd_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
   ! Description: function spaces with one continuous (any_space_1)
   ! and one discontinuous (any_discontinuous_space_1) field writer
   type, extends(kernel_type) :: testkern_write_any_anyd_type
-     type(arg_type), dimension(7) :: meta_args =                      &
-          (/ arg_type(gh_field, gh_inc,   any_space_1),               &
-             arg_type(gh_field, gh_read,  w2),                        &
-             arg_type(gh_field, gh_read,  w1),                        &
-             arg_type(gh_field, gh_write, any_discontinuous_space_1), &
-             arg_type(gh_field, gh_read,  wtheta),                    &
-             arg_type(gh_field, gh_read,  w2h),                       &
-             arg_type(gh_field, gh_read,  w2v)                        &
-           /)
+     type(arg_type), dimension(7) :: meta_args = (/                &
+          arg_type(gh_field, gh_inc,   any_space_1),               &
+          arg_type(gh_field, gh_read,  w2),                        &
+          arg_type(gh_field, gh_read,  w1),                        &
+          arg_type(gh_field, gh_write, any_discontinuous_space_1), &
+          arg_type(gh_field, gh_read,  wtheta),                    &
+          arg_type(gh_field, gh_read,  w2h),                       &
+          arg_type(gh_field, gh_read,  w2v)                        &
+          /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_write_any_anyd_code
+     procedure, public, nopass :: code => testkern_write_any_anyd_code
   end type testkern_write_any_anyd_type
 
 contains

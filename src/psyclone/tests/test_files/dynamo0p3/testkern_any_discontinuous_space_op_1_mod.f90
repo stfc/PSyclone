@@ -35,9 +35,9 @@
 
 module testkern_any_discontinuous_space_op_1_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
@@ -55,14 +55,14 @@ module testkern_any_discontinuous_space_op_1_mod
          arg_type(GH_FIELD*3,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
          arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
-         ANY_DISCONTINUOUS_SPACE_1),                                     &
+                                             ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_OPERATOR, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3,  &
                                              ANY_DISCONTINUOUS_SPACE_7), &
          arg_type(GH_REAL,     GH_READ)                                  &
          /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: testkern_any_discontinuous_space_op_1_code
+    procedure, public, nopass :: testkern_any_discontinuous_space_op_1_code
   end type testkern_any_discontinuous_space_op_1_type
 
 contains

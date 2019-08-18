@@ -31,27 +31,27 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author I. Kavcic, Met Office
 
 module testkern_anyd_any_space_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
   ! Description: discontinuous field readwriter (any_discontinuous_space_1)
   ! and continuous readers (any_space_1 and any_w2)
   type, extends(kernel_type) :: testkern_anyd_any_space_type
-     type(arg_type), dimension(3) :: meta_args =                          &
-          (/ arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
-             arg_type(gh_field, gh_read,      any_space_1),               &
-             arg_type(gh_field, gh_read,      any_w2)                     &
-           /)
+     type(arg_type), dimension(3) :: meta_args = (/                    &
+          arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
+          arg_type(gh_field, gh_read,      any_space_1),               &
+          arg_type(gh_field, gh_read,      any_w2)                     &
+          /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_anyd_any_space_code
+     procedure, public, nopass :: code => testkern_anyd_any_space_code
   end type testkern_anyd_any_space_type
 
 contains
