@@ -365,7 +365,7 @@ class PSy(object):
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
-            for kernel in schedule.walk(schedule.children, CodedKern):
+            for kernel in schedule.walk(CodedKern):
                 if kernel.module_inline:
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
@@ -1393,13 +1393,24 @@ class Node(object):
             return True
         return False
 
-    def walk(self, children, my_type):
-        ''' Recurse through tree and return objects of 'my_type'. '''
+    def walk(self, my_type):
+        ''' Recurse through the PSyIR tree and return all objects that are
+        an instance of 'my_type', which is either a single class or a tuple
+        of classes. In the latter case all nodes are returned that are
+        instances of any classes in the tuple.
+
+        :param my_type: the class(es) for which the instances are collected.
+        :type my_type: either a single :py:class:`psyclone.Node` class\
+            or a tuple of such classes.
+        :return: list with all nodes that are instances of my_type \
+            starting at and including this node.
+        :rtype: list of :py:class:`psyclone.Node` instances.
+        '''
         local_list = []
-        for child in children:
-            if isinstance(child, my_type):
-                local_list.append(child)
-            local_list += self.walk(child.children, my_type)
+        if isinstance(self, my_type):
+            local_list.append(self)
+        for child in self.children:
+            local_list += child.walk(my_type)
         return local_list
 
     def ancestor(self, my_type, excluding=None):
@@ -1434,7 +1445,7 @@ class Node(object):
         :returns: all kernels that are descendants of this node in the PSyIR.
         :rtype: list of :py:class:`psyclone.psyGen.Kern` sub-classes.
         '''
-        return self.walk(self.children, Kern)
+        return self.walk(Kern)
 
     def following(self):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
@@ -1444,7 +1455,7 @@ class Node(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
-        all_nodes = self.walk(self.root.children, Node)
+        all_nodes = self.root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
@@ -1460,7 +1471,7 @@ class Node(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
-        all_nodes = self.walk(self.root.children, Node)
+        all_nodes = self.root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]
         if reverse:
@@ -1475,11 +1486,11 @@ class Node(object):
         :returns: all user-supplied kernel calls below this node.
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
         '''
-        return self.walk(self._children, CodedKern)
+        return self.walk(CodedKern)
 
     def loops(self):
         '''Return all loops currently in this schedule.'''
-        return self.walk(self._children, Loop)
+        return self.walk(Loop)
 
     def reductions(self, reprod=None):
         '''Return all calls that have reductions and are decendents of this
@@ -1489,7 +1500,7 @@ class Node(object):
         builtins that are set to reproducible are returned.'''
 
         call_reduction_list = []
-        for call in self.walk(self.children, Kern):
+        for call in self.walk(Kern):
             if call.is_reduction:
                 if reprod is None:
                     call_reduction_list.append(call)
@@ -1593,7 +1604,7 @@ class Schedule(Node):
     def __str__(self):
         result = "Schedule:\n"
         for entity in self._children:
-            result += str(entity)+"\n"
+            result += str(entity) + "\n"
         result += "End Schedule"
         return result
 
@@ -1677,8 +1688,8 @@ class InvokeSchedule(Schedule):
     def __str__(self):
         result = "InvokeSchedule:\n"
         for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
+            result += str(entity) + "\n"
+        result += "End InvokeSchedule\n"
         return result
 
     def gen_code(self, parent):
@@ -1731,7 +1742,7 @@ class InvokeSchedule(Schedule):
             if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
                                    rhs="get_cmd_queues()"))
             # Kernel pointers
-            kernels = self.walk(self._children, Kern)
+            kernels = self.walk(Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
                 kernel = self._name_space_manager.create_name(
@@ -2003,7 +2014,7 @@ class ACCEnterDataDirective(ACCDirective):
         # OpenACC kernels (calls within an OpenACC parallel directive)
         # 1. Find all parallel directives. We store this list for later
         #    use in any sub-class.
-        self._acc_dirs = self.walk(self.root.children, ACCParallelDirective)
+        self._acc_dirs = self.root.walk(ACCParallelDirective)
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -2110,7 +2121,7 @@ class ACCParallelDirective(ACCDirective):
         # We can't use Node.ancestor() because the data directive does
         # not have children. Instead, we go back up to the Schedule and
         # walk down from there.
-        nodes = self.root.walk(self.root.children, ACCEnterDataDirective)
+        nodes = self.root.walk(ACCEnterDataDirective)
         if len(nodes) != 1:
             raise GenerationError(
                 "A Schedule containing an ACC parallel region must also "
@@ -2499,8 +2510,8 @@ class OMPParallelDirective(OMPDirective):
             is an error on the part of the user. '''
         # We need to recurse down through all our children and check
         # whether any of them are an OMPDirective.
-        node_list = self.walk(self.children, OMPDirective)
-        if len(node_list) == 0:
+        node_list = self.walk(OMPDirective)
+        if not node_list:
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
             pass
@@ -3030,21 +3041,29 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
-    '''Represents a loop in the PSyIR.
+    '''
+    Node representing a loop within the PSyIR. It has 4 mandatory children:
+    the first one represents the loop lower bound, the second one represents
+    the loop upper bound, the third one represents the step value and the
+    fourth one is always a PSyIR Schedule node containing the statements inside
+    the loop body.
 
-    :param parent: Parent of this node in the PSyIR.
+    (Note: currently this loop only represents the equivalent to Fortran do
+    loops. This means the loop is bounded by start/stop/step expressions
+    evaluated before the loop starts.)
+
+    :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
-    :param str variable_name: Optional name of the loop iterator \
-    variable. Defaults to an empty string.
-    :param valid_loop_types: A list of loop types that are specific \
-    to a particular API.
+    :param str variable_name: optional name of the loop iterator \
+        variable. Defaults to an empty string.
+    :param valid_loop_types: a list of loop types that are specific \
+        to a particular API.
     :type valid_loop_types: list of str
 
     '''
 
-    def __init__(self, parent=None,
-                 variable_name="",
-                 valid_loop_types=None):
+    def __init__(self, parent=None, variable_name="", valid_loop_types=None):
+        Node.__init__(self, parent=parent)
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -3063,14 +3082,115 @@ class Loop(Node):
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
-        Node.__init__(self, parent=parent)
-
         self._variable_name = variable_name
-
-        self._start = ""
-        self._stop = ""
-        self._step = ""
         self._id = ""
+
+    def _check_completeness(self):
+        ''' Check that the Loop has 4 children and the 4th is a Schedule.
+
+        :raises InternalError: If the loop does not have 4 children or the
+            4th one is not a Schedule
+        '''
+        if len(self.children) < 4:
+            raise InternalError(
+                "Loop malformed or incomplete. It should have exactly 4 "
+                "children, but found loop with '{0}'.".format(str(self)))
+
+        if not isinstance(self.children[3], Schedule):
+            raise InternalError(
+                "Loop malformed or incomplete. Fourth child should be a "
+                "Schedule node, but found loop with '{0}'.".format(str(self)))
+
+    @property
+    def start_expr(self):
+        '''
+        :return: the PSyIR Node representing the Loop start expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        self._check_completeness()
+        return self._children[0]
+
+    @start_expr.setter
+    def start_expr(self, expr):
+        ''' Setter for Loop start_expr attribute.
+
+        :param expr: New PSyIR start expression.
+        :type expr: :py:class:`psyclone.psyGen.Node`
+
+        :raises TypeError: if expr is not a PSyIR node.
+
+        '''
+        if not isinstance(expr, Node):
+            raise TypeError(
+                "Only PSyIR nodes can be assigned as the Loop start expression"
+                ", but found '{0}' instead".format(type(expr)))
+        self._check_completeness()
+        self._children[0] = expr
+
+    @property
+    def stop_expr(self):
+        '''
+        :return: the PSyIR Node representing the Loop stop expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        self._check_completeness()
+        return self._children[1]
+
+    @stop_expr.setter
+    def stop_expr(self, expr):
+        ''' Setter for Loop stop_expr attribute.
+
+        :param expr: New PSyIR stop expression.
+        :type expr: :py:class:`psyclone.psyGen.Node`
+
+        :raises TypeError: if expr is not a PSyIR node.
+
+        '''
+        if not isinstance(expr, Node):
+            raise TypeError(
+                "Only PSyIR nodes can be assigned as the Loop stop expression"
+                ", but found '{0}' instead".format(type(expr)))
+        self._check_completeness()
+        self._children[1] = expr
+
+    @property
+    def step_expr(self):
+        '''
+        :return: the PSyIR Node representing the Loop step expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        self._check_completeness()
+        return self._children[2]
+
+    @step_expr.setter
+    def step_expr(self, expr):
+        ''' Setter for Loop step_expr attribute.
+
+        :param expr: New PSyIR step expression.
+        :type expr: :py:class:`psyclone.psyGen.Node`
+
+        :raises TypeError: if expr is not a PSyIR node.
+
+        '''
+        if not isinstance(expr, Node):
+            raise TypeError(
+                "Only PSyIR nodes can be assigned as the Loop step expression"
+                ", but found '{0}' instead".format(type(expr)))
+        self._check_completeness()
+        self._children[2] = expr
+
+    @property
+    def loop_body(self):
+        '''
+        :return: the PSyIR Schedule with the loop body statements.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
+
+        '''
+        self._check_completeness()
+        return self._children[3]
 
     @property
     def dag_name(self):
@@ -3111,11 +3231,10 @@ class Loop(Node):
         Write out a textual summary of this Loop node to stdout
         and then call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text
         '''
         print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}']".
+              "[type='{0}', field_space='{1}', it_space='{2}']".
               format(self._loop_type, self._field_space, self.iteration_space))
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -3187,18 +3306,24 @@ class Loop(Node):
         return self._variable_name
 
     def __str__(self):
-        result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \
-            self._id + " lower=" + self._start + "," + self._stop + "," + \
-            self._step + "\n"
+        # Give Loop sub-classes a specialised name
+        name = self.__class__.__name__
+        result = name + "["
+        result += "id:'" + self._id
+        result += "', variable:'" + self._variable_name
+        if self.loop_type:
+            result += "', loop_type:'" + self._loop_type
+        result += "']\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "EndLoop"
+        result += "End " + name
         return result
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. It combines the data from
-        the loop bounds (start, stop, end step), as well as the loop body.
-        The loop variable is marked as READWRITE, start, stop, step as READ.
+        the loop bounds (start, stop and step), as well as the loop body.
+        The loop variable is marked as 'READ+WRITE' and references in start,
+        stop and step are marked as 'READ'.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
@@ -3212,15 +3337,14 @@ class Loop(Node):
         # (write access before read)
         var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
         var_accesses.add_access(self.variable_name, AccessType.READ, self)
-        # TODO #400/#444: self._start/stop/step are not defined at this stage
-        # (at least in the gocean1.0 api). ATM this results in an 'empty'
-        # variable being created (name = "").
-        var_accesses.add_access(self._start, AccessType.READ, self)
-        var_accesses.add_access(self._stop, AccessType.READ, self)
-        var_accesses.add_access(self._step, AccessType.READ, self)
+
+        # Accesses of the start/stop/step expressions
+        self.start_expr.reference_accesses(var_accesses)
+        self.stop_expr.reference_accesses(var_accesses)
+        self.step_expr.reference_accesses(var_accesses)
         var_accesses.next_location()
 
-        for child in self.children:
+        for child in self.loop_body.children:
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
 
@@ -3234,13 +3358,14 @@ class Loop(Node):
         return False
 
     def unique_modified_args(self, arg_type):
-        '''Return all unique arguments of type arg_type from Kernels in this
-        loop that are modified.
+        '''Return all unique arguments of the given type from kernels inside
+        this loop that are modified.
+
         :param str arg_type: the type of kernel argument (e.g. field, \
                              operator) to search for.
-        :returns: all unique arguments of type arg_type from Kernels in this
-        loop that are modified.
-        :rtype: List of :py:class:`psyclone.psyGen.DynKernelArgument`.
+        :returns: all unique arguments of the given type from kernels inside \
+            this loop that are modified.
+        :rtype: list of :py:class:`psyclone.psyGen.DynKernelArgument`
         '''
         arg_names = []
         args = []
@@ -3279,21 +3404,44 @@ class Loop(Node):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        def is_unit_literal(expr):
+            ''' Check if the given expression is equal to the literal '1'.
+
+            :param expr: a PSyIR expression.
+            :type expr: :py:class:`psyclone.psyGen.Node`
+
+            :return: True if it is equal to the literal '1', false otherwise.
+            '''
+            return isinstance(expr, Literal) and expr.value == '1'
+
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self.root.opencl or (self._start == "1" and self._stop == "1"):
+        if self.root.opencl or (is_unit_literal(self.start_expr) and
+                                is_unit_literal(self.stop_expr)):
             # no need for a loop
-            for child in self.children:
+            for child in self.loop_body:
                 child.gen_code(parent)
         else:
+            from psyclone.psyir.backend.fortran import FortranWriter
             from psyclone.f2pygen import DoGen, DeclGen
-            do = DoGen(parent, self._variable_name, self._start, self._stop)
+            # start/stop/step_expr are generated with the FortranWriter
+            # backend, the rest of the loop with f2pygen.
+            fwriter = FortranWriter()
+            if is_unit_literal(self.step_expr):
+                step_str = None
+            else:
+                step_str = fwriter(self.step_expr)
+
+            do = DoGen(parent, self._variable_name,
+                       fwriter(self.start_expr),
+                       fwriter(self.stop_expr),
+                       step_str)
             # need to add do loop before children as children may want to add
             # info outside of do loop
             parent.add(do)
-            for child in self.children:
+            for child in self.loop_body:
                 child.gen_code(do)
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self._variable_name])
@@ -3568,7 +3716,7 @@ class Kern(Node):
                   coloured loop.
         :rtype: bool
         '''
-        return self.parent.loop_type == "colour"
+        return self.parent.parent.loop_type == "colour"
 
     @property
     def iterates_over(self):
@@ -3644,7 +3792,7 @@ class CodedKern(Kern):
         return self._kern_schedule
 
     def __str__(self):
-        return "kern call: "+self._name
+        return "kern call: " + self._name
 
     @property
     def module_name(self):
@@ -3686,8 +3834,8 @@ class CodedKern(Kern):
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
-        my_schedule = self.ancestor(Schedule)
-        for kernel in self.walk(my_schedule.children, Kern):
+        my_schedule = self.ancestor(InvokeSchedule)
+        for kernel in my_schedule.walk(Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
 
@@ -4780,7 +4928,7 @@ class DummyTransformation(Transformation):
 
 class IfBlock(Node):
     '''
-    Class representing an if-block within the PSyIR. It has two mandatory
+    Node representing an if-block within the PSyIR. It has two mandatory
     children: the first one represents the if-condition and the second one
     the if-body; and an optional third child representing the else-body.
 
@@ -5748,8 +5896,8 @@ class KernelSchedule(Schedule):
     def __str__(self):
         result = "KernelSchedule[name:'" + self._name + "']:\n"
         for entity in self._children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
+            result += str(entity)
+        result += "End KernelSchedule\n"
         return result
 
 
@@ -5972,7 +6120,7 @@ class Reference(Node):
               + self._reference + "']")
 
     def __str__(self):
-        return "Reference[name:'" + self._reference + "']\n"
+        return "Reference[name:'" + self._reference + "']"
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
@@ -6056,7 +6204,11 @@ class Operation(Node):
         result = "{0}[operator:'{1}']\n".format(type(self).__name__,
                                                 self._operator.name)
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
+
+        # Delete last line break
+        if result[-1] == "\n":
+            result = result[:-1]
         return result
 
 
@@ -6200,9 +6352,9 @@ class Array(Reference):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "Array" + super(Array, self).__str__()
+        result = "Array" + super(Array, self).__str__() + "\n"
         for entity in self._children:
-            result += str(entity)
+            result += str(entity) + "\n"
         return result
 
     def reference_accesses(self, var_accesses):
@@ -6270,10 +6422,10 @@ class Literal(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "["
-              + "value:'"+self._value + "']")
+              + "value:'" + self._value + "']")
 
     def __str__(self):
-        return "Literal[value:'" + self._value + "']\n"
+        return "Literal[value:'" + self._value + "']"
 
 
 class Return(Node):
@@ -6383,6 +6535,8 @@ class Fparser2ASTProcessor(object):
             Fortran2003.Case_Construct: self._case_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
+            Fortran2003.Block_Nonlabel_Do_Construct:
+                self._do_construct_handler,
             Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
         }
 
@@ -6967,6 +7121,108 @@ class Fparser2ASTProcessor(object):
         :rtype: NoneType
         '''
         return None
+
+    def _create_loop(self, parent, variable_name):
+        '''
+        Create a Loop instance. This is done outside _do_construct_handler
+        because some APIs may want to instantiate a specialised Loop.
+
+        :param parent: the parent of the node.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str variable_name: name of the iteration variable.
+
+        :return: a new Loop instance.
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        '''
+        return Loop(parent=parent, variable_name=variable_name)
+
+    def _process_loopbody(self, loop_body, node):
+        ''' Process the loop body. This is done outside _do_construct_handler
+        because some APIs may want to perform specialised actions. By default
+        continue processing the tree nodes inside the loop body.
+
+        :param loop_body: Schedule representing the body of the loop.
+        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :param node: fparser loop node being processed.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+        '''
+        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
+        self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
+                           nodes_parent=node)
+
+    def _do_construct_handler(self, node, parent):
+        '''
+        Transforms a fparser2 Do Construct into its PSyIR representation.
+
+        :param node: node in fparser2 tree.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        :raises InternalError: if the fparser2 tree has an unexpected \
+            structure.
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
+        if not ctrl:
+            raise InternalError(
+                "Unrecognised form of DO loop - failed to find Loop_Control "
+                "element in the node '{0}'.".format(str(node)))
+        if ctrl[0].items[0]:
+            # If this is a DO WHILE then the first element of items will not
+            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
+            # TODO #359 DO WHILE's are currently just put into CodeBlocks
+            # rather than being properly described in the PSyIR.
+            raise NotImplementedError()
+
+        # Second element of items member of Loop Control is itself a tuple
+        # containing:
+        #   Loop variable, [start value expression, end value expression, step
+        #   expression]
+        # Loop variable will be an instance of Fortran2003.Name
+        loop_var = str(ctrl[0].items[1][0])
+        variable_name = str(loop_var)
+        loop = self._create_loop(parent, variable_name)
+        loop._ast = node
+
+        # Get the loop limits. These are given in a list which is the second
+        # element of a tuple which is itself the second element of the items
+        # tuple:
+        # (None, (Name('jk'), [Int_Literal_Constant('1', None), Name('jpk'),
+        #                      Int_Literal_Constant('1', None)]), None)
+        limits_list = ctrl[0].items[1][1]
+
+        # Start expression child
+        self.process_nodes(parent=loop, nodes=[limits_list[0]],
+                           nodes_parent=ctrl)
+
+        # Stop expression child
+        self.process_nodes(parent=loop, nodes=[limits_list[1]],
+                           nodes_parent=ctrl)
+
+        # Step expression child
+        if len(limits_list) == 3:
+            self.process_nodes(parent=loop, nodes=[limits_list[2]],
+                               nodes_parent=ctrl)
+        else:
+            # Default loop increment is 1
+            default_step = Literal("1", parent=loop)
+            loop.addchild(default_step)
+
+        # Create Loop body Schedule
+        loop_body = Schedule(parent=loop)
+        loop_body._ast = node
+        loop.addchild(loop_body)
+        self._process_loopbody(loop_body, node)
+
+        return loop
 
     def _if_construct_handler(self, node, parent):
         '''
