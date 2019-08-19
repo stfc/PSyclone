@@ -405,3 +405,22 @@ def test_location(parser):
     assert x_accesses[0].access_type == AccessType.READ
     assert x_accesses[1].access_type == AccessType.WRITE
     assert x_accesses[0].location == x_accesses[1].location
+
+
+def test_user_defined_variables(parser):
+    ''' Test reading and writing to user defined variables, which
+    is only partially supported atm.
+    '''
+    # TODO #363: this uses a work around for user defined types atm.
+    reader = FortranStringReader('''program test_prog
+                                       a%b%c(ji, jj) = d
+                                       e%f = d
+                                    end program test_prog''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test_prog").schedule
+
+    var_accesses = VariablesAccessInfo()
+    loops.reference_accesses(var_accesses)
+    assert var_accesses["a % b % c"].is_array()
+    assert not var_accesses["e % f"].is_array()

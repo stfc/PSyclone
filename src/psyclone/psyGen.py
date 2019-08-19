@@ -43,6 +43,7 @@ from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
 from collections import OrderedDict
+import re
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
@@ -5892,17 +5893,34 @@ class Assignment(Node):
         self.lhs.reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
-        var_info = accesses_left[self.lhs.name]
-        try:
-            var_info.change_read_to_write()
-        except InternalError:
-            # An internal error typically indicates that the same variable
-            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-            # supported in PSyclone.
-            from psyclone.parse.utils import ParseError
-            raise ParseError("The variable '{0}' appears more than once on "
-                             "the left-hand side of an assignment."
-                             .format(self.lhs.name))
+        if isinstance(self.lhs, CodeBlock):
+            # TODO #363: Assignment to user defined type, not supported yet.
+            # Here an absolute hack to get at least some information out
+            # from the AST - though indices are just strings, which will
+            # likely cause problems later as well.
+            name = str(self.lhs.ast)
+            # A regular expression that tries to find the last parenthesis
+            # pair in the name ("a(i,j)" --> "(i,j)")
+            ind = re.search(r"\([^\(]+\)$", name)
+            if ind:
+                # Remove the index part of the name
+                name = name.replace(ind.group(0), "")
+                accesses_left.add_access(name, AccessType.WRITE, self,
+                                         ind.group(0))
+            else:
+                accesses_left.add_access(name, AccessType.WRITE, self)
+        else:
+            var_info = accesses_left[self.lhs.name]
+            try:
+                var_info.change_read_to_write()
+            except InternalError:
+                # An internal error typically indicates that the same variable
+                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+                # supported in PSyclone.
+                from psyclone.parse.utils import ParseError
+                raise ParseError("The variable '{0}' appears more than once "
+                                 "on the left-hand side of an assignment."
+                                 .format(self.lhs.name))
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function:
