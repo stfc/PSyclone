@@ -2218,7 +2218,7 @@ class OCLTrans(Transformation):
         '''
         return "OCLTrans"
 
-    def apply(self, sched, opencl=True):
+    def apply(self, sched, opencl=True, options=None):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -2238,6 +2238,7 @@ class OCLTrans(Transformation):
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
+        sched.opencp_options = options
         return sched, keep
 
     def _validate(self, sched):

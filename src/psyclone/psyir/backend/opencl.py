@@ -161,11 +161,20 @@ class OpenCLWriter(CWriter):
         symtab = node.symbol_table
         data_args = symtab.data_arguments
 
+        loc_size_value = '1'
+        if 'local_size' in node.opencl_options:
+            loc_size_value = node.opencl_options['local_size']
+
         # Start OpenCL kernel definition
-        code = self._nindent + "__kernel void " + node.name + "(\n"
+        code = self._nindent
+        code += "__attribute__((vec_type_hint(double)))\n" \
+                "".format(loc_size_value)
+        code += "__attribute__ ((reqd_work_group_size({0}, {0}, 1)))\n" \
+                "".format(loc_size_value)
+        code += "__kernel void " + node.name + "(\n"
         self._depth += 1
         arguments = []
-        arguments.append(self._nindent + 'int width')
+        #arguments.append(self._nindent + 'int width')
         for symbol in data_args:
             arguments.append(self._nindent + self.gen_declaration(symbol))
         code += ",\n".join(arguments) + "\n"

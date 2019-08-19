@@ -418,6 +418,7 @@ class Invokes(object):
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         opencl_kernels = []
+        generate_ocl_init = False
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
             # If we are generating OpenCL for an Invoke then we need to
@@ -425,13 +426,13 @@ class Invokes(object):
             # calls. We do it here as this enables us to prevent
             # duplication.
             if invoke.schedule.opencl:
+                generate_ocl_init = True
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
-                # We must also ensure that we have a kernel object for
-                # each kernel called from the PSy layer
-                self.gen_ocl_init(parent, opencl_kernels)
+        if generate_ocl_init:
+            self.gen_ocl_init(parent, opencl_kernels)
 
     @staticmethod
     def gen_ocl_init(parent, kernels):
@@ -1739,6 +1740,12 @@ class InvokeSchedule(Schedule):
                                   " Block until all kernels have finished"))
             parent.add(AssignGen(parent, lhs=flag,
                                  rhs="clFinish(" + qlist + "(1))"))
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + qlist + "(2))"))
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + qlist + "(3))"))
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + qlist + "(4))"))
 
     @property
     def opencl(self):

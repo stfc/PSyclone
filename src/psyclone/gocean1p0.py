@@ -958,6 +958,20 @@ class GOKern(CodedKern):
             parent, lhs=glob_size,
             rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
 
+        # Create array for the local work size of the kernel
+        local_size = self._name_space_manager.create_name(
+            root_name="localsize", context="PSyVars", label="localsize")
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[local_size + "(2)"]))
+
+        loc_size_value = '1'
+        if 'local_size' in self.opencl_options:
+            loc_size_value = self.opencl_options['local_size']
+
+        parent.add(AssignGen(parent, lhs=local_size,
+                             rhs="(/{0}, {0}/)".format(loc_size_value)))
+
+        # Create Kernel name variable
         base = "kernel_" + self._name
         kernel = self._name_space_manager.create_name(root_name=base,
                                                       context="PSyVars",
@@ -993,11 +1007,17 @@ class GOKern(CodedKern):
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
         cnull = "C_NULL_PTR"
-        cmd_queue = qlist + "(1)"
+
+        queue_number = '1'
+        if 'queue_number' in self.opencl_options:
+            queue_number = self.opencl_options['queue_number']
+
+        cmd_queue = qlist + "({0})".format(queue_number)
 
         args = ", ".join([cmd_queue, kernel, "2", cnull,
                           "C_LOC({0})".format(glob_size),
-                          cnull, "0", cnull, cnull])
+                          "C_LOC({0})".format(local_size),
+                          "0", cnull, cnull])
         parent.add(AssignGen(parent, lhs=flag,
                              rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
@@ -1072,14 +1092,14 @@ class GOKern(CodedKern):
         # We must always pass "nx" (the horizontal dimension of the grid) into
         # a kernel
         index = 0
-        sub.add(AssignGen(
-            sub, lhs=err_name,
-            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format(kobj, index, nx_name)))
+        #sub.add(AssignGen(
+        #    sub, lhs=err_name,
+        #    rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+        #    format(kobj, index, nx_name)))
         # Now all of the 'standard' kernel arguments
         for arg in self.arguments.args:
-            index += 1
             arg.set_kernel_arg(sub, index, self.name)
+            index += 1
 
     def gen_data_on_ocl_device(self, parent):
         '''
