@@ -268,8 +268,8 @@ def test_operator():
 
 
 def test_operator_different_spaces(tmpdir):
-    '''tests that an operator with different to and from spaces is
-    implemented correctly in the PSy layer'''
+    ''' Tests that an operator with different to and from spaces is
+    implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
                            api=TEST_API)
@@ -405,7 +405,7 @@ def test_operator_different_spaces(tmpdir):
 
 
 def test_operator_nofield(tmpdir):
-    ''' tests that an operator with no field on the same space is
+    ''' Tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
@@ -454,7 +454,7 @@ def test_operator_nofield_different_space(tmpdir):
 
 
 def test_operator_nofield_scalar(tmpdir):
-    ''' tests that an operator with no field and a
+    ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.6_operator_no_field_scalar.f90"),
@@ -462,7 +462,7 @@ def test_operator_nofield_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -507,7 +507,7 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
 
 
 def test_operator_orientation(tmpdir):
-    ''' tests that an operator requiring orientation information is
+    ''' Tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.2_operator_orient.f90"),
@@ -536,8 +536,8 @@ def test_operator_orientation(tmpdir):
 
 
 def test_op_orient_different_space(tmpdir):
-    '''tests that an operator on different spaces requiring orientation
-    information is implemented correctly in the PSy layer. '''
+    ''' Tests that an operator on different spaces requiring orientation
+    information is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.4_operator_orient_different_"
                                         "space.f90"),
