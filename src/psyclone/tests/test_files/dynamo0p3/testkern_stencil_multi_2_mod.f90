@@ -42,7 +42,8 @@ module testkern_stencil_multi_2_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_stencil_multi_2_type
+  type, public, extends(kernel_type) :: testkern_stencil_multi_2_type
+     private
      type(arg_type), dimension(4) :: meta_args = (/              &
           arg_type(gh_field, gh_inc,  w1),                       &
           arg_type(gh_field, gh_read, w1, stencil(xory1d)),      &

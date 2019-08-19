@@ -42,7 +42,8 @@ module testkern_same_any_dscnt_space_stencil_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_same_any_dscnt_space_stencil_type
+  type, public, extends(kernel_type) :: testkern_same_any_dscnt_space_stencil_type
+     private
      type(arg_type), dimension(3) :: meta_args = (/               &
           arg_type(gh_field, gh_write, wtheta),                   &
           arg_type(gh_field, gh_read,  any_discontinuous_space_1, &

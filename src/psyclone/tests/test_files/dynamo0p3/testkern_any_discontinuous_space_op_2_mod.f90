@@ -49,6 +49,7 @@ module testkern_any_discontinuous_space_op_2_mod
   ! 3) basis and diff_basis functions declared.
 
   type, public, extends(kernel_type) :: testkern_any_discontinuous_space_op_2_type
+    private
     type(arg_type) :: meta_args(3) = (/                                  &
          arg_type(GH_FIELD,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4), &
          arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &

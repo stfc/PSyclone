@@ -51,6 +51,7 @@ module testkern_any_discontinuous_space_op_1_mod
   !    an operator.
 
   type, public, extends(kernel_type) :: testkern_any_discontinuous_space_op_1_type
+    private
     type(arg_type) :: meta_args(5) = (/                                  &
          arg_type(GH_FIELD*3,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &

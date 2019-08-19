@@ -43,7 +43,8 @@ module testkern_stencil_fs_mod
   implicit none
 
   ! Example of stencils on all supported function space identifiers
-  type, extends(kernel_type) :: testkern_stencil_fs_type
+  type, public, extends(kernel_type) :: testkern_stencil_fs_type
+     private
      type(arg_type), dimension(12) :: meta_args = (/                &
           arg_type(gh_field, gh_inc,  w1),                          &
           arg_type(gh_field, gh_read, w0,          stencil(cross)), &

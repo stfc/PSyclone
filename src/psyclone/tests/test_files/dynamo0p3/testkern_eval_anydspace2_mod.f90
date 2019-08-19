@@ -37,7 +37,8 @@ module testkern_eval_anydspace2_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_eval_anydspace2_type
+  type, public, extends(kernel_type) :: testkern_eval_anydspace2_type
+     private
      type(arg_type)  :: meta_args(3) = (/                          &
           arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
           arg_type(GH_FIELD, GH_READ,  W0),                        &
