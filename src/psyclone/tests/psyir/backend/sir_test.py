@@ -493,7 +493,7 @@ def test_sirwriter_assignment_node(parser, sir_writer):
         in result)
 
 
-# (1/2) Method binaryoperation_node
+# (1/3) Method binaryoperation_node
 def test_sirwriter_binaryoperation_node_1(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code. Check all supported mappings.
@@ -512,8 +512,33 @@ def test_sirwriter_binaryoperation_node_1(parser, sir_writer):
             "  )\n".format(oper) in result)
 
 
-# (2/2) Method binaryoperation_node
+# (2/3) Method binaryoperation_node
 def test_sirwriter_binaryoperation_node_2(parser, sir_writer):
+    '''Check the binaryoperation_node method of the SIRWriter class
+    outputs the expected SIR code when there are are a series of
+    binary operations. The reason for this test is that, for
+    formatting purposes the number of carriage returns needs to be
+    managed in this case due to the SIR makeBinaryOperator functions
+    being nested.
+
+    '''
+    code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b*c+d")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.binaryoperation_node(rhs)
+    assert (
+        "makeBinaryOperator(\n"
+        "  makeBinaryOperator(\n"
+        "    makeVarAccessExpr(\"b\"),\n"
+        "    \"*\",\n"
+        "    makeVarAccessExpr(\"c\")\n"
+        "    ),\n"
+        "  \"+\",\n"
+        "  makeVarAccessExpr(\"d\")\n"
+        "  )" in result)
+
+
+# (3/3) Method binaryoperation_node
+def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class raises
     the expected exception if an unsupported binary operator is found.
 
