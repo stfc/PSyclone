@@ -17,14 +17,11 @@ To test this run:
 
 To build Dawn with Python support:
 
-> git clone --branch python_examples https://github.com/cosunae/dawn.git
-> Warning: the above branch has now disappeared and master and
-  https://github.com/MeteoSwiss-APN/dawn do not appear to create the
-  required Python directories.
-> cd <path>/dawn/bundle
+> git clone https://github.com/MeteoSwiss-APN/dawn.git
+> cd dawn/bundle
 > mkdir build
 > cd build
-> cmake ..
+> cmake -DDAWN_BUNDLE_PYTHON=ON -DDAWN_PYTHON_EXAMPLES=ON ..
 > make -j8 install
 > export PYTHONPATH=<path>/dawn/bundle/install/python
 
@@ -34,10 +31,11 @@ To run the existing Dawn Python examples:
 > python3 [copy_stencil.py, hori_diff.py, tridiagonal_solve.py]
 > ls data/[copy_stencil.cpp, hori_diff.cpp, tridiagonal_solve.cpp]
 
-To run the generated code in Dawn:
+To run the PSyclone generated code in Dawn:
 
 1) Add the generated code inbetween the "PSyclone code start" and
-   "PSyclone code end" comments in the supplied dawn_script.py file.
+   "PSyclone code end" comments in the supplied dawn_script.py file
+   (in this directory).
 2) Run the script with python3
    > python3 dawn_script.py
 3) Cuda code will be output in data/psyclone.cpp
