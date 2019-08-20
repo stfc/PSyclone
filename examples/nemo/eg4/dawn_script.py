@@ -33,30 +33,61 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation script that converts the supplied
-Kernels to CUDA via the SIR intermediate representation and DAWN
-backend.
+'''Example wrapper to run PSyclone generated SIR code in DAWN.'''
 
-'''
-from __future__ import print_function
-from psyclone.psyir.backend.sir import SIRWriter
+import textwrap
+import sys
+import argparse
+import ctypes
+import os.path
+from optparse import OptionParser
+from ctypes import *
+from config import __dawn_install_module__, __dawn_install_dawnclib__
+from dawn import *
+from dawn import sir_printer
+
+dawn = CDLL(__dawn_install_dawnclib__)
+
+# PSyclone code start
+# PSyclone code end
+
+parser = OptionParser()
+parser.add_option("-v", "--verbose",
+                  action="store_true", dest="verbose", default=False,
+                  help="print the SIR")
+
+(options, args) = parser.parse_args()
 
 
-def trans(psy):
-    '''Transformation routine for use with PSyclone. Applies the
-    PSyIR2SIR transform to the supplied kernels and then calls the
-    DAWN backend to generate CUDA code.
+## Print the SIR to stdout only in verbose mode
+if options.verbose:
+    T = textwrap.TextWrapper(initial_indent=' '*1, width=120,
+                             subsequent_indent=' '*1)
+    des = sir_printer.SIRPrinter()
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    #  des.visitGlobalVariables(hir.global_variables)
 
-    '''
-    sir_writer = SIRWriter()
-    # For each Invoke write out the SIR resprentation of the schedule.
-    for invoke in psy.invokes.invoke_list:
-        sched = invoke.schedule
-        kern = sir_writer(sched)
-        print(kern)
-    return psy
+    for stencil in hir.stencils:
+        des.visitStencil(stencil)
+
+# serialize the hir to pass it to the compiler
+hirstr = hir.SerializeToString()
+
+# create the options to control the compiler
+options = dawn.dawnOptionsCreate()
+# we set the backend of the compiler to cuda
+backend = dawn.dawnOptionsEntryCreateString("cuda".encode('utf-8'))
+dawn.dawnOptionsSet(options, "Backend".encode('utf-8'), backend)
+
+# call the compiler that generates a translation unit
+tu = dawn.dawnCompile(hirstr, len(hirstr), options)
+b_stencilName = stencilname.encode('utf-8')
+# get the code of the translation unit for the given stencil
+code = dawn.dawnTranslationUnitGetStencil(tu, b_stencilName)
+
+# write to file
+f = open(os.path.dirname(os.path.realpath(__file__)) +
+         "/data/" + stencilname + ".cpp", "w")
+f.write(ctypes.c_char_p(code).value.decode("utf-8"))
+
+f.close()

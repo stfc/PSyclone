@@ -1,22 +1,58 @@
-The SIR and its dawn back-end come with three examples which create
+The SIR and its Dawn back-end come with three examples which create
 SIR using its Python Interface.
 
-I have written a PSyIR to SIR back end which prints out the calls to
-the Python interface.
+The PSyclone SIR back end translates PSyIR to SIR and prints out the
+required calls to the Dawn Python interface.
 
-I have written Fortran code that is the equivalent of the examples and
-running this through PSyclone to try to produce the same (or
-equivalent) SIR as is in the examples (so we know it works). The
-Fortran codes are in copy_stencil.f90, hori_diff.f90,
-tridiagonal_solve.f90. The names reflect the names of the SIR/Dawn
-examples.
+In order to test the SIR backend, the equivalent Fortran to the
+examples provided in Dawn are available in this directory
+(copy_stencil.f90, hori_diff.f90 and tridiagonal_solve.f90). When run
+through PSyclone they should produce the same (or equivalent) SIR as
+is in the examples. This then validates that the translation works
+correctly.
 
 To test this run:
 
 > psyclone -s ./sir_trans.py -api nemo <filename>
 
+To build Dawn with Python support:
+
+> git clone --branch python_examples https://github.com/cosunae/dawn.git
+> Warning: the above branch has now disappeared and master and
+  https://github.com/MeteoSwiss-APN/dawn do not appear to create the
+  required Python directories.
+> cd <path>/dawn/bundle
+> mkdir build
+> cd build
+> cmake ..
+> make -j8 install
+> export PYTHONPATH=<path>/dawn/bundle/install/python
+
+To run the existing Dawn Python examples:
+
+> cd dawn/bundle/install/examples/python
+> python3 [copy_stencil.py, hori_diff.py, tridiagonal_solve.py]
+> ls data/[copy_stencil.cpp, hori_diff.cpp, tridiagonal_solve.cpp]
+
+To run the generated code in Dawn:
+
+1) Add the generated code inbetween the "PSyclone code start" and
+   "PSyclone code end" comments in the supplied dawn_script.py file.
+2) Run the script with python3
+   > python3 dawn_script.py
+3) Cuda code will be output in data/psyclone.cpp
+
 Issues/limitations:
 
-Loop bounds are analysed yet so it is not possible to add in offset
-and loop ordering for the vertical. There are also no checks that the
-loops conform to NEMO lat.lon.levs and
+1) Loop bounds are not analysed yet so it is not possible to add in
+   offset and loop ordering for the vertical.
+2) There are no checks that the loops conform to the NEMO lat.lon.levs
+   convention.
+3) Literals are assumed to be floating point numbers (as the PSyIR
+   does not currently capture the type of a literal).
+4) The only unary operator currently supported is '-'.
+5) The subject of the unary operator must be a literal.
+6) Support for binary operators is limited to '+','-'. '*' and '/'.
+7) Loops must be triply nested.
+8) Loops must be perfectly nested (no computation between different
+   loop levels.
