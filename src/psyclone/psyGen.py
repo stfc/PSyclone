@@ -6092,7 +6092,10 @@ class Assignment(Node):
                                  .format(self.lhs.name))
 
         # Merge the data (that shows now WRITE for the variable) with the
-        # parameter to this function:
+        # parameter to this function. It is important that first the
+        # RHS is added, so that in statements like 'a=a+1' the read on
+        # the RHS comes before the write on the LHS (they have the same
+        # location otherwise, but the order is still important)
         self.rhs.reference_accesses(var_accesses)
         var_accesses.merge(accesses_left)
         var_accesses.next_location()
