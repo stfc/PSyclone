@@ -2121,7 +2121,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[idx]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is an
     # operator rather than a field
@@ -2174,7 +2174,7 @@ def test_bc_kernel_anyspace1_only():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernels = schedule.walk(schedule.children, DynKern)
+    kernels = schedule.walk(DynKern)
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
@@ -2196,7 +2196,7 @@ def test_bc_op_kernel_wrong_args():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernels = schedule.walk(schedule.children, DynKern)
+    kernels = schedule.walk(DynKern)
     # Ensure that the kernel has the wrong number of arguments - duplicate
     # the existing argument in the list
     kernels[0].arguments.args.append(kernels[0].arguments.args[0])
@@ -2447,7 +2447,7 @@ def test_kern_colourmap(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.colourmap
     assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
@@ -2464,7 +2464,7 @@ def test_kern_ncolours(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
     assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
@@ -2782,7 +2782,7 @@ def test_DynKernelArgument_intent_invalid():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         loop = schedule.children[idx]
-        call = loop.children[0]
+        call = loop.loop_body[0]
         arg = call.arguments.args[0]
         arg._access = "invalid"
         with pytest.raises(GenerationError) as excinfo:
@@ -3515,11 +3515,7 @@ def test_halo_exchange_view(capsys):
         "    " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
         "    " + exch + "[field='f4', type='region', depth=1, "
-        "check_dirty=True]\n"
-        "    " + loop + "[type='',field_space='w1',it_space='cells', "
-        "upper_bound='cell_halo(1)']\n"
-        "        " + call + " testkern_stencil_code(f1,f2,f3,f4) "
-        "[module_inline=False]")
+        "check_dirty=True]\n")
     assert expected in result
 
 
@@ -3650,7 +3646,7 @@ def test_upper_bound_fortran_2(monkeypatch):
         "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
     # Pretend the loop is over colours and does not contain a kernel
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
-    monkeypatch.setattr(my_loop, "walk", lambda x, y: [])
+    monkeypatch.setattr(my_loop, "walk", lambda x: [])
     with pytest.raises(InternalError) as excinfo:
         _ = my_loop._upper_bound_fortran()
     assert "Failed to find a kernel within a loop over colours" in str(excinfo)
@@ -4656,7 +4652,7 @@ def test_stencil_extent_specified():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].children[0]
+    kernel = schedule.children[3].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
@@ -4680,7 +4676,7 @@ def test_haloexchange_unknown_halo_depth():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].children[0]
+    kernel = schedule.children[3].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
@@ -5101,7 +5097,7 @@ def test_dynloop_load_unexpected_func_space():
     # and the associated field.
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     field = kernel.arguments.iteration_space_arg()
     # break the fields function space
     field._function_spaces[0]._orig_name = "broken"
@@ -5163,7 +5159,7 @@ def test_unsupported_halo_read_access():
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
     # access to the argument that has a stencil access in the kernel
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     loop.set_upper_bound("inner", 1)
     # call our method
@@ -5186,7 +5182,7 @@ def test_dynglobalsum_unsupported_scalar():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
@@ -5204,7 +5200,7 @@ def test_dynglobalsum_nodm_error():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
@@ -5430,7 +5426,7 @@ def test_unexpected_type_error():
         else:
             index = 0
         loop = schedule.children[index]
-        kernel = loop.children[0]
+        kernel = loop.loop_body[0]
         # sabotage one of the arguments to make it have an invalid type.
         kernel.arguments.args[0]._type = "invalid"
         # Now call KernCallArgList to raise an exception
@@ -5458,7 +5454,7 @@ def test_argordering_exceptions():
         else:
             index = 0
         loop = schedule.children[index]
-        kernel = loop.children[0]
+        kernel = loop.loop_body[0]
         from psyclone.dynamo0p3 import ArgOrdering
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_map,
@@ -5521,7 +5517,7 @@ def test_kerncallarglist_args_error(dist_mem):
         loop = schedule.children[3]
     else:
         loop = schedule.children[0]
-    create_arg_list = KernCallArgList(loop.children[0])
+    create_arg_list = KernCallArgList(loop.loop_body[0])
 
     # nlayers_positions method
     with pytest.raises(InternalError) as excinfo:
@@ -5801,7 +5797,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
                         api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
         schedule = psy.invokes.invoke_list[0].schedule
-        kernel = schedule.children[idchld].children[0]
+        kernel = schedule.children[idchld].loop_body[0]
         field = kernel.arguments.args[idarg]
         assert field.space == fspace
         assert field.discontinuous
@@ -5816,7 +5812,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    kernel = schedule.children[index].children[0]
+    kernel = schedule.children[index].loop_body[0]
     field = kernel.arguments.args[0]
     assert field.space == 'any_space_1'
     assert not field.discontinuous
@@ -5827,7 +5823,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].children[0]
+    kernel = schedule.children[3].loop_body[0]
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
     assert not field.discontinuous
@@ -5991,7 +5987,7 @@ def test_HaloReadAccess_field_not_reader():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(argument)
@@ -6015,7 +6011,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
     field = halo_exchange.field
     read_dependencies = field.forward_read_dependencies()
     read_dependency = read_dependencies[0]
-    loop = read_dependency.call.parent
+    loop = read_dependency.call.parent.parent
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_read_info()
@@ -6033,7 +6029,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     arg = kernel.arguments.args[1]
     halo_access = HaloReadAccess(arg)
     assert not halo_access.max_depth
@@ -6065,7 +6061,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     else:
         # 3 halo exchanges generated
         loop = schedule.children[3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     f1_arg = kernel.arguments.args[1]
     #
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
@@ -6097,7 +6093,7 @@ def test_new_halo_exch_vect_field(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[7]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     f1_field = kernel.arguments.args[0]
     # by changing vector size we change
     # backward_write_dependencies. Therefore also patch this function
@@ -6134,7 +6130,7 @@ def test_new_halo_exch_vect_deps(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[7]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     f1_field = kernel.arguments.args[0]
     # by changing vector size we change
     # backward_write_dependencies. Therefore also patch this function
@@ -6172,7 +6168,7 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[7]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     f1_field = kernel.arguments.args[0]
     dependencies = f1_field.backward_write_dependencies()
     new_dependencies = []
@@ -6375,7 +6371,7 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     if dist_mem:
         index = 3
     loop = schedule.children[index]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()
     assert create_arg_list.nlayers_positions == [1]
@@ -6402,7 +6398,7 @@ def test_kerncallarglist_positions_quad(dist_mem):
     if dist_mem:
         index = 3
     loop = schedule.children[index]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()
     assert create_arg_list.nlayers_positions == [1]

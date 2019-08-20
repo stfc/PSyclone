@@ -1,0 +1,10 @@
+gocean/eg1/invoke_0_dag
+gocean/eg1/invoke_0_dag.png
+gocean/eg2/inc_field_?_mod.f90
+gocean/eg3/compute_cu_?.cl
+gocean/eg3/compute_cv_?.cl
+gocean/eg3/compute_h_?.cl
+gocean/eg3/compute_z_?.cl
+gocean/eg4/kern_call_kern_?_mod.f90
+gocean/eg4/kern_nested_use_?_mod.f90
+gocean/eg4/kern_use_var_?_mod.f90

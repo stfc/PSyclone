@@ -641,6 +641,31 @@ def test_fw_codeblock():
         "    PRINT *, 'with more than one line'\n" in result)
 
 
+def test_fw_loop():
+    '''Check the FortranWriter class loop method
+    correctly prints out the Fortran representation.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  integer :: i, sum\n"
+        "  sum = 0\n"
+        "  do i = 1, 20, 2\n"
+        "    sum = sum + i\n"
+        "  end do\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "do i = 1, 20, 2\n" in result
+
+
 @pytest.mark.xfail(reason="issue #430 : module name should be specified")
 def test_module_name():
     '''Check the FortranWriter class outputs the module name specified in

@@ -66,7 +66,16 @@ application to run on a GPU by adding OpenACC directives. A Makefile
 is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
 requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf) be
-installed.
+installed/available - it is provided as a git submodule of the PSyclone
+project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
+for details on working with submodules).
+
+The supplied Makefile also provides a second, "profile" target which
+performs the same OpenACC transformations but then encloses the whole
+of the resulting PSy layer in a profiling region. By linking this with
+the PSyclone NVTX profiling wrapper (and the NVTX library itself), the
+resulting application can be profiled using NVIDIA's `nvprof` or
+`nvvp` tools.
 
 Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^

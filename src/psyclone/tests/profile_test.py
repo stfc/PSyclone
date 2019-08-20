@@ -41,7 +41,6 @@ import re
 import pytest
 
 from psyclone.generator import GenerationError
-from psyclone.gocean1p0 import GOKern, GOInvokeSchedule
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, NameSpace
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
@@ -68,6 +67,7 @@ def teardown_function():
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
@@ -77,27 +77,19 @@ def test_profile_basic(capsys):
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
-    coloured_schedule = GOInvokeSchedule([]).coloured_text
-    coloured_loop = Loop().coloured_text
-    coloured_kern = GOKern().coloured_text
-    coloured_profile = invoke.schedule.children[0].coloured_text
+    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = Loop().coloured_text
+    profile = invoke.schedule.children[0].coloured_text
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
-    correct = (
-        '''{0}[invoke='invoke_0',Constant loop bounds=True]
-    {3}
-        {1}[type='outer',field_space='go_cv',it_space='go_internal_pts']
-            {1}[type='inner',field_space='go_cv',it_space='go_internal_pts']
-                {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
-        '''[module_inline=False]
-        {1}[type='outer',field_space='go_ct',it_space='go_all_pts']
-            {1}[type='inner',field_space='go_ct',it_space='go_all_pts']
-                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
-        '''[module_inline=False]'''.format(coloured_schedule, coloured_loop,
-                                           coloured_kern, coloured_profile)
-    )
-    assert correct in out
+    expected = (
+        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        "    " + profile + "\n"
+        "        " + loop + "[type='outer', field_space='go_cv', "
+        "it_space='go_internal_pts']\n")
+
+    assert expected in out
 
     prt = ProfileRegionTrans()
 
@@ -111,21 +103,38 @@ def test_profile_basic(capsys):
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[]: j= lower=2,jstop-1,1
-ProfileStart[var=profile_1]
-Loop[]: i= lower=2,istop,1
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'2']
+Literal[value:'jstop-1']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'2']
+Literal[value:'istop']
+Literal[value:'1']
+Schedule:
 kern call: compute_cv_code
-EndLoop
-ProfileEnd
-EndLoop
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop+1,1
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop+1']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop+1']
+Literal[value:'1']
+Schedule:
 kern call: bc_ssh_code
-EndLoop
-EndLoop
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
 ProfileEnd
 End Schedule""")
-
     assert correct in new_sched_str
 
     Profiler.set_options(None)
@@ -434,24 +443,53 @@ def test_transform(capsys):
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'2']
+Literal[value:'jstop']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'2']
+Literal[value:'istop']
+Literal[value:'1']
+Schedule:
 kern call: bc_ssh_code
-EndLoop
-EndLoop
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop+1']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_u_code
-EndLoop
-EndLoop
-Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop+1']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_v_code
-EndLoop
-EndLoop
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
 ProfileEnd
 End Schedule""")
-
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
@@ -459,23 +497,53 @@ End Schedule""")
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
-Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'2']
+Literal[value:'jstop']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'2']
+Literal[value:'istop']
+Literal[value:'1']
+Schedule:
 kern call: bc_ssh_code
-EndLoop
-EndLoop
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
 ProfileStart[var=profile_1]
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop+1']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_u_code
-EndLoop
-EndLoop
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
 ProfileEnd
-Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
+GOLoop[id:'', variable:'j', loop_type:'outer']
+Literal[value:'1']
+Literal[value:'jstop']
+Literal[value:'1']
+Schedule:
+GOLoop[id:'', variable:'i', loop_type:'inner']
+Literal[value:'1']
+Literal[value:'istop+1']
+Literal[value:'1']
+Schedule:
 kern call: bc_solid_v_code
-EndLoop
-EndLoop
+End Schedule
+End GOLoop
+End Schedule
+End GOLoop
 ProfileEnd
 End Schedule""")
     assert correct in str(sched2)
@@ -608,7 +676,7 @@ def test_omp_transform():
     correct = (
         "      CALL ProfileStart(\"boundary_conditions_ne_offset_mod\", "
         "\"bc_ssh_code\", profile)\n"
-        "      !$omp parallel default(shared), private(j,i)\n"
+        "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
@@ -629,7 +697,7 @@ def test_omp_transform():
 
     correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
 "bc_ssh_code", profile)
-      !$omp parallel default(shared), private(j,i)
+      !$omp parallel default(shared), private(i,j)
       CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_1", \
 profile_1)
       !$omp do schedule(static)

@@ -95,12 +95,12 @@ LF3_SCHEDULE, _ = FUSE_TRANS.apply(LF2_SCHEDULE.children[0],
 LF3_SCHEDULE.view()
 
 # fuse all inner loops
-LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].children[0],
-                                   LF3_SCHEDULE.children[0].children[1])
-LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].children[0],
-                                   LF4_SCHEDULE.children[0].children[1])
-LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].children[0],
-                                   LF5_SCHEDULE.children[0].children[1])
+LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].loop_body[0],
+                                   LF3_SCHEDULE.children[0].loop_body[1])
+LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].loop_body[0],
+                                   LF4_SCHEDULE.children[0].loop_body[1])
+LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].loop_body[0],
+                                   LF5_SCHEDULE.children[0].loop_body[1])
 LF6_SCHEDULE.view()
 
 OL_SCHEDULE, _ = OMP_TRANS.apply(LF6_SCHEDULE.children[0])
