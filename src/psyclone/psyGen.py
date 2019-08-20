@@ -959,6 +959,27 @@ class Node(object):
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
+    def math_equal(self, other):
+        '''Returns true if the self has the same results as other. The
+        implementation in the base class just confirms that the type is the
+        same, and the number of children as well.
+
+        :param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`.
+        '''
+
+        # pylint: disable=unidiomatic-typecheck
+        if type(self) != type(other):
+            return False
+
+        if len(self.children) != len(other.children):
+            return False
+
+        for i, entity in enumerate(self.children):
+            if not entity.math_equal(other.children[i]):
+                return False
+        return True
+
     @property
     def ast(self):
         '''
@@ -6122,6 +6143,15 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']"
 
+    def math_equal(self, other):
+        '''Returns true if the self has the same results as other.
+        :param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+        '''
+        if not super(Reference, self).math_equal(other):
+            return False
+        return self.name == other.name
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
         it sets this variable to be read.
@@ -6271,6 +6301,29 @@ class BinaryOperation(Operation):
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX'
         ])
+
+    def math_equal(self, other):
+        '''Returns true if the self has the same results as other.
+
+        :param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+        '''
+        if not super(BinaryOperation, self).math_equal(other):
+            # Support some commutative law, unfortunately we now need
+            # to repeat some tests already done in super(), since we
+            # don't know why the above test failed
+            # pylint: disable=unidiomatic-typecheck
+            if type(self) != type(other):
+                return False
+            if self.operator != other.operator:
+                return False
+            if self.operator not in [self.Operator.ADD, self.Operator.MUL,
+                                     self.Operator.AND, self.Operator.OR,
+                                     self.Operator.EQ]:
+                return False
+            return self._children[0].math_equal(other.children[1]) and \
+                self._children[1].math_equal(other.children[0])
+        return self.operator == other.operator
 
     @property
     def coloured_text(self):
@@ -6426,6 +6479,15 @@ class Literal(Node):
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']"
+
+    def math_equal(self, other):
+        '''Returns true if the self has the same results as other.
+
+        :param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+        '''
+
+        return self.value == other.value
 
 
 class Return(Node):

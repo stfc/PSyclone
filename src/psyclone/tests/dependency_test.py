@@ -230,7 +230,7 @@ def test_nemo_implicit_loop(parser):
 def test_nemo_implicit_loop_partial(parser):
     ''' Check the handling of ImplicitLoops access information.
     '''
-    # TODO 440: Same as the test above but does not check the
+    # TODO #440: Same as the test above but does not check the
     # variables in the implicit loop construct, this test can
     # be deleted when the issue is fixed and the above test
     # passes.
@@ -400,3 +400,70 @@ def test_user_defined_variables(parser):
     loops.reference_accesses(var_accesses)
     assert var_accesses["a % b % c"].is_array()
     assert not var_accesses["e % f"].is_array()
+
+
+def test_math_equal(parser):
+    '''Tests the math_equal function of nodes in the PSyIR.'''
+
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    reader = FortranStringReader('''program test_prog
+                                    x = a                 !  0
+                                    x = a                 !  1
+                                    x = b                 !  2
+                                    x = a+12*b*sin(c)     !  3
+                                    x = 12*b*sin(c)+a     !  4
+                                    x = i+j               !  5
+                                    x = j+i               !  6
+                                    x = i-j               !  7
+                                    x = j-i               !  8
+                                    x = max(1, 2, 3, 4)   !  9
+                                    x = max(1, 2, 3)      ! 10
+                                    x = a(1,2)            ! 11
+                                    end program test_prog
+                                 ''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    schedule = psy.invokes.get("test_prog").schedule
+
+    # Compare a and a
+    exp0 = schedule[0].rhs
+    exp1 = schedule[1].rhs
+    assert exp0.math_equal(exp1)
+
+    # Different node types: assignment and expression
+    assert not schedule[0].math_equal(exp1)
+
+    # Compare a and b
+    assert not exp1.math_equal(schedule[2].rhs)
+
+    # Compare a+12*b... and 12*b...+a - both commutative and
+    # complex expression
+    assert schedule[3].rhs.math_equal(schedule[4].rhs)
+
+    # Compare i+j and j+i - we do support _simple_ commutative changes:
+    exp5 = schedule[5].rhs
+    exp6 = schedule[6].rhs
+    assert exp5.math_equal(exp6)
+
+    # Compare i-j and j-i
+    exp7 = schedule[7].rhs
+    assert not exp7.math_equal(schedule[8].rhs)
+
+    # Same node type, but different number of children
+    # max(1, 2, 3, 4) and max(1, 2, 3)
+    exp9 = schedule[9].rhs
+    assert not exp9.math_equal(schedule[10].rhs)
+
+    # Compare a and a(1,2), which triggers the recursion in Reference
+    # to be false.
+    assert not exp0.math_equal(schedule[11].rhs)
+
+    # Compare i+j and max(1,2,3,4) to trigger different types
+    # in the recursion in BinaryOperator
+    assert not exp5.math_equal(exp9)
+
+    # Different operator: j+i vs i-j. Do not compare
+    # i+j with i-j, since this will not trigger the
+    # additional tests in commutative law handling
+    assert not exp6.math_equal(exp7)
