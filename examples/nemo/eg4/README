@@ -11,9 +11,9 @@ through PSyclone they should produce the same (or equivalent) SIR as
 is in the examples. This then validates that the translation works
 correctly.
 
-To test this run:
+To test this, run:
 
-> psyclone -s ./sir_trans.py -api nemo <filename>
+> psyclone -s ./sir_trans.py -api nemo <filename> -opsy /dev/null
 
 To build Dawn with Python support:
 
@@ -35,7 +35,7 @@ To run the PSyclone generated code in Dawn:
 
 1) Add the generated code inbetween the "PSyclone code start" and
    "PSyclone code end" comments in the supplied dawn_script.py file
-   (in this directory).
+   (in the same directory as this README).
 2) Run the script with python3
    > python3 dawn_script.py
 3) Cuda code will be output in data/psyclone.cpp
@@ -54,3 +54,6 @@ Issues/limitations:
 7) Loops must be triply nested.
 8) Loops must be perfectly nested (no computation between different
    loop levels.
+9) The PSyclone generated code for the tridiagonal_solve example
+   currently fails when run with Dawn as PSyclone can not yet create
+   variables scoped within a vertical region.
