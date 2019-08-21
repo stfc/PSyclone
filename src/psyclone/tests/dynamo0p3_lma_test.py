@@ -253,13 +253,12 @@ def test_operator():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                               "_type(mm_w0, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                               " mm_w0") != -1
-    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
-                               "proxy") != -1
-    assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0, chi, a, qr)"
+        in generated_code)
+    assert "TYPE(operator_type), intent(inout) :: mm_w0" in generated_code
+    assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
+    assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
             "mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
             "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), "
@@ -415,14 +414,14 @@ def test_operator_nofield(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
-                             "nofield_type(mm_w2, chi, qr)") != -1
-    assert gen_code_str.find("TYPE(operator_type), intent(inout) :: "
-                             "mm_w2") != -1
-    assert gen_code_str.find("TYPE(operator_proxy_type) mm_w2_proxy") != -1
-    assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
-    assert gen_code_str.find("undf_w2") == -1
-    assert gen_code_str.find("map_w2") == -1
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)"
+        in gen_code_str)
+    assert "TYPE(operator_type), intent(inout) :: mm_w2" in gen_code_str
+    assert "TYPE(operator_proxy_type) mm_w2_proxy" in gen_code_str
+    assert "mm_w2_proxy = mm_w2%get_proxy()" in gen_code_str
+    assert "undf_w2" not in gen_code_str
+    assert "map_w2" not in gen_code_str
     assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
             "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
@@ -517,16 +516,15 @@ def test_operator_orientation(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
-                        "_orient_type(mm_w1, chi, qr)") != -1
-    assert gen_str.find("TYPE(operator_type), intent(inout) ::"
-                        " mm_w1") != -1
-    assert gen_str.find("TYPE(operator_proxy_type) mm_w1_"
-                        "proxy") != -1
-    assert gen_str.find("mm_w1_proxy = mm_w1%get_proxy()") != -1
-    assert gen_str.find(
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
+        in gen_str)
+    assert "TYPE(operator_type), intent(inout) :: mm_w1" in gen_str
+    assert "TYPE(operator_proxy_type) mm_w1_proxy" in gen_str
+    assert "mm_w1_proxy = mm_w1%get_proxy()" in gen_str
+    assert (
         "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
-        "(cell)") != -1
+        "(cell)" in gen_str)
     assert ("CALL testkern_operator_orient_code(cell, nlayers, "
             "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
@@ -581,21 +579,19 @@ def test_operator_deref(tmpdir, dist_mem):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                               "_type(mm_w0_op, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                               " mm_w0_op") != -1
-    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
-                               "proxy") != -1
     assert (
-        generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
-    assert generated_code.find(
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, chi, a, qr)"
+        in generated_code)
+    assert "TYPE(operator_type), intent(inout) :: mm_w0_op" in generated_code
+    assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
+    assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
+    assert (
         "CALL testkern_operator_code(cell, nlayers, "
         "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
         "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
         "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
         "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-        "weights_z_qr)") != -1
+        "weights_z_qr)" in generated_code)
 
 
 def test_operator_no_dofmap_lookup():
