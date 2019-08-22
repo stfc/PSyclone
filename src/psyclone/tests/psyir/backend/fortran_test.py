@@ -649,7 +649,24 @@ def test_fw_codeblock_2():
     result = fvisitor(schedule)
     assert "a(2,n,:)=0.0" in result
 
-# nemoinvokeschedule_node ***
+
+def test_nemoinvokeschedule(parser):
+    ''' xxx '''
+    from psyclone.nemo import NemoInvokeSchedule
+    code = (
+        "program test\n"
+        "  a=1\n"
+        "end program test\n")
+    from fparser.common.readfortran import FortranStringReader
+    from psyclone.psyGen import PSyFactory
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert isinstance(schedule, NemoInvokeSchedule)
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "a=1\n" in result
 
 
 def test_fw_nemokern():
