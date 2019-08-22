@@ -186,6 +186,24 @@ class FortranWriter(PSyIRVisitor):
         result += "\n"
         return result
 
+    def nemoinvokeschedule_node(self, node):
+        '''A NEMO invoke schedule is the top level node in a PSyIR
+        representation of a NEMO program unit (program, subroutine
+        etc). It does not represent any code itself so all it needs to
+        to is call its children and return the result.
+
+        :param node: A NemoInvokeSchedule PSyIR node.
+        :type node: :py:class:`psyclone.nemo.NemoInvokeSchedule`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result
+
     def nemokern_node(self, node):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
@@ -419,6 +437,23 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
+    def nemoimplicitloop_node(self, node):
+        '''Fortran implicit loops are currently captured in the PSyIR as a
+        NemoImplicitLoop node. This is a temporary solution while the
+        best way to capture their behaviour is decided. This method
+        outputs the Fortran representation of such a loop by simply
+        using the original Fortran ast (i.e. acting in a similar way
+        to a code block).
+
+        :param node: a NemoImplicitLoop PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.NemoImplicitLoop`
+
+        :returns: The Fortran code as a string.
+        :rtype: str
+
+        '''
+        return "{0}{1}\n".format(self._nindent, str(node._ast))
+
     def loop_node(self, node):
         '''This method is called when a Loop instance is found in the
         PSyIR tree.
@@ -496,6 +531,13 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree. It returns the content of the CodeBlock as a
         Fortran string, indenting as appropriate.
 
+        At the moment it is not possible to distinguish between a
+        codeblock that is one or more full lines (and therefore needs
+        a newline added) and a codeblock that is part of a line (and
+        therefore does not need a newline). The current implementation
+        adds a newline irrespective. This is the subject of issue
+        #388.
+
         :param node: A CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.CodeBlock`
 
@@ -503,4 +545,7 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        return self._nindent.join(str(node.ast).splitlines(True))
+        result = ""
+        for statement in node.get_statements:
+            result += "{0}{1}\n".format(self._nindent, str(statement))
+        return result

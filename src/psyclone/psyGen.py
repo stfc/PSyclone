@@ -5928,6 +5928,17 @@ class CodeBlock(Node):
             self.ast_end = None
 
     @property
+    def get_statements(self):
+        '''
+        :returns: the list of nodes associated with this code block in \
+        the original AST.
+        :rtype: list of subclass of \
+        `:py:classfparser.two.Fortran2003.Base`
+
+        '''
+        return self._statements
+
+    @property
     def coloured_text(self):
         '''
         Return the name of this node type with control codes for
