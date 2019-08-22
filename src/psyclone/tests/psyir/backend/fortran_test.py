@@ -211,44 +211,6 @@ def test_fw_exception():
     assert "Unsupported node 'Unsupported' found" in str(excinfo)
 
 
-def test_fw_nemokern():
-    '''Check the FortranWriter class nemokern method prints the
-    class information and calls any children. This method is used to
-    output nothing for a NemoKern object and simply call its children
-    as NemoKern is a collection of PSyIR nodes so needs no
-    output itself.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
-        "  integer :: a,b,c\n"
-        "  a = b/c\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = create_schedule(code)
-
-    # add a NemoKern object to the tree
-    from psyclone.nemo import NemoKern
-    nemo_kern = NemoKern(schedule.children, None, parent=schedule)
-    schedule.children = [nemo_kern]
-
-    # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
-    assert(
-        "  subroutine tmp()\n"
-        "    integer(i_def) :: a\n"
-        "    integer(i_def) :: b\n"
-        "    integer(i_def) :: c\n"
-        "\n"
-        "    a=b / c\n"
-        "\n"
-        "  end subroutine tmp\n") in result
-
-
 def test_fw_kernelschedule(monkeypatch):
     '''Check the FortranWriter class outputs correct code when a
     KernelSchedule node is found. Also tests that an exception is
@@ -458,8 +420,7 @@ def test_fw_array():
         "subroutine tmp(a,n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n,n,n)\n"
-        "    a = 1\n"
-        "    a(2,n,:) = 0.0\n"
+        "    a(2,n,3) = 0.0\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
@@ -467,7 +428,7 @@ def test_fw_array():
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    assert "a(2,n,:)=0.0" in result
+    assert "a(2,n,3)=0.0" in result
 
 # literal is already checked within previous tests
 
@@ -508,6 +469,31 @@ def test_fw_ifblock():
         "    else\n"
         "      a=1\n"
         "    end if\n") in result
+
+
+def test_fw_loop():
+    '''Check the FortranWriter class loop method
+    correctly prints out the Fortran representation.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  integer :: i, sum\n"
+        "  sum = 0\n"
+        "  do i = 1, 20, 2\n"
+        "    sum = sum + i\n"
+        "  end do\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "do i = 1, 20, 2\n" in result
 
 
 def test_fw_unaryoperator():
@@ -604,7 +590,7 @@ def test_fw_return():
     assert "    return\n" in result
 
 
-def test_fw_codeblock():
+def test_fw_codeblock_1():
     '''Check the FortranWriter class codeblock method correctly
     prints out the Fortran code contained within it.
 
@@ -616,18 +602,14 @@ def test_fw_codeblock():
         "subroutine tmp()\n"
         "  integer :: a\n"
         "  a=1\n"
+        "  print *,\"I am a code block\"\n"
+        "  print *,\"with more than one line\"\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
 
-    code1 = (
-        "print *, 'I am a code block'\n"
-        "print *, 'with more than one line'\n")
-    _ = ParserFactory().create(std="f2003")
-    reader = get_reader(code1)
-    statements = Fortran2003.Execution_Part(reader)
-    code_block = CodeBlock([statements], parent=schedule)
-    schedule.addchild(code_block)
+    # Check a code block exists in the schedule
+    assert schedule.walk(CodeBlock)
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
@@ -635,13 +617,47 @@ def test_fw_codeblock():
 
     assert (
         "    a=1\n"
-        "PRINT *, 'I am a code block'\n"
-        "    PRINT *, 'with more than one line'\n" in result)
+        "    PRINT *, \"I am a code block\"\n"
+        "    PRINT *, \"with more than one line\"\n" in result)
 
 
-def test_fw_loop():
-    '''Check the FortranWriter class loop method
-    correctly prints out the Fortran representation.
+@pytest.mark.xfail(reason="issue #388. Code blocks add space and newline.")
+def test_fw_codeblock_2():
+    '''Check the FortranWriter class array method correctly prints out the
+    Fortran representation when there is a code block that is part of
+    a line (not a whole line). In this case the ":" in the array
+    access is a code block.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: a(n,n,n)\n"
+        "    a(2,n,:) = 0.0\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Check a code block exists in the schedule
+    assert schedule.walk(CodeBlock)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "a(2,n,:)=0.0" in result
+
+# nemoinvokeschedule_node ***
+
+
+def test_fw_nemokern():
+    '''Check the FortranWriter class nemokern method prints the
+    class information and calls any children. This method is used to
+    output nothing for a NemoKern object and simply call its children
+    as NemoKern is a collection of PSyIR nodes so needs no
+    output itself.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -649,16 +665,29 @@ def test_fw_loop():
         "module test\n"
         "contains\n"
         "subroutine tmp()\n"
-        "  integer :: i, sum\n"
-        "  sum = 0\n"
-        "  do i = 1, 20, 2\n"
-        "    sum = sum + i\n"
-        "  end do\n"
+        "  integer :: a,b,c\n"
+        "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code)
 
+    # add a NemoKern object to the tree
+    from psyclone.nemo import NemoKern
+    nemo_kern = NemoKern(schedule.children, None, parent=schedule)
+    schedule.children = [nemo_kern]
+
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    assert "do i = 1, 20, 2\n" in result
+    assert(
+        "  subroutine tmp()\n"
+        "    integer(i_def) :: a\n"
+        "    integer(i_def) :: b\n"
+        "    integer(i_def) :: c\n"
+        "\n"
+        "    a=b / c\n"
+        "\n"
+        "  end subroutine tmp\n") in result
+
+
+# nemoimplicitloop_node ***
