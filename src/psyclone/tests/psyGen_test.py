@@ -840,10 +840,7 @@ def test_ompdo_directive_class_view(capsys):
             out, _ = capsys.readouterr()
 
             directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
-            literal = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
             loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-            sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-            kern = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
 
             expected_output = (
                 directive + case["current_string"] + "\n"
@@ -2682,7 +2679,23 @@ def test_codeblock_can_be_printed():
     assert "]" in str(cblock)
 
 
+def test_codeblock_getstatements():
+    '''Test that the get_statements method of a CodeBlock instance returns
+    a copy of the list of nodes from the original AST that are associated with
+    this code block.
+
+    For simplicity we use a list of strings rather than an AST.
+
+    '''
+    original = ["hello", "there"]
+    cblock = CodeBlock(original)
+    result = cblock.get_statements
+    assert result == original
+    # Check that the list is a copy not a reference.
+    assert id(result) != id(original)
+
 # Test Loop class
+
 
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
