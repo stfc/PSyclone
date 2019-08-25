@@ -39,8 +39,6 @@
 import pytest
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
-import fparser.two.Fortran2003 as Fortran2003
-from fparser.api import get_reader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
@@ -203,7 +201,7 @@ def test_fw_exception(fort_writer):
     # pylint: enable=abstract-method
 
     unsupported = Unsupported()
-    assignment = schedule.children[0]
+    assignment = schedule[0]
     binary_operation = assignment.children[1]
     assignment.children[1] = unsupported
     unsupported.children = binary_operation.children
@@ -396,7 +394,7 @@ def test_fw_reference(fort_writer):
         "end module tmp_mod") in result
 
     # Now add a child to the reference node
-    reference = schedule.children[1].children[0].children[0]
+    reference = schedule[1].lhs.children[0]
     reference.children = ["hello"]
 
     # Generate Fortran from the PSyIR schedule
@@ -647,7 +645,6 @@ def get_nemo_schedule(parser, code):
     :returns: the first schedule in the supplied code.
     :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
     '''
-    from fparser.common.readfortran import FortranStringReader
     from psyclone.psyGen import PSyFactory
     reader = FortranStringReader(code)
     prog = parser(reader)
@@ -656,7 +653,12 @@ def get_nemo_schedule(parser, code):
 
 
 def test_fw_nemoinvokeschedule(fort_writer, parser):
-    ''' xxx '''
+    '''Check that the FortranWriter class nemoinvokeschedule accepts the
+    NemoInvokeSchedule node and prints the expected code (from any
+    children of the node as the node itself simply calls its
+    children).
+
+    '''
     from psyclone.nemo import NemoInvokeSchedule
     code = (
         "program test\n"
@@ -691,19 +693,21 @@ def test_fw_nemokern(fort_writer, parser):
         "end program test")
     schedule = get_nemo_schedule(parser, code)
 
-    kernel = schedule.children[0].loop_body[0].loop_body[0].loop_body[0]
+    kernel = schedule[0].loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(kernel, NemoKern)
 
     result = fort_writer(schedule)
     assert (
         "    do i = 1, n, 1\n"
         "      a(i,j,k)=0.0\n"
-        "    enddo\n" in result )
-
+        "    enddo\n" in result)
 
 
 def test_fw_nemoimplicitloop(fort_writer, parser):
-    ''' xxx '''
+    '''Check that the FortranWriter class nemoimplicitloop accepts the
+    NemoImplicitLoop node and prints the expected code.
+
+    '''
     from psyclone.nemo import NemoImplicitLoop
     code = (
         "program test\n"
@@ -711,7 +715,7 @@ def test_fw_nemoimplicitloop(fort_writer, parser):
         "  a(:,:,:)=0.0\n"
         "end program test\n")
     schedule = get_nemo_schedule(parser, code)
-    implicit_loop = schedule.children[0]
+    implicit_loop = schedule[0]
     assert isinstance(implicit_loop, NemoImplicitLoop)
     result = fort_writer(schedule)
     assert "a(:, :, :) = 0.0\n" in result
