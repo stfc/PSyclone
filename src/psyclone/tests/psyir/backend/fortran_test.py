@@ -47,6 +47,12 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
 
 
+@pytest.fixture(scope="function")
+def fort_writer():
+    '''Create and return a FortanWriter object with default settings.'''
+    return FortranWriter()
+
+
 def test_gen_intent():
     '''Check the gen_intent function produces the expected intent
     strings.
@@ -125,33 +131,31 @@ def test_gen_kind():
     assert gen_kind(logical_symbol) is None
 
 
-def test_fw_gen_declaration():
+def test_fw_gen_declaration(fort_writer):
     '''Check the FortranWriter class gen_declaration method produces
     the expected declarations.
 
     '''
-    fvisitor = FortranWriter()
-
     # Basic entry
     symbol = Symbol("dummy1", "integer")
-    result = fvisitor.gen_declaration(symbol)
+    result = fort_writer.gen_declaration(symbol)
     assert result == "integer(i_def) :: dummy1\n"
 
     # Array with intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    result = fvisitor.gen_declaration(symbol)
+    result = fort_writer.gen_declaration(symbol)
     assert result == "integer(i_def), dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    result = fvisitor.gen_declaration(symbol)
+    result = fort_writer.gen_declaration(symbol)
     assert result == "integer(i_def), dimension(2,:,2) :: dummy2\n"
 
     # Constant
     symbol = Symbol("dummy3", "integer", constant_value=10)
-    result = fvisitor.gen_declaration(symbol)
+    result = fort_writer.gen_declaration(symbol)
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
 
 
@@ -176,7 +180,7 @@ def create_schedule(code):
     return schedule
 
 
-def test_fw_exception():
+def test_fw_exception(fort_writer):
     '''Check the FortranWriter class instance raises an exception if an
     unsupported PSyIR node is found.
 
@@ -205,13 +209,12 @@ def test_fw_exception():
     unsupported.children = binary_operation.children
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
-        _ = fvisitor(schedule)
+        _ = fort_writer(schedule)
     assert "Unsupported node 'Unsupported' found" in str(excinfo)
 
 
-def test_fw_kernelschedule(monkeypatch):
+def test_fw_kernelschedule(fort_writer, monkeypatch):
     '''Check the FortranWriter class outputs correct code when a
     KernelSchedule node is found. Also tests that an exception is
     raised if KernelSchedule.name does not have a value.
@@ -231,8 +234,7 @@ def test_fw_kernelschedule(monkeypatch):
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
 
     assert(
         "module tmp_mod\n"
@@ -251,14 +253,14 @@ def test_fw_kernelschedule(monkeypatch):
 
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
-        _ = fvisitor(schedule)
+        _ = fort_writer(schedule)
     assert "Expected node name to have a value." in str(excinfo)
 
 # assignment and binaryoperation (not intrinsics) are already checked
 # within previous tests
 
 
-def test_fw_binaryoperator():
+def test_fw_binaryoperator(fort_writer):
     '''Check the FortranWriter class binary_operation method correctly
     prints out the Fortran representation of an intrinsic. Uses sign
     as the example.
@@ -277,12 +279,11 @@ def test_fw_binaryoperator():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a=SIGN(1.0, 1.0)" in result
 
 
-def test_fw_binaryoperator_unknown(monkeypatch):
+def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     '''Check the FortranWriter class binary_operation method raises an
     exception if an unknown binary operator is found.
 
@@ -301,13 +302,12 @@ def test_fw_binaryoperator_unknown(monkeypatch):
     # Remove sign() from the list of supported binary operators
     monkeypatch.delitem(Fparser2ASTProcessor.binary_operators, "sign")
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
-        _ = fvisitor(schedule)
+        _ = fort_writer(schedule)
     assert "Unexpected binary op" in str(excinfo)
 
 
-def test_fw_naryopeator():
+def test_fw_naryopeator(fort_writer):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
 
@@ -325,12 +325,11 @@ def test_fw_naryopeator():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a=MAX(1.0, 1.0, 2.0)" in result
 
 
-def test_fw_naryopeator_unknown(monkeypatch):
+def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
     ''' Check that the FortranWriter class nary_operation method raises
     the expected error if it encounters an unknown operator.
 
@@ -349,13 +348,12 @@ def test_fw_naryopeator_unknown(monkeypatch):
     # Remove max() from the list of supported nary operators
     monkeypatch.delitem(Fparser2ASTProcessor.nary_operators, "max")
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as err:
-        _ = fvisitor(schedule)
+        _ = fort_writer(schedule)
     assert "Unexpected N-ary op" in str(err)
 
 
-def test_fw_reference():
+def test_fw_reference(fort_writer):
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
     Also check the method raises an exception if it has children as
@@ -378,8 +376,7 @@ def test_fw_reference():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
 
     # The asserts need to be split as the declaration order can change
     # between different versions of Psython.
@@ -404,11 +401,11 @@ def test_fw_reference():
 
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
-        result = fvisitor(schedule)
+        result = fort_writer(schedule)
     assert "PSyIR Reference node should not have any children." in str(excinfo)
 
 
-def test_fw_array():
+def test_fw_array(fort_writer):
     '''Check the FortranWriter class array method correctly prints
     out the Fortran representation of an array
 
@@ -426,14 +423,13 @@ def test_fw_array():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
 
 # literal is already checked within previous tests
 
 
-def test_fw_ifblock():
+def test_fw_ifblock(fort_writer):
     '''Check the FortranWriter class ifblock method
     correctly prints out the Fortran representation.
 
@@ -458,8 +454,7 @@ def test_fw_ifblock():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert (
         "    if (n > 2) then\n"
         "      n=n + 1\n"
@@ -471,7 +466,7 @@ def test_fw_ifblock():
         "    end if\n") in result
 
 
-def test_fw_loop():
+def test_fw_loop(fort_writer):
     '''Check the FortranWriter class loop method
     correctly prints out the Fortran representation.
 
@@ -491,12 +486,11 @@ def test_fw_loop():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "do i = 1, 20, 2\n" in result
 
 
-def test_fw_unaryoperator():
+def test_fw_unaryoperator(fort_writer):
     '''Check the FortranWriter class unary_operation method
     correctly prints out the Fortran representation. Uses -1 as the
     example.
@@ -515,12 +509,11 @@ def test_fw_unaryoperator():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a=-1" in result
 
 
-def test_fw_unaryoperator2():
+def test_fw_unaryoperator2(fort_writer):
     '''Check the FortranWriter class unary_operation method correctly
     prints out the Fortran representation of an intrinsic. Uses sin as
     the example.
@@ -539,12 +532,11 @@ def test_fw_unaryoperator2():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a=SIN(1.0)" in result
 
 
-def test_fw_unaryoperator_unknown(monkeypatch):
+def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
     '''Check the FortranWriter class unary_operation method raises an
     exception if an unknown unary operator is found.
 
@@ -563,13 +555,12 @@ def test_fw_unaryoperator_unknown(monkeypatch):
     # Remove sin() from the dict of unary operators
     monkeypatch.delitem(Fparser2ASTProcessor.unary_operators, "sin")
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
     with pytest.raises(VisitorError) as excinfo:
-        _ = fvisitor(schedule)
+        _ = fort_writer(schedule)
     assert "Unexpected unary op" in str(excinfo)
 
 
-def test_fw_return():
+def test_fw_return(fort_writer):
     '''Check the FortranWriter class return method
     correctly prints out the Fortran representation.
 
@@ -585,12 +576,11 @@ def test_fw_return():
     schedule = create_schedule(code)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "    return\n" in result
 
 
-def test_fw_codeblock_1():
+def test_fw_codeblock_1(fort_writer):
     '''Check the FortranWriter class codeblock method correctly
     prints out the Fortran code contained within it.
 
@@ -612,8 +602,7 @@ def test_fw_codeblock_1():
     assert schedule.walk(CodeBlock)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
 
     assert (
         "    a=1\n"
@@ -622,7 +611,7 @@ def test_fw_codeblock_1():
 
 
 @pytest.mark.xfail(reason="issue #388. Code blocks add space and newline.")
-def test_fw_codeblock_2():
+def test_fw_codeblock_2(fort_writer):
     '''Check the FortranWriter class array method correctly prints out the
     Fortran representation when there is a code block that is part of
     a line (not a whole line). In this case the ":" in the array
@@ -645,31 +634,41 @@ def test_fw_codeblock_2():
     assert schedule.walk(CodeBlock)
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a(2,n,:)=0.0" in result
 
 
-def test_nemoinvokeschedule(parser):
+def get_nemo_schedule(parser, code):
+    '''Utility function that returns the first schedule for a code with
+    the nemo api.
+    :param parser: the parser class.
+    :type parser: :py:class:`fparser.two.Fortran2003.Program`
+    :param str code: the code as a string.
+    :returns: the first schedule in the supplied code.
+    :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from psyclone.psyGen import PSyFactory
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    return psy.invokes.invoke_list[0].schedule
+
+
+def test_fw_nemoinvokeschedule(fort_writer, parser):
     ''' xxx '''
     from psyclone.nemo import NemoInvokeSchedule
     code = (
         "program test\n"
         "  a=1\n"
         "end program test\n")
-    from fparser.common.readfortran import FortranStringReader
-    from psyclone.psyGen import PSyFactory
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = get_nemo_schedule(parser, code)
     assert isinstance(schedule, NemoInvokeSchedule)
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "a=1\n" in result
 
 
-def test_fw_nemokern():
+def test_fw_nemokern(fort_writer, parser):
     '''Check the FortranWriter class nemokern method prints the
     class information and calls any children. This method is used to
     output nothing for a NemoKern object and simply call its children
@@ -677,34 +676,42 @@ def test_fw_nemokern():
     output itself.
 
     '''
+    from psyclone.nemo import NemoKern
     # Generate fparser2 parse tree from Fortran code.
     code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
+        "program test\n"
         "  integer :: a,b,c\n"
-        "  a = b/c\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = create_schedule(code)
+        "  do k=1,n\n"
+        "    do j=1,n\n"
+        "      do i=1,n\n"
+        "        a(i,j,k) = 0.0\n"
+        "      end do\n"
+        "    end do\n"
+        "  end do\n"
+        "end program test")
+    schedule = get_nemo_schedule(parser, code)
 
-    # add a NemoKern object to the tree
-    from psyclone.nemo import NemoKern
-    nemo_kern = NemoKern(schedule.children, None, parent=schedule)
-    schedule.children = [nemo_kern]
+    kernel = schedule.children[0].loop_body[0].loop_body[0].loop_body[0]
+    assert isinstance(kernel, NemoKern)
 
-    # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
-    assert(
-        "  subroutine tmp()\n"
-        "    integer(i_def) :: a\n"
-        "    integer(i_def) :: b\n"
-        "    integer(i_def) :: c\n"
-        "\n"
-        "    a=b / c\n"
-        "\n"
-        "  end subroutine tmp\n") in result
+    result = fort_writer(schedule)
+    assert (
+        "    do i = 1, n, 1\n"
+        "      a(i,j,k)=0.0\n"
+        "    enddo\n" in result )
 
 
-# nemoimplicitloop_node ***
+
+def test_fw_nemoimplicitloop(fort_writer, parser):
+    ''' xxx '''
+    from psyclone.nemo import NemoImplicitLoop
+    code = (
+        "program test\n"
+        "  real a(10,10,10)\n"
+        "  a(:,:,:)=0.0\n"
+        "end program test\n")
+    schedule = get_nemo_schedule(parser, code)
+    implicit_loop = schedule.children[0]
+    assert isinstance(implicit_loop, NemoImplicitLoop)
+    result = fort_writer(schedule)
+    assert "a(:, :, :) = 0.0\n" in result
