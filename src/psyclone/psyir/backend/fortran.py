@@ -539,7 +539,8 @@ class FortranWriter(PSyIRVisitor):
         best way to capture their behaviour is decided. This method
         outputs the Fortran representation of such a loop by simply
         using the original Fortran ast (i.e. acting in a similar way
-        to a code block).
+        to a code block). As it is a temporary solution we don't
+        bother fixing the _ast internal access.
 
         :param node: a NemoImplicitLoop PSyIR node.
         :type node: :py:class:`psyclone.psyGen.NemoImplicitLoop`
