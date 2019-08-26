@@ -166,12 +166,9 @@ class DependencyTools(object):
                 if isinstance(index, str):
                     visitor = FortranWriter()
                     var_string = var_info.var_name + index
-                    # For now just assume that an assignment to derived
-                    # types is parallelisable, but add a warning!
-                    self._add_info("Assignment to derived type '{0}' is not "
-                                   "supported yet - assumed to be "
-                                   "parallelisable.".format(var_string))
-                    return True
+                    self._add_warning("Assignment to derived type '{0}' is "
+                                      "not supported yet".format(var_string))
+                    return False
                 index.reference_accesses(accesses)
                 try:
                     _ = accesses[loop_variable]
@@ -268,7 +265,10 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     def can_loop_be_parallelised(self, loop, loop_variable,
-                                 only_nested_loops=True, var_accesses=None):
+                                 only_nested_loops=True,
+                                 test_all_variables=False,
+                                 var_accesses=None):
+        # pylint: disable=too-many-arguments
         '''This function analyses the loop in PsyIR to see if
         it can be safely parallelised over the specified variable.
 
@@ -278,6 +278,10 @@ class DependencyTools(object):
         :param bool only_nested_loops: if true, a loop must have an inner \
                                        loop in order to be considered \
                                        parallelisable (default: True).
+        :param bool test_all_variables: if true, it will test if all variables\
+                                        can be parallelised, otherwise it will\
+                                        stop after the first variable is found\
+                                        that can not be parallelised.
         :param var_accesses: optional argument containing the variable access\
                            pattern of the loop (default: None).
         :type var_accesses: \
@@ -307,6 +311,7 @@ class DependencyTools(object):
         # Collect all variables used as loop variable:
         loop_vars = [l.variable_name for l in loop.walk(Loop)]
 
+        result = True
         # Now check all variables used in the loop
         for var_name in var_accesses.all_vars:
             # Ignore all loop variables - they look like reductions because of
@@ -323,6 +328,8 @@ class DependencyTools(object):
                 # Handle scalar variable
                 par_able = self.is_scalar_parallelisable(var_info)
             if not par_able:
-                return False
+                result = False
+                if not test_all_variables:
+                    return False
 
-        return True
+        return result

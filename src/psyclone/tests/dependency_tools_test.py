@@ -243,6 +243,12 @@ def test_derived_type(parser):
                                        a%b(ji, jj) = 0
                                      end do
                                  end do
+                                 do jj = 1, jpj   ! loop 0
+                                    do ji = 1, jpi
+                                       a%b(ji, jj) = 0
+                                       b%b(ji, jj) = 0
+                                     end do
+                                 end do
                                  end program test''')
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
@@ -250,7 +256,21 @@ def test_derived_type(parser):
     dep_tools = DependencyTools(["levels", "lat"])
 
     parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
-    assert parallel
-    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet " \
-           "- assumed to be parallelisable." \
+    assert not parallel
+    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[0]
+
+    parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
+    assert not parallel
+    assert len(dep_tools.get_all_messages()) == 1
+    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
+           in dep_tools.get_all_messages()[0]
+
+    parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj",
+                                                  test_all_variables=True)
+    assert not parallel
+    assert len(dep_tools.get_all_messages()) == 2
+    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
+           in dep_tools.get_all_messages()[0]
+    assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
+           in dep_tools.get_all_messages()[1]
