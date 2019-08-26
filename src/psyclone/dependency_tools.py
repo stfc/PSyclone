@@ -267,6 +267,7 @@ class DependencyTools(object):
     def can_loop_be_parallelised(self, loop, loop_variable,
                                  only_nested_loops=True,
                                  test_all_variables=False,
+                                 variables_to_ignore=None,
                                  var_accesses=None):
         # pylint: disable=too-many-arguments
         '''This function analyses the loop in PsyIR to see if
@@ -282,6 +283,9 @@ class DependencyTools(object):
                                         can be parallelised, otherwise it will\
                                         stop after the first variable is found\
                                         that can not be parallelised.
+        :param variables_to_ignore: List of variables that are not checked if\
+                                    they are parallelisable.
+        :type variables_to_ignore: list of str
         :param var_accesses: optional argument containing the variable access\
                            pattern of the loop (default: None).
         :type var_accesses: \
@@ -307,6 +311,8 @@ class DependencyTools(object):
         if not var_accesses:
             var_accesses = VariablesAccessInfo()
             loop.reference_accesses(var_accesses)
+        if not variables_to_ignore:
+            variables_to_ignore = []
 
         # Collect all variables used as loop variable:
         loop_vars = [l.variable_name for l in loop.walk(Loop)]
@@ -318,7 +324,8 @@ class DependencyTools(object):
             # the write-read access in the loop:
             if var_name in loop_vars:
                 continue
-
+            if var_name in variables_to_ignore:
+                continue
             var_info = var_accesses[var_name]
             if var_info.is_array():
                 # Handle arrays

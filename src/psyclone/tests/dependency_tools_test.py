@@ -274,3 +274,10 @@ def test_derived_type(parser):
            in dep_tools.get_all_messages()[0]
     assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[1]
+
+    parallel = dep_tools.\
+        can_loop_be_parallelised(loops[1], "jj", variables_to_ignore=["a % b"])
+    assert not parallel
+    assert len(dep_tools.get_all_messages()) == 1
+    assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
+           in dep_tools.get_all_messages()[0]
