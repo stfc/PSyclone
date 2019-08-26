@@ -363,10 +363,13 @@ class VariablesAccessInfo(object):
 
     @property
     def all_vars(self):
-        ''':returns: all variables contained in this instance.
+        ''':returns: all variables contained in this instance, sorted (in \
+                     order to make test results reproducible).
         :rtype: List of str.
         '''
-        return list(self._var_to_varinfo.keys())
+        list_of_vars = list(self._var_to_varinfo.keys())
+        list_of_vars.sort()
+        return list_of_vars
 
     def __getitem__(self, name):
         '''Returns the access information for the specified variable.

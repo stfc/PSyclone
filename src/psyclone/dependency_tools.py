@@ -167,7 +167,7 @@ class DependencyTools(object):
                     visitor = FortranWriter()
                     var_string = var_info.var_name + index
                     self._add_warning("Assignment to derived type '{0}' is "
-                                      "not supported yet".format(var_string))
+                                      "not supported yet.".format(var_string))
                     return False
                 index.reference_accesses(accesses)
                 try:

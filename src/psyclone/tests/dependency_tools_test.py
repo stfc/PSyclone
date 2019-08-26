@@ -260,8 +260,11 @@ def test_derived_type(parser):
     assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[0]
 
+    # Test that testing is stopped with the first unparallelisable statement
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
     assert not parallel
+    # Test that only one message is stored, i.e. no message for the
+    # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[0]
@@ -269,12 +272,14 @@ def test_derived_type(parser):
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj",
                                                   test_all_variables=True)
     assert not parallel
+    # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[0]
     assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[1]
 
+    # Test that variables are ignored as expected.
     parallel = dep_tools.\
         can_loop_be_parallelised(loops[1], "jj", variables_to_ignore=["a % b"])
     assert not parallel
