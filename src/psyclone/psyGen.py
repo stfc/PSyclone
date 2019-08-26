@@ -2743,7 +2743,7 @@ class OMPDoDirective(OMPDirective):
             raise GenerationError(
                 "An OpenMP DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                    format(len(self._children), self._children))
+                format(len(self._children), self._children))
 
         # Find the locations in which we must insert the begin/end
         # directives...
@@ -6164,8 +6164,9 @@ class Assignment(Node):
             if ind:
                 # Remove the index part of the name
                 name = name.replace(ind.group(0), "")
+                # The index must be added as a list
                 accesses_left.add_access(name, AccessType.WRITE, self,
-                                         ind.group(0))
+                                         [ind.group(0)])
             else:
                 accesses_left.add_access(name, AccessType.WRITE, self)
         else:

@@ -160,6 +160,18 @@ class DependencyTools(object):
             # parallel variable:
             for i, index in enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
+
+                # TODO #363: derived types are not supported, which
+                # atm have an index of type str
+                if isinstance(index, str):
+                    visitor = FortranWriter()
+                    var_string = var_info.var_name + index
+                    # For now just assume that an assignment to derived
+                    # types is parallelisable, but add a warning!
+                    self._add_info("Assignment to derived type '{0}' is not "
+                                   "supported yet - assumed to be "
+                                   "parallelisable.".format(var_string))
+                    return True
                 index.reference_accesses(accesses)
                 try:
                     _ = accesses[loop_variable]

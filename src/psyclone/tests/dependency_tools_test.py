@@ -229,3 +229,28 @@ def test_scalar_parallelise(parser):
     assert not parallel
     assert "Variable 'b' is read first, which indicates a reduction."\
         in dep_tools.get_all_messages()[0]
+
+
+# -----------------------------------------------------------------------------
+def test_derived_type(parser):
+    '''Tests assignment to derived type variables. For now (see #363)
+    they are only partially supported, and as default assume that these
+    kind of statements are parallelisable.
+    '''
+    reader = FortranStringReader('''program test
+                                 do jj = 1, jpj   ! loop 0
+                                    do ji = 1, jpi
+                                       a%b(ji, jj) = 0
+                                     end do
+                                 end do
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test").schedule
+    dep_tools = DependencyTools(["levels", "lat"])
+
+    parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
+    assert parallel
+    assert "Assignment to derived type 'a % b(ji, jj)' is not supported yet " \
+           "- assumed to be parallelisable." \
+           in dep_tools.get_all_messages()[0]
