@@ -10,7 +10,7 @@ started with the aim to support the emerging API in the GungHo project
 for a finite element dynamical core.
 
 The `GungHo project
-<https://www.metoffice.gov.uk/binaries/content/assets/mohippo/pdf/g/p/mosac_16.10.pdf>`_
+<https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_
 was initiated in 2011 to address challenges of weather and climate
 prediction on the next generation of supercomputers. The project ran for
 5 years as a collaboration between the Met Office, NERC (via NERC funded
