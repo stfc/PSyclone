@@ -732,6 +732,43 @@ until we find accesses that would prevent parallelisation::
           from the kernel metadata, not from the actual kernel source 
           code.
 
+Dependency Tools
+----------------
+PSyclone contains a class that provides useful tools for dependency analaysis.
+It especially provides messages for the user to indicate why parallelisation
+was not possible.
+
+.. autoclass:: psyclone.dependency_tools.DependencyTools
+    :members:
+
+Here an example on how to use this class. It takes a list of statements
+(i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
+can be parallelised::
+
+  parallel_loop = OMPLoopTrans()
+  # The loops in the Fortran functions that must be parallelised
+  # are over the 'grid' domain. Note that the psyclone config
+  # files specifies the mapping of loop variable to type, e.g.:
+  #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+  # This means any loop using the variable 'np' is considered a
+  # loop of type 'grid'
+  dt = DependencyTools(["grid"])
+
+  for statement in statements:
+      if isinstance(statement, NemoLoop):
+          # Get the loop variable of the potential parallel loop:
+          var = statement.variable_name
+          # Check if there is a variable dependency that might 
+          # prevent this loop from being parallelised:
+          if dt.can_loop_be_parallelised(statement, var):
+              parallel_loop_dynamic.apply(statement)
+          else:
+              # Print all messages from the dependency analysis
+              # as feedback for the user:
+              for message in dt.get_all_messages():
+                  print(message)
+
+
 PSyIR back-ends
 ###############
 
