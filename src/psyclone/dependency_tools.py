@@ -46,10 +46,16 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 
 class DependencyTools(object):
-    '''This class wraps all dependency tools, allowing a user to
+    '''This class provides some useful dependency tools, allowing a user to
     overwrite/modify functions depending on the application. It includes
     a messaging system where functions can store messages that might be
     useful for the user to see.
+
+    :param loop_types_to_parallelise: A list of loop types that will be \
+                                      considered for parallelisation. This \
+                                      can be used to exclude say 1-dimensional\
+                                      loops.
+    :type  loop_types_to_parallelise: list of str
     '''
 
     def __init__(self, loop_types_to_parallelise=None):
