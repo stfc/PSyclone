@@ -437,7 +437,7 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     cschedule, _ = ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
 
     invoke.schedule = schedule
     code = str(psy.gen)
@@ -491,7 +491,7 @@ def test_omp_colour_orient_trans(monkeypatch, annexed, dist_mem):
     cschedule, _ = ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
 
     invoke.schedule = schedule
     code = str(psy.gen)
@@ -727,8 +727,8 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     schedule, _ = ctrans.apply(schedule.children[index+1])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index].children[0])
-    schedule, _ = otrans.apply(schedule.children[index+1].children[0])
+    schedule, _ = otrans.apply(schedule.children[index].loop_body[0])
+    schedule, _ = otrans.apply(schedule.children[index+1].loop_body[0])
 
     gen = str(psy.gen)
 
@@ -964,8 +964,8 @@ def test_multi_different_kernel_omp(
     schedule, _ = ctrans.apply(schedule.children[index2])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index1].children[0])
-    schedule, _ = otrans.apply(schedule.children[index2].children[0])
+    schedule, _ = otrans.apply(schedule.children[index1].loop_body[0])
+    schedule, _ = otrans.apply(schedule.children[index2].loop_body[0])
 
     code = str(psy.gen)
 
@@ -1042,7 +1042,7 @@ def test_loop_fuse_unexpected_error(dist_mem):
     ftrans = DynamoLoopFuseTrans()
 
     # cause an unexpected error
-    schedule.children[index].children = None
+    schedule.children[index].loop_body.children = None
 
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ftrans.apply(schedule.children[index],
@@ -1295,10 +1295,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
                                schedule.children[index+1])
 
     # Enclose the colour loops within an OMP parallel region
-    schedule, _ = rtrans.apply(schedule.children[index].children)
+    schedule, _ = rtrans.apply(schedule.children[index].loop_body.children)
 
     # Put an OMP DO around each of the colour loops
-    for loop in schedule.children[index].children[0].children:
+    for loop in schedule[index].loop_body.children[0].children:
         schedule, _ = otrans.apply(loop)
 
     code = str(psy.gen)
@@ -1474,7 +1474,7 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
             index = 8
     else:
         index = 1
-    kern_call = schedule.children[index].children[0]
+    kern_call = schedule.children[index].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -3732,11 +3732,13 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
 
     # Ensure we check for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -3760,50 +3762,74 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     result, _ = capsys.readouterr()
     if dist_mem:  # annexed can be True or False
         expected = (
-            sched + "[invoke='invoke_0', dm=True]\n"
+            isched + "[invoke='invoke_0', dm=True]\n"
             "    " + directive+"[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " x_innerproduct_y(asum,f1,f2)\n"
             "    " + gsum + "[scalar='asum']\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='nannexed']\n"
-            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " inc_a_times_x(asum,f1)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " sum_x(bsum,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " sum_x(bsum,f2)\n"
             "    " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
     else:  # not dist_mem. annexed can be True or False
         expected = (
-            sched + "[invoke='invoke_0', dm=False]\n"
+            isched + "[invoke='invoke_0', dm=False]\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " x_innerproduct_y(asum,f1,f2)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " inc_a_times_x(asum,f1)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " sum_x(bsum,f2)\n")
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " sum_x(bsum,f2)\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
@@ -3863,7 +3889,7 @@ def test_list_multiple_reductions():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         omp_loop_directive = schedule.children[0].children[0]
-        call = omp_loop_directive.children[0].children[0]
+        call = omp_loop_directive.children[0].loop_body[0]
         arg = call.arguments.args[2]
         arg._type = "gh_real"
         arg.descriptor._access = AccessType.SUM
@@ -4859,7 +4885,7 @@ def test_rc_updated_dependence_analysis():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[0]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     f2_field = kernel.args[1]
     assert not f2_field.backward_dependence()
     # set our loop to redundantly compute to the level 2 halo. This
@@ -5076,7 +5102,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     assert "IF (f4_proxy%is_dirty(depth=" not in result
     # Increase RC depth to 3 and check that halo exchange is not removed
     # when a discontinuous field has readwrite access
-    call = f4_write_loop.children[0]
+    call = f4_write_loop.loop_body[0]
     f4_arg = call.arguments.args[0]
     monkeypatch.setattr(f4_arg, "_access", value=AccessType.READWRITE)
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
@@ -5336,7 +5362,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     # Now test for f1 write to read dependency
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    call = schedule.children[0].children[0]
+    call = schedule.children[0].loop_body[0]
     f1_arg = call.arguments.args[0]
     monkeypatch.setattr(f1_arg, "_access", value=AccessType.WRITE)
     rc_trans.apply(schedule.children[0], depth=3)
@@ -5474,13 +5500,13 @@ def test_rc_no_directive():
 
     # create an openmp transformation and apply this to the loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule.children[3].children[0])
+    schedule, _ = otrans.apply(schedule.children[3].loop_body[0])
 
     # create a redundant computation transformation and apply this to the loop
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(
-            schedule.children[3].children[0].children[0], depth=1)
+            schedule.children[3].loop_body[0].children[0], depth=1)
     assert ("Redundant computation must be applied before directives are added"
             in str(excinfo.value))
 
@@ -5544,7 +5570,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the DynInvokeSchedule"
             in str(excinfo.value))
@@ -5557,20 +5583,20 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
     # make the innermost loop iterate over cells (it should be
     # colour). We can ignore the previous monkeypatches as this
     # exception is encountered before the previous ones.
-    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
                         "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'colour'" in str(excinfo.value))
 
@@ -5596,7 +5622,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     schedule, _ = ctrans.apply(schedule.children[3])
 
     # make the loop type invalid
-    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
                         "invalid")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5607,7 +5633,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
@@ -5634,7 +5660,7 @@ def test_rc_colour_no_loop_decrease():
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[3].children[0]
+    loop = schedule.children[3].loop_body[0]
     schedule, _ = rc_trans.apply(loop, depth=2)
     invoke.schedule = schedule
     # now try to reduce the redundant computation to the level 1 halo
@@ -5675,7 +5701,7 @@ def test_rc_colour(tmpdir):
     # create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the colour loop
-    rc_trans.apply(cschedule.children[3].children[0], depth=2)
+    rc_trans.apply(cschedule.children[3].loop_body[0], depth=2)
 
     result = str(psy.gen)
 
@@ -5726,7 +5752,7 @@ def test_rc_max_colour(tmpdir):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the colour loop out to the full
     # halo depth
-    rc_trans.apply(cschedule.children[3].children[0])
+    rc_trans.apply(cschedule.children[3].loop_body[0])
 
     result = str(psy.gen)
     assert (
@@ -6418,7 +6444,7 @@ def test_intergrid_colour(dist_mem):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
@@ -6462,12 +6488,12 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     loop = loops[1]
     # To a prolong kernel
-    new_sched, _ = ctrans.apply(loop)
+    _, _ = ctrans.apply(loop)
     # Update our list of loops
-    loops = new_sched.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     # Trigger the error by calling the internal method to get the upper
     # bound before the colourmaps have been set-up
     with pytest.raises(InternalError) as err:
@@ -6481,8 +6507,8 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
     loop = loops[2]
-    monkeypatch.setattr(loops[3].children[0], "is_coloured", lambda: True)
-    loop.children.append(loops[3].children[0])
+    monkeypatch.setattr(loops[3].loop_body[0], "is_coloured", lambda: True)
+    loop.children.append(loops[3].loop_body[0])
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
@@ -6501,13 +6527,13 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
     # To a restrict kernel
     _, _ = ctrans.apply(loops[3])
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OMP to loops over coloured cells
     _, _ = otrans.apply(loops[2])
@@ -6537,13 +6563,13 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     # Colour the first loop
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = otrans.apply(loops[1])
     # Put the parallel loop inside a parallel region
-    dirs = schedule.walk(schedule.children, psyGen.Directive)
+    dirs = schedule.walk(psyGen.Directive)
     _, _ = ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
@@ -6576,13 +6602,13 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.view()
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = DynamoLoopFuseTrans()
     _, _ = ctrans.apply(loops[0])
     _, _ = ctrans.apply(loops[1])
     schedule.view()
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = ftrans.apply(loops[0], loops[2])
     schedule.view()
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
@@ -6598,7 +6624,7 @@ def test_intergrid_err(dist_mem):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
 
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
@@ -7371,7 +7397,7 @@ def create_kernel(file_name):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = schedule.children[0].loop_body[0]
     return kernel
 
 

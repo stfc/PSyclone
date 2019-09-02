@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    CodedKern, Arguments, KernelArgument
+    CodedKern, Arguments, KernelArgument, Literal, Schedule
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -248,6 +248,12 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
     def gen_code(self, parent):
 
         if self.field_space == "every":
@@ -256,24 +262,32 @@ class GOLoop(Loop):
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
 
-            # loop bounds
-            self._start = "1"
+            # Update start loop bound
+            self.start_expr = Literal("1", parent=self)
+
+            # Update stop loop bound
             if self._loop_type == "inner":
                 index = "1"
             elif self._loop_type == "outer":
                 index = "2"
-            self._stop = ("SIZE(" + self.field_name + ", " +
-                          index + ")")
+            # TODO: Issue 440. Implement SIZE intrinsic in PSyIR
+            self.stop_expr = Literal("SIZE(" + self.field_name + "," +
+                                     index + ")", parent=self)
 
         else:  # one of our spaces so use values provided by the infrastructure
 
             # loop bounds
+            # TODO: Issue 440. Implement derive types in PSyIR
             if self._loop_type == "inner":
-                self._start = self.field_space + "%istart"
-                self._stop = self.field_space + "%istop"
+                self.start_expr = Reference(
+                    self.field_space + "%istart", parent=self)
+                self.stop_expr = Reference(
+                    self.field_space + "%istop", parent=self)
             elif self._loop_type == "outer":
-                self._start = self.field_space + "%jstart"
-                self._stop = self.field_space + "%jstop"
+                self.start_expr = Reference(
+                    self.field_space + "%jstart", parent=self)
+                self.stop_expr = Reference(
+                    self.field_space + "%jstop", parent=self)
 
         Loop.gen_code(self, parent)
 
@@ -293,14 +307,12 @@ class GOKernCallFactory(object):
     @staticmethod
     def create(call, parent=None):
         ''' Creates a kernel call and associated Loop structure '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
+        outer_loop = GOLoop(parent=parent, loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
+        outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
+        gocall.load(call, parent=inner_loop.loop_body)
+        inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner

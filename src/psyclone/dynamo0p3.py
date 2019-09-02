@@ -56,7 +56,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    CodedKern, ACCEnterDataDirective
 
 # First section : Parser specialisations and classes
 
@@ -709,6 +710,7 @@ class DynArgDescriptor03(Descriptor):
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
+            self._vector_size = 0
 
         # We should never get to here
         else:
@@ -5272,7 +5274,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
@@ -5369,7 +5371,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -5501,6 +5503,12 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
         # At this stage we don't know what our loop bounds are
         self._lower_bound_name = None
         self._lower_bound_index = None
@@ -5525,7 +5533,7 @@ class DynLoop(Loop):
         else:
             upper_bound = self._upper_bound_name
         print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}', "
+              "[type='{0}', field_space='{1}', it_space='{2}', "
               "upper_bound='{3}']".format(self._loop_type,
                                           self._field_space.orig_name,
                                           self.iteration_space, upper_bound))
@@ -5718,7 +5726,7 @@ class DynLoop(Loop):
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
-            kernels = self.walk(self.children, DynKern)
+            kernels = self.walk(DynKern)
             if not kernels:
                 raise InternalError(
                     "Failed to find a kernel within a loop over colours.")
@@ -6017,9 +6025,11 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+
         Loop.gen_code(self, parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":
@@ -6161,6 +6171,28 @@ class DynKern(CodedKern):
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel metadata
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments.args:
+            if arg.is_scalar():
+                var_accesses.add_access(arg.name, arg.access, self)
+            else:
+                # It's an array, so add an arbitrary index value for the
+                # stored indices (which is at this stage the only way to
+                # indicate an array access).
+                var_accesses.add_access(arg.name, arg.access, self, [1])
+        super(DynKern, self).reference_accesses(var_accesses)
+        # Set the current location index to the next location, since after
+        # this kernel a new statement starts.
+        var_accesses.next_location()
 
     def load(self, call, parent=None):
         '''
@@ -6545,20 +6577,22 @@ class DynKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        parent_loop = self.parent.parent
+
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
+        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
                                           arg_accesses=[AccessType.READ,
                                                         AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_halo_depth > 1:
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_halo_depth))
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map
@@ -8476,6 +8510,11 @@ class DynKernelArgument(KernelArgument):
         ''' Returns the type of this argument. '''
         return self._type
 
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type in GH_VALID_SCALAR_NAMES
+
     @property
     def mesh(self):
         '''
@@ -8655,10 +8694,11 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.addchild(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
