@@ -31,12 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to apply OpenACC Loop, Parallel and Enter Data directives
-generically. This can be applied via the -s option in the psyclone
-script.
+generically in the presence of halo exchanges. This can be applied via
+the -s option in the psyclone script.
 
 '''
 from __future__ import print_function

@@ -273,14 +273,15 @@ expected to run correctly but it gives a starting point for
 evaluation.
 
 1) Adding OpenACC kernels directives. -nodm is used as an exception is
-raised if haloexchanges are found within an OpenACC kernels region.
+raised if Halo Exchange nodes are found within an OpenACC kernels
+region.
 ::
     cd eg14/
     psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 2) Adding OpenACC enter data, parallel and loop directives. -nodm is
-used as an exception is raised if haloexchanges are found withing an
-OpenACC parallel region.
+used as an exception is raised if Halo Exchanges nodes are found
+withing an OpenACC parallel region.
 ::
     cd eg14/
     psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90

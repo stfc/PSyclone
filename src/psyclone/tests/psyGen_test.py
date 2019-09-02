@@ -2238,9 +2238,9 @@ def test_acc_datadevice_virtual():
 # (1/4) Method gen_code
 def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with a single loop, produces the expected code (there should be no
-    "copy in" data as there is no following OpenACC parallel
-    directive). This test uses the dynamo0.3 API.
+    with a single loop, raises the expected exception as there is no
+    following OpenACC Parallel directive and at least one is
+    required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -2248,19 +2248,19 @@ def test_accenterdatadirective_gencode_1():
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     _ = acc_enter_trans.apply(sched)
-    code = str(psy.gen)
-    assert (
-        "      !$acc enter data\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel directives within the region."
+            in str(excinfo.value))
 
 
 # (2/4) Method gen_code
 def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with multiple loops, produces the expected code (there should be no
-    "copy in" data as there is no following OpenACC parallel
-    directive). This test uses the dynamo0.3 API.
+    with multiple loops, raises the expected exception, as there is no
+    following OpenACC Parallel directive and at least one is
+    required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -2268,11 +2268,11 @@ def test_accenterdatadirective_gencode_2():
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     _ = acc_enter_trans.apply(sched)
-    code = str(psy.gen)
-    assert (
-        "      !$acc enter data\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel directives within the region."
+            in str(excinfo.value))
 
 
 # (3/4) Method gen_code
@@ -2301,7 +2301,7 @@ def test_accenterdatadirective_gencode_3():
 # (4/4) Method gen_code
 def test_accenterdatadirective_gencode_4():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with a multiple loops and multiple OpenACC parallel directives,
+    with multiple loops and multiple OpenACC parallel directives,
     produces the expected code (when the same argument is used in
     multiple loops there should only be one entry). This test uses the
     dynamo0.3 API.

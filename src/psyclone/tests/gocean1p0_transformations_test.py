@@ -1581,6 +1581,33 @@ def test_acc_parallel_invalid_node():
             "ACCParallelTrans transformation" in str(err))
 
 
+def test_acc_data_copyin(tmpdir):
+    ''' Test that we correctly generate the arguments to the copyin
+    clause of an OpenACC data region '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
+    schedule = invoke.schedule
+
+    accpt = ACCParallelTrans()
+    accdt = ACCEnterDataTrans()
+
+     # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(new_sched)
+    invoke.schedule = new_sched
+    code = str(psy.gen)
+
+    assert (
+        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
+        "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
+        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
 def test_acc_data_grid_copyin(tmpdir):
     ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region when grid properties are required '''

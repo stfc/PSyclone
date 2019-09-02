@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
 
 '''File containing a PSyclone transformation script for the Dynamo0p3

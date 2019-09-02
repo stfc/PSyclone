@@ -1974,11 +1974,13 @@ class ACCEnterDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def gen_code(self, parent):
-        '''
-        Generate the elements of the f2pygen AST for this Node in the Schedule.
+        '''Generate the elements of the f2pygen AST for this Node in the Schedule.
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if no data is found to copy in.
+
         '''
         from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen
 
@@ -2003,7 +2005,11 @@ class ACCEnterDataDirective(ACCDirective):
         if var_str:
             copy_in_str = "copyin("+var_str+")"
         else:
-            copy_in_str = ""
+            # There should be at least one variable to copyin.
+            raise GenerationError(
+                "ACCEnterData directive did not find any data to copyin. "
+                "Perhaps there are no ACCParallel directives within the "
+                "region.")
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
         # 5. Call an API-specific subclass of this class in case

@@ -6626,6 +6626,7 @@ def test_accenterdatatrans():
 
     '''
     from psyclone.transformations import ACCEnterDataTrans
+    from psyclone.psyGen import ACCEnterDataDirective
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -6633,11 +6634,10 @@ def test_accenterdatatrans():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     _ = acc_enter_trans.apply(sched)
-    code = str(psy.gen)
-    assert (
-        "      !$acc enter data\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
+    assert isinstance(sched[0], ACCEnterDataDirective)
+    # This code can't be generated as ACCEnterData requires at least one
+    # parallel directive within its region and this example does not
+    # add one.
 
 # Class ACCEnterDataTrans end
 
@@ -6672,7 +6672,7 @@ def test_accparalleltrans():
     Test that an ACCParallelTrans transformation can add an OpenACC
     Parallel directive to the PSy layer in the dynamo0.3 API. An
     EnterData directive is also required otherwise the transformation
-    raises an exception.
+    raises an exception at code-generation time.
 
     '''
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans

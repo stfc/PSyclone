@@ -190,33 +190,34 @@ to the specified Kernel:
 
   > python find_kernel.py
 
-Example 14
-^^^^^^^^^^
+Example 14: OpenACC
+^^^^^^^^^^^^^^^^^^^
 
 Example of adding OpenACC directives in the dynamo0.3 API. This is a
 work in progress so the generated code may not work as
 expected. However it is never-the-less useful as a starting
 point. Three scripts are provided.
 
-The first script shows how to add OpenACC Kernels directives to the
-PSy-layer. This example only works with distributed memory switched
-off as the OpenACC Kernels transformation does not yet support halo
-exchanges within an OpenACC Kernels directive.
+The first script (`acc_kernels.py`) shows how to add OpenACC Kernels
+directives to the PSy-layer. This example only works with distributed
+memory switched off as the OpenACC Kernels transformation does not yet
+support halo exchanges within an OpenACC Kernels region.
 
-The second script shows how to add OpenACC Loop, Parallel and Entry
-Data directives to the PSy-layer. Again this example only works with
-distributed memory switched off as the OpenACC Parallel transformation
-does not support halo exchanges within an OpenACC Parallel directive.
+The second script (`acc_parallel.py`)shows how to add OpenACC Loop,
+Parallel and Enter Data directives to the PSy-layer. Again this
+example only works with distributed memory switched off as the OpenACC
+Parallel transformation does not support halo exchanges within an
+OpenACC Parallel region.
 
-The third script is the same as the second except that it does support
-distributed memory being switched on by placing an OpenACC Parallel
-directive around each OpenACC Loop directive, rather than having one
-for the whole invoke. This approach avoids having halo exchanges
-within am OpenACC Parallel directive.
+The third script (`acc_parallel_dm.py`) is the same as the second
+except that it does support distributed memory being switched on by
+placing an OpenACC Parallel directive around each OpenACC Loop
+directive, rather than having one for the whole invoke. This approach
+avoids having halo exchanges within an OpenACC Parallel region.
 
 The generated code has a number of problems including 1) it does not
 modify the kernels to include the OpenACC Routine directive, 2) a
-loops upper bounds is computed via a derived type (this should be
+loop's upper bound is computed via a derived type (this should be
 computed beforehand) 3) set_dirty and set_clean calls are placed
 within an OpenACC Parallel directive and 4) there are no checks on
 whether loops are parallel or not, it is just assumed they are -

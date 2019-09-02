@@ -1614,15 +1614,15 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
-    from psyclone import gocean1p0, nemo, psyGen, dynamo0p3
+    from psyclone import psyGen
     valid_node_types = (
         psyGen.Loop, psyGen.Kern, psyGen.IfBlock,
         psyGen.ACCLoopDirective, psyGen.Assignment, psyGen.Reference,
         psyGen.Literal, psyGen.BinaryOperation)
 
     def __init__(self):
-        super(ACCParallelTrans, self).__init__()
         from psyclone.psyGen import ACCParallelDirective
+        super(ACCParallelTrans, self).__init__()
         # Set the type of directive that the base class will use
         self._pdirective = ACCParallelDirective
 
@@ -2809,7 +2809,8 @@ class ACCEnterDataTrans(Transformation):
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
         from psyclone.psyGen import Schedule, Directive, \
-            ACCDataDirective, ACCEnterDataDirective
+            ACCDataDirective, ACCEnterDataDirective, ACCKernelsDirective, \
+            ACCParallelDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
 
