@@ -1397,9 +1397,11 @@ class Node(object):
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
         instances of any classes in the tuple.
+
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class\
             or a tuple of such classes.
+
         :return: list with all nodes that are instances of my_type \
             starting at and including this node.
         :rtype: list of :py:class:`psyclone.Node` instances.

@@ -82,11 +82,7 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 
 # Valid any_discontinuous_space metadata (general FS known to be discontinuous)
 VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
-    ["any_discontinuous_space_1", "any_discontinuous_space_2",
-     "any_discontinuous_space_3", "any_discontinuous_space_4",
-     "any_discontinuous_space_5", "any_discontinuous_space_6",
-     "any_discontinuous_space_7", "any_discontinuous_space_8",
-     "any_discontinuous_space_9", "any_discontinuous_space_10"]
+    ["any_discontinuous_space_{0}".format(x+1) for x in range(10)]
 
 # Valid discontinuous FS names (for optimisation purposes)
 VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
@@ -671,8 +667,7 @@ class DynArgDescriptor03(Descriptor):
                self._access_type == AccessType.INC:
                 raise ParseError(
                     "In the Dynamo0.3 API a field on any_discontinuous_space "
-                    "cannot have 'gh_inc' access because it is treated "
-                    "as discontinuous")
+                    "cannot have 'gh_inc' access because it is discontinuous")
             # TODO (issue #138): extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_type == AccessType.READWRITE:
@@ -680,7 +675,9 @@ class DynArgDescriptor03(Descriptor):
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
-            # TODO (issue #138): extend for "gh_write"
+            # TODO: extend restriction to "gh_write" for kernels that loop
+            # over cells (issue (#138) and allow "gh_write" and "gh_readwrite"
+            # for kernels (built-ins) that loop over DoFs (issue #471)
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
@@ -3380,10 +3377,9 @@ class DynBasisFunctions(DynCollection):
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
-            # function array dimension from the metadata for any_space and
+            # function array dimension from the metadata for any_space or
             # any_discontinuous_space. This information needs to be passed
-            # from the PSy layer to the kernels, which will be enabled
-            # in issue #461.
+            # from the PSy layer to the kernels (see issue #461).
             raise GenerationError(
                 "Unsupported space for basis function, "
                 "expecting one of {0} but found "
@@ -3432,9 +3428,9 @@ class DynBasisFunctions(DynCollection):
         else:
             # It is not possible to determine explicitly the first
             # differential basis function array dimension from the metadata
-            # for any_space and any_discontinuous_space. This information
-            # needs to be passed from the PSy layer to the kernels, which
-            # will be enabled in issue #461.
+            # for any_space or any_discontinuous_space. This information
+            # needs to be passed from the PSy layer to the kernels
+            # (see issue #461).
             raise GenerationError(
                 "Unsupported space for differential basis function, expecting "
                 "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,

@@ -173,8 +173,7 @@ def check_intergrid(node):
 class LoopFuseTrans(Transformation):
     ''' Provides a generic loop-fuse transformation to two Nodes in the
     PSyIR of a Schedule after performing validity checks for the supplied
-    Nodes. Examples are given in descriptions of children classes
-    :py:class:`DynamoLoopFuseTrans` and :py:class:`GOceanLoopFuseTrans`.
+    Nodes. Examples are given in the descriptions of any children classes.
     '''
 
     def __str__(self):
@@ -189,14 +188,14 @@ class LoopFuseTrans(Transformation):
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
-        :param node1: the first Node we are checking
+        :param node1: the first Node that is being checked.
         :type node1: :py:class:`psyclone.psyGen.Node`
-        :param node2: the second Node we are checking
+        :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyGen.Node`
 
-        :raises TransformationError: if one or both of the nodes is/are \
+        :raises TransformationError: if one or both of the Nodes is/are \
                                      not a :py:class:`psyclone.psyGen.Loop`.
-        :raises TransformationError: if one or both nodes are not fully-formed.
+        :raises TransformationError: if one or both Nodes are not fully-formed.
         :raises TransformationError: if the Nodes do not have the same parent.
         :raises TransformationError: if the Nodes are not next to each \
                                      other in the tree.
@@ -232,20 +231,21 @@ class LoopFuseTrans(Transformation):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
                                       "next to each other")
-        # Check that iteration space is the same
+        # Check that the iteration space is the same
         if node1.iteration_space != node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same "
                                       "iteration space")
 
     def apply(self, node1, node2):
-        ''' Fuses two Loops represented by `psyclone.psyGen.Node` objects
+        ''' Fuses two loops represented by `psyclone.psyGen.Node` objects
         after performing validity checks.
 
-        :param node1: the first Node we are checking
+        :param node1: the first Node that is being checked.
         :type node1: :py:class:`psyclone.psyGen.Node`
-        :param node2: the second Node we are checking
+        :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyGen.Node`
+
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
@@ -274,8 +274,8 @@ class LoopFuseTrans(Transformation):
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
-    ''' GOcean API application of the :py:class:`base class <LoopFuseTrans>`
-    in order to fuse two GOcean Loops after performing validity checks (e.g.
+    ''' GOcean API specialisation of the :py:class:`base class <LoopFuseTrans>`
+    in order to fuse two GOcean loops after performing validity checks (e.g.
     that the loops are over the same grid-point type). For example:
 
     >>> from psyclone.parse.algorithm import parse
@@ -302,7 +302,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return "GOceanLoopFuse"
 
     def apply(self, node1, node2):
-        ''' Fuses two `psyclone.gocean1p0.GOLoop` Loops after performing
+        ''' Fuses two `psyclone.gocean1p0.GOLoop` loops after performing
         validity checks by calling :py:meth:`LoopFuseTrans.apply` method
         of the base class.
 
@@ -310,12 +310,13 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
         :param node2: the second Node representing a GOLoop.
         :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
+
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
-        :raises TransformationError: if the supplied Loops are over \
+        :raises TransformationError: if the supplied loops are over \
                                      different grid-point types.
         :raises TransformationError: if there is an unexpected exception.
         '''
@@ -341,9 +342,9 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
 
 class DynamoLoopFuseTrans(LoopFuseTrans):
-    ''' Dynamo0.3 API application of the
+    ''' Dynamo0.3 API specialisation of the
     :py:class:`base class <LoopFuseTrans>` in order to fuse two Dynamo
-    Loops after performing validity checks. For example:
+    loops after performing validity checks. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -381,41 +382,36 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
     def _validate(self, node1, node2):
         ''' Performs various checks to ensure that it is valid to apply
-        the DynamoLoopFuseTrans transformation to the supplied Loops.
+        the DynamoLoopFuseTrans transformation to the supplied loops.
 
         :param node1: the first Loop to fuse.
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param node2: the second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
 
-        :raises TransformationError: if either of the supplied Loops contains \
+        :raises TransformationError: if either of the supplied loops contains \
                                      an inter-grid kernel.
         :raises TransformationError: if one or both function spaces have \
                                      invalid names.
-        :raises TransformationError: if the `same_space`flag was set, but \
+        :raises TransformationError: if the `same_space` flag was set, but \
                                      does not apply because neither field \
                                      is on `ANY_SPACE`.
         :raises TransformationError: if one or more of the iteration spaces
                                      is unknown (`ANY_SPACE`) and the \
                                      `same_space` optional argument is not \
                                      set to `True`.
-        :raises TransformationError: if the Loops are over different spaces \
+        :raises TransformationError: if the loops are over different spaces \
                                      that are not both discontinuous.
-        :raises TransformationError: if the Loops' upper bound names are \
+        :raises TransformationError: if the loops' upper bound names are \
                                      not the same.
         :raises TransformationError: if the halo-depth indices of two Loops \
                                      are not the same.
-        :raises TransformationError: if each Loop already contains a reduction.
-        :raises TransformationError: if the first Loop has a reduction and \
-                                     the second Loop reads the result of \
+        :raises TransformationError: if each loop already contains a reduction.
+        :raises TransformationError: if the first loop has a reduction and \
+                                     the second loop reads the result of \
                                      the reduction.
         :raises TransformationError: if there is an unexpected exception.
         '''
-        LoopFuseTrans._validate(self, node1, node2)
 
         # Set the 'same_space' flag value
         same_space = self._same_space_flag
