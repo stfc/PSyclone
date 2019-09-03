@@ -363,11 +363,20 @@ However, the necessary nodes in the new tree structure will be annotated
 with information to enable the original language-specific syntax to be
 recreated if required.
 
+
+Branching construct
+-------------------
+
 .. autoclass:: psyclone.psyGen.IfBlock
     :members:
 
+
+Iteration construct
+-------------------
+
 .. autoclass:: psyclone.psyGen.Loop
     :members:
+
 
 Operation Nodes
 ===============

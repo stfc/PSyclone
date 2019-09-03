@@ -44,21 +44,12 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
 
 # Constants
 API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
-
-DO_WHILE_PROG = ("program do_while_prog\n"
-                 "integer :: my_sum\n"
-                 "my_sum = 0\n"
-                 "do while(.true.)\n"
-                 "  my_sum = my_sum + 1\n"
-                 "end do\n"
-                 "end program do_while_prog\n")
 
 
 def test_unamed_unit(parser):
@@ -95,11 +86,12 @@ def test_explicit_do_sched():
     assert psy._name == "explicit_do_psy"
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
+
     # The schedule should contain 3 loop objects
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 3
     # The schedule should contain just 1 kernel
-    assert isinstance(loops[2].children[0], nemo.NemoKern)
+    assert isinstance(loops[2].loop_body[0], nemo.NemoKern)
 
 
 def test_array_valued_function():
@@ -112,7 +104,7 @@ def test_array_valued_function():
     sched = psy.invokes.invoke_list[0].schedule
     assert len(sched.children) == 2
     # We should just have two assignments and no Kernels
-    kernels = sched.walk(sched.children, nemo.NemoKern)
+    kernels = sched.walk(nemo.NemoKern)
     assert not kernels
 
 
@@ -132,40 +124,6 @@ def test_do_while():
     assert isinstance(sched.children[3], CodeBlock)
 
 
-def test_reject_dowhile(parser):
-    ''' Check that the NemoLoop constructor rejects DO WHILE loops. '''
-    from fparser.two.utils import walk_ast
-    reader = FortranStringReader(DO_WHILE_PROG)
-    prog = parser(reader)
-    loops = walk_ast([prog], [Fortran2003.Block_Nonlabel_Do_Construct])
-    with pytest.raises(InternalError) as err:
-        _ = nemo.NemoLoop(loops[0])
-    assert ("NemoLoop constructor should not have been called for a DO WHILE"
-            in str(err))
-
-
-def test_missing_loop_control(parser):
-    ''' Check that encountering a loop in the fparser parse tree that is
-    missing a Loop_Control element raises an InternalError. '''
-    from fparser.two.utils import walk_ast
-    reader = FortranStringReader(DO_WHILE_PROG)
-    prog = parser(reader)
-    # We have to break the fparser2 parse tree in order to trigger the
-    # internal error
-    loops = walk_ast(prog.content,
-                     [Fortran2003.Nonlabel_Do_Stmt])
-    ctrl = walk_ast(loops[0].items, [Fortran2003.Loop_Control])
-    # 'items' is a tuple and therefore immutable so make a new list
-    item_list = list(loops[0].items)
-    # Create a new tuple for the items member without the Loop_Control
-    item_list.remove(ctrl[0])
-    loops[0].items = tuple(item_list)
-    with pytest.raises(InternalError) as err:
-        _ = PSyFactory(API, distributed_memory=False).create(prog)
-    assert ("Unrecognised form of DO loop - failed to find Loop_Control "
-            "element in parse tree" in str(err))
-
-
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
@@ -173,7 +131,7 @@ def test_multi_kern():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
     loops[0].children.append(kerns[1])
@@ -190,7 +148,7 @@ def test_implicit_loop_assign():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     # We should have three implicit loops
     assert len(loops) == 3
     assert isinstance(sched.children[0], nemo.NemoLoop)
@@ -209,7 +167,7 @@ def test_complex_code():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 5
     kerns = sched.coded_kernels()
     assert len(kerns) == 1
@@ -246,7 +204,7 @@ def test_fn_call_no_kernel(parser):
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
     # Child of loop should be an Assignment, not a Kernel.
-    assert isinstance(loop.children[0], Assignment)
+    assert isinstance(loop.loop_body[0], Assignment)
 
 
 def test_codeblock_no_kernel(parser, monkeypatch):
@@ -265,13 +223,24 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     loop = schedule.children[0]
     # Check that we have the expected structure
     assert isinstance(loop, nemo.NemoLoop)
-    assert nemo.NemoKern.match(loop)
+    assert nemo.NemoKern.match(loop.loop_body)
     # Create a fake CodeBlock
-    cblock = CodeBlock([loop.children[0].ast])
-    # Monkeypatch the Loop object so that it has a CodeBlock as a child
-    monkeypatch.setattr(loop, "children", [cblock])
+    cblock = CodeBlock([loop.loop_body[0].ast])
+    # Monkeypatch the loop_body object so that it has a CodeBlock as a child
+    monkeypatch.setattr(loop.loop_body, "children", [cblock])
     # This should no longer match as a NemoKern
-    assert not nemo.NemoKern.match(loop)
+    assert not nemo.NemoKern.match(loop.loop_body)
+
+
+def test_nemokern_match():
+    ''' Check that NemoKern.match raises an InternalError in case of
+    incorrect parameters.'''
+
+    with pytest.raises(InternalError) as err:
+        nemo.NemoKern.match("invalid string type")
+    # Different error message in python2 vs python3
+    assert "Expected 'Schedule' in 'match', got '<class 'str'>" in str(err) or\
+        "Expected 'Schedule' in 'match', got '<type 'str'>" in str(err)
 
 
 def test_no_explicit_loop_in_kernel(parser):
@@ -290,9 +259,9 @@ def test_no_explicit_loop_in_kernel(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
-    assert isinstance(loop.children[0], nemo.NemoLoop)
-    # 'loop' is not a valid kernel because it itself contains a loop
-    assert not nemo.NemoKern.match(loop)
+    assert isinstance(loop.loop_body[0], nemo.NemoLoop)
+    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
+    assert not nemo.NemoKern.match(loop.loop_body)
 
 
 def test_no_implicit_loop_in_kernel(parser):
@@ -309,57 +278,55 @@ def test_no_implicit_loop_in_kernel(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
-    assert isinstance(loop.children[0], nemo.NemoLoop)
-    # 'loop' is not a valid kernel because it itself contains a loop
-    assert not nemo.NemoKern.match(loop)
+    assert isinstance(loop.loop_body[0], nemo.NemoLoop)
+    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
+    assert not nemo.NemoKern.match(loop.loop_body)
 
 
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
-    from psyclone.psyGen import colored
-    from psyclone.nemo import NEMO_SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
-    assert "NemoLoop[levels]: jk=1,jpk,1" in sched_str
-    assert "NemoLoop[lat]: jj=1,jpj,1" in sched_str
-    assert "NemoLoop[lon]: ji=1,jpi,1" in sched_str
+    assert "NemoLoop[id:'', variable:'ji', loop_type:'lon']" in sched_str
+    assert "NemoLoop[id:'', variable:'jj', loop_type:'lat']" in sched_str
+    assert "NemoLoop[id:'', variable:'jk', loop_type:'levels']" in sched_str
     sched.view()
     output, _ = capsys.readouterr()
 
     # Have to allow for colouring of output text
-    loop_str = colored("Loop", NEMO_SCHEDULE_COLOUR_MAP["Loop"])
-    kern_str = colored("CodedKern", NEMO_SCHEDULE_COLOUR_MAP["CodedKern"])
-    sched_str = colored("InvokeSchedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
+    loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    kern_str = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+    isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     expected_sched = (
-        sched_str + "[]\n"
-        "    " + loop_str + "[type='levels',field_space='None',"
+        isched_str + "[]\n"
+        "    " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n"
-        "        " + loop_str + "[type='lat',field_space='None',"
+        "        " + lit_str + "[value:'1']\n"
+        "        " + ref_str + "[name:'jpk']\n"
+        "        " + lit_str + "[value:'1']\n"
+        "        " + sched_str + "[]\n"
+        "            " + loop_str + "[type='lat', field_space='None', "
         "it_space='None']\n"
-        "            " + loop_str + "[type='lon',field_space='None',"
+        "                " + lit_str + "[value:'1']\n"
+        "                " + ref_str + "[name:'jpj']\n"
+        "                " + lit_str + "[value:'1']\n"
+        "                " + sched_str + "[]\n"
+        "                    " + loop_str + "[type='lon', field_space='None', "
         "it_space='None']\n"
-        "                " + kern_str + "[]\n"
-        "    " + loop_str + "[type='levels',field_space='None',"
-        "it_space='None']\n"
-        "        " + loop_str + "[type='lat',field_space='None',"
-        "it_space='None']\n"
-        "            " + loop_str + "[type='lon',field_space='None',"
-        "it_space='None']\n"
-        "                ")
+        "                        " + lit_str + "[value:'1']\n"
+        "                        " + ref_str + "[name:'jpi']\n"
+        "                        " + lit_str + "[value:'1']\n"
+        "                        " + sched_str + "[]\n"
+        "                            " + kern_str + "[]\n")
     assert expected_sched in output
-    expected_sched2 = (
-        loop_str + "[type='levels',field_space='None',"
-        "it_space='None']\n"
-        "        " + loop_str + "[type='lat',field_space='None',"
-        "it_space='None']\n"
-        "            " + loop_str + "[type='lon',field_space='None',"
-        "it_space='None']\n"
-        "                ")
-    assert expected_sched2 in output
 
 
 def test_kern_inside_if():
@@ -371,10 +338,10 @@ def test_kern_inside_if():
     sched = psy.invokes.invoke_list[0].schedule
     kerns = sched.coded_kernels()
     assert len(kerns) == 4
-    ifblock = sched.children[0].children[1]
+    ifblock = sched.children[0].loop_body[1]
     assert isinstance(ifblock, IfBlock)
     assert isinstance(ifblock.else_body[0], IfBlock)
-    kernels = ifblock.walk(ifblock.else_body, nemo.NemoKern)
+    kernels = ifblock.else_body.walk(nemo.NemoKern)
     assert isinstance(kernels[0], nemo.NemoKern)
 
 
@@ -397,7 +364,7 @@ def test_kern_sched_parents(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     # Find the (one and only) kernel
-    kernels = schedule.walk(schedule.children, nemo.NemoKern)
+    kernels = schedule.walk(nemo.NemoKern)
     assert len(kernels) == 1
     # Get its schedule
     sched = kernels[0].get_kernel_schedule()

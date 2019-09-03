@@ -169,7 +169,7 @@ def test_loop_fuse_unexpected_error():
     lftrans = GOceanLoopFuseTrans()
 
     # cause an unexpected error
-    schedule.children[0].children = None
+    schedule.children[0].loop_body.children = None
 
     # Attempt to fuse two loops that are iterating over different
     # things
@@ -1173,7 +1173,7 @@ def test_module_inline(tmpdir):
     true for the specified kernel. '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     kern_call.module_inline = True
     gen = str(psy.gen)
     # check that the subroutine has been inlined correctly
@@ -1191,7 +1191,7 @@ def test_module_inline_with_transformation(tmpdir):
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[1].children[0].children[0]
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1208,7 +1208,7 @@ def test_module_no_inline_with_transformation(tmpdir):
     test_module_inline() test being successful to be a valid test. '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     # directly switch on inlining
     kern_call.module_inline = True
     inline_trans = KernelModuleInlineTrans()
@@ -1235,7 +1235,7 @@ def test_transformation_inline_error_if_not_kernel():
     passed is not a kernel'''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError):
         _, _ = inline_trans.apply(kern_call)
@@ -1246,7 +1246,7 @@ def test_module_inline_with_sub_use(tmpdir):
     contains a use statement'''
     psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1266,7 +1266,7 @@ def test_module_inline_same_kernel(tmpdir):
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
                              idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1291,7 +1291,7 @@ def test_module_inline_and_compile(tmpdir):
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
                              idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1305,7 +1305,7 @@ def test_module_inline_warning_no_change():
     clause '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call, inline=False)
 
@@ -1322,20 +1322,18 @@ def test_loop_swap_correct(tmpdir):
 
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
-    expected_schedule = '''Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
-kern call: bc_ssh_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_v_code.*")
 
-    expected_schedule = '''Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
-kern call: bc_solid_u_code'''
-    assert expected_schedule in schedule_str
-
-    expected_schedule = '''Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
-kern call: bc_solid_v_code'''
-    assert expected_schedule in schedule_str
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the first loops
     swap = GOLoopSwapTrans()
@@ -1343,30 +1341,55 @@ kern call: bc_solid_v_code'''
     psy.invokes.get('invoke_loop1').schedule = swapped1
     schedule_str = str(swapped1)
 
-    expected_schedule = '''Loop[]: i= lower=2,istop,1
-Loop[]: j= lower=2,jstop,1
-kern call: bc_ssh_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the middle loops
     swapped2, _ = swap.apply(swapped1.children[1])
     psy.invokes.get('invoke_loop1').schedule = swapped2
     schedule_str = str(swapped2)
 
-    expected_schedule = '''Loop[]: i= lower=1,istop,1
-Loop[]: j= lower=1,jstop+1,1
-kern call: bc_solid_u_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the last loops
     swapped3, _ = swap.apply(swapped2.children[2])
     psy.invokes.get('invoke_loop1').schedule = swapped3
     schedule_str = str(swapped3)
 
-    expected_schedule = '''Loop[]: i= lower=1,istop+1,1
-Loop[]: j= lower=1,jstop,1
-kern call: bc_solid_v_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
+
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1384,14 +1407,14 @@ def test_go_loop_swap_errors():
     # Test error if given node is not the outer loop of at least
     # a double nested loop:
     with pytest.raises(TransformationError) as error:
-        swap.apply(schedule.children[0].children[0])
+        swap.apply(schedule.children[0].loop_body[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "but the first inner statement is not a loop, got .*",
                      str(error.value)) is not None
 
     # Not a loop: use the cal to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
-        swap.apply(schedule.children[0].children[0].children[0])
+        swap.apply(schedule.children[0].loop_body[0].loop_body[0])
     assert "Given node 'kern call: bc_ssh_code' is not a loop" in \
         str(error.value)
 
@@ -1413,10 +1436,10 @@ def test_go_loop_swap_errors():
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
-    del fused.children[0].children[0].children[0]
+    del fused.children[0].loop_body[0].children[3].children[0]
 
     with pytest.raises(TransformationError) as error:
-        swap.apply(fused.children[0].children[0])
+        swap.apply(fused.children[0].loop_body[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have one inner loop, but this node does not "
                      "have any statements inside.",
