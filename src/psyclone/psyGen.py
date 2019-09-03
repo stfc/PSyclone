@@ -5824,10 +5824,12 @@ class SymbolTable(object):
     @property
     def global_symbols(self):
         '''
-        :returns:  List of symbols that are not routine arguments but still
-                   have 'global' scope - i.e. are associated with
-                   data that exists outside the current scope.
+        :returns: list of symbols that are not routine arguments but \
+                  still have 'global' scope - i.e. are associated with \
+                  data that exists outside the current scope.
+
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "global"
                 and not isinstance(sym.interface, Symbol.Argument)]
@@ -6864,10 +6866,13 @@ class Fparser2ASTProcessor(object):
             or a list of elements. This helper function provide a common
             iteration interface. This could be improved when fpaser/#170 is
             fixed.
+
             :param nodes: fparser2 AST node.
             :type nodes: None or List or :py:class:`fparser.two.utils.Base`
+
             :returns: Returns nodes but always encapsulated in a list
             :rtype: list
+
             '''
             if nodes is None:
                 return []

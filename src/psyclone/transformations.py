@@ -2979,11 +2979,14 @@ class ACCRoutineTrans(KernelTrans):
 
         :param kern: The kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Kern`
+
         :returns: (transformed kernel, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
                 :py:class:`psyclone.undoredo.Memento`).
+
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
+
         '''
         # pylint: disable=too-many-locals
 

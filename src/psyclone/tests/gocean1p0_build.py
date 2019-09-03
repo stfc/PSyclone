@@ -70,11 +70,15 @@ class GOcean1p0Build(Compile):
             self._build_infrastructure()
 
     def get_infrastructure_flags(self):
-        '''Returns the required flag to use the infrastructure library dl_esm_inf
-        for gocean1p0. Each parameter must be a separate entry
-        in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
+        '''
+        Returns the required flag to use the infrastructure library
+        dl_esm_inf for gocean1p0. Each parameter must be a separate
+        entry in the list, e.g.: ["-I", "/some/path"] and not ["-I
+        /some/path"].
+
         :returns: A list of strings with the compiler flags required.
         :rtpe: list
+
         '''
         return ["-I", self._compilation_path]
 

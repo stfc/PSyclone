@@ -6628,7 +6628,7 @@ def test_intergrid_err(dist_mem):
 
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
-        "kernels as children and ")
+        "kernels as descendents and ")
 
     if dist_mem:
         # Cannot apply redundant computation unless DM is enabled

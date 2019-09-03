@@ -64,7 +64,7 @@ def setup():
     Config.get().api = "gocean1.0"
     yield()
     Config._instance = None
-    
+
 
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the

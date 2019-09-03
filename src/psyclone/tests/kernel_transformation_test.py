@@ -100,7 +100,7 @@ def test_accroutine_module_use():
     _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
                            idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.walk(Kern)
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
@@ -450,7 +450,7 @@ def test_no_inline_global_var():
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         _, _ = inline_trans.apply(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to data that are not "
