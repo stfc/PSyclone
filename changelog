@@ -214,6 +214,9 @@
 	67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
 	in documentation.
 
+	68) PR #441 for #373. Adds support for writing transformed LFRic
+	kernels to file.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

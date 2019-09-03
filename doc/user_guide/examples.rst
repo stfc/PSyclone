@@ -199,6 +199,17 @@ to the specified Kernel:
 
   > python find_kernel.py
 
+Example 13 : Kernel transformation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates how an LFRic kernel can be transformed. The example
+transformation makes Kernel values constant where appropriate. For
+example, the number of levels is usually passed into a kernel by
+argument but the transformation allows a particular value to be
+specified which the transformation then sets as a parameter in the
+kernel. Hard-coding values in a kernel helps the compiler to do a
+better job when optimising the code.
+
 NEMO
 ----
 

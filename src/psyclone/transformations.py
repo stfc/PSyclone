@@ -2508,7 +2508,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
-    >>>     new_schedule, _ = trans.apply(kernel)
+    >>>     new_schedule, _ = trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
     >>>     kernel_schedule.symbol_table.view()
 
@@ -2558,22 +2558,22 @@ class Dynamo0p3KernelConstTrans(Transformation):
         element_order + 3 in the LFRic infrastructure so their value
         is derived.
 
-        :param node: A kernel node
+        :param node: a kernel node.
         :type node: :py:obj:`psyclone.psygen.DynKern`
-        :type str cellshape: the shape of the cells. This is provided \
+        :param str cellshape: the shape of the cells. This is provided \
         as it helps determine the number of dofs a field has for a \
         particular function space. Currently only "quadrilateral" is \
         supported which is also the default value.
-        :type int element_order: the order of the cell. In \
+        :param int element_order: the order of the cell. In \
         combination with cellshape, this determines the number of \
         dofs a field has for a particular function space. If it is set \
         to None (the default) then the dofs values are not set as \
         constants in the kernel, otherwise they are.
-        :type int number_of_layers: the number of vertical layers in \
+        :param int number_of_layers: the number of vertical layers in \
         the LFRic model mesh used for this particular run. If this is \
         set to None (the default) then the nlayers value is not set as \
         a constant in the kernel, otherwise it is.
-        :type bool quadrature: whether the number of quadrature \
+        :param bool quadrature: whether the number of quadrature \
         points values are set as constants in the kernel (True) or not \
         (False). The default is False.
 
@@ -2703,6 +2703,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                       space_to_dofs.keys()))
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
+
+        # Flag that the kernel has been modified
+        kernel.modified = True
 
         return schedule, keep
 
