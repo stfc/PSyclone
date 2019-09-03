@@ -141,7 +141,6 @@ ${PSYCLONE} -s ./acc_parallel.py -nodm \
 ${PSYCLONE} -s ./acc_parallel_dm.py -nodm \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null
-rm *.f90
 cd -
 
 echo "Running gocean/eg1"
