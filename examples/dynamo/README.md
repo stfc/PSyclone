@@ -1,44 +1,4 @@
-<!--
-# -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
-# -----------------------------------------------------------------------------
--->
-
-# Examples 1 and 2 - Dynamo 0.1 API
+# Examples 1 and 2 - Dynamo 0.1 API #
 
 The dynamo examples in the eg1 and eg2 directories below the one
 containing this README use the Dynamo 0.1 API. Those in eg3 - eg10 use
@@ -62,7 +22,7 @@ python ./runme.py
 
 Examine the runme*.py scripts themselves for further details.
 
-# Example 3
+# Example 3 #
 
 The third example can be used to demonstrate PSyclone:
 
@@ -86,7 +46,7 @@ cd eg3/
 psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
 ```
 
-# Example 4
+# Example 4 #
 
 The fourth example illustrates the use of (multiple) calls to built-in
 operations within an invoke as well as the use of the name="..." argument.
@@ -97,7 +57,7 @@ cd eg4/
 psyclone solver_mod.x90
 ```
 
-# Example 5
+# Example 5 #
 
 The fifth example illustrates the use of stencils in kernels and the associated
 passing of extent and direction information (where appropriate) from the
@@ -107,7 +67,7 @@ cd eg5/
 psyclone alg.f90
 ```
 
-# Example 6
+# Example 6 #
 
 The sixth example illustrates the use and implementation of
 reductions. It also demonstrates the generation of a schedule's
@@ -150,7 +110,7 @@ cd eg6/
 psyclone -s ./omp_reprod_script.py alg.x90
 ```
 
-# Example 7: Column-Matrix Assembly Operators
+# Example 7: Column-Matrix Assembly Operators #
 
 The seventh example illustrates the use of PSyclone with kernels that
 perform operations with column-wise (Column-Matrix Assembly) operators:
@@ -159,7 +119,7 @@ cd eg7/
 psyclone alg.x90
 ```
 
-# Example 8: Redundant Computation
+# Example 8: Redundant Computation #
 
 The eighth example illustrates the use of redundant computation to
 remove and/or change the location and depth of halo exchanges:
@@ -168,7 +128,7 @@ cd eg8/
 psyclone helmholtz_solver_alg_mod.x90 -s ./redundant_script.py
 ```
 
-# Example 9: Writing to Discontinuous Fields
+# Example 9: Writing to Discontinuous Fields #
 
 The ninth example illustrates the behaviour of discontinuous field writers
 and readwriters:
@@ -184,7 +144,7 @@ cd eg9/
 psyclone -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 ```
 
-# Example 10: Inter-grid Kernels
+# Example 10: Inter-grid Kernels #
 
 PSyclone supports so-called 'inter-grid' kernels that map a field (or field
 vector) from a coarse mesh onto a fine mesh (prolongation) or from a fine
@@ -196,7 +156,7 @@ cd eg10/
 psyclone intergrid_3levels.x90
 ```
 
-# Example 11: Asynchronous halo exchanges
+# Example 11: Asynchronous halo exchanges #
 
 This example shows how asynchronous halo exchange calls can be created
 and manipulated:
@@ -205,7 +165,7 @@ cd eg11/
 psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
 ```
 
-# Example 12: Code extraction
+# Example 12: Code extraction #
 
 The twelfth example demonstrates how to apply code extraction to Nodes in
 an Invoke Schedule or to a Kernel in an Invoke. For now it only inserts an
@@ -257,7 +217,7 @@ Schedule[invoke='invoke_1' dm=False]
     ...
 ```
 
-# Example 13: Kernel Constants
+# Example 13: Kernel Constants #
 
 This example shows how LFRic kernels can be modified so that the
 values for the number of degrees of freedom, the number of quadrature
@@ -270,12 +230,7 @@ psyclone -s ./kernel_constants.py \
 -oalg alg.f90 -opsy psy.f90
 ```
 
-# Code
-
-Location of LFRic algorithm and kernel code that is used by two or
-more examples.
-
-# Example 14: OpenACC
+# Example 14: OpenACC #
 
 This example shows how OpenACC directives can be added to the LFRic
 PSy-layer. This is work in progress so the resultant code is not
@@ -305,6 +260,11 @@ cd eg14/
 psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 ```
 
-# scripts
+# Code #
+
+Location of LFRic algorithm and kernel code that is used by two or
+more examples.
+
+# scripts #
 
 A collection of example PSyclone scripts.
