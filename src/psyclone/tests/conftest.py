@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 
 ''' Module which performs pytest set-up so that we can specify
@@ -39,6 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.configuration import Config
 
 
 # fixtures defined here are available to all tests
@@ -91,7 +93,6 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
-    from psyclone.configuration import Config
     import os
     config_file = Config.get_repository_config_file()
 
@@ -140,3 +141,11 @@ def parser():
     '''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create()
+
+
+@pytest.fixture(scope="function")
+def kernel_outputdir(tmpdir, monkeypatch):
+    '''Sets the PSyclone _kernel_output_dir Config parameter to tmpdir.'''
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    return tmpdir

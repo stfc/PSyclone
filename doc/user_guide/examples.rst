@@ -199,6 +199,17 @@ to the specified Kernel:
 
   > python find_kernel.py
 
+Example 13 : Kernel transformation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates how an LFRic kernel can be transformed. The example
+transformation makes Kernel values constant where appropriate. For
+example, the number of levels is usually passed into a kernel by
+argument but the transformation allows a particular value to be
+specified which the transformation then sets as a parameter in the
+kernel. Hard-coding values in a kernel helps the compiler to do a
+better job when optimising the code.
+
 Example 14: OpenACC
 ^^^^^^^^^^^^^^^^^^^
 
@@ -231,6 +242,7 @@ computed beforehand) 3) set_dirty and set_clean calls are placed
 within an OpenACC Parallel directive and 4) there are no checks on
 whether loops are parallel or not, it is just assumed they are -
 i.e. support for colouring or locking is not yet implemented.
+
 
 NEMO
 ----
