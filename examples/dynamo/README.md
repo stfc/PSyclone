@@ -76,7 +76,7 @@ and its Python bindings are not installed then no dag image will be
 generated and the dag method will silently return. The example may be
 run sequentially:
 ```
-cd eg6/ python
+cd eg6/
 psyclone -nodm alg.x90
 ```
 
@@ -265,6 +265,6 @@ psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x
 Location of LFRic algorithm and kernel code that is used by two or
 more examples.
 
-# scripts #
+# Scripts #
 
 A collection of example PSyclone scripts.
