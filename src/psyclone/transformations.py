@@ -75,8 +75,8 @@ def check_intergrid(node):
         if kern.is_intergrid:
             raise TransformationError(
                 "This Transformation cannot currently be applied to nodes "
-                "which have inter-grid kernels as children and {0} is such a "
-                "kernel.".format(kern.name))
+                "which have inter-grid kernels as descendents and {0} is "
+                "such a kernel.".format(kern.name))
 
 
 class TransformationError(Exception):
@@ -3033,7 +3033,7 @@ class ACCRoutineTrans(KernelTrans):
                                       format(kern.name))
 
         # Perform general validation checks. In particular this checks that
-        # PSyIR of the kernel body can be constructed.
+        # a PSyIR of the kernel body can be constructed.
         KernelTrans.validate(kern)
 
         # Check that the kernel does not access any data via a module 'use'
