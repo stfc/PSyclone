@@ -246,8 +246,8 @@ psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod
 ```
 
 2. Adding OpenACC enter data, parallel and loop directives. -nodm is
-used as an exception is raised if Halo Exchanges nodes are found
-withing an OpenACC parallel region.
+used as an exception is raised if Halo Exchange nodes are found within
+an OpenACC parallel region.
 ```
 cd eg14/
 psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90

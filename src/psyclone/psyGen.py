@@ -2009,7 +2009,7 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen
+        from psyclone.f2pygen import CommentGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -2086,7 +2086,6 @@ class ACCParallelDirective(ACCDirective):
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # Since we use "default(present)" the Schedule must contain an
         # 'enter data' directive. We don't mandate the order in which
@@ -2241,7 +2240,6 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user can
@@ -2349,7 +2347,7 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from psyclone.f2pygen import DirectiveGen, AssignGen, UseGen, \
+        from psyclone.f2pygen import AssignGen, UseGen, \
             CommentGen, DeclGen
 
         private_list = self._get_private_list()
@@ -2621,7 +2619,6 @@ class OMPDoDirective(OMPDirective):
         :raises GenerationError: if this "!$omp do" is not enclosed within \
                                  an OMP Parallel region.
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -2685,7 +2682,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from psyclone.f2pygen import DirectiveGen
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region

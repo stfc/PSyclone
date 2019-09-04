@@ -2835,8 +2835,7 @@ class ACCEnterDataTrans(Transformation):
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
         from psyclone.psyGen import Directive, \
-            ACCDataDirective, ACCEnterDataDirective, ACCKernelsDirective, \
-            ACCParallelDirective
+            ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
 

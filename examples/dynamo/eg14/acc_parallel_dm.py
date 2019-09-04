@@ -35,8 +35,8 @@
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to apply OpenACC Loop, Parallel and Enter Data directives
-generically in the presence of halo exchanges. This can be applied via
-the -s option in the psyclone script.
+generically in the presence of halo exchanges. The psyclone script can
+apply this transformation script via its -s option.
 
 '''
 from __future__ import print_function
