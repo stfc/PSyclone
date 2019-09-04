@@ -363,13 +363,13 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     >>> new_schedule.view()
     '''
 
-    def __init__(self):
-        # Define private variable for storing the value of the optional
-        # 'same_space' flag passed to the 'apply' method. Otherwise we
-        # would have to name mangle the '_validate' methods of parent
-        # class and subclasses as the parent '_validate' method does
-        # not have a positional parameter
-        self._same_space_flag = False
+    # def __init__(self):
+        # # Define private variable for storing the value of the optional
+        # # 'same_space' flag passed to the 'apply' method. Otherwise we
+        # # would have to name mangle the '_validate' methods of parent
+        # # class and subclasses as the parent '_validate' method does
+        # # not have a positional parameter
+        # self._same_space_flag = False
 
     def __str__(self):
         return ("Fuse two adjacent loops together with Dynamo-specific "
@@ -380,7 +380,20 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         ''' Returns the name of this transformation as a string.'''
         return "DynamoLoopFuse"
 
-    def _validate(self, node1, node2):
+    # @property
+    # def same_space(self):
+        # ''' Returns the `same_space` property that is specified when
+            # applying this transformation. The default is 'False'.'''
+        # return self._same_space
+
+    # @same_space.setter
+    # def same_space(self, value):
+        # ''' Sets the OpenMP schedule that will be specified by
+        # this transformation. Checks that the string supplied in
+        # :py:obj:`value` is a recognised OpenMP schedule. '''
+        # self._same_space = value
+
+    def _validate(self, node1, node2, same_space):
         ''' Performs various checks to ensure that it is valid to apply
         the DynamoLoopFuseTrans transformation to the supplied loops.
 
@@ -410,11 +423,10 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if the first loop has a reduction and \
                                      the second loop reads the result of \
                                      the reduction.
-        :raises TransformationError: if there is an unexpected exception.
         '''
 
-        # Set the 'same_space' flag value
-        same_space = self._same_space_flag
+        # # Set the 'same_space' flag value
+        # same_space = self._same_space_flag
 
         # Call the parent class validation first
         super(DynamoLoopFuseTrans, self)._validate(node1, node2)
@@ -423,109 +435,100 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
         from psyclone.dynamo0p3 import VALID_FUNCTION_SPACE_NAMES, \
             VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
-        try:
-            # 1) Check that we don't have an inter-grid kernel
-            check_intergrid(node1)
-            check_intergrid(node2)
 
-            # 2) Check function space names
-            node1_fs_name = node1.field_space.orig_name
-            node2_fs_name = node2.field_space.orig_name
-            # 2.1) Check that both function spaces are valid
-            if not (node1_fs_name in VALID_FUNCTION_SPACE_NAMES and
-                    node2_fs_name in VALID_FUNCTION_SPACE_NAMES):
-                raise TransformationError(
-                    "Error in {0} transformation: One or both function "
-                    "spaces '{1}' and '{2}' have invalid names.".
-                    format(self.name, node1_fs_name, node2_fs_name))
-            # Check whether any of the spaces is ANY_SPACE. Loop fusion over
-            # ANY_SPACE is allowed only when the 'same_space' flag is set
-            node_on_any_space = node1_fs_name in VALID_ANY_SPACE_NAMES or \
-                node2_fs_name in VALID_ANY_SPACE_NAMES
-            # 2.2) If 'same_space' is true check for at least one ANY_SPACE
-            if same_space:
-                if not node_on_any_space:
-                    raise TransformationError(
-                        "Error in {0} transformation: The 'same_space' "
-                        "flag was set, but does not apply because "
-                        "neither field is on 'ANY_SPACE'.".format(self))
-            # 2.3) If 'same_space' is not True then make further checks
-            else:
-                # 2.3.1) Check whether one or more of the function spaces
-                # is ANY_SPACE without the `same_space` flag
-                if node_on_any_space:
-                    raise TransformationError(
-                        "Error in {0} transformation: One or more of the "
-                        "iteration spaces is unknown ('ANY_SPACE') so loop "
-                        "fusion might be invalid. If you know the spaces "
-                        "are the same then please set the 'same_space' "
-                        "optional argument to 'True'.".format(self.name))
-                # 2.3.2) Check whether specific function spaces are the
-                # same. If they are not, the loop fusion is still possible
-                # but only when both function spaces are discontinuous
-                # (w3, w2v, wtheta or any_discontinuous_space)
-                if node1_fs_name != node2_fs_name:
-                    if not (node1_fs_name in
-                            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
-                            node2_fs_name in
-                            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
-                        raise TransformationError(
-                            "Error in {0} transformation: Cannot fuse loops "
-                            "that are over different spaces '{1}' and '{2}' "
-                            "unless they are both discontinuous.".
-                            format(self.name, node1_fs_name,
-                                   node2_fs_name))
+        # 1) Check that we don't have an inter-grid kernel
+        check_intergrid(node1)
+        check_intergrid(node2)
 
-            # 3) Check upper loop bounds
-            if node1.upper_bound_name != node2.upper_bound_name:
-                raise TransformationError(
-                    "Error in {0} transformation: The upper bound names "
-                    "are not the same. Found '{1}' and '{2}'.".
-                    format(self.name, node1.upper_bound_name,
-                           node2.upper_bound_name))
-
-            # 4) Check halo depths
-            if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
-                raise TransformationError(
-                    "Error in {0} transformation: The halo-depth indices "
-                    "are not the same. Found '{1}' and '{2}'.".
-                    format(self.name, node1.upper_bound_halo_depth,
-                           node2.upper_bound_halo_depth))
-
-            # 5) Check for reductions
-            from psyclone.psyGen import MAPPING_SCALARS
-            from psyclone.core.access_type import AccessType
-            arg_types = MAPPING_SCALARS.values()
-            all_reductions = AccessType.get_valid_reduction_modes()
-            node1_red_args = node1.args_filter(arg_types=arg_types,
-                                               arg_accesses=all_reductions)
-            node2_red_args = node2.args_filter(arg_types=arg_types,
-                                               arg_accesses=all_reductions)
-
-            if node1_red_args and node2_red_args:
-                raise TransformationError(
-                    "Error in {0} transformation: Cannot fuse loops "
-                    "when each loop already contains a reduction.".
-                    format(self.name))
-            if node1_red_args:
-                for reduction_arg in node1_red_args:
-                    other_args = node2.args_filter()
-                    for arg in other_args:
-                        if reduction_arg.name == arg.name:
-                            raise TransformationError(
-                                "Error in {0} transformation: Cannot fuse "
-                                "loops as the first loop has a reduction "
-                                "and the second loop reads the result of "
-                                "the reduction.".format(self.name))
-        # 6) Capture Transformation class error
-        except TransformationError as err:
-            raise err
-
-        # 7) Capture unexpected error
-        except Exception as err:
+        # 2) Check function space names
+        node1_fs_name = node1.field_space.orig_name
+        node2_fs_name = node2.field_space.orig_name
+        # 2.1) Check that both function spaces are valid
+        if not (node1_fs_name in VALID_FUNCTION_SPACE_NAMES and
+                node2_fs_name in VALID_FUNCTION_SPACE_NAMES):
             raise TransformationError(
-                "Error in {0} transformation: Unexpected exception '{1}'".
-                format(self.name, err))
+                "Error in {0} transformation: One or both function "
+                "spaces '{1}' and '{2}' have invalid names.".
+                format(self.name, node1_fs_name, node2_fs_name))
+        # Check whether any of the spaces is ANY_SPACE. Loop fusion over
+        # ANY_SPACE is allowed only when the 'same_space' flag is set
+        node_on_any_space = node1_fs_name in VALID_ANY_SPACE_NAMES or \
+            node2_fs_name in VALID_ANY_SPACE_NAMES
+        # 2.2) If 'same_space' is true check for at least one ANY_SPACE
+        if same_space:
+            if not node_on_any_space:
+                raise TransformationError(
+                    "Error in {0} transformation: The 'same_space' "
+                    "flag was set, but does not apply because "
+                    "neither field is on 'ANY_SPACE'.".format(self))
+        # 2.3) If 'same_space' is not True then make further checks
+        else:
+            # 2.3.1) Check whether one or more of the function spaces
+            # is ANY_SPACE without the `same_space` flag
+            if node_on_any_space:
+                raise TransformationError(
+                    "Error in {0} transformation: One or more of the "
+                    "iteration spaces is unknown ('ANY_SPACE') so loop "
+                    "fusion might be invalid. If you know the spaces "
+                    "are the same then please set the 'same_space' "
+                    "optional argument to 'True'.".format(self.name))
+            # 2.3.2) Check whether specific function spaces are the
+            # same. If they are not, the loop fusion is still possible
+            # but only when both function spaces are discontinuous
+            # (w3, w2v, wtheta or any_discontinuous_space)
+            if node1_fs_name != node2_fs_name:
+                if not (node1_fs_name in
+                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
+                        node2_fs_name in
+                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
+                    raise TransformationError(
+                        "Error in {0} transformation: Cannot fuse loops "
+                        "that are over different spaces '{1}' and '{2}' "
+                        "unless they are both discontinuous.".
+                        format(self.name, node1_fs_name,
+                               node2_fs_name))
+
+        # 3) Check upper loop bounds
+        if node1.upper_bound_name != node2.upper_bound_name:
+            raise TransformationError(
+                "Error in {0} transformation: The upper bound names "
+                "are not the same. Found '{1}' and '{2}'.".
+                format(self.name, node1.upper_bound_name,
+                       node2.upper_bound_name))
+
+        # 4) Check halo depths
+        if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
+            raise TransformationError(
+                "Error in {0} transformation: The halo-depth indices "
+                "are not the same. Found '{1}' and '{2}'.".
+                format(self.name, node1.upper_bound_halo_depth,
+                       node2.upper_bound_halo_depth))
+
+        # 5) Check for reductions
+        from psyclone.psyGen import MAPPING_SCALARS
+        from psyclone.core.access_type import AccessType
+        arg_types = MAPPING_SCALARS.values()
+        all_reductions = AccessType.get_valid_reduction_modes()
+        node1_red_args = node1.args_filter(arg_types=arg_types,
+                                           arg_accesses=all_reductions)
+        node2_red_args = node2.args_filter(arg_types=arg_types,
+                                           arg_accesses=all_reductions)
+
+        if node1_red_args and node2_red_args:
+            raise TransformationError(
+                "Error in {0} transformation: Cannot fuse loops "
+                "when each loop already contains a reduction.".
+                format(self.name))
+        if node1_red_args:
+            for reduction_arg in node1_red_args:
+                other_args = node2.args_filter()
+                for arg in other_args:
+                    if reduction_arg.name == arg.name:
+                        raise TransformationError(
+                            "Error in {0} transformation: Cannot fuse "
+                            "loops as the first loop has a reduction "
+                            "and the second loop reads the result of "
+                            "the reduction.".format(self.name))
 
     def apply(self, node1, node2, same_space=False):
         ''' Fuses two `psyclone.dynamo0p3.DynLoop` Loops after performing
@@ -546,11 +549,11 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                  :py:class:`psyclone.undoredo.Memento`)
         '''
 
-        # Store 'same_space' value before validation
-        self._same_space_flag = same_space
+        # # Store 'same_space' value before validation
+        # self._same_space_flag = same_space
 
         # Validity checks for the supplied nodes
-        self._validate(node1, node2)
+        self._validate(node1, node2, same_space)
 
         # Apply fuse method from the parent class
         return super(DynamoLoopFuseTrans, self).apply(node1, node2)

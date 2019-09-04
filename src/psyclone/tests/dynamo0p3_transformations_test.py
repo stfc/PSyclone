@@ -1045,31 +1045,6 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
                     in str(excinfo.value))
 
 
-def test_loop_fuse_unexpected_error(dist_mem):
-    ''' Test that we catch an unexpected error when loop fusing. '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "4_multikernel_invokes.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
-
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
-
-    ftrans = DynamoLoopFuseTrans()
-
-    # Cause an unexpected error
-    schedule.children[index].loop_body.children = None
-
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = ftrans.apply(schedule.children[index],
-                            schedule.children[index+1])
-    assert "Unexpected exception" in str(excinfo.value)
-
-
 def test_loop_fuse(dist_mem):
     ''' Test that we are able to fuse two loops together. '''
     _, info = parse(os.path.join(BASE_PATH,
