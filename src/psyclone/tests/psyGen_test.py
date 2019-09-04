@@ -525,7 +525,7 @@ def test_derived_type_deref_naming():
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
-        "      USE testkern, ONLY: testkern_code\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1_my_field\n"

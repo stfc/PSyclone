@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-module testkern
+module testkern_mod
   use argument_mod
   use kernel_mod
   use constants_mod
@@ -52,11 +52,12 @@ contains
   subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
                            ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
                            ndf_w3, undf_w3, map_w3)
-    integer :: nlayers
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer, intent(in) :: nlayers
+    real(kind=r_def), intent(in) :: ascalar
+    real(kind=r_def), dimension(:), intent(out) :: fld1
+    real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
+    integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
 
   end subroutine testkern_code
-end module testkern
+end module testkern_mod

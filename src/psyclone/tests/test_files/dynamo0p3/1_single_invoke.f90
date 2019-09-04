@@ -37,8 +37,8 @@
 program single_invoke
 
   ! Description: single function specified in an invoke call
-  use testkern, only: testkern_type
-  use inf,      only: field_type
+  use testkern_mod, only: testkern_type
+  use inf,          only: field_type
 
   implicit none
 

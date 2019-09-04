@@ -475,7 +475,7 @@ def test_field(tmpdir):
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
-        "      USE testkern, ONLY: testkern_code\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
@@ -545,7 +545,7 @@ def test_field_deref(tmpdir, dist_mem):
     output = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, "
         "est_m2)\n"
-        "      USE testkern, ONLY: testkern_code\n")
+        "      USE testkern_mod, ONLY: testkern_code\n")
     assert output in generated_code
     if dist_mem:
         output = "      USE mesh_mod, ONLY: mesh_type\n"
@@ -831,7 +831,7 @@ def test_real_scalar(tmpdir):
 
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
-        "      USE testkern, ONLY: testkern_code\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
@@ -2132,7 +2132,8 @@ def test_module_name_too_short():
 def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern.F90"), api=TEST_API)
+        generate(os.path.join(BASE_PATH, "testkern_wrong_mod_name.F90"),
+                 api=TEST_API)
     assert "does not have '_mod' as an extension" in str(excinfo.value)
 
 

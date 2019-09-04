@@ -189,10 +189,6 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
             found = True
             break
     assert found
-    # Check that the kernel type has been re-named
-    dtypes = walk_ast(prog.content, [Fortran2003.Derived_Type_Def])
-    names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
-    assert str(names[0]) == "continuity{0}_type".format(tag)
 
     from gocean1p0_build import GOcean1p0Build
     # If compilation fails this will raise an exception
@@ -224,7 +220,9 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    old_mod_name = kern.module_name[:]
+    old_mod_name = kern.module_name[:].lower()
+    if old_mod_name.endswith("_mod"):
+        old_mod_name = old_mod_name[:-4]
     # Create a file with the same name as we would otherwise generate
     with open(os.path.join(str(kernel_outputdir),
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
@@ -307,7 +305,9 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
-    old_mod_name = kern.module_name[:]
+    old_mod_name = kern.module_name[:].lower()
+    if old_mod_name.endswith("_mod"):
+        old_mod_name = old_mod_name[:-4]
     # Create a file with the same name as we would otherwise generate
     with open(os.path.join(str(kernel_outputdir),
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
@@ -368,7 +368,7 @@ def test_1kern_trans(kernel_outputdir):
     tag = re.search('use testkern(.+?)_mod', code).group(1)
     # We should have a USE for the original kernel and a USE for the new one
     assert "use testkern{0}_mod, only: testkern{0}_code".format(tag) in code
-    assert "use testkern, only: testkern_code" in code
+    assert "use testkern_mod, only: testkern_code" in code
     # Similarly, we should have calls to both the original and new kernels
     assert "call testkern_code(" in code
     assert "call testkern{0}_code(".format(tag) in code

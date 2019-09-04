@@ -209,8 +209,8 @@ def test_set_kern_float_arg():
     assert expected in generated_code
     # TODO #459: the usage of scalar variables in the code causes compilation
     # errors. Once #459 is fixed this test can be re-enabled. Also note that
-    # the kernel_output_dir fixture needs to be added as parameter.
-    # assert GOcean1p0OpenCLBuild(kernel_output_dir).code_compiles(psy)
+    # the kernel_outputdir fixture needs to be added as parameter.
+    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -327,7 +327,7 @@ def test_symtab_implementation_for_opencl():
         in str(err)
 
 
-def test_opencl_kernel_with_use(kernel_output_dir):
+def test_opencl_kernel_with_use(kernel_outputdir):
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
     from psyclone.transformations import TransformationError

@@ -1,4 +1,4 @@
-!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017-2019, Science and Technology Facilities Council.
@@ -31,19 +31,34 @@
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program multi_functions_multi_invokes
+! Test module with a name that deliberately does not follow the GungHo naming
+! convention (should be named testkern_mod)
+module testkern
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), dimension(5) :: meta_args =    &
+          (/ arg_type(gh_real, gh_read),     &
+             arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_field,gh_read, w3)  &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_code
+  end type testkern_type
+contains
 
-  ! Description: multiple invoke calls which are (incorrectly) given the
-  ! same name, albeit capitalised differently.
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
-  implicit none
-  type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: a, b
+  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
+                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
+                           ndf_w3, undf_w3, map_w3)
+    integer :: nlayers
+    real(kind=r_def) :: ascalar
+    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
+    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer, dimension(:) :: map_w1, map_w2, map_w3
 
-  call invoke(name="jack",                 &
-              testkern_type(a,f1,f2,m1,m2))
-  call invoke(name="Jack",                 &
-              testkern_type(b,f1,f2,m1,m2))
-
-end program multi_functions_multi_invokes
+  end subroutine testkern_code
+end module testkern
