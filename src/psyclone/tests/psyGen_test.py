@@ -61,6 +61,7 @@ from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
+from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -717,7 +718,6 @@ def test_kern_abstract_methods():
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    from psyclone.psyGen import Kern, Arguments
     my_arguments = Arguments(None)
 
     class KernType(object):  # pylint: disable=too-few-public-methods
@@ -768,7 +768,6 @@ def test_incremented_arg():
     ''' Check that we raise the expected exception when
     CodedKern.incremented_arg() is called for a kernel that does not have
     an argument that is incremented '''
-    from psyclone.psyGen import CodedKern
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     import fparser
@@ -5360,3 +5359,28 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
         processor.process_nodes(fake_parent, [fparser2while], None)
     assert "Unrecognised form of DO loop - failed to find Loop_Control " \
         "element in the node '<fparser2while>'." in str(err)
+
+
+def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
+    '''Modified Fortran kernels are written to file linewrapped at 132
+    characters. This test checks that this linewrapping works.
+
+    '''
+    from psyclone.transformations import Dynamo0p3KernelConstTrans
+    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    # This example does not conform to the <name>_code, <name>_mod
+    # convention so monkeypatch it to avoid the PSyIR code generation
+    # raising an exception. This limitation is the subject of issue
+    # #393.
+    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
+    ktrans = Dynamo0p3KernelConstTrans()
+    _, _ = ktrans.apply(kernels[0], number_of_layers=100)
+    # Generate the code (this triggers the generation of new kernels)
+    _ = str(psy.gen)
+    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
+    assert os.path.isfile(filepath)
+    # Check that the argument list is line wrapped as it is longer
+    # than 132 characters.
+    assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()

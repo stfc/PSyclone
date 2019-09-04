@@ -36,10 +36,12 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
 
+from __future__ import absolute_import
+
 import pytest
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
-import fparser.two.Fortran2003 as Fortran2003
+from fparser.two import Fortran2003
 from fparser.api import get_reader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
@@ -662,3 +664,42 @@ def test_fw_loop():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     assert "do i = 1, 20, 2\n" in result
+
+
+@pytest.mark.xfail(reason="issue #430 : module name should be specified")
+def test_module_name():
+    '''Check the FortranWriter class outputs the module name specified in
+    the original kernel.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,b,c)\n"
+        "  real, intent(out) :: a(:)\n"
+        "  real, intent(in) :: b(:)\n"
+        "  integer, intent(in) :: c\n"
+        "  a = b/c\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+
+    assert(
+        "module test\n"
+        "  use constants_mod, only : r_def, i_def\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine tmp(a,b,c)\n"
+        "    real(r_def), dimension(:), intent(out) :: a\n"
+        "    real(r_def), dimension(:), intent(in) :: b\n"
+        "    integer(i_def), intent(in) :: c\n"
+        "\n"
+        "    a=b / c\n"
+        "\n"
+        "  end subroutine tmp\n"
+        "end module test") in result

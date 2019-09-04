@@ -127,7 +127,7 @@ cd dynamo/eg13
 ${PSYCLONE} -s ./kernel_constants.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg alg.f90 -opsy psy.f90
-  rm alg.f90 psy.f90
+  rm *.f90
 cd -
 
 echo "Running gocean/eg1"
