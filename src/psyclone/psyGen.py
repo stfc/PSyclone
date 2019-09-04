@@ -4044,7 +4044,7 @@ class CodedKern(Kern):
                 # should be modified rather than the parse tree. This
                 # if test, and the associated else, are only required
                 # whilst old style (direct fp2) transformations still
-                # exist.
+                # exist - #490.
 
                 # First check that the kernel module name and
                 # subroutine name conform to the <name>_mod and

@@ -3075,6 +3075,13 @@ class ACCRoutineTrans(KernelTrans):
                 "transform kernels for execution on an OpenACC device if "
                 "they access data not passed by argument.".
                 format(kern.name, [sym.name for sym in global_symbols]))
+        # Prevent unwanted side effects by removing the kernel schedule that
+        # we have just constructed. This is necessary while
+        # psyGen.Kern.rename_and_write still supports kernels that have been
+        # transformed by manipulation of the fparser2 Parse Tree (as opposed
+        # to the PSyIR).
+        # TODO #490 remove the following line.
+        kern._kern_schedule = None
 
 
 class ACCKernelsTrans(RegionTrans):
