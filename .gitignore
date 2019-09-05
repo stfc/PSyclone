@@ -1,5 +1,9 @@
 *.pyc
 *~
+*.a
+*.o
+*.mod
+*.MOD
 .cache
 .coverage
 doc/_build
@@ -9,3 +13,4 @@ dag
 dag.png
 dag.svg
 dist
+src/*.egg-info
