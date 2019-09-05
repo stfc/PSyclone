@@ -56,7 +56,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return
+    KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, Loop, \
+    ACCEnterDataDirective, ACCKernelsDirective
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -65,7 +66,8 @@ from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
-    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
+    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
+    ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
 
@@ -854,8 +856,6 @@ def test_ompdo_directive_class_view(capsys):
 
 def test_acc_dir_view(capsys):
     ''' Test the view() method of OpenACC directives '''
-    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-        ACCParallelTrans
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
@@ -2083,9 +2083,6 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    from psyclone.psyGen import ACCEnterDataDirective
-    from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-        ACCLoopTrans
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
@@ -2105,17 +2102,226 @@ def test_acc_dag_names():
     name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
 
+# Class ACCKernelsDirective start
 
+
+# (1/1) Method __init__
+def test_acckernelsdirective_init():
+    '''Test an ACCKernelsDirective can be created and that the optional
+    arguments are set and can be set as expected.
+
+    '''
+    directive = ACCKernelsDirective()
+    assert directive._default_present
+    assert directive.parent is None
+    assert directive.children == []
+    directive = ACCKernelsDirective(default_present=False)
+    assert not directive._default_present
+
+
+# (1/1) Method dag_name
+def test_acckernelsdirective_dagname():
+    '''Check that the dag_name method in the ACCKernelsDirective class
+    behaves as expected.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+    assert sched.children[0].dag_name == "ACC_kernels_1"
+
+
+# (1/1) Method view
+def test_acckernelsdirective_view(capsys):
+    '''Check that the view method in the ACCKernelsDirective class behaves
+    as expected.
+
+    '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    colour = SCHEDULE_COLOUR_MAP["Directive"]
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+
+    sched.children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Kernels]")
+    assert "Loop" in out
+    assert "CodedKern" in out
+
+
+# (1/1) Method gen_code
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_gencode(default_present):
+    '''Check that the gen_code method in the ACCKernelsDirective class
+    generates the expected code. Use the dynamo0.3 API.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched, default_present=default_present)
+
+    code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " default(present)"
+    assert (
+        "      !$acc kernels{0}\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n" in code)
+
+
+# (1/1) Method update
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_update(parser, default_present):
+    '''Check that the update method in the ACCKernelsDirective class
+    generates the expected code. Use the nemo API.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader("program implicit_loop\n"
+                                 "real(kind=wp) :: sto_tmp(5,5)\n"
+                                 "sto_tmp(:,:) = 0.0_wp\n"
+                                 "end program implicit_loop\n")
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels_trans = ACCKernelsTrans()
+    schedule, _ = kernels_trans.apply(schedule.children[0:1],
+                                      default_present=default_present)
+    gen_code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " DEFAULT(PRESENT)"
+    assert ("  !$ACC KERNELS{0}\n"
+            "  sto_tmp(:, :) = 0.0_wp\n"
+            "  !$ACC END KERNELS\n".format(string) in gen_code)
+
+# Class ACCKernelsDirective end
+
+# Class ACCEnterDataDirective start
+
+
+# (1/1) Method __init__
 def test_acc_datadevice_virtual():
     ''' Check that we can't instantiate an instance of
     ACCEnterDataDirective. '''
-    from psyclone.psyGen import ACCEnterDataDirective
     # pylint:disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
         ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err))
+
+# (1/1) Method view
+# Covered in test test_acc_dir_view
+
+# (1/1) Method dag_name
+# Covered in test_acc_dag_names
+
+
+# (1/4) Method gen_code
+def test_accenterdatadirective_gencode_1():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with a single loop, raises the expected exception as there is no
+    following OpenACC Parallel directive and at least one is
+    required. This test uses the dynamo0.3 API.
+
+    '''
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_enter_trans.apply(sched)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel directives within the region."
+            in str(excinfo.value))
+
+
+# (2/4) Method gen_code
+def test_accenterdatadirective_gencode_2():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with multiple loops, raises the expected exception, as there is no
+    following OpenACC Parallel directive and at least one is
+    required. This test uses the dynamo0.3 API.
+
+    '''
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0').schedule
+    _ = acc_enter_trans.apply(sched)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel directives within the region."
+            in str(excinfo.value))
+
+
+# (3/4) Method gen_code
+def test_accenterdatadirective_gencode_3():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with a single loop, produces the expected code (there should be
+    "copy in" data as there is a following OpenACC parallel
+    directive). This test uses the dynamo0.3 API.
+
+    '''
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
+        "ndf_w3,undf_w3,map_w3)\n" in code)
+
+
+# (4/4) Method gen_code
+def test_accenterdatadirective_gencode_4():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with multiple loops and multiple OpenACC parallel directives,
+    produces the expected code (when the same argument is used in
+    multiple loops there should only be one entry). This test uses the
+    dynamo0.3 API.
+
+    '''
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0').schedule
+    _ = acc_par_trans.apply(sched.children[1])
+    _ = acc_par_trans.apply(sched.children[0])
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
+        "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
+        "f3_proxy,f3_proxy%data)\n" in code)
+
+# Class ACCEnterDataDirective end
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):

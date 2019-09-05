@@ -209,13 +209,16 @@
         65) PR #400 towards #385. Adds support for Fortran Do loops in
         the PSyIR - loop bounds are now captured.
 
-	66) PR #469 for #465. Removes duplicate lma tests.
+        66) PR #469 for #465. Removes duplicate lma tests.
 
-	67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
-	in documentation.
+        67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
+        in documentation.
 
-	68) PR #441 for #373. Adds support for writing transformed LFRic
-	kernels to file.
+        68) PR #441 for #373. Adds support for writing transformed LFRic
+        kernels to file.
+
+        69) PR #445 for #442. First step towards supporting OpenACC for
+        the LFRic (Dynamo0.3 API) PSy layer.
 
 release 1.7.0 20th December 2018
 
