@@ -1731,22 +1731,6 @@ class InvokeSchedule(Schedule):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl:
-            # Ensure we block at the end of the invoke to ensure all
-            # kernels have completed before we return.
-            # This code ASSUMES only the first command queue is used for
-            # executing kernels.
-            parent.add(CommentGen(parent,
-                                  " Block until all kernels have finished"))
-            parent.add(AssignGen(parent, lhs=flag,
-                                 rhs="clFinish(" + qlist + "(1))"))
-            parent.add(AssignGen(parent, lhs=flag,
-                                 rhs="clFinish(" + qlist + "(2))"))
-            parent.add(AssignGen(parent, lhs=flag,
-                                 rhs="clFinish(" + qlist + "(3))"))
-            parent.add(AssignGen(parent, lhs=flag,
-                                 rhs="clFinish(" + qlist + "(4))"))
-
     @property
     def opencl(self):
         '''

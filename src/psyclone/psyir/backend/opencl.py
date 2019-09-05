@@ -198,6 +198,6 @@ class OpenCLWriter(CWriter):
 
         # Close kernel definition
         self._depth -= 1
-        code += self._nindent + "}\n"
+        code += self._nindent + "}\n\n"
 
         return code

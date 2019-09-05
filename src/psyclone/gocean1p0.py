@@ -1086,20 +1086,13 @@ class GOKern(CodedKern):
         err_name = self._name_space_manager.create_name(
             root_name="ierr", context="PSyVars", label="ierr")
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
+
+        # Set kernel arguments
         sub.add(CommentGen(
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
-        # We must always pass "nx" (the horizontal dimension of the grid) into
-        # a kernel
-        index = 0
-        #sub.add(AssignGen(
-        #    sub, lhs=err_name,
-        #    rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-        #    format(kobj, index, nx_name)))
-        # Now all of the 'standard' kernel arguments
-        for arg in self.arguments.args:
+        for index, arg in enumerate(self.arguments.args):
             arg.set_kernel_arg(sub, index, self.name)
-            index += 1
 
     def gen_data_on_ocl_device(self, parent):
         '''
@@ -1176,11 +1169,11 @@ class GOKern(CodedKern):
                         ifthen, lhs="{0}%data_on_device".format(arg.name),
                         rhs=".true."))
 
-        # Ensure data copies have finished
-        parent.add(CommentGen(parent,
-                              " Block until data copies have finished"))
-        parent.add(AssignGen(parent, lhs=flag,
-                             rhs="clFinish(" + qlist + "(1))"))
+                # Ensure data copies have finished
+                ifthen.add(CommentGen(parent,
+                                      " Block until data copies have finished"))
+                ifthen.add(AssignGen(parent, lhs=flag,
+                                     rhs="clFinish(" + qlist + "(1))"))
 
     def get_kernel_schedule(self):
         '''
