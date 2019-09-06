@@ -5980,18 +5980,34 @@ class KernelSchedule(Schedule):
 
 
 class CodeBlock(Node):
-    '''
-    Node representing some generic Fortran code that PSyclone does not attempt
+    '''Node representing some generic Fortran code that PSyclone does not attempt
     to manipulate. As such it is a leaf in the PSyIR and therefore has no
     children.
 
     :param statements: list of fparser2 AST nodes representing the Fortran \
                        code constituting the code block.
     :type statements: list of :py:class:`fparser.two.utils.Base`
+    :param structure: optional argument indicating whether this code \
+    block is a statement or an expression.
+    :type structure: :py:class:`psyclone.psyGen.CodeBlock.Structure` \
+    or `NoneType`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
-    def __init__(self, statements, parent=None):
+    class Structure(Enum):
+        '''
+        Enumeration that captures the structure of the code block which
+        may be required when processing.
+
+        '''
+        # The Code Block comprises one or more Fortran statements
+        # (which themselves may contain expressions).
+        STATEMENT = 1
+        # The Code Block comprises one or more Fortran expressions.
+        EXPRESSION = 2
+
+    def __init__(self, statements, structure=None, parent=None):
         super(CodeBlock, self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
@@ -6005,6 +6021,18 @@ class CodeBlock(Node):
         else:
             self.ast = None
             self.ast_end = None
+        # Store any Code Block properties.
+        self._structure = structure
+
+    @property
+    def structure(self):
+        '''
+        :returns: whether this code block is a statement or an expression.
+        :rtype: :py:class:`psyclone.psyGen.CodeBlock.Structure` or \
+        `NoneType`
+
+        '''
+        return self._structure
 
     @property
     def coloured_text(self):
@@ -6619,7 +6647,32 @@ class Fparser2ASTProcessor(object):
         if not statements:
             return None
 
-        code_block = CodeBlock(statements, parent=parent)
+        # Determine whether this code block is a statement or an
+        # expression.
+        if parent.children:
+            # Find the previous entry in the PSyIR
+            prev_node = parent.children[-1]
+            if isinstance(
+                    prev_node, (Directive, GlobalSum, HaloExchange, Kern, Loop,
+                                IfBlock, Assignment, Return)):
+                # The previous node is a statement, therefore this
+                # code block must be a statement.
+                structure = CodeBlock.Structure.STATEMENT
+            elif isinstance(prev_node, (Reference, Operation, Literal)):
+                # The previous node is an expression, therefore this
+                # code block must be an expression.
+                structure = CodeBlock.Structure.EXPRESSION
+            else:
+                raise InternalError(
+                    "Fparser2ASTProcessor:nodes_to_codeblock: Unsupported "
+                    "node type found.")
+        else:
+            # The code block is the first entry in the
+            # PSyIR. Therefore it must be a statement.
+            structure=CodeBlock.Structure.STATEMENT
+
+        code_block = CodeBlock(statements, structure=structure,
+                               parent=parent)
         parent.addchild(code_block)
         del statements[:]
         return code_block

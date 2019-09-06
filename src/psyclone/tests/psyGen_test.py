@@ -2681,8 +2681,6 @@ def test_codeblock_can_be_printed():
     assert "]" in str(cblock)
 
 
-# Test Loop class
-
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
@@ -5305,6 +5303,75 @@ def test_fparser2astprocessor_do_construct_while(f2008_parser):
     fake_parent = Node()
     processor.process_nodes(fake_parent, [fparser2while], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+# (1/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
+    '''Check that a codeblock that is the first node in the PSyiR has the
+    structure property set to statement.'''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader('''
+        program test
+        do while(a .gt. b)
+            c = c + 1
+        end do
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert isinstance(schedule[0], CodeBlock)
+    assert schedule[0].structure == CodeBlock.Structure.STATEMENT
+
+
+# (2/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_2(f2008_parser):
+    '''Check that a codeblock that is not the first node in the PSyiR and
+    contains a statement has the structure property set to
+    statement.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader('''
+        program test
+        a=1.0
+        b=0.0
+        do while(a .gt. b)
+            c = c + 1
+        end do
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    assert isinstance(schedule[2], CodeBlock)
+    assert schedule[2].structure == CodeBlock.Structure.STATEMENT
+
+
+# (3/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
+    '''Check that a codeblock that contains an expression has the
+    structure property set to expression.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    # The string "HELLO" is currently a code block in the PSyIR
+    reader = FortranStringReader('''
+        program test
+        if (a == "HELLO") then
+        end if
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    code_block = schedule[0].condition.children[1]
+    assert isinstance(code_block, CodeBlock)
+    assert code_block.structure == CodeBlock.Structure.EXPRESSION
+
+# 4 fparser2astprocessor::nodes_to_code_block not found
 
 
 def test_missing_loop_control(f2008_parser, monkeypatch):
