@@ -5420,7 +5420,6 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
         ''')
     fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
     processor = Fparser2ASTProcessor()
-    fake_parent = Node()
 
     # We have to break the fparser2 parse tree in order to trigger the
     # internal error
