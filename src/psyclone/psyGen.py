@@ -7649,22 +7649,70 @@ class Fparser2ASTProcessor(object):
                                structure.
 
         '''
+        def _array_notation_rank(array):
+            '''
+            Check that the supplied array reference uses supported array
+            notation syntax and returns the rank of the array.
+
+            :param array: the array reference to check.
+            :type array: :py:class:`psyclone.psyGen.Array`
+
+            :returns: rank of the array.
+            :rtype: int
+
+            :raises NotImplementedError: if the Array does not have a \
+                                         CodeBlock as a child.
+            :raises NotImplementedError: if the CodeBlock child does not \
+                                       consist entirely of Subscript_Triplets.
+
+            '''
+            cblock = array.children[0]
+            if not isinstance(cblock, CodeBlock):
+                raise NotImplementedError(
+                    "An array reference that uses Fortran array notation "
+                    "is assumed to have a CodeBlock as its child but "
+                    "found: {0}".format(type(array.children[0]).__name__))
+            # We only currently support array refs using the colon syntax,
+            # e.g. array(:, :). Each colon is represented in the fparser2
+            # parse tree by a Subscript_Triplet.
+            if not all([isinstance(stmt, Fortran2003.Subscript_Triplet) for
+                        stmt in cblock._statements]):
+                raise NotImplementedError(
+                    "Only array notation of the form my_array(:, :, ...) "
+                    "is supported but got: {0}".format(str(array)))
+            return len(cblock._statements)
+
         def _array_syntax_to_indexed(arrays, loop_vars):
             '''
+            Utility function that modifies each supplied Array object so that
+            it is indexed using the supplied loop variables rather than having
+            colon array notation.
+
             :param arrays: list of Array references to modify
             :type arrays: list of :py:class:`psyclone.psyGen.Array`
             :param loop_vars: the variable names for the array indices
             :type loop_vars: list of str
 
             '''
+            first_rank = None
             for array in arrays:
+                # Check that this is a supported array reference and that
+                # all arrays are of the same rank
+                rank = _array_notation_rank(array)
+                if first_rank:
+                    if rank != first_rank:
+                        raise NotImplementedError(
+                            "Found arrays of differing ranks within a WHERE "
+                            "construct: array {0} has rank {1}".
+                            format(array.name, rank))
+                else:
+                    first_rank = rank
                 # Remove the CodeBlock containing the Subscript_Triplets
                 del array.children[0]
                 # Add the index expressions
                 for var in loop_vars:
                     array.addchild(Reference(var, parent=array))
 
-        #from fparser.two.utils import walk_ast
         # Check that the fparser2 parse tree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Where_Construct_Stmt):
             raise InternalError("Failed to find opening where construct "
@@ -7684,19 +7732,8 @@ class Fparser2ASTProcessor(object):
         # SymbolTable (and thus won't check for variable declarations).
         fake_parent = Schedule()
         self.process_nodes(fake_parent, node.content[0].items, None)
-        if not isinstance(fake_parent[0], BinaryOperation):
-            raise InternalError("ARPDBG")
-        arrays = fake_parent[0].children[0].walk(Array)
-        cblock = arrays[0].children[0]
-        if not isinstance(cblock, CodeBlock):
-            raise NotImplementedError("ARPDBG")
-        # We only currently support array refs of the form array(:, :)
-        if not all([isinstance(stmt, Fortran2003.Subscript_Triplet) for
-                    stmt in cblock._statements]):
-            raise NotImplementedError("ARPDBG")
-        # The rank of the array is the number of ':', each of which is
-        # represented by a Subscript_Triplet.
-        rank = len(cblock._statements)
+        arrays = fake_parent[0].walk(Array)
+        rank = _array_notation_rank(arrays[0])
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
@@ -7732,19 +7769,20 @@ class Fparser2ASTProcessor(object):
         sched = Schedule(parent=ifblock)
         ifblock.addchild(sched)
         # Do we have an ELSE WHERE?
-        elsewhere_idx = None
         for idx, child in enumerate(node.content):
             if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                elsewhere_idx = idx
+                self.process_nodes(sched, node.content[1:idx], None)
+                _array_syntax_to_indexed(sched.walk(Array), loop_vars)
+                # Add an else clause to the IF block for the ELSEWHERE clause
+                sched = Schedule(parent=ifblock)
+                ifblock.addchild(sched)
+                self.process_nodes(sched, node.content[idx+1:-1], None)
+                _array_syntax_to_indexed(sched.walk(Array), loop_vars)
                 break
-
-        import pdb; pdb.set_trace()
-        if elsewhere_idx:
-            self.process_nodes(sched, node.content[1:elsewhere_idx], None)
-            arrays = sched.walk(Array)
-            _array_syntax_to_indexed(arrays, loop_vars)
         else:
+            # No elsewhere clause was found
             self.process_nodes(sched, node.content[1:-1], None)
+            _array_syntax_to_indexed(sched.walk(Array), loop_vars)
 
     def _return_handler(self, _, parent):
         '''
