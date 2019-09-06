@@ -7651,8 +7651,8 @@ class Fparser2ASTProcessor(object):
         '''
         def _array_notation_rank(array):
             '''
-            Check that the supplied array reference uses supported array
-            notation syntax and returns the rank of the array.
+            Check that the supplied candidate array reference uses supported
+            array notation syntax and returns the rank of the array.
 
             :param array: the array reference to check.
             :type array: :py:class:`psyclone.psyGen.Array`
@@ -7660,12 +7660,18 @@ class Fparser2ASTProcessor(object):
             :returns: rank of the array.
             :rtype: int
 
+            :raises NotImplementedError: if the array node does not have \
+                                         any children.
             :raises NotImplementedError: if the Array does not have a \
                                          CodeBlock as a child.
             :raises NotImplementedError: if the CodeBlock child does not \
                                        consist entirely of Subscript_Triplets.
 
             '''
+            if not array.children:
+                raise NotImplementedError("An array reference must have at "
+                                          "least one child but {0} has none".
+                                          format(array.name))
             cblock = array.children[0]
             if not isinstance(cblock, CodeBlock):
                 raise NotImplementedError(
@@ -7682,18 +7688,33 @@ class Fparser2ASTProcessor(object):
                     "is supported but got: {0}".format(str(array)))
             return len(cblock._statements)
 
-        def _array_syntax_to_indexed(arrays, loop_vars):
+        def _array_syntax_to_indexed(parent, loop_vars):
             '''
             Utility function that modifies each supplied Array object so that
             it is indexed using the supplied loop variables rather than having
             colon array notation.
 
-            :param arrays: list of Array references to modify
-            :type arrays: list of :py:class:`psyclone.psyGen.Array`
+            :param parent: root of PSyIR sub-tree to search for Array \
+                           references to modify.
+            :type parent:  :py:class:`psyclone.psyGen.Node`
             :param loop_vars: the variable names for the array indices
             :type loop_vars: list of str
 
+            :raises NotImplementedError: if arrays of differing ranks are \
+                                         found.
             '''
+            assigns = parent.walk(Assignment)
+            # Check that the LHS of any assignment uses recognised array
+            # notation.
+            for assign in assigns:
+                _ = _array_notation_rank(assign.lhs)
+            # TODO if the supplied code accidentally omits array notation
+            # for an array reference on the RHS then we will identify it
+            # as a scalar and the code produced from the PSyIR will not
+            # compile. In practise most scalars are likely to be local
+            # and so we can check for their declarations. However, those
+            # imported from a module will still be missed.
+            arrays = parent.walk(Array)
             first_rank = None
             for array in arrays:
                 # Check that this is a supported array reference and that
@@ -7733,56 +7754,77 @@ class Fparser2ASTProcessor(object):
         fake_parent = Schedule()
         self.process_nodes(fake_parent, node.content[0].items, None)
         arrays = fake_parent[0].walk(Array)
+        if not arrays:
+            # If the PSyIR doesn't contain any Arrays then that must be
+            # because the code doesn't use explicit array syntax.
+            raise NotImplementedError("Only WHERE constructs using explicit "
+                                      "array notation (e.g. my_array(:, :)) "
+                                      "are supported.")
         rank = _array_notation_rank(arrays[0])
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
-        # Now create a loop nest of depth `rank`
-        new_parent = parent
-        for idx in range(rank, 0, -1):
-            # TODO we should be using the SymbolTable for the new loop
-            # variable but that doesn't currently work for NEMO.
-            loop_vars[idx-1] = "widx{0}".format(idx)
-            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1])
-            # Add start, stop and step children to this loop
-            loop.addchild(Literal("1", parent=loop))
-            #TODO we shouldn't just stick the SIZE expression in a Literal!
-            loop.addchild(Literal("SIZE({0}, {1})".format(arrays[0].name, idx),
-                                  parent=loop))
-            loop.addchild(Literal("1", parent=loop))
-            # Fourth child of a Loop must be a Schedule
-            sched = Schedule(parent=loop)
-            loop.addchild(sched)
-            # Finally, add the Loop we've constructed to its parent
-            new_parent.addchild(loop)
-            new_parent = sched
-        # Now we have the loop nest, add an IF block to the innermost schedule
-        ifblock = IfBlock(parent=new_parent, annotation="")
-        new_parent.addchild(ifblock)
-        # We construct the conditional expression from the original
-        # logical-array-expression of the WHERE. Each array reference must
-        # now be indexed by the loop variables of the loops we've just
-        # created.
-        _array_syntax_to_indexed(arrays, loop_vars)
-        ifblock.addchild(fake_parent[0])
-        # Now construct the body of the IF using the body of the WHERE
-        sched = Schedule(parent=ifblock)
-        ifblock.addchild(sched)
-        # Do we have an ELSE WHERE?
-        for idx, child in enumerate(node.content):
-            if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                self.process_nodes(sched, node.content[1:idx], None)
-                _array_syntax_to_indexed(sched.walk(Array), loop_vars)
-                # Add an else clause to the IF block for the ELSEWHERE clause
-                sched = Schedule(parent=ifblock)
-                ifblock.addchild(sched)
-                self.process_nodes(sched, node.content[idx+1:-1], None)
-                _array_syntax_to_indexed(sched.walk(Array), loop_vars)
-                break
-        else:
-            # No elsewhere clause was found
-            self.process_nodes(sched, node.content[1:-1], None)
-            _array_syntax_to_indexed(sched.walk(Array), loop_vars)
+
+        # At this point we start adding nodes to the existing PSyIR tree so
+        # we protect this block within a try in case we hit an error and
+        # need to roll-back our additions.
+        original_children_count = len(parent.children)
+        try:
+            # Now create a loop nest of depth `rank`
+            new_parent = parent
+            for idx in range(rank, 0, -1):
+                # TODO we should be using the SymbolTable for the new loop
+                # variable but that doesn't currently work for NEMO.
+                loop_vars[idx-1] = "widx{0}".format(idx)
+                loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1])
+                # Add start, stop and step children to this loop
+                loop.addchild(Literal("1", parent=loop))
+                #TODO we shouldn't just stick the SIZE expression in a Literal!
+                loop.addchild(Literal("SIZE({0}, {1})".format(arrays[0].name,
+                                                              idx),
+                                      parent=loop))
+                loop.addchild(Literal("1", parent=loop))
+                # Fourth child of a Loop must be a Schedule
+                sched = Schedule(parent=loop)
+                loop.addchild(sched)
+                # Finally, add the Loop we've constructed to its parent
+                new_parent.addchild(loop)
+                new_parent = sched
+            # Now we have the loop nest, add an IF block to the innermost
+            # schedule
+            ifblock = IfBlock(parent=new_parent, annotation="")
+            new_parent.addchild(ifblock)
+            # We construct the conditional expression from the original
+            # logical-array-expression of the WHERE. Each array reference must
+            # now be indexed by the loop variables of the loops we've just
+            # created.
+            _array_syntax_to_indexed(fake_parent[0], loop_vars)
+            ifblock.addchild(fake_parent[0])
+            # Now construct the body of the IF using the body of the WHERE
+            sched = Schedule(parent=ifblock)
+            ifblock.addchild(sched)
+            # Do we have an ELSE WHERE?
+            for idx, child in enumerate(node.content):
+                if isinstance(child, Fortran2003.Elsewhere_Stmt):
+                    self.process_nodes(sched, node.content[1:idx], None)
+                    _array_syntax_to_indexed(sched, loop_vars)
+                    # Add an else clause to the IF block for the ELSEWHERE
+                    # clause
+                    sched = Schedule(parent=ifblock)
+                    ifblock.addchild(sched)
+                    self.process_nodes(sched, node.content[idx+1:-1], None)
+                    _array_syntax_to_indexed(sched, loop_vars)
+                    break
+            else:
+                # No elsewhere clause was found
+                self.process_nodes(sched, node.content[1:-1], None)
+                _array_syntax_to_indexed(sched, loop_vars)
+        except NotImplementedError as err:
+            # Some aspect of this WHERE construct is not supported so
+            # roll-back any changes before re-raising this exception (so
+            # that a CodeBlock will be created instead).
+            del parent.children[original_children_count:]
+            raise err
 
     def _return_handler(self, _, parent):
         '''

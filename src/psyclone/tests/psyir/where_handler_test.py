@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Where_Construct
-from psyclone.psyGen import Fparser2ASTProcessor, KernelSchedule
+from psyclone.psyGen import Fparser2ASTProcessor, Schedule, CodeBlock
 
 
 def test_where_broken_tree(parser):
@@ -49,12 +49,10 @@ def test_where_broken_tree(parser):
     tree does not have the correct structure. '''
     from psyclone.psyGen import InternalError
     
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = Schedule()
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
                                  "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                 "ELSEWHERE\n"
-                                 "  z1_st(:, :, :) = 0._wp\n"
                                  "END WHERE\n")
     fparser2spec = Where_Construct(reader)
     # Break the parse tree by removing the end-where statement
@@ -69,28 +67,37 @@ def test_where_broken_tree(parser):
     assert "Failed to find opening where construct " in str(err.value)
 
 
-def test_missing_array_notation(parser):
-    ''' Check that we raise the expected exception if array notation is
-    not used in the logical expression. '''
+def test_missing_array_notation1(parser):
+    ''' Check that we get a code block if the WHERE does not use explicit
+    array syntax in the logical expression. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("WHERE (ptsu /= 0._wp)\n"
                                  "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                 "ELSEWHERE\n"
-                                 "  z1_st(:, :, :) = 0._wp\n"
                                  "END WHERE\n")
     fparser2spec = Where_Construct(reader)
-    with pytest.raises(NotImplementedError) as err:
-        processor.process_nodes(fake_parent, [fparser2spec], None)
-    assert ("Explicit array notation must be used in the logical-array-expr "
-            "of a WHERE construct but found: " in str(err.value))
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-def test_where(parser):
-    ''' Basic test that a WHERE construct is correctly translated into
-    a canonical form in the PSyIR. '''
-    from psyclone.psyGen import Loop, IfBlock
-    fake_parent = KernelSchedule("dummy_schedule")
+def test_missing_array_notation1(parser):
+    ''' Check that we get a code block if the WHERE does not use explicit
+    array syntax within the body. '''
+    fake_parent = Schedule()
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("WHERE (ptsu(:,:,:) /= 0._wp)\n"
+                                 "  z1_st = 1._wp / ptsu(:, :, :)\n"
+                                 "END WHERE\n")
+    fparser2spec = Where_Construct(reader)
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+def test_elsewhere(parser):
+    ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
+    translated into a canonical form in the PSyIR. '''
+    from psyclone.psyGen import Loop, IfBlock, Schedule, Assignment, Array
+    fake_parent = Schedule()
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
                                  "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
@@ -106,4 +113,12 @@ def test_where(parser):
     assert isinstance(loop.loop_body[0], Loop)
     assert isinstance(loop.loop_body[0].loop_body[0], Loop)
     # Check that we have an IF block within the innermost loop
-    assert isinstance(loop.loop_body[0].loop_body[0].loop_body[0], IfBlock)
+    ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
+    assert isinstance(ifblock, IfBlock)
+    # Check that this IF block has an else body
+    assert ifblock.else_body is not None
+    fake_parent.view()
+    assert isinstance(ifblock.else_body[0], Assignment)
+    assert isinstance(ifblock.else_body[0].lhs, Array)
+    assert ifblock.else_body[0].lhs.name == "z1_st"
+
