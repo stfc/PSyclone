@@ -6578,6 +6578,7 @@ class Fparser2ASTProcessor(object):
             Fortran2003.Block_Nonlabel_Do_Construct:
                 self._do_construct_handler,
             Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
+            Fortran2003.Where_Construct: self._where_construct_handler,
         }
 
     @staticmethod
@@ -7635,6 +7636,70 @@ class Fparser2ASTProcessor(object):
             self.process_nodes(parent=bop,
                                nodes=[node],
                                nodes_parent=node_parent)
+
+
+    def _where_construct_handler(self, node, parent):
+        '''
+        Construct the canonical PSyIR representation of a WHERE construct.
+
+        :param node: node in the fparser2 parse tree representing the WHERE.
+        :type node:
+
+        :raises InternalError: if the parse tree does not have the expected \
+                               structure.
+
+        '''
+        #from fparser.two.utils import walk_ast
+        # Check that the fparser2 parse tree has the expected structure
+        if not isinstance(node.content[0], Fortran2003.Where_Construct_Stmt):
+            raise InternalError("Failed to find opening where construct "
+                                "statement in: {0}".format(str(node)))
+        if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
+            raise InternalError("Failed to find closing end where statement "
+                                "in: {0}".format(str(node)))
+        # Examine the logical-array expression (the mask) in order to
+        # determine the number of nested loops required. The Fortran
+        # standard allows bare array notation here (e.g. `a < 0.0` where
+        # `a` is an array) and thus we would need to examine our SymbolTable
+        # to find out the rank of `a`. For the moment we limit support to
+        # the NEMO style where the fact that `a` is an array is made
+        # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
+                
+        # Use a basic Schedule as our fake parent as it doesn't have a
+        # SymbolTable (and thus won't check for variable declarations).
+        fake_parent = Schedule()
+        self.process_nodes(fake_parent, node.content[0].items, None)
+        if not isinstance(fake_parent[0], BinaryOperation):
+            raise InternalError("ARPDBG")
+        arrays = fake_parent[0].children[0].walk(Array)
+        cblock = arrays[0].children[0]
+        if not isinstance(cblock, CodeBlock):
+            raise NotImplementedError("ARPDBG")
+        # We only currently support array refs of the form array(:, :)
+        if not all([isinstance(stmt, Fortran2003.Subscript_Triplet) for
+                    stmt in cblock._statements]):
+            raise NotImplementedError("ARPDBG")
+        # The rank of the array is the number of ':', each of which is
+        # represented by a Subscript_Triplet.
+        rank = len(cblock._statements)
+        new_parent = parent
+        for idx in range(rank, 0, -1):
+            loop = Loop(parent=new_parent)
+            # Add start, stop and step children to this loop
+            loop.addchild(Literal("1", parent=loop))
+            #TODO we shouldn't just stick the SIZE expression in a Literal!
+            loop.addchild(Literal("SIZE({0}, {1})".format(arrays[0].name, idx),
+                                  parent=loop))
+            loop.addchild(Literal("1", parent=loop))
+            # Fourth child of a Loop must be a Schedule
+            sched = Schedule(parent=loop)
+            loop.addchild(sched)
+            # Finally, add the Loop we've constructed to its parent
+            new_parent.addchild(loop)
+            new_parent = sched
+        # Now we have the loop nest, add an IF block to the innermost schedule
+        ifblock = IfBlock(parent=new_parent)
+        new_parent.addchild(ifblock)
 
     def _return_handler(self, _, parent):
         '''

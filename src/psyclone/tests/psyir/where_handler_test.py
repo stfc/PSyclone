@@ -38,15 +38,58 @@ construct in the PSyIR. '''
 
 from __future__ import absolute_import
 
+import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Where_Construct
 from psyclone.psyGen import Fparser2ASTProcessor, KernelSchedule
+
+
+def test_where_broken_tree(parser):
+    ''' Check that we raise the expected exceptions if the fparser2 parse
+    tree does not have the correct structure. '''
+    from psyclone.psyGen import InternalError
+    
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
+                                 "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                 "ELSEWHERE\n"
+                                 "  z1_st(:, :, :) = 0._wp\n"
+                                 "END WHERE\n")
+    fparser2spec = Where_Construct(reader)
+    # Break the parse tree by removing the end-where statement
+    del fparser2spec.content[-1]
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert "Failed to find closing end where statement" in str(err.value)
+    # Now remove the opening where statement
+    del fparser2spec.content[0]
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert "Failed to find opening where construct " in str(err.value)
+
+
+def test_missing_array_notation(parser):
+    ''' Check that we raise the expected exception if array notation is
+    not used in the logical expression. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("WHERE (ptsu /= 0._wp)\n"
+                                 "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                 "ELSEWHERE\n"
+                                 "  z1_st(:, :, :) = 0._wp\n"
+                                 "END WHERE\n")
+    fparser2spec = Where_Construct(reader)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert ("Explicit array notation must be used in the logical-array-expr "
+            "of a WHERE construct but found: " in str(err.value))
 
 
 def test_where(parser):
     ''' Basic test that a WHERE construct is correctly translated into
     a canonical form in the PSyIR. '''
-    from fparser.two.Fortran2003 import Where_Construct
-    from psyclone.psyGen import Loop
+    from psyclone.psyGen import Loop, IfBlock
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
@@ -57,4 +100,10 @@ def test_where(parser):
     fparser2spec = Where_Construct(reader)
     processor.process_nodes(fake_parent, [fparser2spec], None)
     assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent.children[0], Loop)
+    # Check that we have a triply-nested loop
+    loop = fake_parent.children[0]
+    assert isinstance(loop, Loop)
+    assert isinstance(loop.loop_body[0], Loop)
+    assert isinstance(loop.loop_body[0].loop_body[0], Loop)
+    # Check that we have an IF block within the innermost loop
+    assert isinstance(loop.loop_body[0].loop_body[0].loop_body[0], IfBlock)
