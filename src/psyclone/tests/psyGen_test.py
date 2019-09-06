@@ -2681,6 +2681,27 @@ def test_codeblock_can_be_printed():
     assert "]" in str(cblock)
 
 
+def test_codeblock_defaults():
+    '''Check that the structure property in the CodeBlock class is set to
+    the expected default value (None) when no value is provided.
+
+    '''
+    cblock = CodeBlock([])
+    assert cblock._structure is None
+    assert cblock.structure is None
+
+
+@pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
+                                       CodeBlock.Structure.EXPRESSION])
+def test_codeblock_x2(structure):
+    '''Check that the structure property in the CodeBlock class is set to
+    the provided value.
+
+    '''
+    cblock =CodeBlock([], structure=structure)
+    assert cblock.structure == structure
+
+
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
