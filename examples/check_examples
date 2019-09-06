@@ -127,7 +127,20 @@ cd dynamo/eg13
 ${PSYCLONE} -s ./kernel_constants.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg alg.f90 -opsy psy.f90
-  rm *.f90
+rm *.f90
+cd -
+
+echo "Running example dynamo/eg14"
+cd dynamo/eg14
+${PSYCLONE} -s ./acc_kernels.py -nodm \
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+  -oalg /dev/null
+${PSYCLONE} -s ./acc_parallel.py -nodm \
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+  -oalg /dev/null
+${PSYCLONE} -s ./acc_parallel_dm.py -nodm \
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+  -oalg /dev/null
 cd -
 
 echo "Running gocean/eg1"

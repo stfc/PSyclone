@@ -820,31 +820,11 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      sequential=self._sequential)
         return directive
 
-    def _validate(self, node, collapse=None):
-        '''
-        Does OpenACC-specific validation checks before calling the
-        _validate method of the base class.
-
-        :param node: the proposed target of the !$acc loop directive.
-        :type node: :py:class:`psyclone.psyGen.Node`.
-        :param int collapse: number of loops to collapse or None.
-        :raises NotImplementedError: if an API other than GOcean 1.0 is \
-                                     being used.
-        '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.nemo import NemoInvokeSchedule
-        sched = node.root
-        if not isinstance(sched, (GOInvokeSchedule, NemoInvokeSchedule)):
-            raise NotImplementedError(
-                "OpenACC loop transformations are currently only supported "
-                "for the gocean 1.0 and nemo APIs")
-        super(ACCLoopTrans, self)._validate(node, collapse)
-
     def apply(self, node, collapse=None, independent=True, sequential=False):
         '''
-        Apply the ACCLoop transformation to the specified node in a
-        GOInvokeSchedule. This node must be a Loop since this transformation
-        corresponds to inserting a directive immediately before a loop, e.g.:
+        Apply the ACCLoop transformation to the specified node. This node
+        must be a Loop since this transformation corresponds to
+        inserting a directive immediately before a loop, e.g.:
 
         .. code-block:: fortran
 
@@ -867,6 +847,7 @@ class ACCLoopTrans(ParallelLoopTrans):
                                  PARALLEL regions).
         :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
                   :py:class:`psyclone.undoredo.Memento`)
+
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
@@ -1654,16 +1635,15 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
-    from psyclone import gocean1p0, nemo, psyGen
-    valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
-                        nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
-                        psyGen.ACCLoopDirective, psyGen.Assignment,
-                        psyGen.Reference, psyGen.Literal,
-                        psyGen.BinaryOperation)
+    from psyclone import psyGen
+    valid_node_types = (
+        psyGen.Loop, psyGen.Kern, psyGen.IfBlock,
+        psyGen.ACCLoopDirective, psyGen.Assignment, psyGen.Reference,
+        psyGen.Literal, psyGen.BinaryOperation)
 
     def __init__(self):
-        super(ACCParallelTrans, self).__init__()
         from psyclone.psyGen import ACCParallelDirective
+        super(ACCParallelTrans, self).__init__()
         # Set the type of directive that the base class will use
         self._pdirective = ACCParallelDirective
 
@@ -1677,25 +1657,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         :rtype: str
         '''
         return "ACCParallelTrans"
-
-    def _validate(self, node_list):
-        '''
-        OpenACC-specific validation checks that the supplied list
-        of nodes can be enclosed in a parallel region.
-
-        :param node_list: proposed list of nodes to put inside region.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
-        :raises NotImplementedError: if an API other than GOcean 1.0 is \
-                                     being used.
-        '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.nemo import NemoInvokeSchedule
-        sched = node_list[0].root
-        if not isinstance(sched, (GOInvokeSchedule, NemoInvokeSchedule)):
-            raise NotImplementedError(
-                "OpenACC parallel regions are currently only "
-                "supported for the gocean 1.0 and nemo APIs")
-        super(ACCParallelTrans, self)._validate(node_list)
 
 
 class GOConstLoopBoundsTrans(Transformation):
@@ -2833,12 +2794,16 @@ class ACCEnterDataTrans(Transformation):
                 :py:class:`psyclone.undoredo.Memento`)
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
 
         # Ensure that the proposed transformation is valid
         self._validate(sched)
 
         if isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
+                AccEnterDataDir
+        elif isinstance(sched, DynInvokeSchedule):
+            from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that _validate() has done its job
@@ -2872,6 +2837,7 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
 
         super(ACCEnterDataTrans, self)._validate(sched)
 
@@ -2880,7 +2846,7 @@ class ACCEnterDataTrans(Transformation):
                                       "directive to something that is "
                                       "not a Schedule")
 
-        if not isinstance(sched, GOInvokeSchedule):
+        if not isinstance(sched, (GOInvokeSchedule, DynInvokeSchedule)):
             raise NotImplementedError(
                 "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
                 "a schedule of type {0}".format(type(sched)))
@@ -3013,7 +2979,6 @@ class ACCKernelsTrans(RegionTrans):
     '''
     Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
     region (i.e. within "!$acc kernels" ... "!$acc end kernels" directives).
-    Currently only supported for the NEMO API.
 
     For example:
 
@@ -3034,10 +2999,11 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    from psyclone import nemo, psyGen
+    from psyclone import nemo, psyGen, dynamo0p3
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
                         psyGen.Operation, psyGen.Literal,
-                        psyGen.Assignment, psyGen.Reference)
+                        psyGen.Assignment, psyGen.Reference,
+                        dynamo0p3.DynLoop, dynamo0p3.DynKern, psyGen.BuiltIn)
 
     @property
     def name(self):
@@ -3095,12 +3061,14 @@ class ACCKernelsTrans(RegionTrans):
         OpenACC kernels ... end kernels directives.
         '''
         from psyclone.nemo import NemoInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyGen import Loop
-        # Check that the API is valid
+        # Check that the front-end is valid
         sched = node_list[0].root
-        if not isinstance(sched, NemoInvokeSchedule):
-            raise NotImplementedError("OpenACC kernels regions are currently "
-                                      "only supported for the nemo API")
+        if not isinstance(sched, (NemoInvokeSchedule, DynInvokeSchedule)):
+            raise NotImplementedError(
+                "OpenACC kernels regions are currently only supported for the "
+                "nemo and dynamo0.3 front-ends")
         super(ACCKernelsTrans, self)._validate(node_list)
 
         # Check that we have at least one loop within the proposed region

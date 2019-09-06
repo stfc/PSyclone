@@ -46,6 +46,7 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 
 # We use the termcolor module (if available) to enable us to produce
@@ -2000,14 +2001,15 @@ class ACCEnterDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def gen_code(self, parent):
-        '''
-        Generate the elements of the f2pygen AST for this Node in the Schedule.
+        '''Generate the elements of the f2pygen AST for this Node in the Schedule.
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if no data is found to copy in.
+
         '''
-        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
-            IfThenGen, AssignGen, CallGen, UseGen
+        from psyclone.f2pygen import CommentGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -2026,49 +2028,21 @@ class ACCEnterDataDirective(ACCDirective):
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
         var_str = self.list_to_string(var_list)
-
-        # 4. Declare and initialise a logical variable to keep track of
-        #    whether this is the first time we've entered this Invoke
-        name_space_manager = NameSpaceFactory().create()
-        first_time = name_space_manager.create_name(
-            root_name="first_time", context="PSyVars", label="first_time")
-        parent.add(DeclGen(parent, datatype="logical",
-                           entity_decls=[first_time],
-                           initial_values=[".True."],
-                           save=True))
-        parent.add(CommentGen(parent,
-                              " Ensure all fields are on the device and"))
-        parent.add(CommentGen(parent, " copy them over if not."))
-        # 5. Put the enter data directive inside an if-block so that we
-        #    only ever do it once
-        ifthen = IfThenGen(parent, first_time)
-        parent.add(ifthen)
-        ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
-                                "copyin("+var_str+")"))
-        # 6. Flag that we have now entered this routine at least once
-        ifthen.add(AssignGen(ifthen, lhs=first_time, rhs=".false."))
-        # 7. Flag that the data is now on the device. This calls down
-        #    into the API-specific subclass of this class.
-        self.data_on_device(ifthen)
+        # 4. Add the enter data directive.
+        if var_str:
+            copy_in_str = "copyin("+var_str+")"
+        else:
+            # There should be at least one variable to copyin.
+            raise GenerationError(
+                "ACCEnterData directive did not find any data to copyin. "
+                "Perhaps there are no ACCParallel directives within the "
+                "region.")
+        parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
+                                copy_in_str))
+        # 5. Call an API-specific subclass of this class in case
+        # additional declarations are required.
+        self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
-
-        # 8. Ensure that any scalars are up-to-date
-        var_list = []
-        for pdir in self._acc_dirs:
-            for var in pdir.scalars:
-                if var not in var_list:
-                    var_list.append(var)
-        if var_list:
-            # We need to 'use' the openacc module in order to access
-            # the OpenACC run-time library
-            parent.add(UseGen(parent, name="openacc", only=True,
-                              funcnames=["acc_update_device"]))
-            parent.add(
-                CommentGen(parent,
-                           " Ensure all scalars on the device are up-to-date"))
-            for var in var_list:
-                parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
-            parent.add(CommentGen(parent, ""))
 
     @abc.abstractmethod
     def data_on_device(self, parent):
@@ -2112,7 +2086,6 @@ class ACCParallelDirective(ACCDirective):
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # Since we use "default(present)" the Schedule must contain an
         # 'enter data' directive. We don't mandate the order in which
@@ -2267,7 +2240,6 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user can
@@ -2375,7 +2347,7 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from psyclone.f2pygen import DirectiveGen, AssignGen, UseGen, \
+        from psyclone.f2pygen import AssignGen, UseGen, \
             CommentGen, DeclGen
 
         private_list = self._get_private_list()
@@ -2647,7 +2619,6 @@ class OMPDoDirective(OMPDirective):
         :raises GenerationError: if this "!$omp do" is not enclosed within \
                                  an OMP Parallel region.
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -2711,7 +2682,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from psyclone.f2pygen import DirectiveGen
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
@@ -5173,15 +5143,24 @@ class ACCKernelsDirective(ACCDirective):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_code(self, _):
+    def gen_code(self, parent):
         '''
-        :raises InternalError: the ACC Kernels directive is currently only \
-                               supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
-                               fparser2 parse tree.
+        Generate the f2pygen AST entries in the Schedule for this
+        OpenACC Kernels directive.
+
+        :param parent: the parent Node in the Schedule to which to add this \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
-        raise InternalError(
-            "ACCKernelsDirective.gen_code should not have been called.")
+        data_movement = ""
+        if self._default_present:
+            data_movement = "default(present)"
+        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
+                                data_movement))
+        for child in self.children:
+            child.gen_code(parent)
+        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
 
     def update(self):
         '''

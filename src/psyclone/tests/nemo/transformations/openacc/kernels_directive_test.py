@@ -40,7 +40,7 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import PSyFactory, TransInfo, InternalError
+from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.transformations import TransformationError
 from fparser.common.readfortran import FortranStringReader
 
@@ -54,20 +54,6 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "  sto_tmp(ji) = 1.0d0\n"
                  "end do\n"
                  "end program do_loop\n")
-
-
-def test_kernels_no_gen_code(parser):
-    ''' Check that the ACCKernels.gen_code() method raises the
-    expected error. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
-    with pytest.raises(InternalError) as err:
-        schedule.children[0].gen_code(schedule)
-    assert ("ACCKernelsDirective.gen_code should not have "
-            "been called" in str(err))
 
 
 def test_kernels_view(parser, capsys):
