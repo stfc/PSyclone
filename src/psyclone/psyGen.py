@@ -6665,7 +6665,7 @@ class Fparser2ASTProcessor(object):
             else:
                 raise InternalError(
                     "Fparser2ASTProcessor:nodes_to_codeblock: Unsupported "
-                    "node type found.")
+                    "node type '{0}' found.".format(type(prev_node).__name__))
         else:
             # The code block is the first entry in the
             # PSyIR. Therefore it must be a statement.

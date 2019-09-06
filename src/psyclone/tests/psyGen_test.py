@@ -5371,7 +5371,20 @@ def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
     assert isinstance(code_block, CodeBlock)
     assert code_block.structure == CodeBlock.Structure.EXPRESSION
 
-# 4 fparser2astprocessor::nodes_to_code_block not found
+
+# (4/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_4(f2008_parser):
+    '''Check that if the nodes_to_code_block method finds a node that it
+    does not recognise then it raises the expected exception.
+
+    '''
+    fparser = Fparser2ASTProcessor()
+    parent = Node()
+    # Add something invalid as a child
+    parent.children.append("dummy")
+    with pytest.raises(InternalError) as excinfo:
+        fparser.nodes_to_code_block(parent, "dummy")
+    assert "Unsupported node type 'str' found." in str(excinfo.value)
 
 
 def test_missing_loop_control(f2008_parser, monkeypatch):
@@ -5387,6 +5400,7 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
         ''')
     fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
     processor = Fparser2ASTProcessor()
+    fake_parent = Node()
 
     # We have to break the fparser2 parse tree in order to trigger the
     # internal error
