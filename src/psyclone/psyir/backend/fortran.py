@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, S. Siso STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel schedules as PSy-layer PSyIR
@@ -508,3 +509,24 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         return self._nindent.join(str(node.ast).splitlines(True))
+
+    def nemoinvokeschedule_node(self, node):
+        #TODO doc string
+        result_list = []
+        for child in node.children:
+            result_list.append(self(child))
+        return "".join(result_list)
+
+    @property
+    def directive_start(self):
+        ''':returns: "!$" - the start of a directive in Fortran
+        :rtype: str
+        '''
+        return "!${0}\n"
+
+    @property
+    def directive_end(self):
+        ''':returns: "!$" - the start of a directive in Fortran
+        :rtype: str
+        '''
+        return "!${0}\n"

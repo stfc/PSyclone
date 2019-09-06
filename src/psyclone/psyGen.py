@@ -2449,6 +2449,34 @@ class OMPParallelDirective(OMPDirective):
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
 
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp parallel". The visitor is responsible for adding the
+        correct directive begin.
+
+        :returns: the beginning statement oforthis directive.
+        :rtype: str
+        '''
+
+        # pylint: disable=no-self-use
+        result = "omp parallel"
+        # TODO: not yet working with NEMO
+        # if not self._reprod:
+        #     result += self._reduction_string()
+        return result
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end parallel". The visitor is responsible for adding the
+        correct directive begin.
+
+        :returns: the end statement for this directive.
+        :rtype: str
+        '''
+
+        # pylint: disable=no-self-use
+        return "omp end parallel"
+
     def _get_private_list(self):
         '''
         Returns the variable names used for any loops within a directive
@@ -2678,6 +2706,28 @@ class OMPDoDirective(OMPDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive begin.
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+        '''
+
+        return "omp do schedule({0})\n".format(self._omp_schedule)
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end do". The visitor is responsible for adding the
+        correct directive begin.
+
+        :returns: the end statement for this directive.
+        :rtype: str
+        '''
+
+        return "omp end do\n"
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):

@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
+
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.
 Currently limited to just a few PSyIR nodes to support the OpenCL generation,
@@ -408,4 +410,21 @@ class CWriter(PSyIRVisitor):
         :raises VisitorError: The CodeBlock can not be translated to C.
 
         '''
+        # pylint: disable=no-self-use,unused-argument
         raise VisitorError("CodeBlocks can not be translated to C.")
+
+    @property
+    def directive_start(self):
+        ''':return: "#pragma" - the start of a directive in C.
+        :rtype: str
+        '''
+        # Note that {{ is replaced with a single { in the format call
+        return "#pragma {0}\n{{\n"
+
+    @property
+    def directive_end(self):
+        ''':return: "#pragma" - the start of a directive in C.
+        :rtype: str
+        '''
+        # Note that }} is replaced with a single } in the format call
+        return "}}\n"

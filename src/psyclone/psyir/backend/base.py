@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
+
 
 '''Generic PSyIR visitor code that can be specialised by different
 back ends.
@@ -39,6 +41,7 @@ back ends.
 '''
 # pylint: disable=eval-used
 
+import abc
 from psyclone.psyGen import Node
 
 
@@ -174,3 +177,47 @@ class PSyIRVisitor(object):
             raise VisitorError(
                 "Unsupported node '{0}' found: method names attempted were "
                 "{1}.".format(type(node).__name__, str(possible_method_names)))
+
+    @abc.abstractproperty
+    def directive_start(self):
+        '''Returns the start of a directive, e.g. "#pragma ...\n{" in C,
+        or "!$" in Fortran. The string {0} in the result will be replaced
+        with the actual directive. It must be implemented by any visitor.
+        :return: the start of a directive.
+        :rtype: str
+        '''
+
+    @abc.abstractproperty
+    def directive_end(self):
+        '''Returns the end of a directive, e.g. "}" in C (the start
+        directive contains the opening "}", or "!$" in Fortran. The
+        string {0} will be replaced with the end directive content.
+        It must be implemented by any visitor.
+        :return: the end of a directive.
+        :rtype: str
+        '''
+
+    def ompdirective_node(self, node):
+        '''This method is called when an OMPDirective instance is found in
+        the PSyIR tree. It returns the begin and end directive, and the
+        statements in between as a string (depending on the language).
+
+        :param node: a Directive PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Directive`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+        '''
+
+        result_list = [self.directive_start.format(node.begin_string())]
+        for child in node.children:
+            # The try is only here to allow proper testing while
+            # not all required nodes are converted by the visitors in
+            # various languages.
+            try:
+                result_list.append(self._visit(child))
+            except VisitorError:
+                result_list.append("Node type {0} not yet supported\n"
+                                   .format(type(child)))
+        result_list.append(self.directive_end.format(node.end_string()))
+        return "".join(result_list)
