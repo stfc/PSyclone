@@ -7649,6 +7649,21 @@ class Fparser2ASTProcessor(object):
                                structure.
 
         '''
+        def _array_syntax_to_indexed(arrays, loop_vars):
+            '''
+            :param arrays: list of Array references to modify
+            :type arrays: list of :py:class:`psyclone.psyGen.Array`
+            :param loop_vars: the variable names for the array indices
+            :type loop_vars: list of str
+
+            '''
+            for array in arrays:
+                # Remove the CodeBlock containing the Subscript_Triplets
+                del array.children[0]
+                # Add the index expressions
+                for var in loop_vars:
+                    array.addchild(Reference(var, parent=array))
+
         #from fparser.two.utils import walk_ast
         # Check that the fparser2 parse tree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Where_Construct_Stmt):
@@ -7682,9 +7697,16 @@ class Fparser2ASTProcessor(object):
         # The rank of the array is the number of ':', each of which is
         # represented by a Subscript_Triplet.
         rank = len(cblock._statements)
+        # Create a list to hold the names of the loop variables as we'll
+        # need them to index into the arrays.
+        loop_vars = rank*[""]
+        # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
-            loop = Loop(parent=new_parent)
+            # TODO we should be using the SymbolTable for the new loop
+            # variable but that doesn't currently work for NEMO.
+            loop_vars[idx-1] = "widx{0}".format(idx)
+            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1])
             # Add start, stop and step children to this loop
             loop.addchild(Literal("1", parent=loop))
             #TODO we shouldn't just stick the SIZE expression in a Literal!
@@ -7698,8 +7720,31 @@ class Fparser2ASTProcessor(object):
             new_parent.addchild(loop)
             new_parent = sched
         # Now we have the loop nest, add an IF block to the innermost schedule
-        ifblock = IfBlock(parent=new_parent)
+        ifblock = IfBlock(parent=new_parent, annotation="")
         new_parent.addchild(ifblock)
+        # We construct the conditional expression from the original
+        # logical-array-expression of the WHERE. Each array reference must
+        # now be indexed by the loop variables of the loops we've just
+        # created.
+        _array_syntax_to_indexed(arrays, loop_vars)
+        ifblock.addchild(fake_parent[0])
+        # Now construct the body of the IF using the body of the WHERE
+        sched = Schedule(parent=ifblock)
+        ifblock.addchild(sched)
+        # Do we have an ELSE WHERE?
+        elsewhere_idx = None
+        for idx, child in enumerate(node.content):
+            if isinstance(child, Fortran2003.Elsewhere_Stmt):
+                elsewhere_idx = idx
+                break
+
+        import pdb; pdb.set_trace()
+        if elsewhere_idx:
+            self.process_nodes(sched, node.content[1:elsewhere_idx], None)
+            arrays = sched.walk(Array)
+            _array_syntax_to_indexed(arrays, loop_vars)
+        else:
+            self.process_nodes(sched, node.content[1:-1], None)
 
     def _return_handler(self, _, parent):
         '''
