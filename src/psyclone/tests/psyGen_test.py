@@ -2698,7 +2698,7 @@ def test_codeblock_x2(structure):
     the provided value.
 
     '''
-    cblock =CodeBlock([], structure=structure)
+    cblock = CodeBlock([], structure=structure)
     assert cblock.structure == structure
 
 
@@ -5331,7 +5331,6 @@ def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
     '''Check that a codeblock that is the first node in the PSyiR has the
     structure property set to statement.'''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         program test
         do while(a .gt. b)

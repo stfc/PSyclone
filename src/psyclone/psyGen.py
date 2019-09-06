@@ -5980,7 +5980,8 @@ class KernelSchedule(Schedule):
 
 
 class CodeBlock(Node):
-    '''Node representing some generic Fortran code that PSyclone does not attempt
+    '''
+    Node representing some generic Fortran code that PSyclone does not attempt
     to manipulate. As such it is a leaf in the PSyIR and therefore has no
     children.
 
@@ -6669,7 +6670,7 @@ class Fparser2ASTProcessor(object):
         else:
             # The code block is the first entry in the
             # PSyIR. Therefore it must be a statement.
-            structure=CodeBlock.Structure.STATEMENT
+            structure = CodeBlock.Structure.STATEMENT
 
         code_block = CodeBlock(statements, structure=structure,
                                parent=parent)
