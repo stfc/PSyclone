@@ -1017,6 +1017,7 @@ class GOKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
+        # If exists use opencl_options local_size value, otherwise 1
         loc_size_value = '1'
         if 'local_size' in self.opencl_options:
             loc_size_value = self.opencl_options['local_size']
@@ -1061,6 +1062,7 @@ class GOKern(CodedKern):
         parent.add(CommentGen(parent, " Launch the kernel"))
         cnull = "C_NULL_PTR"
 
+        # If exists use opencl_options queue_number value, otherwise 1
         queue_number = '1'
         if 'queue_number' in self.opencl_options:
             queue_number = self.opencl_options['queue_number']
@@ -1224,7 +1226,7 @@ class GOKern(CodedKern):
 
                 # Ensure data copies have finished
                 ifthen.add(CommentGen(parent,
-                                      " Block until data copies have finished"))
+                           " Block until data copies have finished"))
                 ifthen.add(AssignGen(parent, lhs=flag,
                                      rhs="clFinish(" + qlist + "(1))"))
 

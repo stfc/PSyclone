@@ -3968,7 +3968,7 @@ class CodedKern(Kern):
         # If this kernel has not been transformed we do nothing
         if not self.modified and not self.root.opencl:
             return
-        
+
         # Remove any "_mod" if the file follows the PSyclone naming convention
         orig_mod_name = self.module_name[:]
         if orig_mod_name.lower().endswith("_mod"):
@@ -5931,6 +5931,7 @@ class KernelSchedule(Schedule):
         super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
+        self.opencl_options = {}
 
     @property
     def name(self):

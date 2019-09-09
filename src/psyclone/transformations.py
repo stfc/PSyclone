@@ -2239,7 +2239,7 @@ class OCLTrans(Transformation):
         '''
         return "OCLTrans"
 
-    def apply(self, sched, opencl=True, options=None):
+    def apply(self, sched, opencl=True, options={}):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
