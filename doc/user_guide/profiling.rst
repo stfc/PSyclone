@@ -220,7 +220,8 @@ As an example::
 Interface to Third Party Profiling Tools 
 ----------------------------------------
 PSyclone comes with wrapper libraries to support usage of
-Dr Hook, dl_timer and a simple non-thread-safe timing
+Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
+and a simple non-thread-safe timing
 library. Support for further profiling libraries will be
 added in the future. To compile the wrapper libraries,
 change into the directory ``lib/profiling`` of PSyclone

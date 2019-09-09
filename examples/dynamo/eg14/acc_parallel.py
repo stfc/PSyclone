@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,36 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+'''File containing a PSyclone transformation script for the Dynamo0p3
+API to apply OpenACC Loop, Parallel and Enter Data directives
+generically. This can be applied via the -s option in the psyclone
+script.
 
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
-
-This should produce a lot of output, ending with generated
-Fortran.
 '''
+from __future__ import print_function
+from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
+    ACCLoopTrans
 
 
 def trans(psy):
-    ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel.
-
-    :param psy: the object holding all information on the PSy layer \
-                to be modified.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object
-    :rtype:  :py:class:`psyclone.psyGen.PSy`
+    '''PSyclone transformation script for the dynamo0p3 api to apply
+    OpenACC loop, parallel and enter data directives generically.
 
     '''
-    from psyclone.psyGen import TransInfo
-    from psyclone.nemo import NemoKern
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_ldf_iso').schedule
-    # Get the transformation we will apply
-    ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
-    # Apply it to each loop over levels containing a kernel
-    for loop in sched.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
-    psy.invokes.get('tra_ldf_iso').schedule = sched
-    # Return the modified psy object
+    loop_trans = ACCLoopTrans()
+    parallel_trans = ACCParallelTrans()
+    enter_data_trans = ACCEnterDataTrans()
+
+    # Loop over all of the Invokes in the PSy object
+    for invoke in psy.invokes.invoke_list:
+
+        print("Transforming invoke '"+invoke.name+"'...")
+        schedule = invoke.schedule
+        for loop in schedule.loops():
+            _, _ = loop_trans.apply(loop)
+        _, _ = parallel_trans.apply(schedule.children)
+        _, _ = enter_data_trans.apply(schedule)
+
     return psy

@@ -311,7 +311,7 @@ def test_dynbuiltin_str(dist_mem):
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as excinfo:
         DynBuiltIn.__str__(kern)
     assert "DynBuiltIn.__str__ must be overridden" in str(excinfo.value)
@@ -327,7 +327,7 @@ def test_dynbuiltin_gen_code(dist_mem):
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as excinfo:
         DynBuiltIn.gen_code(kern, None)
     assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
@@ -342,7 +342,7 @@ def test_dynbuiltin_cma(dist_mem):
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     cma_type = kern.cma_operation()
     assert cma_type is None
 
@@ -374,7 +374,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Add fields"
     # Test code generation
     code = str(psy.gen)
@@ -435,7 +435,7 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Increment field"
     # Test code generation
     code = str(psy.gen)
@@ -485,7 +485,7 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_plus_Y"
     # Test code generation
     code = str(psy.gen)
@@ -556,7 +556,7 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_aX_plus_Y"
     # Test code generation
     code = str(psy.gen)
@@ -626,7 +626,7 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_X_plus_bY"
     # Test code generation
     code = str(psy.gen)
@@ -696,7 +696,7 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_plus_bY"
     # Test code generation
     code = str(psy.gen)
@@ -768,7 +768,7 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_aX_plus_bY"
     # Test code generation
     code = str(psy.gen)
@@ -841,7 +841,7 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Subtract fields"
     # Test code generation
     code = str(psy.gen)
@@ -900,7 +900,7 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Decrement field"
     # Test code generation
     code = str(psy.gen)
@@ -955,7 +955,7 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_minus_Y"
     # Test code generation
     code = str(psy.gen)
@@ -1026,7 +1026,7 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_minus_bY"
     # Test code generation
     code = str(psy.gen)
@@ -1097,7 +1097,7 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_X_minus_bY"
     # Test code generation
     code = str(psy.gen)
@@ -1169,7 +1169,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Multiply fields"
     # Test code generation
     code = str(psy.gen)
@@ -1235,7 +1235,7 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Multiply field by another"
     # Test code generation
     code = str(psy.gen)
@@ -1293,7 +1293,7 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_aX_times_Y"
     # Test code generation
     code = str(psy.gen)
@@ -1367,7 +1367,7 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Copy scaled field"
     # Test code generation
     code = str(psy.gen)
@@ -1424,7 +1424,7 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Scale a field"
     # Test code generation
     code = str(psy.gen)
@@ -1497,7 +1497,7 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Divide fields"
     # Test code generation
     code = str(psy.gen)
@@ -1555,7 +1555,7 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Divide one field by another"
     # Test code generation
     code = str(psy.gen)
@@ -1617,7 +1617,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: raise a field to a real power"
     # Test code generation
     code = str(psy.gen)
@@ -1667,7 +1667,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: raise a field to an integer power"
     # Test code generation
     code = str(psy.gen)
@@ -1722,7 +1722,7 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Set field to a scalar value"
     # Test code generation
     code = str(psy.gen)
@@ -1785,7 +1785,7 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: Set a field equal to another field"
     # Test code generation
     code = str(psy.gen)
@@ -1850,7 +1850,7 @@ def test_X_innerproduct_Y(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_innerproduct_Y"
     # Test code generation
     code = str(psy.gen)
@@ -1916,7 +1916,7 @@ def test_X_innerproduct_X(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_innerproduct_X"
     # Test code generation
     code = str(psy.gen)
@@ -1982,7 +1982,7 @@ def test_sum_X(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: sum a field"
     # Test code generation
     code = str(psy.gen)

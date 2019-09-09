@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Australian Bureau of Meteorology
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: J. Henrichs, Bureau of Meteorology,
+#          A. R. Porter, STFC Daresbury Laboratory.
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+# Makefile for the PSyclone wrapper to the NVTX profiling library.
 
-Once you have PSyclone installed, this script may be used by doing:
+F90?=gfortran
+FFLAGS?=-g
 
- >>> psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
+name=nvtx_prof
+libname=lib$(name).a
 
-This should produce a lot of output, ending with generated
-Fortran.
-'''
+default: $(libname)
 
+$(libname): $(name).f90
+	$(F90) -c $(FFLAGS) $<
+	ar rs $(libname) $(name).o
 
-def trans(psy):
-    ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel.
-
-    :param psy: the object holding all information on the PSy layer \
-                to be modified.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object
-    :rtype:  :py:class:`psyclone.psyGen.PSy`
-
-    '''
-    from psyclone.psyGen import TransInfo
-    from psyclone.nemo import NemoKern
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_ldf_iso').schedule
-    # Get the transformation we will apply
-    ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
-    # Apply it to each loop over levels containing a kernel
-    for loop in sched.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
-    psy.invokes.get('tra_ldf_iso').schedule = sched
-    # Return the modified psy object
-    return psy
+clean:
+	rm -f $(libname) $(name).o profile_mod.mod

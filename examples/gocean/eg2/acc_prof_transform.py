@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. Transforms the invoke with the addition of
+OpenACC directives and then encloses the whole in a profiling region. '''
 
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
-
-This should produce a lot of output, ending with generated
-Fortran.
-'''
+from __future__ import print_function
+from acc_transform import trans as acc_trans
 
 
 def trans(psy):
-    ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel.
+    '''
+    Take the supplied psy object, add OpenACC directives and then enclose
+    the whole schedule within a profiling region.
 
-    :param psy: the object holding all information on the PSy layer \
-                to be modified.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-    :returns: the transformed PSy object
-    :rtype:  :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyGen import TransInfo
-    from psyclone.nemo import NemoKern
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_ldf_iso').schedule
-    # Get the transformation we will apply
-    ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
-    # Apply it to each loop over levels containing a kernel
-    for loop in sched.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
-    psy.invokes.get('tra_ldf_iso').schedule = sched
-    # Return the modified psy object
+    from psyclone.transformations import ProfileRegionTrans
+    proftrans = ProfileRegionTrans()
+
+    # Use the trans() routine in acc_transform.py to add the OpenACC directives
+    psy = acc_trans(psy)
+
+    invoke = psy.invokes.get('invoke_0_inc_field')
+    schedule = invoke.schedule
+
+    # Enclose everything in a profiling region
+    newschedule, _ = proftrans.apply(schedule.children)
+    invoke.schedule = newschedule
+    newschedule.view()
     return psy

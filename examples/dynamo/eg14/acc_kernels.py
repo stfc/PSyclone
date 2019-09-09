@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,54 +31,29 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''A simple test script showing the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
 
-Once you have psyclone installed, this script may be run by doing (you may
-need to make it executable first with chmod u+x ./runme_openmp.py):
+'''File containing a PSyclone transformation script for the Dynamo0p3
+API to apply OpenACC Kernels directives generically. This can be
+applied via the -s option in the psyclone script.
 
- >>> ./runme_openmp.py
-
-This should generate a lot of output, ending with generated
-Fortran.
 '''
-
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.transformations import ACCKernelsTrans
 
-if __name__ == "__main__":
-    from psyclone.nemo import NemoKern, NemoImplicitLoop
-    API = "nemo"
-    _, INVOKEINFO = parse("../code/traldf_iso.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print(PSY.gen)
 
-    print("Invokes found:")
-    print(PSY.invokes.names)
+def trans(psy):
+    ''' PSyclone transformation script for the dynamo0p3 api to apply
+    OpenACC Kernels directives generically.'''
+    kernels_trans = ACCKernelsTrans()
 
-    SCHED = PSY.invokes.get('tra_ldf_iso').schedule
-    SCHED.view()
+    # Loop over all of the Invokes in the PSy object
+    for invoke in psy.invokes.invoke_list:
 
-    TRANS_INFO = TransInfo()
-    print(TRANS_INFO.list)
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
-    DO_TRANS = TRANS_INFO.get_trans_name('NemoExplicitLoopTrans')
-    # Transform each implicit loop to make the outermost loop explicit
-    for loop in SCHED.loops():
-        if isinstance(loop, NemoImplicitLoop):
-            _, _ = DO_TRANS.apply(loop)
-    for loop in SCHED.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
-            sched, _ = OMP_TRANS.apply(loop)
+        print("Transforming invoke '"+invoke.name+"'...")
+        schedule = invoke.schedule
+        _, _ = kernels_trans.apply(schedule)
+        schedule.view()
 
-    SCHED.view()
-
-    PSY.invokes.get('tra_ldf_iso').schedule = SCHED
-    print(PSY.gen)
+    return psy

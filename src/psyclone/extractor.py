@@ -68,8 +68,8 @@ class ExtractNode(Node):
         '''
         result = "ExtractStart\n"
         for child in self.children:
-            result += str(child)+"\n"
-        return result+"ExtractEnd"
+            result += str(child) + "\n"
+        return result + "ExtractEnd"
 
     @property
     def coloured_text(self):

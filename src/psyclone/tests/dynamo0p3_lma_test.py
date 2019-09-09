@@ -253,13 +253,12 @@ def test_operator():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                               "_type(mm_w0, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                               " mm_w0") != -1
-    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
-                               "proxy") != -1
-    assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0, chi, a, qr)"
+        in generated_code)
+    assert "TYPE(operator_type), intent(inout) :: mm_w0" in generated_code
+    assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
+    assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
             "mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
             "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), "
@@ -268,8 +267,8 @@ def test_operator():
 
 
 def test_operator_different_spaces(tmpdir):
-    '''tests that an operator with different to and from spaces is
-    implemented correctly in the PSy layer'''
+    ''' Tests that an operator with different to and from spaces is
+    implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
                            api=TEST_API)
@@ -405,7 +404,7 @@ def test_operator_different_spaces(tmpdir):
 
 
 def test_operator_nofield(tmpdir):
-    ''' tests that an operator with no field on the same space is
+    ''' Tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
@@ -415,14 +414,14 @@ def test_operator_nofield(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
-                             "nofield_type(mm_w2, chi, qr)") != -1
-    assert gen_code_str.find("TYPE(operator_type), intent(inout) :: "
-                             "mm_w2") != -1
-    assert gen_code_str.find("TYPE(operator_proxy_type) mm_w2_proxy") != -1
-    assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
-    assert gen_code_str.find("undf_w2") == -1
-    assert gen_code_str.find("map_w2") == -1
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)"
+        in gen_code_str)
+    assert "TYPE(operator_type), intent(inout) :: mm_w2" in gen_code_str
+    assert "TYPE(operator_proxy_type) mm_w2_proxy" in gen_code_str
+    assert "mm_w2_proxy = mm_w2%get_proxy()" in gen_code_str
+    assert "undf_w2" not in gen_code_str
+    assert "map_w2" not in gen_code_str
     assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
             "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
@@ -454,7 +453,7 @@ def test_operator_nofield_different_space(tmpdir):
 
 
 def test_operator_nofield_scalar(tmpdir):
-    ''' tests that an operator with no field and a
+    ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.6_operator_no_field_scalar.f90"),
@@ -462,7 +461,7 @@ def test_operator_nofield_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)    
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -507,7 +506,7 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
 
 
 def test_operator_orientation(tmpdir):
-    ''' tests that an operator requiring orientation information is
+    ''' Tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.2_operator_orient.f90"),
@@ -517,16 +516,15 @@ def test_operator_orientation(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
-                        "_orient_type(mm_w1, chi, qr)") != -1
-    assert gen_str.find("TYPE(operator_type), intent(inout) ::"
-                        " mm_w1") != -1
-    assert gen_str.find("TYPE(operator_proxy_type) mm_w1_"
-                        "proxy") != -1
-    assert gen_str.find("mm_w1_proxy = mm_w1%get_proxy()") != -1
-    assert gen_str.find(
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
+        in gen_str)
+    assert "TYPE(operator_type), intent(inout) :: mm_w1" in gen_str
+    assert "TYPE(operator_proxy_type) mm_w1_proxy" in gen_str
+    assert "mm_w1_proxy = mm_w1%get_proxy()" in gen_str
+    assert (
         "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
-        "(cell)") != -1
+        "(cell)" in gen_str)
     assert ("CALL testkern_operator_orient_code(cell, nlayers, "
             "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
@@ -536,8 +534,8 @@ def test_operator_orientation(tmpdir):
 
 
 def test_op_orient_different_space(tmpdir):
-    '''tests that an operator on different spaces requiring orientation
-    information is implemented correctly in the PSy layer. '''
+    ''' Tests that an operator on different spaces requiring orientation
+    information is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.4_operator_orient_different_"
                                         "space.f90"),
@@ -581,21 +579,19 @@ def test_operator_deref(tmpdir, dist_mem):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                               "_type(mm_w0_op, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                               " mm_w0_op") != -1
-    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
-                               "proxy") != -1
     assert (
-        generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
-    assert generated_code.find(
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, chi, a, qr)"
+        in generated_code)
+    assert "TYPE(operator_type), intent(inout) :: mm_w0_op" in generated_code
+    assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
+    assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
+    assert (
         "CALL testkern_operator_code(cell, nlayers, "
         "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
         "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
         "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
         "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-        "weights_z_qr)") != -1
+        "weights_z_qr)" in generated_code)
 
 
 def test_operator_no_dofmap_lookup():
@@ -664,7 +660,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
@@ -687,7 +683,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Make the list of arguments invalid by duplicating (a copy of)
     # this argument. We take a copy because otherwise, when we change
@@ -715,7 +711,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
-    call = loop.children[0]
+    call = loop.loop_body[0]
     arg = call.arguments.args[0]
     arg._access = AccessType.READ
     with pytest.raises(GenerationError) as excinfo:

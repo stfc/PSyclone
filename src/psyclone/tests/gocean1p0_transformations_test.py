@@ -66,13 +66,6 @@ def setup():
     Config._instance = None
 
 
-@pytest.fixture
-def outputdir(tmpdir, monkeypatch):
-    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-
-
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
@@ -176,7 +169,7 @@ def test_loop_fuse_unexpected_error():
     lftrans = GOceanLoopFuseTrans()
 
     # cause an unexpected error
-    schedule.children[0].children = None
+    schedule.children[0].loop_body.children = None
 
     # Attempt to fuse two loops that are iterating over different
     # things
@@ -1180,7 +1173,7 @@ def test_module_inline(tmpdir):
     true for the specified kernel. '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     kern_call.module_inline = True
     gen = str(psy.gen)
     # check that the subroutine has been inlined correctly
@@ -1198,7 +1191,7 @@ def test_module_inline_with_transformation(tmpdir):
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[1].children[0].children[0]
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1215,7 +1208,7 @@ def test_module_no_inline_with_transformation(tmpdir):
     test_module_inline() test being successful to be a valid test. '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     # directly switch on inlining
     kern_call.module_inline = True
     inline_trans = KernelModuleInlineTrans()
@@ -1242,7 +1235,7 @@ def test_transformation_inline_error_if_not_kernel():
     passed is not a kernel'''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError):
         _, _ = inline_trans.apply(kern_call)
@@ -1253,7 +1246,7 @@ def test_module_inline_with_sub_use(tmpdir):
     contains a use statement'''
     psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1273,7 +1266,7 @@ def test_module_inline_same_kernel():
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
                              idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1299,7 +1292,7 @@ def test_module_inline_and_compile(tmpdir):
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
                              idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
     # TODO: This fails because of #315
@@ -1314,7 +1307,7 @@ def test_module_inline_warning_no_change():
     clause '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
+    kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call, inline=False)
 
@@ -1331,20 +1324,18 @@ def test_loop_swap_correct(tmpdir):
 
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
-    expected_schedule = '''Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop,1
-kern call: bc_ssh_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_v_code.*")
 
-    expected_schedule = '''Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop,1
-kern call: bc_solid_u_code'''
-    assert expected_schedule in schedule_str
-
-    expected_schedule = '''Loop[]: j= lower=1,jstop,1
-Loop[]: i= lower=1,istop+1,1
-kern call: bc_solid_v_code'''
-    assert expected_schedule in schedule_str
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the first loops
     swap = GOLoopSwapTrans()
@@ -1352,30 +1343,55 @@ kern call: bc_solid_v_code'''
     psy.invokes.get('invoke_loop1').schedule = swapped1
     schedule_str = str(swapped1)
 
-    expected_schedule = '''Loop[]: i= lower=2,istop,1
-Loop[]: j= lower=2,jstop,1
-kern call: bc_ssh_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the middle loops
     swapped2, _ = swap.apply(swapped1.children[1])
     psy.invokes.get('invoke_loop1').schedule = swapped2
     schedule_str = str(swapped2)
 
-    expected_schedule = '''Loop[]: i= lower=1,istop,1
-Loop[]: j= lower=1,jstop+1,1
-kern call: bc_solid_u_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
 
     # Now swap the last loops
     swapped3, _ = swap.apply(swapped2.children[2])
     psy.invokes.get('invoke_loop1').schedule = swapped3
     schedule_str = str(swapped3)
 
-    expected_schedule = '''Loop[]: i= lower=1,istop+1,1
-Loop[]: j= lower=1,jstop,1
-kern call: bc_solid_v_code'''
-    assert expected_schedule in schedule_str
+    expected = (
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_ssh_code.*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_solid_u_code .*"
+        r".*Loop\[id:'', variable:'i'.*"
+        r".*Loop\[id:'', variable:'j'.*"
+        r".*kern call: bc_solid_v_code.*")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
+
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1393,14 +1409,14 @@ def test_go_loop_swap_errors():
     # Test error if given node is not the outer loop of at least
     # a double nested loop:
     with pytest.raises(TransformationError) as error:
-        swap.apply(schedule.children[0].children[0])
+        swap.apply(schedule.children[0].loop_body[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "but the first inner statement is not a loop, got .*",
                      str(error.value)) is not None
 
     # Not a loop: use the cal to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
-        swap.apply(schedule.children[0].children[0].children[0])
+        swap.apply(schedule.children[0].loop_body[0].loop_body[0])
     assert "Given node 'kern call: bc_ssh_code' is not a loop" in \
         str(error.value)
 
@@ -1422,10 +1438,10 @@ def test_go_loop_swap_errors():
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
-    del fused.children[0].children[0].children[0]
+    del fused.children[0].loop_body[0].children[3].children[0]
 
     with pytest.raises(TransformationError) as error:
-        swap.apply(fused.children[0].children[0])
+        swap.apply(fused.children[0].loop_body[0])
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have one inner loop, but this node does not "
                      "have any statements inside.",
@@ -1449,7 +1465,7 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
 
-def test_ocl_apply(outputdir):
+def test_ocl_apply(kernel_outputdir):
     ''' Check that OCLTrans generates correct code '''
     from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
@@ -1590,32 +1606,21 @@ def test_acc_data_copyin(tmpdir):
     accpt = ACCParallelTrans()
     accdt = ACCEnterDataTrans()
 
-    # Put each loop within an OpenACC parallel region
+     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
             new_sched, _ = accpt.apply(child)
 
     # Create a data region for the whole schedule
     new_sched, _ = accdt.apply(new_sched)
-
     invoke.schedule = new_sched
     code = str(psy.gen)
 
-    # Check that we've correctly declared the logical variable that
-    # records whether this is the first time we've entered this invoke.
-    assert "LOGICAL, save :: first_time=.True." in code
-
-    pcopy = (
-        "      IF (first_time) THEN\n"
-        "        !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
+    assert (
+        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
         "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-        "unew_fld%data,uold_fld,uold_fld%data)\n"
-        "        first_time = .false.\n")
-    assert pcopy in code
-    for obj in ["u_fld", "v_fld", "p_fld", "cu_fld", "cv_fld", "unew_fld"]:
-        assert "{0}%data_on_device = .true.".format(obj) in code
-    assert ("        uold_fld%data_on_device = .true.\n"
-            "      END IF \n" in code)
+        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1652,111 +1657,6 @@ def test_acc_data_grid_copyin(tmpdir):
         assert "{0}%data_on_device = .true.".format(obj) in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_rscalar_update(tmpdir):
-    '''
-    Check that we generate code to update any real scalar kernel arguments on
-    the device.
-    '''
-    psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
-    schedule = invoke.schedule
-
-    accpt = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
-    # Put each loop within an OpenACC parallel region
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
-
-    # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
-    code = str(psy.gen)
-    # Check that the use statement has been added
-    assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-            "      USE openacc, ONLY: acc_update_device" in code)
-    expected = '''\
-      ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(a_scalar, 1)
-      !
-      !$acc parallel default(present)
-      DO j=1,jstop+1'''
-    assert expected in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_iscalar_update(tmpdir):
-    '''
-    Check that we generate code to update any integer scalar kernel arguments
-    on the device.
-    '''
-    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0)
-    schedule = invoke.schedule
-
-    accpt = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
-    # Put each loop within an OpenACC parallel region
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
-
-    # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
-    code = str(psy.gen)
-    # Check that the use statement has been added
-    assert ("USE kernel_scalar_int, ONLY: bc_ssh_code\n"
-            "      USE openacc, ONLY: acc_update_device" in code)
-    expected = '''\
-      ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(ncycle, 1)
-      !
-      !$acc parallel default(present)
-      DO j=1,jstop+1'''
-    assert expected in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_update_two_scalars(tmpdir):
-    '''
-    Check that we generate two separate acc_update_device() calls when
-    we have two scalars.
-    '''
-    psy, invoke = get_invoke("single_invoke_two_kernels_scalars.f90", API,
-                             idx=0)
-    schedule = invoke.schedule
-
-    accpt = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
-    # Put each loop within an OpenACC parallel region
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
-
-    # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
-    code = str(psy.gen)
-
-    # Check that the use statement has been added
-    assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-            "      USE openacc, ONLY: acc_update_device" in code)
-    expected = '''\
-      ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(a_scalar, 1)
-      CALL acc_update_device(ncycle, 1)
-      !
-      !$acc parallel default(present)
-      DO j=1,jstop+1'''
-    assert expected in code
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1993,5 +1893,5 @@ def test_acc_kernels_error():
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:
         _, _ = accktrans.apply(schedule.children)
-    assert ("kernels regions are currently only supported for the nemo API"
-            in str(err))
+    assert ("kernels regions are currently only supported for the nemo"
+            " and dynamo0.3 front-ends" in str(err))

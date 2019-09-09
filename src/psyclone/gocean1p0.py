@@ -54,7 +54,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, Fparser2ASTProcessor, AccessType, \
-    ACCEnterDataDirective
+    Literal, Reference, ACCEnterDataDirective, Schedule
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -350,7 +350,7 @@ class GOInvokeSchedule(InvokeSchedule):
         :param int indent: optional argument indicating the level of
         indentation to add before outputting the class information.'''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "',Constant loop bounds=" +
+              self.invoke.name + "', Constant loop bounds=" +
               str(self._const_loop_bounds) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -445,6 +445,13 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
@@ -646,7 +653,7 @@ class GOLoop(Loop):
             # Since this is the __str__ method we have no guarantee
             # what state we expect our object to be in so we allow
             # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
+            go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
@@ -721,7 +728,7 @@ class GOLoop(Loop):
             # Since this is the __str__ method we have no guarantee
             # what state we expect our object to be in so we allow
             # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
+            go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
@@ -767,22 +774,29 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
-    # -------------------------------------------------------------------------
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of this Loop node to stdout.
+
+        :param int indent: Depth of indent for output text
+        '''
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound should generate PSyIR
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
+
+        super(GOLoop, self).view(indent)
+
     def __str__(self):
         ''' Returns a string describing this Loop object '''
-        step = self._step
-        if not step:
-            step = "1"
 
-        result = ("Loop[" + self._id + "]: " + self._variable_name +
-                  "=" + self._id + " lower=" + self._lower_bound() +
-                  "," + self._upper_bound() + "," + step + "\n")
-        for entity in self._children:
-            result += str(entity)+"\n"
-        result += "EndLoop"
-        return result
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound should generate PSyIR
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
 
-    # -------------------------------------------------------------------------
+        return super(GOLoop, self).__str__()
+
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
@@ -794,7 +808,7 @@ class GOLoop(Loop):
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
-        go_kernels = self.walk(self.children, GOKern)
+        go_kernels = self.walk(GOKern)
         if not go_kernels:
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")
@@ -816,9 +830,12 @@ class GOLoop(Loop):
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
         # Generate the upper and lower loop bounds
-        self._start = self._lower_bound()
-        self._stop = self._upper_bound()
+        # TODO: Issue 440. upper/lower_bound should generate PSyIR
+        self.start_expr = Literal(self._lower_bound(), parent=self)
+        self.stop_expr = Literal(self._upper_bound(), parent=self)
+
         Loop.gen_code(self, parent)
 
 
@@ -845,14 +862,12 @@ class GOKernCallFactory(object):
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
         looping structure as well as the call to the kernel itself. '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
+        outer_loop = GOLoop(parent=parent, loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
+        outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
+        gocall.load(call, parent=inner_loop.loop_body)
+        inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner

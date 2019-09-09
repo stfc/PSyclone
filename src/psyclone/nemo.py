@@ -42,48 +42,88 @@
 '''
 
 from __future__ import print_function, absolute_import
-import copy
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, CodedKern, InternalError, NameSpaceFactory, \
-    Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
-
-# The base colour map doesn't have CodeBlock as that is currently
-# a NEMO-API-specific entity.
-NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
-NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
+    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
+    Fparser2ASTProcessor, colored, SCHEDULE_COLOUR_MAP
 
 
 class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     '''
-    Specialisation of Fparser2ASTProcessor for the Nemo API. It is used
-    as a Mixin in the Nemo API.
+    Specialisation of Fparser2ASTProcessor for the Nemo API.
     '''
+    def _create_loop(self, parent, variable_name):
+        '''
+        Specialized method to create a NemoLoop instead of a
+        generic Loop.
+
+        :param parent: the parent of the node.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str variable_name: name of the iteration variable.
+
+        :return: a new NemoLoop instance.
+        :rtype: :py:class:`psyclone.nemo.NemoLoop`
+        '''
+        loop = NemoLoop(parent=parent, variable_name=variable_name)
+
+        loop_type_mapping = Config.get().api_conf("nemo")\
+            .get_loop_type_mapping()
+
+        # Identify the type of loop
+        if variable_name in loop_type_mapping:
+            loop.loop_type = loop_type_mapping[variable_name]
+        else:
+            loop.loop_type = "unknown"
+
+        return loop
+
+    def _process_loopbody(self, loop_body, node):
+        '''
+        Specialized method to process Nemo loop bodies. If the schedule
+        matches with a NemoKern, it will add a NemoKern instead of statements
+        in the loop_body.
+
+        :param loop_body: schedule representing the body of the loop.
+        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :param node: fparser loop node being processed.
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+        '''
+        # We create a fake node because we need to parse the children
+        # before we decide what to do with them.
+        fakeparent = Schedule()
+        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
+                           nodes_parent=node)
+
+        if NemoKern.match(fakeparent):
+            # Create a new kernel object and make it the only
+            # child of this Loop node. The PSyIR of the loop body becomes
+            # the schedule of this kernel.
+            nemokern = NemoKern(fakeparent.children, node, parent=loop_body)
+            loop_body.children.append(nemokern)
+        else:
+            # Otherwise just connect the new children into the tree.
+            loop_body.children.extend(fakeparent.children)
+            for child in fakeparent.children:
+                child.parent = loop_body
+
     def _create_child(self, child, parent=None):
         '''
-        Adds Nemo API specific processors for certain fparser2 types
-        before calling the parent _create_child.
+        Before executing the generic _create_child, it checks if the parsed
+        AST is a NemoImplicitLoop because this is not handled yet by the
+        generic fparser2ASTProcessor.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: Returns the PSyIR representation of child or None if \
+
+        :return: returns the PSyIR representation of child or None if \
                  there isn't one.
         :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
-        if NemoLoop.match(child):
-            return NemoLoop(child, parent=parent)
-        if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
-            # The fparser2 parse tree representing a Do loop has a
-            # Block_Nonlabel_Do_Construct which then has a Nonlabel_Do_Stmt
-            # as its child. Since we handle the former (by creating a NemoLoop)
-            # in the previous if-clause, we don't need to do anything with
-            # the Nonlabel_Do_Stmt and so return None.
-            return None
         if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
         return super(NemoFparser2ASTProcessor,
@@ -101,6 +141,7 @@ class NemoInvoke(Invoke):
     :param str name: the name of this Invoke (program unit).
     '''
     def __init__(self, ast, name):
+        # pylint: disable=super-init-not-called
         self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
@@ -143,10 +184,11 @@ class NemoInvokes(Invokes):
     Class capturing information on all 'Invokes' (program units) within
     a single NEMO source file.
 
-    :param ast: The fparser2 AST for the whole Fortran source file
+    :param ast: the fparser2 AST for the whole Fortran source file.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
     def __init__(self, ast):
+        # pylint: disable=super-init-not-called
         from fparser.two.Fortran2003 import Main_Program,  \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, Name
 
@@ -203,6 +245,7 @@ class NemoPSy(PSy):
                            supplied AST.
     '''
     def __init__(self, ast):
+        # pylint: disable=super-init-not-called
         names = walk_ast(ast.content, [Fortran2003.Name])
         # The name of the program unit will be the first in the list
         if not names:
@@ -246,7 +289,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
 
-    :param invoke: The Invoke to which this NemoInvokeSchedule belongs.
+    :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
     :param ast: the fparser2 AST of the NEMO code for which to generate \
                 a NemoInvokeSchedule.
@@ -256,6 +299,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
     '''
     def __init__(self, invoke, ast):
+        # pylint: disable=super-init-not-called, non-parent-init-called
         Node.__init__(self)
         NemoFparser2ASTProcessor.__init__(self)
 
@@ -290,7 +334,7 @@ class NemoKern(CodedKern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
-    :param parse_tree: Reference to the innermost loop in the fparser2 parse \
+    :param parse_tree: reference to the innermost loop in the fparser2 parse \
                        tree that encloses this kernel.
     :type parse_tree: \
               :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
@@ -300,6 +344,7 @@ class NemoKern(CodedKern):
 
     '''
     def __init__(self, psyir_nodes, parse_tree, parent=None):
+        # pylint: disable=super-init-not-called
         from psyclone.psyGen import KernelSchedule
         self._name = ""
         self._parent = parent
@@ -325,17 +370,22 @@ class NemoKern(CodedKern):
         loops or 'CodeBlocks' (code not represented in the PSyIR such as
         subroutine calls or IO operations).
 
-        :param node: Node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyGen.Node`
-        :returns: True if this node conforms to the rules for a kernel.
+        :param node: node in the PSyIR to check.
+        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
-        if node.walk(node.children, (CodeBlock, NemoLoop)):
-            # A kernel cannot contain unrecognised code (including IO
-            # operations and routine calls) or loops.
-            return False
-        return True
+        # This function is called with node being a Schedule.
+        if not isinstance(node, Schedule):
+            raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
+                                format(type(node)))
+        nodes = node.walk((CodeBlock, NemoLoop))
+
+        # A kernel cannot contain loops or other unrecognised code (including
+        # IO operations and routine calls) or loops. So if there is any
+        # node in the result of the walk, this node can not be a kernel.
+        return len(nodes) == 0
 
     def local_vars(self):
         '''
@@ -377,139 +427,20 @@ class NemoKern(CodedKern):
         return self._ast
 
 
-class NemoLoop(Loop, NemoFparser2ASTProcessor):
+class NemoLoop(Loop):
     '''
     Class representing a Loop in NEMO.
 
-    :param ast: node in the fparser2 AST representing the loop.
-    :type ast: :py:class:`fparser.two.Block_Nonlabel_Do_Construct`
     :param parent: parent of this NemoLoop in the PSyclone AST.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param str variable_name: optional name of the loop iterator \
+        variable. Defaults to an empty string.
     '''
-    def __init__(self, ast, parent=None):
-        from fparser.two.Fortran2003 import Loop_Control
+    def __init__(self, parent=None, variable_name=''):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
+                      variable_name=variable_name,
                       valid_loop_types=valid_loop_types)
-        NemoFparser2ASTProcessor.__init__(self)
-        # Keep a ptr to the corresponding node in the parse tree
-        self._ast = ast
-
-        # Get the loop variable
-        ctrl = walk_ast(ast.content, [Loop_Control])
-        # If this is a DO WHILE then the first element of items will
-        # not be None. The `match` method should have already rejected
-        # such loops so we should never get to here.
-        if ctrl[0].items[0]:
-            raise InternalError("NemoLoop constructor should not have been "
-                                "called for a DO WHILE")
-
-        # Second element of items member of Loop Control is itself a tuple
-        # containing:
-        #   Loop variable, [start value expression, end value expression, step
-        #   expression]
-        # Loop variable will be an instance of Fortran2003.Name
-        loop_var = str(ctrl[0].items[1][0])
-        self._variable_name = str(loop_var)
-
-        # Identify the type of loop
-        loop_type_mapping = Config.get().api_conf("nemo")\
-            .get_loop_type_mapping()
-        if self._variable_name in loop_type_mapping:
-            self.loop_type = loop_type_mapping[self._variable_name]
-        else:
-            self.loop_type = "unknown"
-
-        # Get the loop limits. These are given in a list which is the second
-        # element of a tuple which is itself the second element of the items
-        # tuple:
-        # (None, (Name('jk'), [Int_Literal_Constant('1', None), Name('jpk'),
-        #                      Int_Literal_Constant('1', None)]), None)
-        limits_list = ctrl[0].items[1][1]
-        self._start = str(limits_list[0])
-        self._stop = str(limits_list[1])
-        if len(limits_list) == 3:
-            self._step = str(limits_list[2])
-        else:
-            # Default loop increment is 1
-            self._step = "1"
-
-        # First process the rest of the parse tree below this point
-        self.process_nodes(self, self._ast.content, self._ast)
-        # Now check the PSyIR of this loop body to see whether it is
-        # a valid kernel
-        if NemoKern.match(self):
-            # It is, so we create a new kernel object and make it the only
-            # child of this Loop node. The PSyIR of the loop body becomes
-            # the schedule of this kernel.
-            self.children = [NemoKern(self.children, self._ast, parent=self)]
-
-    @staticmethod
-    def match(node):
-        '''
-        Tests the supplied node to see whether it is a recognised form of
-        NEMO loop.
-
-        :param node: the node in the fparser2 parse tree to test for a match.
-        :type node: :py:class:`fparser.two.utils.Base`
-
-        :returns: True if the node represents a recognised form of loop, \
-                  False otherwise.
-        :rtype: bool
-
-        :raises InternalError: if the parse tree represents a loop but no \
-                               Loop_Control element is present.
-
-        '''
-        if not isinstance(node, Fortran2003.Block_Nonlabel_Do_Construct):
-            return False
-        ctrl = walk_ast(node.content, my_types=[Fortran2003.Loop_Control])
-        if not ctrl:
-            raise InternalError("Unrecognised form of DO loop - failed to "
-                                "find Loop_Control element in parse tree.")
-        if ctrl[0].items[0]:
-            # If this is a DO WHILE then the first element of items will not
-            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
-            # TODO #359 DO WHILE's are currently just put into CodeBlocks
-            # rather than being properly described in the PSyIR.
-            return False
-        return True
-
-    def __str__(self):
-        result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
-                  "=" + ",".join([self._start, self._stop, self._step]) + "\n")
-        for entity in self._children:
-            result += str(entity) + "\n"
-        result += "EndLoop"
-        return result
-
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The loop variable is
-        set as READ and WRITE. Then the loop body's access is added.
-        TODO #400: The start, stop and step values are only strings, so we
-        can't get access information. It might then also be possible to
-        just fall back to Loop.reference_accesses (which then should work).
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
-
-        var_accesses.add_access(self._variable_name, AccessType.WRITE, self)
-        var_accesses.add_access(self._variable_name, AccessType.READ, self)
-        var_accesses.next_location()
-        # TODO: atm start, stop and step are just strings, so we can't
-        # get any variable information
-        # self._start.reference_accesses(var_accesses)
-        # self._stop.reference_accesses(var_accesses)
-        # self._step.reference_accesses(var_accesses)
-        # We also can't call the base class, since it will accesses
-        # start stop etc :(
-        # super(NemoLoop, self).reference_accesses(var_accesses)
-        for child in self.children:
-            child.reference_accesses(var_accesses)
-            var_accesses.next_location()
 
     @property
     def kernel(self):
@@ -520,7 +451,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
 
         :raises NotImplementedError: if the loop contains >1 kernel.
         '''
-        kernels = self.walk(self.children, NemoKern)
+        kernels = self.walk(NemoKern)
         if kernels:
             # TODO cope with case where loop contains >1 kernel (e.g.
             # following loop fusion)
@@ -545,11 +476,24 @@ class NemoImplicitLoop(NemoLoop):
 
     '''
     def __init__(self, ast, parent=None):
+        # pylint: disable=super-init-not-called, non-parent-init-called
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
                       valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns a string containing the name of this node along with
+        control characters for colouring in terminals that support it.
+
+        :returns: The name of this node, possibly with control codes for
+                  colouring
+        :rtype: string
+        '''
+        return colored("NemoImplicitLoop", SCHEDULE_COLOUR_MAP["Loop"])
 
     def __str__(self):
         # Display the LHS of the assignment in the str representation
@@ -567,6 +511,7 @@ class NemoImplicitLoop(NemoLoop):
         :rtype: bool
 
         '''
+        # pylint: disable=too-many-return-statements
         if not isinstance(node, Fortran2003.Assignment_Stmt):
             return False
         # We are expecting something like:
@@ -616,3 +561,20 @@ class NemoImplicitLoop(NemoLoop):
                 if colons:
                     return False
         return True
+
+    def reference_accesses(self, var_accesses):
+        ''' This method should get all variable access information in this
+        PSyIR node, but at the moment ImplicitLoops reference_access are not
+        implemented and this method just increases the var_accesses location
+        counter.
+
+        TODO #440: ImplicitLoops should be implemented as a PSyIR Loops or
+        be a special PSyIR node, any implementation would need to fix the
+        reference_access method.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        var_accesses.next_location()

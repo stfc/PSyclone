@@ -33,10 +33,14 @@
 #------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
+## Introduction ##
+
 This is a very simple, single-kernel example of the use of PSyclone to
-generate an application that will run on a GPU. The kernel simply
-increments a field by adding the current value of the time-stepping
-loop index.
+generate an application that will run on a GPU. A second
+transformation script is also provided that will add profiling
+instrumentation to the PSyclone-generated code. The kernel itself
+simply increments a field by adding the current value of the
+time-stepping loop index
 
 The Makefile and this version of PSyclone work with version 1.0 of the GOcean
 API.
@@ -44,25 +48,45 @@ API.
 In order to use PSyclone you must first install it, ideally with pip.
 See ../../../README.md for more details.
 
+## Compilation ##
+
 In order to compile and run this example you will need the dl_esm_inf
-infrastructure library installed (github.com/stfc/dl_esm_inf). The directory
-containing the dl_esm_inf directory must be specified in the Makefile
-(SHARED_DIR). The compiler and flags to use are picked up from
-environment variables (and must be the same as used for the dl_esm_inf
-library). e.g. to use the PGI compiler for an NVIDIA Volta:
+infrastructure library installed (github.com/stfc/dl_esm_inf). The
+directory containing the dl_esm_inf directory can be specified in the
+Makefile (SHARED_DIR) but defaults to the location of the git submodle
+(../../../external/dl_esm_inf). The compiler and flags to use are
+picked up from environment variables (and must be the same as used for
+the dl_esm_inf library). e.g. to use the PGI compiler for an NVIDIA
+Volta:
 
 export F90=pgf90
 export F90FLAGS="-O3 -Minfo=all -acc -ta=tesla,cc70"
 export LDFLAGS="-acc -ta=tesla,cc70"
 
-Note that PSyclone transforms the kernel source and adds a
+## Profiling ##
+
+Building the `profile` target causes PSyclone to use the `acc_prof_transform.py`
+script. This uses `acc_transform.py` to do the same OpenACC transformations but
+then adds a profiling region around the body of the whole PSy layer routine.
+Compilation of this example requires that the CUDA toolkit be installed. The
+location of this toolkit can be passed to the Makefile by setting the `NVTX_DIR`
+variable, e.g.:
+
+    make NVTX_DIR=/usr/local/lib64/cuda10.0 profile
+
+This should produce a `single_prof.exe` executable which may be run
+with NVIDIA's profiling tools, either `nvprof` or `nvvp`.
+
+## Notes ##
+
+PSyclone transforms the kernel source and adds a
 '!$acc routine' to it to instruct the compiler to build it for the
 accelerator device. An alternative solution (at least, for this simple
 example) would be to use the '-Mipa=inline:reshape' compiler flag.
 (Currently PSyclone's module-inline transformation cannot be used on
 a kernel that has been transformed for use with OpenACC [issue #229].)
 
-Note also that the kernel currently has the extents of the field array
+Also, the kernel currently has the extents of the field array
 as explicit arguments. This is because PGI does not support
 assumed-size arrays within compute regions. Once PSyclone has been
 extended to automatically provide this information (issue #230), these
