@@ -32,6 +32,11 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 
 program tridiagonal_solve
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  integer :: m
+  real, dimension(n,n,n) :: a,b,c,d
   do k=1,n
      do j=1,n
         do i=1,n
@@ -48,7 +53,7 @@ program tridiagonal_solve
         end do
      end do
   end do  
-  do k=n,1,-1
+  do k=n-1,1,-1
      do j=1,n
         do i=1,n
            d(i,j,k) = d(i,j,k) - c(i,j,k)*d(i,j,k+1)

@@ -951,7 +951,7 @@ code (a KernelSchedule with all its children), these are:
 - `FortranWriter()` in `psyclone.psyir.backend.fortran`
 - `OpenCLWriter()` in `psyclone.psyir.backend.opencl`
 
-Additionally, there are two partially implemented back-ends
+Additionally, there are two partially-implemented back-ends
 
 - `psyclone.psyir.backend.c` which is currently limited to processing
   partial PSyIR expressions.
@@ -963,10 +963,10 @@ SIR back-end
 
 The SIR back-end is limited in a number of ways:
 
-- Fortran code containing 3 dimensional directly addressed arrays, with simple
-  stencil accesses, iterated with triply nested loops. Imperfectly
-  nested loops, doubly nested loops, etc will cause a VisitorError
-  exception.
+- only Fortran code containing 3 dimensional directly addressed
+  arrays, with simple stencil accesses, iterated with triply nested
+  loops is supported. Imperfectly nested loops, doubly nested loops,
+  etc will cause a ``VisitorError`` exception.
 - anything other than real arrays (integer, logical etc.) will cause
   incorrect SIR code to be produced (see issue #468).
 - calls are not supported (and will cause a VisitorError exception).
@@ -977,18 +977,18 @@ The current implementation is not able to deal with variables local to
 a region (which the SIR expects), as, in Fortran, the standard scope
 of a local variable is the whole routine, not a sub-region of code.
 
-The current implementation also outputs text rather than running dawn
+The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
-run dawn, see the NEMO API example 4.
+run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
 
 Currently there is no way to tell PSyclone to output SIR. Outputting
-SIR is acheived by writing a script which creates an SIRWriter and
+SIR is achieved by writing a script which creates an SIRWriter and
 outputs the SIR (for kernels) from the PSyIR. Whilst the main
 'psyclone' program could have a '-backend' option added it is not
 clear this would be useful here as it is expected that the SIR will be
 output only for certain parts of the PSyIR and (an)other back-end(s)
-used for the rest. It is not clear how would be best to do this at the
-moment - perhaps mark regions using a transformation.
+used for the rest. It is not yet clear best to do this - perhaps mark
+regions using a transformation.
 
 It is unlikely that the SIR will be able to accept full NEMO code due
 to its complexities (hence the comment about using different
@@ -999,7 +999,7 @@ possible. Once this is done then PSyclone will be used to generate and
 optimise the code that the SIR is not able to optimise and will let
 the SIR generate code for the bits that it is able to do. This
 approach seems a robust one but would require interface code between
-the dawn generated cuda (or other) code and the PSyclone generated
+the Dawn generated cuda (or other) code and the PSyclone generated
 Fortran. In theory PSyclone could translate the remaining code to C
 but this would require no codeblocks in the PSyIR when parsing NEMO
 (which is a difficult thing to achieve), or interface code between

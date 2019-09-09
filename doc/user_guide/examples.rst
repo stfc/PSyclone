@@ -222,6 +222,8 @@ Example 3: OpenACC parallelisation of tra_adv
 Demonstrates the introduction of simple OpenACC parallelisation (using the
 ``data`` and ``kernels`` directives) for a NEMO tracer-advection benchmark.
 
+.. _nemo-eg4-sir
+
 Example 4: Transforming Fortran code to the SIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -32,6 +32,10 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 
 program copy_stencil
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  real :: out(n+1,n+1,n+1), in(n+1,n+1,n+1)
   do k=1,n
      do j=1,n
         do i=1,n

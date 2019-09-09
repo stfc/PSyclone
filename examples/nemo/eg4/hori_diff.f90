@@ -32,6 +32,10 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 
 program hori_diff
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  real :: lap(n+1,n+1,n+1), in(0:n+1,0:n+1,n), coeff(0:n+1,0:n+1,n), out(0:n+1,0:n+1,n)
   do k=1,n
      do j=1,n
         do i=1,n
