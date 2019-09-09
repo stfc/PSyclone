@@ -257,14 +257,21 @@ class ProfileNode(Node):
     def update(self):
         '''
         Update the underlying fparser2 parse tree to implement the profiling
-        region represented by this Node.
+        region represented by this Node. This involves adding the necessary
+        module use statement as well as the calls to the profiling API.
+
+        :raises NotImplementedError: if the routine which is to have \
+                             profiling added to it does not already have a \
+                             Specification Part (i.e. some declarations).
+        :raises InternalError: if we fail to find the node in the parse tree \
+                             corresponding to the end of the profiling region.
 
         '''
         from fparser.common.sourceinfo import FortranFormat
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, Schedule
+        from psyclone.psyGen import object_index, Schedule, InternalError
         from psyclone.transformations import TransformationError
 
         # Ensure child nodes are up-to-date
@@ -343,6 +350,9 @@ class ProfileNode(Node):
             ast_end = self.children[-1].ast_end
         else:
             ast_end = self.children[-1].ast
+        # Keep a copy of the pointer into the parse tree in case of errors
+        ast_end_copy = ast_end
+
         while ast_end_index is None:
             try:
                 ast_end_index = object_index(fp_parent.content,
@@ -353,7 +363,10 @@ class ProfileNode(Node):
                 if hasattr(ast_end, "_parent") and ast_end._parent:
                     ast_end = ast_end._parent
                 else:
-                    raise TransformationError("TODO")
+                    raise InternalError(
+                        "Failed to find the location of '{0}' in the fparser2 "
+                        "Parse Tree:\n{1}\n".format(str(ast_end_copy),
+                                                    str(fp_parent.content)))
 
         # Add the profiling-end call
         reader = FortranStringReader(

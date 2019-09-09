@@ -145,8 +145,10 @@ def test_profile_codeblock(parser):
         "  CALL ProfileEnd(psy_profile0)\n" in code)
 
 
-def test_profile_inside_if(parser):
-    ''' Check that we can put a profiling region inside an If block. '''
+def test_profile_inside_if1(parser):
+    ''' Check that we can put a profiling region inside an If block when
+    we pass the transformation the first (and only) child of the Schedule
+    of the If. '''
     reader = FortranStringReader("subroutine inside_if_test()\n"
                                  "use kind_mod, only: wp\n"
                                  "real :: sto_tmp2(jpj)\n"
@@ -162,6 +164,31 @@ def test_profile_inside_if(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     ptrans = ProfileRegionTrans()
     schedule, _ = ptrans.apply(schedule.children[0].if_body[0])
+    gen_code = str(psy.gen)
+    assert ("  IF (do_this) THEN\n"
+            "    CALL ProfileStart(" in gen_code)
+    assert ("    CALL ProfileEnd(psy_profile0)\n"
+            "  END IF\n" in gen_code)
+
+
+def test_profile_inside_if2(parser):
+    ''' Check that we can put a profiling region inside an If block
+    when we pass the transformation the Schedule rather than its child. '''
+    reader = FortranStringReader("subroutine inside_if_test()\n"
+                                 "use kind_mod, only: wp\n"
+                                 "real :: sto_tmp2(jpj)\n"
+                                 "logical :: do_this = .true.\n"
+                                 "if(do_this)then\n"
+                                 "  do ji = 1,jpj\n"
+                                 "    write(*,*) sto_tmp2(ji)\n"
+                                 "  end do\n"
+                                 "endif\n"
+                                 "end subroutine inside_if_test\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    ptrans = ProfileRegionTrans()
+    schedule, _ = ptrans.apply(schedule.children[0].if_body)
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    CALL ProfileStart(" in gen_code)
@@ -290,3 +317,27 @@ def test_profiling_without_spec_part(parser):
         _ = psy.gen
     assert ("Addition of profiling regions to routines without any "
             "existing declarations is not supported" in str(err.value))
+
+
+def test_profiling_missing_end(parser):
+    ''' Check that we raise the expected error if we are unable to find
+    the end of the profiled code section in the parse tree. '''
+    from psyclone.psyGen import Loop, InternalError
+    reader = FortranStringReader("program do_loop\n"
+                                 "real :: sto_tmp(jpj)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  sto_tmp(ji) = 1.0d0\n"
+                                 "end do\n"
+                                 "end program do_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    ptrans = ProfileRegionTrans()
+    schedule, _ = ptrans.apply(schedule.children[0])
+    # Manually break the _ast_end property by making it point to the root
+    # of the whole parse tree
+    loops = schedule.walk(Loop)
+    loops[0]._ast_end = code
+    with pytest.raises(InternalError) as err:
+        psy.gen
+    assert "Failed to find the location of 'PROGRAM do_loop" in str(err.value)
