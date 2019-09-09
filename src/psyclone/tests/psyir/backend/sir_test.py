@@ -69,7 +69,7 @@ CODE = (
 
 def get_schedule(parser, code):
     '''Utility function that returns the first schedule for a code with
-    the nemo api.
+    the NEMO api.
 
     :param parser: the parser class.
     :type parser: :py:class:`fparser.two.Fortran2003.Program`
@@ -659,7 +659,7 @@ def test_sirwriter_unary_node_3(parser, sir_writer):
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.unaryoperation_node(rhs)
-    assert ("Child of unary operator should be a literal."
+    assert ("unary operators can only be applied to literals."
             in str(excinfo.value))
 
 

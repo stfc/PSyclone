@@ -34,8 +34,11 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 
 '''Module providing a transformation script that converts the supplied
-Kernels to CUDA via the SIR intermediate representation and DAWN
-backend.
+PSyIR to the Stencil intermediate representation (SIR). Translation to
+the SIR is limited to the NEMO API. The NEMO API has no algorithm
+layer so all of the original code is captured in the invoke
+objects. Therefore by translating all of the invoke objects, all of
+the original code is translated.
 
 '''
 from __future__ import print_function
@@ -43,9 +46,9 @@ from psyclone.psyir.backend.sir import SIRWriter
 
 
 def trans(psy):
-    '''Transformation routine for use with PSyclone. Applies the
-    PSyIR2SIR transform to the supplied kernels and then calls the
-    DAWN backend to generate CUDA code.
+    '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
+    transform to the supplied invokes. This transformation is limited
+    the NEMO API.
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -54,7 +57,9 @@ def trans(psy):
 
     '''
     sir_writer = SIRWriter()
-    # For each Invoke write out the SIR resprentation of the schedule.
+    # For each Invoke write out the SIR representation of the
+    # schedule. Note, there is no algorithm layer in the NEMO API so
+    # the invokes represent all of the original code.
     for invoke in psy.invokes.invoke_list:
         sched = invoke.schedule
         kern = sir_writer(sched)

@@ -72,9 +72,9 @@ def gen_stencil(node):
         elif isinstance(child, BinaryOperation):
             if isinstance(child.children[0], Reference) and \
                isinstance(child.children[1], Literal):
-                if child.operator.name == "SUB":
+                if child.operator == BinaryOperation.Operator.SUB:
                     dims.append("-"+child.children[1].value)
-                elif child.operator.name == "ADD":
+                elif child.operator == BinaryOperation.Operator.ADD:
                     dims.append(child.children[1].value)
                 else:
                     raise VisitorError(
@@ -94,7 +94,7 @@ def gen_stencil(node):
 
 class SIRWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-SIR back end for PSyIR kernel code (not
-    currently PSyIR algorithm code which has its own gen method for
+    currently PSyIR pay-layer code which has its own gen method for
     generating Fortran).
 
     :param bool skip_nodes: if skip_nodes is False then an exception \
@@ -113,6 +113,10 @@ class SIRWriter(PSyIRVisitor):
                  initial_indent_depth=0):
         super(SIRWriter, self).__init__(skip_nodes, indent_string,
                                         initial_indent_depth)
+        # The _field_names variable stores the unique field names
+        # found in the PSyIR. This is required as the SIR declares
+        # field names after the computation using the fields has been
+        # specified.
         self._field_names = set()
 
     def node_node(self, node):
@@ -147,11 +151,11 @@ class SIRWriter(PSyIRVisitor):
 
     def nemoloop_node(self, loop_node):
         '''Supported NEMO loops are triply nested with particular indices (not
-        yet checked) and should contain a nemokern. If this is not the
+        yet checked) and should contain a NemoKern. If this is not the
         case then it is not possible to translate so an exception is
         raised.
 
-        :param loop_node: a nemoLoop PSyIR node.
+        :param loop_node: a NemoLoop PSyIR node.
         :type loop_node: subclass of :py:class:`psyclone.nemo.NemoLoop`
 
         :returns: the SIR code as a string.
@@ -188,10 +192,9 @@ class SIRWriter(PSyIRVisitor):
         self._depth += 1
         result += self.nemokern_node(loop_content[0])
         self._depth -= 1
-        if result[-1] == "\n" and result[-2] == ",":
-            # Remove the additional comma as this is the last entry in
-            # makeAST.
-            result = result[:-2] + "\n"
+        # Remove the trailing comma if there is one as this is the
+        # last entry in makeAST.
+        result = result.rstrip(",\n") + "\n"
         result += "{0}])\n".format(self._nindent)
         # For the moment there is a hard coded assumption that the
         # vertical looping is in the forward (1..n) direction (see
@@ -203,7 +206,7 @@ class SIRWriter(PSyIRVisitor):
 
     def nemokern_node(self, node):
         '''NEMO kernels are a group of nodes collected into a schedule
-        so simply call the nodes in the schedule.
+        so simply visit the nodes in the schedule.
 
         :param node: a NemoKern PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoKern`
@@ -237,9 +240,7 @@ class SIRWriter(PSyIRVisitor):
         exec_statements = ""
         for child in node.children:
             exec_statements += self._visit(child)
-        result += (
-            "{0}\n"
-            "".format(exec_statements))
+        result += "{0}\n".format(exec_statements)
         # The file name is hard coded at the moment.
         result += (
             "{0}hir = makeSIR(stencilname+\".cpp\", [\n"
@@ -274,9 +275,8 @@ class SIRWriter(PSyIRVisitor):
         self._depth -= 1
         result = ("{0}makeAssignmentStmt(\n{1},\n{2}"
                   "".format(self._nindent, lhs, rhs))
-        if result[-1] == '\n':
-            # For better formatting, remove the newline if one exists.
-            result = result[:-1]
+        # For better formatting, remove the newline if one exists.
+        result = result.rstrip("\n")
         result += ",\n"
         result += "{0}{1}\"=\"),\n".format(self._nindent, self._indent)
         return result
@@ -312,9 +312,8 @@ class SIRWriter(PSyIRVisitor):
         rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}makeBinaryOperator(\n{1}".format(self._nindent, lhs)
-        if result[-1] == '\n':
-            # For better formatting, remove the newline if one exists.
-            result = result[:-1]
+        # For better formatting, remove the newline if one exists.
+        result = result.rstrip("\n")
         result += ",\n"
         result += ("{0}{1}\"{2}\",\n{3}\n{0}{1})\n"
                    "".format(self._nindent, self._indent, oper, rhs))
@@ -353,7 +352,10 @@ class SIRWriter(PSyIRVisitor):
         stencil = gen_stencil(node)
         result = ("{0}makeFieldAccessExpr(\"{1}\",{2})"
                   "".format(self._nindent, node.name, stencil))
-        # _field_names is a set so duplicates will be ignored.
+        # _field_names is a set so duplicates will be ignored. It
+        # captures all unique field names as the SIR declares field
+        # names after the computation using the fields has been
+        # specified.
         self._field_names.add(node.name)
         return result
 
@@ -401,7 +403,8 @@ class SIRWriter(PSyIRVisitor):
         # Currently only '-<literal>' is supported in the SIR mapping.
         if not (len(node.children) == 1 and
                 isinstance(node.children[0], Literal)):
-            raise VisitorError("Child of unary operator should be a literal.")
+            raise VisitorError(
+                "Currently, unary operators can only be applied to literals.")
         result = node.children[0].value
         # There is an assumption here that the literal is a float (see #468)
         return ("{0}makeLiteralAccessExpr(\"{1}{2}\", BuiltinType.Float)"

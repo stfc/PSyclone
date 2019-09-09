@@ -31,6 +31,9 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 
+! Illustration of performing a tri-diagonal solve in the vertical (k
+! dimension). This is a Fortran implementation of the Dawn Python
+! example.
 program tridiagonal_solve
   implicit none
   integer, parameter :: n=10
