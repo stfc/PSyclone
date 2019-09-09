@@ -41,7 +41,7 @@ from optparse import OptionParser
 from ctypes import c_char_p, CDLL
 from config import __dawn_install_dawnclib__
 from dawn import *
-from dawn import sir_printer
+# from dawn import sir_printer
 
 DAWN = CDLL(__dawn_install_dawnclib__)
 
@@ -56,16 +56,16 @@ PARSER.add_option("-v", "--verbose",
 (OPTIONS, _) = PARSER.parse_args()
 
 
-## Print the SIR to stdout only in verbose mode
+# Print the SIR to stdout only in verbose mode
 if OPTIONS.verbose:
     T = textwrap.TextWrapper(initial_indent=' '*1, width=120,
                              subsequent_indent=' '*1)
     DES = sir_printer.SIRPrinter()
 
-    #  DES.visitGlobalVariables(hir.global_variables)
+    # DES.visit_global_variables(hir.global_variables)
 
     for stencil in hir.stencils:
-        DES.visitStencil(stencil)
+        DES.visit_stencil(stencil)
 
 # serialize the hir to pass it to the compiler
 HIR_STR = hir.SerializeToString()
@@ -84,7 +84,7 @@ CODE = DAWN.dawnTranslationUnitGetStencil(TRANS_UNIT, B_STENCIL_NAME)
 
 # write to file
 MY_FILE = open(os.path.dirname(os.path.realpath(__file__)) +
-               "/data/" + stencil_name + ".cpp", "w")
+               stencil_name + ".cpp", "w")
 MY_FILE.write(c_char_p(CODE).value.decode("utf-8"))
 
 MY_FILE.close()
