@@ -36,13 +36,10 @@
 '''Example wrapper to run PSyclone generated SIR code in DAWN.'''
 
 import textwrap
-import sys
-import argparse
-import ctypes
 import os.path
 from optparse import OptionParser
-from ctypes import *
-from config import __dawn_install_module__, __dawn_install_dawnclib__
+from ctypes import c_char_p, CDLL
+from config import __dawn_install_dawnclib__
 from dawn import *
 from dawn import sir_printer
 
@@ -81,13 +78,13 @@ DAWN.dawnOptionsSet(DAWN_OPTIONS, "Backend".encode('utf-8'), BACKEND)
 
 # call the compiler that generates a translation unit
 TRANS_UNIT = DAWN.dawnCompile(HIR_STR, len(HIR_STR), DAWN_OPTIONS)
-B_STENCIL_NAME = stencilname.encode('utf-8')
+B_STENCIL_NAME = stencil_name.encode('utf-8')
 # get the code of the translation unit for the given stencil
 CODE = DAWN.dawnTranslationUnitGetStencil(TRANS_UNIT, B_STENCIL_NAME)
 
 # write to file
 MY_FILE = open(os.path.dirname(os.path.realpath(__file__)) +
-         "/data/" + stencilname + ".cpp", "w")
-MY_FILE.write(ctypes.c_char_p(CODE).value.decode("utf-8"))
+               "/data/" + stencil_name + ".cpp", "w")
+MY_FILE.write(c_char_p(CODE).value.decode("utf-8"))
 
 MY_FILE.close()
