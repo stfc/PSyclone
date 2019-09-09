@@ -46,48 +46,48 @@ from config import __dawn_install_module__, __dawn_install_dawnclib__
 from dawn import *
 from dawn import sir_printer
 
-dawn = CDLL(__dawn_install_dawnclib__)
+DAWN = CDLL(__dawn_install_dawnclib__)
 
 # PSyclone code start
 # PSyclone code end
 
-parser = OptionParser()
-parser.add_option("-v", "--verbose",
+PARSER = OptionParser()
+PARSER.add_option("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
                   help="print the SIR")
 
-(options, args) = parser.parse_args()
+(OPTIONS, _) = PARSER.parse_args()
 
 
 ## Print the SIR to stdout only in verbose mode
-if options.verbose:
+if OPTIONS.verbose:
     T = textwrap.TextWrapper(initial_indent=' '*1, width=120,
                              subsequent_indent=' '*1)
-    des = sir_printer.SIRPrinter()
+    DES = sir_printer.SIRPrinter()
 
-    #  des.visitGlobalVariables(hir.global_variables)
+    #  DES.visitGlobalVariables(hir.global_variables)
 
     for stencil in hir.stencils:
-        des.visitStencil(stencil)
+        DES.visitStencil(stencil)
 
 # serialize the hir to pass it to the compiler
-hirstr = hir.SerializeToString()
+HIR_STR = hir.SerializeToString()
 
 # create the options to control the compiler
-options = dawn.dawnOptionsCreate()
+DAWN_OPTIONS = DAWN.dawnOptionsCreate()
 # we set the backend of the compiler to cuda
-backend = dawn.dawnOptionsEntryCreateString("cuda".encode('utf-8'))
-dawn.dawnOptionsSet(options, "Backend".encode('utf-8'), backend)
+BACKEND = DAWN.dawnOptionsEntryCreateString("cuda".encode('utf-8'))
+DAWN.dawnOptionsSet(DAWN_OPTIONS, "Backend".encode('utf-8'), BACKEND)
 
 # call the compiler that generates a translation unit
-tu = dawn.dawnCompile(hirstr, len(hirstr), options)
-b_stencilName = stencilname.encode('utf-8')
+TRANS_UNIT = DAWN.dawnCompile(HIR_STR, len(HIR_STR), DAWN_OPTIONS)
+B_STENCIL_NAME = stencilname.encode('utf-8')
 # get the code of the translation unit for the given stencil
-code = dawn.dawnTranslationUnitGetStencil(tu, b_stencilName)
+CODE = DAWN.dawnTranslationUnitGetStencil(TRANS_UNIT, B_STENCIL_NAME)
 
 # write to file
-f = open(os.path.dirname(os.path.realpath(__file__)) +
+MY_FILE = open(os.path.dirname(os.path.realpath(__file__)) +
          "/data/" + stencilname + ".cpp", "w")
-f.write(ctypes.c_char_p(code).value.decode("utf-8"))
+MY_FILE.write(ctypes.c_char_p(CODE).value.decode("utf-8"))
 
-f.close()
+MY_FILE.close()

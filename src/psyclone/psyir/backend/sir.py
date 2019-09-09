@@ -89,7 +89,7 @@ def gen_stencil(node):
             raise VisitorError(
                 "gen_stencil unsupported (non-stencil) index found '{0}'."
                 "".format(str(child)))
-    return "[{0}]".format(",".join(dims))
+    return "[{0}]".format(", ".join(dims))
 
 
 class SIRWriter(PSyIRVisitor):
@@ -186,22 +186,23 @@ class SIRWriter(PSyIRVisitor):
                 "Child of child of child of loop should be a NemoKern.")
 
         # The interval values are hardcoded for the moment (see #470).
-        result = ("{0}interval = makeInterval(Interval.Start, Interval.End, "
+        result = ("{0}interval = make_interval(Interval.Start, Interval.End, "
                   "0, 0)\n".format(self._nindent))
-        result += ("{0}bodyAST = makeAST([\n".format(self._nindent))
+        result += ("{0}body_ast = make_ast([\n".format(self._nindent))
         self._depth += 1
         result += self.nemokern_node(loop_content[0])
         self._depth -= 1
         # Remove the trailing comma if there is one as this is the
-        # last entry in makeAST.
+        # last entry in make_ast.
         result = result.rstrip(",\n") + "\n"
         result += "{0}])\n".format(self._nindent)
         # For the moment there is a hard coded assumption that the
         # vertical looping is in the forward (1..n) direction (see
         # #470).
-        result += ("{0}verticalRegionFns.append(makeVerticalRegionDeclStmt("
-                   "bodyAST, interval, VerticalRegion.Forward))\n"
-                   "".format(self._nindent))
+        result += (
+            "{0}verticalRegionFns.append(make_vertical_region_decl_stmt("
+            "body_ast, interval, VerticalRegion.Forward))\n"
+            "".format(self._nindent))
         return result
 
     def nemokern_node(self, node):
@@ -243,15 +244,15 @@ class SIRWriter(PSyIRVisitor):
         result += "{0}\n".format(exec_statements)
         # The file name is hard coded at the moment.
         result += (
-            "{0}hir = makeSIR(stencilname+\".cpp\", [\n"
-            "{0}{1}makeStencil(\n"
+            "{0}hir = make_sir(stencilname+\".cpp\", [\n"
+            "{0}{1}make_stencil(\n"
             "{0}{1}{1}stencilname,\n"
-            "{0}{1}{1}makeAST(verticalRegionFns),\n"
+            "{0}{1}{1}make_ast(verticalRegionFns),\n"
             "{0}{1}{1}[".format(self._nindent, self._indent))
         functions = []
         for name in self._field_names:
-            functions.append("makeField(\"{0}\")".format(name))
-        result += ",".join(functions)
+            functions.append("make_field(\"{0}\")".format(name))
+        result += ", ".join(functions)
         result += "]\n"
         result += (
             "{0}{1})\n"
@@ -273,7 +274,7 @@ class SIRWriter(PSyIRVisitor):
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
         self._depth -= 1
-        result = ("{0}makeAssignmentStmt(\n{1},\n{2}"
+        result = ("{0}make_assignment_stmt(\n{1},\n{2}"
                   "".format(self._nindent, lhs, rhs))
         # For better formatting, remove the newline if one exists.
         result = result.rstrip("\n")
@@ -350,7 +351,7 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         stencil = gen_stencil(node)
-        result = ("{0}makeFieldAccessExpr(\"{1}\",{2})"
+        result = ("{0}make_field_access_expr(\"{1}\", {2})"
                   "".format(self._nindent, node.name, stencil))
         # _field_names is a set so duplicates will be ignored. It
         # captures all unique field names as the SIR declares field
