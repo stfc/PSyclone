@@ -7708,12 +7708,13 @@ class Fparser2ASTProcessor(object):
             # notation.
             for assign in assigns:
                 _ = _array_notation_rank(assign.lhs)
-            # TODO if the supplied code accidentally omits array notation
-            # for an array reference on the RHS then we will identify it
-            # as a scalar and the code produced from the PSyIR will not
+            # TODO #500 if the supplied code accidentally omits array
+            # notation for an array reference on the RHS then we will
+            # identify it as a scalar and the code produced from the
+            # PSyIR (using e.g. the Fortran backend) will not
             # compile. In practise most scalars are likely to be local
-            # and so we can check for their declarations. However, those
-            # imported from a module will still be missed.
+            # and so we can check for their declarations. However,
+            # those imported from a module will still be missed.
             arrays = parent.walk(Array)
             first_rank = None
             for array in arrays:
@@ -7773,13 +7774,14 @@ class Fparser2ASTProcessor(object):
             # Now create a loop nest of depth `rank`
             new_parent = parent
             for idx in range(rank, 0, -1):
-                # TODO we should be using the SymbolTable for the new loop
+                # TODO #500 we should be using the SymbolTable for the new loop
                 # variable but that doesn't currently work for NEMO.
                 loop_vars[idx-1] = "widx{0}".format(idx)
                 loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1])
                 # Add start, stop and step children to this loop
                 loop.addchild(Literal("1", parent=loop))
-                #TODO we shouldn't just stick the SIZE expression in a Literal!
+                #TODO we shouldn't just stick the SIZE expression in a Literal
+                # but the PSyIR does not yet support the SIZE intrinsic.
                 loop.addchild(Literal("SIZE({0}, {1})".format(arrays[0].name,
                                                               idx),
                                       parent=loop))
