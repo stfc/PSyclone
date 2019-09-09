@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+##===-----------------------------------------------------------------------------*- Python -*-===##
+##                          _                      
+##                         | |                     
+##                       __| | __ ___      ___ ___  
+##                      / _` |/ _` \ \ /\ / / '_  | 
+##                     | (_| | (_| |\ V  V /| | | |
+##                      \__,_|\__,_| \_/\_/ |_| |_| - Compiler Toolchain
+##
+##
+##  This file is distributed under the MIT License (MIT). 
+##  See LICENSE.txt for details.
+##
+##===------------------------------------------------------------------------------------------===##
+
+__dawn_versioninfo__ = (@DAWN_VERSION_MAJOR@, @DAWN_VERSION_MINOR@, @DAWN_VERSION_PATCH@)
+__dawn_install_module__ = '@DAWN_INSTALL_MODULE@'
+__dawn_install_dawnclib__ = '@DAWN_INSTALL_DAWNCLIB@'
