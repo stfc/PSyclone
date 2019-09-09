@@ -1992,7 +1992,8 @@ class ACCEnterDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def gen_code(self, parent):
-        '''Generate the elements of the f2pygen AST for this Node in the Schedule.
+        '''Generate the elements of the f2pygen AST for this Node in the
+        Schedule.
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -3726,6 +3727,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
+        self.opencl_options = {}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
