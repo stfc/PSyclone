@@ -309,7 +309,7 @@ class ProfileNode(Node):
         # Create a name for this region by finding where this profiling
         # node is in the list of profiling nodes in this Invoke.
         sched = self.root
-        pnodes = sched.walk(sched.children, ProfileNode)
+        pnodes = sched.walk(ProfileNode)
         region_idx = pnodes.index(self)
         region_name = "r{0}".format(region_idx)
         var_name = "psy_profile{0}".format(region_idx)
