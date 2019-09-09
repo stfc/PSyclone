@@ -198,15 +198,14 @@ def test_set_kern_float_arg():
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the bc_ssh_code OpenCL Kernel
-      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
-      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(a_scalar), C_LOC(a_scalar))
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
+      CALL check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
       CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstop), C_LOC(xstop))
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(tmask), C_LOC(tmask))
-      CALL check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
     # TODO #459: the usage of scalar variables in the code causes compilation
@@ -256,7 +255,7 @@ def test_opencl_kernel_code_generation():
         "  int j = get_global_id(1);\n"
         "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
         " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
-        "}\n"
+        "}\n\n"
         )
 
     openclwriter = OpenCLWriter()

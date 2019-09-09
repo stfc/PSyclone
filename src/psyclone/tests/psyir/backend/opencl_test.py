@@ -181,4 +181,4 @@ def test_oclw_kernelschedule():
         "  int i = get_global_id(0);\n" \
         "  int j = get_global_id(1);\n" \
         "  return;\n" \
-        "}\n"
+        "}\n\n"

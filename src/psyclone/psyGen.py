@@ -3958,11 +3958,16 @@ class CodedKern(Kern):
         while not fdesc:
             name_idx += 1
 
+            new_suffix = "_{0}".format(name_idx)
+
+            if len(self.parent.kernels()) > 1:
+                new_suffix = self.name + "_" + new_suffix
+
             # Choose suffix
-            if Config.get().kernel_naming == "single":
-                new_suffix = "_{0}".format(self.name)
-            else:
-                new_suffix = "_{0}_{1}".format(self.name, name_idx)
+            # if Config.get().kernel_naming == "single":
+            #     new_suffix = "_{0}".format(self.name)
+            # else:
+            #     new_suffix = "_{0}_{1}".format(self.name, name_idx)
 
             # Choose file extension
             if self.root.opencl:
