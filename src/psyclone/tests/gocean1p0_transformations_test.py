@@ -66,13 +66,6 @@ def setup():
     Config._instance = None
 
 
-@pytest.fixture
-def outputdir(tmpdir, monkeypatch):
-    '''Sets the Psyclone _kernel_output_dir Config parameter to tmpdir.'''
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
-
-
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
@@ -1472,7 +1465,7 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
 
-def test_ocl_apply(outputdir):
+def test_ocl_apply(kernel_outputdir):
     ''' Check that OCLTrans generates correct code '''
     from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
@@ -1613,32 +1606,21 @@ def test_acc_data_copyin(tmpdir):
     accpt = ACCParallelTrans()
     accdt = ACCEnterDataTrans()
 
-    # Put each loop within an OpenACC parallel region
+     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
             new_sched, _ = accpt.apply(child)
 
     # Create a data region for the whole schedule
     new_sched, _ = accdt.apply(new_sched)
-
     invoke.schedule = new_sched
     code = str(psy.gen)
 
-    # Check that we've correctly declared the logical variable that
-    # records whether this is the first time we've entered this invoke.
-    assert "LOGICAL, save :: first_time=.True." in code
-
-    pcopy = (
-        "      IF (first_time) THEN\n"
-        "        !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
+    assert (
+        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
         "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-        "unew_fld%data,uold_fld,uold_fld%data)\n"
-        "        first_time = .false.\n")
-    assert pcopy in code
-    for obj in ["u_fld", "v_fld", "p_fld", "cu_fld", "cv_fld", "unew_fld"]:
-        assert "{0}%data_on_device = .true.".format(obj) in code
-    assert ("        uold_fld%data_on_device = .true.\n"
-            "      END IF \n" in code)
+        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1675,111 +1657,6 @@ def test_acc_data_grid_copyin(tmpdir):
         assert "{0}%data_on_device = .true.".format(obj) in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_rscalar_update(tmpdir):
-    '''
-    Check that we generate code to update any real scalar kernel arguments on
-    the device.
-    '''
-    psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
-    schedule = invoke.schedule
-
-    accpt = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
-    # Put each loop within an OpenACC parallel region
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
-
-    # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
-    code = str(psy.gen)
-    # Check that the use statement has been added
-    assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-            "      USE openacc, ONLY: acc_update_device" in code)
-    expected = '''\
-      ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(a_scalar, 1)
-      !
-      !$acc parallel default(present)
-      DO j=1,jstop+1'''
-    assert expected in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_iscalar_update(tmpdir):
-    '''
-    Check that we generate code to update any integer scalar kernel arguments
-    on the device.
-    '''
-    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0)
-    schedule = invoke.schedule
-
-    accpt = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
-    # Put each loop within an OpenACC parallel region
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
-
-    # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
-    code = str(psy.gen)
-    # Check that the use statement has been added
-    assert ("USE kernel_scalar_int, ONLY: bc_ssh_code\n"
-            "      USE openacc, ONLY: acc_update_device" in code)
-    expected = '''\
-      ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(ncycle, 1)
-      !
-      !$acc parallel default(present)
-      DO j=1,jstop+1'''
-    assert expected in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_update_two_scalars(tmpdir):
-    '''
-    Check that we generate two separate acc_update_device() calls when
-    we have two scalars.
-    '''
-    psy, invoke = get_invoke("single_invoke_two_kernels_scalars.f90", API,
-                             idx=0)
-    schedule = invoke.schedule
-
-    accpt = ACCParallelTrans()
-    accdt = ACCEnterDataTrans()
-
-    # Put each loop within an OpenACC parallel region
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            new_sched, _ = accpt.apply(child)
-
-    # Create a data region for the whole schedule
-    new_sched, _ = accdt.apply(new_sched)
-
-    invoke.schedule = new_sched
-    code = str(psy.gen)
-
-    # Check that the use statement has been added
-    assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-            "      USE openacc, ONLY: acc_update_device" in code)
-    expected = '''\
-      ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(a_scalar, 1)
-      CALL acc_update_device(ncycle, 1)
-      !
-      !$acc parallel default(present)
-      DO j=1,jstop+1'''
-    assert expected in code
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -2016,5 +1893,5 @@ def test_acc_kernels_error():
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:
         _, _ = accktrans.apply(schedule.children)
-    assert ("kernels regions are currently only supported for the nemo API"
-            in str(err))
+    assert ("kernels regions are currently only supported for the nemo"
+            " and dynamo0.3 front-ends" in str(err))

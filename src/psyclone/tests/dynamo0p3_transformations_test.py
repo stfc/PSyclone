@@ -6642,40 +6642,123 @@ def test_intergrid_err(dist_mem):
         lftrans.apply(loops[0], loops[1])
     assert expected_err in str(excinfo)
 
+# Start OpenACC section
 
-def test_no_acc():
+
+# Class ACCEnterDataTrans start
+def test_accenterdatatrans():
+    '''Test that an ACCEnterDataTrans transformation can add an OpenACC
+    Enter Data directive to the PSy-layer in the dynamo0.3 API.
+
     '''
-    Check that attempting to add any sort of OpenACC directive to a
-    dynamo0p3 InvokeSchedule causes an error.
-
-    '''
-    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-        ACCParallelTrans
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    acclt = ACCLoopTrans()
-
+    from psyclone.transformations import ACCEnterDataTrans
+    from psyclone.psyGen import ACCEnterDataDirective
+    acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
+                                 "1_single_invoke.f90"))
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_enter_trans.apply(sched)
+    assert isinstance(sched[0], ACCEnterDataDirective)
+    # This code can't be generated as ACCEnterData requires at least one
+    # parallel directive within its region and this example does not
+    # add one.
 
-    with pytest.raises(NotImplementedError) as err:
-        _ = accdt.apply(sched)
-    assert ("ACCEnterDataDirective not implemented for a schedule of type "
-            in str(err))
+# Class ACCEnterDataTrans end
 
-    with pytest.raises(NotImplementedError) as err:
-        _ = accpt.apply(sched.children)
-    assert ("OpenACC parallel regions are currently only supported for "
-            "the gocean 1.0 and nemo APIs" in str(err))
 
-    with pytest.raises(NotImplementedError) as err:
-        _ = acclt.apply(sched.children[0])
-    assert ("OpenACC loop transformations are currently only supported for "
-            "the gocean 1.0 and nemo APIs" in str(err))
+# Class ACCKernelsTrans start
+def test_acckernelstrans():
+    '''
+    Test that an ACCKernelsTrans transformation can add an OpenACC
+    Kernels directive to the PSy layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCKernelsTrans
+    kernels_trans = ACCKernelsTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = kernels_trans.apply(sched.children)
+    code = str(psy.gen)
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n" in code)
+
+# Class ACCKernelsTrans end
+
+
+# Class ACCParallelTrans start
+def test_accparalleltrans():
+    '''
+    Test that an ACCParallelTrans transformation can add an OpenACC
+    Parallel directive to the PSy layer in the dynamo0.3 API. An
+    EnterData directive is also required otherwise the transformation
+    raises an exception at code-generation time.
+
+    '''
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
+        "ndf_w3,undf_w3,map_w3)\n"
+        "      !\n"
+        "      !$acc parallel default(present)\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end parallel\n") in code
+
+# Class ACCParallelTrans end
+# Class ACCLoopTrans start
+
+
+def test_acclooptrans():
+    '''Test that an ACCLoopTrans transformation can add an OpenACC Loop
+    directive to the PSy layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCLoopTrans, ACCParallelTrans, \
+        ACCEnterDataTrans
+    acc_par_trans = ACCParallelTrans()
+    acc_loop_trans = ACCLoopTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_loop_trans.apply(sched.children[0])
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
+        "ndf_w3,undf_w3,map_w3)\n"
+        "      !\n"
+        "      !$acc parallel default(present)\n"
+        "      !$acc loop independent\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end parallel\n") in code
+
+# Class ACCLoopTrans end
+
+# End OpenACC section
 
 
 def test_no_ocl():
