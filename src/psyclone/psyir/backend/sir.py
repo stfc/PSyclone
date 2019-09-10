@@ -94,7 +94,7 @@ def gen_stencil(node):
 
 class SIRWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-SIR back end for PSyIR kernel code (not
-    currently PSyIR pay-layer code which has its own gen method for
+    currently PSyIR PSy-layer code which has its own gen method for
     generating Fortran).
 
     :param bool skip_nodes: if skip_nodes is False then an exception \
@@ -115,8 +115,7 @@ class SIRWriter(PSyIRVisitor):
                                         initial_indent_depth)
         # The _field_names variable stores the unique field names
         # found in the PSyIR. This is required as the SIR declares
-        # field names after the computation using the fields has been
-        # specified.
+        # field names after the computation.
         self._field_names = set()
 
     def node_node(self, node):
@@ -356,8 +355,7 @@ class SIRWriter(PSyIRVisitor):
                   "".format(self._nindent, node.name, stencil))
         # _field_names is a set so duplicates will be ignored. It
         # captures all unique field names as the SIR declares field
-        # names after the computation using the fields has been
-        # specified.
+        # names after the computation.
         self._field_names.add(node.name)
         return result
 

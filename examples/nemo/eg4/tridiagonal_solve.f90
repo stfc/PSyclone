@@ -38,7 +38,7 @@ program tridiagonal_solve
   implicit none
   integer, parameter :: n=10
   integer :: i,j,k
-  integer :: m
+  real :: m
   real, dimension(n,n,n) :: a,b,c,d
   do k=1,n
      do j=1,n

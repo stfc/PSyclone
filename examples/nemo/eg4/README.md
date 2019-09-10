@@ -23,6 +23,9 @@ To test this, run:
 
 ## Building Dawn ##
 
+PSyclone has been tested with Dawn master commit hash
+568375f8bf3bdb064d006d958323b1b8e31b726e on Monday 9th September 2019.
+
 To build Dawn with Python support:
 
 ```
@@ -39,6 +42,7 @@ To build Dawn with Python support:
 
 ```
 > cd dawn/bundle/install/examples/python
+> cp <path>/dawn/bundle/install/examples/python/config.py .
 > python3 [copy_stencil.py, hori_diff.py, tridiagonal_solve.py]
 > ls data/[copy_stencil.cpp, hori_diff.cpp, tridiagonal_solve.cpp]
 ```

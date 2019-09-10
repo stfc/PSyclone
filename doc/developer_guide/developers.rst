@@ -987,8 +987,8 @@ outputs the SIR (for kernels) from the PSyIR. Whilst the main
 'psyclone' program could have a '-backend' option added it is not
 clear this would be useful here as it is expected that the SIR will be
 output only for certain parts of the PSyIR and (an)other back-end(s)
-used for the rest. It is not yet clear best to do this - perhaps mark
-regions using a transformation.
+used for the rest. It is not yet clear how best to do this - perhaps
+mark regions using a transformation.
 
 It is unlikely that the SIR will be able to accept full NEMO code due
 to its complexities (hence the comment about using different
