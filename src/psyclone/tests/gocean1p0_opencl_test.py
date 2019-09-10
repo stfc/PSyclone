@@ -119,7 +119,7 @@ def test_psy_init(kernel_outputdir):
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init\n"
+        "        CALL ocl_env_init(1)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "

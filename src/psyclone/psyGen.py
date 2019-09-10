@@ -419,6 +419,7 @@ class Invokes(object):
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         opencl_kernels = []
+        opencl_num_queues = 0
         generate_ocl_init = False
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
@@ -428,15 +429,19 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
+                opencl_num_queues = max(
+                    opencl_num_queues,
+                    invoke.schedule._opencl_options['num_queues'],
+                    key=lambda x: int(x))
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
         if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels)
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
 
     @staticmethod
-    def gen_ocl_init(parent, kernels):
+    def gen_ocl_init(parent, kernels, num_queues):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -469,7 +474,7 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init"))
+        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -1652,14 +1657,16 @@ class InvokeSchedule(Schedule):
         Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
-        self._opencl_options = {}
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barriers": True, "num_queues": "1"}
         self._name_space_manager = NameSpaceFactory().create()
 
     def set_opencl_options(self, options):
         '''
 
         '''
-        # Validate that the options given are supported
+
+        # Validate that the options given are supported and store them
         for key, value in options.items():
             if key == "end_barriers":
                 if not isinstance(value, bool):
@@ -1676,8 +1683,7 @@ class InvokeSchedule(Schedule):
                     "InvokeSchedule does not support the opencl_option '{0}'."
                     "".format(key))
 
-        # Store the options
-        self._opencl_options = options
+            self._opencl_options[key] = value
 
     @property
     def invoke(self):
@@ -1783,6 +1789,16 @@ class InvokeSchedule(Schedule):
 
         for entity in self._children:
             entity.gen_code(parent)
+
+        if self.opencl and self._opencl_options['end_barriers']:
+
+            parent.add(CommentGen(parent,
+                                  " Block until all kernels have finished"))
+
+            for i in range(1, int(self._opencl_options['num_queues'])):
+                parent.add(
+                    AssignGen(parent, lhs=flag,
+                              rhs="clFinish({0}({1}))".format(qlist, i)))
 
     @property
     def opencl(self):
@@ -3752,7 +3768,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self._opencl_options = {}
+        self._opencl_options = {'local_size': '1', 'queue_nubmer': '1'}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -3798,8 +3814,9 @@ class CodedKern(Kern):
                     "CodedKern does not support the opencl_option '{0}'."
                     "".format(key))
 
-        # Store the options and copy them in the associated KernelSchedule
-        self._opencl_options = options
+            self._opencl_options[key] = value
+
+        # If options are valid copy them in the associated KernelSchedule
         kschedule = self.get_kernel_schedule()
         kschedule.set_opencl_options(options)
 
@@ -5999,7 +6016,8 @@ class KernelSchedule(Schedule):
         Set the opencl_options map. Note that KernelSchedule expects to
         receive options which are already vaildated by the caller.
         '''
-        self._opencl_options = options
+        for key, value in options.items():
+            self._opencl_options[key] = value
 
     def view(self, indent=0):
         '''
