@@ -56,6 +56,9 @@ def trans(psy):
 
     # Transform the Schedule
     cltrans = OCLTrans()
-    cltrans.apply(sched)
+    cltrans.apply(sched, options={"end_barriers": True, "num_queues": "1"})
+
+    for kern in sched.kernels():
+        kern.set_opencl_options({"queue_number": '1', 'local_size': '4'})
 
     return psy

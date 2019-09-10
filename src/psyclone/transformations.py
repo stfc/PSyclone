@@ -2220,33 +2220,38 @@ class OCLTrans(Transformation):
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
-        sched.opencl_options = options
+
+        # This transformation stores some options into the InvokeSchedule
+        sched.set_opencl_options(options)
+
         return sched, keep
 
     def _validate(self, sched):
         '''
-        Checks that the supplied Schedule is valid and that an OpenCL
+        Checks that the supplied InvokeSchedule is valid and that an OpenCL
         version of it can be generated.
 
         :param sched: Schedule to check.
-        :type sched: :py:class:`psyclone.psyGen.Schedule`
-        :raises TransformationError: if the Schedule is not for the GOcean1.0 \
-                                     API.
+        :type sched: :py:class:`psyclone.psyGen.InvokeSchedule`
+        :raises TransformationError: if the InvokeSchedule is not for the \
+                                     GOcean1.0 API.
         :raises NotImplementedError: if any of the kernels have arguments \
                                      passed by value.
         '''
-        from psyclone.psyGen import Schedule, args_filter
+        from psyclone.psyGen import InvokeSchedule, args_filter
         from psyclone.gocean1p0 import GOInvokeSchedule
-        if isinstance(sched, Schedule):
+
+        if isinstance(sched, InvokeSchedule):
             if not isinstance(sched, GOInvokeSchedule):
                 raise TransformationError(
                     "OpenCL generation is currently only supported for the "
-                    "GOcean API but got a Schedule of type: '{0}'".
+                    "GOcean API but got an InvokeSchedule of type: '{0}'".
                     format(type(sched)))
         else:
             raise TransformationError(
                 "Error in OCLTrans: the supplied node must be a (sub-class "
-                "of) Schedule but got {0}".format(type(sched)))
+                "of) InvokeSchedule but got {0}".format(type(sched)))
+
         # Now we need to check the arguments of all the kernels
         args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)
         for arg in args:

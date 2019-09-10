@@ -1477,7 +1477,8 @@ def test_ocl_apply(kernel_outputdir):
     # transformation to something that is not an InvokeSchedule
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
-    assert "the supplied node must be a (sub-class of) Schedule " in str(err)
+    assert "the supplied node must be a (sub-class of) InvokeSchedule " \
+        "" in str(err)
 
     new_sched, _ = ocl.apply(schedule)
     assert new_sched.opencl

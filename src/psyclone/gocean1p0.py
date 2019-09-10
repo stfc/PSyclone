@@ -1019,8 +1019,8 @@ class GOKern(CodedKern):
 
         # If exists use opencl_options local_size value, otherwise 1
         loc_size_value = '1'
-        if 'local_size' in self.opencl_options:
-            loc_size_value = self.opencl_options['local_size']
+        if 'local_size' in self._opencl_options:
+            loc_size_value = self._opencl_options['local_size']
 
         parent.add(AssignGen(parent, lhs=local_size,
                              rhs="(/{0}, {0}/)".format(loc_size_value)))
@@ -1064,8 +1064,8 @@ class GOKern(CodedKern):
 
         # If exists use opencl_options queue_number value, otherwise 1
         queue_number = '1'
-        if 'queue_number' in self.opencl_options:
-            queue_number = self.opencl_options['queue_number']
+        if 'queue_number' in self._opencl_options:
+            queue_number = self._opencl_options['queue_number']
 
         cmd_queue = qlist + "({0})".format(queue_number)
 

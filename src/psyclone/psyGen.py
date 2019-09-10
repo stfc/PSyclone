@@ -1652,7 +1652,32 @@ class InvokeSchedule(Schedule):
         Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
+        self._opencl_options = {}
         self._name_space_manager = NameSpaceFactory().create()
+
+    def set_opencl_options(self, options):
+        '''
+
+        '''
+        # Validate that the options given are supported
+        for key, value in options.items():
+            if key == "end_barriers":
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        "InvokeSchedule opencl_option 'end_barriers' "
+                        "should be a boolean.")
+            elif key == "num_queues":
+                if not isinstance(value, str) or not value.isdigit():
+                    raise TypeError(
+                        "InvokeSchedule opencl_option 'num_queues' "
+                        "should be a string representing a number.")
+            else:
+                raise AttributeError(
+                    "InvokeSchedule does not support the opencl_option '{0}'."
+                    "".format(key))
+
+        # Store the options
+        self._opencl_options = options
 
     @property
     def invoke(self):
@@ -3727,7 +3752,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self.opencl_options = {}
+        self._opencl_options = {}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -3752,6 +3777,31 @@ class CodedKern(Kern):
             astp = Fparser2ASTProcessor()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
         return self._kern_schedule
+
+    def set_opencl_options(self, options):
+        '''
+        '''
+        # Validate that the options given are supported
+        for key, value in options.items():
+            if key == "local_size":
+                if not isinstance(value, str) or not value.isdigit():
+                    raise TypeError(
+                        "CodedKern opencl_option 'local_size' "
+                        "should be a string representing a number.")
+            elif key == "queue_number":
+                if not isinstance(value, str) or not value.isdigit():
+                    raise TypeError(
+                        "CodedKern opencl_option 'queue_number' "
+                        "should be a string representing a number.")
+            else:
+                raise AttributeError(
+                    "CodedKern does not support the opencl_option '{0}'."
+                    "".format(key))
+
+        # Store the options and copy them in the associated KernelSchedule
+        self._opencl_options = options
+        kschedule = self.get_kernel_schedule()
+        kschedule.set_opencl_options(options)
 
     def __str__(self):
         return "kern call: " + self._name
@@ -5917,7 +5967,7 @@ class KernelSchedule(Schedule):
         super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
-        self.opencl_options = {}
+        self._opencl_options = {}
 
     @property
     def name(self):
@@ -5943,6 +5993,13 @@ class KernelSchedule(Schedule):
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table
+
+    def set_opencl_options(self, options):
+        '''
+        Set the opencl_options map. Note that KernelSchedule expects to
+        receive options which are already vaildated by the caller.
+        '''
+        self._opencl_options = options
 
     def view(self, indent=0):
         '''
