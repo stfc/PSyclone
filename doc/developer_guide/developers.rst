@@ -2314,26 +2314,7 @@ an ``enter data`` directive to an Invoke:
    :noindex:
 
 The resulting generated code will then contain an ``enter data``
-directive protected by an ``IF(this is the first time in this
-Invoke)`` block, e.g. (for the GOcean1.0 API):
-
-.. code-block:: fortran
-
-      ! Ensure all fields are on the device and
-      ! copy them over if not.
-      IF (first_time) THEN
-        !$acc enter data  &
-        !$acc& copyin(sshn_t,sshn_t%data,un%grid,un%grid%tmask,...)
-        first_time = .false.
-        ssha_t%data_on_device = .true.
-        ...
-
-Note that the ``IF`` block is not strictly required as the OpenACC
-run-time identifies when a reference is already on the device and does
-not copy it it over again. However, when profiling an application, it
-was seen that there was a small overhead associated with doing the
-``enter data``, even when the data was already on the device. The ``IF``
-block eliminates this.
+directive.
 
 Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the
