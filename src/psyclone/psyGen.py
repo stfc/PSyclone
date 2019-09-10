@@ -6374,7 +6374,9 @@ class BinaryOperation(Operation):
         # Logical Operators
         'AND', 'OR',
         # Other Maths Operators
-        'SIGN', 'MIN', 'MAX'
+        'SIGN', 'MIN', 'MAX',
+        # Query Operators
+        'SIZE'
         ])
 
     @property
@@ -6613,6 +6615,7 @@ class Fparser2ASTProcessor(object):
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
         ('sign', BinaryOperation.Operator.SIGN),
+        ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
