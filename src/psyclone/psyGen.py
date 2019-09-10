@@ -6628,28 +6628,19 @@ class Fparser2ASTProcessor(object):
             return None
 
         # Determine whether this code block is a statement or an
-        # expression.
-        if parent.children:
-            # Find the previous entry in the PSyIR
-            prev_node = parent.children[-1]
-            if isinstance(
-                    prev_node, (Directive, GlobalSum, HaloExchange, Kern, Loop,
-                                IfBlock, Assignment, Return)):
-                # The previous node is a statement, therefore this
-                # code block must be a statement.
-                structure = CodeBlock.Structure.STATEMENT
-            elif isinstance(prev_node, (Reference, Operation, Literal)):
-                # The previous node is an expression, therefore this
-                # code block must be an expression.
-                structure = CodeBlock.Structure.EXPRESSION
-            else:
-                raise InternalError(
-                    "Fparser2ASTProcessor:nodes_to_codeblock: Unsupported "
-                    "node type '{0}' found.".format(type(prev_node).__name__))
-        else:
-            # The code block is the first entry in the
-            # PSyIR. Therefore it must be a statement.
+        # expression. Statements always have a `Schedule` as parent
+        # and expressions do not. The only unknown at this point are
+        # directives whose structure are in discussion. Therefore, for
+        # the moment, an exception is raised if a directive is found
+        # as a parent.
+        if isinstance(parent, Schedule):
             structure = CodeBlock.Structure.STATEMENT
+        elif isinstance(parent, Directive):
+            raise InternalError(
+                "Fparser2ASTProcessor:nodes_to_code_block: A CodeBlock with "
+                "a Directive as parent is not yet supported.")
+        else:
+            structure = CodeBlock.Structure.EXPRESSION
 
         code_block = CodeBlock(statements, structure=structure,
                                parent=parent)

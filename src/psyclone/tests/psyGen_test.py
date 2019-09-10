@@ -5534,8 +5534,11 @@ def test_fparser2astprocessor_do_construct_while(f2008_parser):
 
 # (1/4) fparser2astprocessor::nodes_to_code_block
 def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
-    '''Check that a codeblock that is the first node in the PSyiR has the
-    structure property set to statement.'''
+    '''Check that a statement codeblock that is at the "top level" in the
+    PSyiR has the structure property set to statement (as it has a
+    schedule as parent).
+
+    '''
     from fparser.common.readfortran import FortranStringReader
     reader = FortranStringReader('''
         program test
@@ -5553,27 +5556,26 @@ def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
 
 # (2/4) fparser2astprocessor::nodes_to_code_block
 def test_fp2astproc_nodes_to_code_block_2(f2008_parser):
-    '''Check that a codeblock that is not the first node in the PSyiR and
-    contains a statement has the structure property set to
-    statement.
+    '''Check that a statement codeblock that is within another statement
+    in the PSyiR has the structure property set to statement (as it
+    has a schedule as parent).
 
     '''
     from fparser.common.readfortran import FortranStringReader
     reader = FortranStringReader('''
         program test
-        a=1.0
-        b=0.0
-        do while(a .gt. b)
-            c = c + 1
-        end do
+        if (.true.) then
+            do while(a .gt. b)
+                c = c + 1
+            end do
+        end if
         end program test
         ''')
     prog = f2008_parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
     schedule = psy.invokes.invoke_list[0].schedule
-
-    assert isinstance(schedule[2], CodeBlock)
-    assert schedule[2].structure == CodeBlock.Structure.STATEMENT
+    assert isinstance(schedule[0].if_body[0], CodeBlock)
+    assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
 
 
 # (3/4) fparser2astprocessor::nodes_to_code_block
@@ -5600,17 +5602,14 @@ def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
 
 # (4/4) fparser2astprocessor::nodes_to_code_block
 def test_fp2astproc_nodes_to_code_block_4(f2008_parser):
-    '''Check that if the nodes_to_code_block method finds a node that it
-    does not recognise then it raises the expected exception.
+    '''Check that a codeblock that has a directive as a parent causes the
+    expected exception.
 
     '''
-    fparser = Fparser2ASTProcessor()
-    parent = Node()
-    # Add something invalid as a child
-    parent.children.append("dummy")
     with pytest.raises(InternalError) as excinfo:
-        fparser.nodes_to_code_block(parent, "dummy")
-    assert "Unsupported node type 'str' found." in str(excinfo.value)
+        _ = Fparser2ASTProcessor.nodes_to_code_block(Directive(), "hello")
+    assert ("A CodeBlock with a Directive as parent is not yet supported."
+            in (str(excinfo.value)))
 
 
 def test_missing_loop_control(f2008_parser, monkeypatch):
