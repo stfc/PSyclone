@@ -206,7 +206,9 @@ def test_fw_exception(fort_writer):
 
     unsupported = Unsupported()
     assignment = schedule[0]
-    binary_operation = assignment.children[1]
+    binary_operation = assignment.rhs
+    # The assignment.rhs method has no setter so access the reference
+    # directly instead via children.
     assignment.children[1] = unsupported
     unsupported.children = binary_operation.children
 
@@ -636,23 +638,21 @@ def test_fw_codeblock_2(fort_writer):
     assert schedule.walk(CodeBlock)
 
     # Generate Fortran from the PSyIR schedule
-    ?????
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
-    assert "do i = 1, 20, 2\n" in result
-    ?????
     result = fort_writer(schedule)
     assert "a(2,n,:)=0.0" in result
-    ?????
+
 
 def get_nemo_schedule(parser, code):
     '''Utility function that returns the first schedule for a code with
     the nemo api.
+
     :param parser: the parser class.
     :type parser: :py:class:`fparser.two.Fortran2003.Program`
     :param str code: the code as a string.
+
     :returns: the first schedule in the supplied code.
     :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
+
     '''
     from psyclone.psyGen import PSyFactory
     reader = FortranStringReader(code)

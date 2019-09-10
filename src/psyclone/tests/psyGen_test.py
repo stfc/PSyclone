@@ -2897,7 +2897,7 @@ def test_codeblock_getstatements():
     result = cblock.get_statements
     assert result == original
     # Check that the list is a copy not a reference.
-    assert id(result) != id(original)
+    assert result is not original
 
 # Test Loop class
 

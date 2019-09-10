@@ -31,11 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, S. Siso STFC Daresbury Lab.
+# Authors R. W. Ford, S. Siso STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
-nodes. Currently limited to PSyIR Kernel schedules as PSy-layer PSyIR
-already has a gen() method to generate Fortran.
+nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
+PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
@@ -47,7 +47,7 @@ def gen_intent(symbol):
     '''Given a Symbol instance as input, determine the Fortran intent that
     the Symbol should have and return the value as a string.
 
-    :param symbol: The symbol instance.
+    :param symbol: the symbol instance.
     :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
     :returns: the Fortran intent of the symbol instance in lower case, \
@@ -75,7 +75,7 @@ def gen_dims(symbol):
     '''Given a Symbol instance as input, return a list of strings
     representing the symbol's array dimensions.
 
-    :param symbol: The symbol instance.
+    :param symbol: the symbol instance.
     :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
     :returns: the Fortran representation of the symbol's dimensions as \
@@ -112,7 +112,7 @@ def gen_kind(symbol):
     symbol table needs some additional information added to it, see
     issue #375.
 
-    :param symbol: The symbol instance.
+    :param symbol: the symbol instance.
     :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
     :returns: the Fortran kind value for the symbol instance in lower \
@@ -162,9 +162,10 @@ class FortranWriter(PSyIRVisitor):
     def gen_declaration(self, symbol):
         '''Create and return the Fortran declaration for this Symbol.
 
-        :param symbol: The symbol instance.
+        :param symbol: the symbol instance.
         :type symbol: :py:class:`psyclone.psyGen.Symbol`
-        :returns: The Fortran declaration as a string.
+
+        :returns: the Fortran declaration as a string.
         :rtype: str
 
         '''
@@ -194,10 +195,10 @@ class FortranWriter(PSyIRVisitor):
         output as it is required for LFRic code. When issue #375 has
         been addressed this module can be added only when required.
 
-        :param node: A KernelSchedule PSyIR node.
+        :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         :raises VisitorError: if the name attribute of the supplied \
@@ -250,10 +251,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when an Assignment instance is found in the
         PSyIR tree.
 
-        :param node: An Assignment PSyIR node.
+        :param node: an Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Assigment`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -266,10 +267,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a BinaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: A BinaryOperation PSyIR node.
+        :param node: a BinaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -294,10 +295,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when an NaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: An NaryOperation PSyIR node.
+        :param node: an NaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.NaryOperation`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         :raises VisitorError: if an unexpected N-ary operator is found.
@@ -321,13 +322,13 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
-        :param node: A Reference PSyIR node.
+        :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Reference`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
-        :raises VisitorError: If this node has children.
+        :raises VisitorError: if this node has children.
 
         '''
         if node.children:
@@ -339,10 +340,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
 
-        :param node: An Array PSyIR node.
+        :param node: an Array PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Array`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -356,10 +357,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
-        :param node: A Literal PSyIR node.
+        :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Literal`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -370,10 +371,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
 
-        :param node: An IfBlock PSyIR node.
+        :param node: an IfBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.IfBlock`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -413,7 +414,7 @@ class FortranWriter(PSyIRVisitor):
         :param node: a Loop PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Loop`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -439,10 +440,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
-        :param node: A UnaryOperation PSyIR node.
+        :param node: a UnaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         :raises VisitorError: if an unexpected Unary op is encountered.
@@ -469,10 +470,10 @@ class FortranWriter(PSyIRVisitor):
         '''This method is called when a Return instance is found in
         the PSyIR tree.
 
-        :param node: A Return PSyIR node.
+        :param node: a Return PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Return`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -490,10 +491,10 @@ class FortranWriter(PSyIRVisitor):
         adds a newline irrespective. This is the subject of issue
         #388.
 
-        :param node: A CodeBlock PSyIR node.
+        :param node: a CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.CodeBlock`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -508,10 +509,10 @@ class FortranWriter(PSyIRVisitor):
         etc). It does not represent any code itself so all it needs to
         to is call its children and return the result.
 
-        :param node: A NemoInvokeSchedule PSyIR node.
+        :param node: a NemoInvokeSchedule PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -524,10 +525,10 @@ class FortranWriter(PSyIRVisitor):
         '''NEMO kernels are a group of nodes collected into a schedule
         so simply call the nodes in the schedule.
 
-        :param node: A NemoKern PSyIR node.
+        :param node: a NemoKern PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoKern`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
@@ -549,7 +550,7 @@ class FortranWriter(PSyIRVisitor):
         :param node: a NemoImplicitLoop PSyIR node.
         :type node: :py:class:`psyclone.psyGen.NemoImplicitLoop`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
