@@ -312,7 +312,7 @@ class SIRWriter(PSyIRVisitor):
                 "operator '{0}' found.".format(str(node.operator)))
         rhs = self._visit(node.children[1])
         self._depth -= 1
-        result = "{0}makeBinaryOperator(\n{1}".format(self._nindent, lhs)
+        result = "{0}make_binary_operator(\n{1}".format(self._nindent, lhs)
         # For better formatting, remove the newline if one exists.
         result = result.rstrip("\n")
         result += ",\n"
@@ -337,7 +337,8 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Method reference_node in class SIRWriter: SIR Reference "
                 "node is not expected to have any children.")
-        return "{0}makeVarAccessExpr(\"{1}\")".format(self._nindent, node.name)
+        return "{0}make_var_access_expr(\"{1}\")".format(self._nindent,
+                                                         node.name)
 
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
@@ -374,7 +375,7 @@ class SIRWriter(PSyIRVisitor):
         result = node.value
         # There is an assumption here that the literal is a float (see
         # #468).
-        return ("{0}makeLiteralAccessExpr(\"{1}\", BuiltinType.Float)"
+        return ("{0}make_literal_access_expr(\"{1}\", BuiltinType.Float)"
                 "".format(self._nindent, result))
 
     def unaryoperation_node(self, node):
@@ -408,5 +409,5 @@ class SIRWriter(PSyIRVisitor):
                 "Currently, unary operators can only be applied to literals.")
         result = node.children[0].value
         # There is an assumption here that the literal is a float (see #468)
-        return ("{0}makeLiteralAccessExpr(\"{1}{2}\", BuiltinType.Float)"
+        return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
                 "".format(self._nindent, oper, result))
