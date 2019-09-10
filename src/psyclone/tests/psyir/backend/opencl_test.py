@@ -127,11 +127,11 @@ def test_oclw_gen_array_length_variables():
 
 def test_oclw_kernelschedule():
     '''Check the OpenCLWriter class kernelschedule_node visitor produces
-    the expected C code.
+    the expected OpenCL code.
 
     '''
 
-    # The kernelschedule OpenCL Backend relies on abstrct methods that
+    # The kernelschedule OpenCL Backend relies on abstract methods that
     # need to be implemented by the APIs. A generic kernelschedule will
     # produce a NotImplementedError.
     oclwriter = OpenCLWriter()
@@ -170,6 +170,26 @@ def test_oclw_kernelschedule():
     result = oclwriter(kschedule)
     print(result)
     assert result == "" \
+        "__kernel void kname(\n" \
+        "  __global double * restrict data1,\n" \
+        "  __global double * restrict data2\n" \
+        "  ){\n" \
+        "  int data1LEN1 = get_global_size(0);\n" \
+        "  int data1LEN2 = get_global_size(1);\n" \
+        "  int data2LEN1 = get_global_size(0);\n" \
+        "  int data2LEN2 = get_global_size(1);\n" \
+        "  int i = get_global_id(0);\n" \
+        "  int j = get_global_id(1);\n" \
+        "  return;\n" \
+        "}\n\n"
+
+    # Set a local_size value different to 1 into the KernelSchedule
+    kschedule._opencl_options['local_size'] = '4'
+    result = oclwriter(kschedule)
+
+    assert result == "" \
+        "__attribute__((vec_type_hint(double)))\n" \
+        "__attribute__((reqd_work_group_size(4, 1, 1)))\n" \
         "__kernel void kname(\n" \
         "  __global double * restrict data1,\n" \
         "  __global double * restrict data2\n" \

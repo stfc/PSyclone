@@ -1017,13 +1017,9 @@ class GOKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
-        # If exists use opencl_options local_size value, otherwise 1
-        loc_size_value = '1'
-        if 'local_size' in self._opencl_options:
-            loc_size_value = self._opencl_options['local_size']
-
+        loc_size_value = self._opencl_options['local_size']
         parent.add(AssignGen(parent, lhs=local_size,
-                             rhs="(/{0}, {0}/)".format(loc_size_value)))
+                             rhs="(/{0}, 1/)".format(loc_size_value)))
 
         # Create Kernel name variable
         base = "kernel_" + self._name
@@ -1061,12 +1057,7 @@ class GOKern(CodedKern):
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
         cnull = "C_NULL_PTR"
-
-        # If exists use opencl_options queue_number value, otherwise 1
-        queue_number = '1'
-        if 'queue_number' in self._opencl_options:
-            queue_number = self._opencl_options['queue_number']
-
+        queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
 
         args = ", ".join([cmd_queue, kernel, "2", cnull,

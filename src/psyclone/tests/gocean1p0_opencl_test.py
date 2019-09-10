@@ -132,6 +132,31 @@ def test_psy_init(kernel_outputdir):
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
+    # Test with a non-default number of OpenCL queues
+    otrans.apply(sched, options={'num_queues': '5'})
+    generated_code = str(psy.gen)
+    expected = (
+        "    SUBROUTINE psy_init()\n"
+        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
+        "      CHARACTER(LEN=30) kernel_names(1)\n"
+        "      LOGICAL, save :: initialised=.False.\n"
+        "      ! Check to make sure we only execute this routine once\n"
+        "      IF (.not. initialised) THEN\n"
+        "        initialised = .True.\n"
+        "        ! Initialise the OpenCL environment/device\n"
+        "        CALL ocl_env_init(5)\n"
+        "        ! The kernels this PSy layer module requires\n"
+        "        kernel_names(1) = \"compute_cu_code\"\n"
+        "        ! Create the OpenCL kernel objects. Expects to find all of "
+        "the compiled\n"
+        "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
+        "        CALL add_kernels(1, kernel_names)\n"
+        "      END IF \n"
+        "    END SUBROUTINE psy_init\n")
+
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
 
 @pytest.mark.xfail(reason="Uses a variable defined in another module."
                           " Will be fixed with issue #315")

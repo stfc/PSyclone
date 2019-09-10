@@ -3768,7 +3768,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self._opencl_options = {'local_size': '1', 'queue_nubmer': '1'}
+        self._opencl_options = {'local_size': '1', 'queue_number': '1'}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -5984,7 +5984,7 @@ class KernelSchedule(Schedule):
         super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
-        self._opencl_options = {}
+        self._opencl_options = {'local_size': '1', 'queue_number': '1'}
 
     @property
     def name(self):
