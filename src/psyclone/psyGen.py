@@ -6001,7 +6001,7 @@ class CodeBlock(Node):
         else:
             self.ast = None
             self.ast_end = None
-        # Store any Code Block properties.
+        # Store the structure of the code block if one is specified.
         self._structure = structure
 
     @property
