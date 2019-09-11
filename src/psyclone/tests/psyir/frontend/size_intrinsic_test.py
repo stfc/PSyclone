@@ -46,11 +46,16 @@ def test_size(parser):
     ''' Basic test that the SIZE intrinsic is recognised and represented
     in the PSyIR. '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import Schedule, Assignment, BinaryOperation
+    from psyclone.psyGen import Schedule, Assignment, BinaryOperation, \
+        Reference, Literal
     fake_parent = Schedule()
     processor = Fparser2ASTProcessor()
-    reader = FortranStringReader("n = SIZE(a, 3)")
-    fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic], None)
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
+    for expr in ["n = SIZE(a, 3)", "n = SIZE(a(:,:,:), 3)"]:
+        reader = FortranStringReader(expr)
+        fp2intrinsic = Execution_Part(reader).content[0]
+        processor.process_nodes(fake_parent, [fp2intrinsic], None)
+        assert isinstance(fake_parent[0], Assignment)
+        assert isinstance(fake_parent[0].rhs, BinaryOperation)
+        fake_parent[0].rhs.view()
+        assert isinstance(fake_parent[0].rhs.children[0], Reference)
+        assert isinstance(fake_parent[0].rhs.children[1], Literal)
