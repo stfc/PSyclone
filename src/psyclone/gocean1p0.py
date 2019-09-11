@@ -345,15 +345,18 @@ class GOInvokeSchedule(InvokeSchedule):
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''Print a representation of this GOInvokeSchedule.
-        :param int indent: optional argument indicating the level of
-        indentation to add before outputting the class information.'''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "', Constant loop bounds=" +
-              str(self._const_loop_bounds) + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+
+        :param int indent: optional argument indicating the level of \
+                  indentation to add before outputting the class information.
+        :param int index: TODO
+        '''
+        from psyclone.psyGen import Node
+        print("{0}{1}[invoke='{2}', Constant loop bounds={3}]".format(
+            self.indent(indent), self.coloured_text, self.invoke.name,
+            self._const_loop_bounds))
+        Node.view(self, indent, index)
 
     def __str__(self):
         ''' Returns the string representation of this GOInvokeSchedule '''
@@ -774,7 +777,7 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of this Loop node to stdout.
 
@@ -785,7 +788,7 @@ class GOLoop(Loop):
         self.start_expr = Literal(self._lower_bound(), parent=self)
         self.stop_expr = Literal(self._upper_bound(), parent=self)
 
-        super(GOLoop, self).view(indent)
+        super(GOLoop, self).view(indent, index)
 
     def __str__(self):
         ''' Returns a string describing this Loop object '''

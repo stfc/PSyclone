@@ -4382,18 +4382,21 @@ class DynInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         A method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
         method to include distributed memory information.
+
         :param int indent: the amount by which to indent the output.
+        :param int index: the position of this node wrt its siblings.
+
         '''
+        from psyclone.psyGen import Node
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
               self.invoke.name + "', dm=" +
               str(Config.get().distributed_memory)+"]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, indent, index)
 
 
 class DynGlobalSum(GlobalSum):
@@ -4838,19 +4841,25 @@ class DynHaloExchange(HaloExchange):
         known = False
         return required, known
 
-    def view(self, indent=0):
-        ''' Class specific view  '''
+    def view(self, indent=0, index=0):
+        '''
+        Print view of this HaloExchange node to stdout.
+
+        :param int indent: how much to indent output by.
+        :param int index: position of this Node wrt its siblings.
+
+        '''
         _, known = self.required()
         runtime_check = not known
         field_id = self._field.name
         if self.vector_index:
             field_id += "({0})".format(self.vector_index)
-        print(self.indent(indent) + (
-            "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, field_id,
-                                      self._compute_stencil_type(),
-                                      self._compute_halo_depth(),
-                                      runtime_check)))
+        print("{0}{1}: {2}[field='{3}', type='{4}', depth={5}, "
+              "check_dirty={6}]".format(self.indent(indent), index,
+                                        self.coloured_text, field_id,
+                                        self._compute_stencil_type(),
+                                        self._compute_halo_depth(),
+                                        runtime_check))
 
     def gen_code(self, parent):
         '''Dynamo specific code generation for this class.
@@ -5515,30 +5524,32 @@ class DynLoop(Loop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def view(self, indent=0):
-        '''Print out a textual representation of this loop. We override this
+    def view(self, indent=0, index=0):
+        '''
+        Print out a textual representation of this loop. We override this
         method from the Loop class because, in Dynamo0.3, the function
         space is now an object and we need to call orig_name on it. We
         also output the upper loop bound as this can now be
         modified.
 
-        :param indent: optional argument indicating the level of
-        indentation to add before outputting the class information
-        :type indent: integer
+        :param int indent: optional argument indicating the level of \
+                indentation to add before outputting the class information.
+        :param int index: position of this Node wrt its siblings.
 
         '''
+        from psyclone.psyGen import Node
         if self._upper_bound_halo_depth:
             upper_bound = "{0}({1})".format(self._upper_bound_name,
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        print(self.indent(indent) + self.coloured_text +
-              "[type='{0}', field_space='{1}', it_space='{2}', "
-              "upper_bound='{3}']".format(self._loop_type,
+        print(
+              "{0}{1}: {2}[type='{3}', field_space='{4}', it_space='{5}', "
+              "upper_bound='{6}']".format(self.indent(indent), index,
+                                          self.coloured_text, self._loop_type,
                                           self._field_space.orig_name,
                                           self.iteration_space, upper_bound))
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, indent, index)
 
     def load(self, kern):
         '''

@@ -857,7 +857,7 @@ def test_goschedule_view(capsys):
     # The view method writes to stdout and this is captured by py.test
     # by default. We have to query this captured output.
     out, _ = capsys.readouterr()
-
+    print(out)
     # Ensure we check for the correct (colour) control codes in the output
     isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
@@ -867,34 +867,37 @@ def test_goschedule_view(capsys):
 
     expected_output = (
         isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer', field_space='go_cu', "
+        "    0: " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
         "        " + lit + "[value:'2']\n"
         "        " + lit + "[value:'jstop']\n"
         "        " + lit + "[value:'1']\n"
         "        " + sched + "[]\n"
-        "            " + loop + "[type='inner', field_space='go_cu', "
+        "            0: " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
         "                " + lit + "[value:'2']\n"
         "                " + lit + "[value:'istop+1']\n"
         "                " + lit + "[value:'1']\n"
         "                " + sched + "[]\n"
-        "                    " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
+        "                    0: " + call +
+        " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer', field_space='go_every', "
+        "    1: " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
         "        " + lit + "[value:'1']\n"
         "        " + lit + "[value:'jstop+1']\n"
         "        " + lit + "[value:'1']\n"
         "        " + sched + "[]\n"
-        "            " + loop + "[type='inner', field_space='go_every', "
+        "            0: " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
         "                " + lit + "[value:'1']\n"
         "                " + lit + "[value:'istop+1']\n"
         "                " + lit + "[value:'1']\n"
         "                " + sched + "[]\n"
-        "                    " + call + " time_smooth_code(u_fld,unew_fld,"
+        "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
         "uold_fld) [module_inline=False]")
+    print("==================")
+    print(expected_output)
     assert expected_output in out
 
 

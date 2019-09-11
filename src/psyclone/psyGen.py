@@ -1261,12 +1261,16 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    @abc.abstractmethod
-    def view(self, indent=0):
-        '''Abstract function to prints a text representation of the node.
+    #@abc.abstractmethod
+    def view(self, indent=0, index=0):
+        '''Abstract function to print a text representation of the node.
 
         :param int indent: depth of indent for output text.
+        :param int index: the position of this Node wrt its siblings
+
         '''
+        for idx, entity in enumerate(self._children):
+            entity.view(indent=indent + 1, index=idx)
 
     @staticmethod
     def indent(count, indent=INDENTATION_STRING):
@@ -1568,16 +1572,18 @@ class Schedule(Node):
         '''
         return "schedule"
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this node to stdout and then
         call the view() method of any children.
 
         :param int indent: Depth of indent for output text.
+        :param int index: the position of this Node wrt its siblings
+
         '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}[]".format(self.indent(indent),
+                                self.coloured_text))
+        Node.view(self, indent, index)
 
     @property
     def coloured_text(self):
@@ -1661,7 +1667,7 @@ class InvokeSchedule(Schedule):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this node to stdout and then
         call the view() method of any children.
@@ -1669,10 +1675,10 @@ class InvokeSchedule(Schedule):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[invoke='" + self.invoke.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}[invoke={2}]".format(self.indent(indent),
+                                          self.coloured_text,
+                                          self.invoke.name))
+        Node.view(self, indent, index)
 
     @property
     def coloured_text(self):
@@ -1801,7 +1807,7 @@ class Directive(Node):
 
     '''
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this node to stdout and then
         call the view() method of any children.
@@ -1809,7 +1815,8 @@ class Directive(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text)
+        print("{0} {1}: {2}".format(index, self.indent(indent),
+                                    self.coloured_text))
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1834,7 +1841,7 @@ class ACCDirective(Directive):
     ''' Base class for all OpenACC directive statements. '''
 
     @abc.abstractmethod
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print text representation of this node to stdout.
 
@@ -1982,15 +1989,16 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this Node to stdout.
 
         :param int indent: the amount by which to indent the output.
         '''
-        print(self.indent(indent)+self.coloured_text+"[ACC enter data]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0} {1}: {2}[ACC enter data]".format(index,
+                                                    self.indent(indent),
+                                                    self.coloured_text))
+        Node.view(self, indent, index)
 
     @property
     def dag_name(self):
@@ -2062,15 +2070,15 @@ class ACCParallelDirective(ACCDirective):
     in the PSyIR.
 
     '''
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this Node to stdout.
 
         :param int indent: the amount by which to indent the output.
         '''
-        print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}: {2}[ACC Parallel]".format(index, self.indent(indent),
+                                                 self.coloured_text))
+        Node.view(self, indent, index)
 
     @property
     def dag_name(self):
@@ -2211,13 +2219,14 @@ class ACCLoopDirective(ACCDirective):
         '''
         return "ACC_loop_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a textual representation of this Node to stdout.
 
         :param int indent: amount to indent output by
         '''
-        text = self.indent(indent)+self.coloured_text+"[ACC Loop"
+        text = "{0}{1}: {2}[ACC Loop".format(self.indent(indent),
+                                              index, self.coloured_text)
         if self._sequential:
             text += ", seq"
         else:
@@ -2227,7 +2236,7 @@ class ACCLoopDirective(ACCDirective):
                 text += ", independent"
         text += "]"
         print(text)
-        for entity in self._children:
+        for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
@@ -2297,7 +2306,7 @@ class OMPDirective(Directive):
         '''
         return "OMP_directive_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this node to stdout and then
         call the view() method of any children.
@@ -2305,9 +2314,9 @@ class OMPDirective(Directive):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text + "[OMP]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}: {2}[OMP]".format(self.indent(indent), index,
+                                        self.coloured_text))
+        Node.view(self, indent, index)
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
@@ -2333,17 +2342,18 @@ class OMPParallelDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a text representation of this node to stdout and then
         call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: depth of indent for output text.
+        :param int index: position of this Node wrt its siblings.
+
         '''
-        print(self.indent(indent) + self.coloured_text + "[OMP parallel]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}: {2}[OMP parallel]".format(self.indent(indent), index,
+                                                 self.coloured_text))
+        Node.view(self, indent, index)
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -2576,7 +2586,7 @@ class OMPDoDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_do_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of the OpenMP Do Directive and then
         call the view() method of any children.
@@ -2588,11 +2598,9 @@ class OMPDoDirective(OMPDirective):
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        print(self.indent(indent) + self.coloured_text +
-              "[OMP do]{0}".format(reprod))
-
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}: {2}[OMP do]{3}".format(self.indent(indent), index,
+                                              self.coloured_text, reprod))
+        Node.view(self, indent, index)
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -2669,7 +2677,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_do_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of the OpenMP Parallel Do Directive
         and then call the view() method of any children.
@@ -2677,10 +2685,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[OMP parallel do]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}: {2}[OMP parallel do]".format(self.indent(indent),
+                                                    index, self.coloured_text))
+        Node.view(self, indent, index)
 
     def gen_code(self, parent):
 
@@ -2813,16 +2820,16 @@ class GlobalSum(Node):
         the base method and simply return our argument.'''
         return [self._scalar]
 
-    def view(self, indent):
+    def view(self, indent, index=0):
         '''
-        Print text describing this object to stdout and then
-        call the view() method of any children.
+        Print text describing this GlobalSum to stdout.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text
+        :param int index: TODO
         '''
-        print(self.indent(indent) + (
-            "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name)))
+        print("{0}{1}: {2}[scalar={3}]".format(self.indent(indent), index,
+                                               self.coloured_text,
+                                               self._scalar.name))
 
     def __str__(self):
         return "GlobalSum[scalar='" + self._scalar.name + "']\n"
@@ -2976,7 +2983,7 @@ class HaloExchange(Node):
                 "exchange but both vector id's ('{0}') of field '{1}' are "
                 "the same".format(self.vector_index, self.field.name))
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of the OpenMP Parallel Do Directive
         and then call the view() method of any children.
@@ -2984,11 +2991,12 @@ class HaloExchange(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + (
-            "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
-                                      self._halo_type,
-                                      self._halo_depth, self._check_dirty)))
+        print("{0}{1}: {2}[field='{3}', type='{4}', depth={5}, "
+              "check_dirty={6}]".format(self.indent(indent), index,
+                                        self.coloured_text, self._field.name,
+                                        self._halo_type,
+                                        self._halo_depth, self._check_dirty))
+        # TODO should we call Node.view() here?
 
     def __str__(self):
         result = "HaloExchange["
@@ -3196,18 +3204,17 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of this Loop node to stdout
         and then call the view() method of any children.
 
         :param int indent: Depth of indent for output text
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[type='{0}', field_space='{1}', it_space='{2}']".
-              format(self._loop_type, self._field_space, self.iteration_space))
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        print("{0}{1}: {2}[type='{3}', field_space='{4}', it_space='{5}']".
+              format(self.indent(indent), index, self.coloured_text,
+                     self._loop_type, self._field_space, self.iteration_space))
+        Node.view(self, indent, index)
 
     @property
     def coloured_text(self):
@@ -3481,7 +3488,7 @@ class Kern(Node):
         base method and simply return our arguments. '''
         return self.arguments.args
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of this Kern node to stdout
         and then call the view() method of any children.
@@ -3489,10 +3496,9 @@ class Kern(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text,
+        print(self.indent(indent) + str(index) + ": " + self.coloured_text,
               self.name + "(" + self.arguments.names + ")")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, indent, index)
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -3809,19 +3815,18 @@ class CodedKern(Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Write out a textual summary of this Kernel-call node to stdout
         and then call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text
+        :param int index:
         '''
-        print(self.indent(indent) + self.coloured_text,
+        print(self.indent(indent) + str(index) + ": " + self.coloured_text,
               self.name + "(" + self.arguments.names + ")",
               "[module_inline=" + str(self._module_inline) + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, indent, index)
 
     @property
     def coloured_text(self):
@@ -6456,14 +6461,15 @@ class Literal(Node):
         '''
         return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
         Print a representation of this node in the schedule to stdout.
 
         :param int indent: level to which to indent output.
         '''
-        print(self.indent(indent) + self.coloured_text + "["
-              + "value:'" + self._value + "']")
+        print("{0}{1}[value:'{2}']".format(self.indent(indent),
+                                           self.coloured_text,
+                                           self._value))
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']"
