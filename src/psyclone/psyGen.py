@@ -2001,7 +2001,8 @@ class ACCEnterDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def gen_code(self, parent):
-        '''Generate the elements of the f2pygen AST for this Node in the Schedule.
+        '''Generate the elements of the f2pygen AST for this Node in the
+        Schedule.
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
