@@ -4024,17 +4024,19 @@ class CodedKern(Kern):
         fdesc = None
         while not fdesc:
             name_idx += 1
+            new_suffix = ""
 
-            new_suffix = "_{0}".format(name_idx)
-
+            # Include the kernel name into the filename if the module
+            # has more than one kernel
+            # TODO: FIXME self.parent.kernels() is not what we want, this
+            # is the InvokeSchedule, not the module
             if len(self.parent.kernels()) > 1:
-                new_suffix = self.name + "_" + new_suffix
+                if orig_mod_name.lower().endswith("_code"):
+                    new_suffix += "_" + self.name[:-5]
+                else:
+                    new_suffix += "_" + self.name
 
-            # Choose suffix
-            # if Config.get().kernel_naming == "single":
-            #     new_suffix = "_{0}".format(self.name)
-            # else:
-            #     new_suffix = "_{0}_{1}".format(self.name, name_idx)
+            new_suffix += "_{0}".format(name_idx)
 
             # Choose file extension
             if self.root.opencl:
