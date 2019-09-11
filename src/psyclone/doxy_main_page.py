@@ -11,4 +11,3 @@
 # The PSyclone project itself is hosted on
 # [GitHub](https://github.com/stfc/PSyclone)
 # and uses the [fparser](https://github.com/stfc/fparser) Fortran parser.
-

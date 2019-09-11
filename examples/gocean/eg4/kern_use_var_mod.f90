@@ -50,11 +50,11 @@ module kern_use_var_mod
 contains
 
   subroutine kern_use_var_code(i, j, fld)
-    use data_mod, only: gravity, friction
+    use data_mod, only: gravity
     integer, intent(in) :: i, j
     real(go_wp), dimension(:,:), intent(inout) :: fld
 
-    fld(i,j) = gravity * field(i,j)
+    fld(i,j) = gravity * fld(i,j)
 
   end subroutine kern_use_var_code
   
