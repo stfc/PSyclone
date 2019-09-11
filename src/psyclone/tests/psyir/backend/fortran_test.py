@@ -791,11 +791,9 @@ def test_fw_size():
             "  mysize = size(a, 2)\n"
             "end subroutine test_kern\n"
             "end module test_mod\n")
-    print(code)
     schedule = create_schedule(code, "test_kern")
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    print(result)
     assert "mysize=size(a, 2)" in result.lower()
