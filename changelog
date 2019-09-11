@@ -220,6 +220,8 @@
         69) PR #445 for #442. First step towards supporting OpenACC for
         the LFRic (Dynamo0.3 API) PSy layer.
 
+        70) PR #466. Adds basic SIR backend to the PSyIR.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
