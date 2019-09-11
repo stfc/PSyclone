@@ -19,6 +19,8 @@ import os
 # the current directory must be added to Python's system path:
 import sys
 sys.path.insert(0, os.path.abspath('.'))
+# Try to ensure that fparser has dynamically constructed all of its classes
+from fparser.two import Fortran2003
 
 # -- General configuration ----------------------------------------------------
 
