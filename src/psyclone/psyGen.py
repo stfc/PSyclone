@@ -259,6 +259,21 @@ class InternalError(Exception):
         return str(self.value)
 
 
+class SymbolError(Exception):
+    '''
+    PSyclone-specific exception for use with errors relating to the SymbolTable
+    in the PSyIR.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone SymbolTable error: "+value
+
+    def __str__(self):
+        return str(self.value)
+
+
 class PSyFactory(object):
     '''
     Creates a specific version of the PSy. If a particular api is not
@@ -3790,17 +3805,17 @@ class CodedKern(Kern):
         :raises NotImplementedError: if module-inlining is enabled and the \
                                      kernel has been transformed.
         '''
-        # check all kernels in the same invoke as this one and set any
+        # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
-        if value and self._fp2_ast:
-            # TODO #229. We take the existence of an fparser2 AST for
-            # this kernel to mean that it has been transformed. Since
-            # kernel in-lining is currently implemented via
-            # manipulation of the fparser1 AST, there is at present no
-            # way to inline such a kernel.
+        if value and self.modified:
+            # TODO #229. Kernel in-lining is currently implemented via
+            # manipulation of the fparser1 Parse Tree while
+            # transformations work with the fparser2 Parse Tree-derived
+            # PSyIR.  Therefore there is presently no way to inline a
+            # transformed kernel.
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
@@ -4000,7 +4015,7 @@ class CodedKern(Kern):
                 # should be modified rather than the parse tree. This
                 # if test, and the associated else, are only required
                 # whilst old style (direct fp2) transformations still
-                # exist.
+                # exist - #490.
 
                 # First check that the kernel module name and
                 # subroutine name conform to the <name>_mod and
@@ -5866,6 +5881,18 @@ class SymbolTable(object):
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
     @property
+    def global_symbols(self):
+        '''
+        :returns: list of symbols that are not routine arguments but \
+                  still have 'global' scope - i.e. are associated with \
+                  data that exists outside the current scope.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        return [sym for sym in self._symbols.values() if sym.scope == "global"
+                and not isinstance(sym.interface, Symbol.Argument)]
+
+    @property
     def iteration_indices(self):
         '''
         :return: List of symbols representing kernel iteration indices.
@@ -6897,10 +6924,13 @@ class Fparser2ASTProcessor(object):
             or a list of elements. This helper function provide a common
             iteration interface. This could be improved when fpaser/#170 is
             fixed.
+
             :param nodes: fparser2 AST node.
             :type nodes: None or List or :py:class:`fparser.two.utils.Base`
+
             :returns: Returns nodes but always encapsulated in a list
             :rtype: list
+
             '''
             if nodes is None:
                 return []
@@ -6928,7 +6958,9 @@ class Fparser2ASTProcessor(object):
                 # This USE doesn't have an ONLY clause so we skip it. We
                 # don't raise an error as this will only become a problem if
                 # this Schedule represents a kernel that is the target of a
-                # transformation. See #315.
+                # transformation. In that case construction of the PSyIR will
+                # fail if the Fortran code makes use of symbols from this
+                # module because they will not be present in the SymbolTable.
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
@@ -7877,7 +7909,7 @@ class Fparser2ASTProcessor(object):
             try:
                 symbol_table.lookup(node.string)
             except KeyError:
-                raise GenerationError(
+                raise SymbolError(
                     "Undeclared reference '{0}' found when parsing fparser2 "
                     "node '{1}' inside '{2}'."
                     "".format(str(node.string), repr(node), parent.root.name))
