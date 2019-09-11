@@ -1608,7 +1608,7 @@ def test_acc_data_copyin(tmpdir):
     accpt = ACCParallelTrans()
     accdt = ACCEnterDataTrans()
 
-     # Put each loop within an OpenACC parallel region
+    # Put each loop within an OpenACC parallel region
     for child in schedule.children:
         if isinstance(child, Loop):
             new_sched, _ = accpt.apply(child)

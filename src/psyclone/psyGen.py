@@ -5886,7 +5886,6 @@ class SymbolTable(object):
         :returns: list of symbols that are not routine arguments but \
                   still have 'global' scope - i.e. are associated with \
                   data that exists outside the current scope.
-
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         '''

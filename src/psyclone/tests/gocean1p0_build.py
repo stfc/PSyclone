@@ -77,7 +77,7 @@ class GOcean1p0Build(Compile):
         /some/path"].
 
         :returns: A list of strings with the compiler flags required.
-        :rtpe: list
+        :rtype: list
 
         '''
         return ["-I", self._compilation_path]

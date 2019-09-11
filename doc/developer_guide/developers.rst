@@ -2348,11 +2348,11 @@ Kernel Transformations
 ======================
 
 PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIR, apply the transformation,
-and producing the resulting language AST or code.
+two ways to apply transformations: by directly manipulating the
+language AST or by translating the language AST to PSyIR, applying the
+transformation, and producing the resulting language AST or code.
 
-For now, both methods only support fparser2 AST for kernel code.
+For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
 back into a Fortran string and then parsing that with fparser2.
