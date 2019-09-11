@@ -158,6 +158,18 @@ def test_psy_init(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
+def test_invokeschedule_opencl_gen_code(kernel_outputdir):
+    '''
+    '''
+    assert True
+
+
+def test_opencl_options_validation(kernel_outputdir):
+    '''
+    '''
+    assert True
+
+
 @pytest.mark.xfail(reason="Uses a variable defined in another module."
                           " Will be fixed with issue #315")
 def test_set_kern_args(kernel_outputdir):
@@ -200,7 +212,7 @@ def test_set_kern_args(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg():
+def test_set_kern_float_arg(kernel_outputdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -253,7 +265,7 @@ def test_set_arg_const_scalar():
             "arguments passed by value" in str(err))
 
 
-def test_opencl_kernel_code_generation():
+def test_opencl_kernel_code_generation(kernel_outputdir):
     # pylint: disable=invalid-name
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
