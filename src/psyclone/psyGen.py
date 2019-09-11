@@ -5987,18 +5987,16 @@ class KernelSchedule(Schedule):
 
 
 class CodeBlock(Node):
-    '''
-    Node representing some generic Fortran code that PSyclone does not attempt
+    '''Node representing some generic Fortran code that PSyclone does not attempt
     to manipulate. As such it is a leaf in the PSyIR and therefore has no
     children.
 
-    :param statements: list of fparser2 AST nodes representing the Fortran \
-                       code constituting the code block.
-    :type statements: list of :py:class:`fparser.two.utils.Base`
-    :param structure: optional argument indicating whether this code \
-    block is a statement or an expression.
-    :type structure: :py:class:`psyclone.psyGen.CodeBlock.Structure` \
-    or `NoneType`
+    :param fp2_nodes: list of fparser2 AST nodes representing the Fortran \
+                      code constituting the code block.
+    :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
+    :param structure: argument indicating whether this code block is a \
+    statement or an expression.
+    :type structure: :py:class:`psyclone.psyGen.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -6015,29 +6013,28 @@ class CodeBlock(Node):
         # The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-    def __init__(self, statements, structure=None, parent=None):
+    def __init__(self, fp2_nodes, structure, parent=None):
         super(CodeBlock, self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIR.
-        self._statements = statements[:]
+        self._fp2_nodes = fp2_nodes[:]
         # Store references back into the fparser2 AST
-        if statements:
-            self.ast = self._statements[0]
-            self.ast_end = self._statements[-1]
+        if fp2_nodes:
+            self.ast = self._fp2_nodes[0]
+            self.ast_end = self._fp2_nodes[-1]
         else:
             self.ast = None
             self.ast_end = None
-        # Store the structure of the code block if one is specified.
+        # Store the structure of the code block.
         self._structure = structure
 
     @property
     def structure(self):
         '''
         :returns: whether this code block is a statement or an expression.
-        :rtype: :py:class:`psyclone.psyGen.CodeBlock.Structure` or \
-        `NoneType`
+        :rtype: :py:class:`psyclone.psyGen.CodeBlock.Structure`
 
         '''
         return self._structure
@@ -6060,10 +6057,10 @@ class CodeBlock(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[" +
-              str(list(map(type, self._statements))) + "]")
+              str(list(map(type, self._fp2_nodes))) + "]")
 
     def __str__(self):
-        return "CodeBlock[{0} statements]".format(len(self._statements))
+        return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
 
 
 class Assignment(Node):
@@ -6638,21 +6635,24 @@ class Fparser2ASTProcessor(object):
         }
 
     @staticmethod
-    def nodes_to_code_block(parent, statements):
-        '''
-        Create a CodeBlock for the supplied list of statements
-        and then wipe the list of statements. A CodeBlock is a node
-        in the PSyIR (Schedule) that represents a sequence of one or more
-        Fortran statements which PSyclone does not attempt to handle.
+    def nodes_to_code_block(parent, fp2_nodes):
+        '''Create a CodeBlock for the supplied list of fparser2 nodes and then
+        wipe the list. A CodeBlock is a node in the PSyIR (Schedule)
+        that represents a sequence of one or more Fortran statements
+        and/or expressions which PSyclone does not attempt to handle.
 
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param list statements: List of fparser2 AST nodes constituting the \
-                                code block.
+        :param fp2_nodes: list of fparser2 AST nodes constituting the \
+                          code block.
+        :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :returns: a CodeBlock instance.
         :rtype: :py:class:`psyclone.CodeBlock`
+
         '''
-        if not statements:
+        if not fp2_nodes:
             return None
 
         # Determine whether this code block is a statement or an
@@ -6670,10 +6670,9 @@ class Fparser2ASTProcessor(object):
         else:
             structure = CodeBlock.Structure.EXPRESSION
 
-        code_block = CodeBlock(statements, structure=structure,
-                               parent=parent)
+        code_block = CodeBlock(fp2_nodes, structure, parent=parent)
         parent.addchild(code_block)
-        del statements[:]
+        del fp2_nodes[:]
         return code_block
 
     @staticmethod
