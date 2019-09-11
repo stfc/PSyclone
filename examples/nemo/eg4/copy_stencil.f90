@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,24 +29,21 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Author R. W. Ford, STFC Daresbury Lab
 
-module alg
-
-contains
-
-  subroutine do_update(fld1, fld2)
-    use field_mod, only: r2d_field
-    use kern_use_var_mod, only: kern_use_var
-    use kern_call_kern_mod, only: kern_call_kern
-    use kern_nested_use_mod, only: kern_nested_use
-    implicit none
-    type(r2d_field), intent(inout) :: fld1, fld2
-
-    call invoke(kern_use_var(fld1),   &
-                kern_call_kern(fld2), &
-                kern_nested_use(fld1))
-
-  end subroutine do_update
-
-end module alg
+! Illustration of copying one field to another with some form of
+! staggering. This is a Fortran implementation of the Dawn Python
+! example.
+program copy_stencil
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  real, dimension(n+1,n,n) :: out,in
+  do k=1,n
+     do j=1,n
+        do i=1,n
+           out(i,j,k) = in(i+1,j,k)
+        end do
+     end do
+  end do
+end program copy_stencil

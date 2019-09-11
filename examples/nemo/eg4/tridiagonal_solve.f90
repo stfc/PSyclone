@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,24 +29,39 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Author R. W. Ford, STFC Daresbury Lab
 
-module alg
-
-contains
-
-  subroutine do_update(fld1, fld2)
-    use field_mod, only: r2d_field
-    use kern_use_var_mod, only: kern_use_var
-    use kern_call_kern_mod, only: kern_call_kern
-    use kern_nested_use_mod, only: kern_nested_use
-    implicit none
-    type(r2d_field), intent(inout) :: fld1, fld2
-
-    call invoke(kern_use_var(fld1),   &
-                kern_call_kern(fld2), &
-                kern_nested_use(fld1))
-
-  end subroutine do_update
-
-end module alg
+! Illustration of performing a tri-diagonal solve in the vertical (k
+! dimension). This is a Fortran implementation of the Dawn Python
+! example.
+program tridiagonal_solve
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  real :: m
+  real, dimension(n,n,n) :: a,b,c,d
+  do k=1,n
+     do j=1,n
+        do i=1,n
+           c(i,j,k) = c(i,j,k)/b(i,j,k)
+        end do
+     end do
+  end do
+  do k=2,n
+     do j=1,n
+        do i=1,n
+           m = 1.0/(b(i,j,k)-a(i,j,k)*c(i,j,k-1))
+           c(i,j,k) = c(i,j,k)*m
+           d(i,j,k) = (d(i,j,k)-a(i,j,k)*d(i,j,k-1))*m
+        end do
+     end do
+  end do  
+  do k=n-1,1,-1
+     do j=1,n
+        do i=1,n
+           d(i,j,k) = d(i,j,k) - c(i,j,k)*d(i,j,k+1)
+        end do
+     end do
+  end do
+  
+end program tridiagonal_solve

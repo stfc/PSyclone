@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,24 +29,22 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Author R. W. Ford, STFC Daresbury Lab
 
-module alg
-
-contains
-
-  subroutine do_update(fld1, fld2)
-    use field_mod, only: r2d_field
-    use kern_use_var_mod, only: kern_use_var
-    use kern_call_kern_mod, only: kern_call_kern
-    use kern_nested_use_mod, only: kern_nested_use
-    implicit none
-    type(r2d_field), intent(inout) :: fld1, fld2
-
-    call invoke(kern_use_var(fld1),   &
-                kern_call_kern(fld2), &
-                kern_nested_use(fld1))
-
-  end subroutine do_update
-
-end module alg
+! Illustration of computing horizontal diffusion using the
+! laplacian. This is a Fortran implementation of the Dawn Python
+! example.
+program hori_diff
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  real, dimension(0:n+1,0:n+1,0:n+1) :: lap,fin,coeff,fout
+  do k=1,n
+     do j=1,n
+        do i=1,n
+           lap(i,j,k)=(-4.0)*fin(i,j,k)+coeff(i,j,k)*(fin(i+1,j,k)+fin(i-1,j,k)+fin(i,j+1,k)+fin(i,j-1,k))
+           fout(i,j,k)=(-4.0)*lap(i,j,k)+coeff(i,j,k)*(lap(i+1,j,k)+lap(i-1,j,k)+lap(i,j+1,k)+lap(i,j-1,k))
+        end do
+     end do
+  end do
+end program hori_diff

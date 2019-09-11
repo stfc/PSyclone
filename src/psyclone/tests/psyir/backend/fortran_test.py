@@ -34,7 +34,7 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
+'''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
 
 from __future__ import absolute_import
 
@@ -157,11 +157,15 @@ def test_fw_gen_declaration():
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
 
 
-def create_schedule(code):
+def create_schedule(code, ast_processor=Fparser2ASTProcessor):
     '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and Fparser2ASTProcessor.
+    code using fparser2 and (by default) Fparser2ASTProcessor.
 
     :param str code: Fortran code.
+    :param ast_processor: the particular ASTProcessor to use. Defaults \
+    to FParser2ASTProcessor.
+    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2ASTProcessor`
+
 
     :returns: PSyIR tree representing the Fortran code.
     :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
@@ -172,7 +176,7 @@ def create_schedule(code):
     parse_tree = f2003_parser(reader)
 
     # Generate PSyIR schedule from fparser2 parse tree
-    processor = Fparser2ASTProcessor()
+    processor = ast_processor()
     schedule = processor.generate_schedule("tmp", parse_tree)
 
     return schedule
