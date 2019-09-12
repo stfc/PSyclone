@@ -387,7 +387,7 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     generated_code = str(psy.gen).lower()
 
     assert os.path.exists(
-        os.path.join(kernel_outputdir, "compute_cu_name_0.cl"))
+        os.path.join(str(kernel_outputdir), "compute_cu_name_0.cl"))
 
 
 def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
@@ -402,8 +402,7 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
     generated_code = str(psy.gen).lower()
 
     assert os.path.exists(
-        os.path.join(kernel_outputdir,
-                     "compute_cu_compute_cu_0.cl"))
+        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
 
 
 def test_symtab_implementation_for_opencl():
