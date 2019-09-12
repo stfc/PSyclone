@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _developers-guide:
 
 Developers' guide
@@ -951,8 +986,61 @@ code (a KernelSchedule with all its children), these are:
 - `FortranWriter()` in `psyclone.psyir.backend.fortran`
 - `OpenCLWriter()` in `psyclone.psyir.backend.opencl`
 
-Additionally, there is a `psyclone.psyir.backend.c` back-end, but at the
-moment it is only capable of processing partial PSyIR expressions.
+Additionally, there are two partially-implemented back-ends
+
+- `psyclone.psyir.backend.c` which is currently limited to processing
+  partial PSyIR expressions.
+- `SIRWriter()` in `psyclone.psyir.backend.sir` which can generate
+  valid SIR from simple Fortran code conforming to the NEMO API.
+
+SIR back-end
+============
+
+The SIR back-end is limited in a number of ways:
+
+- only Fortran code containing 3 dimensional directly addressed
+  arrays, with simple stencil accesses, iterated with triply nested
+  loops is supported. Imperfectly nested loops, doubly nested loops,
+  etc will cause a ``VisitorError`` exception.
+- anything other than real arrays (integer, logical etc.) will cause
+  incorrect SIR code to be produced (see issue #468).
+- calls are not supported (and will cause a VisitorError exception).
+- control logic, other than triply nested loops, (if, case etc), is
+  not supported (and will cause a VisitorError exception).
+
+The current implementation is not able to deal with variables local to
+a region (which the SIR expects), as, in Fortran, the standard scope
+of a local variable is the whole routine, not a sub-region of code.
+
+The current implementation also outputs text rather than running Dawn
+directly. This text needs to be pasted into another script in order to
+run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
+
+Currently there is no way to tell PSyclone to output SIR. Outputting
+SIR is achieved by writing a script which creates an SIRWriter and
+outputs the SIR (for kernels) from the PSyIR. Whilst the main
+'psyclone' program could have a '-backend' option added it is not
+clear this would be useful here as it is expected that the SIR will be
+output only for certain parts of the PSyIR and (an)other back-end(s)
+used for the rest. It is not yet clear how best to do this - perhaps
+mark regions using a transformation.
+
+It is unlikely that the SIR will be able to accept full NEMO code due
+to its complexities (hence the comment about using different
+back-ends in the previous paragraph). Therefore the approach that will
+be taken is to use PSyclone to transform NEMO to make regions that
+conform to the SIR constraints and to make these as large as
+possible. Once this is done then PSyclone will be used to generate and
+optimise the code that the SIR is not able to optimise and will let
+the SIR generate code for the bits that it is able to do. This
+approach seems a robust one but would require interface code between
+the Dawn generated cuda (or other) code and the PSyclone generated
+Fortran. In theory PSyclone could translate the remaining code to C
+but this would require no codeblocks in the PSyIR when parsing NEMO
+(which is a difficult thing to achieve), or interface code between
+codeblocks and the rest of the PSyIR.
+
+
 
 Parsing Code
 ############
@@ -2191,6 +2279,17 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Finally, those transformations that act on a Kernel must sub-class the
+``KernelTrans`` class:
+
+.. autoclass:: psyclone.transformations.KernelTrans
+   :members:
+   :private-members:
+   :noindex:
+
+In all cases, the `apply` method of any sub-class *must* ensure that
+the `validate` method of the parent class is called.
+
 Module: psyGen
 ==============
 
@@ -2242,15 +2341,18 @@ only used in ``DynKernelArguments.raw_arg_list()``.
 classes make use of ``DynCollection`` sub-classes in order
 to ensure that argument naming is consistent.
 
+Transformations
+###############
+
 Kernel Transformations
-----------------------
+======================
 
 PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIR, apply the transformation,
-and producing the resulting language AST or code.
+two ways to apply transformations: by directly manipulating the
+language AST or by translating the language AST to PSyIR, applying the
+transformation, and producing the resulting language AST or code.
 
-For now, both methods only support fparser2 AST for kernel code.
+For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
 back into a Fortran string and then parsing that with fparser2.
@@ -2283,9 +2385,6 @@ The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
-
-Transformations
-###############
 
 OpenACC
 =======

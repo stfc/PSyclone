@@ -51,6 +51,34 @@ from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
 
+def check_intergrid(node):
+    '''
+    Utility function to check that the supplied node does not have
+    an intergrid kernel amongst its descendants.
+
+    This is used ensure any attempt to apply loop-fusion and redundant-
+    computation transformations to loops containing inter-grid kernels is
+    rejected (since support for those is not yet implemented).
+
+    :param node: The PSyIR node to check.
+    :type node: :py:class:`psyGen.Node`
+
+    :raises TransformationError: if the supplied node has an inter-grid \
+                                 kernel as a descendant.
+
+    '''
+    if not node.children:
+        return
+    from psyclone.dynamo0p3 import DynKern
+    child_kernels = node.walk(DynKern)
+    for kern in child_kernels:
+        if kern.is_intergrid:
+            raise TransformationError(
+                "This Transformation cannot currently be applied to nodes "
+                "which have inter-grid kernels as descendents and {0} is "
+                "such a kernel.".format(kern.name))
+
+
 class TransformationError(Exception):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''
@@ -169,34 +197,50 @@ class RegionTrans(Transformation):
                 "if statement in the NEMO API.")
 
 
-# =============================================================================
-def check_intergrid(node):
+class KernelTrans(Transformation):
     '''
-    Utility function to check that the supplied node does not have
-    an intergrid kernel as a child.
+    Base class for all Kernel transformations.
 
-    This is used to ensure that we reject any attempt to apply
-    transformations to loops containing inter-grid kernels. (This restriction
-    will be lifted in Issue #134 and this routine can then be removed.)
-
-    # TODO remove this routine once #134 is complete.
-
-    :param node: The PSyIR node to check.
-    :type node: :py:class:`psyGen.Node`
-
-    :raises TransformationError: if the supplied node has an inter-grid
-                                 kernel as a child
     '''
-    if not node.children:
-        return
-    from psyclone.dynamo0p3 import DynKern
-    child_kernels = node.walk(DynKern)
-    for kern in child_kernels:
-        if kern.is_intergrid:
+    @staticmethod
+    def validate(kern):
+        '''
+        Checks that the supplied node is a Kernel and that it is possible to
+        construct the PSyIR of its contents.
+
+        :param kern: the kernel which is the target of the transformation.
+        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class.
+
+        :raises TransformationError: if the target node is not a sub-class of \
+                                     psyGen.Kern.
+        :raises TransformationError: if the subroutine containing the \
+                                     implementation of the kernel cannot be \
+                                     found in the fparser2 Parse Tree.
+        :raises TransformationError: if the PSyIR cannot be constructed \
+                                     because there are symbols of unknown type.
+
+        '''
+        from psyclone.psyGen import GenerationError, SymbolError, Kern
+
+        if not isinstance(kern, Kern):
             raise TransformationError(
-                "Transformations cannot currently be applied to nodes which "
-                "have inter-grid kernels as children and {0} is such a "
-                "kernel.".format(kern.name))
+                "Target of a kernel transformation must be a sub-class of "
+                "psyGen.Kern but got '{0}'".format(type(kern).__name__))
+
+        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
+        # If this kernel contains symbols that are not captured in the PSyIR
+        # SymbolTable then this raises an exception.
+        try:
+            _ = kern.get_kernel_schedule()
+        except GenerationError:
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
+        except SymbolError as err:
+            raise TransformationError(
+                "Kernel '{0}' contains accesses to data that are not captured "
+                "in the PSyIR Symbol Table ({1}). Cannot transform such a "
+                "kernel.".format(kern.name, str(err.args[0])))
 
 
 class LoopFuseTrans(Transformation):
@@ -1239,7 +1283,7 @@ class ColourTrans(Transformation):
         return schedule, keep
 
 
-class KernelModuleInlineTrans(Transformation):
+class KernelModuleInlineTrans(KernelTrans):
     '''Switches on, or switches off, the inlining of a Kernel subroutine
     into the PSy layer module. For example:
 
@@ -1255,15 +1299,14 @@ class KernelModuleInlineTrans(Transformation):
         For this transformation to work correctly, the Kernel subroutine
         must only use data that is passed in by argument, declared locally
         or included via use association within the subroutine. Two
-        examples where in-lining will not work correctly are:
+        examples where in-lining will not work are:
 
         #. A variable is declared within the module that ``contains`` the
            Kernel subroutine and is then accessed within that Kernel;
         #. A variable is included via use association at the module level
            and accessed within the Kernel subroutine.
 
-        *There are currently no checks that these rules are being followed
-        when in-lining so the onus is on the user to ensure correctness.*
+        The transformation will reject attempts to in-line such kernels.
     '''
 
     def __str__(self):
@@ -1306,18 +1349,12 @@ class KernelModuleInlineTrans(Transformation):
         :type node: sub-class of :py:class:`psyclone.psyGen.Node`
         :param bool inline: whether or not the kernel is to be inlined.
 
-        :raises TransformationError: if the supplied node is not a kernel.
         :raises TransformationError: if the supplied kernel has itself been \
                                      transformed (Issue #229).
         '''
-        # check node is a kernel
-        from psyclone.psyGen import Kern
-        if not isinstance(node, Kern):
-            raise TransformationError(
-                "Error in KernelModuleInline transformation. The node is not "
-                "a Kernel")
+        super(KernelModuleInlineTrans, self).validate(node)
 
-        if inline and node._fp2_ast:
+        if inline and node.modified:
             raise TransformationError("Cannot inline kernel {0} because it "
                                       "has previously been transformed.")
 
@@ -2240,7 +2277,7 @@ class OCLTrans(Transformation):
 
         '''
         if opencl:
-            self._validate(sched)
+            self.validate(sched)
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
@@ -2248,13 +2285,14 @@ class OCLTrans(Transformation):
         sched.opencl = opencl
         return sched, keep
 
-    def _validate(self, sched):
+    def validate(self, sched):
         '''
         Checks that the supplied Schedule is valid and that an OpenCL
         version of it can be generated.
 
         :param sched: Schedule to check.
         :type sched: :py:class:`psyclone.psyGen.Schedule`
+
         :raises TransformationError: if the Schedule is not for the GOcean1.0 \
                                      API.
         :raises NotImplementedError: if any of the kernels have arguments \
@@ -2279,6 +2317,19 @@ class OCLTrans(Transformation):
                 raise NotImplementedError(
                     "Cannot generate OpenCL for Invokes that contain "
                     "kernels with arguments passed by value")
+        # Check that we can construct the PSyIR and SymbolTable of each of
+        # the kernels in this Schedule. Also check that none of them access
+        # any form of global data (that is not a routine argument).
+        for kern in sched.kernels():
+            KernelTrans.validate(kern)
+            ksched = kern.get_kernel_schedule()
+            global_symbols = ksched.symbol_table.global_symbols
+            if global_symbols:
+                raise TransformationError(
+                    "The Symbol Table for kernel '{0}' contains the following "
+                    "symbols with 'global' scope: {1}. PSyclone cannot "
+                    "currently transform such a kernel into OpenCL.".
+                    format(kern.name, [sym.name for sym in global_symbols]))
 
 
 class ProfileRegionTrans(RegionTrans):
@@ -2886,7 +2937,7 @@ class ACCEnterDataTrans(Transformation):
                                       "region - cannot add an enter data.")
 
 
-class ACCRoutineTrans(Transformation):
+class ACCRoutineTrans(KernelTrans):
     '''
     Transform a kernel subroutine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2923,11 +2974,14 @@ class ACCRoutineTrans(Transformation):
 
         :param kern: The kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Kern`
+
         :returns: (transformed kernel, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
                 :py:class:`psyclone.undoredo.Memento`).
+
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
+
         '''
         # pylint: disable=too-many-locals
 
@@ -2944,7 +2998,7 @@ class ACCRoutineTrans(Transformation):
         ast = kern.ast
         # Keep a record of this transformation
         keep = Memento(kern, self)
-        # Find the kernel subroutine
+        # Find the kernel subroutine in the fparser2 parse tree
         kern_sub = None
         subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
         for sub in subroutines:
@@ -2955,10 +3009,6 @@ class ACCRoutineTrans(Transformation):
                     break
             if kern_sub:
                 break
-        if not kern_sub:
-            raise TransformationError(
-                "Failed to find subroutine source for kernel {0}".
-                format(kern.name))
         # Find the last declaration statement in the subroutine
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
         posn = -1
@@ -2986,6 +3036,8 @@ class ACCRoutineTrans(Transformation):
         :type kern: :py:class:`psyclone.psyGen.Kern`
 
         :raises TransformationError: if the target kernel is a built-in.
+        :raises TransformationError: if any of the symbols in the kernel are \
+                                     accessed via a module use statement.
 
         '''
         from psyclone.psyGen import BuiltIn
@@ -2999,6 +3051,29 @@ class ACCRoutineTrans(Transformation):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
+
+        # Perform general validation checks. In particular this checks that
+        # a PSyIR of the kernel body can be constructed.
+        KernelTrans.validate(kern)
+
+        # Check that the kernel does not access any data via a module 'use'
+        # statement
+        sched = kern.get_kernel_schedule()
+        global_symbols = sched.symbol_table.global_symbols
+        if global_symbols:
+            raise TransformationError(
+                "The Symbol Table for kernel '{0}' contains the following "
+                "symbols with 'global' scope: {1}. PSyclone cannot currently "
+                "transform kernels for execution on an OpenACC device if "
+                "they access data not passed by argument.".
+                format(kern.name, [sym.name for sym in global_symbols]))
+        # Prevent unwanted side effects by removing the kernel schedule that
+        # we have just constructed. This is necessary while
+        # psyGen.Kern.rename_and_write still supports kernels that have been
+        # transformed by manipulation of the fparser2 Parse Tree (as opposed
+        # to the PSyIR).
+        # TODO #490 remove the following line.
+        kern._kern_schedule = None
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -3085,6 +3160,16 @@ class ACCKernelsTrans(RegionTrans):
         '''
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
+
+        :param node_list: the proposed list of PSyIR nodes to enclose in the \
+                          kernels region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+
+        :raises NotImplementedError: if the supplied Nodes do not belong to \
+                                     a NemoInvokeSchedule.
+        :raises TransformationError: if there are no Loops within the \
+                                     proposed region.
+
         '''
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
@@ -3105,12 +3190,6 @@ class ACCKernelsTrans(RegionTrans):
             # Branch executed if loop does not exit with a break
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
-
-        # TODO #315 Check that the SymbolTable associated with the
-        # KernelSchedule does not have any symbols with `deferred` type (as
-        # that indicates that we haven't yet worked out what they are). We
-        # can't do that yet as we can't create the PSyIR for our test kernels.
-        # That's the subject of #256.
 
 
 class ACCDataTrans(RegionTrans):
@@ -3141,7 +3220,7 @@ class ACCDataTrans(RegionTrans):
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, psyGen.IfBlock, psyGen.Literal,
                         psyGen.Assignment, psyGen.Reference,
-                        psyGen.BinaryOperation)
+                        psyGen.Operation)
 
     @property
     def name(self):

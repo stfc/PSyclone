@@ -84,6 +84,15 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
+def test_check_intergrid():
+    ''' Test that the check_intergrid utility does not raise an error if the
+    supplied node has no children. '''
+    from psyclone.psyGen import Node
+    from psyclone.transformations import check_intergrid
+    tnode = Node()
+    check_intergrid(tnode)
+
+
 def test_invalid_mesh_type():
     ''' Check that we raise an error if an unrecognised name is supplied
     for the mesh associated with a field argument '''
