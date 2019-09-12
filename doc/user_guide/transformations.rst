@@ -539,12 +539,9 @@ The current available options are:
 +--------------+----------------------------------------------+---------+
 | Option       |  Description                                 | Default |
 +==============+==============================================+=========+
-| end_barriers | Boolean that tells whether PSyclone should   | True    |
+| end_barrier  | Boolean that tells whether PSyclone should   | True    |
 |              | place a synchronization barrier for each     |         |
 |              | queue at the end of the Inovke Schedule.     |         |
-+--------------+----------------------------------------------+---------+
-| num_queues   | Number (as string) of OpenCL queues to       | '1'     | 
-|              | allocate.                                    |         |
 +--------------+----------------------------------------------+---------+
 
 Additionally, each individual kernel inside the Invoke that is going

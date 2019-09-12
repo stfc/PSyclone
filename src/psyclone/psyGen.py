@@ -429,12 +429,12 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
-                opencl_num_queues = max(
-                    opencl_num_queues,
-                    invoke.schedule._opencl_options['num_queues'],
-                    key=lambda x: int(x))
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
+                        opencl_num_queues = max(
+                            opencl_num_queues,
+                            kern._opencl_options['queue_number'],
+                            key=lambda x: int(x))
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
         if generate_ocl_init:
@@ -1658,7 +1658,7 @@ class InvokeSchedule(Schedule):
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barriers": True, "num_queues": "1"}
+        self._opencl_options = {"end_barrier": True}
         self._name_space_manager = NameSpaceFactory().create()
 
     def set_opencl_options(self, options):
@@ -1668,16 +1668,11 @@ class InvokeSchedule(Schedule):
 
         # Validate that the options given are supported and store them
         for key, value in options.items():
-            if key == "end_barriers":
+            if key == "end_barrier":
                 if not isinstance(value, bool):
                     raise TypeError(
-                        "InvokeSchedule opencl_option 'end_barriers' "
+                        "InvokeSchedule opencl_option 'end_barrier' "
                         "should be a boolean.")
-            elif key == "num_queues":
-                if not isinstance(value, str) or not value.isdigit():
-                    raise TypeError(
-                        "InvokeSchedule opencl_option 'num_queues' "
-                        "should be a string representing a number.")
             else:
                 raise AttributeError(
                     "InvokeSchedule does not support the opencl_option '{0}'."
@@ -1790,12 +1785,18 @@ class InvokeSchedule(Schedule):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl and self._opencl_options['end_barriers']:
+        if self.opencl and self._opencl_options['end_barrier']:
 
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
 
-            for i in range(1, int(self._opencl_options['num_queues'])):
+            opencl_num_queues = 0
+            for kern in self.coded_kernels():
+                opencl_num_queues = max(
+                    opencl_num_queues,
+                    kern._opencl_options['queue_number'],
+                    key=lambda x: int(x))
+            for i in range(1, int(opencl_num_queues)):
                 parent.add(
                     AssignGen(parent, lhs=flag,
                               rhs="clFinish({0}({1}))".format(qlist, i)))

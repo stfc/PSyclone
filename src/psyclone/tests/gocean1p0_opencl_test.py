@@ -133,7 +133,7 @@ def test_psy_init(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
     # Test with a non-default number of OpenCL queues
-    otrans.apply(sched, options={'num_queues': '5'})
+    sched.coded_kernels()[0].set_opencl_options({'queue_number':'5'})
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE psy_init()\n"
