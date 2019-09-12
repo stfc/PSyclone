@@ -841,15 +841,12 @@ def test_ompdo_directive_class_view(capsys):
             out, _ = capsys.readouterr()
 
             directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
-            literal = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
             loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-            sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-            kern = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
 
             expected_output = (
-                directive + case["current_string"] + "\n"
-                "    " + loop + "[type='', field_space='w1', it_space='cells',"
-                )
+                "0: " + directive + case["current_string"] + "\n"
+                "    0: " + loop + "[type='', field_space='w1', "
+                "it_space='cells',")
 
             assert expected_output in out
 
@@ -872,21 +869,21 @@ def test_acc_dir_view(capsys):
     new_sched.children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC enter data]")
+        "0: "+colored("Directive", colour)+"[ACC enter data]")
 
     # Parallel region
     new_sched, _ = accpt.apply(new_sched.children[1])
     new_sched.children[1].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Parallel]")
+        "0: "+colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive
     new_sched, _ = acclt.apply(new_sched.children[1].children[0])
     new_sched.children[1].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, independent]")
+        "0: "+colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
     new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
@@ -894,7 +891,8 @@ def test_acc_dir_view(capsys):
     new_sched.children[1].children[0].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, collapse=2, independent]")
+        "0: " + colored("Directive", colour) +
+        "[ACC Loop, collapse=2, independent]")
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -2154,7 +2152,7 @@ def test_acckernelsdirective_view(capsys):
     sched.children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Kernels]")
+        "0: " + colored("Directive", colour)+"[ACC Kernels]")
     assert "Loop" in out
     assert "CodedKern" in out
 

@@ -200,7 +200,6 @@ def test_fn_call_no_kernel(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
     # Child of loop should be an Assignment, not a Kernel.
@@ -307,25 +306,25 @@ def test_schedule_view(capsys):
 
     expected_sched = (
         isched_str + "[]\n"
-        "    " + loop_str + "[type='levels', field_space='None', "
+        "    0: " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n"
         "        " + lit_str + "[value:'1']\n"
         "        " + ref_str + "[name:'jpk']\n"
         "        " + lit_str + "[value:'1']\n"
         "        " + sched_str + "[]\n"
-        "            " + loop_str + "[type='lat', field_space='None', "
+        "            0: " + loop_str + "[type='lat', field_space='None', "
         "it_space='None']\n"
         "                " + lit_str + "[value:'1']\n"
         "                " + ref_str + "[name:'jpj']\n"
         "                " + lit_str + "[value:'1']\n"
         "                " + sched_str + "[]\n"
-        "                    " + loop_str + "[type='lon', field_space='None', "
-        "it_space='None']\n"
+        "                    0: " + loop_str + "[type='lon', "
+        "field_space='None', it_space='None']\n"
         "                        " + lit_str + "[value:'1']\n"
         "                        " + ref_str + "[name:'jpi']\n"
         "                        " + lit_str + "[value:'1']\n"
         "                        " + sched_str + "[]\n"
-        "                            " + kern_str + "[]\n")
+        "                            0: " + kern_str + "[]\n")
     assert expected_sched in output
 
 

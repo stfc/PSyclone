@@ -3772,7 +3772,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             "                " + lit + "[value:'NOT_INITIALISED']\n"
             "                " + lit + "[value:'1']\n"
             "                " + sched + "[]\n"
-            "                    0: " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                    0: " + call +
+            " x_innerproduct_y(asum,f1,f2)\n"
             "    1: " + gsum + "[scalar='asum']\n"
             "    2: " + directive + "[OMP parallel]\n"
             "        0: " + directive + "[OMP do]\n"
@@ -3783,7 +3784,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             "                " + lit + "[value:'NOT_INITIALISED']\n"
             "                " + lit + "[value:'1']\n"
             "                " + sched + "[]\n"
-            "                    0:" + call + " inc_a_times_x(asum,f1)\n"
+            "                    0: " + call + " inc_a_times_x(asum,f1)\n"
             "    3: " + directive + "[OMP parallel]\n"
             "        0: " + directive + "[OMP do][reprod=True]\n"
             "            0: " + loop + "[type='dofs', "

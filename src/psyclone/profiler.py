@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -184,14 +184,14 @@ class ProfileNode(Node):
         return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
 
     # -------------------------------------------------------------------------
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''Class specific view function to print the tree.
-        Parameters:
-        :param int indent: Indentation to be used for this node.'''
+
+        :param int indent: indentation to be used for this node.
+        :param int index: position of this node wrt its siblings.
+        '''
         # pylint: disable=arguments-differ
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, self.coloured_text, indent, index)
 
     # -------------------------------------------------------------------------
     def gen_code(self, parent):

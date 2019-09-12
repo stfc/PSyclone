@@ -4843,23 +4843,25 @@ class DynHaloExchange(HaloExchange):
 
     def view(self, indent=0, index=0):
         '''
-        Print view of this HaloExchange node to stdout.
+        Construct the text representation of this HaloExchange and pass it
+        to the view() method of the base class.
 
         :param int indent: how much to indent output by.
         :param int index: position of this Node wrt its siblings.
 
         '''
+        from psyclone.psyGen import Node
         _, known = self.required()
         runtime_check = not known
         field_id = self._field.name
         if self.vector_index:
             field_id += "({0})".format(self.vector_index)
-        print("{0}{1}: {2}[field='{3}', type='{4}', depth={5}, "
-              "check_dirty={6}]".format(self.indent(indent), index,
-                                        self.coloured_text, field_id,
-                                        self._compute_stencil_type(),
-                                        self._compute_halo_depth(),
-                                        runtime_check))
+        text = ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(self.coloured_text, field_id,
+                                          self._compute_stencil_type(),
+                                          self._compute_halo_depth(),
+                                          runtime_check))
+        Node.view(self, text, indent, index)
 
     def gen_code(self, parent):
         '''Dynamo specific code generation for this class.
@@ -5526,7 +5528,7 @@ class DynLoop(Loop):
 
     def view(self, indent=0, index=0):
         '''
-        Print out a textual representation of this loop. We override this
+        Construct a textual representation of this loop. We override this
         method from the Loop class because, in Dynamo0.3, the function
         space is now an object and we need to call orig_name on it. We
         also output the upper loop bound as this can now be
@@ -5543,13 +5545,12 @@ class DynLoop(Loop):
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        print(
-              "{0}{1}: {2}[type='{3}', field_space='{4}', it_space='{5}', "
-              "upper_bound='{6}']".format(self.indent(indent), index,
-                                          self.coloured_text, self._loop_type,
-                                          self._field_space.orig_name,
-                                          self.iteration_space, upper_bound))
-        Node.view(self, indent, index)
+        text = ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
+                "upper_bound='{4}']".format(
+                    self.coloured_text, self._loop_type,
+                    self._field_space.orig_name,
+                    self.iteration_space, upper_bound))
+        Node.view(self, text, indent, index)
 
     def load(self, kern):
         '''

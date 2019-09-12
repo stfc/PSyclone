@@ -3095,17 +3095,15 @@ def test_halo_exchange_view(capsys):
 
     # Ensure we test for text containing the correct (colour) control codes
     sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
     exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
-        "    " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    0: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
         "check_dirty=True]\n"
-        "    " + exch + "[field='f3', type='region', depth=1, "
+        "    1: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    " + exch + "[field='f4', type='region', depth=1, "
+        "    2: " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n")
     assert expected in result
 

@@ -93,16 +93,16 @@ class ExtractNode(Node):
         '''
         return "extract_" + str(self.position)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
-        Prints a text representation of the Extract tree to stdout \
-        and then calls the view() method of any children.
+        Creates a text representation of the Extract node and passes
+        it to the view() method of the base class.
 
         :param int indent: depth of indent for output text.
+        :param int index: position of this node wrt its siblings.
+
         '''
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, self.coloured_text, indent, index)
 
     def gen_code(self, parent):
         '''

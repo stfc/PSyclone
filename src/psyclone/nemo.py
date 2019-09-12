@@ -307,15 +307,15 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
         self._ast = ast
         self.process_nodes(self, ast.content, ast)
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
-        Print a representation of this NemoInvokeSchedule to stdout.
+        Construct a text representation of this NemoInvokeSchedule and pass
+        it to the view() method of the base class.
 
         :param int indent: level to which to indent output.
+        :param int index: position of this node wrt its siblings.
         '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        Node.view(self, self.coloured_text + "[]", indent, index)
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
@@ -395,12 +395,16 @@ class NemoKern(CodedKern):
         '''
         return []
 
-    def view(self, indent=0):
+    def view(self, indent=0, index=0):
         '''
-        Print representation of this node to stdout.
+        Pass text representation of this node to the view() method of the
+        base class.
+
         :param int indent: level to which to indent output.
+        :param int index: position of this node wrt to its siblings.
+
         '''
-        print(self.indent(indent) + self.coloured_text + "[]")
+        Node.view(self, self.coloured_text + "[]", indent, index)
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. It calls the corresponding
