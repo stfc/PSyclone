@@ -40,13 +40,13 @@ from __future__ import absolute_import
 
 import pytest
 from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.api import get_reader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
+from psyclone.tests.psyclone_test_utils import create_schedule
 
 
 def test_gen_intent():
@@ -155,31 +155,6 @@ def test_fw_gen_declaration():
     symbol = Symbol("dummy3", "integer", constant_value=10)
     result = fvisitor.gen_declaration(symbol)
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
-
-
-def create_schedule(code, ast_processor=Fparser2ASTProcessor):
-    '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and (by default) Fparser2ASTProcessor.
-
-    :param str code: Fortran code.
-    :param ast_processor: the particular ASTProcessor to use. Defaults \
-    to FParser2ASTProcessor.
-    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2ASTProcessor`
-
-
-    :returns: PSyIR tree representing the Fortran code.
-    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
-
-    '''
-    reader = FortranStringReader(code)
-    f2003_parser = ParserFactory().create(std="f2003")
-    parse_tree = f2003_parser(reader)
-
-    # Generate PSyIR schedule from fparser2 parse tree
-    processor = ast_processor()
-    schedule = processor.generate_schedule("tmp", parse_tree)
-
-    return schedule
 
 
 def test_fw_exception():
