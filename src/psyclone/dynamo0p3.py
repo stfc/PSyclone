@@ -4393,10 +4393,9 @@ class DynInvokeSchedule(InvokeSchedule):
 
         '''
         from psyclone.psyGen import Node
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "', dm=" +
-              str(Config.get().distributed_memory)+"]")
-        Node.view(self, indent, index)
+        text = (self.coloured_text + "[invoke='" + self.invoke.name +
+                "', dm=" + str(Config.get().distributed_memory)+"]")
+        Node.view(self, text, indent, index)
 
 
 class DynGlobalSum(GlobalSum):

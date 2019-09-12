@@ -857,7 +857,7 @@ def test_goschedule_view(capsys):
     # The view method writes to stdout and this is captured by py.test
     # by default. We have to query this captured output.
     out, _ = capsys.readouterr()
-    print(out)
+
     # Ensure we check for the correct (colour) control codes in the output
     isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
@@ -896,8 +896,6 @@ def test_goschedule_view(capsys):
         "                " + sched + "[]\n"
         "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
         "uold_fld) [module_inline=False]")
-    print("==================")
-    print(expected_output)
     assert expected_output in out
 
 
