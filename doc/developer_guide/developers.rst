@@ -459,10 +459,12 @@ CodeBlock Node
 The PSyIR CodeBlock node contains code that has no representation in
 the PSyIR. It is useful as it allows the PSyIR to represent complex
 code by using CodeBlocks to handle the parts which contain unsupported
-language features. One strategy would be to work towards capturing all
-language features in the PSyIR. However the purpose of the PSyIR is to
-allow code to be restructured for performance, so the PSyIR only needs
-to represent the relevant parts.
+language features. One approach would be to work towards capturing all
+language features in the PSyIR, which would gradually remove the need
+for CodeBlocks. However, the purpose of the PSyIR is to capture code
+concepts that are relevant for performance, not all aspects of a code,
+therefore it is likely that that CodeBlocks will continue to be an
+important part of the PSyIR.
 
 .. autoclass:: psyclone.psyGen.CodeBlock
    :members:
