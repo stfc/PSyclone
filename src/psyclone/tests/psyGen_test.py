@@ -3037,17 +3037,33 @@ def test_ifblock_view(capsys):
     ''' Check the view and colored_text methods of the IfBlock class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
-    coloredtext = colored("If", SCHEDULE_COLOUR_MAP["If"])
+    colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
+    colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+    colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     ifblock = IfBlock()
     ifblock.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[]" in output
+    assert colouredif+"[]" in output
 
     ifblock = IfBlock(annotation='was_elseif')
     ifblock.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[annotations='was_elseif']" in output
+    assert colouredif+"[annotations='was_elseif']" in output
+
+    ifblock = IfBlock()
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+    ifblock.view()
+    output, _ = capsys.readouterr()
+    # Check that we only prepend child indices where it makes sense
+    assert "0: " + colouredif + "[]" in output
+    assert "0: " + colouredreturn in output
+    assert ": " + colouredref not in output
 
 
 def test_ifblock_can_be_printed():
@@ -5149,6 +5165,10 @@ def test_fp2astproc_case_default(f2008_parser):
         assert isinstance(assigns[2].parent.parent.children[1], Schedule)
         assert isinstance(assigns[2].parent.parent.children[1].children[0],
                           Assignment)
+        # Check that the parent of the innermost IfBlock is correct
+        ifblocks = fake_parent.walk(IfBlock)
+        assert len(ifblocks) == 2
+        assert isinstance(ifblocks[1].parent, Schedule)
 
 
 def test_fp2astproc_handling_case_list(f2008_parser):

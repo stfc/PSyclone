@@ -1272,9 +1272,10 @@ class Node(object):
 
         '''
         # Those nodes in the PSyIR for which we do not prepend an index to
-        # any immediate child nodes (because it would never make sense to
-        # apply a transformation to them without their parent).
-        non_indexed_children = (Array, Assignment, Loop)
+        # any immediate child nodes because it would never make sense to
+        # apply a transformation to them without their parent. Note that
+        # nodes within e.g. a Loop will be children of a Schedule.
+        non_indexed_children = (Array, Assignment, Loop, IfBlock, Operation)
         if text:
             if isinstance(self.parent, non_indexed_children) or \
                isinstance(self, Schedule):
@@ -2821,7 +2822,7 @@ class GlobalSum(Node):
         the base method and simply return our argument.'''
         return [self._scalar]
 
-    def view(self, indent, index=0):
+    def view(self, indent=0, index=0):
         '''
         Construct the text describing this GlobalSum and then pass it to
         the base class' view() method.
@@ -5073,6 +5074,8 @@ class IfBlock(Node):
         Print representation of this node to stdout.
 
         :param int indent: the level to which to indent the output.
+        :param int index: the position of this node wrt its siblings.
+
         '''
         text = self.coloured_text + "["
         if self.annotations:
@@ -7463,6 +7466,7 @@ class Fparser2ASTProcessor(object):
             clause = node.content[start_idx]
             case = clause.items[0]
 
+            # Each standard CASE is represented by an IfBlock
             ifblock = IfBlock(parent=currentparent,
                               annotation='was_case')
             ifblock.ast = node.content[start_idx]
@@ -7485,8 +7489,7 @@ class Fparser2ASTProcessor(object):
             # Add If_body
             ifbody = Schedule(parent=ifblock)
             self.process_nodes(parent=ifbody,
-                               nodes=node.content[start_idx + 1:
-                                                  end_idx],
+                               nodes=node.content[start_idx + 1:end_idx],
                                nodes_parent=node)
             ifblock.addchild(ifbody)
             ifbody.ast = node.content[start_idx + 1]
@@ -7498,11 +7501,13 @@ class Fparser2ASTProcessor(object):
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
                 elsebody.addchild(ifblock)
+                # Correct the parent of the ifblock to be the Schedule
+                # of this new else branch.
+                ifblock.parent = elsebody
                 elsebody.ast = node.content[start_idx + 1]
                 elsebody.ast_end = node.content[end_idx - 1]
             else:
                 rootif = ifblock
-
             currentparent = ifblock
 
         if default_clause_idx:
