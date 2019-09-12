@@ -57,7 +57,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
-from dynamo0p3_build import Dynamo0p3Build
+from .dynamo0p3_build import Dynamo0p3Build
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

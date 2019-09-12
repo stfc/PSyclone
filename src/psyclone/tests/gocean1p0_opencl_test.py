@@ -39,12 +39,14 @@ GOcean 1.0 API.'''
 
 from __future__ import print_function, absolute_import
 import pytest
-from gocean1p0_build import GOcean1p0OpenCLBuild
+
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError, Symbol
-from psyclone_test_utils import Compile, get_invoke
+from .psyclone_test_utils import Compile, get_invoke
+
+from .gocean1p0_build import GOcean1p0OpenCLBuild
 
 API = "gocean1.0"
 

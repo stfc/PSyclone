@@ -36,8 +36,14 @@
 ''' Test utilities including support for testing that code compiles. '''
 
 from __future__ import absolute_import, print_function
+
 import os
 import pytest
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
+from psyclone.psyGen import Fparser2ASTProcessor
+
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
@@ -46,8 +52,8 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 class CompileError(Exception):
     '''
     Exception raised when compilation of a Fortran source file
-    fails.
 
+    fails.
     :param value: description of the error condition.
     :type value: str or :py:class:`bytes`
 
@@ -190,6 +196,7 @@ class Compile(object):
 
     @staticmethod
     def skip_if_opencl_compilation_disabled():
+        # pylint:disable=invalid-name
         '''This function is used in all tests that should only run
         if opencl compilation is enabled. It calls pytest.skip if
         opencl compilation is not enabled.'''
@@ -430,3 +437,25 @@ def get_invoke(algfile, api, idx=None, name=None):
     else:
         invoke = psy.invokes.invoke_list[idx]
     return psy, invoke
+
+
+# =============================================================================
+def create_schedule(code):
+    '''Utility function that returns a PSyIR tree from Fortran
+    code using fparser2 and Fparser2ASTProcessor.
+
+    :param str code: Fortran code.
+
+    :returns: PSyIR tree representing the Fortran code.
+    :rtype: subclass of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    reader = FortranStringReader(code)
+    f2003_parser = ParserFactory().create(std="f2003")
+    parse_tree = f2003_parser(reader)
+
+    # Generate PSyIR schedule from fparser2 parse tree
+    processor = Fparser2ASTProcessor()
+    schedule = processor.generate_schedule("tmp", parse_tree)
+
+    return schedule

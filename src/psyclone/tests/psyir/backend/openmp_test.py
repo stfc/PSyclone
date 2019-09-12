@@ -39,9 +39,7 @@
 from __future__ import absolute_import
 
 from psyclone.psyir.backend.fortran import FortranWriter
-
-# TODO - that code should probably moved into test_utils
-from fortran_test import create_schedule
+from psyclone.tests.psyclone_test_utils import create_schedule
 
 
 def test_omp_parallel():

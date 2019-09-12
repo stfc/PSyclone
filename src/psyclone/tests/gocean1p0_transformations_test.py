@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
-from gocean1p0_build import GOcean1p0Build
+
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
@@ -51,7 +51,9 @@ from psyclone.transformations import TransformationError, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
     ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
-from psyclone_test_utils import count_lines, get_invoke, Compile
+from .psyclone_test_utils import count_lines, get_invoke, Compile
+
+from .gocean1p0_build import GOcean1p0Build
 
 # The version of the PSyclone API that the tests in this file
 # exercise

@@ -55,7 +55,8 @@ from psyclone.transformations import TransformationError, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
-from dynamo0p3_build import Dynamo0p3Build
+
+from .dynamo0p3_build import Dynamo0p3Build
 
 
 # The version of the API that the tests in this file
