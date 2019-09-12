@@ -452,6 +452,51 @@ The operations supported by the `NaryOperation` are:
    :members:
    :undoc-members:
 
+
+CodeBlock Node
+==============
+
+The PSyIR CodeBlock node contains code that has no representation in
+the PSyIR. It is useful as it allows the PSyIR to represent complex
+code by using CodeBlocks to ignore the parts that are not relevant.
+
+.. autoclass:: psyclone.psyGen.CodeBlock
+   :members:
+   :undoc-members:
+
+The code represented by a CodeBlock is currently stored as a list of
+fparser2 nodes. Therefore, a CodeBlock's input and output language is
+limited to being Fortran. This means that only the fparser2 front-end
+and Fortran back-end can be used when there are CodeBlocks within a
+PSyIR tree. In theory, language interfaces could be written between
+CodeBlocks and other PSyIR Nodes to support different back-ends but
+this has not been implemented.
+
+The CodeBlock ``structure`` method indicates whether the code contains
+one or more Fortran expressions or one or more statements (which may
+themselves contain expressions). This is required by the Fortran
+back-end as expressions do not need indentation and a newline whereas
+statements do.
+
+A feature of the fparser2 node list is that if the first node in the
+list is a statement then so are all the other nodes in the list and
+that if the first node in the list is an expression then so are all
+the other nodes in the list. This allows the ``structure`` method to
+return a single value that represents all nodes in the list.
+
+The structure of the PSyIR hierarchy is used determine whether the
+code in a CodeBlock contains expressions or statements. This is
+achieved by looking at the parent PSyIR Node. If the parent Node is a
+Schedule then the CodeBlock contains one or more statements, otherwise
+it contains one or more expressions. This logic works for existing
+PSyIR nodes and relies on any future PSyIR nodes being constructed so
+this continues to be true. The one exception to this rule is
+Directives. Directives currently do not place their children in a
+Schedule. As the structure of Directives is under discussion, it was
+decided to raise an exception if the parent node of a CodeBlock is a
+Directive (for the time being).
+
+
 Dependence Analysis
 ===================
 
