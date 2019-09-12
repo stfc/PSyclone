@@ -6040,7 +6040,7 @@ class CodeBlock(Node):
         return self._structure
 
     @property
-    def get_statements(self):
+    def get_ast_nodes(self):
         '''
         :returns: the list of nodes associated with this code block in \
         the original AST.
@@ -6048,7 +6048,7 @@ class CodeBlock(Node):
         `:py:classfparser.two.Fortran2003.Base`
 
         '''
-        return self._statements
+        return self._fp2_nodes
 
     @property
     def coloured_text(self):

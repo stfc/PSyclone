@@ -2884,8 +2884,8 @@ def test_codeblock_can_be_printed():
     assert "]" in str(cblock)
 
 
-def test_codeblock_getstatements():
-    '''Test that the get_statements method of a CodeBlock instance returns
+def test_codeblock_getastnodes():
+    '''Test that the get_ast_nodes method of a CodeBlock instance returns
     a copy of the list of nodes from the original AST that are associated with
     this code block.
 
@@ -2893,8 +2893,8 @@ def test_codeblock_getstatements():
 
     '''
     original = ["hello", "there"]
-    cblock = CodeBlock(original)
-    result = cblock.get_statements
+    cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
+    result = cblock.get_ast_nodes
     assert result == original
     # Check that the list is a copy not a reference.
     assert result is not original

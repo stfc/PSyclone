@@ -615,11 +615,10 @@ def test_fw_codeblock_1(fort_writer):
         "    PRINT *, \"with more than one line\"\n" in result)
 
 
-@pytest.mark.xfail(reason="issue #388. Code blocks add space and newline.")
 def test_fw_codeblock_2(fort_writer):
-    '''Check the FortranWriter class array method correctly prints out the
-    Fortran representation when there is a code block that is part of
-    a line (not a whole line). In this case the ":" in the array
+    '''Check the FortranWriter class codeblock method correctly prints out
+    the Fortran representation when there is a code block that is part
+    of a line (not a whole line). In this case the ":" in the array
     access is a code block.
 
     '''
@@ -641,6 +640,18 @@ def test_fw_codeblock_2(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a(2,n,:)=0.0" in result
+
+
+def test_fw_codeblock_3(fort_writer):
+    '''Check the FortranWriter class codeblock method raises the expected
+    exception if an unsupported CodeBlock structure value is found.
+
+    '''
+    code_block = CodeBlock([], "unsupported")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.codeblock_node(code_block)
+    assert ("Unsupported CodeBlock Structure 'unsupported' found."
+            in str(excinfo.value))
 
 
 def get_nemo_schedule(parser, code):

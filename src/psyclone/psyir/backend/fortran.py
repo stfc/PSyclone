@@ -498,9 +498,19 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        from psyclone.psyGen import CodeBlock
         result = ""
-        for statement in node.get_statements:
-            result += "{0}{1}\n".format(self._nindent, str(statement))
+        if node.structure == CodeBlock.Structure.STATEMENT:
+            # indent and newlines required
+            for ast_node in node.get_ast_nodes:
+                result += "{0}{1}\n".format(self._nindent, str(ast_node))
+        elif node.structure == CodeBlock.Structure.EXPRESSION:
+            for ast_node in node.get_ast_nodes:
+                result += str(ast_node)
+        else:
+            raise VisitorError(
+                ("Unsupported CodeBlock Structure '{0}' found."
+                 "".format(node.structure)))
         return result
 
     def nemoinvokeschedule_node(self, node):
