@@ -458,7 +458,11 @@ CodeBlock Node
 
 The PSyIR CodeBlock node contains code that has no representation in
 the PSyIR. It is useful as it allows the PSyIR to represent complex
-code by using CodeBlocks to ignore the parts that are not relevant.
+code by using CodeBlocks to handle the parts which contain unsupported
+language features. One strategy would be to work towards capturing all
+language features in the PSyIR. However the purpose of the PSyIR is to
+allow code to be restructured for performance, so the PSyIR only needs
+to represent the relevant parts.
 
 .. autoclass:: psyclone.psyGen.CodeBlock
    :members:
@@ -484,7 +488,7 @@ that if the first node in the list is an expression then so are all
 the other nodes in the list. This allows the ``structure`` method to
 return a single value that represents all nodes in the list.
 
-The structure of the PSyIR hierarchy is used determine whether the
+The structure of the PSyIR hierarchy is used to determine whether the
 code in a CodeBlock contains expressions or statements. This is
 achieved by looking at the parent PSyIR Node. If the parent Node is a
 Schedule then the CodeBlock contains one or more statements, otherwise

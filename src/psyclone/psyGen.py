@@ -6099,7 +6099,7 @@ class Assignment(Node):
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
-        :raises InternalError: Node has lest children than expected
+        :raises InternalError: Node has fewer children than expected.
         '''
         if len(self._children) < 2:
             raise InternalError(
