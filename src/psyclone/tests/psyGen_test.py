@@ -1595,6 +1595,26 @@ def test_haloexchange_can_be_printed():
         assert "', check_dirty='" in str(haloexchange)
 
 
+def test_haloexchange_view(capsys):
+    ''' Test the view() method of HaloExchange. '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    # We have to use the dynamo0.3 API as that's currently the only one
+    # that supports halo exchanges.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # We have to manually call the correct view() method as the one we want
+    # to test is overidden in DynHaloExchange.
+    HaloExchange.view(schedule.children[1], indent=1, index=3)
+    out, _ = capsys.readouterr()
+    colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
+    assert ("3: " + colored("HaloExchange", colour) +
+            "[field='m1', type='None', depth=None, check_dirty=True]" in out)
+
+
 def test_haloexchange_args():
     '''Test that the haloexchange class args method returns the appropriate
     argument '''

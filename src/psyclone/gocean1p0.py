@@ -346,17 +346,18 @@ class GOInvokeSchedule(InvokeSchedule):
         self._const_loop_bounds = True
 
     def view(self, indent=0, index=0):
-        '''Print a representation of this GOInvokeSchedule.
+        '''Construct a textual representation of this GOInvokeSchedule and
+        pass it to the view() method of the base class.
 
         :param int indent: optional argument indicating the level of \
                   indentation to add before outputting the class information.
-        :param int index: TODO
+        :param int index: position of this node wrt to its siblings.
+
         '''
         from psyclone.psyGen import Node
-        print("{0}{1}[invoke='{2}', Constant loop bounds={3}]".format(
-            self.indent(indent), self.coloured_text, self.invoke.name,
-            self._const_loop_bounds))
-        Node.view(self, indent, index)
+        text = "{0}[invoke='{1}', Constant loop bounds={2}]".format(
+            self.coloured_text, self.invoke.name, self._const_loop_bounds)
+        Node.view(self, text, indent, index)
 
     def __str__(self):
         ''' Returns the string representation of this GOInvokeSchedule '''
@@ -781,7 +782,8 @@ class GOLoop(Loop):
         '''
         Write out a textual summary of this Loop node to stdout.
 
-        :param int indent: Depth of indent for output text
+        :param int indent: depth of indent for output text.
+        :param int index: position of this node wrt to its siblings.
         '''
         # Generate the upper and lower loop bounds
         # TODO: Issue 440. upper/lower_bound should generate PSyIR

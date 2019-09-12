@@ -2681,14 +2681,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def view(self, indent=0, index=0):
         '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+        Create a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of the base class.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: depth of indent for output text.
+        :param int index: position of this node wrt its siblings.
         '''
-        #print("{0}{1}: {2}[OMP parallel do]".format(self.indent(indent),
-        #                                            index, self.coloured_text))
         Node.view(self, "{0}[OMP parallel do]".format(self.coloured_text),
                   indent, index)
 
@@ -2990,16 +2988,16 @@ class HaloExchange(Node):
 
     def view(self, indent=0, index=0):
         '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+        Create a textual summary of this HaloExchange node
+        and then pass this to the view() method of the base class.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: depth of indent for output text.
+        :param int index: position of this node wrt its siblings.
         '''
-        text = "{0}[field='{1}', type='{2}', depth={3}, " + \
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
-                                      self._halo_type, self._halo_depth,
-                                      self._check_dirty)
+        text = ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(self.coloured_text, self._field.name,
+                                          self._halo_type, self._halo_depth,
+                                          self._check_dirty))
         Node.view(self, text, indent, index)
 
     def __str__(self):
