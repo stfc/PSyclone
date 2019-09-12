@@ -263,7 +263,7 @@ def test_cw_codeblock():
     error.
     '''
 
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     cwriter = CWriter()
 
     with pytest.raises(VisitorError) as error:

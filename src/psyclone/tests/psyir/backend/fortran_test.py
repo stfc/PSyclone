@@ -632,7 +632,8 @@ def test_fw_codeblock():
     _ = ParserFactory().create(std="f2003")
     reader = get_reader(code1)
     statements = Fortran2003.Execution_Part(reader)
-    code_block = CodeBlock([statements], parent=schedule)
+    code_block = CodeBlock([statements], CodeBlock.Structure.STATEMENT,
+                           parent=schedule)
     schedule.addchild(code_block)
 
     # Generate Fortran from the PSyIR schedule
