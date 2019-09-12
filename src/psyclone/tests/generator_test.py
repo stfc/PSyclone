@@ -661,7 +661,7 @@ def test_main_no_invoke_alg_stdout(capsys):
     # pass in a kernel file as that has no invokes in it
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "test_files", "dynamo0p3",
-                                  "testkern.F90"))
+                                  "testkern_mod.F90"))
     main([kern_filename])
     out, _ = capsys.readouterr()
 
@@ -707,7 +707,7 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     # pass in a kernel file as that has no invokes in it
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "test_files", "dynamo0p3",
-                                  "testkern.F90"))
+                                  "testkern_mod.F90"))
 
     alg_filename = str(tmpdir.join("alg.f90"))
     psy_filename = str(tmpdir.join("psy.f90"))

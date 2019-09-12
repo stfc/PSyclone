@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _developers-guide:
 
 Developers' guide
@@ -2244,6 +2279,17 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Finally, those transformations that act on a Kernel must sub-class the
+``KernelTrans`` class:
+
+.. autoclass:: psyclone.transformations.KernelTrans
+   :members:
+   :private-members:
+   :noindex:
+
+In all cases, the `apply` method of any sub-class *must* ensure that
+the `validate` method of the parent class is called.
+
 Module: psyGen
 ==============
 
@@ -2295,15 +2341,18 @@ only used in ``DynKernelArguments.raw_arg_list()``.
 classes make use of ``DynCollection`` sub-classes in order
 to ensure that argument naming is consistent.
 
+Transformations
+###############
+
 Kernel Transformations
-----------------------
+======================
 
 PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIR, apply the transformation,
-and producing the resulting language AST or code.
+two ways to apply transformations: by directly manipulating the
+language AST or by translating the language AST to PSyIR, applying the
+transformation, and producing the resulting language AST or code.
 
-For now, both methods only support fparser2 AST for kernel code.
+For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
 back into a Fortran string and then parsing that with fparser2.
@@ -2336,9 +2385,6 @@ The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
-
-Transformations
-###############
 
 OpenACC
 =======
