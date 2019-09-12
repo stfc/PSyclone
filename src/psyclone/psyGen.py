@@ -4042,12 +4042,14 @@ class CodedKern(Kern):
             name_idx += 1
             new_suffix = ""
 
-            # Include the kernel name into the filename if the module
-            # has more than one kernel
-            # TODO: FIXME self.parent.kernels() is not what we want, this
-            # is the InvokeSchedule, not the module
-            if len(self.parent.kernels()) > 1:
-                if orig_mod_name.lower().endswith("_code"):
+            # On the GOcean OpenCL work we need to differentiate between the
+            # generated kernels from the same module file, so we include the
+            # kernelname into the output filename.
+            # TODO: Issue 499, this works as an OpenCL quickfix but it needs
+            # to be generalized and be consistent with the '--kernel-renaming'
+            # conventions.
+            if self.root.opencl:
+                if self.name.lower().endswith("_code"):
                     new_suffix += "_" + self.name[:-5]
                 else:
                     new_suffix += "_" + self.name

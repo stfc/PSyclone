@@ -271,13 +271,12 @@ def test_set_kern_args(kernel_outputdir):
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the compute_cu_code OpenCL Kernel
-      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
-      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(cu_fld), C_LOC(cu_fld))
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
+      CALL check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
       CALL check_status('clSetKernelArg: arg 1 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(p_fld), C_LOC(p_fld))
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(u_fld), C_LOC(u_fld))
       CALL check_status('clSetKernelArg: arg 2 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(u_fld), C_LOC(u_fld))
-      CALL check_status('clSetKernelArg: arg 3 of compute_cu_code', ierr)
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
     assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
@@ -374,6 +373,37 @@ def test_opencl_kernel_code_generation(kernel_outputdir):
 
     openclwriter = OpenCLWriter()
     assert expected_code == openclwriter(kschedule)
+
+
+def test_opencl_kernel_output_file(kernel_outputdir):
+    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+    '''
+    import os
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    sched.kernels()[0].name = "name"
+    generated_code = str(psy.gen).lower()
+
+    assert os.path.exists(
+        os.path.join(kernel_outputdir, "compute_cu_name_0.cl"))
+
+
+def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
+    '''Check that an OpenCL file named modulename_kernelname_0 is
+    generated without the _code suffix in the kernelname
+    '''
+    import os
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen).lower()
+
+    assert os.path.exists(
+        os.path.join(kernel_outputdir,
+                     "compute_cu_compute_cu_0.cl"))
 
 
 def test_symtab_implementation_for_opencl():

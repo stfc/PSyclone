@@ -1486,8 +1486,8 @@ def test_ocl_apply(kernel_outputdir):
     # Check that the new kernel files have been generated
     kernel_files = os.listdir(str(kernel_outputdir))
     assert len(kernel_files) == 2
-    assert "kernel_ne_offset_0.cl" in kernel_files
-    assert "kernel_scalar_int_0.cl" in kernel_files
+    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
+    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
     assert GOcean1p0Build(kernel_outputdir).code_compiles(psy)
 
 
