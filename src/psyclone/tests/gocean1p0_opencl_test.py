@@ -133,7 +133,7 @@ def test_psy_init(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
     # Test with a non-default number of OpenCL queues
-    sched.coded_kernels()[0].set_opencl_options({'queue_number':'5'})
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': '5'})
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE psy_init()\n"
@@ -158,16 +158,95 @@ def test_psy_init(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_invokeschedule_opencl_gen_code(kernel_outputdir):
-    '''
-    '''
-    assert True
-
-
 def test_opencl_options_validation(kernel_outputdir):
+    ''' Check that OpenCL options which are not supported provide appropiate
+    errors.
     '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+
+    # Unsupported options are not accepted
+    with pytest.raises(AttributeError) as err:
+        otrans.apply(sched, options={'unsupported': '1'})
+    assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
+        in str(err)
+
+    # end_barrier option must be a boolean
+    with pytest.raises(TypeError) as err:
+        otrans.apply(sched, options={'end_barrier': '1'})
+    assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
+        in str(err)
+
+    # Unsupported kernel options are not accepted
+    with pytest.raises(AttributeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'unsupported': '1'})
+    assert "CodedKern does not support the opencl_option 'unsupported'." \
+        in str(err)
+
+    # local_size must be a string representing a number
+    with pytest.raises(TypeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'local_size': 1})
+    assert "CodedKern opencl_option 'local_size' should be a string " \
+        "representing a number." in str(err)
+
+    with pytest.raises(TypeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'local_size': 'a'})
+    assert "CodedKern opencl_option 'local_size' should be a string " \
+        "representing a number." in str(err)
+
+    # queue_number must be a string representing a number
+    with pytest.raises(TypeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'queue_number': 1})
+    assert "CodedKern opencl_option 'queue_number' should be a string " \
+        "representing a number." in str(err)
+
+    with pytest.raises(TypeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'queue_number': 'a'})
+    assert "CodedKern opencl_option 'queue_number' should be a string " \
+        "representing a number." in str(err)
+
+
+def test_opencl_options_effects(kernel_outputdir):
+    ''' Check that the OpenCL options produce the expected changes in the
+    PSy layer.
     '''
-    assert True
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+
+    # By default there is 1 queue, with an end barrier and local_size is 1
+    assert "localsize = (/1, 1/)" in generated_code
+    assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
+        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
+    assert "! Block until all kernels have finished\n" \
+        "      ierr = clFinish(cmd_queues(1))" in generated_code
+    assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+
+    # Change kernel local_size to 4
+    sched.coded_kernels()[0].set_opencl_options({'local_size': '4'})
+    generated_code = str(psy.gen)
+    assert "localsize = (/4, 1/)" in generated_code
+
+    # Change kernel queue to 2 (the barrier should then also go up to 2)
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': '2'})
+    generated_code = str(psy.gen)
+    assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
+        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
+    assert "! Block until all kernels have finished\n" \
+        "      ierr = clFinish(cmd_queues(1))\n" \
+        "      ierr = clFinish(cmd_queues(2))\n" in generated_code
+    assert "ierr = clFinish(cmd_queues(3))" not in generated_code
+
+    # Remove barrier at the end of the Invoke
+    otrans.apply(sched, options={'end_barrier': False})
+    generated_code = str(psy.gen)
+    assert "! Block until all kernels have finished" not in generated_code
+    assert "ierr = clFinish(cmd_queues(2))" not in generated_code
 
 
 @pytest.mark.xfail(reason="Uses a variable defined in another module."

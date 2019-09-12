@@ -1796,7 +1796,7 @@ class InvokeSchedule(Schedule):
                     opencl_num_queues,
                     kern._opencl_options['queue_number'],
                     key=lambda x: int(x))
-            for i in range(1, int(opencl_num_queues)):
+            for i in range(1, int(opencl_num_queues) + 1):
                 parent.add(
                     AssignGen(parent, lhs=flag,
                               rhs="clFinish({0}({1}))".format(qlist, i)))
