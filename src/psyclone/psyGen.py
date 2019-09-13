@@ -1276,9 +1276,14 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def view(self, text="", indent=0, index=None):
-        ''' Base function to print out description of current node (if
-        `text` is supplied) and then call view() on all child nodes.
+    @abc.abstractmethod
+    def view(self, indent=0, index=None):
+        ''' Abstract method that must be implemented in sub-class to
+        provide class specific content describing the node. '''
+
+    def base_view(self, text="", indent=0, index=None):
+        ''' Base function to print out description of current node and
+        then call view() on all child nodes.
 
         :param str text: the description of the current node (supplied by \
                          sub-class).
@@ -1286,18 +1291,20 @@ class Node(object):
         :param int index: the position of this Node wrt its siblings or None.
 
         '''
-        # Those nodes in the PSyIR for which we do not prepend an index to
-        # any immediate child nodes because it would never make sense to
-        # apply a transformation to them without their parent. Note that
-        # nodes within e.g. a Loop will be children of a Schedule.
-        non_indexed_children = (Array, Assignment, Loop, IfBlock, Operation)
-        if text:
-            if isinstance(self.parent, non_indexed_children) or \
-               isinstance(self, Schedule) or \
-               index is None:
-                print("{0}{1}".format(self.indent(indent), text))
-            else:
-                print("{0}{1}: {2}".format(self.indent(indent), index, text))
+        # Those nodes in the PSyIR for which we do not prepend an index to any
+        # immediate child nodes because it would never make sense to apply
+        # a transformation to them without their parent. Note that nodes
+        # within e.g. a Loop will be children of a Schedule.
+        non_indexed_children = (Array, Assignment, IfBlock, Loop, Operation)
+
+        if not text:
+            text = "Node"
+        if isinstance(self.parent, non_indexed_children) or \
+           isinstance(self, Schedule) or \
+           index is None:
+            print("{0}{1}".format(self.indent(indent), text))
+        else:
+            print("{0}{1}: {2}".format(self.indent(indent), index, text))
 
         for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1, index=idx)
@@ -1605,13 +1612,13 @@ class Schedule(Node):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass this to the
-        view() method of the base class.
+        base_view() method of the base class.
 
         :param int indent: depth of indent for output text.
-        :param int index: the position of this Node wrt its siblings
+        :param int index: the position of this Node wrt its siblings.
 
         '''
-        Node.view(self, "{0}[]".format(self.coloured_text), indent, index)
+        self.base_view("{0}[]".format(self.coloured_text), indent, index)
 
     @property
     def coloured_text(self):
@@ -1698,14 +1705,14 @@ class InvokeSchedule(Schedule):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass it to
-        the view() method of the base class.
+        the base_view() method of the base class.
 
         :param int indent: depth of indent for output text.
         :param int index: position of this node wrt its siblings.
         '''
-        Node.view(self, "{0}[invoke={1}]".format(self.coloured_text,
-                                                 self.invoke.name),
-                  indent, index)
+        self.base_view("{0}[invoke={1}]".format(self.coloured_text,
+                                                self.invoke.name),
+                       indent, index)
 
     @property
     def coloured_text(self):
@@ -1836,14 +1843,14 @@ class Directive(Node):
 
     def view(self, indent=0, index=None):
         '''
-        Construct a text representation of this node to stdout and then
-        call the view() method of any children.
+        Construct a text representation of this and pass it to the
+        base_view() method of the base class.
 
         :param int indent: depth of indent for output text.
         :param int index: position of this node wrt to its siblings.
 
         '''
-        Node.view(self, self.coloured_text, indent, index)
+        self.base_view(self.coloured_text, indent, index)
 
     @property
     def coloured_text(self):
@@ -1868,9 +1875,10 @@ class ACCDirective(Directive):
     @abc.abstractmethod
     def view(self, indent=0, index=None):
         '''
-        Print text representation of this node to stdout.
+        Construct text representation of this node and pass to base class.
 
-        :param int indent: size of indent to use for output
+        :param int indent: size of indent to use for output.
+        :param int index: position of this node wrt its siblings or None.
         '''
 
     @property
@@ -2016,14 +2024,14 @@ class ACCEnterDataDirective(ACCDirective):
 
     def view(self, indent=0, index=None):
         '''
-        Pass a text representation of this Node to the view() method of
+        Pass a text representation of this Node to the base_view() method of
         the base class.
 
         :param int indent: the amount by which to indent the output.
         :param int index: position of this node wrt its siblings.
         '''
-        Node.view(self, "{0}[ACC enter data]".format(self.coloured_text),
-                  indent, index)
+        self.base_view("{0}[ACC enter data]".format(self.coloured_text),
+                       indent, index)
 
     @property
     def dag_name(self):
@@ -2097,14 +2105,14 @@ class ACCParallelDirective(ACCDirective):
     '''
     def view(self, indent=0, index=None):
         '''
-        Pass a text representation of this Node to the view() method of the
-        base class.
+        Pass a text representation of this Node to the base_view() method
+        of the base class.
 
         :param int indent: the amount by which to indent the output.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
-        Node.view(self, "{0}[ACC Parallel]".format(self.coloured_text),
-                  indent, index)
+        self.base_view("{0}[ACC Parallel]".format(self.coloured_text),
+                       indent, index)
 
     @property
     def dag_name(self):
@@ -2247,9 +2255,11 @@ class ACCLoopDirective(ACCDirective):
 
     def view(self, indent=0, index=None):
         '''
-        Print a textual representation of this Node to stdout.
+        Construct a textual representation of this Node and pass it to the
+        base_view() method of the base class.
 
-        :param int indent: amount to indent output by
+        :param int indent: amount to indent output by.
+        :param int index: position of this node wrt its siblings or None.
         '''
         text = "{0}[ACC Loop".format(self.coloured_text)
         if self._sequential:
@@ -2260,7 +2270,7 @@ class ACCLoopDirective(ACCDirective):
             if self._independent:
                 text += ", independent"
         text += "]"
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def gen_code(self, parent):
         '''
@@ -2331,13 +2341,13 @@ class OMPDirective(Directive):
 
     def view(self, indent=0, index=None):
         '''
-        Pass a text representation of this node to the view() method of
+        Pass a text representation of this node to the base_view() method of
         the base class.
 
         :param int indent: depth of indent for output text.
         :param int index: position of this node wrt its siblings.
         '''
-        Node.view(self, "{0}[OMP]".format(self.coloured_text), indent, index)
+        self.base_view("{0}[OMP]".format(self.coloured_text), indent, index)
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
@@ -2365,15 +2375,15 @@ class OMPParallelDirective(OMPDirective):
 
     def view(self, indent=0, index=None):
         '''
-        Pass a text representation of this node to the view() method of
+        Pass a text representation of this node to the base_view() method of
         the base class.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this Node wrt its siblings.
+        :param int index: position of this Node wrt its siblings or None.
 
         '''
-        Node.view(self, "{0}[OMP parallel]".format(self.coloured_text),
-                  indent, index)
+        self.base_view("{0}[OMP parallel]".format(self.coloured_text),
+                       indent, index)
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -2608,18 +2618,18 @@ class OMPDoDirective(OMPDirective):
 
     def view(self, indent=0, index=None):
         '''
-        Write out a textual summary of the OpenMP Do Directive and then
-        call the view() method of any children.
+        Create a textual summary of the OpenMP Do Directive and then
+        call the base_view() method of the base class.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: depth of indent for output text.
+        :param int index: position of this node wrt its siblings or None.
         '''
         if self.reductions():
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        Node.view(self, "{0}[OMP do]{1}".format(self.coloured_text, reprod),
-                  indent, index)
+        self.base_view("{0}[OMP do]{1}".format(self.coloured_text, reprod),
+                       indent, index)
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -2699,13 +2709,13 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     def view(self, indent=0, index=None):
         '''
         Create a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of the base class.
+        and then call the base_view() method of the base class.
 
         :param int indent: depth of indent for output text.
         :param int index: position of this node wrt its siblings.
         '''
-        Node.view(self, "{0}[OMP parallel do]".format(self.coloured_text),
-                  indent, index)
+        self.base_view("{0}[OMP parallel do]".format(self.coloured_text),
+                       indent, index)
 
     def gen_code(self, parent):
 
@@ -2841,15 +2851,15 @@ class GlobalSum(Node):
     def view(self, indent=0, index=None):
         '''
         Construct the text describing this GlobalSum and then pass it to
-        the base class' view() method.
+        the base class' base_view() method.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
 
         '''
-        Node.view(self, "{0}[scalar='{1}']".format(self.coloured_text,
-                                                   self._scalar.name),
-                  indent, index)
+        self.base_view("{0}[scalar='{1}']".format(self.coloured_text,
+                                                  self._scalar.name),
+                       indent, index)
 
     def __str__(self):
         return "GlobalSum[scalar='" + self._scalar.name + "']\n"
@@ -3006,16 +3016,16 @@ class HaloExchange(Node):
     def view(self, indent=0, index=None):
         '''
         Create a textual summary of this HaloExchange node
-        and then pass this to the view() method of the base class.
+        and then pass this to the base_view() method of the base class.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
         text = ("{0}[field='{1}', type='{2}', depth={3}, "
                 "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                           self._halo_type, self._halo_depth,
                                           self._check_dirty))
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def __str__(self):
         result = "HaloExchange["
@@ -3225,15 +3235,16 @@ class Loop(Node):
 
     def view(self, indent=0, index=None):
         '''
-        Write out a textual summary of this Loop node to stdout
-        and then call the view() method of any children.
+        Create a textual summary of this Loop node and then call the
+        base_view() method.
 
-        :param int indent: Depth of indent for output text
+        :param int indent: depth of indent for output text.
+        :param int index: postion of this node wrt its siblings or None.
         '''
         text = ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
                 format(self.coloured_text, self._loop_type, self._field_space,
                        self.iteration_space))
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     @property
     def coloured_text(self):
@@ -3509,15 +3520,16 @@ class Kern(Node):
 
     def view(self, indent=0, index=None):
         '''
-        Write out a textual summary of this Kern node to stdout
-        and then call the view() method of any children.
+        Create a textual summary of this Kern node and pass it to the
+        base_view() method.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: depth of indent for output text.
+        :param int index: position of this node wrt its siblings or None.
+
         '''
         text = (self.coloured_text + " " + self.name +
                 "(" + self.arguments.names + ")")
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -3837,15 +3849,15 @@ class CodedKern(Kern):
     def view(self, indent=0, index=None):
         '''
         Construct the class-specific text describing this node and then pass
-        it to the base Node.view() method to be written out.
+        it to the base_view() method to be written out.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
         text = (self.coloured_text + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     @property
     def coloured_text(self):
@@ -5087,17 +5099,17 @@ class IfBlock(Node):
 
     def view(self, indent=0, index=None):
         '''
-        Print representation of this node to stdout.
+        Create text representation of this node to and pass to base_view().
 
         :param int indent: the level to which to indent the output.
-        :param int index: the position of this node wrt its siblings.
+        :param int index: the position of this node wrt its siblings or None.
 
         '''
         text = self.coloured_text + "["
         if self.annotations:
             text += "annotations='" + ','.join(self.annotations) + "'"
         text += "]"
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def __str__(self):
         result = "If[]\n"
@@ -5158,13 +5170,13 @@ class ACCKernelsDirective(ACCDirective):
 
     def view(self, indent=0, index=None):
         '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+        Create a textual summary of the OpenMP Parallel Do Directive
+        and pass it to the base_view() method.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
-        Node.view(self, self.coloured_text + "[ACC Kernels]", indent, index)
+        self.base_view(self.coloured_text + "[ACC Kernels]", indent, index)
 
     def gen_code(self, parent):
         '''
@@ -5214,13 +5226,13 @@ class ACCDataDirective(ACCDirective):
     def view(self, indent=0, index=None):
         '''
         Construct a textual summary of the OpenMP Parallel Do Directive
-        and then pass this to the view() method of the base class.
+        and then pass this to the base_view() method of the base class.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
 
         '''
-        Node.view(self, self.coloured_text + "[ACC DATA]", indent, index)
+        self.base_view(self.coloured_text + "[ACC DATA]", indent, index)
 
     def gen_code(self, _):
         '''
@@ -5974,13 +5986,13 @@ class KernelSchedule(Schedule):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and then pass it to
-        the view() method of the base class.
+        the base_view() method.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
-        Node.view(self, self.coloured_text + "[name:'" + self._name + "']",
-                  indent, index)
+        self.base_view(self.coloured_text + "[name:'" + self._name + "']",
+                       indent, index)
 
     def __str__(self):
         result = "KernelSchedule[name:'" + self._name + "']:\n"
@@ -6057,15 +6069,15 @@ class CodeBlock(Node):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node in the schedule and
-        pass it to the view() method of the base class.
+        pass it to the base_view() method.
 
         :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
 
         '''
         text = self.coloured_text + "[" + \
             str(list(map(type, self._fp2_nodes))) + "]"
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def __str__(self):
         return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
@@ -6130,13 +6142,13 @@ class Assignment(Node):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass it to the
-        view() method of the base class.
+        base_view() method.
 
         :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
 
         '''
-        Node.view(self, self.coloured_text + "[]", indent, index)
+        self.base_view(self.coloured_text + "[]", indent, index)
 
     def __str__(self):
         result = "Assignment[]\n"
@@ -6216,13 +6228,13 @@ class Reference(Node):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass it to the
-        view() method of the base class.
+        base_view() method.
 
         :param int indent: level to which to indent output.
-        :param in index: postion of this node wrt its siblings.
+        :param int index: postion of this node wrt its siblings or None.
         '''
         text = self.coloured_text + "[name:'" + self._reference + "']"
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']"
@@ -6295,14 +6307,14 @@ class Operation(Node):
 
     def view(self, indent=0, index=None):
         '''
-        Construct a representation of this node and pass it to the view()
-        method of the base class.
+        Construct a representation of this node and pass it to the
+        base_view() method.
 
         :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
         text = self.coloured_text + "[operator:'" + self._operator.name + "']"
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def __str__(self):
         result = "{0}[operator:'{1}']\n".format(type(self).__name__,
@@ -6445,15 +6457,6 @@ class Array(Reference):
         '''
         return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
 
-    def view(self, indent=0, index=None):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings.
-        '''
-        super(Array, self).view(indent, index)
-
     def __str__(self):
         result = "Array" + super(Array, self).__str__() + "\n"
         for entity in self._children:
@@ -6521,13 +6524,13 @@ class Literal(Node):
     def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and then pass it to
-        the view() method of the base class.
+        the base_view() method.
 
         :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
         text = "{0}[value:'{1}']".format(self.coloured_text, self._value)
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']"
@@ -6557,12 +6560,13 @@ class Return(Node):
 
     def view(self, indent=0, index=None):
         '''
-        Print a representation of this node in the schedule to stdout.
+        Pass a text representation of this node in the schedule to the
+        base_view method.
 
         :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
         '''
-        Node.view(self, self.coloured_text + "[]", indent, index)
+        self.base_view(self.coloured_text + "[]", indent, index)
 
     def __str__(self):
         return "Return[]\n"

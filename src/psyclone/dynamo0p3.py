@@ -4389,13 +4389,12 @@ class DynInvokeSchedule(InvokeSchedule):
         method to include distributed memory information.
 
         :param int indent: the amount by which to indent the output.
-        :param int index: the position of this node wrt its siblings.
+        :param int index: the position of this node wrt its siblings or None.
 
         '''
-        from psyclone.psyGen import Node
         text = (self.coloured_text + "[invoke='" + self.invoke.name +
                 "', dm=" + str(Config.get().distributed_memory)+"]")
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
 
 class DynGlobalSum(GlobalSum):
@@ -4843,13 +4842,12 @@ class DynHaloExchange(HaloExchange):
     def view(self, indent=0, index=None):
         '''
         Construct the text representation of this HaloExchange and pass it
-        to the view() method of the base class.
+        to the base_view() method.
 
         :param int indent: how much to indent output by.
-        :param int index: position of this Node wrt its siblings.
+        :param int index: position of this Node wrt its siblings or None.
 
         '''
-        from psyclone.psyGen import Node
         _, known = self.required()
         runtime_check = not known
         field_id = self._field.name
@@ -4860,7 +4858,7 @@ class DynHaloExchange(HaloExchange):
                                           self._compute_stencil_type(),
                                           self._compute_halo_depth(),
                                           runtime_check))
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def gen_code(self, parent):
         '''Dynamo specific code generation for this class.
@@ -5538,7 +5536,6 @@ class DynLoop(Loop):
         :param int index: position of this Node wrt its siblings.
 
         '''
-        from psyclone.psyGen import Node
         if self._upper_bound_halo_depth:
             upper_bound = "{0}({1})".format(self._upper_bound_name,
                                             self._upper_bound_halo_depth)
@@ -5549,7 +5546,7 @@ class DynLoop(Loop):
                     self.coloured_text, self._loop_type,
                     self._field_space.orig_name,
                     self.iteration_space, upper_bound))
-        Node.view(self, text, indent, index)
+        self.base_view(text, indent, index)
 
     def load(self, kern):
         '''

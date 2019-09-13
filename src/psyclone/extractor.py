@@ -96,13 +96,13 @@ class ExtractNode(Node):
     def view(self, indent=0, index=None):
         '''
         Creates a text representation of the Extract node and passes
-        it to the view() method of the base class.
+        it to the base_view() method.
 
         :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param int index: position of this node wrt its siblings or None.
 
         '''
-        Node.view(self, self.coloured_text, indent, index)
+        self.base_view(self.coloured_text, indent, index)
 
     def gen_code(self, parent):
         '''

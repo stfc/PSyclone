@@ -190,8 +190,7 @@ class ProfileNode(Node):
         :param int indent: indentation to be used for this node.
         :param int index: position of this node wrt its siblings.
         '''
-        # pylint: disable=arguments-differ
-        Node.view(self, self.coloured_text, indent, index)
+        self.base_view(self.coloured_text, indent, index)
 
     # -------------------------------------------------------------------------
     def gen_code(self, parent):
