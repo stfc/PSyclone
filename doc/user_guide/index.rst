@@ -48,6 +48,7 @@
    kernel_layer
    algorithm_layer
    psy_layer
+   psyir
    transformations
    distributed_memory
    built_ins
