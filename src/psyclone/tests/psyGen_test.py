@@ -2871,7 +2871,7 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 def test_codeblock_view(capsys):
     ''' Check the view and colored_text methods of the Code Block class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
     cblock.view()
     output, _ = capsys.readouterr()
@@ -2882,12 +2882,21 @@ def test_codeblock_view(capsys):
 def test_codeblock_can_be_printed():
     '''Test that a CodeBlock instance can always be printed (i.e. is
     initialised fully)'''
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
 
 
-# Test Loop class
+@pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
+                                       CodeBlock.Structure.EXPRESSION])
+def test_codeblock_structure(structure):
+    '''Check that the structure property in the CodeBlock class is set to
+    the provided value.
+
+    '''
+    cblock = CodeBlock([], structure)
+    assert cblock.structure == structure
+
 
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
@@ -5534,6 +5543,86 @@ def test_fparser2astprocessor_do_construct_while(f2008_parser):
     fake_parent = Node()
     processor.process_nodes(fake_parent, [fparser2while], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+# (1/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
+    '''Check that a statement codeblock that is at the "top level" in the
+    PSyIR has the structure property set to statement (as it has a
+    schedule as parent).
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader('''
+        program test
+        do while(a .gt. b)
+            c = c + 1
+        end do
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert isinstance(schedule[0], CodeBlock)
+    assert schedule[0].structure == CodeBlock.Structure.STATEMENT
+
+
+# (2/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_2(f2008_parser):
+    '''Check that a statement codeblock that is within another statement
+    in the PSyIR has the structure property set to statement (as it
+    has a schedule as parent).
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader('''
+        program test
+        if (.true.) then
+            do while(a .gt. b)
+                c = c + 1
+            end do
+        end if
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert isinstance(schedule[0].if_body[0], CodeBlock)
+    assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
+
+
+# (3/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
+    '''Check that a codeblock that contains an expression has the
+    structure property set to expression.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    # The string "HELLO" is currently a code block in the PSyIR
+    reader = FortranStringReader('''
+        program test
+        if (a == "HELLO") then
+        end if
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    code_block = schedule[0].condition.children[1]
+    assert isinstance(code_block, CodeBlock)
+    assert code_block.structure == CodeBlock.Structure.EXPRESSION
+
+
+# (4/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_4(f2008_parser):
+    '''Check that a codeblock that has a directive as a parent causes the
+    expected exception.
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = Fparser2ASTProcessor.nodes_to_code_block(Directive(), "hello")
+    assert ("A CodeBlock with a Directive as parent is not yet supported."
+            in str(excinfo.value))
 
 
 def test_missing_loop_control(f2008_parser, monkeypatch):
