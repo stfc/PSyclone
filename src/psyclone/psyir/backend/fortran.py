@@ -319,6 +319,7 @@ class FortranWriter(PSyIRVisitor):
                                format(node.operator))
 
     def reference_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
@@ -354,6 +355,7 @@ class FortranWriter(PSyIRVisitor):
         return result
 
     def literal_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -564,4 +566,4 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        return "{0}{1}\n".format(self._nindent, str(node._ast))
+        return "{0}{1}\n".format(self._nindent, str(node.ast))
