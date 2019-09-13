@@ -307,7 +307,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
         self._ast = ast
         self.process_nodes(self, ast.content, ast)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this NemoInvokeSchedule and pass
         it to the view() method of the base class.
@@ -395,7 +395,7 @@ class NemoKern(CodedKern):
         '''
         return []
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Pass text representation of this node to the view() method of the
         base class.

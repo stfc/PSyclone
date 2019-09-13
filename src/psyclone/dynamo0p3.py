@@ -4382,7 +4382,7 @@ class DynInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         A method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
@@ -4840,7 +4840,7 @@ class DynHaloExchange(HaloExchange):
         known = False
         return required, known
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct the text representation of this HaloExchange and pass it
         to the view() method of the base class.
@@ -5525,7 +5525,7 @@ class DynLoop(Loop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a textual representation of this loop. We override this
         method from the Loop class because, in Dynamo0.3, the function

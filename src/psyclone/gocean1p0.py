@@ -345,7 +345,7 @@ class GOInvokeSchedule(InvokeSchedule):
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''Construct a textual representation of this GOInvokeSchedule and
         pass it to the view() method of the base class.
 
@@ -778,7 +778,7 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Write out a textual summary of this Loop node to stdout.
 

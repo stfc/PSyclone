@@ -184,7 +184,7 @@ class ProfileNode(Node):
         return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
 
     # -------------------------------------------------------------------------
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''Class specific view function to print the tree.
 
         :param int indent: indentation to be used for this node.

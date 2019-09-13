@@ -1276,14 +1276,14 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def view(self, text="", indent=0, index=0):
-        ''' Base function to print out description of current node and
-        then call view() on all child nodes.
+    def view(self, text="", indent=0, index=None):
+        ''' Base function to print out description of current node (if
+        `text` is supplied) and then call view() on all child nodes.
 
         :param str text: the description of the current node (supplied by \
                          sub-class).
         :param int indent: depth of indent for output text.
-        :param int index: the position of this Node wrt its siblings.
+        :param int index: the position of this Node wrt its siblings or None.
 
         '''
         # Those nodes in the PSyIR for which we do not prepend an index to
@@ -1293,7 +1293,8 @@ class Node(object):
         non_indexed_children = (Array, Assignment, Loop, IfBlock, Operation)
         if text:
             if isinstance(self.parent, non_indexed_children) or \
-               isinstance(self, Schedule):
+               isinstance(self, Schedule) or \
+               index is None:
                 print("{0}{1}".format(self.indent(indent), text))
             else:
                 print("{0}{1}: {2}".format(self.indent(indent), index, text))
@@ -1601,7 +1602,7 @@ class Schedule(Node):
         '''
         return "schedule"
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass this to the
         view() method of the base class.
@@ -1694,7 +1695,7 @@ class InvokeSchedule(Schedule):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass it to
         the view() method of the base class.
@@ -1833,7 +1834,7 @@ class Directive(Node):
 
     '''
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node to stdout and then
         call the view() method of any children.
@@ -1865,7 +1866,7 @@ class ACCDirective(Directive):
     ''' Base class for all OpenACC directive statements. '''
 
     @abc.abstractmethod
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Print text representation of this node to stdout.
 
@@ -2013,7 +2014,7 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Pass a text representation of this Node to the view() method of
         the base class.
@@ -2094,7 +2095,7 @@ class ACCParallelDirective(ACCDirective):
     in the PSyIR.
 
     '''
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Pass a text representation of this Node to the view() method of the
         base class.
@@ -2244,7 +2245,7 @@ class ACCLoopDirective(ACCDirective):
         '''
         return "ACC_loop_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Print a textual representation of this Node to stdout.
 
@@ -2328,7 +2329,7 @@ class OMPDirective(Directive):
         '''
         return "OMP_directive_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Pass a text representation of this node to the view() method of
         the base class.
@@ -2362,7 +2363,7 @@ class OMPParallelDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Pass a text representation of this node to the view() method of
         the base class.
@@ -2605,7 +2606,7 @@ class OMPDoDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_do_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Write out a textual summary of the OpenMP Do Directive and then
         call the view() method of any children.
@@ -2695,7 +2696,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_do_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Create a textual summary of the OpenMP Parallel Do Directive
         and then call the view() method of the base class.
@@ -2837,7 +2838,7 @@ class GlobalSum(Node):
         the base method and simply return our argument.'''
         return [self._scalar]
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct the text describing this GlobalSum and then pass it to
         the base class' view() method.
@@ -3002,7 +3003,7 @@ class HaloExchange(Node):
                 "exchange but both vector id's ('{0}') of field '{1}' are "
                 "the same".format(self.vector_index, self.field.name))
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Create a textual summary of this HaloExchange node
         and then pass this to the view() method of the base class.
@@ -3222,7 +3223,7 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Write out a textual summary of this Loop node to stdout
         and then call the view() method of any children.
@@ -3506,7 +3507,7 @@ class Kern(Node):
         base method and simply return our arguments. '''
         return self.arguments.args
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Write out a textual summary of this Kern node to stdout
         and then call the view() method of any children.
@@ -3833,7 +3834,7 @@ class CodedKern(Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct the class-specific text describing this node and then pass
         it to the base Node.view() method to be written out.
@@ -5084,7 +5085,7 @@ class IfBlock(Node):
         '''
         return colored("If", SCHEDULE_COLOUR_MAP["If"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Print representation of this node to stdout.
 
@@ -5155,7 +5156,7 @@ class ACCKernelsDirective(ACCDirective):
         '''
         return "ACC_kernels_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Write out a textual summary of the OpenMP Parallel Do Directive
         and then call the view() method of any children.
@@ -5210,7 +5211,7 @@ class ACCDataDirective(ACCDirective):
         '''
         return "ACC_data_" + str(self.abs_position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a textual summary of the OpenMP Parallel Do Directive
         and then pass this to the view() method of the base class.
@@ -5970,7 +5971,7 @@ class KernelSchedule(Schedule):
         '''
         return self._symbol_table
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and then pass it to
         the view() method of the base class.
@@ -6053,7 +6054,7 @@ class CodeBlock(Node):
         '''
         return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node in the schedule and
         pass it to the view() method of the base class.
@@ -6126,7 +6127,7 @@ class Assignment(Node):
         '''
         return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass it to the
         view() method of the base class.
@@ -6212,7 +6213,7 @@ class Reference(Node):
         '''
         return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and pass it to the
         view() method of the base class.
@@ -6292,7 +6293,7 @@ class Operation(Node):
         '''
         return self._operator
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a representation of this node and pass it to the view()
         method of the base class.
@@ -6444,7 +6445,7 @@ class Array(Reference):
         '''
         return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Print a representation of this node in the schedule to stdout.
 
@@ -6517,7 +6518,7 @@ class Literal(Node):
         '''
         return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Construct a text representation of this node and then pass it to
         the view() method of the base class.
@@ -6554,7 +6555,7 @@ class Return(Node):
         '''
         return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Print a representation of this node in the schedule to stdout.
 

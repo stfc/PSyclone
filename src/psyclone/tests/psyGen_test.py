@@ -844,7 +844,7 @@ def test_ompdo_directive_class_view(capsys):
             loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
 
             expected_output = (
-                "0: " + directive + case["current_string"] + "\n"
+                directive + case["current_string"] + "\n"
                 "    0: " + loop + "[type='', field_space='w1', "
                 "it_space='cells',")
 
@@ -869,21 +869,21 @@ def test_acc_dir_view(capsys):
     new_sched.children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        "0: "+colored("Directive", colour)+"[ACC enter data]")
+        colored("Directive", colour)+"[ACC enter data]")
 
     # Parallel region
     new_sched, _ = accpt.apply(new_sched.children[1])
     new_sched.children[1].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        "0: "+colored("Directive", colour)+"[ACC Parallel]")
+        colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive
     new_sched, _ = acclt.apply(new_sched.children[1].children[0])
     new_sched.children[1].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        "0: "+colored("Directive", colour)+"[ACC Loop, independent]")
+        colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
     new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
@@ -891,8 +891,7 @@ def test_acc_dir_view(capsys):
     new_sched.children[1].children[0].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        "0: " + colored("Directive", colour) +
-        "[ACC Loop, collapse=2, independent]")
+        colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -2164,16 +2163,18 @@ def test_acckernelsdirective_view(capsys):
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
-    colour = SCHEDULE_COLOUR_MAP["Directive"]
+    dcolour = SCHEDULE_COLOUR_MAP["Directive"]
+    lcolour = SCHEDULE_COLOUR_MAP["Loop"]
 
     trans = ACCKernelsTrans()
     _, _ = trans.apply(sched)
 
     sched.children[0].view()
     out, _ = capsys.readouterr()
+
     assert out.startswith(
-        "0: " + colored("Directive", colour)+"[ACC Kernels]")
-    assert "Loop" in out
+        colored("Directive", dcolour)+"[ACC Kernels]")
+    assert "0: " + colored("Loop", lcolour) in out
     assert "CodedKern" in out
 
 
@@ -3070,7 +3071,7 @@ def test_ifblock_view(capsys):
     ifblock.view()
     output, _ = capsys.readouterr()
     # Check that we only prepend child indices where it makes sense
-    assert "0: " + colouredif + "[]" in output
+    assert colouredif + "[]" in output
     assert "0: " + colouredreturn in output
     assert ": " + colouredref not in output
 

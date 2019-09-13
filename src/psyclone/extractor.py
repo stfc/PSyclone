@@ -93,7 +93,7 @@ class ExtractNode(Node):
         '''
         return "extract_" + str(self.position)
 
-    def view(self, indent=0, index=0):
+    def view(self, indent=0, index=None):
         '''
         Creates a text representation of the Extract node and passes
         it to the view() method of the base class.
