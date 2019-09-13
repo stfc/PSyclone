@@ -53,8 +53,9 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, Fparser2ASTProcessor, AccessType, \
+    KernelSchedule, SymbolTable, AccessType, \
     Literal, Reference, ACCEnterDataDirective, Schedule
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -1223,14 +1224,14 @@ class GOKern(CodedKern):
         :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
         '''
         if self._kern_schedule is None:
-            astp = GOFparser2ASTProcessor()
+            astp = GOFparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
         return self._kern_schedule
 
 
-class GOFparser2ASTProcessor(Fparser2ASTProcessor):
+class GOFparser2Reader(Fparser2Reader):
     '''
-    Sub-classes the Fparser2ASTProcessor with GOcean 1.0 specific
+    Sub-classes the Fparser2Reader with GOcean 1.0 specific
     functionality.
     '''
     @staticmethod

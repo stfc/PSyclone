@@ -40,7 +40,12 @@ already has a gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
-from psyclone.psyGen import FORTRAN_INTRINSICS
+from fparser.two import Fortran2003
+
+# The list of Fortran instrinsic functions that we know about (and can
+# therefore distinguish from array accesses). These are taken from
+# fparser.
+FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 
 def gen_intent(symbol):
@@ -292,8 +297,8 @@ class FortranWriter(PSyIRVisitor):
         '''
         # reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping
-        from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
-        mapping = _reverse_map(f2psyir.binary_operators)
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        mapping = _reverse_map(Fparser2Reader.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
@@ -322,8 +327,8 @@ class FortranWriter(PSyIRVisitor):
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
-        from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
-        mapping = _reverse_map(f2psyir.nary_operators)
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        mapping = _reverse_map(Fparser2Reader.nary_operators)
         arg_list = []
         for child in node.children:
             arg_list.append(self._visit(child))
@@ -467,8 +472,8 @@ class FortranWriter(PSyIRVisitor):
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
-        from psyclone.psyGen import Fparser2ASTProcessor as f2psyir
-        mapping = _reverse_map(f2psyir.unary_operators)
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        mapping = _reverse_map(Fparser2Reader.unary_operators)
 
         content = self._visit(node.children[0])
         try:
