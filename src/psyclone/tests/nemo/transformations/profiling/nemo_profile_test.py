@@ -41,28 +41,47 @@
 from __future__ import absolute_import, print_function
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, ProfileRegionTrans
 
 # The PSyclone API under test
 API = "nemo"
+# The transformation that most of these tests use
+PTRANS = ProfileRegionTrans()
+
+
+def get_nemo_schedule(parser, code):
+    ''' Utility to construct the PSyIR of the supplied Fortran code.
+
+    :param parser: the Fortran parser to use.
+    :type parser: :py:class:`fparser.two.Fortran2003.Program`
+    :param str code: the Fortran code to process.
+
+    :returns: 2-tuple of the top-level PSy object and the Schedule of \
+              the first Invoke (routine) in `code`.
+    :rtype: (:py:class:`psyclone.nemo.NemoPSy`, \
+             :py:class:`psyclone.nemo.NemoInvokeSchedule`)
+
+    '''
+    reader = FortranStringReader(code)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    return psy, schedule
 
 
 def test_profile_single_loop(parser):
     ''' Check that the correct code is added to the generated Fortran
     when profiling a single loop nest. '''
-    reader = FortranStringReader("program do_loop\n"
-                                 "use kind_mod, only: wp\n"
-                                 "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "end program do_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
-    schedule, _ = ptrans.apply(schedule.children[0])
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+                                      "do ji = 1,jpj\n"
+                                      "  sto_tmp(ji) = 1.0d0\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
+    schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd\n"
@@ -81,23 +100,20 @@ def test_profile_single_loop(parser):
 def test_profile_two_loops(parser):
     ''' Check that the correct code is added to the generated Fortran
     when profiling two, separate loop nests. '''
-    reader = FortranStringReader("program do_loop\n"
-                                 "use kind_mod, only: wp\n"
-                                 "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp2(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "end program do_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+                                      "do ji = 1,jpj\n"
+                                      "  sto_tmp(ji) = 1.0d0\n"
+                                      "end do\n"
+                                      "do ji = 1,jpj\n"
+                                      "  sto_tmp2(ji) = 1.0d0\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
     # Create two separate profiling regions
-    schedule, _ = ptrans.apply(schedule.children[1])
-    schedule, _ = ptrans.apply(schedule.children[0])
+    schedule, _ = PTRANS.apply(schedule.children[1])
+    schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd\n"
@@ -124,18 +140,15 @@ def test_profile_two_loops(parser):
 def test_profile_codeblock(parser):
     ''' Check that we can put profiling calls around a region containing
     a CodeBlock. '''
-    reader = FortranStringReader("subroutine cb_test()\n"
-                                 "use kind_mod, only: wp\n"
-                                 "real :: sto_tmp2(jpj)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  write(*,*) sto_tmp2(ji)\n"
-                                 "end do\n"
-                                 "end subroutine cb_test\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
-    schedule, _ = ptrans.apply(schedule.children[0])
+    psy, schedule = get_nemo_schedule(parser,
+                                      "subroutine cb_test()\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp2(jpj)\n"
+                                      "do ji = 1,jpj\n"
+                                      "  write(*,*) sto_tmp2(ji)\n"
+                                      "end do\n"
+                                      "end subroutine cb_test\n")
+    schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
         "  CALL ProfileStart('cb_test', 'r0', psy_profile0)\n"
@@ -149,21 +162,18 @@ def test_profile_inside_if1(parser):
     ''' Check that we can put a profiling region inside an If block when
     we pass the transformation the first (and only) child of the Schedule
     of the If. '''
-    reader = FortranStringReader("subroutine inside_if_test()\n"
-                                 "use kind_mod, only: wp\n"
-                                 "real :: sto_tmp2(jpj)\n"
-                                 "logical :: do_this = .true.\n"
-                                 "if(do_this)then\n"
-                                 "  do ji = 1,jpj\n"
-                                 "    write(*,*) sto_tmp2(ji)\n"
-                                 "  end do\n"
-                                 "endif\n"
-                                 "end subroutine inside_if_test\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
-    schedule, _ = ptrans.apply(schedule.children[0].if_body[0])
+    psy, schedule = get_nemo_schedule(parser,
+                                      "subroutine inside_if_test()\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp2(jpj)\n"
+                                      "logical :: do_this = .true.\n"
+                                      "if(do_this)then\n"
+                                      "  do ji = 1,jpj\n"
+                                      "    write(*,*) sto_tmp2(ji)\n"
+                                      "  end do\n"
+                                      "endif\n"
+                                      "end subroutine inside_if_test\n")
+    schedule, _ = PTRANS.apply(schedule.children[0].if_body[0])
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    CALL ProfileStart(" in gen_code)
@@ -174,21 +184,18 @@ def test_profile_inside_if1(parser):
 def test_profile_inside_if2(parser):
     ''' Check that we can put a profiling region inside an If block
     when we pass the transformation the Schedule rather than its child. '''
-    reader = FortranStringReader("subroutine inside_if_test()\n"
-                                 "use kind_mod, only: wp\n"
-                                 "real :: sto_tmp2(jpj)\n"
-                                 "logical :: do_this = .true.\n"
-                                 "if(do_this)then\n"
-                                 "  do ji = 1,jpj\n"
-                                 "    write(*,*) sto_tmp2(ji)\n"
-                                 "  end do\n"
-                                 "endif\n"
-                                 "end subroutine inside_if_test\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
-    schedule, _ = ptrans.apply(schedule.children[0].if_body)
+    psy, schedule = get_nemo_schedule(parser,
+                                      "subroutine inside_if_test()\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp2(jpj)\n"
+                                      "logical :: do_this = .true.\n"
+                                      "if(do_this)then\n"
+                                      "  do ji = 1,jpj\n"
+                                      "    write(*,*) sto_tmp2(ji)\n"
+                                      "  end do\n"
+                                      "endif\n"
+                                      "end subroutine inside_if_test\n")
+    schedule, _ = PTRANS.apply(schedule.children[0].if_body)
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    CALL ProfileStart(" in gen_code)
@@ -199,27 +206,24 @@ def test_profile_inside_if2(parser):
 def test_profile_single_line_if(parser):
     ''' Test that we can put a single-line if statement inside a
     profiling region. '''
-    reader = FortranStringReader("subroutine one_line_if_test()\n"
-                                 "use kind_mod, only: wp\n"
-                                 "real :: sto_tmp2(jpj)\n"
-                                 "logical :: do_this = .true.\n"
-                                 "if(do_this) write(*,*) sto_tmp2(ji)\n"
-                                 "end subroutine one_line_if_test\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = TransInfo().get_trans_name('ProfileRegionTrans')
+    psy, schedule = get_nemo_schedule(parser,
+                                      "subroutine one_line_if_test()\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp2(jpj)\n"
+                                      "logical :: do_this = .true.\n"
+                                      "if(do_this) write(*,*) sto_tmp2(ji)\n"
+                                      "end subroutine one_line_if_test\n")
     # Check that we refuse to attempt to split the body of the If from
     # its parent (as it is a one-line statement). This limitation will
     # be removed once we use the PSyIR Fortran backend in the NEMO API
     # (as opposed to manipulating the fparser2 parse tree).
     # TODO #435
     with pytest.raises(TransformationError) as err:
-        schedule, _ = ptrans.apply(schedule[0].if_body)
+        schedule, _ = PTRANS.apply(schedule[0].if_body)
     assert "child of a single-line if" in str(err.value)
     # But we should be able to put the whole If statement in a profiling
     # region...
-    schedule, _ = ptrans.apply(schedule[0])
+    schedule, _ = PTRANS.apply(schedule[0])
     gen_code = str(psy.gen)
     assert (
         "  CALL ProfileStart('one_line_if_test', 'r0', psy_profile0)\n"
@@ -267,17 +271,13 @@ def test_profiling_case(parser):
         "        DEALLOCATE(zsurfmsk)\n"
         "   END SELECT\n"
         "end subroutine my_test\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(prog)
-    sched = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
+    psy, sched = get_nemo_schedule(parser, code)
     # Innermost if-body
-    ptrans.apply(sched.children[1].if_body[2].if_body[0].if_body.children)
+    PTRANS.apply(sched.children[1].if_body[2].if_body[0].if_body.children)
     # Body of second CASE
-    ptrans.apply(sched.children[1].else_body.children)
+    PTRANS.apply(sched.children[1].else_body.children)
     # Whole routine
-    ptrans.apply(sched.children)
+    PTRANS.apply(sched.children)
     code = str(psy.gen)
     assert (
         "  TYPE(ProfileData), SAVE :: psy_profile1\n"
@@ -303,18 +303,13 @@ def test_profiling_without_spec_part(parser):
     ''' Check that attempting to add profiling to a routine that has no
     Specification_Part (i.e. no declarations) raises a NotImplementedError
     (this restriction will be lifted by #435). '''
-    code = (
-        "subroutine no_decs()\n"
-        "  write(*,*) 'This is just a test'\n"
-        "end subroutine no_decs\n")
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(prog)
-    sched = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
-    _, _ = ptrans.apply(sched.children)
+    psy, sched = get_nemo_schedule(parser,
+                                   "subroutine no_decs()\n"
+                                   "  write(*,*) 'This is just a test'\n"
+                                   "end subroutine no_decs\n")
+    PTRANS.apply(sched.children)
     with pytest.raises(NotImplementedError) as err:
-        _ = psy.gen
+        psy.gen
     assert ("Addition of profiling regions to routines without any "
             "existing declarations is not supported" in str(err.value))
 
@@ -323,21 +318,18 @@ def test_profiling_missing_end(parser):
     ''' Check that we raise the expected error if we are unable to find
     the end of the profiled code section in the parse tree. '''
     from psyclone.psyGen import Loop, InternalError
-    reader = FortranStringReader("program do_loop\n"
-                                 "real :: sto_tmp(jpj)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "end program do_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    ptrans = ProfileRegionTrans()
-    schedule, _ = ptrans.apply(schedule.children[0])
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "real :: sto_tmp(jpj)\n"
+                                      "do ji = 1,jpj\n"
+                                      "  sto_tmp(ji) = 1.0d0\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
+    schedule, _ = PTRANS.apply(schedule.children[0])
     # Manually break the _ast_end property by making it point to the root
     # of the whole parse tree
     loops = schedule.walk(Loop)
-    loops[0]._ast_end = code
+    loops[0]._ast_end = psy._ast
     with pytest.raises(InternalError) as err:
         psy.gen
     assert "Failed to find the location of 'PROGRAM do_loop" in str(err.value)
