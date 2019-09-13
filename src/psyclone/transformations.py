@@ -116,10 +116,10 @@ class RegionTrans(Transformation):
         Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param node_list: List of PSyIR nodes.
+        :param node_list: list of PSyIR nodes.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
 
-        :raises TransformationError: If the nodes in the list are not \
+        :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
@@ -177,7 +177,8 @@ class RegionTrans(Transformation):
                     "transformation to the IfBlock node instead.".
                     format(self.name))
 
-        # The checks below this point only apply to the NEMO API
+        # The checks below this point only apply to the NEMO API and can be
+        # removed once #435 is done.
         node = node_list[0]
         if not isinstance(node.root, NemoInvokeSchedule):
             return
@@ -2375,9 +2376,9 @@ class ProfileRegionTrans(RegionTrans):
         schedule - i.e. enclose the specified Nodes in the
         schedule within a single profiler region.
 
-        :param nodes: Can be a single node or a list of nodes.
+        :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-        :py:obj:`psyclone.psygen.Node`.
+        :py:obj:`psyclone.psygen.Node`
 
         '''
         # Check whether we've been passed a list of nodes or just a

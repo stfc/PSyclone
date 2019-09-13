@@ -138,11 +138,11 @@ class ProfileNode(Node):
     '''
     This class can be inserted into a schedule to create profiling code.
 
-    :param children: A list of children nodes for this node.
-    :type children: A list of :py::class::`psyclone.psyGen.Node` \
-                   or derived classes.
-    :param parent: The parent of this node in the PSyIR.
-    :type parent: A :py::class::`psyclone.psyGen.Node`.
+    :param children: a list of children nodes for this node.
+    :type children: list of :py::class::`psyclone.psyGen.Node` \
+                    or derived classes
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py::class::`psyclone.psyGen.Node`
 
     '''
     fortran_module = "profile_mod"  #: Profiling interface Fortran module
@@ -200,8 +200,8 @@ class ProfileNode(Node):
         '''Creates the profile start and end calls, surrounding the children
         of this node.
 
-        :param parent: The parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :param parent: the parent of this node.
+        :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
         if self._module_name is None or self._region_name is None:
