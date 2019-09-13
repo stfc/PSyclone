@@ -29,33 +29,51 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Author: A. R. Porter, STFC Daresbury Lab
 
-module kern_use_var_mod
+module kernel_with_global_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
-  type, extends(kernel_type) :: kern_use_var
-     type(arg), dimension(1) :: meta_args =              &
-          (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE) /)
-     !> This kernel writes only to internal points of the
-     !! simulation domain.
-     integer :: ITERATES_OVER = GO_INTERNAL_PTS
+  private
 
-     integer :: index_offset = GO_OFFSET_SW
+  public time_smooth, time_smooth_code
+
+  !> Constant declared in this module but then accessed within kernel - a
+  !! problem for in-lining or other kernel transformations.
+  real(go_wp) :: alpha
+  
+  type, extends(kernel_type) :: kernel_with_global
+     type(go_arg), dimension(3) :: meta_args = &
+          (/ go_arg(GO_READ,      GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READ,      GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READWRITE, GO_EVERY, GO_POINTWISE)      &
+           /)
+
+     integer :: iterates_over = GO_INTERNAL_PTS  
+     integer :: index_offset = GO_OFFSET_ANY
 
   contains
-    procedure, nopass :: code => kern_use_var_code
-  end type kern_use_var
+    procedure, nopass :: code => kernel_with_global_code
+  end type kernel_with_global
 
 contains
 
-  subroutine kern_use_var_code(i, j, fld)
-    use data_mod, only: gravity
-    integer, intent(in) :: i, j
-    real(go_wp), dimension(:,:), intent(inout) :: fld
+  !> Kernel which accesses a variable declared in the parent module
+  subroutine kernel_with_global_code(i, j, field, field_new, field_old)
+    implicit none
+    integer,  intent(in)                       :: i, j
+    real(go_wp), intent(in),    dimension(:,:) :: field
+    real(go_wp), intent(in),    dimension(:,:) :: field_new
+    real(go_wp), intent(inout), dimension(:,:) :: field_old
 
-    fld(i,j) = gravity * fld(i,j)
+    field_old(i,j) = field(i,j) + &
+         alpha*(field_new(i,j) - 2.0d0*field(i,j) + field_old(i,j))
 
-  end subroutine kern_use_var_code
-  
-end module kern_use_var_mod
+  end subroutine kernel_with_global_code
+
+end module kernel_with_global_mod

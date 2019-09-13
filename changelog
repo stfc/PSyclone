@@ -222,6 +222,15 @@
 
         70) PR #466. Adds basic SIR backend to the PSyIR.
 
+	71) PR #407 for #315. Use the PSyIR SymbolTable to check for
+	global symbols (module variables) in kernels. Use this support to
+	raise an exception in transformations where global symbols are not
+	supported (e.g. the OpenCL transformation).
+
+	72) PR #498 for #388. Documents the PSyIR CodeBlock node and extends
+	the CodeBlocks with a property to differentiate between statement/s
+	and expression/s.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

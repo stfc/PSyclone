@@ -152,7 +152,7 @@ def test_single_function_multi_invokes():
     alg, _ = generate(os.path.join(BASE_PATH, "3_multi_invokes.f90"),
                       api="dynamo0.3")
     gen = str(alg)
-    assert "USE testkern, ONLY: testkern_type" in gen
+    assert "USE testkern_mod, ONLY: testkern_type" in gen
     assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
     assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
     assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
@@ -168,7 +168,7 @@ def test_named_multi_invokes():
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    assert "USE testkern, ONLY: testkern_type" in gen
+    assert "USE testkern_mod, ONLY: testkern_type" in gen
     assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
     assert ("USE multi_functions_multi_invokes_psy, ONLY: "
             "invoke_my_first" in gen)
@@ -199,7 +199,7 @@ def test_multi_function_invoke_qr():
     gen = str(alg)
     print(gen)
     assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "USE testkern, ONLY: testkern_type" in gen
+    assert "USE testkern_mod, ONLY: testkern_type" in gen
     assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
 
 

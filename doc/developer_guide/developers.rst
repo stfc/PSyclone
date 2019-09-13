@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _developers-guide:
 
 Developers' guide
@@ -416,6 +451,57 @@ The operations supported by the `NaryOperation` are:
 .. autoclass:: psyclone.psyGen.NaryOperation.Operator
    :members:
    :undoc-members:
+
+
+CodeBlock Node
+==============
+
+The PSyIR CodeBlock node contains code that has no representation in
+the PSyIR. It is useful as it allows the PSyIR to represent complex
+code by using CodeBlocks to handle the parts which contain unsupported
+language features. One approach would be to work towards capturing all
+language features in the PSyIR, which would gradually remove the need
+for CodeBlocks. However, the purpose of the PSyIR is to capture code
+concepts that are relevant for performance, not all aspects of a code,
+therefore it is likely that that CodeBlocks will continue to be an
+important part of the PSyIR.
+
+.. autoclass:: psyclone.psyGen.CodeBlock
+   :members:
+   :undoc-members:
+
+The code represented by a CodeBlock is currently stored as a list of
+fparser2 nodes. Therefore, a CodeBlock's input and output language is
+limited to being Fortran. This means that only the fparser2 front-end
+and Fortran back-end can be used when there are CodeBlocks within a
+PSyIR tree. In theory, language interfaces could be written between
+CodeBlocks and other PSyIR Nodes to support different back-ends but
+this has not been implemented.
+
+The CodeBlock ``structure`` method indicates whether the code contains
+one or more Fortran expressions or one or more statements (which may
+themselves contain expressions). This is required by the Fortran
+back-end as expressions do not need indentation and a newline whereas
+statements do.
+
+A feature of the fparser2 node list is that if the first node in the
+list is a statement then so are all the other nodes in the list and
+that if the first node in the list is an expression then so are all
+the other nodes in the list. This allows the ``structure`` method to
+return a single value that represents all nodes in the list.
+
+The structure of the PSyIR hierarchy is used to determine whether the
+code in a CodeBlock contains expressions or statements. This is
+achieved by looking at the parent PSyIR Node. If the parent Node is a
+Schedule then the CodeBlock contains one or more statements, otherwise
+it contains one or more expressions. This logic works for existing
+PSyIR nodes and relies on any future PSyIR nodes being constructed so
+this continues to be true. The one exception to this rule is
+Directives. Directives currently do not place their children in a
+Schedule. As the structure of Directives is under discussion, it was
+decided to raise an exception if the parent node of a CodeBlock is a
+Directive (for the time being).
+
 
 Dependence Analysis
 ===================
@@ -2244,6 +2330,17 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Finally, those transformations that act on a Kernel must sub-class the
+``KernelTrans`` class:
+
+.. autoclass:: psyclone.transformations.KernelTrans
+   :members:
+   :private-members:
+   :noindex:
+
+In all cases, the `apply` method of any sub-class *must* ensure that
+the `validate` method of the parent class is called.
+
 Module: psyGen
 ==============
 
@@ -2295,15 +2392,18 @@ only used in ``DynKernelArguments.raw_arg_list()``.
 classes make use of ``DynCollection`` sub-classes in order
 to ensure that argument naming is consistent.
 
+Transformations
+###############
+
 Kernel Transformations
-----------------------
+======================
 
 PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIR, apply the transformation,
-and producing the resulting language AST or code.
+two ways to apply transformations: by directly manipulating the
+language AST or by translating the language AST to PSyIR, applying the
+transformation, and producing the resulting language AST or code.
 
-For now, both methods only support fparser2 AST for kernel code.
+For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
 back into a Fortran string and then parsing that with fparser2.
@@ -2336,9 +2436,6 @@ The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
-
-Transformations
-###############
 
 OpenACC
 =======

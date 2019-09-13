@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,33 +29,36 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-module kern_use_var_mod
-  implicit none
-
-  type, extends(kernel_type) :: kern_use_var
-     type(arg), dimension(1) :: meta_args =              &
-          (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE) /)
-     !> This kernel writes only to internal points of the
-     !! simulation domain.
-     integer :: ITERATES_OVER = GO_INTERNAL_PTS
-
-     integer :: index_offset = GO_OFFSET_SW
-
-  contains
-    procedure, nopass :: code => kern_use_var_code
-  end type kern_use_var
-
+! Test module with a name that deliberately does not follow the GungHo naming
+! convention (should be named testkern_mod)
+module testkern
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), dimension(5) :: meta_args =    &
+          (/ arg_type(gh_real, gh_read),     &
+             arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_field,gh_read, w3)  &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_code
+  end type testkern_type
 contains
 
-  subroutine kern_use_var_code(i, j, fld)
-    use data_mod, only: gravity
-    integer, intent(in) :: i, j
-    real(go_wp), dimension(:,:), intent(inout) :: fld
+  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
+                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
+                           ndf_w3, undf_w3, map_w3)
+    integer :: nlayers
+    real(kind=r_def) :: ascalar
+    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
+    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer, dimension(:) :: map_w1, map_w2, map_w3
 
-    fld(i,j) = gravity * fld(i,j)
-
-  end subroutine kern_use_var_code
-  
-end module kern_use_var_mod
+  end subroutine testkern_code
+end module testkern

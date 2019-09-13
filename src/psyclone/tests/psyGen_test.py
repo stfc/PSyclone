@@ -527,7 +527,7 @@ def test_derived_type_deref_naming():
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
-        "      USE testkern, ONLY: testkern_code\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1_my_field\n"
@@ -2889,7 +2889,7 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 def test_codeblock_view(capsys):
     ''' Check the view and colored_text methods of the Code Block class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
     cblock.view()
     output, _ = capsys.readouterr()
@@ -2900,12 +2900,21 @@ def test_codeblock_view(capsys):
 def test_codeblock_can_be_printed():
     '''Test that a CodeBlock instance can always be printed (i.e. is
     initialised fully)'''
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
 
 
-# Test Loop class
+@pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
+                                       CodeBlock.Structure.EXPRESSION])
+def test_codeblock_structure(structure):
+    '''Check that the structure property in the CodeBlock class is set to
+    the provided value.
+
+    '''
+    cblock = CodeBlock([], structure)
+    assert cblock.structure == structure
+
 
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
@@ -4056,6 +4065,28 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
+def test_symboltable_global_symbols():
+    ''' Test that the global_symbols property returns those symbols with
+    'global' scope (i.e. that represent data that exists outside the current
+    scoping unit) but are not routine arguments. '''
+    sym_table = SymbolTable()
+    assert sym_table.global_symbols == []
+    # Add some local symbols
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", [None]))
+    assert sym_table.global_symbols == []
+    # Add some global symbols
+    sym_table.add(Symbol("gvar1", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    assert sym_table.lookup("gvar1") in sym_table.global_symbols
+    sym_table.add(
+        Symbol("gvar2", "real", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)))
+    gsymbols = sym_table.global_symbols
+    assert len(gsymbols) == 1
+    assert sym_table.lookup("gvar2") not in gsymbols
+
+
 def test_symboltable_abstract_properties():
     '''Test that the SymbolTable abstract properties raise the appropriate
     error.'''
@@ -4648,6 +4679,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import SymbolError
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -4665,7 +4697,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2ASTProcessor()
 
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2name], None)
     assert "Undeclared reference 'x' found when parsing fparser2 node " \
            "'Name('x')' inside 'kernel'." in str(error)
@@ -5549,6 +5581,86 @@ def test_fparser2astprocessor_do_construct_while(f2008_parser):
     fake_parent = Node()
     processor.process_nodes(fake_parent, [fparser2while], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+# (1/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
+    '''Check that a statement codeblock that is at the "top level" in the
+    PSyIR has the structure property set to statement (as it has a
+    schedule as parent).
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader('''
+        program test
+        do while(a .gt. b)
+            c = c + 1
+        end do
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert isinstance(schedule[0], CodeBlock)
+    assert schedule[0].structure == CodeBlock.Structure.STATEMENT
+
+
+# (2/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_2(f2008_parser):
+    '''Check that a statement codeblock that is within another statement
+    in the PSyIR has the structure property set to statement (as it
+    has a schedule as parent).
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader('''
+        program test
+        if (.true.) then
+            do while(a .gt. b)
+                c = c + 1
+            end do
+        end if
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert isinstance(schedule[0].if_body[0], CodeBlock)
+    assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
+
+
+# (3/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
+    '''Check that a codeblock that contains an expression has the
+    structure property set to expression.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    # The string "HELLO" is currently a code block in the PSyIR
+    reader = FortranStringReader('''
+        program test
+        if (a == "HELLO") then
+        end if
+        end program test
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    code_block = schedule[0].condition.children[1]
+    assert isinstance(code_block, CodeBlock)
+    assert code_block.structure == CodeBlock.Structure.EXPRESSION
+
+
+# (4/4) fparser2astprocessor::nodes_to_code_block
+def test_fp2astproc_nodes_to_code_block_4(f2008_parser):
+    '''Check that a codeblock that has a directive as a parent causes the
+    expected exception.
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = Fparser2ASTProcessor.nodes_to_code_block(Directive(), "hello")
+    assert ("A CodeBlock with a Directive as parent is not yet supported."
+            in str(excinfo.value))
 
 
 def test_missing_loop_control(f2008_parser, monkeypatch):

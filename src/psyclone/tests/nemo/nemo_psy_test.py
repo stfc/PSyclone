@@ -224,7 +224,7 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     assert isinstance(loop, nemo.NemoLoop)
     assert nemo.NemoKern.match(loop.loop_body)
     # Create a fake CodeBlock
-    cblock = CodeBlock([loop.loop_body[0].ast])
+    cblock = CodeBlock([loop.loop_body[0].ast], CodeBlock.Structure.STATEMENT)
     # Monkeypatch the loop_body object so that it has a CodeBlock as a child
     monkeypatch.setattr(loop.loop_body, "children", [cblock])
     # This should no longer match as a NemoKern

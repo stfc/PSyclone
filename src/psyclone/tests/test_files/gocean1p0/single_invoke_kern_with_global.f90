@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,33 +29,30 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Author: A. R. Porter, STFC Daresbury Lab
 
-module kern_use_var_mod
+program single_invoke_test
+
+  ! Fake Fortran program for testing the use of PSyclone with a kernel
+  ! that accesses a global variable
+  use kind_params_mod
+  use grid_mod
+  use field_mod
+  use kernel_with_global_mod, only: kernel_with_global
   implicit none
 
-  type, extends(kernel_type) :: kern_use_var
-     type(arg), dimension(1) :: meta_args =              &
-          (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE) /)
-     !> This kernel writes only to internal points of the
-     !! simulation domain.
-     integer :: ITERATES_OVER = GO_INTERNAL_PTS
+  type(grid_type), target :: model_grid
+  type(r2d_field) :: oldu_fld, u_fld, cu_fld
 
-     integer :: index_offset = GO_OFFSET_SW
+  ! Create the model grid
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
-  contains
-    procedure, nopass :: code => kern_use_var_code
-  end type kern_use_var
+  ! Create fields on this grid
+  oldu_fld = r2d_field(model_grid, GO_T_POINTS)
+  u_fld = r2d_field(model_grid, GO_U_POINTS)
+  cu_fld = r2d_field(model_grid, GO_U_POINTS)
 
-contains
+  call invoke( kernel_with_global(oldu_fld, cu_fld, u_fld) )
 
-  subroutine kern_use_var_code(i, j, fld)
-    use data_mod, only: gravity
-    integer, intent(in) :: i, j
-    real(go_wp), dimension(:,:), intent(inout) :: fld
-
-    fld(i,j) = gravity * fld(i,j)
-
-  end subroutine kern_use_var_code
-  
-end module kern_use_var_mod
+end program single_invoke_test
