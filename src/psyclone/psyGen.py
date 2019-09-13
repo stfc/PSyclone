@@ -46,6 +46,7 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 
 # We use the termcolor module (if available) to enable us to produce
@@ -253,6 +254,21 @@ class InternalError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "PSyclone internal error: "+value
+
+    def __str__(self):
+        return str(self.value)
+
+
+class SymbolError(Exception):
+    '''
+    PSyclone-specific exception for use with errors relating to the SymbolTable
+    in the PSyIR.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone SymbolTable error: "+value
 
     def __str__(self):
         return str(self.value)
@@ -2000,14 +2016,16 @@ class ACCEnterDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def gen_code(self, parent):
-        '''
-        Generate the elements of the f2pygen AST for this Node in the Schedule.
+        '''Generate the elements of the f2pygen AST for this Node in the
+        Schedule.
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if no data is found to copy in.
+
         '''
-        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
-            IfThenGen, AssignGen, CallGen, UseGen
+        from psyclone.f2pygen import CommentGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -2026,49 +2044,21 @@ class ACCEnterDataDirective(ACCDirective):
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
         var_str = self.list_to_string(var_list)
-
-        # 4. Declare and initialise a logical variable to keep track of
-        #    whether this is the first time we've entered this Invoke
-        name_space_manager = NameSpaceFactory().create()
-        first_time = name_space_manager.create_name(
-            root_name="first_time", context="PSyVars", label="first_time")
-        parent.add(DeclGen(parent, datatype="logical",
-                           entity_decls=[first_time],
-                           initial_values=[".True."],
-                           save=True))
-        parent.add(CommentGen(parent,
-                              " Ensure all fields are on the device and"))
-        parent.add(CommentGen(parent, " copy them over if not."))
-        # 5. Put the enter data directive inside an if-block so that we
-        #    only ever do it once
-        ifthen = IfThenGen(parent, first_time)
-        parent.add(ifthen)
-        ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
-                                "copyin("+var_str+")"))
-        # 6. Flag that we have now entered this routine at least once
-        ifthen.add(AssignGen(ifthen, lhs=first_time, rhs=".false."))
-        # 7. Flag that the data is now on the device. This calls down
-        #    into the API-specific subclass of this class.
-        self.data_on_device(ifthen)
+        # 4. Add the enter data directive.
+        if var_str:
+            copy_in_str = "copyin("+var_str+")"
+        else:
+            # There should be at least one variable to copyin.
+            raise GenerationError(
+                "ACCEnterData directive did not find any data to copyin. "
+                "Perhaps there are no ACCParallel directives within the "
+                "region.")
+        parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
+                                copy_in_str))
+        # 5. Call an API-specific subclass of this class in case
+        # additional declarations are required.
+        self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
-
-        # 8. Ensure that any scalars are up-to-date
-        var_list = []
-        for pdir in self._acc_dirs:
-            for var in pdir.scalars:
-                if var not in var_list:
-                    var_list.append(var)
-        if var_list:
-            # We need to 'use' the openacc module in order to access
-            # the OpenACC run-time library
-            parent.add(UseGen(parent, name="openacc", only=True,
-                              funcnames=["acc_update_device"]))
-            parent.add(
-                CommentGen(parent,
-                           " Ensure all scalars on the device are up-to-date"))
-            for var in var_list:
-                parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
-            parent.add(CommentGen(parent, ""))
 
     @abc.abstractmethod
     def data_on_device(self, parent):
@@ -2112,7 +2102,6 @@ class ACCParallelDirective(ACCDirective):
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # Since we use "default(present)" the Schedule must contain an
         # 'enter data' directive. We don't mandate the order in which
@@ -2267,7 +2256,6 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user can
@@ -2375,7 +2363,7 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from psyclone.f2pygen import DirectiveGen, AssignGen, UseGen, \
+        from psyclone.f2pygen import AssignGen, UseGen, \
             CommentGen, DeclGen
 
         private_list = self._get_private_list()
@@ -2675,7 +2663,6 @@ class OMPDoDirective(OMPDirective):
         :raises GenerationError: if this "!$omp do" is not enclosed within \
                                  an OMP Parallel region.
         '''
-        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -2761,7 +2748,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from psyclone.f2pygen import DirectiveGen
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
@@ -3869,17 +3855,17 @@ class CodedKern(Kern):
         :raises NotImplementedError: if module-inlining is enabled and the \
                                      kernel has been transformed.
         '''
-        # check all kernels in the same invoke as this one and set any
+        # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
-        if value and self._fp2_ast:
-            # TODO #229. We take the existence of an fparser2 AST for
-            # this kernel to mean that it has been transformed. Since
-            # kernel in-lining is currently implemented via
-            # manipulation of the fparser1 AST, there is at present no
-            # way to inline such a kernel.
+        if value and self.modified:
+            # TODO #229. Kernel in-lining is currently implemented via
+            # manipulation of the fparser1 Parse Tree while
+            # transformations work with the fparser2 Parse Tree-derived
+            # PSyIR.  Therefore there is presently no way to inline a
+            # transformed kernel.
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
@@ -4079,7 +4065,7 @@ class CodedKern(Kern):
                 # should be modified rather than the parse tree. This
                 # if test, and the associated else, are only required
                 # whilst old style (direct fp2) transformations still
-                # exist.
+                # exist - #490.
 
                 # First check that the kernel module name and
                 # subroutine name conform to the <name>_mod and
@@ -5223,15 +5209,24 @@ class ACCKernelsDirective(ACCDirective):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_code(self, _):
+    def gen_code(self, parent):
         '''
-        :raises InternalError: the ACC Kernels directive is currently only \
-                               supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
-                               fparser2 parse tree.
+        Generate the f2pygen AST entries in the Schedule for this
+        OpenACC Kernels directive.
+
+        :param parent: the parent Node in the Schedule to which to add this \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
-        raise InternalError(
-            "ACCKernelsDirective.gen_code should not have been called.")
+        data_movement = ""
+        if self._default_present:
+            data_movement = "default(present)"
+        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
+                                data_movement))
+        for child in self.children:
+            child.gen_code(parent)
+        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
 
     def update(self):
         '''
@@ -5936,6 +5931,18 @@ class SymbolTable(object):
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
     @property
+    def global_symbols(self):
+        '''
+        :returns: list of symbols that are not routine arguments but \
+                  still have 'global' scope - i.e. are associated with \
+                  data that exists outside the current scope.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        return [sym for sym in self._symbols.values() if sym.scope == "global"
+                and not isinstance(sym.interface, Symbol.Argument)]
+
+    @property
     def iteration_indices(self):
         '''
         :return: List of symbols representing kernel iteration indices.
@@ -6030,31 +6037,57 @@ class KernelSchedule(Schedule):
 
 
 class CodeBlock(Node):
-    '''
-    Node representing some generic Fortran code that PSyclone does not attempt
+    '''Node representing some generic Fortran code that PSyclone does not attempt
     to manipulate. As such it is a leaf in the PSyIR and therefore has no
     children.
 
-    :param statements: list of fparser2 AST nodes representing the Fortran \
-                       code constituting the code block.
-    :type statements: list of :py:class:`fparser.two.utils.Base`
+    :param fp2_nodes: list of fparser2 AST nodes representing the Fortran \
+                      code constituting the code block.
+    :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
+    :param structure: argument indicating whether this code block is a \
+    statement or an expression.
+    :type structure: :py:class:`psyclone.psyGen.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
-    def __init__(self, statements, parent=None):
+    class Structure(Enum):
+        '''
+        Enumeration that captures the structure of the code block which
+        may be required when processing.
+
+        '''
+        # The Code Block comprises one or more Fortran statements
+        # (which themselves may contain expressions).
+        STATEMENT = 1
+        # The Code Block comprises one or more Fortran expressions.
+        EXPRESSION = 2
+
+    def __init__(self, fp2_nodes, structure, parent=None):
         super(CodeBlock, self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIR.
-        self._statements = statements[:]
+        self._fp2_nodes = fp2_nodes[:]
         # Store references back into the fparser2 AST
-        if statements:
-            self.ast = self._statements[0]
-            self.ast_end = self._statements[-1]
+        if fp2_nodes:
+            self.ast = self._fp2_nodes[0]
+            self.ast_end = self._fp2_nodes[-1]
         else:
             self.ast = None
             self.ast_end = None
+        # Store the structure of the code block.
+        self._structure = structure
+
+    @property
+    def structure(self):
+        '''
+        :returns: whether this code block is a statement or an expression.
+        :rtype: :py:class:`psyclone.psyGen.CodeBlock.Structure`
+
+        '''
+        return self._structure
 
     @property
     def coloured_text(self):
@@ -6074,10 +6107,10 @@ class CodeBlock(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[" +
-              str(list(map(type, self._statements))) + "]")
+              str(list(map(type, self._fp2_nodes))) + "]")
 
     def __str__(self):
-        return "CodeBlock[{0} statements]".format(len(self._statements))
+        return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
 
 
 class Assignment(Node):
@@ -6116,7 +6149,7 @@ class Assignment(Node):
             assignment.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
-        :raises InternalError: Node has lest children than expected
+        :raises InternalError: Node has fewer children than expected.
         '''
         if len(self._children) < 2:
             raise InternalError(
@@ -6652,26 +6685,44 @@ class Fparser2ASTProcessor(object):
         }
 
     @staticmethod
-    def nodes_to_code_block(parent, statements):
-        '''
-        Create a CodeBlock for the supplied list of statements
-        and then wipe the list of statements. A CodeBlock is a node
-        in the PSyIR (Schedule) that represents a sequence of one or more
-        Fortran statements which PSyclone does not attempt to handle.
+    def nodes_to_code_block(parent, fp2_nodes):
+        '''Create a CodeBlock for the supplied list of fparser2 nodes and then
+        wipe the list. A CodeBlock is a node in the PSyIR (Schedule)
+        that represents a sequence of one or more Fortran statements
+        and/or expressions which PSyclone does not attempt to handle.
 
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param list statements: List of fparser2 AST nodes constituting the \
-                                code block.
+        :param fp2_nodes: list of fparser2 AST nodes constituting the \
+                          code block.
+        :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :returns: a CodeBlock instance.
         :rtype: :py:class:`psyclone.CodeBlock`
+
         '''
-        if not statements:
+        if not fp2_nodes:
             return None
 
-        code_block = CodeBlock(statements, parent=parent)
+        # Determine whether this code block is a statement or an
+        # expression. Statements always have a `Schedule` as parent
+        # and expressions do not. The only unknown at this point are
+        # directives whose structure are in discussion. Therefore, for
+        # the moment, an exception is raised if a directive is found
+        # as a parent.
+        if isinstance(parent, Schedule):
+            structure = CodeBlock.Structure.STATEMENT
+        elif isinstance(parent, Directive):
+            raise InternalError(
+                "Fparser2ASTProcessor:nodes_to_code_block: A CodeBlock with "
+                "a Directive as parent is not yet supported.")
+        else:
+            structure = CodeBlock.Structure.EXPRESSION
+
+        code_block = CodeBlock(fp2_nodes, structure, parent=parent)
         parent.addchild(code_block)
-        del statements[:]
+        del fp2_nodes[:]
         return code_block
 
     @staticmethod
@@ -6967,10 +7018,13 @@ class Fparser2ASTProcessor(object):
             or a list of elements. This helper function provide a common
             iteration interface. This could be improved when fpaser/#170 is
             fixed.
+
             :param nodes: fparser2 AST node.
             :type nodes: None or List or :py:class:`fparser.two.utils.Base`
+
             :returns: Returns nodes but always encapsulated in a list
             :rtype: list
+
             '''
             if nodes is None:
                 return []
@@ -6998,7 +7052,9 @@ class Fparser2ASTProcessor(object):
                 # This USE doesn't have an ONLY clause so we skip it. We
                 # don't raise an error as this will only become a problem if
                 # this Schedule represents a kernel that is the target of a
-                # transformation. See #315.
+                # transformation. In that case construction of the PSyIR will
+                # fail if the Fortran code makes use of symbols from this
+                # module because they will not be present in the SymbolTable.
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
@@ -7947,7 +8003,7 @@ class Fparser2ASTProcessor(object):
             try:
                 symbol_table.lookup(node.string)
             except KeyError:
-                raise GenerationError(
+                raise SymbolError(
                     "Undeclared reference '{0}' found when parsing fparser2 "
                     "node '{1}' inside '{2}'."
                     "".format(str(node.string), repr(node), parent.root.name))

@@ -36,8 +36,8 @@
 program multi_functions_multi_invokes
 
   ! Description: multiple invoke calls, each with a single function
-  use testkern, only: testkern_type
-  use testkern_qr, only: testkern_qr_type
+  use testkern_mod, only: testkern_type
+  use testkern_qr,  only: testkern_qr_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
