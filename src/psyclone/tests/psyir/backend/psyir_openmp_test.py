@@ -38,6 +38,8 @@
 
 from __future__ import absolute_import
 
+import re
+
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.psyclone_test_utils import create_schedule
 
@@ -65,14 +67,15 @@ def test_omp_parallel():
     omp_par.apply(schedule[1])
 
     fvisitor = FortranWriter()
-    result = fvisitor(schedule)
-    assert "!$omp parallel" in result
-    assert "!$omp end parallel" in result
+    # Convert to code, and remove all new lines, to make
+    # regex matching easier
+    result = fvisitor(schedule).replace("\n", "")
+
+    assert re.search(r"!\$omp parallel.*" +
+                     r"!\$omp end parallel", result) is not None
 
     from psyclone.psyir.backend.c import CWriter
     cvisitor = CWriter()
-    result = cvisitor(schedule[1])
-    # Maybe better tests ... beginning of line, right order
-    # (not } before #pragma)
-    assert "#pragma omp parallel\n{\n" in result
-    assert "}\n" in result
+    # Remove newlines for easier RE matching
+    result = cvisitor(schedule[1]).replace("\n", "")
+    assert re.search(r"#pragma omp parallel.*{.*}", result) is not None
