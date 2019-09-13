@@ -133,7 +133,7 @@ def test_psy_init(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
     # Test with a non-default number of OpenCL queues
-    sched.coded_kernels()[0].set_opencl_options({'queue_number': '5'})
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE psy_init()\n"
@@ -168,43 +168,33 @@ def test_opencl_options_validation(kernel_outputdir):
 
     # Unsupported options are not accepted
     with pytest.raises(AttributeError) as err:
-        otrans.apply(sched, options={'unsupported': '1'})
+        otrans.apply(sched, options={'unsupported': 1})
     assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
         in str(err)
 
     # end_barrier option must be a boolean
     with pytest.raises(TypeError) as err:
-        otrans.apply(sched, options={'end_barrier': '1'})
+        otrans.apply(sched, options={'end_barrier': 1})
     assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
         in str(err)
 
     # Unsupported kernel options are not accepted
     with pytest.raises(AttributeError) as err:
-        sched.coded_kernels()[0].set_opencl_options({'unsupported': '1'})
+        sched.coded_kernels()[0].set_opencl_options({'unsupported': 1})
     assert "CodedKern does not support the opencl_option 'unsupported'." \
         in str(err)
 
-    # local_size must be a string representing a number
-    with pytest.raises(TypeError) as err:
-        sched.coded_kernels()[0].set_opencl_options({'local_size': 1})
-    assert "CodedKern opencl_option 'local_size' should be a string " \
-        "representing a number." in str(err)
-
+    # local_size must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'local_size': 'a'})
-    assert "CodedKern opencl_option 'local_size' should be a string " \
-        "representing a number." in str(err)
+    assert "CodedKern opencl_option 'local_size' should be an integer." \
+        in str(err)
 
-    # queue_number must be a string representing a number
-    with pytest.raises(TypeError) as err:
-        sched.coded_kernels()[0].set_opencl_options({'queue_number': 1})
-    assert "CodedKern opencl_option 'queue_number' should be a string " \
-        "representing a number." in str(err)
-
+    # queue_number must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'queue_number': 'a'})
-    assert "CodedKern opencl_option 'queue_number' should be a string " \
-        "representing a number." in str(err)
+    assert "CodedKern opencl_option 'queue_number' should be an integer." \
+        in str(err)
 
 
 def test_opencl_options_effects(kernel_outputdir):
@@ -227,12 +217,12 @@ def test_opencl_options_effects(kernel_outputdir):
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
 
     # Change kernel local_size to 4
-    sched.coded_kernels()[0].set_opencl_options({'local_size': '4'})
+    sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
     generated_code = str(psy.gen)
     assert "localsize = (/4, 1/)" in generated_code
 
     # Change kernel queue to 2 (the barrier should then also go up to 2)
-    sched.coded_kernels()[0].set_opencl_options({'queue_number': '2'})
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \

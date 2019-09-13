@@ -163,7 +163,7 @@ class OpenCLWriter(CWriter):
 
         # Start OpenCL kernel definition
         code = self._nindent
-        if node._opencl_options['local_size'] != '1':
+        if node._opencl_options['local_size'] != 1:
             loc_size_value = node._opencl_options['local_size']
             code += "__attribute__((vec_type_hint(double)))\n" \
                     "".format(loc_size_value)

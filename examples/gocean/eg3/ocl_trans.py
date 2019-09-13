@@ -59,6 +59,6 @@ def trans(psy):
     cltrans.apply(sched, options={"end_barrier": True})
 
     for kern in sched.kernels():
-        kern.set_opencl_options({"queue_number": '1', 'local_size': '4'})
+        kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
 
     return psy

@@ -434,7 +434,7 @@ class Invokes(object):
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         opencl_kernels = []
-        opencl_num_queues = 0
+        opencl_num_queues = 1
         generate_ocl_init = False
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
@@ -448,8 +448,7 @@ class Invokes(object):
                     if kern.name not in opencl_kernels:
                         opencl_num_queues = max(
                             opencl_num_queues,
-                            kern._opencl_options['queue_number'],
-                            key=lambda x: int(x))
+                            kern._opencl_options['queue_number'])
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
         if generate_ocl_init:
@@ -466,6 +465,8 @@ class Invokes(object):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         :param kernels: List of kernel names called by the PSy layer.
         :type kernels: list of str
+        :param int num_queues: total number of queues needed for the OpenCL \
+                               implementation.
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
@@ -1678,9 +1679,13 @@ class InvokeSchedule(Schedule):
 
     def set_opencl_options(self, options):
         '''
+        Validate and store a set of options associated to the InvokeSchedule to
+        tune the OpenCL code generation.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: map of <string>:<value>
 
         '''
-
         # Validate that the options given are supported and store them
         for key, value in options.items():
             if key == "end_barrier":
@@ -1805,13 +1810,13 @@ class InvokeSchedule(Schedule):
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
 
-            opencl_num_queues = 0
+            # We need a clFinish for all the queues in the implementation
+            opencl_num_queues = 1
             for kern in self.coded_kernels():
                 opencl_num_queues = max(
                     opencl_num_queues,
-                    kern._opencl_options['queue_number'],
-                    key=lambda x: int(x))
-            for i in range(1, int(opencl_num_queues) + 1):
+                    kern._opencl_options['queue_number'])
+            for i in range(1, opencl_num_queues + 1):
                 parent.add(
                     AssignGen(parent, lhs=flag,
                               rhs="clFinish({0}({1}))".format(qlist, i)))
@@ -3784,7 +3789,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self._opencl_options = {'local_size': '1', 'queue_number': '1'}
+        self._opencl_options = {'local_size': 1, 'queue_number': 1}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -3812,19 +3817,25 @@ class CodedKern(Kern):
 
     def set_opencl_options(self, options):
         '''
+        Validate and store a set of options associated to the Kernel to
+        tune the OpenCL code generation.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: map of <string>:<value>
+
         '''
         # Validate that the options given are supported
         for key, value in options.items():
             if key == "local_size":
-                if not isinstance(value, str) or not value.isdigit():
+                if not isinstance(value, int):
                     raise TypeError(
-                        "CodedKern opencl_option 'local_size' "
-                        "should be a string representing a number.")
+                        "CodedKern opencl_option 'local_size' should be an "
+                        "integer.")
             elif key == "queue_number":
-                if not isinstance(value, str) or not value.isdigit():
+                if not isinstance(value, int):
                     raise TypeError(
-                        "CodedKern opencl_option 'queue_number' "
-                        "should be a string representing a number.")
+                        "CodedKern opencl_option 'queue_number' should be an "
+                        "integer.")
             else:
                 raise AttributeError(
                     "CodedKern does not support the opencl_option '{0}'."
@@ -6016,7 +6027,8 @@ class KernelSchedule(Schedule):
         super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
-        self._opencl_options = {'local_size': '1', 'queue_number': '1'}
+        # Set OpenCL Options default values
+        self._opencl_options = {'local_size': 1, 'queue_number': 1}
 
     @property
     def name(self):
@@ -6047,6 +6059,9 @@ class KernelSchedule(Schedule):
         '''
         Set the opencl_options map. Note that KernelSchedule expects to
         receive options which are already vaildated by the caller.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: map of <string>:<value>
         '''
         for key, value in options.items():
             self._opencl_options[key] = value

@@ -1011,7 +1011,7 @@ class GOKern(CodedKern):
             parent, lhs=glob_size,
             rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
 
-        # Create array for the local work size of the kernel
+        # Create array for the local work size argument of the kernel
         local_size = self._name_space_manager.create_name(
             root_name="localsize", context="PSyVars", label="localsize")
         parent.add(DeclGen(parent, datatype="integer", target=True,
