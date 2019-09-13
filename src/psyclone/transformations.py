@@ -1606,7 +1606,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     # The types of node that this transformation can enclose
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.OMPDirective, psyGen.GlobalSum,
-                        psyGen.Literal, psyGen.Reference)
+                        psyGen.Literal, psyGen.Reference,
+                        psyGen.Assignment, psyGen.BinaryOperation)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
