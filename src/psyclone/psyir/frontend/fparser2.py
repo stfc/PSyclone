@@ -40,11 +40,12 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from collections import OrderedDict
+from fparser.two import Fortran2003
+from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Symbol, KernelSchedule, \
     Assignment, Return, Array, InternalError, GenerationError, SymbolError
-from fparser.two import Fortran2003
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -186,7 +187,6 @@ class Fparser2Reader(object):
         '''
         from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
             Data_Ref, If_Then_Stmt, Array_Section
-        from fparser.two.utils import walk_ast
         readers = set()
         writers = set()
         readwrites = set()
@@ -456,7 +456,6 @@ class Fparser2Reader(object):
         :raises GenerationError: If the parse tree for a USE statement does \
                                  not have the expected structure.
         '''
-        from fparser.two.utils import walk_ast
 
         def iterateitems(nodes):
             '''
@@ -781,8 +780,6 @@ class Fparser2Reader(object):
         :raises InternalError: if the fparser2 tree has an unexpected \
             structure.
         '''
-        from fparser.two.utils import walk_ast
-        from fparser.two import Fortran2003
         ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
         if not ctrl:
             raise InternalError(
@@ -1263,8 +1260,6 @@ class Fparser2Reader(object):
                                expected structure.
 
         '''
-        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
-
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2Reader.unary_operators[operator_str]
@@ -1272,7 +1267,7 @@ class Fparser2Reader(object):
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
-        if isinstance(node.items[1], Actual_Arg_Spec_List) and \
+        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List) and \
                 len(node.items[1].items) > 1:
             # We have more than one argument and therefore this is not a
             # unary operation!
@@ -1306,13 +1301,10 @@ class Fparser2Reader(object):
                                expected structure.
 
         '''
-        from fparser.two.Fortran2003 import Intrinsic_Function_Reference, \
-            Actual_Arg_Spec_List
-
-        if isinstance(node, Intrinsic_Function_Reference):
+        if isinstance(node, Fortran2003.Intrinsic_Function_Reference):
             operator_str = node.items[0].string.lower()
             # Arguments are held in an Actual_Arg_Spec_List
-            if not isinstance(node.items[1], Actual_Arg_Spec_List):
+            if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
                 raise InternalError(
                     "Unexpected fparser parse tree for binary intrinsic "
                     "operation '{0}'. Expected second child to be "
@@ -1360,8 +1352,6 @@ class Fparser2Reader(object):
                                expected structure.
 
         '''
-        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
-
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2Reader.nary_operators[operator_str]
@@ -1371,7 +1361,7 @@ class Fparser2Reader(object):
 
         nary_op = NaryOperation(operator, parent=parent)
 
-        if not isinstance(node.items[1], Actual_Arg_Spec_List):
+        if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
             raise InternalError(
                 "Expected second 'item' of N-ary intrinsic '{0}' in fparser "
                 "parse tree to be an Actual_Arg_Spec_List but found '{1}'.".
@@ -1407,7 +1397,6 @@ class Fparser2Reader(object):
                 :py:class:`psyclone.psyGen.NaryOperation`
 
         '''
-        from fparser.two.Fortran2003 import Actual_Arg_Spec_List
         # First item is the name of the intrinsic
         name = node.items[0].string.upper()
         # Now work out how many arguments it has
@@ -1415,7 +1404,7 @@ class Fparser2Reader(object):
         if len(node.items) > 1:
             # TODO Once fparser #203 is on master this check on isinstance
             # will probably be unnecessary.
-            if isinstance(node.items[1], Actual_Arg_Spec_List):
+            if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
                 num_args = len(node.items[1].items)
             else:
                 num_args = len(node.items) - 1

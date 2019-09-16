@@ -45,7 +45,7 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     Symbol, SymbolTable, \
     InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 
 
 # Fixtures
@@ -597,8 +597,7 @@ def test_use_stmt_error(f2008_parser, monkeypatch):
             "but found 3 for 'hello'" in str(err))
 
 
-def test_parse_array_dimensions_unhandled(
-        f2008_parser, monkeypatch):
+def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
