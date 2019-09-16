@@ -41,7 +41,7 @@ gen() method to generate Fortran.
 
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
-    Array, UnaryOperation
+    Array, UnaryOperation, Assignment
 from psyclone.nemo import NemoLoop, NemoKern
 
 
@@ -236,6 +236,36 @@ class SIRWriter(PSyIRVisitor):
         result += "vertical_region_fns = []\n"
         # The stencil name is currently hardcoded.
         result += "stencil_name = \"psyclone\"\n"
+
+        # Declare any scalars. The SIR only supports in place
+        # declarations (with an assignment) whereas Fortran declares
+        # scalars before any executable statements. To get round this
+        # they are added in-place in the SIR, but before any SIR
+        # executable statements, and they are initialised with 0.0.
+        scalar_names = set()
+        for kernel_node in node.walk(NemoKern):
+            kernel_schedule = kernel_node.get_kernel_schedule()
+            for assignment_node in kernel_schedule.walk(Assignment):
+                lhs = assignment_node.lhs
+                if not lhs.children:
+                    # This is an assignment to a scalar
+                    scalar_names.add(lhs.name)
+        for scalar_name in scalar_names:
+            # Hard-coded float here as we do not yet have a way of
+            # determining the type of the variable. This will be
+            # supported when the symbol table is added to the NEMO
+            # API.
+            #
+            # Initialise the scalar even though we really just
+            # want to declare it, as it is not possible to just
+            # declare a scalar in the SIR.
+            result += (
+                "{0}vertical_region_fns.append(make_var_decl_stmt("
+                "make_type(BuiltinType.Float), "
+                "\"{1}\", 0, \"=\", "
+                "make_literal_access_expr("
+                "\"0.0\", BuiltinType.Float)))\n"
+                "".format(self._nindent, scalar_name))
 
         exec_statements = ""
         for child in node.children:
