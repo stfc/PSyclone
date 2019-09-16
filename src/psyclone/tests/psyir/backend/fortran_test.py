@@ -491,7 +491,7 @@ def test_fw_loop(fort_writer):
         "  end do\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
