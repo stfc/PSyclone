@@ -145,7 +145,16 @@ class ProfileNode(Node):
     :type parent: :py::class::`psyclone.psyGen.Node`
 
     '''
-    fortran_module = "profile_mod"  #: Profiling interface Fortran module
+    # Profiling interface Fortran module
+    fortran_module = "profile_mod"
+    # The symbols we import from the profiling module
+    profiling_symbols = ["ProfileData", "ProfileStart", "ProfileEnd"]
+    # The use statement that we will insert. Any use of a module of the
+    # same name that doesn't match this will result in a NotImplementedError
+    # at code-generation time.
+    use_stmt = "use profile_mod, only: " + ", ".join(profiling_symbols)
+    # Root of the name to use for variables associated with profiling regions
+    profiling_var = "psy_profile"
 
     def __init__(self, children=None, parent=None):
         Node.__init__(self, children=children, parent=parent)
@@ -260,9 +269,15 @@ class ProfileNode(Node):
         region represented by this Node. This involves adding the necessary
         module use statement as well as the calls to the profiling API.
 
+        TODO #435 - remove this whole method once the NEMO API uses the
+        Fortran backend of the PSyIR.
+
         :raises NotImplementedError: if the routine which is to have \
                              profiling added to it does not already have a \
                              Specification Part (i.e. some declarations).
+        :raises NotImplementedError: if there would be a name clash with \
+                             existing variable/module names in the code to \
+                             be transformed.
         :raises InternalError: if we fail to find the node in the parse tree \
                              corresponding to the end of the profiling region.
 
@@ -272,46 +287,107 @@ class ProfileNode(Node):
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         from psyclone.psyGen import object_index, Schedule, InternalError
-        from psyclone.transformations import TransformationError
+        from psyclone.nemo import NemoInvokeSchedule
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()
 
         # Get the parse tree of the routine containing this region
         ptree = self.root.invoke._ast
-        routines = walk_ast([ptree], [Fortran2003.Main_Program,
-                                      Fortran2003.Subroutine_Stmt,
-                                      Fortran2003.Function_Stmt])
-        for routine in routines:
-            names = walk_ast([routine], [Fortran2003.Name])
-            routine_name = str(names[0]).lower()
-            break
+        # Rather than repeatedly walk the tree, we do it once for all of
+        # the node types we will be interested in...
+        node_list = walk_ast([ptree], [Fortran2003.Main_Program,
+                                       Fortran2003.Subroutine_Stmt,
+                                       Fortran2003.Function_Stmt,
+                                       Fortran2003.Specification_Part,
+                                       Fortran2003.Use_Stmt,
+                                       Fortran2003.Name])
+        for node in node_list:
+            if isinstance(node, (Fortran2003.Main_Program,
+                                 Fortran2003.Subroutine_Stmt,
+                                 Fortran2003.Function_Stmt)):
+                names = walk_ast([node], [Fortran2003.Name])
+                routine_name = str(names[0]).lower()
+                break
 
-        spec_parts = walk_ast([ptree], [Fortran2003.Specification_Part])
-        if not spec_parts:
+        for node in node_list:
+            if isinstance(node, Fortran2003.Specification_Part):
+                spec_part = node
+                break
+        else:
             # This limitation will be removed when we use the Fortran
             # backend of the PSyIR (#435)
             raise NotImplementedError(
                 "Addition of profiling regions to routines without any "
                 "existing declarations is not supported and '{0}' has no "
                 "Specification-Part".format(routine_name))
-        spec_part = spec_parts[0]
 
         # Get the existing use statements
-        use_stmts = walk_ast(spec_part.content, [Fortran2003.Use_Stmt])
-        mod_names = []
-        for stmt in use_stmts:
-            mod_names.append(str(stmt.items[2]).lower())
+        found = False
+        for node in node_list[:]:
+            if isinstance(node, Fortran2003.Use_Stmt) and \
+               self.fortran_module == str(node.items[2]).lower():
+                # Check that the use statement matches the one we would
+                # insert (i.e. the code doesn't already contain a module
+                # with the same name as that used by the profiling API)
+                if str(node).lower() != self.use_stmt.lower():
+                    raise NotImplementedError(
+                        "Cannot add profiling to '{0}' because it already "
+                        "'uses' a module named '{1}'".format(
+                            routine_name, self.fortran_module))
+                found = True
+                # To make our check on name clashes below easier, remove
+                # the Name nodes associated with this use from our
+                # list of nodes.
+                names = walk_ast([node], [Fortran2003.Name])
+                for name in names:
+                    node_list.remove(name)
 
-        # If we don't already have a use for the profiling module then
-        # add one.
-        if self.fortran_module not in mod_names:
+        if not found:
+            # We don't already have a use for the profiling module so
+            # add one.
             reader = FortranStringReader(
                 "use profile_mod, only: ProfileData, ProfileStart, ProfileEnd")
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             use = Fortran2003.Use_Stmt(reader)
             spec_part.content.insert(0, use)
+
+        # Check that we won't have any name-clashes when we insert the
+        # symbols required for profiling. This check uses the list of symbols
+        # that we created before adding the `use profile_mod...` statement.
+        if not self.root.profiling_name_clashes_checked:
+            for node in node_list:
+                if isinstance(node, Fortran2003.Name):
+                    text = str(node).lower()
+                    # Check for the symbols we import from the profiling module
+                    for symbol in self.profiling_symbols:
+                        if text == symbol.lower():
+                            raise NotImplementedError(
+                                "Cannot add profiling to '{0}' because it "
+                                "already contains a symbol that clashes with "
+                                "one of those ('{1}') that must be imported "
+                                "from the PSyclone profiling module.".
+                                format(routine_name, symbol))
+                    # Check for the name of the profiling module itself
+                    if text == self.fortran_module:
+                        raise NotImplementedError(
+                            "Cannot add profiling to '{0}' because it already "
+                            "contains a symbol that clashes with the name of "
+                            "the PSyclone profiling module ('profile_mod')".
+                            format(routine_name))
+                    # Check for the names of profiling variables
+                    if text.startswith(self.profiling_var):
+                        raise NotImplementedError(
+                            "Cannot add profiling to '{0}' because it already"
+                            " contains symbols that potentially clash with "
+                            "the variables we will insert for each profiling "
+                            "region ('{1}*').".format(routine_name,
+                                                      self.profiling_var))
+        # Flag that we have now checked for name clashes so that if there's
+        # more than one profiling node we don't fall over on the symbols
+        # we've previous inserted.
+        self.root.profiling_name_clashes_checked = True
 
         # Create a name for this region by finding where this profiling
         # node is in the list of profiling nodes in this Invoke.

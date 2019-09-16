@@ -333,3 +333,75 @@ def test_profiling_missing_end(parser):
     with pytest.raises(InternalError) as err:
         psy.gen
     assert "Failed to find the location of 'PROGRAM do_loop" in str(err.value)
+
+
+def test_profiling_mod_use_clash(parser):
+    ''' Check that we abort cleanly if we encounter a 'use' of a module that
+    clashes with the one we would 'use' for the profiling API. '''
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program the_clash\n"
+                                      "  use profile_mod, only: some_var\n"
+                                      "  my_array(:,:) = 0.0\n"
+                                      "end program the_clash\n")
+    PTRANS.apply(schedule.children[0])
+    schedule.view()
+    with pytest.raises(NotImplementedError) as err:
+        psy.gen
+    assert ("Cannot add profiling to 'the_clash' because it already 'uses' "
+            "a module named 'profile_mod'" in str(err.value))
+
+
+def test_profiling_mod_name_clash(parser):
+    ''' Check that we abort cleanly if we encounter code that has a name
+    clash with the name of the profiling API module. '''
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program profile_mod\n"
+                                      "  real :: my_array(3,3)\n"
+                                      "  my_array(:,:) = 0.0\n"
+                                      "end program profile_mod\n")
+    PTRANS.apply(schedule.children[0])
+    with pytest.raises(NotImplementedError) as err:
+        psy.gen
+    assert ("Cannot add profiling to 'profile_mod' because it already "
+            "contains a symbol that clashes with the name of the PSyclone "
+            "profiling " in str(err.value))
+
+
+def test_profiling_symbol_clash(parser):
+    ''' Check that we abort cleanly if we encounter code that has a name
+    clash with any of the symbols we 'use' from profile_mode. '''
+    from psyclone.profiler import ProfileNode
+    for var_name in ProfileNode.profiling_symbols:
+        psy, schedule = get_nemo_schedule(
+            parser,
+            "program my_test\n"
+            "  real :: my_array(3,3)\n"
+            "  integer :: {0}\n"
+            "  my_array(:,:) = 0.0\n"
+            "end program my_test\n".format(var_name))
+        PTRANS.apply(schedule.children[0])
+        with pytest.raises(NotImplementedError) as err:
+            psy.gen
+        assert ("Cannot add profiling to 'my_test' because it already "
+                "contains a symbol that clashes with one of those ('{0}')"
+                " that must be".format(var_name) in str(err.value))
+
+
+def test_profiling_var_clash(parser):
+    ''' Check that we abort cleanly if we encounter code that has a potential
+    name clash with the variables we will introduce for each profiling
+    region. '''
+    from psyclone.profiler import ProfileNode
+    psy, schedule = get_nemo_schedule(
+        parser,
+        "program my_test\n"
+        "  real :: my_array(3,3)\n"
+        "  integer :: {0}\n"
+        "  my_array(:,:) = 0.0\n"
+        "end program my_test\n".format(ProfileNode.profiling_var))
+    PTRANS.apply(schedule.children[0])
+    with pytest.raises(NotImplementedError) as err:
+        psy.gen
+    assert ("Cannot add profiling to 'my_test' because it already contains "
+            "symbols that potentially clash with the variables we will "
+            in str(err.value))
