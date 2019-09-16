@@ -2297,12 +2297,17 @@ class OCLTrans(Transformation):
                 raise NotImplementedError(
                     "Cannot generate OpenCL for Invokes that contain "
                     "kernels with arguments passed by value")
+
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
+            # TODO: While we are not able to capture the value of 'use'
+            # parameters (issue 323) we have to bypass this validation and
+            # provide them manually for the OpenCL kernels to compile.
+            continue
             global_symbols = ksched.symbol_table.global_symbols
             if global_symbols:
                 raise TransformationError(
