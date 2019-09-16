@@ -258,6 +258,7 @@ class GOLoop(Loop):
 
         if self.field_space == "every":
             from psyclone.f2pygen import DeclGen
+            from psyclone.psyGen import BinaryOperation, Reference
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
@@ -270,9 +271,11 @@ class GOLoop(Loop):
                 index = "1"
             elif self._loop_type == "outer":
                 index = "2"
-            # TODO: Issue 440. Implement SIZE intrinsic in PSyIR
-            self.stop_expr = Literal("SIZE(" + self.field_name + "," +
-                                     index + ")", parent=self)
+            self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                             parent=self)
+            self.stop_expr.addchild(Reference(self.field_name,
+                                              parent=self.stop_expr))
+            self.stop_expr.addchild(Literal(index, parent=self.stop_expr))
 
         else:  # one of our spaces so use values provided by the infrastructure
 
@@ -288,6 +291,10 @@ class GOLoop(Loop):
                     self.field_space + "%jstart", parent=self)
                 self.stop_expr = Reference(
                     self.field_space + "%jstop", parent=self)
+
+        # Update our bounds in the PSyIR
+        self.children[0] = self.start_expr
+        self.children[1] = self.stop_expr
 
         Loop.gen_code(self, parent)
 
