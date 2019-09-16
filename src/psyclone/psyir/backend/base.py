@@ -217,6 +217,8 @@ class PSyIRVisitor(object):
             try:
                 result_list.append(self._visit(child))
             except VisitorError:
+                # TODO: Ignore unsupported nodes for now, to allow all
+                # tests to work.
                 result_list.append("Node type {0} not yet supported\n"
                                    .format(type(child)))
         result_list.append(self.directive_end.format(node.end_string()))

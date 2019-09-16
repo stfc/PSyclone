@@ -336,6 +336,7 @@ class FortranWriter(PSyIRVisitor):
                                format(node.operator))
 
     def reference_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
@@ -371,6 +372,7 @@ class FortranWriter(PSyIRVisitor):
         return result
 
     def literal_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -510,23 +512,16 @@ class FortranWriter(PSyIRVisitor):
         '''
         return self._nindent.join(str(node.ast).splitlines(True))
 
-    def nemoinvokeschedule_node(self, node):
-        #TODO doc string
-        result_list = []
-        for child in node.children:
-            result_list.append(self(child))
-        return "".join(result_list)
-
     @property
     def directive_start(self):
-        ''':returns: "!$" - the start of a directive in Fortran
+        ''':returns: "!${0}" - the start of a directive in Fortran
         :rtype: str
         '''
         return "!${0}\n"
 
     @property
     def directive_end(self):
-        ''':returns: "!$" - the start of a directive in Fortran
+        ''':returns: "!${0}" - the end of a directive in Fortran
         :rtype: str
         '''
         return "!${0}\n"

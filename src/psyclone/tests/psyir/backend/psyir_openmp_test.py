@@ -40,12 +40,14 @@ from __future__ import absolute_import
 
 import re
 
+from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.psyclone_test_utils import create_schedule
 
 
-def test_omp_parallel():
-    '''Tests if an OpenMP parallel directive is handled correctly.
+# ----------------------------------------------------------------------------
+def test_nemo_omp_parallel():
+    '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
@@ -74,8 +76,39 @@ def test_omp_parallel():
     assert re.search(r"!\$omp parallel.*" +
                      r"!\$omp end parallel", result) is not None
 
-    from psyclone.psyir.backend.c import CWriter
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
     result = cvisitor(schedule[1]).replace("\n", "")
+    assert re.search(r"#pragma omp parallel.*{.*}", result) is not None
+
+
+# ----------------------------------------------------------------------------
+def test_gocean_omp_parallel():
+    '''Test that an OMP PARALLEL directive in a 'classical' API (gocean here)
+    is created correctly.
+    '''
+
+    from psyclone.transformations import OMPParallelTrans
+    from psyclone.tests.psyclone_test_utils import get_invoke
+
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+                           idx=0)
+    schedule = invoke.schedule
+
+    omp = OMPParallelTrans()
+    omp_sched, _ = omp.apply(schedule.children[0])
+
+    invoke.schedule = omp_sched
+
+    fvisitor = FortranWriter()
+    # TODO: Directly access the omp node, since higher level
+    # node types are not yet supported.
+    result = fvisitor(omp_sched[0]).replace("\n", "")
+
+    assert re.search(r"!\$omp parallel.*" +
+                     r"!\$omp end parallel", result) is not None
+
+    cvisitor = CWriter()
+    # Remove newlines for easier RE matching
+    result = cvisitor(omp_sched[0]).replace("\n", "")
     assert re.search(r"#pragma omp parallel.*{.*}", result) is not None
