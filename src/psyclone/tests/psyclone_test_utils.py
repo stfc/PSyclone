@@ -184,6 +184,7 @@ class Compile(object):
         :returns: A list of strings with the compiler flags required.
         :rtype: list
         '''
+        # pylint: disable=no-self-use
         return []
 
     @staticmethod
@@ -440,14 +441,18 @@ def get_invoke(algfile, api, idx=None, name=None):
 
 
 # =============================================================================
-def create_schedule(code):
+def create_schedule(code, ast_processor=Fparser2ASTProcessor):
     '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and Fparser2ASTProcessor.
+    code using fparser2 and (by default) Fparser2ASTProcessor.
 
     :param str code: Fortran code.
+    :param ast_processor: the particular ASTProcessor to use. Defaults \
+    to FParser2ASTProcessor.
+    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2ASTProcessor`
+
 
     :returns: PSyIR tree representing the Fortran code.
-    :rtype: subclass of :py:class:`psyclone.psyGen.Node`
+    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
 
     '''
     reader = FortranStringReader(code)
@@ -455,7 +460,7 @@ def create_schedule(code):
     parse_tree = f2003_parser(reader)
 
     # Generate PSyIR schedule from fparser2 parse tree
-    processor = Fparser2ASTProcessor()
+    processor = ast_processor()
     schedule = processor.generate_schedule("tmp", parse_tree)
 
     return schedule
