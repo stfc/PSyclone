@@ -46,7 +46,7 @@ from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
 from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
-from psyclone.tests.psyclone_test_utils import create_schedule
+from ...psyclone_test_utils import create_schedule
 
 
 def test_gen_intent():
