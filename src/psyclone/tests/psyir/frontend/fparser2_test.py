@@ -78,8 +78,8 @@ end module dummy_mod
 '''
 
 
-def test_fparser2astprocessor_generate_schedule_empty_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with an empty
+def test_generate_schedule_empty_subroutine():
+    ''' Tests the fp2Reader generate_schedule method with an empty
     subroutine.
     '''
     ast1 = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=True)
@@ -107,8 +107,8 @@ def test_fparser2astprocessor_generate_schedule_empty_subroutine():
            "subroutine: dummy_code" in str(error.value)
 
 
-def test_fparser2astprocessor_generate_schedule_two_modules():
-    ''' Tests the fparser2AST generate_schedule method raises an exception
+def test_generate_schedule_two_modules():
+    ''' Tests the fparser2Reader generate_schedule method raises an exception
     when more than one fparser2 module node is provided.
     '''
     ast1 = fpapi.parse(FAKE_KERNEL_METADATA*2, ignore_comments=True)
@@ -126,8 +126,8 @@ def test_fparser2astprocessor_generate_schedule_two_modules():
         in str(error.value)
 
 
-def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with a simple
+def test_generate_schedule_dummy_subroutine():
+    ''' Tests the fparser2Reader generate_schedule method with a simple
     subroutine.
     '''
     dummy_kernel_metadata = '''
@@ -174,8 +174,8 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     assert not schedule.children
 
 
-def test_fparser2astprocessor_generate_schedule_no_args_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with a simple
+def test_generate_schedule_no_args_subroutine():
+    ''' Tests the fparser2Reader generate_schedule method with a simple
     subroutine with no arguments.
     '''
     dummy_kernel_metadata = '''
@@ -211,8 +211,8 @@ def test_fparser2astprocessor_generate_schedule_no_args_subroutine():
     # the kernel arguments, then this test would fail. Issue #288
 
 
-def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
-    ''' Tests the fparser2AST generate_schedule with unmatching kernel
+def test_generate_schedule_unmatching_arguments():
+    ''' Tests the fparser2Reader generate_schedule with unmatching kernel
     arguments and declarations raises the appropriate exception.
     '''
     dummy_kernel_metadata = '''
@@ -251,8 +251,8 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
         in str(error.value)
 
 
-def test_fparser2astprocessor_process_declarations(f2008_parser):
-    '''Test that process_declarations method of fparse2astprocessor
+def test_process_declarations(f2008_parser):
+    '''Test that process_declarations method of fparse2reader
     converts the fparser2 declarations to symbols in the provided
     parent Kernel Schedule.
     '''
@@ -350,7 +350,7 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
             "supported.") in str(error.value)
 
 
-def test_fparser2astprocessor_process_not_supported_declarations(f2008_parser):
+def test_process_not_supported_declarations(f2008_parser):
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
     '''
@@ -374,7 +374,7 @@ def test_fparser2astprocessor_process_not_supported_declarations(f2008_parser):
     assert ". Unrecognized attribute " in str(error.value)
 
 
-def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
+def test_process_declarations_intent(f2008_parser):
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
@@ -414,8 +414,7 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
         Symbol.Access.READWRITE
 
 
-def test_fparser2astprocessor_process_declarations_stmt_functions(
-        f2008_parser):
+def test_process_declarations_stmt_functions(f2008_parser):
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
@@ -483,8 +482,7 @@ def test_fparser2astprocessor_process_declarations_stmt_functions(
         in str(error.value)
 
 
-def test_fparser2astprocessor_parse_array_dimensions_attributes(
-        f2008_parser):
+def test_parse_array_dimensions_attributes(f2008_parser):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
@@ -559,7 +557,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
         Symbol.Access.READ
 
 
-def test_fparser2astprocessor_use(f2008_parser):
+def test_use_stmt(f2008_parser):
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
     from fparser.common.readfortran import FortranStringReader
@@ -580,7 +578,7 @@ def test_fparser2astprocessor_use(f2008_parser):
         "other_mod"
 
 
-def test_fp2astproc_use_error(f2008_parser, monkeypatch):
+def test_use_stmt_error(f2008_parser, monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
     a USE statement doesn't have the expected structure. '''
     from fparser.common.readfortran import FortranStringReader
@@ -599,7 +597,7 @@ def test_fp2astproc_use_error(f2008_parser, monkeypatch):
             "but found 3 for 'hello'" in str(err))
 
 
-def test_fparser2astprocessor_parse_array_dimensions_unhandled(
+def test_parse_array_dimensions_unhandled(
         f2008_parser, monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
@@ -627,7 +625,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     assert " has not been handled." in str(error.value)
 
 
-def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
+def test_handling_assignment_stmt(f2008_parser):
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
@@ -646,7 +644,7 @@ def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
     assert len(new_node.children) == 2
 
 
-def test_fparser2astprocessor_handling_name(f2008_parser):
+def test_handling_name(f2008_parser):
     ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
@@ -683,7 +681,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     assert new_node._reference == "x"
 
 
-def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
+def test_handling_parenthesis(f2008_parser):
     ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
@@ -702,7 +700,7 @@ def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
     assert isinstance(new_node, BinaryOperation)
 
 
-def test_fparser2astprocessor_handling_part_ref(f2008_parser):
+def test_handling_part_ref(f2008_parser):
     ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
@@ -755,7 +753,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     assert len(new_node.children) == 3  # Array dimensions
 
 
-def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
+def test_handling_intrinsics(f2008_parser):
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
     '''
@@ -806,7 +804,7 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
                 "Fails when parsing '" + code + "'"
 
 
-def test_fp2astproc_intrinsic_no_args(f2008_parser):
+def test_intrinsic_no_args(f2008_parser):
     ''' Check that an intrinsic with no arguments results in a
     NotImplementedError. '''
     from fparser.common.readfortran import FortranStringReader
@@ -822,7 +820,7 @@ def test_fp2astproc_intrinsic_no_args(f2008_parser):
     assert "SUM" in str(err)
 
 
-def test_fp2astproc_unary_op_handler_error(f2008_parser):
+def test_unary_op_handler_error(f2008_parser):
     ''' Check that the unary op handler raises the expected error if the
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
@@ -845,7 +843,7 @@ def test_fp2astproc_unary_op_handler_error(f2008_parser):
             "therefore not unary" in str(err))
 
 
-def test_fp2astproc_binary_op_handler_error(f2008_parser):
+def test_binary_op_handler_error(f2008_parser):
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
     from fparser.common.readfortran import FortranStringReader
@@ -868,7 +866,7 @@ def test_fp2astproc_binary_op_handler_error(f2008_parser):
             "to be Actual_Arg_Spec_List" in str(err))
 
 
-def test_fp2astproc_nary_op_handler_error(f2008_parser):
+def test_nary_op_handler_error(f2008_parser):
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
     from fparser.common.readfortran import FortranStringReader
@@ -891,7 +889,7 @@ def test_fp2astproc_nary_op_handler_error(f2008_parser):
             " parse tree to be an Actual_Arg_Spec_List" in str(err))
 
 
-def test_fp2astproc_handling_nested_intrinsic(f2008_parser):
+def test_handling_nested_intrinsic(f2008_parser):
     ''' Check that we correctly handle nested intrinsic functions. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -911,7 +909,7 @@ def test_fp2astproc_handling_nested_intrinsic(f2008_parser):
 
 @pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
                    "non-NEMO PSyIR")
-def testfp2astproc_handling_array_product(f2008_parser):
+def test_handling_array_product(f2008_parser):
     ''' Check that we correctly handle array products. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -925,7 +923,7 @@ def testfp2astproc_handling_array_product(f2008_parser):
     assert not fake_parent.walk(CodeBlock)
 
 
-def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
+def test_handling_if_stmt(f2008_parser):
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
@@ -944,7 +942,7 @@ def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
     assert len(new_node.children) == 2
 
 
-def test_fparser2astprocessor_handling_if_construct(f2008_parser):
+def test_handling_if_construct(f2008_parser):
     ''' Test that fparser2 If_Construct is converted to the expected PSyIR
     tree structure.
     '''
@@ -996,7 +994,7 @@ def test_fparser2astprocessor_handling_if_construct(f2008_parser):
     assert elsebody.ast is fparser2if_construct.content[6]
 
 
-def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
+def test_handling_if_construct_errors(f2008_parser):
     ''' Test that unsupported If_Construct structures raise the proper
     errors.
     '''
@@ -1061,7 +1059,7 @@ def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
             "expected, but found") in str(error.value)
 
 
-def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
+def test_handling_complex_if_construct(f2008_parser):
     ''' Test that nested If_Construct structures and empty bodies are
     handled properly.
     '''
@@ -1094,7 +1092,7 @@ def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
     assert nested_if2.children[1].children[0].children[0].name == 'found'
 
 
-def test_fparser2astprocessor_handling_case_construct(f2008_parser):
+def test_handling_case_construct(f2008_parser):
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
@@ -1135,8 +1133,8 @@ def test_fparser2astprocessor_handling_case_construct(f2008_parser):
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
-def test_fp2astproc_case_default(f2008_parser):
-    ''' Check that the fparser2ASTProcessor handles SELECT blocks with
+def test_case_default(f2008_parser):
+    ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause. '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
@@ -1172,7 +1170,7 @@ def test_fp2astproc_case_default(f2008_parser):
                           Assignment)
 
 
-def test_fp2astproc_handling_case_list(f2008_parser):
+def test_handling_case_list(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of conditions. '''
     from fparser.common.readfortran import FortranStringReader
@@ -1204,7 +1202,7 @@ def test_fp2astproc_handling_case_list(f2008_parser):
     assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
 
 
-def test_fp2astproc_handling_case_range(f2008_parser):
+def test_handling_case_range(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a range. '''
     from fparser.common.readfortran import FortranStringReader
@@ -1229,7 +1227,7 @@ def test_fp2astproc_handling_case_range(f2008_parser):
     assert "branch3" in str(ifnode.if_body[0].lhs)
 
 
-def test_fp2astproc_handling_case_range_list(f2008_parser):
+def test_handling_case_range_list(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of ranges. '''
     from fparser.common.readfortran import FortranStringReader
@@ -1262,7 +1260,7 @@ def test_fp2astproc_handling_case_range_list(f2008_parser):
     assert "branch4" in str(ifnode.if_body[0].lhs)
 
 
-def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
+def test_handling_invalid_case_construct(f2008_parser):
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
@@ -1325,7 +1323,7 @@ def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
     assert "to be a Case_Selector but got" in str(error.value)
 
 
-def test_fparser2astprocessor_handling_numberbase(f2008_parser):
+def test_handling_numberbase(f2008_parser):
     ''' Test that fparser2 NumberBase is converted to the expected PSyIR
     tree structure.
     '''
@@ -1344,7 +1342,7 @@ def test_fparser2astprocessor_handling_numberbase(f2008_parser):
     assert new_node._value == "1"
 
 
-def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
+def test_handling_binaryopbase(f2008_parser):
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
@@ -1408,7 +1406,7 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
+def test_handling_unaryopbase(f2008_parser):
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
@@ -1457,7 +1455,7 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     assert isinstance(new_node, CodeBlock)
 
 
-def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
+def test_handling_return_stmt(f2008_parser):
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
@@ -1477,7 +1475,7 @@ def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
     assert not new_node.children
 
 
-def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
+def test_handling_end_do_stmt(f2008_parser):
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -1494,7 +1492,7 @@ def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
+def test_handling_end_subroutine_stmt(f2008_parser):
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Subroutine_Subprogram
@@ -1510,7 +1508,7 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-def test_fparser2astprocessor_do_construct(f2008_parser):
+def test_do_construct(f2008_parser):
     ''' Check that do loop constructs are converted to the expected
     PSyIR node'''
     from fparser.common.readfortran import FortranStringReader
@@ -1536,7 +1534,7 @@ def test_fparser2astprocessor_do_construct(f2008_parser):
     assert isinstance(new_loop.loop_body[0], Assignment)
 
 
-def test_fparser2astprocessor_do_construct_while(f2008_parser):
+def test_do_construct_while(f2008_parser):
     ''' Check that do while constructs are placed in Codeblocks '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -1552,8 +1550,8 @@ def test_fparser2astprocessor_do_construct_while(f2008_parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-# (1/4) fparser2astprocessor::nodes_to_code_block
-def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
+# (1/4) fparser2reader::nodes_to_code_block
+def test_nodes_to_code_block_1(f2008_parser):
     '''Check that a statement codeblock that is at the "top level" in the
     PSyIR has the structure property set to statement (as it has a
     schedule as parent).
@@ -1574,8 +1572,8 @@ def test_fp2astproc_nodes_to_code_block_1(f2008_parser):
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (2/4) fparser2astprocessor::nodes_to_code_block
-def test_fp2astproc_nodes_to_code_block_2(f2008_parser):
+# (2/4) fparser2reader::nodes_to_code_block
+def test_nodes_to_code_block_2(f2008_parser):
     '''Check that a statement codeblock that is within another statement
     in the PSyIR has the structure property set to statement (as it
     has a schedule as parent).
@@ -1598,8 +1596,8 @@ def test_fp2astproc_nodes_to_code_block_2(f2008_parser):
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (3/4) fparser2astprocessor::nodes_to_code_block
-def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
+# (3/4) fparser2reader::nodes_to_code_block
+def test_nodes_to_code_block_3(f2008_parser):
     '''Check that a codeblock that contains an expression has the
     structure property set to expression.
 
@@ -1620,8 +1618,8 @@ def test_fp2astproc_nodes_to_code_block_3(f2008_parser):
     assert code_block.structure == CodeBlock.Structure.EXPRESSION
 
 
-# (4/4) fparser2astprocessor::nodes_to_code_block
-def test_fp2astproc_nodes_to_code_block_4(f2008_parser):
+# (4/4) fparser2reader::nodes_to_code_block
+def test_nodes_to_code_block_4(f2008_parser):
     '''Check that a codeblock that has a directive as a parent causes the
     expected exception.
 
