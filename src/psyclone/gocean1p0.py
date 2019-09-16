@@ -713,7 +713,7 @@ class GOLoop(Loop):
         elif self._iteration_space.lower() == "go_all_pts":
             stop += "%whole"
         else:
-            raise GenerationError("Unrecognised iteration space, {0}. "
+            raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
         if self._loop_type == "inner":
@@ -788,7 +788,7 @@ class GOLoop(Loop):
         elif self._iteration_space.lower() == "go_all_pts":
             start += "%whole"
         else:
-            raise GenerationError("Unrecognised iteration space, {0}. "
+            raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
         if self._loop_type == "inner":

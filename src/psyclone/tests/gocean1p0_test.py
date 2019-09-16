@@ -1077,6 +1077,23 @@ def test_goloop_unmatched_offsets():
         in str(excinfo.value)
 
 
+def test_goloop_bounds_invalid_iteration_space():
+    ''' Check that the _upper/lower_bound() methods raises the expected error
+    if the iteration space is not recognised. '''
+    gosched = GOInvokeSchedule([])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    # Have to turn-off constant loop bounds to get to the error condition
+    gosched._const_loop_bounds = False
+    # Set the iteration space to something invalid
+    gojloop._iteration_space = "broken"
+    with pytest.raises(GenerationError) as err:
+        gojloop._upper_bound()
+    assert "Unrecognised iteration space, 'broken'." in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        gojloop._lower_bound()
+    assert "Unrecognised iteration space, 'broken'." in str(err.value)
+
+
 def test_writetoread_dag(tmpdir, have_graphviz):
     ''' Test that the GOInvokeSchedule::dag() method works as expected when we
     have two kernels with a write -> read dependency '''
