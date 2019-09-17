@@ -605,7 +605,7 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
     import fparser
 
-    def walk_ast_return(_1, _2, _3, _4):
+    def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk_ast method caller.'''
         class Invalid(object):
