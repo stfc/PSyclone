@@ -50,17 +50,17 @@ def test_nemo_omp_parallel():
     '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
-        "  integer :: i, sum\n"
-        "  sum = 0\n"
-        "  do i = 1, 20, 2\n"
-        "    sum = sum + i\n"
-        "  end do\n"
-        "end subroutine tmp\n"
-        "end module test")
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          integer :: i, sum
+          sum = 0
+          do i = 1, 20, 2
+            sum = sum + i
+          end do
+        end subroutine tmp
+        end module test'''
     schedule = create_schedule(code)
     from psyclone.transformations import OMPParallelTrans
 
@@ -116,20 +116,20 @@ def test_gocean_omp_parallel():
 
 # ----------------------------------------------------------------------------
 def test_nemo_omp_do():
-    '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
+    '''Tests if an OpenMP do directive in NEMO is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
-        "  integer :: i, sum\n"
-        "  sum = 0\n"
-        "  do i = 1, 20, 2\n"
-        "    sum = sum + i\n"
-        "  end do\n"
-        "end subroutine tmp\n"
-        "end module test")
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          integer :: i, sum
+          sum = 0
+          do i = 1, 20, 2
+            sum = sum + i
+          end do
+        end subroutine tmp
+        end module test'''
     schedule = create_schedule(code)
     from psyclone.transformations import OMPLoopTrans
 
