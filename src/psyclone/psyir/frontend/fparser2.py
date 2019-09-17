@@ -400,7 +400,6 @@ class Fparser2Reader(object):
                   represents a scalar.
         :rtype: list
         '''
-        from fparser.two.utils import walk_ast
         shape = []
 
         # Traverse shape specs in Depth-first-search order
