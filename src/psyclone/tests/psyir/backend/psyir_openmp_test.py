@@ -112,3 +112,40 @@ def test_gocean_omp_parallel():
     # Remove newlines for easier RE matching
     result = cvisitor(omp_sched[0]).replace("\n", "")
     assert re.search(r"#pragma omp parallel.*{.*}", result) is not None
+
+
+# ----------------------------------------------------------------------------
+def test_nemo_omp_do():
+    '''Tests if an OpenMP parallel directive in NEMO is handled correctly.
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  integer :: i, sum\n"
+        "  sum = 0\n"
+        "  do i = 1, 20, 2\n"
+        "    sum = sum + i\n"
+        "  end do\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code)
+    from psyclone.transformations import OMPLoopTrans
+
+    # Now apply a parallel transform
+    omp_loop = OMPLoopTrans()
+    omp_loop.apply(schedule[1])
+
+    fvisitor = FortranWriter()
+    # Convert to code, and remove all new lines, to make
+    # regex matching easier
+    result = fvisitor(schedule).replace("\n", "")
+
+    assert re.search(r"!\$omp do.*" +
+                     r"!\$omp end do", result) is not None
+
+    cvisitor = CWriter()
+    # Remove newlines for easier RE matching
+    result = cvisitor(schedule[1]).replace("\n", "")
+    assert re.search(r"#pragma omp do.*{.*}", result) is not None

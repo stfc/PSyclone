@@ -2703,7 +2703,7 @@ class OMPDoDirective(OMPDirective):
         :rtype: str
         '''
 
-        return "omp do schedule({0})\n".format(self._omp_schedule)
+        return "omp do schedule({0})".format(self._omp_schedule)
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -2714,7 +2714,7 @@ class OMPDoDirective(OMPDirective):
         :rtype: str
         '''
 
-        return "omp end do\n"
+        return "omp end do"
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
