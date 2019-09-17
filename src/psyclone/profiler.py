@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -287,7 +288,6 @@ class ProfileNode(Node):
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         from psyclone.psyGen import object_index, Schedule, InternalError
-        from psyclone.nemo import NemoInvokeSchedule
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()

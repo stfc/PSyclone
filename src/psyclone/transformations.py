@@ -129,6 +129,7 @@ class RegionTrans(Transformation):
         :raises TransformationError: if the nodes are in a NEMO Schedule and \
                                      the transformation acts on the child of \
                                      a single-line if statment.
+
         '''
         from psyclone.psyGen import IfBlock, Literal, Reference
         from psyclone.nemo import NemoInvokeSchedule

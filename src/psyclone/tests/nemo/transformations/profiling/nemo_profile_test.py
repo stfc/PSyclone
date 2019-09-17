@@ -40,12 +40,10 @@
 
 from __future__ import absolute_import, print_function
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, ProfileRegionTrans
+from fparser.common.readfortran import FortranStringReader
 
-# The PSyclone API under test
-API = "nemo"
 # The transformation that most of these tests use
 PTRANS = ProfileRegionTrans()
 
@@ -65,7 +63,7 @@ def get_nemo_schedule(parser, code):
     '''
     reader = FortranStringReader(code)
     code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     return psy, schedule
 
@@ -299,7 +297,7 @@ def test_profiling_case(parser):
             "END SUBROUTINE my_test" in code)
 
 
-def test_profiling_without_spec_part(parser):
+def test_profiling_no_spec_part(parser):
     ''' Check that attempting to add profiling to a routine that has no
     Specification_Part (i.e. no declarations) raises a NotImplementedError
     (this restriction will be lifted by #435). '''
@@ -309,7 +307,7 @@ def test_profiling_without_spec_part(parser):
                                    "end subroutine no_decs\n")
     PTRANS.apply(sched.children)
     with pytest.raises(NotImplementedError) as err:
-        psy.gen
+        _ = psy.gen
     assert ("Addition of profiling regions to routines without any "
             "existing declarations is not supported" in str(err.value))
 
@@ -331,7 +329,7 @@ def test_profiling_missing_end(parser):
     loops = schedule.walk(Loop)
     loops[0]._ast_end = psy._ast
     with pytest.raises(InternalError) as err:
-        psy.gen
+        _ = psy.gen
     assert "Failed to find the location of 'PROGRAM do_loop" in str(err.value)
 
 
@@ -346,7 +344,7 @@ def test_profiling_mod_use_clash(parser):
     PTRANS.apply(schedule.children[0])
     schedule.view()
     with pytest.raises(NotImplementedError) as err:
-        psy.gen
+        _ = psy.gen
     assert ("Cannot add profiling to 'the_clash' because it already 'uses' "
             "a module named 'profile_mod'" in str(err.value))
 
@@ -361,7 +359,7 @@ def test_profiling_mod_name_clash(parser):
                                       "end program profile_mod\n")
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
-        psy.gen
+        _ = psy.gen
     assert ("Cannot add profiling to 'profile_mod' because it already "
             "contains a symbol that clashes with the name of the PSyclone "
             "profiling " in str(err.value))
@@ -381,7 +379,7 @@ def test_profiling_symbol_clash(parser):
             "end program my_test\n".format(var_name))
         PTRANS.apply(schedule.children[0])
         with pytest.raises(NotImplementedError) as err:
-            psy.gen
+            _ = psy.gen
         assert ("Cannot add profiling to 'my_test' because it already "
                 "contains a symbol that clashes with one of those ('{0}')"
                 " that must be".format(var_name) in str(err.value))
@@ -401,7 +399,7 @@ def test_profiling_var_clash(parser):
         "end program my_test\n".format(ProfileNode.profiling_var))
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
-        psy.gen
+        _ = psy.gen
     assert ("Cannot add profiling to 'my_test' because it already contains "
             "symbols that potentially clash with the variables we will "
             in str(err.value))
