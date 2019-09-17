@@ -305,6 +305,12 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
         self._invoke = invoke
         self._ast = ast
+        # Whether or not we've already checked the associated Fortran for
+        # potential name-clashes when inserting profiling code.
+        # TODO this can be removed once #435 is done and we're no longer
+        # manipulating the fparser2 parse tree.
+        self._name_clashes_checked = False
+
         self.process_nodes(self, ast.content, ast)
 
     def view(self, indent=0):
@@ -324,6 +330,32 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
+
+    @property
+    def profiling_name_clashes_checked(self):
+        '''Getter for whether or not the underlying fparser2 AST has been
+        checked for clashes with the symbols required by profiling.
+        TODO remove once #435 is complete.
+
+        :returns: whether or not we've already checked the underlying \
+                  fparser2 parse tree for symbol clashes with code we will \
+                  insert for profiling.
+        :rtype: bool
+
+        '''
+        return self._name_clashes_checked
+
+    @profiling_name_clashes_checked.setter
+    def profiling_name_clashes_checked(self, value):
+        ''' Setter for whether or not we've already checked the underlying
+        fparser2 parse tree for symbol clashes with code we will insert for
+        profiling.
+        TODO remove once #435 is complete.
+
+        :param bool value: whether or not the check has been performed.
+
+        '''
+        self._name_clashes_checked = value
 
 
 class NemoKern(CodedKern):
