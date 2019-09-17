@@ -114,7 +114,7 @@ class NemoFparser2Reader(Fparser2Reader):
         '''
         Before executing the generic _create_child, it checks if the parsed
         AST is a NemoImplicitLoop because this is not handled yet by the
-        generic fparser2ASTProcessor.
+        generic fparser2Reader.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`

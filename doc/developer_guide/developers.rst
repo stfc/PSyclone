@@ -296,9 +296,9 @@ The PSyclone Internal Representation (PSyIR)
 The PSyclone Internal Representation (PSyIR) is a language-independent
 AST that PSyclone uses to represent the PSy layer and the kernel
 code. The PSyIR can be constructed from scratch or produced from
-existing code using one of the (front-end) ASTProcessors provided in
-PSyclone and it can be transformed back to a particular language using
-the (back-end) support provided in PSyclone.
+existing code using one of the front-ends (Readers) and it can be
+transformed back to a particular language using the back-ends (Writers)
+provided in PSyclone.
 
 Nodes
 =====
@@ -2401,7 +2401,8 @@ Kernel Transformations
 PSyclone is able to perform kernel transformations. Currently it has
 two ways to apply transformations: by directly manipulating the
 language AST or by translating the language AST to PSyIR, applying the
-transformation, and producing the resulting language AST or code.
+transformation in the PSyIR and using one of the back-ends to generate
+the resulting code.
 
 For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
@@ -2421,15 +2422,15 @@ to generate the PSyIR representation of the kernel code.
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
 
-The AST to AST transformation is done using an ASTProcessor.
-At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
-version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
-(In the future we aim to have a generic ASTProcessor class, specialized
-for different language parsers: <parser>ASTProcessor, and specialized again
-for specific APIs when additional functionality is requiered
-<API><parser>ASTProcessor.)
+The language AST to PSyIR transformation is done using a PSyIR front-end.
+This are found in the `psyclone.psyir.frontend` module. 
+The only currently available front-end is `Fparser2Reader` but this can
+be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
+sub-class).
+The naming convention used for the PSyIR front-ends is
+<API><languageAST>Reader.
 
-.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
     :members:
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a

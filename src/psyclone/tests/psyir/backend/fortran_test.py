@@ -165,8 +165,8 @@ def create_schedule(code, ast_processor=Fparser2Reader):
     code using fparser2 and (by default) Fparser2Reader.
 
     :param str code: Fortran code.
-    :param ast_processor: the particular ASTProcessor to use. Defaults \
-    to FParser2ASTProcessor.
+    :param ast_processor: the particular front-end to use. Defaults \
+    to Fparser2Reader.
     :type ast_processor: :py:class:`psyclone.psyGen.Fparser2Reader`
 
 
