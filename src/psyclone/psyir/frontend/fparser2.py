@@ -1025,7 +1025,10 @@ class Fparser2Reader(object):
 
             ifblock = IfBlock(parent=currentparent,
                               annotation='was_case')
-            ifblock.ast = node.content[start_idx]
+            # Since this IfBlock represents a CASE clause in the
+            # Fortran, we point to the parse tree of the content
+            # of the clause.
+            ifblock.ast = node.content[start_idx + 1]
             ifblock.ast_end = node.content[end_idx - 1]
 
             if isinstance(case.items[0],
@@ -1058,6 +1061,7 @@ class Fparser2Reader(object):
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
                 elsebody.addchild(ifblock)
+                ifblock.parent = elsebody
                 elsebody.ast = node.content[start_idx + 1]
                 elsebody.ast_end = node.content[end_idx - 1]
             else:
