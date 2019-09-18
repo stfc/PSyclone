@@ -1078,7 +1078,7 @@ def test_goloop_unmatched_offsets():
 
 
 def test_goloop_bounds_invalid_iteration_space():
-    ''' Check that the _upper/lower_bound() methods raises the expected error
+    ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
     gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")

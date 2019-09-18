@@ -636,7 +636,7 @@ class GOLoop(Loop):
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
-    def _upper_bound(self, parent=None):
+    def _upper_bound(self):
         ''' Creates the PSyIR of the upper bound of this loop.
         This takes the field type and usage of const_loop_bounds
         into account. In the case of const_loop_bounds it will be
@@ -646,9 +646,6 @@ class GOLoop(Loop):
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1 depending on
         loop type).
-
-        :param parent: the parent in the PSyIR (the loop object)
-        :type parent: :py:class:`psyclone.gocean1p0.GOLoop`
 
         :returns: the PSyIR for the upper bound of this loop.
         :rtype: :py:class:`psyclone.psyGen.Node`
@@ -684,8 +681,8 @@ class GOLoop(Loop):
                 # but it helps to fix all of the test cases.
                 if stop == "2-1":
                     stop = "1"
-                return Literal(stop, parent)
-            return Literal("not_yet_set", parent)
+                return Literal(stop, self)
+            return Literal("not_yet_set", self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -693,7 +690,7 @@ class GOLoop(Loop):
             # We look-up the upper bounds by enquiring about the SIZE of
             # the array itself
             stop = BinaryOperation(BinaryOperation.Operator.SIZE,
-                                   parent)
+                                   self)
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
             stop.addchild(Literal(self.field_name+"%data", parent=stop))
@@ -722,11 +719,11 @@ class GOLoop(Loop):
             stop += "%ystop"
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
-        return Literal(stop, parent)
+        return Literal(stop, self)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
-    def _lower_bound(self, parent=None):
+    def _lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
@@ -737,11 +734,8 @@ class GOLoop(Loop):
         "{stop}+1" will become "istop+1" (or "jstop+1" depending on
         loop type).
 
-        :param parent:
-        :type parent:
-]
-        :returns:
-        :rtype:
+        :returns: root of PSyIR sub-tree describing this lower bound.
+        :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
         schedule = self.ancestor(GOInvokeSchedule)
@@ -772,12 +766,12 @@ class GOLoop(Loop):
                 # but it helps with fixing all of the test cases.
                 if start == "2-1":
                     start = "1"
-                return Literal(start, parent)
-            return Literal("not_yet_set", parent)
+                return Literal(start, self)
+            return Literal("not_yet_set", self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", parent)
+            return Literal("1", self)
 
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
@@ -796,7 +790,7 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             start += "%ystart"
         # TODO 363 - update once the PSyIR supports derived types
-        return Literal(start, parent)
+        return Literal(start, self)
 
     def view(self, indent=0):
         '''
@@ -805,9 +799,8 @@ class GOLoop(Loop):
         :param int indent: Depth of indent for output text
         '''
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound should generate PSyIR
-        self.start_expr = self._lower_bound(parent=self)
-        self.stop_expr = self._upper_bound(parent=self)
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
         # Update the loop limits for the loop
         self.children[0] = self.start_expr
         self.children[1] = self.stop_expr
@@ -818,9 +811,8 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound should generate PSyIR
-        self.start_expr = self._lower_bound(parent=self)
-        self.stop_expr = self._upper_bound(parent=self)
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
         # Update the stored loop limits for the loop
         self.children[0] = self.start_expr
         self.children[1] = self.stop_expr
@@ -875,9 +867,8 @@ class GOLoop(Loop):
                                              index_offset))
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound should generate PSyIR
-        self.start_expr = self._lower_bound(parent=self)
-        self.stop_expr = self._upper_bound(parent=self)
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
         # Update the loop limits for the parent loop
         self.children[0] = self.start_expr
         self.children[1] = self.stop_expr
