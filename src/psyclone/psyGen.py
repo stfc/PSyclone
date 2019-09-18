@@ -972,7 +972,11 @@ class Node(object):
         self._colour_key = self.__class__.__name__
 
     def coloured_name(self, colour=True):
-        ''' '''
+        '''
+        :returns: the name of this node, optionally with colour control codes \
+                  (requires that the termcolor package be installed).
+        :rtype: str
+        '''
         if colour:
             try:
                 return colored(self._text_name,
@@ -1289,11 +1293,17 @@ class Node(object):
 
     def node_str(self, colour=True):
         '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node. Will typically be \
+                  overridden by sub-class.
+        :rtype: str
         '''
         return self.coloured_name(colour)
 
     def view(self, indent=0, index=None):
-        ''' Print out description of current node and
+        ''' Print out description of current node to stdout and
         then call view() on all child nodes.
 
         :param int indent: depth of indent for output text.
@@ -1621,10 +1631,10 @@ class Schedule(Node):
 
     def node_str(self, colour=True):
         '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
+        :param bool colour: whether or not to add control codes for
+                            coloured output.
 
-        :return: Text containing the name of this node, possibly coloured.
+        :return: text describing this node, possibly coloured.
         :rtype: str
         '''
         return self.coloured_name(colour) + "[]"
@@ -1706,8 +1716,10 @@ class InvokeSchedule(Schedule):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :returns: Text containing the name of this node, possibly coloured
-        :rtype: string
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return "{0}[invoke={1}]".format(
             self.coloured_name(colour), self.invoke.name)
@@ -1985,14 +1997,16 @@ class ACCEnterDataDirective(ACCDirective):
 
     def node_str(self, colour=True):
         '''
-        Pass a text representation of this Node to the base_view() method of
-        the base class.
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: the amount by which to indent the output.
-        :param int index: position of this node wrt its siblings.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return super(ACCEnterDataDirective, self).node_str(colour) + \
-                              "[ACC enter data]"
+            "[ACC enter data]"
 
     @property
     def dag_name(self):
@@ -2066,14 +2080,16 @@ class ACCParallelDirective(ACCDirective):
     '''
     def node_str(self, colour=True):
         '''
-        Pass a text representation of this Node to the base_view() method
-        of the base class.
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: the amount by which to indent the output.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return super(ACCParallelDirective, self).node_str(colour) + \
-                              "[ACC Parallel]"
+            "[ACC Parallel]"
 
     @property
     def dag_name(self):
@@ -2216,11 +2232,13 @@ class ACCLoopDirective(ACCDirective):
 
     def node_str(self, colour=True):
         '''
-        Construct a textual representation of this Node and pass it to the
-        base_view() method of the base class.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: amount to indent output by.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         text = super(ACCLoopDirective, self).node_str(colour)
         text += "[ACC Loop"
@@ -2303,11 +2321,13 @@ class OMPDirective(Directive):
 
     def node_str(self, colour=True):
         '''
-        Pass a text representation of this node to the base_view() method of
-        the base class.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return self.coloured_name(colour) + "[OMP]"
 
@@ -2337,12 +2357,13 @@ class OMPParallelDirective(OMPDirective):
 
     def node_str(self, colour=True):
         '''
-        Pass a text representation of this node to the base_view() method of
-        the base class.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this Node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return self.coloured_name(colour) + "[OMP parallel]"
 
@@ -2579,11 +2600,13 @@ class OMPDoDirective(OMPDirective):
 
     def node_str(self, colour=True):
         '''
-        Create a textual summary of the OpenMP Do Directive and then
-        call the base_view() method of the base class.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         if self.reductions():
             reprod = "[reprod={0}]".format(self._reprod)
@@ -2668,11 +2691,13 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def node_str(self, colour=True):
         '''
-        Create a textual summary of the OpenMP Parallel Do Directive
-        and then call the base_view() method of the base class.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return self.coloured_name(colour) + "[OMP parallel do]"
 
@@ -2811,18 +2836,19 @@ class GlobalSum(Node):
 
     def node_str(self, colour=True):
         '''
-        Construct the text describing this GlobalSum and then pass it to
-        the base class' base_view() method.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return "{0}[scalar='{1}']".format(self.coloured_name(colour),
                                           self._scalar.name)
 
     def __str__(self):
-        return "GlobalSum[scalar='" + self._scalar.name + "']\n"
+        return self.node_str(False)
 
 
 class HaloExchange(Node):
@@ -2861,7 +2887,6 @@ class HaloExchange(Node):
         self._vector_index = vector_index
         self._text_name = "HaloExchange"
         self._colour_key = "HaloExchange"
-        self._dag_name = "haloexchange" # TODO should _dag_name be _text_name?
 
     @property
     def vector_index(self):
@@ -2886,8 +2911,11 @@ class HaloExchange(Node):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        name = ("{0}({1})_{2}".format(self._dag_name, self._field.name,
+        '''
+        :returns: the name to use in a dag for this node.
+        :rtype: str
+        '''
+        name = ("{0}({1})_{2}".format(self._text_name, self._field.name,
                                       self.position))
         if self._check_dirty:
             name = "check" + name
@@ -2963,11 +2991,13 @@ class HaloExchange(Node):
 
     def node_str(self, colour=True):
         '''
-        Create a textual summary of this HaloExchange node
-        and then pass this to the base_view() method of the base class.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return ("{0}[field='{1}', type='{2}', depth={3}, "
                 "check_dirty={4}]".format(
@@ -2976,12 +3006,7 @@ class HaloExchange(Node):
                     self._check_dirty))
 
     def __str__(self):
-        result = "HaloExchange["
-        result += "field='" + str(self._field.name) + "', "
-        result += "type='" + str(self._halo_type) + "', "
-        result += "depth='" + str(self._halo_depth) + "', "
-        result += "check_dirty='" + str(self._check_dirty) + "']\n"
-        return result
+        return self.node_str(False)
 
 class Loop(Node):
     '''
@@ -3171,11 +3196,13 @@ class Loop(Node):
 
     def node_str(self, colour=True):
         '''
-        Create a textual summary of this Loop node and then call the
-        base_view() method.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: postion of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
                 format(colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]),
@@ -3443,13 +3470,13 @@ class Kern(Node):
         return self.arguments.args
 
     def node_str(self, colour=True):
-        '''
-        Create a textual summary of this Kern node and pass it to the
-        base_view() method.
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return (self.coloured_name(colour) + " " + self.name +
                 "(" + self.arguments.names + ")")
@@ -3767,13 +3794,12 @@ class CodedKern(Kern):
                 kernel._module_inline = value
 
     def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
         :param bool colour: whether or not to include colour control codes.
 
-        :returns: the class-specific text describing this node.
+        :returns: description of this node, possibly coloured.
         :rtype: str
         '''
         return (self.coloured_name(colour) + " " + self.name + "(" +
@@ -4943,6 +4969,8 @@ class IfBlock(Node):
             raise InternalError(
                 "IfBlock with unrecognized annotation '{0}', valid annotations"
                 " are: {1}.".format(annotation, IfBlock.valid_annotations))
+        self._text_name = "If"
+        self._colour_key = "If"
 
     @property
     def condition(self):
@@ -4991,14 +5019,15 @@ class IfBlock(Node):
         return None
 
     def node_str(self, colour=True):
-        '''
-        Create text representation of this node to and pass to base_view().
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: the level to which to indent the output.
-        :param int index: the position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        text = colored("If", SCHEDULE_COLOUR_MAP["If"]) + "["
+        text = self.coloured_name(colour) + "["
         if self.annotations:
             text += "annotations='" + ','.join(self.annotations) + "'"
         text += "]"
@@ -5062,15 +5091,16 @@ class ACCKernelsDirective(ACCDirective):
         return "ACC_kernels_" + str(self.abs_position)
 
     def node_str(self, colour=True):
-        '''
-        Create a textual summary of the OpenMP Parallel Do Directive
-        and pass it to the base_view() method.
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return super(ACCKernelsDirective, self).node_str(colour) + \
-                              "[ACC Kernels]"
+            "[ACC Kernels]"
 
     def gen_code(self, parent):
         '''
@@ -5118,15 +5148,15 @@ class ACCDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def node_str(self, colour=True):
-        '''
-        Construct a textual summary of the OpenMP Parallel Do Directive
-        and then pass this to the base_view() method of the base class.
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param bool colour:
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        return super(ACCDataDirective, self).node_str(colour) + \
-                              "[ACC DATA]"
+        return super(ACCDataDirective, self).node_str(colour) + "[ACC DATA]"
 
     def gen_code(self, _):
         '''
@@ -5878,17 +5908,18 @@ class KernelSchedule(Schedule):
         return self._symbol_table
 
     def node_str(self, colour=True):
-        '''
-        Construct a text representation of this node and then pass it to
-        the base_view() method.
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         return self.coloured_name(colour) + "[name:'" + self._name + "']"
 
     def __str__(self):
-        result = "KernelSchedule[name:'" + self._name + "']:\n"
+        result = self.node_str(False) + ":\n"
         for entity in self._children:
             result += str(entity)
         result += "End KernelSchedule\n"
@@ -5960,13 +5991,14 @@ class CodeBlock(Node):
         return self._fp2_nodes
 
     def node_str(self, colour=True):
-        '''
-        Construct a text representation of this node in the schedule and
-        pass it to the base_view() method.
+        ''' Create a text description of this node in the schedule, optionally
+        including control codes for colour.
 
         :param int indent: level to which to indent output.
         :param int index: position of this node wrt its siblings or None.
 
+        :return: text description of this node.
+        :rtype: str
         '''
         return self.coloured_name(colour) + \
             "[" + str(list(map(type, self._fp2_nodes))) + "]"
@@ -6021,15 +6053,16 @@ class Assignment(Node):
         return self._children[1]
 
     def node_str(self, colour=True):
-        '''
-        Construct a text representation of this node and pass it to the
-        base_view() method.
+        ''' Create a text description of this node in the schedule, optionally
+        including control codes for colour.
 
         :param int indent: level to which to indent output.
         :param int index: position of this node wrt its siblings or None.
 
+        :return: text description of this node.
+        :rtype: str
         '''
-        return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"]) + "[]"
+        return self.coloured_name(colour) + "[]"
 
     def __str__(self):
         result = "Assignment[]\n"
@@ -6085,8 +6118,6 @@ class Reference(Node):
     def __init__(self, reference_name, parent):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
-        self._text_name = "Reference"
-        self._colour_key = "Reference"
 
     @property
     def name(self):
@@ -6098,17 +6129,19 @@ class Reference(Node):
         return self._reference
 
     def node_str(self, colour=True):
-        '''
-        Construct a text representation of this node and pass it to the
-        base_view() method.
+        ''' Create a text description of this node in the schedule, optionally
+        including control codes for colour.
 
         :param int indent: level to which to indent output.
-        :param int index: postion of this node wrt its siblings or None.
+        :param int index: position of this node wrt its siblings or None.
+
+        :return: text description of this node.
+        :rtype: str
         '''
         return self.coloured_name(colour) + "[name:'" + self._reference + "']"
 
     def __str__(self):
-        return "Reference[name:'" + self._reference + "']"
+        return self.node_str(False)
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
@@ -6283,6 +6316,7 @@ class Array(Reference):
     def __init__(self, reference_name, parent):
         super(Array, self).__init__(reference_name, parent=parent)
         self._text_name = "ArrayReference"
+        self._colour_key = "Reference"
 
     def __str__(self):
         result = "Array" + super(Array, self).__str__() + "\n"

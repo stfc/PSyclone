@@ -1574,8 +1574,8 @@ def test_haloexchange_can_be_printed():
     for haloexchange in schedule.children[:2]:
         assert "HaloExchange[field='" in str(haloexchange)
         assert "', type='" in str(haloexchange)
-        assert "', depth='" in str(haloexchange)
-        assert "', check_dirty='" in str(haloexchange)
+        assert "', depth=" in str(haloexchange)
+        assert ", check_dirty=" in str(haloexchange)
 
 
 def test_haloexchange_node_str():
