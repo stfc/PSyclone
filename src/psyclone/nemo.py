@@ -47,12 +47,13 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
     Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
-    Fparser2ASTProcessor, colored, SCHEDULE_COLOUR_MAP
+    colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
-class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
+class NemoFparser2Reader(Fparser2Reader):
     '''
-    Specialisation of Fparser2ASTProcessor for the Nemo API.
+    Specialisation of Fparser2Reader for the Nemo API.
     '''
     def _create_loop(self, parent, variable_name):
         '''
@@ -113,7 +114,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         '''
         Before executing the generic _create_child, it checks if the parsed
         AST is a NemoImplicitLoop because this is not handled yet by the
-        generic fparser2ASTProcessor.
+        generic fparser2Reader.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
@@ -126,7 +127,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         '''
         if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
-        return super(NemoFparser2ASTProcessor,
+        return super(NemoFparser2Reader,
                      self)._create_child(child, parent=parent)
 
 
@@ -284,7 +285,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
+class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
     '''
     The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
@@ -301,10 +302,16 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     def __init__(self, invoke, ast):
         # pylint: disable=super-init-not-called, non-parent-init-called
         Node.__init__(self)
-        NemoFparser2ASTProcessor.__init__(self)
+        NemoFparser2Reader.__init__(self)
 
         self._invoke = invoke
         self._ast = ast
+        # Whether or not we've already checked the associated Fortran for
+        # potential name-clashes when inserting profiling code.
+        # TODO this can be removed once #435 is done and we're no longer
+        # manipulating the fparser2 parse tree.
+        self._name_clashes_checked = False
+
         self.process_nodes(self, ast.content, ast)
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
@@ -316,6 +323,32 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
+
+    @property
+    def profiling_name_clashes_checked(self):
+        '''Getter for whether or not the underlying fparser2 AST has been
+        checked for clashes with the symbols required by profiling.
+        TODO remove once #435 is complete.
+
+        :returns: whether or not we've already checked the underlying \
+                  fparser2 parse tree for symbol clashes with code we will \
+                  insert for profiling.
+        :rtype: bool
+
+        '''
+        return self._name_clashes_checked
+
+    @profiling_name_clashes_checked.setter
+    def profiling_name_clashes_checked(self, value):
+        ''' Setter for whether or not we've already checked the underlying
+        fparser2 parse tree for symbol clashes with code we will insert for
+        profiling.
+        TODO remove once #435 is complete.
+
+        :param bool value: whether or not the check has been performed.
+
+        '''
+        self._name_clashes_checked = value
 
 
 class NemoKern(CodedKern):
