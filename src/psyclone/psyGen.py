@@ -6564,4 +6564,73 @@ class Return(Node):
         return "Return[]\n"
 
 
+class Container(Node):
+    '''Node representing something that contains one or more
+    KernelSchedule nodes and/or Container nodes as well as a name and
+    a SymbolTable. This construct can be used to scope variables,
+    share variables between KernelSchedule nodes and scope the names
+    of KernelSchedules. In Fortran a container could represent a module
+    or a submodule.
+
+    :param parent: the parent node of this Container in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, name, parent=None):
+        super(Container, self).__init__(parent=parent)
+        self._name = name
+        self._symbol_table = SymbolTable(self)
+
+        self._kernels = []
+        self._containers = []
+
+    @property
+    def name(self):
+        '''
+        :returns: name of the container.
+        :rtype: str
+        '''
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        '''Sets a new name for the container.
+
+        :param str new_name: new name for the container.
+
+        '''
+        self._name = new_name
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: table containing symbol information for the container.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+
+        '''
+        return self._symbol_table
+
+    @property
+    def coloured_text(self):
+        '''Return the name of this node type with control codes for terminal
+        colouring.
+
+        :return: name of node + control chars for colour.
+        :rtype: str
+
+        '''
+        return colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+
+    def view(self, indent=0):
+        '''Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+
+    def __str__(self):
+        return "Container[]\n"
+
+
 __all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation']
