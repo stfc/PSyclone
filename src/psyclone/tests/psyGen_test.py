@@ -2015,7 +2015,7 @@ def test_dag_names():
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule"
-    assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
+    assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
     assert schedule.children[3].dag_name == "loop_[colour]_4"

@@ -982,12 +982,22 @@ class Node(object):
                 return colored(self._text_name,
                                SCHEDULE_COLOUR_MAP[self._colour_key])
             except KeyError:
-                return self._text_name
-        else:
-            return self._text_name
+                pass
+        return self._text_name
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node. Will typically be \
+                  overridden by sub-class.
+        :rtype: str
+        '''
+        return self.coloured_name(colour)
 
     def __str__(self):
-        raise NotImplementedError("Please implement me")
+        return self.node_str(False)
 
     @property
     def ast(self):
@@ -6209,11 +6219,10 @@ class Operation(Node):
         :param int index: position of this node wrt its siblings or None.
         '''
         return super(Operation, self).node_str(colour) + \
-                              "[operator:'" + self._operator.name + "']"
+            "[operator:'" + self._operator.name + "']"
 
     def __str__(self):
-        result = "{0}[operator:'{1}']\n".format(type(self).__name__,
-                                                self._operator.name)
+        result = self.node_str(False) + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
 
@@ -6379,11 +6388,8 @@ class Literal(Node):
         :param int indent: level to which to indent output.
         :param int index: position of this node wrt its siblings or None.
         '''
-        return "{0}[value:'{1}']".format(
-            colored("Literal", SCHEDULE_COLOUR_MAP["Literal"]), self._value)
-
-    def __str__(self):
-        return "Literal[value:'" + self._value + "']"
+        return "{0}[value:'{1}']".format(self.coloured_name(colour),
+                                         self._value)
 
 
 class Return(Node):
