@@ -2817,8 +2817,6 @@ class GlobalSum(Node):
     '''
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
-        self._text_name = "GlobalSum"
-        self._colour_key = "GlobalSum"
         import copy
         self._scalar = copy.copy(scalar)
         if scalar:
@@ -2846,7 +2844,7 @@ class GlobalSum(Node):
 
     def node_str(self, colour=True):
         '''
-        Returns the name of this node with (optional) control codes
+        Returns a text description of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
         :param bool colour: whether or not to include colour control codes.

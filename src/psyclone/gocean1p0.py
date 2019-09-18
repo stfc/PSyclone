@@ -345,20 +345,20 @@ class GOInvokeSchedule(InvokeSchedule):
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
+        self._text_name = "GOInvokeSchedule"
 
     def node_str(self, colour=True):
-        '''Construct a textual representation of this GOInvokeSchedule and
-        pass it to the base_view() method.
+        ''' Creates a text description of this node with (optional) control
+        codes to generate coloured output in a terminal that supports it.
 
-        :param int indent: optional argument indicating the level of \
-                  indentation to add before outputting the class information.
-        :param int index: position of this node wrt to its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
         return "{0}[invoke='{1}', Constant loop bounds={2}]".format(
-            colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]),
-            self.invoke.name, self._const_loop_bounds)
+            self.coloured_name(colour), self.invoke.name,
+            self._const_loop_bounds)
 
 
     def __str__(self):
@@ -774,11 +774,13 @@ class GOLoop(Loop):
         return start
 
     def node_str(self, colour=True):
-        '''
-        Write out a textual summary of this Loop node to stdout.
+        ''' Creates a text description of this node with (optional) control
+        codes to generate coloured output in a terminal that supports it.
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt to its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         # Generate the upper and lower loop bounds
         # TODO: Issue 440. upper/lower_bound should generate PSyIR

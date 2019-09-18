@@ -2767,6 +2767,34 @@ def test_node_abstract_methods():
     assert "Please implement me" in str(err)
 
 
+def test_node_coloured_name():
+    ''' Tests for the coloured_name method of the Node class. '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    tnode = Node()
+    assert tnode.coloured_name(False) == "Node"
+    # Check that we can change the name of the Node and the colour associated
+    # with it
+    tnode._text_name = "ATest"
+    tnode._colour_key = "Schedule"
+    assert tnode.coloured_name(False) == "ATest"
+    assert tnode.coloured_name(True) == colored(
+        "ATest", SCHEDULE_COLOUR_MAP["Schedule"])
+    # Check that an unrecognised colour-map entry gives us un-coloured text
+    tnode._colour_key = "not-recognised"
+    assert tnode.coloured_name(True) == "ATest"
+
+
+def test_node_str():
+    ''' Tests for the Node.node_str method. '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    tnode = Node()
+    # Manually set the colour key for this node to something that will result
+    # in coloured output (if requested *and* termcolor is installed).
+    tnode._colour_key = "Loop"
+    assert tnode.node_str(False) == "Node"
+    assert tnode.node_str(True) == colored("Node", SCHEDULE_COLOUR_MAP["Loop"])
+
+
 def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
     from psyclone.gocean1p0 import GOKern

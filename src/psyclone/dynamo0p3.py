@@ -57,7 +57,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
-    CodedKern, ACCEnterDataDirective, colored, SCHEDULE_COLOUR_MAP
+    CodedKern, ACCEnterDataDirective
 
 # First section : Parser specialisations and classes
 
@@ -4383,17 +4383,16 @@ class DynInvokeSchedule(InvokeSchedule):
                                 DynBuiltInCallFactory, arg)
 
     def node_str(self, colour=True):
-        '''
-        A method implemented by all classes in a schedule which display the
-        tree in a textual form. This method overrides the default view
-        method to include distributed memory information.
+        ''' Creates a text summary of this node.
 
-        :param int indent: the amount by which to indent the output.
-        :param int index: the position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
 
         '''
-        return (colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) +
-                "[invoke='" + self.invoke.name +
+        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
                 "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
@@ -4422,7 +4421,9 @@ class DynGlobalSum(GlobalSum):
                 "Error found in Kernel '{2}', argument '{3}'".
                 format(self._supported_scalars, scalar.type,
                        scalar.call.name, scalar.name))
-        GlobalSum.__init__(self, scalar, parent=parent)
+        super(DynGlobalSum, self).__init__(scalar, parent=parent)
+        self._text_name = "GlobalSum"
+        self._colour_key = "GlobalSum"
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -4840,12 +4841,13 @@ class DynHaloExchange(HaloExchange):
         return required, known
 
     def node_str(self, colour=True):
-        '''
-        Construct the text representation of this HaloExchange and pass it
-        to the base_view() method.
+        ''' Creates a text summary of this HaloExchange node.
 
-        :param int indent: how much to indent output by.
-        :param int index: position of this Node wrt its siblings or None.
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
 
         '''
         _, known = self.required()
@@ -5491,6 +5493,8 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
+        self._text_name = "Loop"
+        self._colour_key = "Loop"
 
         # Get the namespace manager instance so we can look-up
         # the name of the nlayers and ndf variables
@@ -5523,16 +5527,16 @@ class DynLoop(Loop):
         self._upper_bound_halo_depth = None
 
     def node_str(self, colour=True):
-        '''
-        Construct a textual representation of this loop. We override this
+        ''' Creates a text summary of this loop node. We override this
         method from the Loop class because, in Dynamo0.3, the function
         space is now an object and we need to call orig_name on it. We
-        also output the upper loop bound as this can now be
-        modified.
+        also include the upper loop bound as this can now be modified.
 
-        :param int indent: optional argument indicating the level of \
-                indentation to add before outputting the class information.
-        :param int index: position of this Node wrt its siblings.
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
 
         '''
         if self._upper_bound_halo_depth:
@@ -5542,7 +5546,7 @@ class DynLoop(Loop):
             upper_bound = self._upper_bound_name
         return ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
                 "upper_bound='{4}']".format(
-                    colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]),
+                    self.coloured_name(colour),
                     self._loop_type,
                     self._field_space.orig_name,
                     self.iteration_space, upper_bound))
