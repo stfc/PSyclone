@@ -409,3 +409,33 @@ class SIRWriter(PSyIRVisitor):
         # There is an assumption here that the literal is a float (see #468)
         return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
                 "".format(self._nindent, oper, result))
+
+    def ifblock_node(self, node):
+        '''This method is called when an IfBlock instance is found in
+        the PSyIR tree.
+
+        :param node: an IfBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.IfBlock`
+
+        :returns: the SIR code as a string.
+        :rtype: str
+
+        '''
+        cond_expression = self._visit(node.condition)
+        cond_part = "XXX"
+
+        then_statements = self._visit(node.if_body).lstrip().rstrip(",\n")
+        then_part = "make_block_stmt([{0}])".format(then_statements)
+
+        else_statements = self._visit(node.else_body).lstrip().rstrip(",\n")
+        else_part = "make_block_stmt([{0}])".format(else_statements)
+
+        return ("{0}make_if_stmt({1}, {2}, {3})\n"
+                "".format(self._nindent, cond_part, then_part, else_part))
+
+    def schedule_node(self, node):
+        ''' xxx '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result

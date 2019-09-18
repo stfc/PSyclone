@@ -1,5 +1,5 @@
-! Implements an extract of code from the tra_adv benchmark with a SIGN
-! intrinsic replaced with equivalent code and the resultant expression
+! Code extracted from the tra_adv benchmark, with a SIGN intrinsic
+! replaced with equivalent code and the resultant expression
 ! simplified.
 program test_ifs
   
