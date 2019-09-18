@@ -44,7 +44,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
-from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
+from psyclone.psyGen import Symbol, Node, CodeBlock
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 @pytest.fixture(scope="function")
@@ -159,14 +160,14 @@ def test_fw_gen_declaration(fort_writer):
     assert result == "integer(i_def), parameter :: dummy3 = 10\n"
 
 
-def create_schedule(code, ast_processor=Fparser2ASTProcessor):
+def create_schedule(code, ast_processor=Fparser2Reader):
     '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and (by default) Fparser2ASTProcessor.
+    code using fparser2 and (by default) Fparser2Reader.
 
     :param str code: Fortran code.
-    :param ast_processor: the particular ASTProcessor to use. Defaults \
-    to FParser2ASTProcessor.
-    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2ASTProcessor`
+    :param ast_processor: the particular front-end to use. Defaults \
+    to Fparser2Reader.
+    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2Reader`
 
 
     :returns: PSyIR tree representing the Fortran code.
@@ -306,7 +307,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
         "end module test")
     schedule = create_schedule(code)
     # Remove sign() from the list of supported binary operators
-    monkeypatch.delitem(Fparser2ASTProcessor.binary_operators, "sign")
+    monkeypatch.delitem(Fparser2Reader.binary_operators, "sign")
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
@@ -352,7 +353,7 @@ def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
         "end module test")
     schedule = create_schedule(code)
     # Remove max() from the list of supported nary operators
-    monkeypatch.delitem(Fparser2ASTProcessor.nary_operators, "max")
+    monkeypatch.delitem(Fparser2Reader.nary_operators, "max")
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as err:
         _ = fort_writer(schedule)
@@ -559,7 +560,7 @@ def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
         "end module test")
     schedule = create_schedule(code)
     # Remove sin() from the dict of unary operators
-    monkeypatch.delitem(Fparser2ASTProcessor.unary_operators, "sin")
+    monkeypatch.delitem(Fparser2Reader.unary_operators, "sin")
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
