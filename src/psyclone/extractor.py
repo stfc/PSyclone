@@ -58,6 +58,11 @@ class ExtractNode(Node):
     applying the transformation the Nodes marked for extraction become \
     children of an ExtractNode.
     '''
+    def __init__(self, ast=None, children=None, parent=None):
+        super(ExtractNode, self).__init__(ast, children, parent)
+        self._text_name = "Extract"
+        self._colour_key = "Extract"
+
     def __str__(self):
         '''
         Returns a string representation of the subtree starting at the \
@@ -72,18 +77,6 @@ class ExtractNode(Node):
         return result + "ExtractEnd"
 
     @property
-    def coloured_text(self):
-        '''
-        Returns a string containing the name of this Node along with \
-        control characters for colouring in terminals that supports it.
-
-        :returns: the name of this Node, possibly with control codes for \
-                  colouring.
-        :rtype: str
-        '''
-        return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
-
-    @property
     def dag_name(self):
         '''
         Returns the name to use in a DAG for this Node
@@ -92,17 +85,6 @@ class ExtractNode(Node):
         :rtype: str
         '''
         return "extract_" + str(self.position)
-
-    def view(self, indent=0, index=None):
-        '''
-        Creates a text representation of the Extract node and passes
-        it to the base_view() method.
-
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
-
-        '''
-        self.base_view(self.coloured_text, indent, index)
 
     def gen_code(self, parent):
         '''

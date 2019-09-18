@@ -306,16 +306,8 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
         self._invoke = invoke
         self._ast = ast
         self.process_nodes(self, ast.content, ast)
-
-    def view(self, indent=0, index=None):
-        '''
-        Construct a text representation of this NemoInvokeSchedule and pass
-        it to the base_view() method.
-
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings or None.
-        '''
-        self.base_view(self.coloured_text + "[]", indent, index)
+        self._text_name = "InvokeSchedule"
+        self._colour_key = "Schedule"
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
@@ -360,6 +352,8 @@ class NemoKern(CodedKern):
         # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
         # We therefore don't have any children.
         self._children = []
+        self._text_name = "CodedKern"
+        self._colour_key = "CodedKern"
 
     @staticmethod
     def match(node):
@@ -387,6 +381,18 @@ class NemoKern(CodedKern):
         # node in the result of the walk, this node can not be a kernel.
         return len(nodes) == 0
 
+    def node_str(self, colour=True):
+        '''
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
+
     def local_vars(self):
         '''
         :returns: list of the variable (names) that are local to this loop \
@@ -394,16 +400,6 @@ class NemoKern(CodedKern):
         :rtype: list of str
         '''
         return []
-
-    def view(self, indent=0, index=None):
-        '''
-        Pass text representation of this node to the base_view() method.
-
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt to its siblings or None.
-
-        '''
-        self.base_view(self.coloured_text + "[]", indent, index)
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. It calls the corresponding
@@ -485,18 +481,8 @@ class NemoImplicitLoop(NemoLoop):
                       valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
-
-    @property
-    def coloured_text(self):
-        '''
-        Returns a string containing the name of this node along with
-        control characters for colouring in terminals that support it.
-
-        :returns: The name of this node, possibly with control codes for
-                  colouring
-        :rtype: string
-        '''
-        return colored("NemoImplicitLoop", SCHEDULE_COLOUR_MAP["Loop"])
+        self._text_name = "NemoImplicitLoop"
+        self._colour_key = "Loop"
 
     def __str__(self):
         # Display the LHS of the assignment in the str representation

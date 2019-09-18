@@ -345,7 +345,7 @@ class GOInvokeSchedule(InvokeSchedule):
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
 
-    def view(self, indent=0, index=None):
+    def node_str(self, colour=True):
         '''Construct a textual representation of this GOInvokeSchedule and
         pass it to the base_view() method.
 
@@ -354,9 +354,11 @@ class GOInvokeSchedule(InvokeSchedule):
         :param int index: position of this node wrt to its siblings or None.
 
         '''
-        text = "{0}[invoke='{1}', Constant loop bounds={2}]".format(
-            self.coloured_text, self.invoke.name, self._const_loop_bounds)
-        self.base_view(text, indent, index)
+        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+        return "{0}[invoke='{1}', Constant loop bounds={2}]".format(
+            colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]),
+            self.invoke.name, self._const_loop_bounds)
+
 
     def __str__(self):
         ''' Returns the string representation of this GOInvokeSchedule '''
@@ -366,13 +368,6 @@ class GOInvokeSchedule(InvokeSchedule):
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
-
-    @property
-    def coloured_text(self):
-        ''' Return the name of this object with control-codes for
-        display in terminals that support colour '''
-        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):
@@ -777,7 +772,7 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
-    def view(self, indent=0, index=None):
+    def node_str(self, colour=True):
         '''
         Write out a textual summary of this Loop node to stdout.
 
@@ -789,7 +784,7 @@ class GOLoop(Loop):
         self.start_expr = Literal(self._lower_bound(), parent=self)
         self.stop_expr = Literal(self._upper_bound(), parent=self)
 
-        super(GOLoop, self).view(indent, index)
+        return super(GOLoop, self).node_str(colour)
 
     def __str__(self):
         ''' Returns a string describing this Loop object '''

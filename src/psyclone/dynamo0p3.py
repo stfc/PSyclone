@@ -57,7 +57,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
-    CodedKern, ACCEnterDataDirective
+    CodedKern, ACCEnterDataDirective, colored, SCHEDULE_COLOUR_MAP
 
 # First section : Parser specialisations and classes
 
@@ -4382,7 +4382,7 @@ class DynInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg)
 
-    def view(self, indent=0, index=None):
+    def node_str(self, colour=True):
         '''
         A method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
@@ -4392,9 +4392,9 @@ class DynInvokeSchedule(InvokeSchedule):
         :param int index: the position of this node wrt its siblings or None.
 
         '''
-        text = (self.coloured_text + "[invoke='" + self.invoke.name +
+        return (colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) +
+                "[invoke='" + self.invoke.name +
                 "', dm=" + str(Config.get().distributed_memory)+"]")
-        self.base_view(text, indent, index)
 
 
 class DynGlobalSum(GlobalSum):
@@ -4839,7 +4839,7 @@ class DynHaloExchange(HaloExchange):
         known = False
         return required, known
 
-    def view(self, indent=0, index=None):
+    def node_str(self, colour=True):
         '''
         Construct the text representation of this HaloExchange and pass it
         to the base_view() method.
@@ -4853,12 +4853,11 @@ class DynHaloExchange(HaloExchange):
         field_id = self._field.name
         if self.vector_index:
             field_id += "({0})".format(self.vector_index)
-        text = ("{0}[field='{1}', type='{2}', depth={3}, "
-                "check_dirty={4}]".format(self.coloured_text, field_id,
+        return ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(self.coloured_name(colour), field_id,
                                           self._compute_stencil_type(),
                                           self._compute_halo_depth(),
                                           runtime_check))
-        self.base_view(text, indent, index)
 
     def gen_code(self, parent):
         '''Dynamo specific code generation for this class.
@@ -5523,7 +5522,7 @@ class DynLoop(Loop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def view(self, indent=0, index=None):
+    def node_str(self, colour=True):
         '''
         Construct a textual representation of this loop. We override this
         method from the Loop class because, in Dynamo0.3, the function
@@ -5541,12 +5540,12 @@ class DynLoop(Loop):
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        text = ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
+        return ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
                 "upper_bound='{4}']".format(
-                    self.coloured_text, self._loop_type,
+                    colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]),
+                    self._loop_type,
                     self._field_space.orig_name,
                     self.iteration_space, upper_bound))
-        self.base_view(text, indent, index)
 
     def load(self, kern):
         '''

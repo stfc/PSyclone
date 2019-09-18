@@ -162,6 +162,10 @@ class ProfileNode(Node):
         self._region_name = None
         self._module_name = None
 
+        # Name and colour to use for this node
+        self._text_name = "Profile"
+        self._colour_key = "Profile"
+
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
@@ -171,28 +175,6 @@ class ProfileNode(Node):
             result += str(child)+"\n"
         return result+"ProfileEnd"
 
-    # -------------------------------------------------------------------------
-    @property
-    def coloured_text(self):
-        '''
-        Return text containing the (coloured) name of this node type
-
-        :return: the name of this node type, possibly with control codes
-                 for colour
-        :rtype: string
-        '''
-        return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
-
-    # -------------------------------------------------------------------------
-    def view(self, indent=0, index=None):
-        '''Class specific view function to print the tree.
-
-        :param int indent: indentation to be used for this node.
-        :param int index: position of this node wrt its siblings.
-        '''
-        self.base_view(self.coloured_text, indent, index)
-
-    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children

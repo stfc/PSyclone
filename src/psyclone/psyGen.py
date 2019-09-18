@@ -970,10 +970,11 @@ class Node(object):
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
-        # Name to use for this Node type
-        self._text_name = ""
+        # Name to use for this Node type. By default we use the name of
+        # the class but this can be overridden by a sub-class.
+        self._text_name = self.__class__.__name__
         # Which colour to use from the SCHEDULE_COLOUR_MAP
-        self._colour_key = ""
+        self._colour_key = self.__class__.__name__
 
     def coloured_name(self, colour=True):
         ''' '''
@@ -1291,7 +1292,7 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         '''
         return self.coloured_name(colour)
@@ -1314,10 +1315,10 @@ class Node(object):
            isinstance(self, Schedule) or \
            index is None:
             print("{0}{1}".format(self.indent(indent),
-                                  self.properties_str(colour=True)))
+                                  self.node_str(colour=True)))
         else:
             print("{0}{1}: {2}".format(self.indent(indent), index,
-                                       self.properties_str(colour=True)))
+                                       self.node_str(colour=True)))
         for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1, index=idx)
 
@@ -1623,7 +1624,7 @@ class Schedule(Node):
         '''
         return "schedule"
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
@@ -1695,6 +1696,7 @@ class InvokeSchedule(Schedule):
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         self._name_space_manager = NameSpaceFactory().create()
+        self._text_name = "InvokeSchedule"
 
     @property
     def invoke(self):
@@ -1704,7 +1706,7 @@ class InvokeSchedule(Schedule):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
@@ -1713,8 +1715,7 @@ class InvokeSchedule(Schedule):
         :rtype: string
         '''
         return "{0}[invoke={1}]".format(
-            colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]),
-            self.invoke.name)
+            self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
         result = "InvokeSchedule:\n"
@@ -1986,7 +1987,7 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Pass a text representation of this Node to the base_view() method of
         the base class.
@@ -1994,7 +1995,7 @@ class ACCEnterDataDirective(ACCDirective):
         :param int indent: the amount by which to indent the output.
         :param int index: position of this node wrt its siblings.
         '''
-        return super(ACCEnterDataDirective, self).properties_str(colour) + \
+        return super(ACCEnterDataDirective, self).node_str(colour) + \
                               "[ACC enter data]"
 
     @property
@@ -2067,7 +2068,7 @@ class ACCParallelDirective(ACCDirective):
     in the PSyIR.
 
     '''
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Pass a text representation of this Node to the base_view() method
         of the base class.
@@ -2075,7 +2076,7 @@ class ACCParallelDirective(ACCDirective):
         :param int indent: the amount by which to indent the output.
         :param int index: position of this node wrt its siblings or None.
         '''
-        return super(ACCParallelDirective, self).properties_str(colour) + \
+        return super(ACCParallelDirective, self).node_str(colour) + \
                               "[ACC Parallel]"
 
     @property
@@ -2217,7 +2218,7 @@ class ACCLoopDirective(ACCDirective):
         '''
         return "ACC_loop_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a textual representation of this Node and pass it to the
         base_view() method of the base class.
@@ -2225,7 +2226,7 @@ class ACCLoopDirective(ACCDirective):
         :param int indent: amount to indent output by.
         :param int index: position of this node wrt its siblings or None.
         '''
-        text = super(ACCLoopDirective, self).properties_str(colour)
+        text = super(ACCLoopDirective, self).node_str(colour)
         text += "[ACC Loop"
         if self._sequential:
             text += ", seq"
@@ -2304,7 +2305,7 @@ class OMPDirective(Directive):
         '''
         return "OMP_directive_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Pass a text representation of this node to the base_view() method of
         the base class.
@@ -2338,7 +2339,7 @@ class OMPParallelDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Pass a text representation of this node to the base_view() method of
         the base class.
@@ -2580,7 +2581,7 @@ class OMPDoDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_do_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create a textual summary of the OpenMP Do Directive and then
         call the base_view() method of the base class.
@@ -2669,7 +2670,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_do_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create a textual summary of the OpenMP Parallel Do Directive
         and then call the base_view() method of the base class.
@@ -2812,7 +2813,7 @@ class GlobalSum(Node):
         the base method and simply return our argument.'''
         return [self._scalar]
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct the text describing this GlobalSum and then pass it to
         the base class' base_view() method.
@@ -2964,7 +2965,7 @@ class HaloExchange(Node):
                 "exchange but both vector id's ('{0}') of field '{1}' are "
                 "the same".format(self.vector_index, self.field.name))
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create a textual summary of this HaloExchange node
         and then pass this to the base_view() method of the base class.
@@ -3172,7 +3173,7 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create a textual summary of this Loop node and then call the
         base_view() method.
@@ -3445,7 +3446,7 @@ class Kern(Node):
         base method and simply return our arguments. '''
         return self.arguments.args
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create a textual summary of this Kern node and pass it to the
         base_view() method.
@@ -3702,6 +3703,8 @@ class CodedKern(Kern):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
+        self._text_name = "CodedKern"
+        self._colour_key = "CodedKern"
 
     def get_kernel_schedule(self):
         '''
@@ -3766,16 +3769,17 @@ class CodedKern(Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
-        Construct the class-specific text describing this node and then pass
-        it to the base_view() method to be written out.
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
 
-        :param int indent: depth of indent for output text.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
         '''
-        return (colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) + " " +
-                self.name + "(" +
+        return (self.coloured_name(colour) + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
 
@@ -4163,6 +4167,8 @@ class BuiltIn(Kern):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
+        self._text_name = "BuiltIn"
+        self._colour_key = "BuiltIn"
 
     @property
     def dag_name(self):
@@ -4173,21 +4179,14 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
+        self._text_name = "BuiltIn"
+        self._colour_key = "BuiltIn"
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
         made private when parallelising using OpenMP or similar. By default
         builtin's do not have any local variables so set to nothing'''
         return []
-
-    def properties_str(self, colour=True):
-        '''
-        :returns: the name of this node type, possibly with control codes
-                  for colour.
-        :rtype: str
-
-        '''
-        return colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
 
 
 class Arguments(object):
@@ -4994,7 +4993,7 @@ class IfBlock(Node):
             return self._children[2]
         return None
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create text representation of this node to and pass to base_view().
 
@@ -5065,7 +5064,7 @@ class ACCKernelsDirective(ACCDirective):
         '''
         return "ACC_kernels_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Create a textual summary of the OpenMP Parallel Do Directive
         and pass it to the base_view() method.
@@ -5073,7 +5072,7 @@ class ACCKernelsDirective(ACCDirective):
         :param int indent: depth of indent for output text.
         :param int index: position of this node wrt its siblings or None.
         '''
-        return super(ACCKernelsDirective, self).properties_str(colour) + \
+        return super(ACCKernelsDirective, self).node_str(colour) + \
                               "[ACC Kernels]"
 
     def gen_code(self, parent):
@@ -5121,7 +5120,7 @@ class ACCDataDirective(ACCDirective):
         '''
         return "ACC_data_" + str(self.abs_position)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a textual summary of the OpenMP Parallel Do Directive
         and then pass this to the base_view() method of the base class.
@@ -5129,7 +5128,7 @@ class ACCDataDirective(ACCDirective):
         :param bool colour:
 
         '''
-        return super(ACCDataDirective, self).properties_str(colour) + \
+        return super(ACCDataDirective, self).node_str(colour) + \
                               "[ACC DATA]"
 
     def gen_code(self, _):
@@ -5881,7 +5880,7 @@ class KernelSchedule(Schedule):
         '''
         return self._symbol_table
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a text representation of this node and then pass it to
         the base_view() method.
@@ -5952,7 +5951,7 @@ class CodeBlock(Node):
         '''
         return self._structure
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a text representation of this node in the schedule and
         pass it to the base_view() method.
@@ -6013,7 +6012,7 @@ class Assignment(Node):
 
         return self._children[1]
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a text representation of this node and pass it to the
         base_view() method.
@@ -6090,7 +6089,7 @@ class Reference(Node):
         '''
         return self._reference
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a text representation of this node and pass it to the
         base_view() method.
@@ -6160,7 +6159,7 @@ class Operation(Node):
         '''
         return self._operator
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a representation of this node and pass it to the
         base_view() method.
@@ -6168,7 +6167,7 @@ class Operation(Node):
         :param int indent: level to which to indent output.
         :param int index: position of this node wrt its siblings or None.
         '''
-        return super(Operation, self).properties_str(colour) + \
+        return super(Operation, self).node_str(colour) + \
                               "[operator:'" + self._operator.name + "']"
 
     def __str__(self):
@@ -6330,7 +6329,7 @@ class Literal(Node):
         '''
         return self._value
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Construct a text representation of this node and then pass it to
         the base_view() method.
@@ -6356,7 +6355,7 @@ class Return(Node):
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)
 
-    def properties_str(self, colour=True):
+    def node_str(self, colour=True):
         '''
         Pass a text representation of this node in the schedule to the
         base_view method.

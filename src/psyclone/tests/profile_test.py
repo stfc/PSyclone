@@ -78,8 +78,8 @@ def test_profile_basic(capsys):
     out, _ = capsys.readouterr()
 
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = Loop().coloured_text
-    profile = invoke.schedule.children[0].coloured_text
+    loop = Loop().coloured_name(True)
+    profile = invoke.schedule.children[0].coloured_name(True)
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct

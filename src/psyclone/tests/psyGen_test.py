@@ -684,7 +684,7 @@ def test_codedkern_class_view(capsys):
 
 
 def test_kern_coloured_text():
-    ''' Check that the coloured_text method of both CodedKern and
+    ''' Check that the coloured_name method of both CodedKern and
     BuiltIn return what we expect. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     # Use a Dynamo example that has both a CodedKern and a BuiltIn
@@ -697,9 +697,9 @@ def test_kern_coloured_text():
     schedule = invoke.schedule
     ckern = schedule.children[0].loop_body[0]
     bkern = schedule.children[1].loop_body[0]
-    ret_str = ckern.coloured_text
+    ret_str = ckern.coloured_name(True)
     assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
-    ret_str = bkern.coloured_text
+    ret_str = bkern.coloured_name(True)
     assert colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"]) in ret_str
 
 
@@ -804,8 +804,8 @@ def test_ompdo_constructor():
     assert len(ompdo.children) == 1
 
 
-def test_ompdo_directive_class_view(capsys):
-    '''tests the view method in the OMPDoDirective class. We create a
+def test_ompdo_directive_class_node_str(dist_mem):
+    '''Tests the node_str method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -820,35 +820,27 @@ def test_ompdo_directive_class_view(capsys):
         {"current_class": OMPDirective, "current_string": "[OMP]"},
         {"current_class": Directive, "current_string": ""}]
     otrans = OMPParallelLoopTrans()
+
+    psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    if dist_mem:
+        idx = 3
+    else:
+        idx = 0
+
+    _, _ = otrans.apply(schedule.children[idx])
+    omp_parallel_loop = schedule.children[idx]
+
     for case in cases:
-        for dist_mem in [False, True]:
+        # call the OMPDirective node_str method
+        out = case["current_class"].node_str(omp_parallel_loop)
 
-            psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
-                create(invoke_info)
-            schedule = psy.invokes.invoke_list[0].schedule
+        directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+        expected_output = directive + case["current_string"]
 
-            if dist_mem:
-                idx = 3
-            else:
-                idx = 0
-
-            _, _ = otrans.apply(schedule.children[idx])
-            omp_parallel_loop = schedule.children[idx]
-
-            # call the OMPDirective view method
-            case["current_class"].view(omp_parallel_loop)
-
-            out, _ = capsys.readouterr()
-
-            directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
-            loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-
-            expected_output = (
-                directive + case["current_string"] + "\n"
-                "    0: " + loop + "[type='', field_space='w1', "
-                "it_space='cells',")
-
-            assert expected_output in out
+        assert expected_output in out
 
 
 def test_acc_dir_view(capsys):
@@ -924,7 +916,7 @@ def test_globalsum_view(capsys):
             gsum = child
             break
     assert gsum
-    ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_text
+    ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_name(True)
     assert colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"]) in ret_str
 
 
@@ -1594,8 +1586,8 @@ def test_haloexchange_can_be_printed():
         assert "', check_dirty='" in str(haloexchange)
 
 
-def test_haloexchange_view(capsys):
-    ''' Test the view() method of HaloExchange. '''
+def test_haloexchange_node_str():
+    ''' Test the node_str() method of HaloExchange. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     # We have to use the dynamo0.3 API as that's currently the only one
     # that supports halo exchanges.
@@ -1607,10 +1599,9 @@ def test_haloexchange_view(capsys):
     schedule = invoke.schedule
     # We have to manually call the correct view() method as the one we want
     # to test is overidden in DynHaloExchange.
-    HaloExchange.view(schedule.children[1], indent=1, index=3)
-    out, _ = capsys.readouterr()
+    out = HaloExchange.node_str(schedule.children[1])
     colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
-    assert ("3: " + colored("HaloExchange", colour) +
+    assert (colored("HaloExchange", colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
 
 

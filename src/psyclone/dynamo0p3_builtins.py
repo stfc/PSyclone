@@ -130,7 +130,7 @@ class DynBuiltIn(BuiltIn):
             create_name(root_name="df",
                         context="PSyVars",
                         label="dof_loop_idx")
-        BuiltIn.__init__(self)
+        super(DynBuiltIn, self).__init__()
 
     def __str__(self):
         raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
