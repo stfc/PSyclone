@@ -112,19 +112,27 @@ class RegionTrans(Transformation):
     # pylint: disable=abstract-method,arguments-differ
 
     def _validate(self, node_list):
-        '''Test if the nodes in node_list are in the original order.
+        '''
+        Checks that the nodes in node_list are valid for a region
+        transformation.
 
-        :param list node_list: List of PSyIR nodes.
-        :raises TransformationError: If the nodes in the list are not \
+        :param node_list: list of PSyIR nodes.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+
+        :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
         :raises TransformationError: if the condition part of an IfBlock \
                                      is erroneously included in the region.
+        :raises TransformationError: if the nodes are in a NEMO Schedule and \
+                                     the transformation acts on the child of \
+                                     a single-line if statment.
 
         '''
         from psyclone.psyGen import IfBlock, Literal, Reference
+        from psyclone.nemo import NemoInvokeSchedule
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -169,6 +177,26 @@ class RegionTrans(Transformation):
                     "IfBlock by a {0} transformation. Apply the "
                     "transformation to the IfBlock node instead.".
                     format(self.name))
+
+        # The checks below this point only apply to the NEMO API and can be
+        # removed once #435 is done.
+        node = node_list[0]
+        if not isinstance(node.root, NemoInvokeSchedule):
+            return
+
+        ifblock = None
+        if isinstance(node.parent, IfBlock):
+            ifblock = node.parent
+        if isinstance(node.parent, Schedule) and isinstance(node.parent.parent,
+                                                            IfBlock):
+            ifblock = node.parent.parent
+        if ifblock and "was_single_stmt" in ifblock.annotations:
+            # This limitation is because the NEMO API currently relies on
+            # manipulation of the fparser2 parse tree
+            # TODO #435.
+            raise TransformationError(
+                "Cannot apply a transformation to the child of a single-line "
+                "if statement in the NEMO API.")
 
 
 class KernelTrans(Transformation):
@@ -2342,10 +2370,9 @@ class ProfileRegionTrans(RegionTrans):
 
     '''
     from psyclone import psyGen, profiler
-    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.HaloExchange, psyGen.Directive,
-                        psyGen.GlobalSum, profiler.ProfileNode,
-                        psyGen.Literal, psyGen.Reference)
+    # Unlike other transformations we can be fairly relaxed about the nodes
+    # that a region can contain as we don't have to understand them.
+    valid_node_types = (psyGen.Node,)
 
     def __str__(self):
         return "Insert a profile start and end call."
@@ -2361,11 +2388,11 @@ class ProfileRegionTrans(RegionTrans):
         schedule - i.e. enclose the specified Nodes in the
         schedule within a single profiler region.
 
-        :param nodes: Can be a single node or a list of nodes.
+        :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-        :py:obj:`psyclone.psygen.Node`.
-        '''
+        :py:obj:`psyclone.psygen.Node`
 
+        '''
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
@@ -2394,6 +2421,7 @@ class ProfileRegionTrans(RegionTrans):
                                       "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
+        # Do the checks in the base class
         super(ProfileRegionTrans, self)._validate(node_list)
 
         # create a memento of the schedule and the proposed
@@ -3486,7 +3514,7 @@ class NemoExplicitLoopTrans(Transformation):
         psyir_parent.children.remove(loop)
         # Next, we simply process the transformed fparser2 AST to generate
         # the new PSyIR of it
-        astprocessor = nemo.NemoFparser2ASTProcessor()
+        astprocessor = nemo.NemoFparser2Reader()
         astprocessor.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
         # Delete the old PSyIR node that we have transformed
         del loop
