@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
-from gocean1p0_build import GOcean1p0Build
+from gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
@@ -1488,7 +1488,7 @@ def test_ocl_apply(kernel_outputdir):
     assert len(kernel_files) == 2
     assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
     assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
-    assert GOcean1p0Build(kernel_outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_acc_parallel_not_a_loop():
