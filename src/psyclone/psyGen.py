@@ -6569,8 +6569,8 @@ class Container(Node):
     KernelSchedule nodes and/or Container nodes as well as a name and
     a SymbolTable. This construct can be used to scope variables,
     share variables between KernelSchedule nodes and scope the names
-    of KernelSchedules. In Fortran a container could represent a module
-    or a submodule.
+    of KernelSchedules. In Fortran a container would naturally
+    represent a module or a submodule.
 
     :param parent: the parent node of this Container in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
@@ -6609,6 +6609,26 @@ class Container(Node):
 
         '''
         return self._symbol_table
+
+    @property
+    def kernels(self):
+        '''
+        :returns: list containing any KernelSchedule objects contained \
+        in this Container.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelSchedule`
+
+        '''
+        return self._list
+
+    @property
+    def containers(self):
+        '''
+        :returns: list containing any Container objects contained \ in
+        this Container.
+        :rtype: list of :py:class:`psyclone.psyGen.Container`
+
+        '''
+        return self._list
 
     @property
     def coloured_text(self):
