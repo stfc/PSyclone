@@ -2451,6 +2451,11 @@ class OMPParallelDirective(OMPDirective):
         # TODO: not yet working with NEMO
         # if not self._reprod:
         #     result += self._reduction_string()
+        private_list = self._get_private_list()
+        private_str = self.list_to_string(private_list)
+
+        if private_str:
+            result = "{0} private({1})".format(result, private_str)
         return result
 
     def end_string(self):
@@ -6037,9 +6042,9 @@ class KernelSchedule(Schedule):
 
 
 class CodeBlock(Node):
-    '''Node representing some generic Fortran code that PSyclone does not attempt
-    to manipulate. As such it is a leaf in the PSyIR and therefore has no
-    children.
+    '''Node representing some generic Fortran code that PSyclone does not
+    attempt to manipulate. As such it is a leaf in the PSyIR and therefore
+    has no children.
 
     :param fp2_nodes: list of fparser2 AST nodes representing the Fortran \
                       code constituting the code block.
