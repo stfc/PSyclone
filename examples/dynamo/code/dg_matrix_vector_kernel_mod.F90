@@ -37,6 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified by R. W. Ford, STFC Daresbury Lab
 !
 module dg_matrix_vector_kernel_mod
 
@@ -64,7 +65,7 @@ module dg_matrix_vector_kernel_mod
         /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: dg_matrix_vector_code
+    procedure, nopass :: dg_matrix_vector_kernel_code
   end type
 
   !----------------------------------------------------------------------------
@@ -79,7 +80,7 @@ module dg_matrix_vector_kernel_mod
   !----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !----------------------------------------------------------------------------
-  public dg_matrix_vector_code
+  public dg_matrix_vector_kernel_code
 
 contains
 
@@ -103,13 +104,13 @@ contains
 !! @param[in] x input data
 !> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] matrix Matrix values in LMA form
-subroutine dg_matrix_vector_code(cell,              &
-                                 nlayers,           &
-                                 lhs, x,            &
-                                 ncell_3d,          &
-                                 matrix,            &
-                                 ndf1, undf1, map1, &
-                                 ndf2, undf2, map2)
+subroutine dg_matrix_vector_kernel_code(cell,              &
+                                        nlayers,           &
+                                        lhs, x,            &
+                                        ncell_3d,          &
+                                        matrix,            &
+                                        ndf1, undf1, map1, &
+                                        ndf2, undf2, map2)
  
   ! Arguments
   integer(kind=i_def),                  intent(in)    :: cell, nlayers, &
@@ -137,6 +138,6 @@ subroutine dg_matrix_vector_code(cell,              &
        lhs(map1(df)+k) = lhs_e(df) 
     end do
   end do
-end subroutine dg_matrix_vector_code
+end subroutine dg_matrix_vector_kernel_code
 
 end module dg_matrix_vector_kernel_mod

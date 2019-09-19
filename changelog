@@ -209,6 +209,36 @@
         65) PR #400 towards #385. Adds support for Fortran Do loops in
         the PSyIR - loop bounds are now captured.
 
+        66) PR #469 for #465. Removes duplicate lma tests.
+
+        67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
+        in documentation.
+
+        68) PR #441 for #373. Adds support for writing transformed LFRic
+        kernels to file.
+
+        69) PR #445 for #442. First step towards supporting OpenACC for
+        the LFRic (Dynamo0.3 API) PSy layer.
+
+        70) PR #466. Adds basic SIR backend to the PSyIR.
+
+	71) PR #407 for #315. Use the PSyIR SymbolTable to check for
+	global symbols (module variables) in kernels. Use this support to
+	raise an exception in transformations where global symbols are not
+	supported (e.g. the OpenCL transformation).
+
+	72) PR #498 for #388. Documents the PSyIR CodeBlock node and extends
+	the CodeBlocks with a property to differentiate between statement/s
+	and expression/s.
+
+	73) PR #476 for #429, #432, #433. Fix multi-line codeblocks,
+	add support for nemo implicit loops and nemo invokes.
+
+	74) PR #458 for #425. Add support for profiling in the NEMO API.
+
+	75) PR #510 for #419. Code re-structuring - moves what was the
+	FParser2ASTProcessor into psyir.frontend.fparser2.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

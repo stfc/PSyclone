@@ -57,7 +57,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
-    CodedKern, Schedule
+    CodedKern, ACCEnterDataDirective
 
 # First section : Parser specialisations and classes
 
@@ -8279,6 +8279,121 @@ class DynKernelArguments(Arguments):
 
         return self._raw_arg_list
 
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched.
+        :rtype: list of str
+
+        '''
+        class KernCallAccArgList(KernCallArgList):
+            '''
+            Kernel call arguments that need to be declared by OpenACC
+            directives. KernCallArgList only needs to be specialised
+            where modified, or additional, arguments are required.
+            Scalars are apparently not required but it is valid in
+            OpenACC to include them and requires less specialisation
+            to keep them in.
+
+            '''
+            def field_vector(self, argvect):
+                '''
+                Add the field vector associated with the argument 'argvect' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param argvect: the kernel argument (vector field).
+                :type argvect:  :py:class:`psyclone.dynamo0p3.\
+                                DynKernelArgument`
+
+                '''
+                for idx in range(1, argvect.vector_size+1):
+                    text1 = argvect.proxy_name + "(" + str(idx) + ")"
+                    self._arglist.append(text1)
+                    text2 = text1 + "%data"
+                    self._arglist.append(text2)
+
+            def field(self, arg):
+                '''
+                Add the field associated with the argument 'arg' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param arg: the kernel argument (field).
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                text1 = arg.proxy_name
+                self._arglist.append(text1)
+                text2 = text1 + "%data"
+                self._arglist.append(text2)
+
+            def stencil(self, arg):
+                '''
+                Add the stencil dofmap associated with this kernel
+                argument. OpenACC requires the full dofmap to be
+                specified.
+
+                :param arg: the meta-data description of the kernel \
+                argument with which the stencil is associated.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                var_name = DynStencils.dofmap_name(arg)
+                self._arglist.append(var_name)
+
+            def operator(self, arg):
+                '''
+                Add the operator arguments to the argument list if
+                they have not already been added. OpenACC requires the
+                derived type and the dereferenced data to be
+                specified.
+
+                :param arg: the meta-data description of the operator.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                if arg.proxy_name_indexed not in self._arglist:
+                    self._arglist.append(arg.proxy_name_indexed)
+                    self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
+                    self._arglist.append(arg.proxy_name_indexed +
+                                         "%local_stencil")
+
+            def fs_compulsory_field(self, function_space):
+                '''
+                Add compulsory arguments associated with this function space to
+                the list. OpenACC requires the full function-space map
+                to be specified.
+
+                :param arg: the current functionspace.
+                :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+                '''
+                undf_name = get_fs_undf_name(function_space)
+                self._arglist.append(undf_name)
+                map_name = get_fs_map_name(function_space)
+                self._arglist.append(map_name)
+
+        create_acc_arg_list = KernCallAccArgList(self._parent_call)
+        create_acc_arg_list.generate()
+        return create_acc_arg_list.arglist
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        # Return nothing for the moment as it is unclear whether
+        # scalars need to be explicitly dealt with (for OpenACC) in
+        # the dynamo api.
+        return []
+
 
 class DynKernelArgument(KernelArgument):
     ''' Provides information about individual Dynamo kernel call
@@ -8592,6 +8707,21 @@ class DynKernCallFactory(object):
         return cloop
 
 
+class DynACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, _):
+        '''
+        Provide a hook to be able to add information about data being on a
+        device (or not). This is currently not used in dynamo0p3.
+
+        '''
+        return None
+
+
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
@@ -8635,4 +8765,5 @@ __all__ = [
     'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
-    'DynKernCallFactory']
+    'DynKernCallFactory',
+    'DynACCEnterDataDirective']

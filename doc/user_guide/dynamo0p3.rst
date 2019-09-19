@@ -2079,14 +2079,14 @@ Transformations
 ---------------
 
 This section describes the dynamo-api-specific transformations. In all
-cases, excepting **Dynamo0p3RedundantComputationTrans** and
-**Dynamo0p3AsyncHaloExchangeTrans**, these transformations are
-specialisations of generic transformations described in the
-:ref:`transformations` section. The difference between these
-transformations and the generic ones is that these perform
-dynamo-api-specific checks to make sure the transformations are
-valid. In practice these transformations perform the required checks
-then call the generic ones internally.
+cases, excepting **Dynamo0p3RedundantComputationTrans**,
+**Dynamo0p3AsyncHaloExchangeTrans** and **Dynamo0p3KernelConstTrans**,
+these transformations are specialisations of generic transformations
+described in the :ref:`transformations` section. The difference
+between these transformations and the generic ones is that these
+perform dynamo-api-specific checks to make sure the transformations
+are valid. In practice these transformations perform the required
+checks then call the generic ones internally.
 
 The use of the dynamo-api-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
@@ -2108,6 +2108,10 @@ The **Dynamo0p3RedundantComputationTrans** and
 that supports distributed memory.  An example of redundant computation
 can be found in ``examples/dynamo/eg8`` and an example of asynchronous
 halo exchanges can be found in ``examples/dynamo/eg11``.
+
+The **Dynamo0p3KernelConstTrans** transformation is only valid for the
+"Dynamo0p3" API. This is because the properties that it makes constant
+are API specific.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
@@ -2137,6 +2141,10 @@ all versions of the Dynamo API.
     :noindex:
 
 .. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.Dynamo0p3KernelConstTrans
     :members:
     :noindex:
 
