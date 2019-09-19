@@ -414,6 +414,25 @@ class CWriter(PSyIRVisitor):
         raise VisitorError("CodeBlocks can not be translated to C.")
 
     @property
+    def do_loop_format(self):
+        '''Returns the format for a do/for loop. The format variables will
+        be replaced as follows:
+        0: indentation string
+        1: loop variable
+        2: first loop iteration
+        3: last loop iteration
+        4: step size
+        5: body of the loop
+
+        :return: the format of a loop.
+        :rtype: str
+        '''
+        return "{0}for({1}={2}-1; {1}<{3}; {1}+={4})\n"\
+            "{0}{{\n"\
+            "{5}"\
+            "{0}}}\n"
+
+    @property
     def directive_start(self):
         ''':return: "#pragma" - the start of a directive in C.
         :rtype: str

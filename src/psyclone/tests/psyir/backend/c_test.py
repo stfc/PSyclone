@@ -36,7 +36,10 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
 
+from __future__ import absolute_import
+
 import pytest
+
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyGen import Symbol, Node, CodeBlock, Assignment, Reference, \
@@ -305,15 +308,21 @@ def test_cw_unaryoperator():
                  (UnaryOperation.Operator.REAL, 'float(a)'))
 
     for operator, expected in test_list:
+        # pylint: disable=protected-access
         unary_operation._operator = operator
+        # pylint: enable=protected-access
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
+    # pylint: disable=too-few-public-methods
+    class Unsupported(object):
         '''Dummy class'''
-    # pylint: enable=abstract-method, too-few-public-methods
+        def __init__(self):
+            pass
+    # pylint: enable=too-few-public-methods
+    # pylint: disable=protected-access
     unary_operation._operator = Unsupported
+    # pylint: enable=protected-access
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
     assert "The C backend does not support the '" in str(err)
@@ -359,16 +368,52 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.SIGN, 'copysign(a, b)'))
 
     for operator, expected in test_list:
+        # pylint: disable=protected-access
         binary_operation._operator = operator
+        # pylint: enable=protected-access
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
+    # pylint: disable=too-few-public-methods
+    class Unsupported(object):
         '''Dummy class'''
-    # pylint: enable=abstract-method, too-few-public-methods
+        def __init__(self):
+            pass
+    # pylint: enable=too-few-public-methods
+    # pylint: disable=protected-access
     binary_operation._operator = Unsupported
+    # pylint: enable=protected-access
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
     assert "The C backend does not support the '" in str(err)
     assert "' operator." in str(err)
+
+
+def test_cw_loop():
+    '''Tests writing out a Loop node in C. It parses Fortran code
+    and outputs it as C.'''
+
+    from psyclone.tests.psyclone_test_utils import create_schedule
+
+    # Generate PSyIR from Fortran code.
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          integer :: i, a
+          integer, dimension(:) :: b
+          do i = 1, 20, 2
+            a = 2 * i
+          enddo
+        end subroutine tmp
+        end module test'''
+    schedule = create_schedule(code)
+
+    cvisitor = CWriter()
+    result = cvisitor(schedule[0])
+    correct = '''for(i=1-1; i<20; i+=2)
+{
+  a = (2 * i);
+}'''
+    result = cvisitor(schedule[0])
+    assert correct in result
