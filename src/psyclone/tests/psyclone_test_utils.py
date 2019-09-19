@@ -42,7 +42,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
-from psyclone.psyGen import Fparser2ASTProcessor
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 # The various file suffixes we recognise as being Fortran
@@ -178,6 +178,7 @@ class Compile(object):
         self._base_path = base_path
 
     def get_infrastructure_flags(self):
+        # pylint: disable=no-self-use
         '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
@@ -440,7 +441,7 @@ def get_invoke(algfile, api, idx=None, name=None):
 
 
 # =============================================================================
-def create_schedule(code, ast_processor=Fparser2ASTProcessor):
+def create_schedule(code, ast_processor=Fparser2Reader):
     '''Utility function that returns a PSyIR tree from Fortran
     code using fparser2 and (by default) Fparser2ASTProcessor.
 

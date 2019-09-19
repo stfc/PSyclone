@@ -185,7 +185,7 @@ class PSyIRVisitor(object):
         :param node: a Loop PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Loop`
 
-        :returns: The Fortran code as a string.
+        :returns: the Fortran code as a string.
         :rtype: str
 
         '''
