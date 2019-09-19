@@ -38,8 +38,7 @@
 
 from __future__ import absolute_import
 
-import re
-
+from psyclone.psyGen import Assignment, Reference
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.psyclone_test_utils import create_schedule
@@ -54,11 +53,12 @@ def test_nemo_omp_parallel():
         module test
         contains
         subroutine tmp()
-          integer :: i, sum
-          sum = 0
+          integer :: i, a
+          integer, dimension(:) :: b
           do i = 1, 20, 2
-            sum = sum + i
-          end do
+            a = 2 * i
+            b(i) = b(i) + a
+          enddo
         end subroutine tmp
         end module test'''
     schedule = create_schedule(code)
@@ -66,20 +66,53 @@ def test_nemo_omp_parallel():
 
     # Now apply a parallel transform
     omp_par = OMPParallelTrans()
-    omp_par.apply(schedule[1])
+    omp_par.apply(schedule[0])
 
     fvisitor = FortranWriter()
-    # Convert to code, and remove all new lines, to make
-    # regex matching easier
-    result = fvisitor(schedule).replace("\n", "")
-
-    assert re.search(r"!\$omp parallel.*" +
-                     r"!\$omp end parallel", result) is not None
+    result = fvisitor(schedule)
+    correct = '''!$omp parallel private(a,i)
+      do i = 1, 20, 2
+        a=2 * i
+        b(i)=b(i) + a
+      enddo
+!$omp end parallel'''
+    assert correct in result
 
     cvisitor = CWriter()
-    # Remove newlines for easier RE matching
-    result = cvisitor(schedule[1]).replace("\n", "")
-    assert re.search(r"#pragma omp parallel.*{.*}", result) is not None
+    result = cvisitor(schedule[0])
+    correct = '''#pragma omp parallel private(a,i)
+{
+  for(i=1-1; i<20; i+=2)
+  {
+    a = (2 * i);
+    b[i] = (b[i] + a);
+  }
+}'''
+    result = cvisitor(schedule[0])
+    assert correct in result
+
+
+# ----------------------------------------------------------------------------
+def replace_child_with_assignment(node):
+    '''Since at this stage not all node types are supported,
+    this function is used to replace the first child of the
+    given node with a simple assignment statement ('a=b').
+    This allows all tests to compare all output of the visitor
+    pattern (even though in some cases the code might not
+    compile, e.g. assignment as child of an OMP DO directive)
+
+    :param node: the node whose child is replaced.
+    :type node: :py:class:`psyclone.psyGen.Node`
+    '''
+
+    # Create a simple 'a=b' assignment statement for all tests
+    assignment = Assignment(parent=node)
+    lhs = Reference('a', assignment)
+    rhs = Reference('b', assignment)
+    assignment.addchild(lhs)
+    assignment.addchild(rhs)
+    del node.children[0]
+    node.addchild(assignment)
 
 
 # ----------------------------------------------------------------------------
@@ -93,25 +126,32 @@ def test_gocean_omp_parallel():
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0)
-    schedule = invoke.schedule
 
     omp = OMPParallelTrans()
-    omp_sched, _ = omp.apply(schedule.children[0])
+    omp_sched, _ = omp.apply(invoke.schedule[0])
 
-    invoke.schedule = omp_sched
+    # Now remove the GOKern (since it's not yet supported in the
+    # visitor pattern) and replace it with a simple assignment
+    replace_child_with_assignment(omp_sched[0])
 
+    # omp_sched is a GOInvokeSchedule, which is not yet supported.
+    # So only convert starting from the OMPParallelDirective
     fvisitor = FortranWriter()
-    # TODO: Directly access the omp node, since higher level
-    # node types are not yet supported.
-    result = fvisitor(omp_sched[0]).replace("\n", "")
-
-    assert re.search(r"!\$omp parallel.*" +
-                     r"!\$omp end parallel", result) is not None
+    result = fvisitor(omp_sched[0])
+    correct = '''!$omp parallel
+  a=b
+!$omp end parallel'''
+    assert correct in result
 
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
-    result = cvisitor(omp_sched[0]).replace("\n", "")
-    assert re.search(r"#pragma omp parallel.*{.*}", result) is not None
+    result = cvisitor(omp_sched[0])
+    correct = '''#pragma omp parallel
+{
+  a = b;
+}'''
+    result = cvisitor(omp_sched[0])
+    assert correct in result
 
 
 # ----------------------------------------------------------------------------
@@ -123,11 +163,12 @@ def test_nemo_omp_do():
         module test
         contains
         subroutine tmp()
-          integer :: i, sum
-          sum = 0
+          integer :: i, a
+          integer, dimension(:) :: b
           do i = 1, 20, 2
-            sum = sum + i
-          end do
+            a = 2 * i
+            b(i) = b(i) + a
+          enddo
         end subroutine tmp
         end module test'''
     schedule = create_schedule(code)
@@ -135,17 +176,64 @@ def test_nemo_omp_do():
 
     # Now apply a parallel transform
     omp_loop = OMPLoopTrans()
-    omp_loop.apply(schedule[1])
+    omp_loop.apply(schedule[0])
 
     fvisitor = FortranWriter()
-    # Convert to code, and remove all new lines, to make
-    # regex matching easier
-    result = fvisitor(schedule).replace("\n", "")
+    result = fvisitor(schedule)
+    correct = '''!$omp do schedule(static)
+      do i = 1, 20, 2
+        a=2 * i
+        b(i)=b(i) + a
+      enddo
+!$omp end do'''
+    assert correct in result
 
-    assert re.search(r"!\$omp do.*" +
-                     r"!\$omp end do", result) is not None
+    cvisitor = CWriter()
+    result = cvisitor(schedule[0])
+    correct = '''#pragma omp do schedule(static)
+{
+  for(i=1-1; i<20; i+=2)
+  {
+    a = (2 * i);
+    b[i] = (b[i] + a);
+  }
+}'''
+    assert correct in result
+
+
+# ----------------------------------------------------------------------------
+def test_gocean_omp_do():
+    '''Test that an OMP PARALLEL directive in a 'classical' API (gocean here)
+    is created correctly.
+    '''
+
+    from psyclone.transformations import OMPLoopTrans
+    from psyclone.tests.psyclone_test_utils import get_invoke
+
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+                           idx=0)
+    omp = OMPLoopTrans()
+    omp_sched, _ = omp.apply(invoke.schedule[0])
+
+    # Now remove the GOKern (since it's not yet supported in the
+    # visitor pattern) and replace it with a simple assignment.
+    # While this is invalid usage of OMP (omp must have a loop,
+    # not an assignment inside)
+    replace_child_with_assignment(omp_sched[0])
+    fvisitor = FortranWriter()
+    # GOInvokeSchedule is not yet supported, so start with
+    # the OMP node:
+    result = fvisitor(omp_sched[0])
+    correct = '''!$omp do schedule(static)
+  a=b
+!$omp end do'''
+    assert correct in result
 
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
-    result = cvisitor(schedule[1]).replace("\n", "")
-    assert re.search(r"#pragma omp do.*{.*}", result) is not None
+    result = cvisitor(omp_sched[0])
+    correct = '''#pragma omp do schedule(static)
+{
+  a = b;
+}'''
+    assert correct in result
