@@ -802,9 +802,6 @@ class GOLoop(Loop):
         # Generate the upper and lower loop bounds
         self.start_expr = self._lower_bound()
         self.stop_expr = self._upper_bound()
-        # Update the loop limits for the loop
-        self.children[0] = self.start_expr
-        self.children[1] = self.stop_expr
 
         super(GOLoop, self).view(indent)
 
@@ -814,9 +811,6 @@ class GOLoop(Loop):
         # Generate the upper and lower loop bounds
         self.start_expr = self._lower_bound()
         self.stop_expr = self._upper_bound()
-        # Update the stored loop limits for the loop
-        self.children[0] = self.start_expr
-        self.children[1] = self.stop_expr
 
         return super(GOLoop, self).__str__()
 
@@ -870,9 +864,6 @@ class GOLoop(Loop):
         # Generate the upper and lower loop bounds
         self.start_expr = self._lower_bound()
         self.stop_expr = self._upper_bound()
-        # Update the loop limits for the parent loop
-        self.children[0] = self.start_expr
-        self.children[1] = self.stop_expr
 
         Loop.gen_code(self, parent)
 
