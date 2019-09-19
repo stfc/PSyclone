@@ -251,15 +251,6 @@ class PSyIRVisitor(object):
 
         result_list = [self.directive_start.format(node.begin_string())]
         for child in node.children:
-            # The try is only here to allow proper testing while
-            # not all required nodes are converted by the visitors in
-            # various languages.
-            try:
-                result_list.append(self._visit(child))
-            except VisitorError:
-                # TODO: Ignore unsupported nodes for now, to allow all
-                # tests to work.
-                result_list.append("Node type {0} not yet supported\n"
-                                   .format(type(child)))
+            result_list.append(self._visit(child))
         result_list.append(self.directive_end.format(node.end_string()))
         return "".join(result_list)
