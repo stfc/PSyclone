@@ -250,7 +250,9 @@ class PSyIRVisitor(object):
         '''
 
         result_list = [self.directive_start.format(node.begin_string())]
+        self._depth += 1
         for child in node.children:
             result_list.append(self._visit(child))
+        self._depth -= 1
         result_list.append(self.directive_end.format(node.end_string()))
         return "".join(result_list)
