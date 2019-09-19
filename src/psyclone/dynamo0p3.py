@@ -4932,7 +4932,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_start"
         self._text_name = "HaloExchangeStart"
         self._colour_map_name = "HaloExchangeStart"
-        self._dag_name = "haloexchangestart"
 
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
@@ -5045,7 +5044,6 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_finish"
         self._text_name = "HaloExchangeEnd"
         self._colour_map_name = "HaloExchangeEnd"
-        self._dag_name = "haloexchangeend"
 
 
 class HaloDepth(object):

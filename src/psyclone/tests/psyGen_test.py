@@ -2348,12 +2348,12 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*schedule_start\n"
-    r"\s*schedule_end\n"
+    r"\s*InvokeSchedule_start\n"
+    r"\s*InvokeSchedule_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
     r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    r"\s*schedule_start -> loop_1_start \[color=blue\]\n"
+    r"\s*InvokeSchedule_start -> loop_1_start \[color=blue\]\n"
     r"\s*kernel_testkern_qr_code_2\n"
     r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
     r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
