@@ -50,6 +50,7 @@ class CWriter(PSyIRVisitor):
     '''
 
     def gen_declaration(self, symbol):
+        # pylint: disable=no-self-use
         '''
         Generates string representing the C declaration of the symbol. In C
         declarations can be found inside the argument list or with the
@@ -117,6 +118,7 @@ class CWriter(PSyIRVisitor):
         return result
 
     def reference_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
@@ -174,6 +176,7 @@ class CWriter(PSyIRVisitor):
         return code
 
     def literal_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
