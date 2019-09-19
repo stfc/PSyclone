@@ -39,8 +39,8 @@ in the PSyIR. '''
 from __future__ import absolute_import
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
