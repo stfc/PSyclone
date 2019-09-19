@@ -292,10 +292,6 @@ class GOLoop(Loop):
                 self.stop_expr = Reference(
                     self.field_space + "%jstop", parent=self)
 
-        # Update our bounds in the PSyIR
-        self.children[0] = self.start_expr
-        self.children[1] = self.stop_expr
-
         Loop.gen_code(self, parent)
 
 
