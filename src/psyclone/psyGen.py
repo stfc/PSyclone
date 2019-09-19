@@ -1302,12 +1302,10 @@ class Node(object):
         return result
 
     def list_to_string(self, my_list):
-        result = ""
-        for idx, value in enumerate(my_list):
-            result += str(value)
-            if idx < (len(my_list) - 1):
-                result += ","
-        return result
+        ''':returns: a comma-delimited string of all members.
+        :rtype: str
+        '''
+        return ",".join(my_list)
 
     def addchild(self, child, index=None):
         if index is not None:
