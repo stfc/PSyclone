@@ -360,11 +360,9 @@ class GOInvokeSchedule(InvokeSchedule):
             self.coloured_name(colour), self.invoke.name,
             self._const_loop_bounds)
 
-
     def __str__(self):
         ''' Returns the string representation of this GOInvokeSchedule '''
-        result = "GOInvokeSchedule(Constant loop bounds=" + \
-                 str(self._const_loop_bounds) + "):\n"
+        result = self.node_str(False) + ":\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"

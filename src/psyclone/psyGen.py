@@ -1301,17 +1301,6 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def node_str(self, colour=True):
-        '''
-        :param bool colour: whether or not to include control codes for \
-                            coloured text.
-
-        :returns: a text description of this node. Will typically be \
-                  overridden by sub-class.
-        :rtype: str
-        '''
-        return self.coloured_name(colour)
-
     def view(self, indent=0, index=None):
         ''' Print out description of current node to stdout and
         then call view() on all child nodes.
@@ -1618,16 +1607,17 @@ class Node(object):
 
 
 class Schedule(Node):
-    ''' Stores schedule information for a sequence of statements.
+    ''' Stores schedule information for a sequence of statements (supplied
+    as a list of children).
 
     :param sequence: the sequence of PSyIR nodes that make up the schedule.
     :type sequence: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
-    :type parent:  :py:class:`psyclone.psyGen.Node`
-    '''
+    :type parent: :py:class:`psyclone.psyGen.Node`
 
-    def __init__(self, sequence=None, parent=None):
-        Node.__init__(self, children=sequence, parent=parent)
+    '''
+    def __init__(self, children=None, parent=None):
+        Node.__init__(self, children=children, parent=parent)
         self._text_name = "Schedule"
         self._colour_key = "Schedule"
 
@@ -1637,7 +1627,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return "schedule"
+        return self._text_name
 
     def node_str(self, colour=True):
         '''
@@ -1693,7 +1683,6 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
-
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -1707,7 +1696,7 @@ class InvokeSchedule(Schedule):
                 sequence.append(BuiltInFactory.create(call, parent=self))
             else:
                 sequence.append(KernFactory.create(call, parent=self))
-        Schedule.__init__(self, sequence=sequence, parent=None)
+        Schedule.__init__(self, children=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         self._name_space_manager = NameSpaceFactory().create()
@@ -3015,6 +3004,7 @@ class HaloExchange(Node):
 
     def __str__(self):
         return self.node_str(False)
+
 
 class Loop(Node):
     '''
@@ -5883,10 +5873,10 @@ class KernelSchedule(Schedule):
     table to keep a record of the declared variables and their attributes.
 
     :param str name: Kernel subroutine name
-    '''
 
+    '''
     def __init__(self, name):
-        super(KernelSchedule, self).__init__(sequence=None, parent=None)
+        super(KernelSchedule, self).__init__(children=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
 

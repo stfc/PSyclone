@@ -101,7 +101,8 @@ def test_profile_basic(capsys):
 
     new_sched_str = str(new_sched)
 
-    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
+Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
@@ -441,7 +442,8 @@ def test_transform(capsys):
     # Try applying it to a list
     sched1, _ = prt.apply(schedule.children)
 
-    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
+Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
@@ -495,7 +497,8 @@ End Schedule""")
     # Now only wrap a single node - the middle loop:
     sched2, _ = prt.apply(schedule.children[0].children[1])
 
-    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
+Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
