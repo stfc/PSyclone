@@ -116,15 +116,17 @@ def valid_kernel(node):
     # types and possibly problematic operations
     excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation,
                            NemoLoop)
-    excluded_nodes = node.walk([node], excluded_node_types)
+    excluded_nodes = node.walk(excluded_node_types)
 
     for node in excluded_nodes:
         if isinstance(node, CodeBlock):
             return False
 
         if isinstance(node, IfBlock):
-            # We permit single-statement IF blocks inside KERNELS regions
-            if "was_single_stmt" not in node._annotations:
+            # We permit single-statement IF blocks or those that originate
+            # from WHERE constructs inside KERNELS regions
+            if "was_single_stmt" not in node.annotations or \
+               "was_where" not in node.annotations:
                 return False
 
         if isinstance(node, Operation):
@@ -138,7 +140,8 @@ def valid_kernel(node):
             if contains_unsupported_sum(node.ast):
                 return False
 
-    # For now we don't support putting things like:
+    # For now we don't support putting *just* the implicit loop assignment in
+    # things like:
     #    if(do_this)my_array(:,:) = 1.0
     # inside a kernels region. Once we generate Fortran instead of modifying
     # the fparser2 parse tree this will become possible.
@@ -157,13 +160,13 @@ def valid_kernel(node):
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
-    refs = node.walk([node], Array)
+    refs = node.walk(Array)
     # Since kernels are leaves in the PSyIR, we need to separately check
     # their schedules for array references too.
-    kernels = node.walk([node], NemoKern)
+    kernels = node.walk(NemoKern)
     for kern in kernels:
         sched = kern.get_kernel_schedule()
-        refs += sched.walk(sched.children, (Array, NemoLoop))
+        refs += sched.walk((Array, NemoLoop))
     for ref in refs:
         if isinstance(ref, Array) and ref.name.lower() in NEMO_FUNCTIONS:
             # This reference has the name of a known function. Is it on
@@ -217,7 +220,7 @@ def have_loops(nodes):
     '''
     from psyclone.nemo import NemoLoop
     for node in nodes:
-        if node.walk([node], NemoLoop):
+        if node.walk(NemoLoop):
             return True
     return False
 
@@ -281,7 +284,7 @@ def add_profiling(children):
     node_list = []
     for child in children[:]:
         # Can this node be included in a profiling region?
-        if child.walk([child], ACCDirective):
+        if child.walk(ACCDirective):
             # It can't so we put what we have so far inside a profiling region
             add_profile_region(node_list)
             # A node that cannot be included in a profiling region marks the
