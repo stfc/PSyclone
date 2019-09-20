@@ -3090,12 +3090,14 @@ class Loop(Node):
         if len(self.children) < 4:
             raise InternalError(
                 "Loop malformed or incomplete. It should have exactly 4 "
-                "children, but found loop with '{0}'.".format(str(self)))
+                "children, but found loop with '{0}'.".format(
+                    ", ".join([str(child) for child in self.children])))
 
         if not isinstance(self.children[3], Schedule):
             raise InternalError(
                 "Loop malformed or incomplete. Fourth child should be a "
-                "Schedule node, but found loop with '{0}'.".format(str(self)))
+                "Schedule node, but found loop with '{0}'.".format(
+                    ", ".join([str(child) for child in self.children])))
 
     @property
     def start_expr(self):
