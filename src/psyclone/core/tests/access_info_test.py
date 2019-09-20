@@ -116,6 +116,10 @@ def test_variable_access_info():
     assert "Variable 'var_name' had 2 accesses listed, "\
            "not one in change_read_to_write." in str(err)
 
+    # And make sure the variable is not read_only if a write is added
+    vai.add_access(AccessType.WRITE, 3, Node())
+    assert vai.is_read_only() is False
+
 
 # -----------------------------------------------------------------------------
 def test_variable_access_info_read_write():

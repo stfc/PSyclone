@@ -161,10 +161,7 @@ class VariableAccessInfo(object):
     def is_array(self):
         ''':returns: true if all accesses to this variable involve indices.
         :rtype: bool'''
-        for access in self._accesses:
-            if not access.indices:
-                return False
-        return True
+        return all(access.indices for access in self._accesses)
 
     def is_written(self):
         '''Checks if the specified variable name is at least written once.
@@ -173,10 +170,9 @@ class VariableAccessInfo(object):
             once).
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type in AccessType.all_write_accesses():
-                return True
-        return False
+        return any(access_info.access_type in
+                   AccessType.all_write_accesses()
+                   for access_info in self._accesses)
 
     def is_read_only(self):
         '''Checks if this variable is always read, and never
@@ -185,10 +181,8 @@ class VariableAccessInfo(object):
         :returns: true if the specified variable name is read only.
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type != AccessType.READ:
-                return False
-        return True
+        return all(access_info.access_type == AccessType.READ
+                   for access_info in self._accesses)
 
     def is_read(self):
         '''Checks if this variable is at least read once.
@@ -196,10 +190,8 @@ class VariableAccessInfo(object):
         :returns: true if the specified variable name is read (at least once).
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type in AccessType.all_read_accesses():
-                return True
-        return False
+        return any(access_info.access_type in AccessType.all_read_accesses()
+                   for access_info in self._accesses)
 
     def has_read_write(self):
         '''Checks if the specified variable name has at least one READWRITE
@@ -208,10 +200,8 @@ class VariableAccessInfo(object):
         :returns: true if the specified variable name is read (at least once).
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type == AccessType.READWRITE:
-                return True
-        return False
+        return any(access_info.access_type == AccessType.READWRITE
+                   for access_info in self._accesses)
 
     def __getitem__(self, index):
         ''':Return: the access information for the specified index.
