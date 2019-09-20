@@ -75,9 +75,8 @@ class AccessInfo(object):
             self._indices = None
 
     def __str__(self):
-        ''':returns: a string representating showing the access mode
-        and location, e.g.: WRITE(5).
-        :rtype: str'''
+        '''Returns a string representating showing the access mode
+        and location, e.g.: WRITE(5).'''
         return "{0}({1})".format(self._access_type, self._location)
 
     def change_read_to_write(self):
@@ -146,9 +145,8 @@ class VariableAccessInfo(object):
         self._accesses = []
 
     def __str__(self):
-        ''':returns: a string representation of this object with the format:
-        var_name:WRITE(2),WRITE(3),READ(5)
-        :type: str'''
+        '''Returns a string representation of this object with the format:
+        var_name:WRITE(2),WRITE(3),READ(5).'''
         return "{0}:{1}".format(self._var_name,
                                 ",".join([str(access)
                                           for access in self._accesses]))
@@ -181,7 +179,7 @@ class VariableAccessInfo(object):
         return False
 
     def is_read_only(self):
-        '''Checks if the specified variable name is always read, and never
+        '''Checks if this variable is always read, and never
         written.
 
         :returns: true if the specified variable name is read only.
@@ -193,7 +191,7 @@ class VariableAccessInfo(object):
         return True
 
     def is_read(self):
-        '''Checks if the specified variable name is at least read once.
+        '''Checks if this variable is at least read once.
 
         :returns: true if the specified variable name is read (at least once).
         :rtype: bool
@@ -301,11 +299,8 @@ class VariablesAccessInfo(object):
         READ+WRITE. If a variable is is passed to a kernel for which no
         individual variable information is available, and the metadata for
         this kernel indicates a READWRITE access, this is marked as READWRITE
-        in the string output.
+        in the string output.'''
 
-        :returns: One line string listing all variables and their access mode.
-        :rtype: str
-        '''
         all_vars = list(self._var_to_varinfo.keys())
         all_vars.sort()
         output_list = []
@@ -365,7 +360,7 @@ class VariablesAccessInfo(object):
     def all_vars(self):
         ''':returns: all variables contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: List of str.
+        :rtype: list of str.
         '''
         list_of_vars = list(self._var_to_varinfo.keys())
         list_of_vars.sort()
