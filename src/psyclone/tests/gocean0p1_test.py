@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 
@@ -68,18 +68,18 @@ def test_loop_bounds_gen_multiple_loops():
     gen = str(psy.gen)
 
     expected = (
-        "      DO j=1,SIZE(uold,2)\n"
-        "        DO i=1,SIZE(uold,1)\n"
+        "      DO j=1,SIZE(uold, 2)\n"
+        "        DO i=1,SIZE(uold, 1)\n"
         "          CALL time_smooth_code(i, j, u, unew, uold)\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO j=1,SIZE(vold,2)\n"
-        "        DO i=1,SIZE(vold,1)\n"
+        "      DO j=1,SIZE(vold, 2)\n"
+        "        DO i=1,SIZE(vold, 1)\n"
         "          CALL time_smooth_code(i, j, v, vnew, vold)\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO j=1,SIZE(pold,2)\n"
-        "        DO i=1,SIZE(pold,1)\n"
+        "      DO j=1,SIZE(pold, 2)\n"
+        "        DO i=1,SIZE(pold, 1)\n"
         "          CALL time_smooth_code(i, j, p, pnew, pold)\n"
         "        END DO \n"
         "      END DO ")

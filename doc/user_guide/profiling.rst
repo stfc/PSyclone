@@ -112,11 +112,11 @@ call at the end of the loop.  Two caveats:
    (expensive calls like HaloExchange are excluded). 
 
 2. If loop transforms are applied using a script, the profiling
-   nodes added to the AST will very likely cause errors in the
-   script or in the generated output. As example consider a case
+   nodes added to the PSyIR will very likely cause errors in the
+   script or in the generated output. As an example consider a case
    where an OMPLoop transform is applied to a loop. With profiling
    enabled instead of the expected loop there could be a profile node
-   in the AST (with the loop as child). Since an OMP DO directive
+   in the PSyIR (with the loop as child). Since an OMP DO directive
    can only have loops inside, and it now has a call to
    ``ProfileStart``, the generated code is incorrect and will not
    compile.
@@ -124,7 +124,7 @@ call at the end of the loop.  Two caveats:
 In order to avoid the second issue, automatic profiling using
 ``--profile`` is not allowed together with a transformation
 script. On the other hand, since it is possible to write scripts
-that are more flexible in handling a modified AST, you can use the
+that are more flexible in handling a modified PSyIR, you can use the
 command line option ``--force-profile``. It takes the same
 parameters as ``--profile``, and will allow you to combine a
 transformation script together with automatic profiling. Use
@@ -193,8 +193,8 @@ Profiling in Scripts - ProfileRegionTransform
 ---------------------------------------------
 The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
-takes either a single AST Node or a list of AST Nodes as argument,
-and will insert a Profile Node into the AST, with the 
+takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
+and will insert a Profile Node into the PSyIR, with the 
 specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
 As an example::

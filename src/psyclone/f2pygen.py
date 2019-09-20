@@ -305,8 +305,8 @@ class BaseGen(object):
         parent = current.parent
         local_current = local_current.parent
         if debug:
-            print("The type of the object at the index is " + \
-                str(type(parent.content[index])))
+            print("The type of the object at the index is " +
+                  str(type(parent.content[index])))
             print("If preceding node is a directive then move back one")
         if index == 0:
             if debug:
@@ -774,7 +774,7 @@ def adduse(name, parent, only=False, funcnames=None):
     myline = reader.next()
 
     # find an appropriate place to add in our use statement
-    while not isinstance(parent, (fparser1.block_statements.Program, 
+    while not isinstance(parent, (fparser1.block_statements.Program,
                                   fparser1.block_statements.Module,
                                   fparser1.block_statements.Subroutine)):
         parent = parent.parent
