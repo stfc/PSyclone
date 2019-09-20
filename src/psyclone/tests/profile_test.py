@@ -96,8 +96,8 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = prt.apply(invoke.schedule.children[0]
-                             .children[0].children[0])
+    invoke.schedule.view()
+    new_sched, _ = prt.apply(invoke.schedule[0].children[0].loop_body)
 
     new_sched_str = str(new_sched)
 
@@ -108,6 +108,7 @@ Literal[value:'2']
 Literal[value:'jstop-1']
 Literal[value:'1']
 Schedule:
+ProfileStart[var=profile_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
 Literal[value:'2']
 Literal[value:'istop']
@@ -116,6 +117,7 @@ Schedule:
 kern call: compute_cv_code
 End Schedule
 End GOLoop
+ProfileEnd
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
@@ -493,7 +495,7 @@ End Schedule""")
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
-    sched2, _ = prt.apply(schedule.children[0].children[1])
+    sched2, _ = prt.apply(schedule[0].children[1])
 
     correct = ("""GOInvokeSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]

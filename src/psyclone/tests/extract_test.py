@@ -292,7 +292,7 @@ def test_no_colours_loop_dynamo0p3():
     colour_loop = schedule.children[0].loop_body[0]
     # Apply OMP Parallel DO Directive to the colour Loop
     schedule, _ = otrans.apply(colour_loop)
-    directive = schedule.children[0].children[0]
+    directive = schedule[0].loop_body
     # Try to extract the region between the Loop over cells in a colour
     # and the exterior Loop over colours
     with pytest.raises(TransformationError) as excinfo:
@@ -315,7 +315,7 @@ def test_no_outer_loop_gocean1p0():
     schedule = invoke.schedule
 
     # Try to extract the region between the outer and the inner Loop
-    inner_loop = schedule.children[0].children[0]
+    inner_loop = schedule[0].loop_body
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(inner_loop)
     assert ("GOcean1.0 API: Extraction of an inner Loop without its "

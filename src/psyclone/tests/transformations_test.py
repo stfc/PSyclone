@@ -120,11 +120,11 @@ def test_ifblock_children_region():
     # IfBlock.
     with pytest.raises(TransformationError) as err:
         super(ACCParallelTrans, acct)._validate(ifblock.children)
-    assert ("transformation to the conditional expression (first child" in
+    assert ("transformation to the immediate children of an IfBlock" in
             str(err))
     with pytest.raises(TransformationError) as err:
         super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
-    assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
+    assert ("transformation to the immediate children of an IfBlock "
             in str(err))
 
 

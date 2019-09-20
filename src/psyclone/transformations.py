@@ -124,14 +124,15 @@ class RegionTrans(Transformation):
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
-        :raises TransformationError: if the condition part of an IfBlock \
-                                     is erroneously included in the region.
+        :raises TransformationError: if the parent of the supplied Nodes is \
+                                     not a Schedule or a Directive.
         :raises TransformationError: if the nodes are in a NEMO Schedule and \
                                      the transformation acts on the child of \
                                      a single-line if statment.
 
         '''
-        from psyclone.psyGen import IfBlock, Literal, Reference
+        from psyclone.psyGen import IfBlock, Literal, Reference, Directive, \
+            Loop
         from psyclone.nemo import NemoInvokeSchedule
         node_parent = node_list[0].parent
         prev_position = -1
@@ -160,23 +161,22 @@ class RegionTrans(Transformation):
                         "transformation".format(type(item), self.name))
 
         # Sanity check that we've not been passed the condition part of
-        # an If statement (which is child 0)
-        if isinstance(node_parent, IfBlock):
-            if node_parent.children[0] in node_list:
-                raise TransformationError(
-                    "Cannot apply transformation to the conditional expression"
-                    " (first child) of an If/Case statement. Error in "
-                    "transformation script.")
-
-            # Check that we've not been supplied with both the if and
-            # else clauses of an IfBlock as we can't put them both in
-            # a region without their parent.
-            if len(node_list) > 1:
-                raise TransformationError(
-                    "Cannot enclose both the if- and else- clauses of an "
-                    "IfBlock by a {0} transformation. Apply the "
-                    "transformation to the IfBlock node instead.".
-                    format(self.name))
+        # an If statement or the bounds of a Loop. If the first node in the
+        # list is a Schedule then that must be the only entry.
+        from psyclone.profiler import ProfileNode
+        from psyclone.extractor import ExtractNode
+        if isinstance(node_parent, IfBlock) and \
+           not (isinstance(node_list[0], Schedule) and len(node_list) == 1):
+            raise TransformationError(
+                "Cannot apply a transformation to the immediate children of "
+                "an IfBlock unless it is to a single Schedule representing "
+                "either the if- or else-body.")
+        if isinstance(node_parent, Loop) and \
+           not (isinstance(node_list[0], Schedule) and len(node_list) == 1):
+            raise TransformationError(
+                "Cannot apply transformation to the immediate children of a "
+                "Loop unless it is to the single Schedule representing the "
+                "Loop body.")
 
         # The checks below this point only apply to the NEMO API and can be
         # removed once #435 is done.
@@ -184,19 +184,16 @@ class RegionTrans(Transformation):
         if not isinstance(node.root, NemoInvokeSchedule):
             return
 
-        ifblock = None
-        if isinstance(node.parent, IfBlock):
-            ifblock = node.parent
-        if isinstance(node.parent, Schedule) and isinstance(node.parent.parent,
-                                                            IfBlock):
-            ifblock = node.parent.parent
-        if ifblock and "was_single_stmt" in ifblock.annotations:
+        if_or_loop = node.ancestor((IfBlock, Loop))
+        if if_or_loop and ("was_single_stmt" in if_or_loop.annotations
+                           or "was_where" in if_or_loop.annotations):
             # This limitation is because the NEMO API currently relies on
             # manipulation of the fparser2 parse tree
             # TODO #435.
             raise TransformationError(
-                "Cannot apply a transformation to the child of a single-line "
-                "if statement in the NEMO API.")
+                "In the NEMO API a transformation cannot be applied to the "
+                "children of either a single-line if statement or a PSyIR loop"
+                " representing a WHERE construct.")
 
 
 class KernelTrans(Transformation):
@@ -2378,8 +2375,12 @@ class ProfileRegionTrans(RegionTrans):
         schedule within a single profiler region.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-        :py:obj:`psyclone.psygen.Node`
+        :type nodes: :py:obj:`psyclone.psygen.Node` or list of \
+                     :py:obj:`psyclone.psygen.Node`
+
+        :returns: transformed Schedule and Memento of this transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
         # Check whether we've been passed a list of nodes or just a
@@ -2388,6 +2389,10 @@ class ProfileRegionTrans(RegionTrans):
         from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
+        elif isinstance(nodes, Schedule):
+            # If we've been passed a Schedule then it's the children of that
+            # Schedule that we want to enclose.
+            node_list = nodes.children
         elif isinstance(nodes, Node):
             node_list = [nodes]
         else:
@@ -3646,6 +3651,8 @@ class ExtractRegionTrans(RegionTrans):
         from psyclone.psyGen import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
+        elif isinstance(nodes, Schedule):
+            node_list = nodes.children
         elif isinstance(nodes, Node):
             node_list = [nodes]
         else:
