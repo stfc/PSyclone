@@ -55,7 +55,7 @@ class DependencyTools(object):
                                       considered for parallelisation. This \
                                       can be used to exclude say 1-dimensional\
                                       loops.
-    :type  loop_types_to_parallelise: list of str
+    :type loop_types_to_parallelise: list of str
     '''
 
     def __init__(self, loop_types_to_parallelise=None):
@@ -72,7 +72,7 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     def _add_info(self, message):
-        '''Adds a informational message to the internal message
+        '''Adds an informational message to the internal message
         handling system.
 
         :param str message: the message for the user.
@@ -147,7 +147,7 @@ class DependencyTools(object):
         :type var_info: \
             :py:class:`psyclone.core.access_info.VariableAccessInfo`
 
-        :return: if the variable can be used in parallel.
+        :return: whether the variable can be used in parallel.
         :rtype: bool
         '''
 
@@ -170,7 +170,6 @@ class DependencyTools(object):
                 # TODO #363: derived types are not supported, which
                 # atm have an index of type str
                 if isinstance(index, str):
-                    visitor = FortranWriter()
                     var_string = var_info.var_name + index
                     self._add_warning("Assignment to derived type '{0}' is "
                                       "not supported yet.".format(var_string))
@@ -202,7 +201,7 @@ class DependencyTools(object):
             #    a(1) = b(j)+1
             #    c(j) = a(1) * 2
             # enddo
-            # Either the variable should be declard to be a scalar, or
+            # Either the variable should be declared to be a scalar, or
             # it is a shared variable with constant access, which is not
             # clear if it can be parallelised.
             self._add_warning("Variable '{0}' is written to, and "
@@ -276,29 +275,29 @@ class DependencyTools(object):
                                  variables_to_ignore=None,
                                  var_accesses=None):
         # pylint: disable=too-many-arguments
-        '''This function analyses the loop in PsyIR to see if
+        '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised over the specified variable.
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyGen.Node`
         :param str loop_variable: name of the variable that is parallelised.
-        :param bool only_nested_loops: if true, a loop must have an inner \
+        :param bool only_nested_loops: if True, a loop must have an inner \
                                        loop in order to be considered \
                                        parallelisable (default: True).
-        :param bool test_all_variables: if true, it will test if all variables\
+        :param bool test_all_variables: if True, it will test if all variables\
                                         can be parallelised, otherwise it will\
                                         stop after the first variable is found\
                                         that can not be parallelised.
-        :param variables_to_ignore: List of variables that are not checked if\
-                                    they are parallelisable.
+        :param variables_to_ignore: list of variables for which to skip the\
+                                    checks on how they are accessed.
         :type variables_to_ignore: list of str
         :param var_accesses: optional argument containing the variable access\
                            pattern of the loop (default: None).
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :returns: true if the loop can be parallelised.
-        :rtype: bool.
+        :returns: True if the loop can be parallelised.
+        :rtype: bool
         '''
         self._clear_messages()
 

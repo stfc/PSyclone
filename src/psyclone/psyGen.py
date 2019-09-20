@@ -971,7 +971,7 @@ class Node(object):
         raise NotImplementedError("Please implement me")
 
     def math_equal(self, other):
-        '''Returns true if the self has the same results as other. The
+        '''Returns True if the self has the same results as other. The
         implementation in the base class just confirms that the type is the
         same, and the number of children as well.
 
@@ -1545,7 +1545,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns true if this Node is within an OpenMP parallel region.
+        '''Returns True if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -4593,7 +4593,7 @@ class DataAccess(object):
 
     @property
     def covered(self):
-        '''Returns true if all of the data associated with this argument has
+        '''Returns True if all of the data associated with this argument has
         been covered by the arguments provided in update_coverage
 
         :return bool: True if all of an argument is covered by \
@@ -6358,7 +6358,7 @@ class Reference(Node):
         return "Reference[name:'" + self._reference + "']"
 
     def math_equal(self, other):
-        '''Returns true if the self has the same results as other.
+        '''Returns True if the self has the same results as other.
         :param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
         '''
@@ -6517,7 +6517,7 @@ class BinaryOperation(Operation):
         ])
 
     def math_equal(self, other):
-        '''Returns true if the self has the same results as other.
+        '''Returns True if the self has the same results as other.
 
         :param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
@@ -6695,7 +6695,7 @@ class Literal(Node):
         return "Literal[value:'" + self._value + "']"
 
     def math_equal(self, other):
-        '''Returns true if the self has the same results as other.
+        '''Returns True if the self has the same results as other.
 
         :param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
