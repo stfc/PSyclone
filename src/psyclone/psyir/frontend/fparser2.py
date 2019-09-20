@@ -1363,6 +1363,8 @@ class Fparser2Reader(object):
                 loop_vars[idx-1] = "widx{0}".format(idx)
                 loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                             annotation="was_where")
+                loop.ast = node # Point to the original WHERE statement in
+                                # the fparser2 parse tree.
                 # Add loop lower bound
                 loop.addchild(Literal("1", parent=loop))
                 # Add loop upper bound - we use the SIZE operator to query the
@@ -1384,6 +1386,7 @@ class Fparser2Reader(object):
             # schedule
             ifblock = IfBlock(parent=new_parent, annotation="was_where")
             new_parent.addchild(ifblock)
+            ifblock.ast = node  # Point back to the original WHERE construct
             # We construct the conditional expression from the original
             # logical-array-expression of the WHERE. Each array reference must
             # now be indexed by the loop variables of the loops we've just

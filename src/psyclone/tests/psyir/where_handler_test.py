@@ -105,20 +105,18 @@ def test_basic_where(parser):
                                  "END WHERE\n")
     fparser2spec = Where_Construct(reader)
     processor.process_nodes(fake_parent, [fparser2spec], None)
-    floop = fake_parent[0]
-    assert isinstance(floop, Loop)
-    assert "was_where" in fake_parent[0].annotations
-    assert isinstance(floop.children[0], Literal)
-    assert isinstance(floop.children[1], BinaryOperation)
-    assert str(floop.children[1].children[0]) == \
-        "Reference[name:'dry']"
-    floop = floop.loop_body[0]
-    assert isinstance(floop, Loop)
-    assert "was_where" in floop.annotations
-    floop = floop.loop_body[0]
-    assert isinstance(floop, Loop)
-    assert "was_where" in floop.annotations
-    ifblock = floop.loop_body[0]
+    # We should have a triply-nested loop with an IfBlock inside
+    loops = fake_parent.walk(Loop)
+    assert len(loops) == 3
+    for loop in loops:
+        assert "was_where" in loop.annotations
+        assert isinstance(loop.ast, Where_Construct)
+
+    assert isinstance(loops[0].children[0], Literal)
+    assert isinstance(loops[0].children[1], BinaryOperation)
+    assert str(loops[0].children[1].children[0]) == "Reference[name:'dry']"
+
+    ifblock = loops[2].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
     assert ("ArrayReference[name:'dry']\n"
@@ -142,12 +140,14 @@ def test_elsewhere(parser):
     assert len(fake_parent.children) == 1
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
+    assert isinstance(loop.ast, Where_Construct)
     assert isinstance(loop, Loop)
     assert isinstance(loop.loop_body[0], Loop)
     assert isinstance(loop.loop_body[0].loop_body[0], Loop)
     # Check that we have an IF block within the innermost loop
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
+    assert isinstance(ifblock.ast, Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.NE
     assert ("ArrayReference[name:'ptsu']\n"
