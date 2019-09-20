@@ -441,6 +441,8 @@ class Invokes(object):
                 generate_ocl_init = True
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
+                        # Compute the maximum number of command queues that
+                        # will be needed.
                         opencl_num_queues = max(
                             opencl_num_queues,
                             kern._opencl_options['queue_number'])
@@ -1674,11 +1676,11 @@ class InvokeSchedule(Schedule):
 
     def set_opencl_options(self, options):
         '''
-        Validate and store a set of options associated to the InvokeSchedule to
-        tune the OpenCL code generation.
+        Validate and store a set of options associated with the InvokeSchedule
+        to tune the OpenCL code generation.
 
         :param options: a set of options to tune the OpenCL code.
-        :type options: map of <string>:<value>
+        :type options: dictionary of <string>:<value>
 
         '''
         # Validate that the options given are supported and store them
@@ -1691,6 +1693,7 @@ class InvokeSchedule(Schedule):
             else:
                 raise AttributeError(
                     "InvokeSchedule does not support the opencl_option '{0}'."
+                    " Accepted options are: 'end_barrier'."
                     "".format(key))
 
             self._opencl_options[key] = value
@@ -1811,10 +1814,11 @@ class InvokeSchedule(Schedule):
                 opencl_num_queues = max(
                     opencl_num_queues,
                     kern._opencl_options['queue_number'])
-            for i in range(1, opencl_num_queues + 1):
+            for queue_number in range(1, opencl_num_queues + 1):
                 parent.add(
                     AssignGen(parent, lhs=flag,
-                              rhs="clFinish({0}({1}))".format(qlist, i)))
+                              rhs="clFinish({0}({1}))".format(qlist,
+                                                              queue_number)))
 
     @property
     def opencl(self):
@@ -3814,11 +3818,11 @@ class CodedKern(Kern):
 
     def set_opencl_options(self, options):
         '''
-        Validate and store a set of options associated to the Kernel to
+        Validate and store a set of options associated with the Kernel to
         tune the OpenCL code generation.
 
         :param options: a set of options to tune the OpenCL code.
-        :type options: map of <string>:<value>
+        :type options: dictionary of <string>:<value>
 
         '''
         # Validate that the options given are supported
