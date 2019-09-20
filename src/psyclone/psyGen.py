@@ -942,6 +942,9 @@ class Node(object):
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param str annotation: Tag that provides additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags.
 
     '''
     # Define two class constants: START_DEPTH and START_POSITION
@@ -951,8 +954,10 @@ class Node(object):
     # START_POSITION is used to to calculate position of all Nodes in
     # the tree (absolute or relative to a parent).
     START_POSITION = 0
+    # The list of valid annotations for this Node. Populated by sub-class.
+    valid_annotations = tuple()
 
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None, annotation=None):
         if not children:
             self._children = []
         else:
@@ -965,6 +970,13 @@ class Node(object):
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
+        if annotation in self.valid_annotations:
+            self._annotations.append(annotation)
+        elif annotation:
+            raise InternalError(
+                "{0} with unrecognized annotation '{1}', valid annotations"
+                " are: {2}.".format(self.__class__.__name__, annotation,
+                                    self.valid_annotations))
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -3040,11 +3052,14 @@ class Loop(Node):
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
-
+    :param str annotation: Tag that provides additional information about the \
+        node (primarily relating to the input code that it was created from).
     '''
+    valid_annotations = ('was_where', )
 
-    def __init__(self, parent=None, variable_name="", valid_loop_types=None):
-        Node.__init__(self, parent=parent)
+    def __init__(self, parent=None, variable_name="", valid_loop_types=None,
+                 annotation=None):
+        Node.__init__(self, parent=parent, annotation=annotation)
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -4993,29 +5008,18 @@ class IfBlock(Node):
     children: the first one represents the if-condition and the second one
     the if-body; and an optional third child representing the else-body.
 
-    :param parent: the parent of this node within the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    :param str annotation: Tags that provide additional information about \
-        the node. The node should still be functionally correct when \
-        ignoring these tags. Currently, it includes: 'was_elseif' to tag
-        nested ifs originally written with the 'else if' languague syntactic \
-        constructs, 'was_single_stmt' to tag ifs with a 1-statement body \
-        which were originally written in a single line, and 'was_case' to \
-        tag an conditional structure which was originally written with the \
-        Fortran 'case' or C 'switch' syntactic constructs.
-    :raises InternalError: when initialised with invalid parameters.
     '''
-    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
-
-    def __init__(self, parent=None, annotation=None):
-        super(IfBlock, self).__init__(parent=parent)
-        if annotation in IfBlock.valid_annotations:
-            self._annotations.append(annotation)
-        elif annotation:
-            raise InternalError(
-                "IfBlock with unrecognized annotation '{0}', valid annotations"
-                " are: {1}.".format(annotation, IfBlock.valid_annotations))
-
+    # The valid annotations for this If node:
+    # 'was_elseif' to tag nested ifs originally written with the 'else if'
+    # languague syntactic construct;
+    # 'was_single_stmt' to tag ifs with a 1-statement body which were
+    # originally written in a single line;
+    # 'was_case' to tag a conditional structure which was originally written
+    # with the Fortran 'case' or C 'switch' syntactic constructs;
+    # 'was_where' - a conditional structure originally implied by a Fortran
+    # WHERE construct.
+    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
+                         'was_where')
     @property
     def condition(self):
         ''' Return the PSyIR Node representing the conditional expression

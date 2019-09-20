@@ -1266,11 +1266,11 @@ class Fparser2Reader(object):
             # e.g. array(:, :). Each colon is represented in the fparser2
             # parse tree by a Subscript_Triplet.
             if not all([isinstance(stmt, Fortran2003.Subscript_Triplet) for
-                        stmt in cblock._statements]):
+                        stmt in cblock.get_ast_nodes]):
                 raise NotImplementedError(
                     "Only array notation of the form my_array(:, :, ...) "
                     "is supported but got: {0}".format(str(array)))
-            return len(cblock._statements)
+            return len(cblock.get_ast_nodes)
 
         def _array_syntax_to_indexed(parent, loop_vars):
             '''
@@ -1361,14 +1361,18 @@ class Fparser2Reader(object):
                 # TODO #500 we should be using the SymbolTable for the new loop
                 # variable but that doesn't currently work for NEMO.
                 loop_vars[idx-1] = "widx{0}".format(idx)
-                loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1])
-                # Add start, stop and step children to this loop
+                loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
+                            annotation="was_where")
+                # Add loop lower bound
                 loop.addchild(Literal("1", parent=loop))
-                #TODO we shouldn't just stick the SIZE expression in a Literal
-                # but the PSyIR does not yet support the SIZE intrinsic.
-                loop.addchild(Literal("SIZE({0}, {1})".format(arrays[0].name,
-                                                              idx),
-                                      parent=loop))
+                # Add loop upper bound - we use the SIZE operator to query the
+                # extent of the current array dimension
+                size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                            parent=loop)
+                loop.addchild(size_node)
+                size_node.addchild(Reference(arrays[0].name, parent=size_node))
+                size_node.addchild(Literal(str(idx), parent=size_node))
+                # Add loop increment
                 loop.addchild(Literal("1", parent=loop))
                 # Fourth child of a Loop must be a Schedule
                 sched = Schedule(parent=loop)
@@ -1378,7 +1382,7 @@ class Fparser2Reader(object):
                 new_parent = sched
             # Now we have the loop nest, add an IF block to the innermost
             # schedule
-            ifblock = IfBlock(parent=new_parent, annotation="")
+            ifblock = IfBlock(parent=new_parent, annotation="was_where")
             new_parent.addchild(ifblock)
             # We construct the conditional expression from the original
             # logical-array-expression of the WHERE. Each array reference must
