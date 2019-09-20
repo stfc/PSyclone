@@ -58,6 +58,7 @@ def trans(psy):
     cltrans = OCLTrans()
     cltrans.apply(sched, options={"end_barrier": True})
 
+    # Provide kernel-specific OpenCL optimization options
     for kern in sched.kernels():
         kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
 

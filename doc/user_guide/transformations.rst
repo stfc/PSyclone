@@ -538,7 +538,7 @@ by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 The ``OCLTrans`` transformation accepts an `options` argument with a
 map of optional parameters to tune the OpenCL host code in the PSy layer.
-This options will be attached to the transformed InvokeSchedule.
+These options will be attached to the transformed InvokeSchedule.
 The current available options are:
 
 +--------------+----------------------------------------------+---------+
@@ -549,10 +549,9 @@ The current available options are:
 |              | Invoke.                                      |         |
 +--------------+----------------------------------------------+---------+
 
-Additionally, each individual kernel inside the Invoke that is going
-to be transformed, also accepts a map of options which are provided by
-the `set_opencl_options()` method of the `Kern` object.
-This can affect both, the driver layer or the OpenCL kernels.
+Additionally, each individual kernel also accepts a map of options which
+are provided by the `set_opencl_options()` method of the `Kern` object.
+This can affect both the driver layer and/or the OpenCL kernels.
 The current available options are:
 
 +--------------+---------------------------------------------+---------+
@@ -561,33 +560,19 @@ The current available options are:
 | local_size   | Number of work-items to compute             | 1       |
 |              | in a single kernel.                         |         |
 +--------------+---------------------------------------------+---------+
-| queue_number | Queue identifier number where               | 1       | 
-|              | to enqueue the associated kernel.           |         |
+| queue_number | The identifier of the OpenCL Command Queue  | 1       | 
+|              | to which the kernel should be submitted.    |         |
 +--------------+---------------------------------------------+---------+
 
 
-See below an example of an PSyclone script that uses an ``OCLTans`` with
-multiple InvokeSchedule and kernel-specific transformations.
+Below is an example of an PSyclone script that uses an ``OCLTans`` with
+multiple InvokeSchedule and kernel-specific optimization options.
 
 
-.. code-block:: python
-
-    def trans(psy):
-        from psyclone.transformations import OCLTrans
-
-        # Get the Schedule associated with the first Invoke
-        invoke = psy.invokes.invoke_list[0]
-        sched = invoke.schedule
-
-        # Transform the Schedule
-        cltrans = OCLTrans()
-        cltrans.apply(sched, options={"end_barrier": True})
-        
-        # Provide kernel-specific options
-        for kern in sched.kernels():
-            kern.set_opencl_options({"queue_number": '1', 'local_size': '4'})
-
-        return psy
+.. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
+    :language: python
+    :linenos:
+    :lines: 51-65
 
 
 .. note:: The OpenCL support is still in active development and the options
