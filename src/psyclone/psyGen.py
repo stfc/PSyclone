@@ -977,6 +977,9 @@ class Node(object):
 
         :param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`.
+
+        :returns: if self has the same result as other.
+        :rtype: bool
         '''
 
         # pylint: disable=unidiomatic-typecheck
@@ -2763,11 +2766,7 @@ class OMPDoDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end do",
                                              ignore_comments=False))
-        if start_idx == len(parent.content) - 1:
-            parent.content.append(enddir)
-        else:
-            parent.content.insert(start_idx + 1, enddir)
-        self.ast_end = enddir
+        parent.content.insert(start_idx + 1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
@@ -6358,9 +6357,11 @@ class Reference(Node):
         return "Reference[name:'" + self._reference + "']"
 
     def math_equal(self, other):
-        '''Returns True if the self has the same results as other.
-        :param other: the node to compare self with.
+        ''':param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
+
+        :returns: True if the self has the same results as other.
+        :rtype: bool
         '''
         if not super(Reference, self).math_equal(other):
             return False
@@ -6517,10 +6518,11 @@ class BinaryOperation(Operation):
         ])
 
     def math_equal(self, other):
-        '''Returns True if the self has the same results as other.
-
-        :param other: the node to compare self with.
+        ''':param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
+
+        :returns: True if the self has the same results as other.
+        :rtype: bool
         '''
         if not super(BinaryOperation, self).math_equal(other):
             # Support some commutative law, unfortunately we now need
@@ -6695,10 +6697,11 @@ class Literal(Node):
         return "Literal[value:'" + self._value + "']"
 
     def math_equal(self, other):
-        '''Returns True if the self has the same results as other.
-
-        :param other: the node to compare self with.
+        ''':param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
+
+        :return: if the self has the same results as other.
+        :type: bool
         '''
 
         return self.value == other.value
