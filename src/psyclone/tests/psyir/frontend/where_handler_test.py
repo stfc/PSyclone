@@ -157,6 +157,35 @@ def test_array_notation_rank(parser):
     assert "Bounds on array slices are not supported" in str(err.value)
 
 
+def test_where_symbol_clash(parser):
+    ''' Check that we raise the expected error if the code we are processing
+    already contains a symbol with the same name as one of the loop variables
+    we want to introduce. TODO #500 - update this test once we're using the
+    SymbolTable to manage symbol names. '''
+    from psyclone.psyGen import InternalError
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader("WHERE (widx1(:, :, :))\n"
+                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+                                 "END WHERE\n")
+    fparser2spec = Fortran2003.Where_Construct(reader)
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
+    reader = FortranStringReader("module my_test\n"
+                                 "contains\n"
+                                 "subroutine widx1()\n"
+                                 "where (dry(:, :, :))\n"
+                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+                                 "end where\n"
+                                 "end subroutine widx1\n"
+                                 "end module my_test\n")
+    fparser2spec = parser(reader)
+    with pytest.raises(InternalError) as err:
+        processor.generate_schedule("widx1", fparser2spec)
+    assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
+
+
 def test_basic_where(parser):
     ''' Check that a basic WHERE using a logical array as a mask is correctly
     translated into the PSyIR. '''

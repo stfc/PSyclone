@@ -353,6 +353,11 @@ class Fparser2Reader(object):
             mod_content = module_ast.content[0].content
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
+            # TODO remove once fparser/#102 is done
+            module_ast.content[0]._parent = module_ast
+            for item in mod_content:
+                item._parent = module_ast.content[0]
+            subroutines._parent = mod_content
             subroutine = search_subroutine(subroutines.content, name)
         except (ValueError, IndexError):
             raise GenerationError("Unexpected kernel AST. Could not find "
@@ -361,6 +366,8 @@ class Fparser2Reader(object):
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
+            # TODO remove once fparser/#102 is done
+            sub_spec._parent = subroutine
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -387,6 +394,8 @@ class Fparser2Reader(object):
         try:
             sub_exec = first_type_match(subroutine.content,
                                         Fortran2003.Execution_Part)
+            # TODO remove once fparser/#102 is done
+            sub_exec._parent = subroutine
         except ValueError:
             pass
         else:
@@ -1326,7 +1335,7 @@ class Fparser2Reader(object):
         Construct the canonical PSyIR representation of a WHERE construct.
 
         :param node: node in the fparser2 parse tree representing the WHERE.
-        :type node:
+        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct`
 
         :raises InternalError: if the parse tree does not have the expected \
                                structure.
@@ -1346,7 +1355,7 @@ class Fparser2Reader(object):
         # to find out the rank of `a`. For the moment we limit support to
         # the NEMO style where the fact that `a` is an array is made
         # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
-                
+
         # Use a basic Schedule as our fake parent as it doesn't have a
         # SymbolTable (and thus won't check for variable declarations).
         fake_parent = Schedule()
@@ -1363,6 +1372,16 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
+        # Create a list of all of the symbol names in the fparser2 parse
+        # tree so that we can find any clashes. We go as far back up the tree
+        # as we can before searching for all instances of Fortran2003.Name.
+        # TODO #500 - replace this by using the SymbolTable instead.
+        fp2_parent = node
+        while hasattr(fp2_parent, "_parent") and fp2_parent._parent:
+            fp2_parent = fp2_parent._parent
+        name_list = walk_ast([fp2_parent], [Fortran2003.Name])
+        all_names = set([str(name) for name in name_list])
+
         # At this point we start adding nodes to the existing PSyIR tree so
         # we protect this block within a try in case we hit an error and
         # need to roll-back our additions.
@@ -1372,8 +1391,15 @@ class Fparser2Reader(object):
             new_parent = parent
             for idx in range(rank, 0, -1):
                 # TODO #500 we should be using the SymbolTable for the new loop
-                # variable but that doesn't currently work for NEMO.
+                # variable but that doesn't currently work for NEMO. Once #500
+                # is done we should handle clashes gracefully rather than
+                # simply aborting.
                 loop_vars[idx-1] = "widx{0}".format(idx)
+                if loop_vars[idx-1] in all_names:
+                    raise InternalError(
+                        "Cannot create Loop with variable '{0}' because code "
+                        "already contains a symbol with that name.".format(
+                            loop_vars[idx-1]))
                 loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                             annotation="was_where")
                 loop.ast = node # Point to the original WHERE statement in
