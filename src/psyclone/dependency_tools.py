@@ -163,36 +163,39 @@ class DependencyTools(object):
         # Now detect which dimension(s) is/are parallelised, i.e.
         # which dimension depends on loop_variable. Also collect all
         # indices that are actually used
-        dimension_index = -1
+        found_dimension_index = -1
         all_indices = []
         for access in var_info.all_accesses:
             list_of_indices = access.indices
             # Now determine all dimensions that depend on the
             # parallel variable:
-            for i, index in enumerate(list_of_indices):
+            for dimension_index, index_expression in \
+                    enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
 
                 # TODO #363: derived types are not supported, which
-                # atm have an index of type str
-                if isinstance(index, str):
-                    var_string = var_info.var_name + index
+                # atm have an index_expression of type str
+                if isinstance(index_expression, str):
+                    var_string = var_info.var_name + index_expression
                     self._add_warning("Assignment to derived type '{0}' is "
                                       "not supported yet.".format(var_string))
                     return False
-                index.reference_accesses(accesses)
+                index_expression.reference_accesses(accesses)
                 try:
                     _ = accesses[loop_variable]
                     # This array would be parallelised across different
-                    # indices (e.g. a(i,j), and a(j,i) ):
-                    if dimension_index > -1 and dimension_index != i:
+                    # indices (e.g. a(dimension_index,j), and a(j,i) ):
+                    if found_dimension_index > -1 and \
+                            found_dimension_index != dimension_index:
                         self._add_warning("Variable '{0}' is using loop "
                                           "variable {1} in index {2} and {3}."
                                           .format(var_info.var_name,
                                                   loop_variable,
-                                                  dimension_index, i))
+                                                  found_dimension_index,
+                                                  dimension_index))
                         return False
-                    dimension_index = i
-                    all_indices.append(index)
+                    found_dimension_index = dimension_index
+                    all_indices.append(index_expression)
                 except KeyError:
                     # Raised when the loop variable is not at all used in the
                     # current dimension --> keep on looking
