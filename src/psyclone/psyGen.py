@@ -3088,6 +3088,9 @@ class Loop(Node):
         :raises InternalError: If the loop does not have 4 children or the
             4th one is not a Schedule
         '''
+        # We cannot just do str(self) in this routine we can end up being
+        # called as a result of str(self) higher up the call stack
+        # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
                 "Loop malformed or incomplete. It should have exactly 4 "
