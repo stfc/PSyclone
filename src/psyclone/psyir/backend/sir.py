@@ -299,7 +299,16 @@ class SIRWriter(PSyIRVisitor):
             BinaryOperation.Operator.ADD: '+',
             BinaryOperation.Operator.SUB: '-',
             BinaryOperation.Operator.MUL: '*',
-            BinaryOperation.Operator.DIV: '/'}
+            BinaryOperation.Operator.DIV: '/',
+            BinaryOperation.Operator.POW: '**',
+            BinaryOperation.Operator.EQ: '==',
+            BinaryOperation.Operator.NE: '!=',
+            BinaryOperation.Operator.LE: '<=',
+            BinaryOperation.Operator.LT: '<',
+            BinaryOperation.Operator.GE: '>=',
+            BinaryOperation.Operator.GT: '>',
+            BinaryOperation.Operator.AND: '&&',
+            BinaryOperation.Operator.OR: '||'}
 
         self._depth += 1
         lhs = self._visit(node.children[0])
@@ -421,8 +430,8 @@ class SIRWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        cond_expression = self._visit(node.condition)
-        cond_part = "XXX"
+        cond_expr = self._visit(node.condition)
+        cond_part = "make_expr_stmt({0})".format(cond_expr.lstrip().rstrip(",\n"))
 
         then_statements = self._visit(node.if_body).lstrip().rstrip(",\n")
         then_part = "make_block_stmt([{0}])".format(then_statements)
