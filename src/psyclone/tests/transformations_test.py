@@ -39,6 +39,7 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
+from psyclone.transformations import TransformationError
 
 
 def test_accloop():
@@ -102,7 +103,7 @@ def test_ifblock_children_region():
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
     from psyclone.psyGen import IfBlock, Reference, Schedule
-    from psyclone.transformations import ACCParallelTrans, TransformationError
+    from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
     ifblock = IfBlock()
@@ -131,7 +132,7 @@ def test_ifblock_children_region():
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
     from psyclone.psyGen import Loop, Schedule, Literal, Return
-    from psyclone.transformations import LoopFuseTrans, TransformationError
+    from psyclone.transformations import LoopFuseTrans
     sch = Schedule()
     loop1 = Loop(variable_name="i", parent=sch)
     loop2 = Loop(variable_name="j", parent=sch)
@@ -172,7 +173,7 @@ def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
     from psyclone.psyGen import Loop, Schedule, Literal
-    from psyclone.transformations import LoopFuseTrans, TransformationError
+    from psyclone.transformations import LoopFuseTrans
 
     sch1 = Schedule()
     sch2 = Schedule()
@@ -198,3 +199,23 @@ def test_fusetrans_error_not_same_parent():
         fuse._validate(loop1, loop2)
     assert "Error in LoopFuse transformation. Loops do not have the " \
         "same parent" in str(err.value)
+
+
+def test_regiontrans_wrong_children():
+    ''' Check that the validate method raises the expected error if
+        passed the wrong children of a Node. (e.g. those representing the
+        bounds of a Loop.) '''
+    from psyclone.psyGen import Loop, Literal, Schedule
+    # RegionTrans is abstract so use a concrete sub-class
+    from psyclone.transformations import RegionTrans, ACCParallelTrans
+    rtrans = ACCParallelTrans()
+    # Construct a valid Loop in the PSyIR
+    parent = Loop(parent=None)
+    parent.addchild(Literal("1", parent))
+    parent.addchild(Literal("10", parent))
+    parent.addchild(Literal("1", parent))
+    parent.addchild(Schedule(parent=parent))
+    with pytest.raises(TransformationError) as err:
+        RegionTrans._validate(rtrans, parent.children)
+    assert ("Cannot apply transformation to the immediate children of a "
+            "Loop unless" in str(err.value))
