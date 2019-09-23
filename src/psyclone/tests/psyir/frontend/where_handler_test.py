@@ -135,7 +135,7 @@ def test_different_ranks_error(parser):
 
 
 def test_array_notation_rank(parser):
-    ''' Check that our _array_notation_rank() utility handles various examples
+    ''' Check that the _array_notation_rank() utility handles various examples
     of array notation. '''
     from psyclone.psyGen import Assignment, Loop
     fake_parent = Schedule()
@@ -184,6 +184,34 @@ def test_basic_where(parser):
     assert "was_where" in ifblock.annotations
     assert ("ArrayReference[name:'dry']\n"
             "Reference[name:'widx1']\n" in str(ifblock.condition))
+
+
+def test_where_array_subsections(parser):
+    ''' Check that we handle a WHERE construct with non-contiguous array
+    subsections. '''
+    from psyclone.psyGen import Loop, Assignment, IfBlock, Reference
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader("WHERE (dry(1, :, :))\n"
+                                 "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
+                                 "END WHERE\n")
+    fparser2spec = Fortran2003.Where_Construct(reader)
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    # We should have a doubly-nested loop with an IfBlock inside
+    loops = fake_parent.walk(Loop)
+    assert len(loops) == 2
+    for loop in loops:
+        assert "was_where" in loop.annotations
+        assert isinstance(loop.ast, Fortran2003.Where_Construct)
+
+    ifblock = loops[1].loop_body[0]
+    assert isinstance(ifblock, IfBlock)
+    # Check that the array reference is indexed correctly
+    assign = ifblock.if_body[0]
+    assert isinstance(assign, Assignment)
+    assert isinstance(assign.lhs.children[0], Reference)
+    assert assign.lhs.children[0].name == "widx1"
+    assert assign.lhs.children[2].name == "widx2"
 
 
 def test_elsewhere(parser):

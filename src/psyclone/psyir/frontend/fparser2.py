@@ -1314,11 +1314,12 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
-            # Remove the CodeBlock containing the Subscript_Triplets
-            del array.children[0]
-            # Add the index expressions
-            for var in loop_vars:
-                array.addchild(Reference(var, parent=array))
+            # Replace the CodeBlocks containing the Subscript_Triplets with
+            # the index expressions
+            cblocks = array.walk(CodeBlock)
+            for idx, cblock in enumerate(cblocks):
+                posn = array.children.index(cblock)
+                array.children[posn] = Reference(loop_vars[idx], parent=array)
 
     def _where_construct_handler(self, node, parent):
         '''
