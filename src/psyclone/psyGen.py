@@ -978,8 +978,9 @@ class Node(object):
                 " are: {2}.".format(self.__class__.__name__, annotation,
                                     self.valid_annotations))
 
+    @abc.abstractmethod
     def __str__(self):
-        raise NotImplementedError("Please implement me")
+        ''' Must be implemented by sub-class. '''
 
     @property
     def ast(self):
@@ -6189,8 +6190,7 @@ class Reference(Node):
     '''
     Node representing a Reference Expression.
 
-    :param ast: node in the fparser2 AST representing the reference.
-    :type ast: :py:class:`fparser.two.Fortran2003.Name.
+    :param str reference_name: the name of the symbol being referenced.
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -6431,8 +6431,7 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param reference_name: node in the fparser2 parse tree representing array.
-    :type reference_name: :py:class:`fparser.two.Fortran2003.Part_Ref.
+    :param str reference_name: name of the array symbol.
     :param parent: the parent node of this Array in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
