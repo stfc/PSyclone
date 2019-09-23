@@ -161,14 +161,20 @@ class DependencyTools(object):
             return True
 
         # Now detect which dimension(s) is/are parallelised, i.e.
-        # which dimension depends on loop_variable. Also collect all
-        # indices that are actually used
+        # which dimension depends on the loop_variable.  For example
+        # if a "do j..." loop is parallelised, consider expressions like
+        # a(i,j) and a(j+2, i-1) in one loop:
+        # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
+        # be accessed. Since the variable is written somewhere (read-only
+        # was tested above), the variable can not be used in parallel.
+        # Additionally, collect all indices that are actually used, since
+        # they are needed in a test further down.
         found_dimension_index = -1
         all_indices = []
         for access in var_info.all_accesses:
             list_of_indices = access.indices
-            # Now determine all dimensions that depend on the
-            # parallel variable:
+            # Now determine all dimensions that depend
+            # on the parallel variable:
             for dimension_index, index_expression in \
                     enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
@@ -184,7 +190,7 @@ class DependencyTools(object):
                 try:
                     _ = accesses[loop_variable]
                     # This array would be parallelised across different
-                    # indices (e.g. a(dimension_index,j), and a(j,i) ):
+                    # indices (e.g. a(i,j), and a(j,i) ):
                     if found_dimension_index > -1 and \
                             found_dimension_index != dimension_index:
                         self._add_warning("Variable '{0}' is using loop "
@@ -203,15 +209,22 @@ class DependencyTools(object):
 
         # Array variable does not depend on parallel loop variable:
         if not all_indices:
-            # Variable accesses an array that is not dependend on the parallel'
-            # loop variable, e.g.:
+            # An array is used that is not actually dependend on the parallel
+            # loop variable. This means the variable can not always be safely
+            # parallelised. Example 1:
             # do j=1, n
             #    a(1) = b(j)+1
             #    c(j) = a(1) * 2
             # enddo
-            # Either the variable should be declared to be a scalar, or
-            # it is a shared variable with constant access, which is not
-            # clear if it can be parallelised.
+            # In this case a(1) should be a thread-private scalar.
+            # Example2:
+            # do j=1, n
+            #    if(some_cond)
+            #       a(1) = b(j)
+            #    endif
+            #  enddo
+            # In this case it is not clear if the loop can be parallelised.
+            # So in any case we add the information for the user to decide.
             self._add_warning("Variable '{0}' is written to, and "
                               "does not depend on the loop "
                               "variable '{1}'"
@@ -220,10 +233,12 @@ class DependencyTools(object):
             return False
 
         # Now we have confirmed that all parallel accesses to the variable
-        # are using the same dimension.
-        # If all accesses use the same index, then the loop can be
-        # parallelised: (this could be tested above, but this way it is a bit
-        # clearer for now)
+        # are using the same dimension. If there is a case of stencil
+        # access with write operations (read-only has already been tested)
+        # the loop can not be parallelised. E.g. in one j loop:
+        # b(j) = a(j-1) + a(j+1)
+        # a(j) = c(j)
+
         first_index = all_indices[0]
         for index in all_indices[1:]:
             if not first_index.math_equal(index):
