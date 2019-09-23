@@ -40,7 +40,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.dependency_tools import DependencyTools
-from psyclone.psyGen import InternalError, PSyFactory
+from psyclone.psyGen import PSyFactory
 
 
 # -----------------------------------------------------------------------------
@@ -66,7 +66,7 @@ def test_loop_parallelise_errors():
     function.'''
 
     dep_tools = DependencyTools()
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         # The loop object must be a Loop, not e.g. an int:
         loop = 1
         dep_tools.can_loop_be_parallelised(loop, "i")

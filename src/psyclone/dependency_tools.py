@@ -41,7 +41,7 @@ from __future__ import absolute_import, print_function
 
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import InternalError, Loop
+from psyclone.psyGen import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -331,8 +331,8 @@ class DependencyTools(object):
         self._clear_messages()
 
         if not isinstance(loop, Loop):
-            raise InternalError("can_loop_be_parallelised: Loop must be an "
-                                "instance of class Loop")
+            raise TypeError("can_loop_be_parallelised: Loop must be an "
+                            "instance of class Loop")
         if not loop_variable:
             loop_variable = loop.variable_name
 
