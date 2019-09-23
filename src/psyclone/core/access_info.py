@@ -159,14 +159,14 @@ class VariableAccessInfo(object):
         return self._var_name
 
     def is_array(self):
-        ''':returns: true if all accesses to this variable involve indices.
+        ''':returns: True if all accesses to this variable involve indices.
         :rtype: bool'''
         return all(access.indices for access in self._accesses)
 
     def is_written(self):
         '''Checks if the specified variable name is at least written once.
 
-        :returns: true if the specified variable name is written (at least \
+        :returns: True if the specified variable name is written (at least \
             once).
         :rtype: bool
         '''
@@ -178,7 +178,7 @@ class VariableAccessInfo(object):
         '''Checks if this variable is always read, and never
         written.
 
-        :returns: true if the specified variable name is read only.
+        :returns: True if the specified variable name is read only.
         :rtype: bool
         '''
         return all(access_info.access_type == AccessType.READ
@@ -187,7 +187,7 @@ class VariableAccessInfo(object):
     def is_read(self):
         '''Checks if this variable is at least read once.
 
-        :returns: true if the specified variable name is read (at least once).
+        :returns: True if the specified variable name is read (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type in AccessType.all_read_accesses()
@@ -197,7 +197,7 @@ class VariableAccessInfo(object):
         '''Checks if the specified variable name has at least one READWRITE
         access.
 
-        :returns: true if the specified variable name is read (at least once).
+        :returns: True if the specified variable name is read (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type == AccessType.READWRITE
@@ -407,7 +407,7 @@ class VariablesAccessInfo(object):
 
         :param str var_name: Name of the variable
 
-        :returns: true if the specified variable name is written (at least \
+        :returns: True if the specified variable name is written (at least \
             once).
         :rtype: bool
 
@@ -421,7 +421,7 @@ class VariablesAccessInfo(object):
         '''Checks if the specified variable name is at least read once.
 
         :param str var_name: Name of the variable
-        :returns: true if the specified variable name is read (at least \
+        :returns: True if the specified variable name is read (at least \
             once).
         :rtype: bool
         :raises: KeyError if the variable names can not be found.'''
@@ -434,7 +434,7 @@ class VariablesAccessInfo(object):
         access (which is typically only used in a function call)
 
         :param str var_name: Name of the variable
-        :returns: true if the specified variable name has (at least one) \
+        :returns: True if the specified variable name has (at least one) \
             READWRITE access.
         :rtype: bool
         :raises: KeyError if the variable names can not be found.'''
