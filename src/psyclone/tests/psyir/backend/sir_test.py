@@ -493,13 +493,14 @@ def test_sirwriter_assignment_node(parser, sir_writer):
         in result)
 
 
-# (1/3) Method binaryoperation_node
+# (1/4) Method binaryoperation_node
 def test_sirwriter_binaryoperation_node_1(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class
-    outputs the expected SIR code. Check all supported mappings.
+    outputs the expected SIR code. Check all supported computation
+    mappings.
 
     '''
-    for oper in ["+", "-", "*", "/"]:
+    for oper in ["+", "-", "*", "/", "**"]:
         code = CODE.replace(
             "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
         rhs = get_rhs(parser, code)
@@ -512,8 +513,33 @@ def test_sirwriter_binaryoperation_node_1(parser, sir_writer):
             "  )\n".format(oper) in result)
 
 
-# (2/3) Method binaryoperation_node
+# (2/4) Method binaryoperation_node
 def test_sirwriter_binaryoperation_node_2(parser, sir_writer):
+    '''Check the binaryoperation_node method of the SIRWriter class
+    outputs the expected SIR code. Check all supported comparator
+    mappings.
+
+    '''
+    for foper, soper in [
+            (".eq.", "=="), ("/=", "!="), (".le.", "<="), (".lt.", "<"),
+            (".ge.", ">="), (".gt.", ">"), (".and.", "&&"), (".or.", "||")]:
+        code = CODE.replace(
+            "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if".format(foper))
+        kernel = get_kernel(parser, code)
+        kernel_schedule = kernel.get_kernel_schedule()
+        if_statement = kernel_schedule.children[0]
+        if_condition = if_statement.condition
+        result = sir_writer.binaryoperation_node(if_condition)
+        assert (
+            "make_binary_operator(\n"
+            "  make_var_access_expr(\"b\"),\n"
+            "  \"{0}\",\n"
+            "  make_var_access_expr(\"c\")\n"
+            "  )\n".format(soper) in result)
+
+
+# (3/4) Method binaryoperation_node
+def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code when there are are a series of
     binary operations. The reason for this test is that, for
@@ -537,20 +563,19 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer):
         "  )" in result)
 
 
-# (3/3) Method binaryoperation_node
-def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
+# (4/4) Method binaryoperation_node
+def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class raises
     the expected exception if an unsupported binary operator is found.
 
     '''
-    # Choose the power function (**) as there are no examples of its
-    # use in the SIR so no mapping is currently provided.
-    oper = "**"
-    code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
+    # Choose the sign function as there is no direct support for it in
+    # in the SIR and no mapping is currently provided.
+    code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = sign(b, c)")
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.binaryoperation_node(rhs)
-    assert "unsupported operator 'Operator.POW' found" in str(excinfo.value)
+    assert "unsupported operator 'Operator.SIGN' found" in str(excinfo.value)
 
 
 # (1/2) Method reference_node
