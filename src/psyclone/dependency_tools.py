@@ -171,6 +171,8 @@ class DependencyTools(object):
         # they are needed in a test further down.
         found_dimension_index = -1
         all_indices = []
+
+        # Loop over all the accesses of this variable
         for access in var_info.all_accesses:
             list_of_indices = access.indices
             # Now determine all dimensions that depend
@@ -207,7 +209,8 @@ class DependencyTools(object):
                     # current dimension --> keep on looking
                     continue
 
-        # Array variable does not depend on parallel loop variable:
+        # The variable is an array variable, which does not depend
+        # on the loop variable at all (see examples below)
         if not all_indices:
             # An array is used that is not actually dependend on the parallel
             # loop variable. This means the variable can not always be safely
@@ -302,17 +305,18 @@ class DependencyTools(object):
         it can be safely parallelised over the specified variable.
 
         :param loop: the loop node to be analysed.
-        :type loop: :py:class:`psyclone.psyGen.Node`
-        :param str loop_variable: Optional name of the variable that is \
+        :type loop: :py:class:`psyclone.psyGen.Loop`
+        :param str loop_variable: Optional name of the variable that is\
                                   parallelised. If not specified, the loop\
                                   variable of the loop is used.
-        :param bool only_nested_loops: if True, a loop must have an inner \
-                                       loop in order to be considered \
+        :param bool only_nested_loops: if True, a loop must have an inner\
+                                       loop in order to be considered\
                                        parallelisable (default: True).
-        :param bool test_all_variables: if True, it will test if all variables\
-                                        can be parallelised, otherwise it will\
-                                        stop after the first variable is found\
-                                        that can not be parallelised.
+        :param bool test_all_variables: if True, it will test if all variable\
+                                        accesses can be parallelised,\
+                                        otherwise it will stop after the first\
+                                        variable is found that can not be\
+                                        parallelised.
         :param variables_to_ignore: list of variables for which to skip the\
                                     checks on how they are accessed.
         :type variables_to_ignore: list of str
