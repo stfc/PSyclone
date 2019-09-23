@@ -549,7 +549,8 @@ The current available options are:
 |              | Invoke.                                      |         |
 +--------------+----------------------------------------------+---------+
 
-Additionally, each individual kernel also accepts a map of options which
+Additionally, each individual kernel (inside the Invoke that is going to
+be transformed) also accepts a map of options which
 are provided by the `set_opencl_options()` method of the `Kern` object.
 This can affect both the driver layer and/or the OpenCL kernels.
 The current available options are:

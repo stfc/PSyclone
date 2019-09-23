@@ -162,18 +162,19 @@ def test_opencl_options_validation(kernel_outputdir):
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
     '''
+    from psyclone.transformations import TransformationError
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
 
     # Unsupported options are not accepted
-    with pytest.raises(AttributeError) as err:
+    with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'unsupported': 1})
     assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
         in str(err)
 
     # end_barrier option must be a boolean
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'end_barrier': 1})
     assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
         in str(err)
@@ -461,7 +462,8 @@ def test_symtab_implementation_for_opencl():
         in str(err)
 
 
-@pytest.mark.xfail(reason="Use statment check is bypassed to make OpenCL work")
+@pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
+                          "#323 will add support for Use statments.")
 def test_opencl_kernel_with_use(kernel_outputdir):
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''

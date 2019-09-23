@@ -2287,7 +2287,10 @@ class OCLTrans(Transformation):
         sched.opencl = opencl
 
         # This transformation stores some options into the InvokeSchedule
-        sched.set_opencl_options(options)
+        try:
+            sched.set_opencl_options(options)
+        except (TypeError, AttributeError) as error:
+            raise TransformationError(str(error))
 
         return sched, keep
 

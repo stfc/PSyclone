@@ -1692,8 +1692,8 @@ class InvokeSchedule(Schedule):
                         "should be a boolean.")
             else:
                 raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'."
-                    " Accepted options are: 'end_barrier'."
+                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "The supported options are: 'end_barrier'."
                     "".format(key))
 
             self._opencl_options[key] = value
@@ -3839,12 +3839,13 @@ class CodedKern(Kern):
                         "integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'."
-                    "".format(key))
+                    "CodedKern does not support the opencl_option '{0}'. "
+                    "The supported options are: 'local_size' and "
+                    "'queue_number'.".format(key))
 
             self._opencl_options[key] = value
 
-        # If options are valid copy them in the associated KernelSchedule
+        # If options are valid copy them into the associated KernelSchedule
         kschedule = self.get_kernel_schedule()
         kschedule.set_opencl_options(options)
 
@@ -4054,9 +4055,9 @@ class CodedKern(Kern):
             name_idx += 1
             new_suffix = ""
 
-            # On the GOcean OpenCL work we need to differentiate between the
-            # generated kernels from the same module file, so we include the
-            # kernelname into the output filename.
+            # GOcean OpenCL needs to differentiate between kernels generated
+            # from the same module file, so we include the kernelname into the
+            # output filename.
             # TODO: Issue 499, this works as an OpenCL quickfix but it needs
             # to be generalized and be consistent with the '--kernel-renaming'
             # conventions.
