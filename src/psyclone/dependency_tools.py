@@ -269,7 +269,7 @@ class DependencyTools(object):
         return False
 
     # -------------------------------------------------------------------------
-    def can_loop_be_parallelised(self, loop, loop_variable,
+    def can_loop_be_parallelised(self, loop, loop_variable=None,
                                  only_nested_loops=True,
                                  test_all_variables=False,
                                  variables_to_ignore=None,
@@ -280,7 +280,9 @@ class DependencyTools(object):
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyGen.Node`
-        :param str loop_variable: name of the variable that is parallelised.
+        :param str loop_variable: Optional name of the variable that is \
+                                  parallelised. If not specified, the loop\
+                                  variable of the loop is used.
         :param bool only_nested_loops: if True, a loop must have an inner \
                                        loop in order to be considered \
                                        parallelisable (default: True).
@@ -304,6 +306,8 @@ class DependencyTools(object):
         if not isinstance(loop, Loop):
             raise InternalError("can_loop_be_parallelised: Loop must be an "
                                 "instance of class Loop")
+        if not loop_variable:
+            loop_variable = loop.variable_name
 
         # Check if the loop type should be parallelised, e.g. to avoid
         # parallelising inner loops which might not have enough work. This

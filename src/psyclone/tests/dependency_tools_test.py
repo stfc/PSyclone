@@ -155,7 +155,8 @@ def test_arrays_parallelise(parser):
     dep_tools = DependencyTools(["levels", "lat"])
 
     # Write to array that does not depend on parallel loop variable
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], "jj")
+    # Test that right default variable name (outer loop jj) is used.
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert not parallel
     assert "Variable 'mask' is written to, and does not depend on the loop "\
            "variable 'jj'" in dep_tools.get_all_messages()[0]
