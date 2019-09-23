@@ -1222,6 +1222,104 @@ class Fparser2Reader(object):
                                nodes=[node],
                                nodes_parent=node_parent)
 
+    @staticmethod
+    def _array_notation_rank(array):
+        '''
+        Check that the supplied candidate array reference uses supported
+        array notation syntax and returns the rank of the sub-section of the
+        array that is specified. e.g. for an reference "a(:, 2, :)"
+        specifies a sub-section of rank 2.
+
+        :param array: the array reference to check.
+        :type array: :py:class:`psyclone.psyGen.Array`
+
+        :returns: rank of the array.
+        :rtype: int
+
+        :raises NotImplementedError: if the array node does not have any \
+                                     children.
+        :raises NotImplementedError: if the Array does not have at least one \
+                                     CodeBlock as a child.
+        :raises NotImplementedError: if each CodeBlock child does not \
+                                     consist entirely of Subscript_Triplets.
+        :raises NotImplementedError: if any of the array slices have bounds \
+                                     (as this is not yet supported).
+        '''
+        if not array.children:
+            raise NotImplementedError("An Array reference in the PSyIR must "
+                                      "have at least one child but '{0}' has "
+                                      "none".format(array.name))
+        cblocks = array.walk(CodeBlock)
+        if not cblocks:
+            raise NotImplementedError(
+                "A PSyIR Array node representing an array access that uses "
+                "Fortran array notation is assumed to have at least one "
+                "CodeBlock as its child but '{0}' has none.".
+                format(array.name))
+        # We only currently support array refs using the colon syntax,
+        # e.g. array(:, :). Each colon is represented in the fparser2
+        # parse tree by a Subscript_Triplet.
+        num_colons = 0
+        for cblock in cblocks:
+            for stmt in cblock.get_ast_nodes:
+                if not isinstance(stmt, Fortran2003.Subscript_Triplet):
+                    raise NotImplementedError(
+                        "Only array notation of the form my_array(:, :, ...) "
+                        "is supported but got: {0}".format(str(array)))
+                if any(stmt.items):
+                    raise NotImplementedError(
+                        "Bounds on array slices are not supported but found: "
+                        "'{0}'".format(str(array)))
+                num_colons += 1
+        return num_colons
+
+    def _array_syntax_to_indexed(self, parent, loop_vars):
+        '''
+        Utility function that modifies each supplied Array object so that
+        it is indexed using the supplied loop variables rather than having
+        colon array notation.
+
+        :param parent: root of PSyIR sub-tree to search for Array \
+                       references to modify.
+        :type parent:  :py:class:`psyclone.psyGen.Node`
+        :param loop_vars: the variable names for the array indices
+        :type loop_vars: list of str
+
+        :raises NotImplementedError: if arrays of differing ranks are \
+                                     found.
+        '''
+        assigns = parent.walk(Assignment)
+        # Check that the LHS of any assignment uses recognised array
+        # notation.
+        for assign in assigns:
+            _ = self._array_notation_rank(assign.lhs)
+        # TODO #500 if the supplied code accidentally omits array
+        # notation for an array reference on the RHS then we will
+        # identify it as a scalar and the code produced from the
+        # PSyIR (using e.g. the Fortran backend) will not
+        # compile. In practise most scalars are likely to be local
+        # and so we can check for their declarations. However,
+        # those imported from a module will still be missed.
+        arrays = parent.walk(Array)
+        first_rank = None
+        for array in arrays:
+            # Check that this is a supported array reference and that
+            # all arrays are of the same rank
+            rank = self._array_notation_rank(array)
+            if first_rank:
+                if rank != first_rank:
+                    raise NotImplementedError(
+                        "Found arrays of differing ranks within a WHERE "
+                        "construct: array {0} has rank {1}".
+                        format(array.name, rank))
+            else:
+                first_rank = rank
+            # Remove the CodeBlock containing the Subscript_Triplets
+            del array.children[0]
+            # Add the index expressions
+            for var in loop_vars:
+                array.addchild(Reference(var, parent=array))
+
     def _where_construct_handler(self, node, parent):
         '''
         Construct the canonical PSyIR representation of a WHERE construct.
@@ -1233,92 +1331,6 @@ class Fparser2Reader(object):
                                structure.
 
         '''
-        def _array_notation_rank(array):
-            '''
-            Check that the supplied candidate array reference uses supported
-            array notation syntax and returns the rank of the array.
-
-            :param array: the array reference to check.
-            :type array: :py:class:`psyclone.psyGen.Array`
-
-            :returns: rank of the array.
-            :rtype: int
-
-            :raises NotImplementedError: if the array node does not have \
-                                         any children.
-            :raises NotImplementedError: if the Array does not have a \
-                                         CodeBlock as a child.
-            :raises NotImplementedError: if the CodeBlock child does not \
-                                       consist entirely of Subscript_Triplets.
-
-            '''
-            if not array.children:
-                raise NotImplementedError("An array reference must have at "
-                                          "least one child but {0} has none".
-                                          format(array.name))
-            cblock = array.children[0]
-            if not isinstance(cblock, CodeBlock):
-                raise NotImplementedError(
-                    "An array reference that uses Fortran array notation "
-                    "is assumed to have a CodeBlock as its child but "
-                    "found: {0}".format(type(array.children[0]).__name__))
-            # We only currently support array refs using the colon syntax,
-            # e.g. array(:, :). Each colon is represented in the fparser2
-            # parse tree by a Subscript_Triplet.
-            if not all([isinstance(stmt, Fortran2003.Subscript_Triplet) for
-                        stmt in cblock.get_ast_nodes]):
-                raise NotImplementedError(
-                    "Only array notation of the form my_array(:, :, ...) "
-                    "is supported but got: {0}".format(str(array)))
-            return len(cblock.get_ast_nodes)
-
-        def _array_syntax_to_indexed(parent, loop_vars):
-            '''
-            Utility function that modifies each supplied Array object so that
-            it is indexed using the supplied loop variables rather than having
-            colon array notation.
-
-            :param parent: root of PSyIR sub-tree to search for Array \
-                           references to modify.
-            :type parent:  :py:class:`psyclone.psyGen.Node`
-            :param loop_vars: the variable names for the array indices
-            :type loop_vars: list of str
-
-            :raises NotImplementedError: if arrays of differing ranks are \
-                                         found.
-            '''
-            assigns = parent.walk(Assignment)
-            # Check that the LHS of any assignment uses recognised array
-            # notation.
-            for assign in assigns:
-                _ = _array_notation_rank(assign.lhs)
-            # TODO #500 if the supplied code accidentally omits array
-            # notation for an array reference on the RHS then we will
-            # identify it as a scalar and the code produced from the
-            # PSyIR (using e.g. the Fortran backend) will not
-            # compile. In practise most scalars are likely to be local
-            # and so we can check for their declarations. However,
-            # those imported from a module will still be missed.
-            arrays = parent.walk(Array)
-            first_rank = None
-            for array in arrays:
-                # Check that this is a supported array reference and that
-                # all arrays are of the same rank
-                rank = _array_notation_rank(array)
-                if first_rank:
-                    if rank != first_rank:
-                        raise NotImplementedError(
-                            "Found arrays of differing ranks within a WHERE "
-                            "construct: array {0} has rank {1}".
-                            format(array.name, rank))
-                else:
-                    first_rank = rank
-                # Remove the CodeBlock containing the Subscript_Triplets
-                del array.children[0]
-                # Add the index expressions
-                for var in loop_vars:
-                    array.addchild(Reference(var, parent=array))
-
         # Check that the fparser2 parse tree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Where_Construct_Stmt):
             raise InternalError("Failed to find opening where construct "
@@ -1345,7 +1357,7 @@ class Fparser2Reader(object):
             raise NotImplementedError("Only WHERE constructs using explicit "
                                       "array notation (e.g. my_array(:, :)) "
                                       "are supported.")
-        rank = _array_notation_rank(arrays[0])
+        rank = self._array_notation_rank(arrays[0])
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
@@ -1391,7 +1403,7 @@ class Fparser2Reader(object):
             # logical-array-expression of the WHERE. Each array reference must
             # now be indexed by the loop variables of the loops we've just
             # created.
-            _array_syntax_to_indexed(fake_parent[0], loop_vars)
+            self._array_syntax_to_indexed(fake_parent[0], loop_vars)
             ifblock.addchild(fake_parent[0])
             # Now construct the body of the IF using the body of the WHERE
             sched = Schedule(parent=ifblock)
@@ -1400,18 +1412,18 @@ class Fparser2Reader(object):
             for idx, child in enumerate(node.content):
                 if isinstance(child, Fortran2003.Elsewhere_Stmt):
                     self.process_nodes(sched, node.content[1:idx], None)
-                    _array_syntax_to_indexed(sched, loop_vars)
+                    self._array_syntax_to_indexed(sched, loop_vars)
                     # Add an else clause to the IF block for the ELSEWHERE
                     # clause
                     sched = Schedule(parent=ifblock)
                     ifblock.addchild(sched)
                     self.process_nodes(sched, node.content[idx+1:-1], None)
-                    _array_syntax_to_indexed(sched, loop_vars)
+                    self._array_syntax_to_indexed(sched, loop_vars)
                     break
             else:
                 # No elsewhere clause was found
                 self.process_nodes(sched, node.content[1:-1], None)
-                _array_syntax_to_indexed(sched, loop_vars)
+                self._array_syntax_to_indexed(sched, loop_vars)
         except NotImplementedError as err:
             # Some aspect of this WHERE construct is not supported so
             # roll-back any changes before re-raising this exception (so

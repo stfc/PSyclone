@@ -40,7 +40,7 @@ from __future__ import absolute_import
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Where_Construct
+from fparser.two import Fortran2003
 from psyclone.psyGen import Schedule, CodeBlock
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -55,7 +55,7 @@ def test_where_broken_tree(parser):
     reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
                                  "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                  "END WHERE\n")
-    fparser2spec = Where_Construct(reader)
+    fparser2spec = Fortran2003.Where_Construct(reader)
     # Break the parse tree by removing the end-where statement
     del fparser2spec.content[-1]
     with pytest.raises(InternalError) as err:
@@ -76,7 +76,7 @@ def test_missing_array_notation_expr(parser):
     reader = FortranStringReader("WHERE (ptsu /= 0._wp)\n"
                                  "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                  "END WHERE\n")
-    fparser2spec = Where_Construct(reader)
+    fparser2spec = Fortran2003.Where_Construct(reader)
     processor.process_nodes(fake_parent, [fparser2spec], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
@@ -89,9 +89,72 @@ def test_missing_array_notation_lhs(parser):
     reader = FortranStringReader("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                  "  z1_st = 1._wp / ptsu(:, :, :)\n"
                                  "END WHERE\n")
-    fparser2spec = Where_Construct(reader)
+    fparser2spec = Fortran2003.Where_Construct(reader)
     processor.process_nodes(fake_parent, [fparser2spec], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+def test_where_array_notation_rank(parser):
+    ''' Test that the _array_notation_rank() utility raises the expected
+    errors when passed an unsupported Array object. '''
+    from psyclone.psyGen import Array, Literal
+    my_array = Array("my_array", None)
+    processor = Fparser2Reader()
+    with pytest.raises(NotImplementedError) as err:
+        processor._array_notation_rank(my_array)
+    assert ("Array reference in the PSyIR must have at least one child but "
+            "'my_array'" in str(err.value))
+    # Give the Array one child that is not a CodeBlock
+    my_array.addchild(Literal("2", my_array))
+    with pytest.raises(NotImplementedError) as err:
+        processor._array_notation_rank(my_array)
+    assert ("that uses Fortran array notation is assumed to have at least "
+            "one CodeBlock as its child " in str(err.value))
+    my_array._children = []
+    my_array.addchild(CodeBlock([Fortran2003.Literal_Constant("1")],
+                                CodeBlock.Structure.EXPRESSION, my_array))
+    with pytest.raises(NotImplementedError) as err:
+        processor._array_notation_rank(my_array)
+    assert ("Only array notation of the form my_array(:, :, ...) is supported"
+            in str(err.value))
+
+
+def test_different_ranks_error(parser):
+    ''' Check that a WHERE construct containing array references of different
+    ranks results in the creation of a CodeBlock. '''
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    # Invalid Fortran
+    reader = FortranStringReader("WHERE (dry(:, :, :))\n"
+                                 "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
+                                 "END WHERE\n")
+    fparser2spec = Fortran2003.Where_Construct(reader)
+    # We should end up with a CodeBlock in the PSyIR
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+def test_array_notation_rank(parser):
+    ''' Check that our _array_notation_rank() utility handles various examples
+    of array notation. '''
+    from psyclone.psyGen import Assignment, Loop
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader("  z1_st(:, 2, :) = ptsu(:, :, 3)")
+    fparser2spec = Fortran2003.Assignment_Stmt(reader)
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert processor._array_notation_rank(fake_parent[0].lhs) == 2
+    reader = FortranStringReader("  z1_st(:, :, 2, :) = ptsu(:, :, :, 3)")
+    fparser2spec = Fortran2003.Assignment_Stmt(reader)
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert processor._array_notation_rank(fake_parent[1].lhs) == 3
+    # We don't support bounds on slices
+    reader = FortranStringReader("  z1_st(:, 1:n, 2, :) = ptsu(:, :, :, 3)")
+    fparser2spec = Fortran2003.Assignment_Stmt(reader)
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    with pytest.raises(NotImplementedError) as err:
+        processor._array_notation_rank(fake_parent[2].lhs)
+    assert "Bounds on array slices are not supported" in str(err.value)
 
 
 def test_basic_where(parser):
@@ -103,14 +166,14 @@ def test_basic_where(parser):
     reader = FortranStringReader("WHERE (dry(:, :, :))\n"
                                  "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
                                  "END WHERE\n")
-    fparser2spec = Where_Construct(reader)
+    fparser2spec = Fortran2003.Where_Construct(reader)
     processor.process_nodes(fake_parent, [fparser2spec], None)
     # We should have a triply-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 3
     for loop in loops:
         assert "was_where" in loop.annotations
-        assert isinstance(loop.ast, Where_Construct)
+        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].children[0], Literal)
     assert isinstance(loops[0].children[1], BinaryOperation)
@@ -135,19 +198,19 @@ def test_elsewhere(parser):
                                  "ELSEWHERE\n"
                                  "  z1_st(:, :, :) = 0._wp\n"
                                  "END WHERE\n")
-    fparser2spec = Where_Construct(reader)
+    fparser2spec = Fortran2003.Where_Construct(reader)
     processor.process_nodes(fake_parent, [fparser2spec], None)
     assert len(fake_parent.children) == 1
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
-    assert isinstance(loop.ast, Where_Construct)
+    assert isinstance(loop.ast, Fortran2003.Where_Construct)
     assert isinstance(loop, Loop)
     assert isinstance(loop.loop_body[0], Loop)
     assert isinstance(loop.loop_body[0].loop_body[0], Loop)
     # Check that we have an IF block within the innermost loop
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
-    assert isinstance(ifblock.ast, Where_Construct)
+    assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.NE
     assert ("ArrayReference[name:'ptsu']\n"
