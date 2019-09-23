@@ -52,9 +52,14 @@ class DependencyTools(object):
     useful for the user to see.
 
     :param loop_types_to_parallelise: A list of loop types that will be \
-                                      considered for parallelisation. This \
-                                      can be used to exclude say 1-dimensional\
-                                      loops.
+                                      considered for parallelisation. An \
+                                      example loop type might be 'lat',\
+                                      indicating that only loops over \
+                                      latitudes should be parallelised. The\
+                                      actually supported list of loop types\
+                                      is specified in the PSyclone config\
+                                      file. This can be used to exclude for\
+                                      example 1-dimensional loops.
     :type loop_types_to_parallelise: list of str
     '''
 
