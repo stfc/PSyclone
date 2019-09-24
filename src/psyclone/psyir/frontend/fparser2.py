@@ -1236,13 +1236,13 @@ class Fparser2Reader(object):
         '''
         Check that the supplied candidate array reference uses supported
         array notation syntax and returns the rank of the sub-section of the
-        array that is specified. e.g. for an reference "a(:, 2, :)"
-        specifies a sub-section of rank 2.
+        array that is specified. e.g. for a reference "a(:, 2, :)" the rank
+        of the sub-section is 2.
 
         :param array: the array reference to check.
         :type array: :py:class:`psyclone.psyGen.Array`
 
-        :returns: rank of the array.
+        :returns: rank of the sub-section of the array.
         :rtype: int
 
         :raises NotImplementedError: if the array node does not have any \
@@ -1284,17 +1284,17 @@ class Fparser2Reader(object):
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
-        Utility function that modifies each supplied Array object so that
-        it is indexed using the supplied loop variables rather than having
-        colon array notation.
+        Utility function that modifies each Array object in the supplied PSyIR
+        fragment so that they are indexed using the supplied loop variables
+        rather than having colon array notation.
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
         :type parent:  :py:class:`psyclone.psyGen.Node`
-        :param loop_vars: the variable names for the array indices
+        :param loop_vars: the variable names for the array indices.
         :type loop_vars: list of str
 
-        :raises NotImplementedError: if arrays of differing ranks are \
+        :raises NotImplementedError: if array sections of differing ranks are \
                                      found.
         '''
         assigns = parent.walk(Assignment)
@@ -1318,8 +1318,8 @@ class Fparser2Reader(object):
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
-                        "Found arrays of differing ranks within a WHERE "
-                        "construct: array {0} has rank {1}".
+                        "Found array sections of differing ranks within a "
+                        "WHERE construct: array section of {0} has rank {1}".
                         format(array.name, rank))
             else:
                 first_rank = rank
@@ -1438,18 +1438,18 @@ class Fparser2Reader(object):
             # Do we have an ELSE WHERE?
             for idx, child in enumerate(node.content):
                 if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                    self.process_nodes(sched, node.content[1:idx], None)
+                    self.process_nodes(sched, node.content[1:idx], node)
                     self._array_syntax_to_indexed(sched, loop_vars)
                     # Add an else clause to the IF block for the ELSEWHERE
                     # clause
                     sched = Schedule(parent=ifblock)
                     ifblock.addchild(sched)
-                    self.process_nodes(sched, node.content[idx+1:-1], None)
+                    self.process_nodes(sched, node.content[idx+1:-1], node)
                     self._array_syntax_to_indexed(sched, loop_vars)
                     break
             else:
                 # No elsewhere clause was found
-                self.process_nodes(sched, node.content[1:-1], None)
+                self.process_nodes(sched, node.content[1:-1], node)
                 self._array_syntax_to_indexed(sched, loop_vars)
         except NotImplementedError as err:
             # Some aspect of this WHERE construct is not supported so
