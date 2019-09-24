@@ -387,17 +387,40 @@ The Symbol Table has the following interface:
 Control Flow Nodes
 ==================
 
-The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These nodes represent
-the canonical structure with which conditional branching constructs and
-iteration constructs are built. Additional language-specific syntax for branching
-and iteration will be normalized to use these same constructs.
-For example, Fortran has the additional branching constructs `ELSE IF`
-and `CASE`: when a Fortran code is translated into the PSyIR, PSyclone will
-build a semantically equivalent implementation using `IfBlocks`.
-However, the necessary nodes in the new tree structure will be annotated
-with information to enable the original language-specific syntax to be
-recreated if required.
+The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These
+nodes represent the canonical structure with which conditional
+branching constructs and iteration constructs are built. Additional
+language-specific syntax for branching and iteration will be
+normalized to use these same constructs.  For example, Fortran has the
+additional branching constructs `ELSE IF` and `CASE`: when a Fortran
+code is translated into the PSyIR, PSyclone will build a semantically
+equivalent implementation using `IfBlocks`.  However, the necessary
+nodes in the new tree structure are annotated with information to
+enable the original language-specific syntax to be recreated if
+required (see below). Similarly, Fortran also has the `WHERE`
+construct which is represented in the PSyIR with a combination of
+(annotated) `Loop` and `IfBlock` nodes.
 
+Node annotation
+---------------
+
+If the PSyIR is constructed from existing code (using e.g. the
+fparser2 frontend) then it is possible that information about that
+code may be lost.  This is because the PSyIR is only semantically
+equivalent to certain code constructs. In order that information is
+not lost (making it possible to e.g. recover the original code
+structure if desired) Nodes may have `annotations` associated with
+them. The annotations, the Node types to which they may be applied and
+their meanings are summarised in the table below:
+
+=================  =================  ===============================
+Annotation         Node types         Origin
+=================  =================  ===============================
+`was_elseif`       `IfBlock`          `else if`
+`was_single_stmt`  `IfBlock`          `if(logical-expr)expr`
+`was_case`         `IfBlock`          Fortran `select case`
+`was_where`        `Loop`, `IfBlock`  Fortran `where` construct
+=================  =================  ===============================
 
 Branching construct
 -------------------
