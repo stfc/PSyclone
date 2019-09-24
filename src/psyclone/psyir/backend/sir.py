@@ -431,19 +431,39 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         cond_expr = self._visit(node.condition)
-        cond_part = "make_expr_stmt({0})".format(cond_expr.lstrip().rstrip(",\n"))
-
+        cond_part = ("make_expr_stmt({0})"
+                     "".format(cond_expr.lstrip().rstrip(",\n")))
+        
         then_statements = self._visit(node.if_body).lstrip().rstrip(",\n")
         then_part = "make_block_stmt([{0}])".format(then_statements)
 
-        else_statements = self._visit(node.else_body).lstrip().rstrip(",\n")
-        else_part = "make_block_stmt([{0}])".format(else_statements)
+        if node.else_body:
+            else_statements = self._visit(node.else_body)
+            else_part = ("make_block_stmt([{0}])"
+                         "".format(else_statements.lstrip().rstrip(",\n")))
+        else:
+            else_part = "None"
 
         return ("{0}make_if_stmt({1}, {2}, {3})\n"
                 "".format(self._nindent, cond_part, then_part, else_part))
 
+
     def schedule_node(self, node):
-        ''' xxx '''
+        '''This method is called when an Schedule instance is found in the
+        PSyIR tree. A Schedule instance captures an ordered sequence
+        of PSyIR nodes and is therefore found in places such as the
+        contents of the 'then' part of an 'if' statement and the
+        contents of the 'else' part of an 'if' statement. The schedule
+        has no content so simply calls its children and returns the
+        agregated result.
+
+        :param node: a Schedule PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Schedule`
+
+        :returns: the SIR code as a string.
+        :rtype: str
+
+        '''
         result = ""
         for child in node.children:
             result += self._visit(child)

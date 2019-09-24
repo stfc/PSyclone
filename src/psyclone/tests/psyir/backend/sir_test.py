@@ -704,4 +704,165 @@ def test_sirwriter_unary_node_4(parser, sir_writer):
     result = sir_writer.unaryoperation_node(rhs)
     assert "make_literal_access_expr(\"-1\", BuiltinType.Integer)" in result
 
+
+# (1/4) Method ifblock_node
+def test_sirwriter_ifblock_node_1(parser, sir_writer):
+    '''Check the ifblock_node method of the SIRWriter class
+    creates the expected code when there is an if statement with no
+    else clause.
+
+    '''
+    code = CODE.replace(
+        "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    if_statement = kernel_schedule.children[0]
+    result = sir_writer.ifblock_node(if_statement)
+    assert (
+        "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \"==\",\n"
+        "  make_var_access_expr(\"c\")\n"
+        "  )), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
+        "  \"=\")]), None)\n" in result)
+
+
+# (2/4) Method ifblock_node
+def test_sirwriter_ifblock_node_2(parser, sir_writer):
+    '''Check the ifblock_node method of the SIRWriter class creates the
+    expected code when there is an if statement with an else clause.
+
+    '''
+    code = CODE.replace(
+        "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nelse\n"
+        "a(i,j,k) = 0.0\nend if")
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    if_statement = kernel_schedule.children[0]
+    result = sir_writer.ifblock_node(if_statement)
+    assert (
+        "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \"==\",\n"
+        "  make_var_access_expr(\"c\")\n"
+        "  )), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
+        "  \"=\")]), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"0.0\", BuiltinType.Float),\n"
+        "  \"=\")]))\n" in result)
+
+
+# (3/4) Method ifblock_node
+def test_sirwriter_ifblock_node_3(parser, sir_writer):
+    '''Check the ifblock_node method of the SIRWriter class creates the
+    expected code when there is more than one if statement in the code.
+
+    '''
+    code = CODE.replace(
+        "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if\n"
+        "if (c .ge. 0.5) then\na(i,j,k) = -1.0\nend if\n")
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    if_statement_0 = kernel_schedule.children[0]
+    result_0 = sir_writer.ifblock_node(if_statement_0)
+    if_statement_1 = kernel_schedule.children[1]
+    result_1 = sir_writer.ifblock_node(if_statement_1)
+    assert (
+        "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \"==\",\n"
+        "  make_var_access_expr(\"c\")\n"
+        "  )), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
+        "  \"=\")]), None)\n" in result_0)
+    assert (
+        "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
+        "  make_var_access_expr(\"c\"),\n"
+        "  \">=\",\n"
+        "  make_literal_access_expr(\"0.5\", BuiltinType.Float)\n"
+        "  )), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
+        "  \"=\")]), None)\n" in result_1)
+
+
+# (4/4) Method ifblock_node
+def test_sirwriter_ifblock_node_4(parser, sir_writer):
+    '''Check the ifblock_node method of the SIRWriter class creates the
+    expected code when ifs are nested within each other.
+
+    '''
+    code = CODE.replace(
+        "a(i,j,k) = 1.0",
+        "if (b .eq. c) then\n"
+        "  if (b. gt. 0.5) then\n"
+        "    a(i,j,k) = 1.0\n"
+        "  end if\n"
+        "else\n"
+        "  if (c .lt. 0.5) then\n"
+        "    a(i,j,k) = 0.0\n"
+        "  else\n"
+        "    a(i,j,k) = -1.0\n"
+        "  end if\n"
+        "end if")
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    if_statement = kernel_schedule.children[0]
+    result = sir_writer.ifblock_node(if_statement)
+    assert (
+        "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \"==\",\n"
+        "  make_var_access_expr(\"c\")\n"
+        "  )), make_block_stmt([make_if_stmt(make_expr_stmt("
+        "make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \">\",\n"
+        "  make_literal_access_expr(\"0.5\", BuiltinType.Float)\n"
+        "  )), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
+        "  \"=\")]), None)]), make_block_stmt([make_if_stmt(make_expr_stmt("
+        "make_binary_operator(\n"
+        "  make_var_access_expr(\"c\"),\n"
+        "  \"<\",\n"
+        "  make_literal_access_expr(\"0.5\", BuiltinType.Float)\n"
+        "  )), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"0.0\", BuiltinType.Float),\n"
+        "  \"=\")]), make_block_stmt([make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
+        "  \"=\")]))]))\n" in result)
+
+
+# (1/1) Method schedule_node
+def test_sirwriter_schedule_node_1(parser, sir_writer):
+    '''Check the schedule method of the SIRWriter class
+    creates the expected code by calling its children.
+
+    '''
+    from psyclone.psyGen import Schedule
+    code = CODE.replace(
+        "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    if_statement = kernel_schedule.children[0]
+    schedule = if_statement.if_body
+    assert isinstance(schedule, Schedule)
+    schedule_result = sir_writer.schedule_node(schedule)
+    content = schedule.children[0]
+    content_result = sir_writer.assignment_node(content)
+    assert schedule_result == content_result
+    assert (
+        "make_assignment_stmt(\n"
+        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
+        "  \"=\")," in schedule_result)
+
 # Class SIRWriter end
