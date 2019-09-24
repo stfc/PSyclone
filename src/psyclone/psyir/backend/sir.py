@@ -433,7 +433,7 @@ class SIRWriter(PSyIRVisitor):
         cond_expr = self._visit(node.condition)
         cond_part = ("make_expr_stmt({0})"
                      "".format(cond_expr.lstrip().rstrip(",\n")))
-        
+
         then_statements = self._visit(node.if_body).lstrip().rstrip(",\n")
         then_part = "make_block_stmt([{0}])".format(then_statements)
 
@@ -446,7 +446,6 @@ class SIRWriter(PSyIRVisitor):
 
         return ("{0}make_if_stmt({1}, {2}, {3})\n"
                 "".format(self._nindent, cond_part, then_part, else_part))
-
 
     def schedule_node(self, node):
         '''This method is called when an Schedule instance is found in the
