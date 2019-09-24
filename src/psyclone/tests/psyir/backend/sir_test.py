@@ -494,48 +494,50 @@ def test_sirwriter_assignment_node(parser, sir_writer):
 
 
 # (1/4) Method binaryoperation_node
-def test_sirwriter_binaryoperation_node_1(parser, sir_writer):
+@pytest.mark.parametrize("oper", ["+", "-", "*", "/", "**"])
+def test_sirwriter_binaryoperation_node_1(parser, sir_writer, oper):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code. Check all supported computation
     mappings.
 
     '''
-    for oper in ["+", "-", "*", "/", "**"]:
-        code = CODE.replace(
-            "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
-        rhs = get_rhs(parser, code)
-        result = sir_writer.binaryoperation_node(rhs)
-        assert (
-            "make_binary_operator(\n"
-            "  make_var_access_expr(\"b\"),\n"
-            "  \"{0}\",\n"
-            "  make_var_access_expr(\"c\")\n"
-            "  )\n".format(oper) in result)
+    code = CODE.replace(
+        "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
+    rhs = get_rhs(parser, code)
+    result = sir_writer.binaryoperation_node(rhs)
+    assert (
+        "make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \"{0}\",\n"
+        "  make_var_access_expr(\"c\")\n"
+        "  )\n".format(oper) in result)
 
 
 # (2/4) Method binaryoperation_node
-def test_sirwriter_binaryoperation_node_2(parser, sir_writer):
+@pytest.mark.parametrize(
+    "foper,soper",
+    [(".eq.", "=="), ("/=", "!="), (".le.", "<="), (".lt.", "<"),
+     (".ge.", ">="), (".gt.", ">"), (".and.", "&&"), (".or.", "||")])
+def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code. Check all supported comparator
     mappings.
 
     '''
-    for foper, soper in [
-            (".eq.", "=="), ("/=", "!="), (".le.", "<="), (".lt.", "<"),
-            (".ge.", ">="), (".gt.", ">"), (".and.", "&&"), (".or.", "||")]:
-        code = CODE.replace(
-            "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if".format(foper))
-        kernel = get_kernel(parser, code)
-        kernel_schedule = kernel.get_kernel_schedule()
-        if_statement = kernel_schedule.children[0]
-        if_condition = if_statement.condition
-        result = sir_writer.binaryoperation_node(if_condition)
-        assert (
-            "make_binary_operator(\n"
-            "  make_var_access_expr(\"b\"),\n"
-            "  \"{0}\",\n"
-            "  make_var_access_expr(\"c\")\n"
-            "  )\n".format(soper) in result)
+    code = CODE.replace(
+        "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if"
+        "".format(foper))
+    kernel = get_kernel(parser, code)
+    kernel_schedule = kernel.get_kernel_schedule()
+    if_statement = kernel_schedule.children[0]
+    if_condition = if_statement.condition
+    result = sir_writer.binaryoperation_node(if_condition)
+    assert (
+        "make_binary_operator(\n"
+        "  make_var_access_expr(\"b\"),\n"
+        "  \"{0}\",\n"
+        "  make_var_access_expr(\"c\")\n"
+        "  )\n".format(soper) in result)
 
 
 # (3/4) Method binaryoperation_node
