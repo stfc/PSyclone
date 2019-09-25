@@ -1226,6 +1226,7 @@ class GOKern(CodedKern):
         if self._kern_schedule is None:
             astp = GOFparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
 

@@ -653,24 +653,14 @@ def test_handling_name(f2008_parser):
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
-    # Check a new node is generated and connected to parent
-    fake_parent = Node()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2name], None)
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Reference)
-    assert new_node._reference == "x"
-
-    # If the parent root has a symbol table it checks if the symbol
-    # is declared.
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2Reader()
 
+    # If one of the ancestors has a symbol table then process_nodes()
+    # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2name], None)
-    assert "Undeclared reference 'x' found when parsing fparser2 node " \
-           "'Name('x')' inside 'kernel'." in str(error)
+    assert "Undeclared reference 'x' found." in str(error)
 
     fake_parent.symbol_table.add(Symbol('x', 'integer'))
     processor.process_nodes(fake_parent, [fparser2name], None)
@@ -705,29 +695,18 @@ def test_handling_part_ref(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import SymbolError
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
-    fake_parent = Node()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
-    assert len(new_node.children) == 1  # Array dimensions
-
-    # If the parent root has a symbol table it checks if the symbol
-    # is declared.
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2Reader()
 
-    with pytest.raises(GenerationError) as error:
+    # If one of the ancestors has a symbol table then process_nodes()
+    # checks that the symbol is declared.
+    with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    assert "Undeclared reference 'x' found when parsing fparser2 " \
-           "node " in str(error)
-    assert " inside 'kernel'." in str(error)
+    assert "Undeclared reference 'x' found." in str(error)
 
     fake_parent.symbol_table.add(Symbol('x', 'integer'))
     processor.process_nodes(fake_parent, [fparser2part_ref], None)

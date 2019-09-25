@@ -3771,6 +3771,7 @@ class CodedKern(Kern):
         if self._kern_schedule is None:
             astp = Fparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+	    # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
     def __str__(self):
@@ -6572,7 +6573,8 @@ class Container(Node):
     of KernelSchedules. In Fortran a container would naturally
     represent a module or a submodule.
 
-    :param parent: the parent node of this Container in the PSyIR.
+    :param str name: the name of the container.
+    :param parent: optional parent node of this Container in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
@@ -6580,9 +6582,6 @@ class Container(Node):
         super(Container, self).__init__(parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
-
-        self._kernels = []
-        self._containers = []
 
     @property
     def name(self):
@@ -6609,26 +6608,6 @@ class Container(Node):
 
         '''
         return self._symbol_table
-
-    @property
-    def kernels(self):
-        '''
-        :returns: list containing any KernelSchedule objects contained \
-        in this Container.
-        :rtype: list of :py:class:`psyclone.psyGen.KernelSchedule`
-
-        '''
-        return self._list
-
-    @property
-    def containers(self):
-        '''
-        :returns: list containing any Container objects contained \ in
-        this Container.
-        :rtype: list of :py:class:`psyclone.psyGen.Container`
-
-        '''
-        return self._list
 
     @property
     def coloured_text(self):
