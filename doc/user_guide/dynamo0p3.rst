@@ -2144,6 +2144,10 @@ that supports distributed memory.  An example of redundant computation
 can be found in ``examples/dynamo/eg8`` and an example of asynchronous
 halo exchanges can be found in ``examples/dynamo/eg11``.
 
+The **Dynamo0p3KernelConstTrans** transformation is only valid for the
+"Dynamo0p3" API. This is because the properties that it makes constant
+are API specific.
+
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
 that the transformation is only valid for this particular API. If the
@@ -2172,6 +2176,10 @@ all versions of the Dynamo0.3 API.
     :noindex:
 
 .. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.Dynamo0p3KernelConstTrans
     :members:
     :noindex:
 

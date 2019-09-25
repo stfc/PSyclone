@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,32 +31,20 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 
-module testkern
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args =    &
-          (/ arg_type(gh_real, gh_read),     &
-             arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w3)  &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
-contains
-
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer :: nlayers
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:) :: map_w1, map_w2, map_w3
-
-  end subroutine testkern_code
-end module testkern
+! Illustration of computing horizontal diffusion using the
+! laplacian. This is a Fortran implementation of the Dawn Python
+! example.
+program hori_diff
+  implicit none
+  integer, parameter :: n=10
+  integer :: i,j,k
+  real, dimension(0:n+1,0:n+1,0:n+1) :: lap,fin,coeff,fout
+  do k=1,n
+     do j=1,n
+        do i=1,n
+           lap(i,j,k)=(-4.0)*fin(i,j,k)+coeff(i,j,k)*(fin(i+1,j,k)+fin(i-1,j,k)+fin(i,j+1,k)+fin(i,j-1,k))
+           fout(i,j,k)=(-4.0)*lap(i,j,k)+coeff(i,j,k)*(lap(i+1,j,k)+lap(i-1,j,k)+lap(i,j+1,k)+lap(i,j-1,k))
+        end do
+     end do
+  end do
+end program hori_diff

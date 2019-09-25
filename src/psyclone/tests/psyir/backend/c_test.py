@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
@@ -263,7 +264,7 @@ def test_cw_codeblock():
     error.
     '''
 
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     cwriter = CWriter()
 
     with pytest.raises(VisitorError) as error:
@@ -308,7 +309,7 @@ def test_cw_unaryoperator():
         unary_operation._operator = operator
         assert cwriter(unary_operation) in expected
 
-    # Test that an unsupported operator raises a error
+    # Test that an unsupported operator raises an error
     # pylint: disable=abstract-method, too-few-public-methods
     class Unsupported():
         '''Dummy class'''
@@ -372,3 +373,24 @@ def test_cw_binaryoperator():
         _ = cwriter(binary_operation)
     assert "The C backend does not support the '" in str(err)
     assert "' operator." in str(err)
+
+
+def test_cw_size():
+    ''' Check the CWriter class SIZE method raises the expected error since
+    there is no C equivalent. '''
+    cwriter = CWriter()
+
+    assignment = Assignment()
+    lhs = Reference('length', parent=assignment)
+    size = BinaryOperation(BinaryOperation.Operator.SIZE, parent=assignment)
+    assignment.addchild(lhs)
+    assignment.addchild(size)
+    arr = Array('a', parent=size)
+    lit = Literal('1', parent=size)
+    size.addchild(arr)
+    size.addchild(lit)
+
+    with pytest.raises(VisitorError) as excinfo:
+        cwriter(assignment)
+    assert ("C backend does not support the 'Operator.SIZE' operator"
+            in str(excinfo.value))
