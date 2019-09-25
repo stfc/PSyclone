@@ -33,7 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified I. Kavcic, Met Office
-      
+
 .. _dynamo0.3-api:
 
 Dynamo0.3 API
@@ -223,7 +223,7 @@ kernel, e.g.:
                   kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
 
-This quadrature object specifies the set of points at which the 
+This quadrature object specifies the set of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
 
 .. _dynamo0.3-alg-stencil:
@@ -1012,7 +1012,7 @@ Column-wise operators are constructed from cell-wise (local) operators.
 Therefore, in order to **assemble** a CMA operator, a kernel must have at
 least one read-only LMA operator, e.g.:
 ::
-   
+
    type(arg_type) :: meta_args(2) = (/                                       &
         arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
@@ -1022,7 +1022,7 @@ CMA operators (and their inverse) are **applied** to fields. Therefore any
 kernel of this type must have one read-only CMA operator, one read-only
 field and a field that is updated, e.g.:
 ::
-   
+
    type(arg_type) :: meta_args(3) = (/                                      &
         arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
         arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
@@ -1033,7 +1033,7 @@ field and a field that is updated, e.g.:
 operators. They must therefore have one such operator that is updated while
 the rest are read-only. They may also have read-only scalar arguments, e.g.:
 ::
-   
+
    type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
@@ -1054,7 +1054,7 @@ this metadata should be omitted.) Consider the
 following kernel metadata:
 
 ::
-   
+
     type, extends(kernel_type) :: testkern_operator_type
       type(arg_type), dimension(3) :: meta_args =   &
           (/ arg_type(gh_operator,gh_write,w0,w0),  &
@@ -1218,7 +1218,7 @@ rules, along with PSyclone's naming conventions, are:
 	      target function space (e.g\. as specified by ``gh_evaluator_targets``).
 	      Each of these arrays are of rank 3 with extent (``dimension``, ``number_of_dofs``,
 	      ``ndf_<target_function_space>``). The name of the argument is ``"basis_"<field_function_space>"_on_"<target_function_space>`` or ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``, as appropriate.
-	      
+
            where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D).
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
@@ -1238,10 +1238,10 @@ Examples
 ^^^^^^^^
 
 .. highlight:: fortran
-	  
+
 For instance, if a kernel has only one written argument and requires an
 evaluator then its metadata might be::
-  
+
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
           (/ arg_type(gh_operator, gh_write, w0, w1), &
@@ -1260,7 +1260,7 @@ be::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0_on_w0, ndf_w1)    
+       basis_w0_on_w0, ndf_w1)
 
 where ``local_stencil`` is the operator, ``xdata``, ``ydata``
 etc\. are the three components of the field vector and ``map_w0`` is
@@ -1283,7 +1283,7 @@ If instead, ``gh_evaluator_targets`` is specified in the metadata::
 
 then we will need to pass two sets of basis functions (evaluated at W0
 and at W1)::
-  
+
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
@@ -1311,21 +1311,21 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
     4) Include the total number of cells, ``ncell_3d``, which is an integer
        with intent ``in``.
     5) For each argument in the ``meta_args`` metadata array:
-       
+
        1) If it is a LMA operator, include a real, 3-dimensional
           array of type ``r_def``. The first two dimensions are the local
           degrees of freedom for the ``to`` and ``from`` spaces,
           respectively. The third dimension is ``ncell_3d``.
-	  
+
        2) If it is a CMA operator, include a real, 3-dimensional array
           of type ``r_def``. The first dimension is is
           ``"bandwidth_"<operator_name>``, the second is
           ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
-	  
+
 	  1) Include the number of rows in the banded matrix.  This is
 	     an integer with intent ``in`` and is named as
 	     ``"nrow_"<operator_name>``.
-          2) If the from-space of the operator is *not* the same as the 
+          2) If the from-space of the operator is *not* the same as the
 	     to-space then include the number of columns in the banded
 	     matrix.  This is an integer with intent ``in`` and is named as
 	     ``"ncol_"<operator_name>``.
@@ -1342,8 +1342,8 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
 
        3) If it is a field or scalar argument then include arguments following
-          the same rules as for general-purpose kernels. 
-	  
+          the same rules as for general-purpose kernels.
+
     6) For each unique function space in the order they appear in the
        metadata arguments (the ``to`` function space of an operator is
        considered to be before the ``from`` function space of the same
@@ -1580,7 +1580,7 @@ X_plus_Y
 
 
 Sums two fields (Z = X + Y): ::
-  
+
   field3(:) = field1(:) + field2(:)
 
 where:
@@ -1609,7 +1609,7 @@ aX_plus_Y
 **aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
 Performs Z = aX + Y: ::
-   
+
   field3(:) = scalar*field1(:) + field2(:)
 
 where:
@@ -1624,7 +1624,7 @@ inc_aX_plus_Y
 **inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
 
 Performs X = aX + Y (increments the first field): ::
-   
+
   field1(:) = scalar*field1(:) + field2(:)
 
 where:
@@ -1654,7 +1654,7 @@ aX_plus_bY
 **aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
 
 Performs Z = aX + bY: ::
-   
+
   field3(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
@@ -1669,7 +1669,7 @@ inc_aX_plus_bY
 **inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
 Performs X = aX + bY (increments the first field): ::
-   
+
   field1(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
@@ -1688,9 +1688,9 @@ X_minus_Y
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
-Subtracts the second field from the first and stores the result in the 
+Subtracts the second field from the first and stores the result in the
 third (Z = X - Y): ::
-  
+
   field3(:) = field1(:) - field2(:)
 
 where:
@@ -1719,7 +1719,7 @@ aX_minus_Y
 **aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
 Performs Z = aX - Y: ::
-   
+
   field3(:) = scalar*field1(:) - field2(:)
 
 where:
@@ -1768,7 +1768,7 @@ X_times_Y
 
 **X_times_Y** (*field3*, *field1*, *field2*)
 
-Multiplies two fields together and returns the result in a third 
+Multiplies two fields together and returns the result in a third
 field (Z = X*Y): ::
 
   field3(:) = field1(:)*field2(:)
@@ -1798,7 +1798,7 @@ inc_aX_times_Y
 **inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
 Performs X = a*X*Y (increments the first field): ::
-   
+
   field1(:) = scalar*field1(:)*field2(:)
 
 where:
@@ -1818,9 +1818,9 @@ a_times_X
 
 **a_times_X** (*field2*, *scalar*, *field1*)
 
-Multiplies a field by a scalar and stores the result in a second 
+Multiplies a field by a scalar and stores the result in a second
 field (Y = a*X): ::
-  
+
   field2(:) = scalar*field1(:)
 
 where:
@@ -1854,7 +1854,7 @@ X_divideby_Y
 
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
-Divides the first field by the second and returns the result in the 
+Divides the first field by the second and returns the result in the
 third (Z = X/Y): ::
 
   field3(:) = field1(:)/field2(:)
@@ -2002,7 +2002,7 @@ sum_X
 
 Sums all of the elements of the field *field* and returns the result
 in the scalar variable *sumfld*: ::
-  
+
   sumfld = SUM(field(:))
 
 where:
@@ -2123,16 +2123,16 @@ then call the generic ones internally.
 The use of the Dynamo0.3-API-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
 **DynamoLoopFuseTrans**. In this case an additional optional argument
-**same_space** has been added to the **apply** method. The reason for
-this is to allow loop fusion when one or more of the iteration spaces
-is determined by a function space that is unknown by PSyclone at compile
-time. This is the case when the ``ANY_SPACE_n`` function space is specified
-in the Kernel metadata. The ``same_space=True`` option allows the user to
-specify that the spaces are the same. This option should therefore be used
-with caution. PSyclone will raise an error if **same_space** is used when at
-least one of the function spaces is not ``ANY_SPACE_n``. As a general rule
-PSyclone will not allow loop  fusion if it does not know the spaces are the
-same. The exception are loops over discontinuous spaces (see
+**same_space** can be set after creating an instance of the transformation.
+The reason for this is to allow loop fusion when one or more of the iteration
+spaces is determined by a function space that is unknown by PSyclone at
+compile time. This is the case when the ``ANY_SPACE_n`` function space is
+specified in the Kernel metadata. Setting ``ftrans.same_space = True`` allows
+the user to specify that the spaces are the same. This option should therefore
+be used with caution. PSyclone will raise an error if **same_space** is used
+when at least one of the function spaces is not ``ANY_SPACE_n``. As a general
+rule PSyclone will not allow loop  fusion if it does not know the spaces are
+the same. The exception are loops over discontinuous spaces (see
 :ref:`dynamo0.3-function-space` for list of discontinuous function spaces)
 for which loop fusion is allowed (unless the loop bounds become different
 due to a prior transformation).

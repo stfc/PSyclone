@@ -1018,6 +1018,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
         schedule = invoke.schedule
 
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = same_space
         mtrans = MoveTrans()
         if dist_mem:
             # c and g halo exchange between loops can be moved before
@@ -1032,8 +1033,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         with pytest.raises(TransformationError) as excinfo:
             _, _ = ftrans.apply(schedule.children[index],
-                                schedule.children[index+1],
-                                same_space=same_space)
+                                schedule.children[index+1])
 
         if same_space:
             assert ("The 'same_space' flag was set, but does not apply "
@@ -1043,6 +1043,24 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
             assert ("Cannot fuse loops that are over different spaces "
                     "'w2' and 'w1' unless they are both discontinuous"
                     in str(excinfo.value))
+
+
+def test_loop_fuse_same_space_error():
+    ''' Test that we raise an appropriate error if the user attempts
+    to incorrectly set the 'same_space' property
+
+    '''
+    ftrans = DynamoLoopFuseTrans()
+    # Assert that 'same_space' is set to default False
+    assert ftrans.same_space is False
+    # Assert that None is also set to default False
+    ftrans.same_space = None
+    assert ftrans.same_space is False
+    with pytest.raises(TransformationError) as excinfo:
+        ftrans.same_space = "foo"
+    assert ("The value of the 'same_space' flag must be either Boolean or "
+            "None type, but the type of flag provided was 'str'."
+            in str(excinfo.value))
 
 
 def test_loop_fuse(dist_mem):
@@ -1355,6 +1373,7 @@ def test_loop_fuse_cma(dist_mem):
                                  "20.6_multi_invoke_with_cma.f90"),
                     api=TEST_API)
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     mtrans = MoveTrans()
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     invoke = psy.invokes.get('invoke_0')
@@ -1373,8 +1392,7 @@ def test_loop_fuse_cma(dist_mem):
 
     # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[index],
-                               schedule.children[index+1],
-                               same_space=True)
+                               schedule.children[index+1])
     code = str(psy.gen)
     print(code)
     assert (
@@ -1618,10 +1636,9 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     schedule, _ = otrans.apply(schedule.children[0])
@@ -1826,10 +1843,9 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
 
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
@@ -2461,6 +2477,7 @@ def test_multi_reduction_real_fuse():
             schedule = invoke.schedule
 
             ftrans = DynamoLoopFuseTrans()
+            ftrans.same_space = True
             if distmem:
                 # We need to remove the global sum. This makes the
                 # code invalid in this particular case but allows us
@@ -2468,8 +2485,7 @@ def test_multi_reduction_real_fuse():
                 del schedule.children[1]
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert (
                 "Error in DynamoLoopFuse transformation: Cannot fuse loops "
                 "when each loop already contains a "
@@ -2726,6 +2742,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -2733,8 +2750,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                                        position="after")
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
@@ -2746,8 +2762,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                                            position="after")
             rtrans = DynamoOMPParallelLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -2809,6 +2824,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -2816,8 +2832,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
                                        position="after")
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
@@ -2829,8 +2844,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0], reprod=False)
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -2970,18 +2984,17 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
             otrans = DynamoOMPParallelLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -3043,19 +3056,18 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0], reprod=False)
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -3119,11 +3131,10 @@ def test_multi_builtins_fuse_error():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     assert ("Cannot fuse loops as the first loop has a reduction and "
             "the second loop reads the result of the "
             "reduction") in str(excinfo.value)
@@ -3418,6 +3429,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -3427,15 +3439,13 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
             # we can't loop fuse as the loop bounds differ
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
             # we can loop fuse as the loop bounds are the same
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = otrans.apply(schedule.children[0], reprod=True)
@@ -3538,19 +3548,18 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not distmem and annexed
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0], reprod=True)
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule

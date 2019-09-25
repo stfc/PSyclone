@@ -184,7 +184,7 @@ class LoopFuseTrans(Transformation):
         ''' Returns the name of this transformation as a string.'''
         return "LoopFuse"
 
-    def _validate(self, node1, node2):
+    def validate(self, node1, node2):
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
@@ -253,7 +253,7 @@ class LoopFuseTrans(Transformation):
         '''
 
         # Validity checks for the supplied nodes
-        self._validate(node1, node2)
+        self.validate(node1, node2)
 
         schedule = node1.root
 
@@ -322,7 +322,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         '''
 
         # Call the parent class validation first
-        super(GOceanLoopFuseTrans, self)._validate(node1, node2)
+        super(GOceanLoopFuseTrans, self).validate(node1, node2)
 
         # Now check for GOcean-specific constraints before applying
         # the transformation
@@ -361,15 +361,20 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     >>> new_schedule, memento = ftrans.apply(schedule.children[0],
                                              schedule.children[1])
     >>> new_schedule.view()
+
+    The use of the optional argument `same_space` can be set as
+
+    >>> ftrans.same_space = True
+
+    after the instance of the transformation is created.
     '''
 
-    # def __init__(self):
-        # # Define private variable for storing the value of the optional
-        # # 'same_space' flag passed to the 'apply' method. Otherwise we
-        # # would have to name mangle the '_validate' methods of parent
-        # # class and subclasses as the parent '_validate' method does
-        # # not have a positional parameter
-        # self._same_space_flag = False
+    def __init__(self, same_space=False):
+        # Create the `same_space` attribute. Its value is set in via
+        # the setter method below.
+        # TODO: Remove when the suport for multiple options in
+        # Transformations is introduced (Issue #478)
+        self._same_space = same_space
 
     def __str__(self):
         return ("Fuse two adjacent loops together with Dynamo-specific "
@@ -380,20 +385,41 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         ''' Returns the name of this transformation as a string.'''
         return "DynamoLoopFuse"
 
-    # @property
-    # def same_space(self):
-        # ''' Returns the `same_space` property that is specified when
-            # applying this transformation. The default is 'False'.'''
-        # return self._same_space
+    # TODO: Remove the property and the setter below and reformulate the
+    # relevant tests and documentation when the suport for multiple options
+    # in Transformations is introduced (Issue #478)
+    @property
+    def same_space(self):
+        ''' Returns the `same_space` flag that is specified when applying
+        this transformation. The default value is False. '''
+        return self._same_space
 
-    # @same_space.setter
-    # def same_space(self, value):
-        # ''' Sets the OpenMP schedule that will be specified by
-        # this transformation. Checks that the string supplied in
-        # :py:obj:`value` is a recognised OpenMP schedule. '''
-        # self._same_space = value
+    @same_space.setter
+    def same_space(self, value):
+        ''' Sets value of the `same_space` flag and checks that the
+        supplied value is Boolean or None.
 
-    def _validate(self, node1, node2, same_space):
+        :param value: optional argument to determine whether two unknown \
+                      function spaces are the same. The default value is \
+                      False (also when no value is provided).
+        :type value: Boolean or None
+
+        :raises TransformationError: if the provided value is not Boolean \
+                                     or None.
+        '''
+
+        if not value:
+            self._same_space = False
+        elif isinstance(value, bool):
+            self._same_space = value
+        else:
+            raise TransformationError(
+                "Error in {0} transformation: The value of the 'same_space' "
+                "flag must be either Boolean or None type, but the type of "
+                "flag provided was '{1}'.".
+                format(self.name, type(value).__name__))
+
+    def validate(self, node1, node2):
         ''' Performs various checks to ensure that it is valid to apply
         the DynamoLoopFuseTrans transformation to the supplied loops.
 
@@ -425,11 +451,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      the reduction.
         '''
 
-        # # Set the 'same_space' flag value
-        # same_space = self._same_space_flag
-
         # Call the parent class validation first
-        super(DynamoLoopFuseTrans, self)._validate(node1, node2)
+        super(DynamoLoopFuseTrans, self).validate(node1, node2)
 
         # Now test for Dynamo-specific constraints
 
@@ -455,7 +478,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         node_on_any_space = node1_fs_name in VALID_ANY_SPACE_NAMES or \
             node2_fs_name in VALID_ANY_SPACE_NAMES
         # 2.2) If 'same_space' is true check for at least one ANY_SPACE
-        if same_space:
+        if self.same_space:
             if not node_on_any_space:
                 raise TransformationError(
                     "Error in {0} transformation: The 'same_space' "
@@ -530,7 +553,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                             "and the second loop reads the result of "
                             "the reduction.".format(self.name))
 
-    def apply(self, node1, node2, same_space=False):
+    def apply(self, node1, node2):
         ''' Fuses two `psyclone.dynamo0p3.DynLoop` Loops after performing
         validity checks by calling :py:meth:`LoopFuseTrans.apply` method
         of the base class. The optional `same_space` flag, set to `True`,
@@ -549,11 +572,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                  :py:class:`psyclone.undoredo.Memento`)
         '''
 
-        # # Store 'same_space' value before validation
-        # self._same_space_flag = same_space
-
         # Validity checks for the supplied nodes
-        self._validate(node1, node2, same_space)
+        self.validate(node1, node2)
 
         # Apply fuse method from the parent class
         return super(DynamoLoopFuseTrans, self).apply(node1, node2)
