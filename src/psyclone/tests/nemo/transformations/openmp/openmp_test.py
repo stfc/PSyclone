@@ -147,9 +147,63 @@ def test_omp_parallel_multi():
     # stored AST.
     directive = new_sched.children[0].loop_body[2]
     assert isinstance(directive, OMPParallelDirective)
-    old_ast = directive._ast
+    old_ast = directive.ast
     directive.update()
-    assert old_ast is directive._ast
+    assert old_ast is directive.ast
+
+
+def test_omp_do_update():
+    '''Check the OMPDoDirective update function.'''
+    from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+    from psyclone.psyGen import OMPDoDirective
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    par_trans = OMPParallelTrans()
+    loop_trans = OMPLoopTrans()
+    new_sched, _ = par_trans.apply(schedule.children[0].loop_body[1]
+                                   .else_body[0].else_body[0])
+    new_sched, _ = loop_trans.apply(new_sched.children[0].loop_body[1]
+                                    .else_body[0].else_body[0].children[0])
+    gen_code = str(psy.gen).lower()
+    correct = '''      !$omp parallel default(shared), private(ji,jj)
+      !$omp do schedule(static)
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          zdkt(ji, jj) = (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) * \
+wmask(ji, jj, jk)
+        end do
+      end do
+      !$omp end do
+      !$omp end parallel'''
+    assert correct in gen_code
+
+    # Call update a second time and make sure that this does not
+    # trigger the whole update process again.
+    directive = new_sched.children[0].loop_body[1].else_body[0].else_body[0]\
+        .children[0]
+    assert isinstance(directive, OMPDoDirective)
+    directive.update()
+
+    # Remove the existing AST, so we can do more tests:
+    directive.ast = None
+    # Make the schedule invalid by adding a second child to the
+    # OMPParallelDoDirective
+    directive.children.append(new_sched.children[0].loop_body[3])
+
+    with pytest.raises(GenerationError) as err:
+        _ = directive.update()
+    assert ("An OpenMP DO can only be applied to a single loop but "
+            "this Node has 2 children:" in str(err))
+
+    # Fix the schedule by removing the second loop:
+    del directive.children[1]
+    directive.ast = None  # To rerun the update code
+
+    directive.parent.ast = None
+
+    directive.update()
 
 
 def test_omp_parallel_errs():

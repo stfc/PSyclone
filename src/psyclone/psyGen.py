@@ -2546,14 +2546,27 @@ class OMPParallelDirective(OMPDirective):
         if self.ast:
             return
 
+        parent = self.parent
+        # This initial loop is necessary in case that the parent is e.g. an
+        # omp parallel node (which has no ast either). So we search up
+        # till we fiund the first tree to actually have an ast.
+        while not parent.ast:
+            parent = parent.parent
+        parent_ast = parent.ast
+        while parent_ast:
+            if hasattr(parent_ast, "content") and \
+                            parent_ast is not self.children[0].ast:
+                break
+            parent_ast = parent_ast._parent
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = object_index(self._parent.ast.content,
-                                     self._children[0].ast)
-            end_idx = object_index(self._parent.ast.content,
-                                   self._children[-1].ast)
+            start_idx = object_index(parent_ast.content,
+                                     self.children[0].ast)
+            end_idx = object_index(parent_ast.content,
+                                   self.children[-1].ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2578,20 +2591,20 @@ class OMPParallelDirective(OMPDirective):
         # In order to avoid this problem when an "omp do" is present, test
         # for this case and if so move the "omp end parallel" two statements
         # further down, i.e. after the loop and "omp end do" statement.
-        if isinstance(self._parent.ast.content[end_idx], Comment) and \
-                "omp do" in str(self._parent.ast.content[end_idx]):
+        if isinstance(parent_ast.content[end_idx], Comment) and \
+                "omp do" in str(parent_ast.content[end_idx]):
             # We need to test for instance, otherwise the string representation
             # of a loop could somewhere contain an "omp do"
-            self._parent.ast.content.insert(end_idx+3, enddir)
+            parent_ast.content.insert(end_idx+3, enddir)
         else:
             # If end_idx+1 takes us beyond the range of the list then the
             # element is appended to the list
-            self._parent.ast.content.insert(end_idx + 1, enddir)
+            parent_ast.content.insert(end_idx + 1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self.ast = startdir
-        self._parent.ast.content.insert(start_idx, self.ast)
+        parent_ast.content.insert(start_idx, self.ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2739,23 +2752,23 @@ class OMPDoDirective(OMPDirective):
         # We have to take care to find a parent node (in the fparser2 AST)
         # that has 'content'. This is because If-else-if blocks have their
         # 'content' as siblings of the If-then and else-if nodes.
-        parent = self._parent
+        parent = self.parent
         # This initial loop is necessary in case that the parent is e.g. an
         # omp parallel node (which has no ast either). So we search up
-        # till we found the first tree to actually have an ast.
+        # till we find the first tree to actually have an ast.
         while not parent.ast:
-            parent = parent._parent
-        parent = parent.ast
-        while parent:
-            if hasattr(parent, "content") and \
-                            parent is not self.children[0].ast:
+            parent = parent.parent
+        parent_ast = parent.ast
+        while parent_ast:
+            if hasattr(parent_ast, "content") and \
+                    parent_ast is not self.children[0].ast:
                 break
-            parent = parent._parent
-        if not parent:
+            parent_ast = parent_ast._parent
+        if not parent_ast:
             raise InternalError("Failed to find parent node in which to "
                                 "insert OpenMP parallel do directive")
-        start_idx = object_index(parent.content,
-                                 self._children[0].ast)
+        start_idx = object_index(parent_ast.content,
+                                 self.children[0].ast)
 
         # Create the start directive
         text = ("!$omp do schedule({0})".format(self._omp_schedule))
@@ -2766,12 +2779,12 @@ class OMPDoDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end do",
                                              ignore_comments=False))
-        parent.content.insert(start_idx + 1, enddir)
+        parent_ast.content.insert(start_idx + 1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
         self.ast = startdir
-        parent.content.insert(start_idx, self.ast)
+        parent_ast.content.insert(start_idx, self.ast)
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
