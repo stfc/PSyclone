@@ -53,7 +53,7 @@ program multiple_stencil
                       f3_direction = x_direction
 
   call invoke(                                                   &
-        testkern_stencil_xory1d_type(f1, &
+        testkern_stencil_xory1d_type(f1,                         &
                                      f2, f2_extent, x_direction, &
                                      f3, f4),                    &
         testkern_stencil_multi_type(f1, f2, f2_extent,           &

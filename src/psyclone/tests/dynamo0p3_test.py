@@ -42,6 +42,10 @@ from __future__ import absolute_import, print_function
 import os
 import sys
 import pytest
+
+import fparser
+from fparser import api as fpapi
+
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -58,8 +62,6 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from dynamo0p3_build import Dynamo0p3Build
 
-import fparser
-from fparser import api as fpapi
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

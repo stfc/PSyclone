@@ -282,36 +282,37 @@ class LoopFuseTrans(Transformation):
         # Check that the supplied Node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
-            raise TransformationError("Error in LoopFuse transformation. "
+            raise TransformationError("Error in {0} transformation. "
                                       "At least one of the nodes is not "
-                                      "a loop")
+                                      "a loop.".format(self.name))
 
         # If they are loops, they must be fully-formed.
         if len(node1.children) != 4:
             raise TransformationError(
-                "Error in LoopFuse transformation. The first loop "
-                "does not have 4 children.")
+                "Error in {0} transformation. The first loop "
+                "does not have 4 children.".format(self.name))
 
         if len(node2.children) != 4:
             raise TransformationError(
-                "Error in LoopFuse transformation. The second loop "
-                "does not have 4 children.")
+                "Error in {0} transformation. The second loop "
+                "does not have 4 children.".format(self.name))
 
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
-            raise TransformationError("Error in LoopFuse transformation. "
-                                      "Loops do not have the same parent")
+            raise TransformationError(
+                "Error in {0} transformation. Loops do not have "
+                "the same parent.".format(self.name))
 
         # Check node1 and node2 are next to each other
         if abs(node1.position-node2.position) != 1:
-            raise TransformationError("Error in LoopFuse transformation. "
-                                      "nodes are not siblings who are "
-                                      "next to each other")
+            raise TransformationError(
+                "Error in {0} transformation. Nodes are not siblings "
+                "who are next to each other.".format(self.name))
         # Check that the iteration space is the same
         if node1.iteration_space != node2.iteration_space:
-            raise TransformationError("Error in LoopFuse transformation. "
-                                      "Loops do not have the same "
-                                      "iteration space")
+            raise TransformationError(
+                "Error in {0} transformation. Loops do not have the "
+                "same iteration space.".format(self.name))
 
     def apply(self, node1, node2):
         ''' Fuses two loops represented by `psyclone.psyGen.Node` objects
@@ -405,16 +406,17 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         try:
             if node1.field_space != node2.field_space:
                 raise TransformationError(
-                    "Error in GOceanLoopFuse transformation. Cannot "
+                    "Error in {0} transformation. Cannot "
                     "fuse loops that are over different grid-point types: "
-                    "{0} {1}".format(node1.field_space,
+                    "{1} {2}".format(self.name, node1.field_space,
                                      node2.field_space))
             return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
         except Exception as err:
-            raise TransformationError("Unexpected exception: {0}".
-                                      format(err))
+            raise TransformationError(
+                "Error in {0} transformation. Unexpected exception: {1}".
+                format(self.name, err))
 
 
 class DynamoLoopFuseTrans(LoopFuseTrans):
@@ -438,7 +440,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                              schedule.children[1])
     >>> new_schedule.view()
 
-    The use of the optional argument `same_space` can be set as
+    The optional argument `same_space` can be set as
 
     >>> ftrans.same_space = True
 
@@ -446,10 +448,10 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     '''
 
     def __init__(self, same_space=False):
-        # Create the `same_space` attribute. Its value is set in via
+        # Create the 'same_space' attribute. Its value is set in via
         # the setter method below.
         # TODO: Remove when the suport for multiple options in
-        # Transformations is introduced (Issue #478)
+        # Transformations is introduced (issue #478)
         self._same_space = same_space
 
     def __str__(self):
@@ -461,9 +463,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         ''' Returns the name of this transformation as a string.'''
         return "DynamoLoopFuse"
 
-    # TODO: Remove the property and the setter below and reformulate the
-    # relevant tests and documentation when the suport for multiple options
-    # in Transformations is introduced (Issue #478)
+    # TODO: Remove the 'same_space' property and the setter below and
+    # reformulate the relevant tests and documentation when the suport for
+    # multiple options in Transformations is introduced (issue #478)
     @property
     def same_space(self):
         ''' Returns the `same_space` flag that is specified when applying
@@ -474,6 +476,10 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     def same_space(self, value):
         ''' Sets value of the `same_space` flag and checks that the
         supplied value is Boolean or None.
+        This optional flag, set to `True`, asserts that an unknown iteration
+        space (i.e. `ANY_SPACE`) matches the other iteration space. This is
+        set at the user's own risk. If both iteration spaces are discontinuous
+        the loops can be fused without having to use the `same_space` flag.
 
         :param value: optional argument to determine whether two unknown \
                       function spaces are the same. The default value is \
@@ -513,13 +519,12 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      is on `ANY_SPACE`.
         :raises TransformationError: if one or more of the iteration spaces
                                      is unknown (`ANY_SPACE`) and the \
-                                     `same_space` optional argument is not \
-                                     set to `True`.
+                                     `same_space` flag is not set to `True`.
         :raises TransformationError: if the loops are over different spaces \
                                      that are not both discontinuous.
         :raises TransformationError: if the loops' upper bound names are \
                                      not the same.
-        :raises TransformationError: if the halo-depth indices of two Loops \
+        :raises TransformationError: if the halo-depth indices of two loops \
                                      are not the same.
         :raises TransformationError: if each loop already contains a reduction.
         :raises TransformationError: if the first loop has a reduction and \
@@ -563,7 +568,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         # 2.3) If 'same_space' is not True then make further checks
         else:
             # 2.3.1) Check whether one or more of the function spaces
-            # is ANY_SPACE without the `same_space` flag
+            # is ANY_SPACE without the 'same_space' flag
             if node_on_any_space:
                 raise TransformationError(
                     "Error in {0} transformation: One or more of the "
@@ -574,8 +579,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
             # 2.3.2) Check whether specific function spaces are the
             # same. If they are not, the loop fusion is still possible
             # but only when both function spaces are discontinuous
-            # (w3, w2v, wtheta or any_discontinuous_space) and the loop
-            # bounds are the same (checked further below).
+            # (w3, w2v, wtheta or any_discontinuous_space) and the upper
+            # loop bounds are the same (checked further below).
             if node1_fs_name != node2_fs_name:
                 if not (node1_fs_name in
                         VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
@@ -631,13 +636,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                             "the reduction.".format(self.name))
 
     def apply(self, node1, node2):
-        ''' Fuses two `psyclone.dynamo0p3.DynLoop` Loops after performing
+        ''' Fuses two `psyclone.dynamo0p3.DynLoop` loops after performing
         validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class. The optional `same_space` flag, set to `True`,
-        asserts that an unknown iteration space (i.e. `ANY_SPACE`) matches
-        the other iteration space. This is set at the user's own risk. If
-        both iteration spaces are discontinuous the Loops can be fused
-        without having to use the `same_space` flag.
+        of the base class.
 
         :param node1: the first Loop to fuse.
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`

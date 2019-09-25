@@ -39,7 +39,7 @@ program single_kernel_any_dscnt_space_stencil
   ! it is different. When it is the same we should have the same stencil dofmap
   ! (as all other stencil information is the same) and when it is different we
   ! should have a different stencil dofmap (as we do not know if they are on the
-  ! same space). 
+  ! same space).
   ! This also tests the case where we have different fields with the same and
   ! different any_discontinuous_space names in different kernels.
   use testkern_same_any_dscnt_space_stencil_mod,      only: &
@@ -53,10 +53,10 @@ program single_kernel_any_dscnt_space_stencil
   type(field_type)   :: f0, f1, f2, f3, f4, f5
   integer, parameter :: extent = 3
 
-  ! 1) same kernel, different field, same any_discontinuous_space (f1,f2)
-  ! 2) same kernel, different field, different any_discontinuous_space (f4,f5)
-  ! 3) different kernel, different field, same any_discontinuous_space (f1,f4)
-  ! 4) different kernel, different field, different any_discontinuous_space (f2,f5)
+  ! 1) same kernel, different field, same any_discontinuous_space (f1, f2)
+  ! 2) same kernel, different field, different any_discontinuous_space (f4, f5)
+  ! 3) different kernel, different field, same any_discontinuous_space (f1, f4)
+  ! 4) different kernel, different field, different any_discontinuous_space (f2, f5)
 
   call invoke(                                                     &
        testkern_same_any_dscnt_space_stencil_type(f0,              &

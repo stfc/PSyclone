@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic Met Office
+# Modified I. Kavcic, Met Office
 
 ''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
     using pytest. '''

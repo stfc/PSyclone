@@ -2111,28 +2111,29 @@ Transformations
 ---------------
 
 This section describes the Dynamo0.3-API-specific transformations. In
-all cases, excepting **Dynamo0p3RedundantComputationTrans** and
-**Dynamo0p3AsyncHaloExchangeTrans**, these transformations are
-specialisations of generic transformations described in the
-:ref:`transformations` section. The difference between these
-transformations and the generic ones is that these perform
-Dynamo0.3-API-specific checks to make sure the transformations are
-valid. In practice these transformations perform the required checks
-then call the generic ones internally.
+cases, excepting **Dynamo0p3RedundantComputationTrans**,
+**Dynamo0p3AsyncHaloExchangeTrans** and **Dynamo0p3KernelConstTrans**,
+these transformations are specialisations of generic transformations
+described in the :ref:`transformations` section. The difference
+between these transformations and the generic ones is that these
+perform Dynamo0.3-API-specific checks to make sure the transformations
+are valid. In practice these transformations perform the required
+checks then call the generic ones internally.
 
-The use of the Dynamo0.3-API-specific transformations is exactly the same
-as the equivalent generic ones in all cases excepting
+The use of the Dynamo0.3-API-specific transformations is exactly the
+same as the equivalent generic ones in all cases excepting
 **DynamoLoopFuseTrans**. In this case an additional optional argument
 **same_space** can be set after creating an instance of the transformation.
-The reason for this is to allow loop fusion when one or more of the iteration
-spaces is determined by a function space that is unknown by PSyclone at
-compile time. This is the case when the ``ANY_SPACE_n`` function space is
-specified in the Kernel metadata. Setting ``ftrans.same_space = True`` allows
-the user to specify that the spaces are the same. This option should therefore
-be used with caution. PSyclone will raise an error if **same_space** is used
-when at least one of the function spaces is not ``ANY_SPACE_n``. As a general
-rule PSyclone will not allow loop  fusion if it does not know the spaces are
-the same. The exception are loops over discontinuous spaces (see
+The reason for this is to allow loop fusion when one or more of the
+iteration spaces is determined by a function space that is unknown by
+PSyclone at compile time. This is the case when the ``ANY_SPACE_n``
+function space is specified in the Kernel metadata. Setting
+``ftrans.same_space = True`` allows the user to specify that the spaces
+are the same. This option should therefore be used with caution. PSyclone
+will raise an error if **same_space** is used when at least one of the
+function spaces is not ``ANY_SPACE_n``. As a general rule PSyclone will
+not allow loop  fusion if it does not know the spaces are the same.
+The exception are loops over discontinuous spaces (see
 :ref:`dynamo0.3-function-space` for list of discontinuous function spaces)
 for which loop fusion is allowed (unless the loop bounds become different
 due to a prior transformation).

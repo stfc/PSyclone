@@ -8774,7 +8774,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
         return None
 
 
-# ---------- Documentation utils 
+# ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
