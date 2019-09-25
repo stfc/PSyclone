@@ -99,6 +99,7 @@ class Fparser2Reader(object):
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
         ('sign', BinaryOperation.Operator.SIGN),
+        ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
@@ -371,7 +372,18 @@ class Fparser2Reader(object):
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
             decl_list = sub_spec.content
-            arg_list = subroutine.content[0].items[2].items
+            # TODO this if test can be removed once fparser/#211 is fixed
+            # such that routine arguments are always contained in a
+            # Dummy_Arg_List, even if there's only one of them.
+            from fparser.two.Fortran2003 import Dummy_Arg_List
+            if isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
+                arg_list = subroutine.content[0].items[2].items
+            elif subroutine.content[0].items[2]:
+                # Routine has a single argument
+                arg_list = [subroutine.content[0].items[2]]
+            else:
+                # Routine has no arguments
+                arg_list = []
         except ValueError:
             # Subroutine without declarations, continue with empty lists.
             decl_list = []

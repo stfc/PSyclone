@@ -638,22 +638,28 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _upper_bound(self):
-        ''' Returns the upper bound of this loop as a string.
+        ''' Creates the PSyIR of the upper bound of this loop.
         This takes the field type and usage of const_loop_bounds
-        into account. In case of const_loop_bounds it will be
+        into account. In the case of const_loop_bounds it will be
         using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
-        All occurences of {start} and {stop} in _bounds_loopup will
+        All occurences of {start} and {stop} in _bounds_lookup will
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1 depending on
-        loop type).'''
+        loop type).
+
+        :returns: the PSyIR for the upper bound of this loop.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        from psyclone.psyGen import BinaryOperation
         schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
-            index_offset = ""
             # Look for a child kernel in order to get the index offset.
-            # Since this is the __str__ method we have no guarantee
-            # what state we expect our object to be in so we allow
-            # for the case where we don't have any child kernels.
+            # Since we have no guarantee of what state we expect our object
+            # to be in we allow for the case where we don't have any child
+            # kernels.
+            index_offset = ""
             go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
@@ -672,42 +678,49 @@ class GOLoop(Loop):
                 stop = bounds["stop"].format(start='2', stop=stop)
                 # Remove all white spaces
                 stop = "".join(stop.split())
-                # This common cases is a bit of compile-time computation
-                # but it helps fixing all test cases.
+                # This common case is a bit of compile-time computation
+                # but it helps to fix all of the test cases.
                 if stop == "2-1":
                     stop = "1"
-            else:
-                stop = "not yet set"
+                return Literal(stop, self)
+            return Literal("not_yet_set", self)
+
+        if self.field_space == "go_every":
+            # Bounds are independent of the grid-offset convention in use
+
+            # We look-up the upper bounds by enquiring about the SIZE of
+            # the array itself
+            stop = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                   self)
+            # TODO 363 - needs to be updated once the PSyIR has support for
+            # Fortran derived types.
+            stop.addchild(Literal(self.field_name+"%data", parent=stop))
+            if self._loop_type == "inner":
+                stop.addchild(Literal("1", parent=stop))
+            elif self._loop_type == "outer":
+                stop.addchild(Literal("2", parent=stop))
+            return stop
+
+        # Loop bounds are pulled from the field object which
+        # is more straightforward for us but provides the
+        # Fortran compiler with less information.
+        stop = self.field_name
+
+        if self._iteration_space.lower() == "go_internal_pts":
+            stop += "%internal"
+        elif self._iteration_space.lower() == "go_all_pts":
+            stop += "%whole"
         else:
-            if self.field_space == "go_every":
-                # Bounds are independent of the grid-offset convention in use
-
-                # We look-up the upper bounds by enquiring about the SIZE of
-                # the array itself
-                if self._loop_type == "inner":
-                    stop = "SIZE("+self.field_name+"%data, 1)"
-                elif self._loop_type == "outer":
-                    stop = "SIZE("+self.field_name+"%data, 2)"
-
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                stop = self.field_name
-
-                if self._iteration_space.lower() == "go_internal_pts":
-                    stop += "%internal"
-                elif self._iteration_space.lower() == "go_all_pts":
-                    stop += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    stop += "%xstop"
-                elif self._loop_type == "outer":
-                    stop += "%ystop"
-        return stop
+            raise GenerationError("Unrecognised iteration space, '{0}'. "
+                                  "Cannot generate loop bounds.".
+                                  format(self._iteration_space))
+        if self._loop_type == "inner":
+            stop += "%xstop"
+        elif self._loop_type == "outer":
+            stop += "%ystop"
+        # TODO 363 - this needs updating once the PSyIR has support for
+        # Fortran derived types.
+        return Literal(stop, self)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -720,8 +733,12 @@ class GOLoop(Loop):
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1" depending on
-        loop type).'''
+        loop type).
 
+        :returns: root of PSyIR sub-tree describing this lower bound.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
         schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -746,34 +763,35 @@ class GOLoop(Loop):
                 start = bounds["start"].format(start='2', stop=stop)
                 # Remove all white spaces
                 start = "".join(start.split())
-                # This common cases is a bit of compile-time computation
-                # but it helps fixing all test cases.
+                # This common case is a bit of compile-time computation
+                # but it helps with fixing all of the test cases.
                 if start == "2-1":
                     start = "1"
-            else:
-                start = "not yet set"
+                return Literal(start, self)
+            return Literal("not_yet_set", self)
+
+        if self.field_space == "go_every":
+            # Bounds are independent of the grid-offset convention in use
+            return Literal("1", self)
+
+        # Loop bounds are pulled from the field object which is more
+        # straightforward for us but provides the Fortran compiler
+        # with less information.
+        start = self.field_name
+        if self._iteration_space.lower() == "go_internal_pts":
+            start += "%internal"
+        elif self._iteration_space.lower() == "go_all_pts":
+            start += "%whole"
         else:
-            if self.field_space == "go_every":
-                # Bounds are independent of the grid-offset convention in use
-                start = "1"
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                start = self.field_name
-                if self._iteration_space.lower() == "go_internal_pts":
-                    start += "%internal"
-                elif self._iteration_space.lower() == "go_all_pts":
-                    start += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    start += "%xstart"
-                elif self._loop_type == "outer":
-                    start += "%ystart"
-        return start
+            raise GenerationError("Unrecognised iteration space, '{0}'. "
+                                  "Cannot generate loop bounds.".
+                                  format(self._iteration_space))
+        if self._loop_type == "inner":
+            start += "%xstart"
+        elif self._loop_type == "outer":
+            start += "%ystart"
+        # TODO 363 - update once the PSyIR supports derived types
+        return Literal(start, self)
 
     def view(self, indent=0):
         '''
@@ -782,9 +800,8 @@ class GOLoop(Loop):
         :param int indent: Depth of indent for output text
         '''
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound should generate PSyIR
-        self.start_expr = Literal(self._lower_bound(), parent=self)
-        self.stop_expr = Literal(self._upper_bound(), parent=self)
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
 
         super(GOLoop, self).view(indent)
 
@@ -792,14 +809,26 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound should generate PSyIR
-        self.start_expr = Literal(self._lower_bound(), parent=self)
-        self.stop_expr = Literal(self._upper_bound(), parent=self)
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
 
         return super(GOLoop, self).__str__()
 
     def gen_code(self, parent):
-        ''' Generate the Fortran source for this loop '''
+        ''' Create the f2pygen AST for this loop (and update the PSyIR
+        representing the loop bounds if necessary).
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: if we can't find an enclosing Schedule.
+        :raises GenerationError: if this loop does not enclose a Kernel.
+        :raises GenerationError: if constant loop bounds are enabled but are \
+                                 not supported for the current grid offset.
+        :raises GenerationError: if the kernels within this loop expect \
+                                 different different grid offsets.
+
+        '''
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing GOInvokeSchedule
         schedule = self.ancestor(GOInvokeSchedule)
@@ -833,9 +862,8 @@ class GOLoop(Loop):
                                              index_offset))
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound should generate PSyIR
-        self.start_expr = Literal(self._lower_bound(), parent=self)
-        self.stop_expr = Literal(self._upper_bound(), parent=self)
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
 
         Loop.gen_code(self, parent)
 
