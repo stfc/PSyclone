@@ -498,7 +498,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
             # 2.3.2) Check whether specific function spaces are the
             # same. If they are not, the loop fusion is still possible
             # but only when both function spaces are discontinuous
-            # (w3, w2v, wtheta or any_discontinuous_space)
+            # (w3, w2v, wtheta or any_discontinuous_space) and the loop
+            # bounds are the same (checked further below).
             if node1_fs_name != node2_fs_name:
                 if not (node1_fs_name in
                         VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
