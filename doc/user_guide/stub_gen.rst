@@ -342,7 +342,7 @@ for function-space identifiers) are currently only supported for
 :ref:`Dynamo0.3 fields <dynamo0.3-field>` in stub generator. Basis and
 differential basis functions on these generic function spaces, required
 for :ref:`quadrature <dynamo0.3-quadrature>` and
-:ref:`evaluators <dynamo0.3-shape>`, are not supported. Hence,
+:ref:`evaluators <dynamo0.3-gh-shape>`, are not supported. Hence,
 ``testkern_any_space_1_mod.f90``, ``testkern_any_space_4_mod.f90`` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
 appropriate warnings because of that. For example:

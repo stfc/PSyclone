@@ -416,7 +416,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
     same or different function spaces.
 
  3) A Kernel may not write to a scalar argument. (Only
-    :ref:`built-ins <dynamo0.3-built-ins`> are permitted to do this.) Any
+    :ref:`built-ins <dynamo0.3-built-ins>` are permitted to do this.) Any
     scalar aguments must therefore be declared in the metadata as
     ``GH_READ`` - see :ref:`below <dynamo0.3-valid-access>`.
 
@@ -864,14 +864,14 @@ applies to the three generic ``ANY_*_*`` function space identifiers
 above. The valid metadata values for continuous and discontinuous
 function apaces are summarised in the table below.
 
-=========================	====================================
-Function Space Continuity	Function Space Metadata
-=========================	====================================
-**Continuous**           	| ``W0``, ``W1``, ``W2``, ``W2H``,
-                         	| ``ANY_SPACE_n``, ``ANY_W2``
-**Discontinuous**        	| ``W3``, ``WTHETA``, ``W2V``,
-                         	| ``ANY_DISCONTINUOUS_SPACE_n``
-=========================	====================================
+========================= ===========================
+Function Space Continuity Function Space Metadata
+========================= ===========================
+**Continuous**            | W0, W1, W2, W2H, ANY_W2,
+                          | ANY_SPACE_n
+**Discontinuous**         | W3, WTHETA, W2V,
+                          | ANY_DISCONTINUOUS_SPACE_n
+========================= ===========================
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -2128,12 +2128,12 @@ The reason for this is to allow loop fusion when one or more of the
 iteration spaces is determined by a function space that is unknown by
 PSyclone at compile time. This is the case when the ``ANY_SPACE_n``
 function space is specified in the Kernel metadata. Setting
-``ftrans.same_space = True`` allows the user to specify that the spaces
-are the same. This option should therefore be used with caution. PSyclone
-will raise an error if **same_space** is used when at least one of the
-function spaces is not ``ANY_SPACE_n``. As a general rule PSyclone will
-not allow loop  fusion if it does not know the spaces are the same.
-The exception are loops over discontinuous spaces (see
+``ftrans.same_space = True`` allows the user to specify that the spaces are
+the same. This option should therefore be used with caution. PSyclone will
+raise an error if **same_space** is used when at least one of the function
+spaces is not ``ANY_SPACE_n`` or both spaces are not the same. As a general
+PSyclone will not allow loop fusion if it does not know the spaces
+are the same. The exception are loops over discontinuous spaces (see
 :ref:`dynamo0.3-function-space` for list of discontinuous function spaces)
 for which loop fusion is allowed (unless the loop bounds become different
 due to a prior transformation).

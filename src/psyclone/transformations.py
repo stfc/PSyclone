@@ -448,7 +448,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     '''
 
     def __init__(self, same_space=False):
-        # Create the 'same_space' attribute. Its value is set in via
+        # Creates the 'same_space' attribute. Its value is set in via
         # the setter method below.
         # TODO: Remove when the suport for multiple options in
         # Transformations is introduced (issue #478)
@@ -469,17 +469,17 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     @property
     def same_space(self):
         ''' Returns the `same_space` flag that is specified when applying
-        this transformation. The default value is False. '''
+        this transformation. The default value is `False`.
+        This optional flag, set to `True`, asserts that an unknown iteration
+        space (i.e. `ANY_SPACE`) matches the other iteration space. This is
+        set at the user's own risk. If both iteration spaces are discontinuous
+        the loops can be fused without having to use the `same_space` flag.'''
         return self._same_space
 
     @same_space.setter
     def same_space(self, value):
         ''' Sets value of the `same_space` flag and checks that the
         supplied value is Boolean or None.
-        This optional flag, set to `True`, asserts that an unknown iteration
-        space (i.e. `ANY_SPACE`) matches the other iteration space. This is
-        set at the user's own risk. If both iteration spaces are discontinuous
-        the loops can be fused without having to use the `same_space` flag.
 
         :param value: optional argument to determine whether two unknown \
                       function spaces are the same. The default value is \
@@ -516,7 +516,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      invalid names.
         :raises TransformationError: if the `same_space` flag was set, but \
                                      does not apply because neither field \
-                                     is on `ANY_SPACE`.
+                                     is on `ANY_SPACE` or the spaces are not \
+                                     the same.
         :raises TransformationError: if one or more of the iteration spaces
                                      is unknown (`ANY_SPACE`) and the \
                                      `same_space` flag is not set to `True`.
@@ -558,9 +559,13 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         # ANY_SPACE is allowed only when the 'same_space' flag is set
         node_on_any_space = node1_fs_name in VALID_ANY_SPACE_NAMES or \
             node2_fs_name in VALID_ANY_SPACE_NAMES
-        # 2.2) If 'same_space' is true check for at least one ANY_SPACE
+        # 2.2) If 'same_space' is true check that both function spaces are
+        # the same or that at least one of the nodes is on ANY_SPACE. The
+        # former case is convenient when loop fusion is applied generically.
         if self.same_space:
-            if not node_on_any_space:
+            if node1_fs_name == node2_fs_name:
+                pass
+            elif not node_on_any_space:
                 raise TransformationError(
                     "Error in {0} transformation: The 'same_space' "
                     "flag was set, but does not apply because "
