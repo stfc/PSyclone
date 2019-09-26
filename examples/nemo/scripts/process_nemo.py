@@ -50,7 +50,12 @@ Or, if you have Gnu 'parallel':
 '''
 
 # Files that we won't attempt to process with PSyclone
-EXCLUDED_FILES = ["bdyini.f90", "diaobs.f90", "dommsk.f90",
+EXCLUDED_FILES = ["bdyini.f90",
+                  "cpl_oasis3.f90", # Missing declaration section
+                  "crs.f90",  # Missing declaration section
+                  "diaobs.f90",
+                  "diawri.f90", # Unused & has Return in profile region
+                  "dommsk.f90",
                   "fldread.f90",
                   "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
                   "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
