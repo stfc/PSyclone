@@ -409,6 +409,11 @@ class ProfileNode(Node):
         if isinstance(self.children[0], Schedule):
             # TODO #435 Schedule should really have a valid ast pointer.
             content_ast = self.children[0][0].ast
+        elif "was_case" in self.children[0].annotations:
+            # The 'ast' pointer for CASE statements points to the body
+            # of the clause so we have to go up one to get the location
+            # of the original 'select case'
+            content_ast = self.children[0].ast._parent
         else:
             content_ast = self.children[0].ast
         fp_parent = content_ast._parent
