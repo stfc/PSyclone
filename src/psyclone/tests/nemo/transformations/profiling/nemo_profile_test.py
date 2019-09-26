@@ -272,26 +272,33 @@ def test_profiling_case(parser):
     psy, sched = get_nemo_schedule(parser, code)
     # Innermost if-body
     PTRANS.apply(sched[1].if_body[2].if_body[0].if_body.children)
+    # Body of first CASE
+    PTRANS.apply(sched[1].if_body[:])
     # Body of second CASE
     PTRANS.apply(sched[1].else_body.children)
     # Whole routine
     PTRANS.apply(sched.children)
     code = str(psy.gen)
     assert (
-        "  TYPE(ProfileData), SAVE :: psy_profile1\n"
         "  TYPE(ProfileData), SAVE :: psy_profile2\n"
+        "  TYPE(ProfileData), SAVE :: psy_profile1\n"
+        "  TYPE(ProfileData), SAVE :: psy_profile3\n"
         "  TYPE(ProfileData), SAVE :: psy_profile0\n"
         "  CALL ProfileStart('my_test', 'r0', psy_profile0)\n"
         "  p_fld_crs(:, :) = 0._wp\n" in code)
     assert ("      IF (mje_crs(2) - mjs_crs(2) == 1) THEN\n"
-            "        CALL ProfileStart('my_test', 'r1', psy_profile1)\n"
+            "        CALL ProfileStart('my_test', 'r2', psy_profile2)\n"
             in code)
     assert ("        END DO\n"
-            "        CALL ProfileEnd(psy_profile1)\n"
+            "        CALL ProfileEnd(psy_profile2)\n"
             "      END IF\n" in code)
+    assert ("  CASE ('VOL')\n"
+            "    CALL ProfileStart('my_test', 'r1', psy_profile1)\n" in code)
+    assert ("    CALL ProfileEnd(psy_profile1)\n"
+            "  CASE ('SUM')\n" in code)
     assert ("  CASE ('SUM')\n"
-            "    CALL ProfileStart('my_test', 'r2', psy_profile2)\n" in code)
-    assert ("    CALL ProfileEnd(psy_profile2)\n"
+            "    CALL ProfileStart('my_test', 'r3', psy_profile3)\n" in code)
+    assert ("    CALL ProfileEnd(psy_profile3)\n"
             "  END SELECT\n"
             "  CALL ProfileEnd(psy_profile0)\n"
             "END SUBROUTINE my_test" in code)
@@ -301,26 +308,20 @@ def test_profiling_case_loop(parser):
     ''' Check that we can put profiling around a CASE and a subsequent
     loop. '''
     code = ("subroutine my_test()\n"
-            "integer :: igrd\n"
-            "      SELECT CASE(igrd)\n"
-            "         CASE(1)\n"
-            "            pmask => tmask(:,:,:)\n"
-            "            bdypmask => bdytmask(:,:)\n"
-            "         CASE(3)\n"
-            "            pmask => vmask(:,:,:)\n"
-            "            bdypmask => bdyvmask(:,:)\n"
-            "         CASE DEFAULT ;   CALL ctl_stop( 'unrecognised value for igrd in bdy_nmn' )\n"
-            "      END SELECT\n"
-            "      DO ib = 1, idx%nblenrim(igrd)\n"
-            "         ii = idx%nbi(ib,igrd)\n"
-            "         ij = idx%nbj(ib,igrd)\n"
-            "      END DO\n"
+            "  integer :: igrd\n"
+            "  select case(igrd)\n"
+            "     case(1)\n"
+            "        pmask => tmask(:,:,:)\n"
+            "        bdypmask => bdytmask(:,:)\n"
+            "     case default ;   CALL ctl_stop('unrecognised value')\n"
+            "  end select\n"
+            "  do ib = 1, idx%nblenrim(igrd)\n"
+            "     ii = idx%nbi(ib,igrd)\n"
+            "  end do\n"
             "end subroutine\n")
     psy, sched = get_nemo_schedule(parser, code)
     PTRANS.apply(sched.children)
-    sched.view()
     code = str(psy.gen)
-    print(code)
     assert ("  CALL ProfileStart('my_test', 'r0', psy_profile0)\n"
             "  SELECT CASE (igrd)\n" in code)
     assert ("CALL ProfileEnd(psy_profile0)\n"
