@@ -942,9 +942,12 @@ class Node(object):
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :param str annotation: Tag that provides additional information about \
+    :param annotations: Tags that provide additional information about \
         the node. The node should still be functionally correct when \
         ignoring these tags.
+    :type annotations: list of str
+
+    :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
     # Define two class constants: START_DEPTH and START_POSITION
@@ -957,7 +960,7 @@ class Node(object):
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
 
-    def __init__(self, ast=None, children=None, parent=None, annotation=None):
+    def __init__(self, ast=None, children=None, parent=None, annotations=None):
         if not children:
             self._children = []
         else:
@@ -970,13 +973,16 @@ class Node(object):
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
-        if annotation in self.valid_annotations:
-            self._annotations.append(annotation)
-        elif annotation:
-            raise InternalError(
-                "{0} with unrecognized annotation '{1}', valid annotations"
-                " are: {2}.".format(self.__class__.__name__, annotation,
-                                    self.valid_annotations))
+        if annotations:
+            for annotation in annotations:
+                if annotation in self.valid_annotations:
+                    self._annotations.append(annotation)
+                else:
+                    raise InternalError(
+                        "{0} with unrecognized annotation '{1}', valid "
+                        "annotations are: {2}.".format(
+                            self.__class__.__name__, annotation,
+                            self.valid_annotations))
 
     @abc.abstractmethod
     def __str__(self):
@@ -3055,12 +3061,26 @@ class Loop(Node):
     :type valid_loop_types: list of str
     :param str annotation: Tag that provides additional information about the \
         node (primarily relating to the input code that it was created from).
+
+    :raises InternalError: if the 'was_single_stmt' annotation is supplied \
+                           without the 'was_where' annotation.
+
     '''
-    valid_annotations = ('was_where', )
+    valid_annotations = ('was_where', 'was_single_stmt')
 
     def __init__(self, parent=None, variable_name="", valid_loop_types=None,
-                 annotation=None):
-        Node.__init__(self, parent=parent, annotation=annotation)
+                 annotations=None):
+        Node.__init__(self, parent=parent, annotations=annotations)
+
+        # Although the base class checks on the annotations individually, we
+        # need to do further checks here
+        if annotations:
+            if 'was_single_stmt' in annotations and \
+               'was_where' not in annotations:
+                raise InternalError(
+                    "A Loop with the 'was_single_stmt' annotation "
+                    "must also have the 'was_where' annotation but"
+                    " got: {0}".format(annotations))
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.

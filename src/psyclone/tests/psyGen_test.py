@@ -3019,6 +3019,22 @@ def test_loop_gen_code():
     assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
 
+def test_invalid_loop_annotations():
+    ''' Check that the Loop constructor validates any supplied annotations. '''
+    from psyclone.psyGen import Loop
+    # Check that we can have 'was_where' on its own
+    test_loop = Loop(annotations=['was_where'])
+    assert test_loop.annotations == ['was_where']
+    # Check that 'was_single_stmt' on its own raises an error
+    with pytest.raises(InternalError) as err:
+        Loop(annotations=['was_single_stmt'])
+    assert ("Loop with the 'was_single_stmt' annotation must also have the "
+            "'was_where'" in str(err.value))
+    # Check that it's accepted in combination with 'was_where'
+    test_loop = Loop(annotations=['was_single_stmt', 'was_where'])
+    assert test_loop.annotations == ['was_single_stmt', 'was_where']
+
+
 # Test IfBlock class
 
 def test_ifblock_invalid_annotation():
@@ -3026,7 +3042,7 @@ def test_ifblock_invalid_annotation():
     expected error.'''
 
     with pytest.raises(InternalError) as err:
-        _ = IfBlock(annotation="invalid")
+        _ = IfBlock(annotations=["invalid"])
     assert ("IfBlock with unrecognized annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
@@ -3042,7 +3058,7 @@ def test_ifblock_view(capsys):
     output, _ = capsys.readouterr()
     assert coloredtext+"[]" in output
 
-    ifblock = IfBlock(annotation='was_elseif')
+    ifblock = IfBlock(annotations=['was_elseif'])
     ifblock.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[annotations='was_elseif']" in output
