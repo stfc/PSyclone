@@ -73,6 +73,7 @@ class GOcean1p0Build(Compile):
         '''Returns the required flag to use the infrastructure library
         dl_esm_inf for gocean1p0. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
+
         :returns: a list of strings with the compiler flags required.
         :rtype: list
 
@@ -137,8 +138,9 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         If no Fortran compiler is available then returns True. All files
         produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :param psy_ast: the AST of the generated PSy layer
+        :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
+
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''

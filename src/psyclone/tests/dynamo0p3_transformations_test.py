@@ -43,6 +43,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -55,8 +56,6 @@ from psyclone.transformations import TransformationError, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
-
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 
 # The version of the API that the tests in this file

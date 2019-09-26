@@ -51,9 +51,8 @@ from psyclone.transformations import TransformationError, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
     ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
-from psyclone.tests.utilities import count_lines, get_invoke, Compile
-
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
 # The version of the PSyclone API that the tests in this file
 # exercise
