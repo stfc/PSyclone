@@ -6236,6 +6236,22 @@ class Reference(Node):
         '''
         var_accesses.add_access(self._reference, AccessType.READ, self)
 
+    def symbol(self, scope=None):
+        ''' xxx '''
+        if scope and not self.ancestor(type(scope)):
+            raise Exception("xxx")
+        test_node = self.parent
+        while test_node:
+            if hasattr(test_node, 'symbol_table'):
+                symbol_table = test_node.symbol_table
+                try:
+                    return symbol_table.lookup(self.name)
+                except KeyError:
+                    if test_node is scope:
+                        return None
+            test_node = test_node.parent
+        return None
+
 
 @six.add_metaclass(abc.ABCMeta)
 class Operation(Node):

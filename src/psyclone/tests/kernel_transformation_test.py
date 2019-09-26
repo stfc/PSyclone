@@ -481,6 +481,6 @@ def test_no_inline_global_var():
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         _, _ = inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data that are not "
-            "captured in the PSyIR Symbol Table (Undeclared reference 'alpha'"
-            " found" in str(err))
+    assert ("'kernel_with_global_code' contains accesses to data (variable "
+            "'alpha') that are not captured in the PSyIR Symbol Table(s) "
+            "within KernelSchedule scope." in str(err))

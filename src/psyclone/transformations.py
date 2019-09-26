@@ -233,7 +233,7 @@ class KernelTrans(Transformation):
         # If this kernel contains symbols that are not captured in the PSyIR
         # SymbolTable then this raises an exception.
         try:
-            _ = kern.get_kernel_schedule()
+            kernel_schedule = kern.get_kernel_schedule()
         except GenerationError:
             raise TransformationError(
                 "Failed to find subroutine source for kernel {0}".
@@ -241,8 +241,19 @@ class KernelTrans(Transformation):
         except SymbolError as err:
             raise TransformationError(
                 "Kernel '{0}' contains accesses to data that are not captured "
-                "in the PSyIR Symbol Table ({1}). Cannot transform such a "
+                "in the PSyIR Symbol Table(s) ({1}). Cannot transform such a "
                 "kernel.".format(kern.name, str(err.args[0])))
+        # Check that all kernel symbols are declared in the kernel
+        # symbol table(s). At this point they may be declared in a
+        # container containing this kernel which is not supported.
+        from psyclone.psyGen import Reference, KernelSchedule
+        for var in kernel_schedule.walk(Reference):
+            if not var.symbol(scope=var.ancestor(KernelSchedule)):
+                raise TransformationError(
+                    "Kernel '{0}' contains accesses to data (variable '{1}') "
+                    "that are not captured in the PSyIR Symbol Table(s) "
+                    "within KernelSchedule scope. Cannot transform such a "
+                    "kernel.".format(kern.name, var.name))
 
 
 class LoopFuseTrans(Transformation):
