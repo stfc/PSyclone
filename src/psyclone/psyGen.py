@@ -2546,13 +2546,7 @@ class OMPParallelDirective(OMPDirective):
         if self.ast:
             return
 
-        parent = self.parent
-        # This initial loop is necessary in case that the parent is e.g. an
-        # omp parallel node (which has no ast either). So we search up
-        # till we fiund the first tree to actually have an ast.
-        while not parent.ast:
-            parent = parent.parent
-        parent_ast = parent.ast
+        parent_ast = self.parent.ast
         while parent_ast:
             if hasattr(parent_ast, "content") and \
                             parent_ast is not self.children[0].ast:
