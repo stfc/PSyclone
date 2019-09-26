@@ -39,7 +39,7 @@ for the GOcean1.0 API '''
 
 from __future__ import absolute_import, print_function
 import os
-from .psyclone_test_utils import Compile, CompileError
+from psyclone.tests.utilities import Compile, CompileError
 
 
 class GOcean1p0Build(Compile):

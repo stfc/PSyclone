@@ -49,7 +49,7 @@ from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     DynamoExtractRegionTrans, GOceanExtractRegionTrans
 
-from .dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

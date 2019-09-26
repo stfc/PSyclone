@@ -44,9 +44,9 @@ from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError, Symbol
-from .psyclone_test_utils import Compile, get_invoke
+from psyclone.tests.utilities import Compile, get_invoke
 
-from .gocean1p0_build import GOcean1p0OpenCLBuild
+from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
 
 API = "gocean1.0"
 

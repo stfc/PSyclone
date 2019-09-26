@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
 
-from .dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
