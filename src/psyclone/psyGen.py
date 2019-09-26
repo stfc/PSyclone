@@ -6237,19 +6237,62 @@ class Reference(Node):
         var_accesses.add_access(self._reference, AccessType.READ, self)
 
     def symbol(self, scope=None):
-        ''' xxx '''
-        if scope and not self.ancestor(type(scope)):
-            raise Exception("xxx")
+        '''Returns the symbol from a symbol table associated with this
+        reference or None is one is not found. The scope variable
+        limits the symbol table search to nodes within the scope.
+
+        :param scope: optional Node which limits the search for a \
+        symbol in a symbol table to nodes within the scope or no \
+        limits if scope is None (the default).
+        :type scope: :py:class:`psyclone.psyGen.Node` or `None`
+
+        :returns: the Symbol associated with this reference if one is
+        found or None if not.
+        :rtype: :py:class:`psyclone.psyGen.Symbol` or `None`
+
+        '''
+        if scope:
+            # Check that the scope Node is an ancestor of this
+            # Reference Node and raise an exception if not.
+            found = False
+            mynode = self.parent
+            while mynode is not None:
+                if mynode is scope:
+                    found = True
+                    break
+                mynode = mynode.parent
+            if not found:
+                # The scope node is not an ancestor of this reference
+                # so raise an exception.
+                raise GenerationError(
+                    "The scope node '{0}' provided to the symbol method, is "
+                    "not an ancestor of this reference node '{1}'."
+                    "".format(str(scope), str(self)))
         test_node = self.parent
+        # Iterate over ancestor Nodes of this Reference Node.
         while test_node:
+            # For simplicity, test every Node for the existence of a
+            # SymbolTable (rather than checking for the particular
+            # Node types which we know to have SymbolTables).
             if hasattr(test_node, 'symbol_table'):
+                # This Node does have a SymbolTable.
                 symbol_table = test_node.symbol_table
                 try:
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
                     return symbol_table.lookup(self.name)
                 except KeyError:
+                    # The Reference Node does not match any Symbols in
+                    # this SymbolTable.
                     if test_node is scope:
+                        # The ancestor scope Node has been reached and nothing
+                        # has matched so return with None.
                         return None
+            # Move on to the next ancestor.
             test_node = test_node.parent
+        # scope has not been set and all Nodes have been checked (up
+        # to the root Node) but there has been no match so return with
+        # None.
         return None
 
 
@@ -6585,7 +6628,7 @@ class Return(Node):
 
 class Container(Node):
     '''Node representing something that contains one or more
-    KernelSchedule nodes and/or Container nodes as well as a name and
+    KernelSchedule nodes and/or Container nodes, as well as a name and
     a SymbolTable. This construct can be used to scope variables,
     share variables between KernelSchedule nodes and scope the names
     of KernelSchedules. In Fortran a container would naturally
@@ -6606,6 +6649,7 @@ class Container(Node):
         '''
         :returns: name of the container.
         :rtype: str
+
         '''
         return self._name
 
