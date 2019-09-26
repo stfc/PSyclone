@@ -131,6 +131,7 @@ class Fparser2Reader(object):
                 self._do_construct_handler,
             Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
             Fortran2003.Where_Construct: self._where_construct_handler,
+            Fortran2003.Where_Stmt: self._where_construct_handler,
         }
 
     @staticmethod
@@ -912,7 +913,7 @@ class Fparser2Reader(object):
                     elsebody = Schedule(parent=currentparent)
                     currentparent.addchild(elsebody)
                     newifblock = IfBlock(parent=elsebody,
-                                         annotation='was_elseif')
+                                         annotations=['was_elseif'])
                     elsebody.addchild(newifblock)
 
                     # Keep pointer to fpaser2 AST
@@ -965,7 +966,7 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
-        ifblock = IfBlock(parent=parent, annotation='was_single_stmt')
+        ifblock = IfBlock(parent=parent, annotations=['was_single_stmt'])
         ifblock.ast = node
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
@@ -1046,7 +1047,7 @@ class Fparser2Reader(object):
             case = clause.items[0]
 
             ifblock = IfBlock(parent=currentparent,
-                              annotation='was_case')
+                              annotations=['was_case'])
             # Since this IfBlock represents a CASE clause in the
             # Fortran, we point to the parse tree of the content
             # of the clause.
@@ -1332,22 +1333,43 @@ class Fparser2Reader(object):
 
     def _where_construct_handler(self, node, parent):
         '''
-        Construct the canonical PSyIR representation of a WHERE construct.
+        Construct the canonical PSyIR representation of a WHERE construct or
+        statement.
 
         :param node: node in the fparser2 parse tree representing the WHERE.
-        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct`
+        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
+                    :py:class:`fparser.two.Fortran2003.Where_Stmt`
 
         :raises InternalError: if the parse tree does not have the expected \
                                structure.
 
         '''
         # Check that the fparser2 parse tree has the expected structure
-        if not isinstance(node.content[0], Fortran2003.Where_Construct_Stmt):
-            raise InternalError("Failed to find opening where construct "
+        if isinstance(node, Fortran2003.Where_Stmt):
+            was_single_stmt = True
+            annotations = ["was_where", "was_single_stmt"]
+            logical_expr = [node.items[0]]
+            if not len(node.items) == 2:
+                raise InternalError(
+                    "Expected a Fortran2003.Where_Stmt to have exactly two "
+                    "entries in 'items' but found {0}: {1}".format(
+                        len(node.items), str(node.items)))
+            if not isinstance(node.items[1], Fortran2003.Assignment_Stmt):
+                raise InternalError(
+                    "Expected the second entry of a Fortran2003.Where_Stmt "
+                    "items tuple to be an Assignment_Stmt but found: {0}".
+                    format(type(node.items[1]).__name__))
+        else:
+            if not isinstance(node.content[0],
+                              Fortran2003.Where_Construct_Stmt):
+                raise InternalError("Failed to find opening where construct "
                                 "statement in: {0}".format(str(node)))
-        if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
-            raise InternalError("Failed to find closing end where statement "
-                                "in: {0}".format(str(node)))
+            if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
+                raise InternalError("Failed to find closing end where "
+                                    "statement in: {0}".format(str(node)))
+            was_single_stmt = False
+            annotations = ["was_where"]
+            logical_expr = node.content[0].items
         # Examine the logical-array expression (the mask) in order to
         # determine the number of nested loops required. The Fortran
         # standard allows bare array notation here (e.g. `a < 0.0` where
@@ -1359,7 +1381,7 @@ class Fparser2Reader(object):
         # Use a basic Schedule as our fake parent as it doesn't have a
         # SymbolTable (and thus won't check for variable declarations).
         fake_parent = Schedule()
-        self.process_nodes(fake_parent, node.content[0].items, None)
+        self.process_nodes(fake_parent, logical_expr, None)
         arrays = fake_parent[0].walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
@@ -1401,7 +1423,7 @@ class Fparser2Reader(object):
                         "already contains a symbol with that name.".format(
                             loop_vars[idx-1]))
                 loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
-                            annotation="was_where")
+                            annotations=annotations)
                 loop.ast = node # Point to the original WHERE statement in
                                 # the fparser2 parse tree.
                 # Add loop lower bound
@@ -1423,7 +1445,7 @@ class Fparser2Reader(object):
                 new_parent = sched
             # Now we have the loop nest, add an IF block to the innermost
             # schedule
-            ifblock = IfBlock(parent=new_parent, annotation="was_where")
+            ifblock = IfBlock(parent=new_parent, annotations=annotations)
             new_parent.addchild(ifblock)
             ifblock.ast = node  # Point back to the original WHERE construct
             # We construct the conditional expression from the original
@@ -1435,22 +1457,28 @@ class Fparser2Reader(object):
             # Now construct the body of the IF using the body of the WHERE
             sched = Schedule(parent=ifblock)
             ifblock.addchild(sched)
-            # Do we have an ELSE WHERE?
-            for idx, child in enumerate(node.content):
-                if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                    self.process_nodes(sched, node.content[1:idx], node)
-                    self._array_syntax_to_indexed(sched, loop_vars)
-                    # Add an else clause to the IF block for the ELSEWHERE
-                    # clause
-                    sched = Schedule(parent=ifblock)
-                    ifblock.addchild(sched)
-                    self.process_nodes(sched, node.content[idx+1:-1], node)
-                    self._array_syntax_to_indexed(sched, loop_vars)
-                    break
+
+            if not was_single_stmt:
+                # Do we have an ELSE WHERE?
+                for idx, child in enumerate(node.content):
+                    if isinstance(child, Fortran2003.Elsewhere_Stmt):
+                        self.process_nodes(sched, node.content[1:idx], node)
+                        self._array_syntax_to_indexed(sched, loop_vars)
+                        # Add an else clause to the IF block for the ELSEWHERE
+                        # clause
+                        sched = Schedule(parent=ifblock)
+                        ifblock.addchild(sched)
+                        self.process_nodes(sched, node.content[idx+1:-1], node)
+                        break
+                else:
+                    # No elsewhere clause was found
+                    self.process_nodes(sched, node.content[1:-1], node)
             else:
-                # No elsewhere clause was found
-                self.process_nodes(sched, node.content[1:-1], node)
-                self._array_syntax_to_indexed(sched, loop_vars)
+                # We only had a single-statement WHERE
+                self.process_nodes(sched, node.items[1:], node)
+            # Convert all uses of array syntax to indexed accesses
+            self._array_syntax_to_indexed(sched, loop_vars)
+
         except NotImplementedError as err:
             # Some aspect of this WHERE construct is not supported so
             # roll-back any changes before re-raising this exception (so

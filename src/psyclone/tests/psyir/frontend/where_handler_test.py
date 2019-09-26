@@ -278,3 +278,41 @@ def test_elsewhere(parser):
     assert isinstance(ifblock.else_body[0], Assignment)
     assert isinstance(ifblock.else_body[0].lhs, Array)
     assert ifblock.else_body[0].lhs.name == "z1_st"
+
+
+def test_where_stmt_validity(parser):
+    ''' Check that the correct exceptions are raised when the parse tree
+    for a WHERE statement has an unexpected structure. '''
+    from psyclone.psyGen import InternalError
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
+        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)")
+    fparser2spec = Fortran2003.Where_Stmt(reader)
+    # Break the parse tree
+    fparser2spec.items = (fparser2spec.items[0], "a string")
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert "items tuple to be an Assignment_Stmt but found" in str(err.value)
+    # Break it so that the tuple only contains one item
+    fparser2spec.items = (fparser2spec.items[0], )
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec], None)
+    assert ("Where_Stmt to have exactly two entries in 'items' but found 1"
+            in str(err.value))
+
+
+def test_where_stmt(parser):
+    ''' Basic check that we handle a WHERE statement correctly. '''
+    from psyclone.psyGen import Loop
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
+        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)")
+    fparser2spec = Fortran2003.Where_Stmt(reader)
+    processor.process_nodes(fake_parent, [fparser2spec], None)
+    fake_parent.view()
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent[0], Loop)
