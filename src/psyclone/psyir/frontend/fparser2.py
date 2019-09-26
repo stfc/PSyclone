@@ -1226,19 +1226,22 @@ class Fparser2Reader(object):
                                nodes=[node],
                                nodes_parent=node_parent)
 
-    def _return_handler(self, _, parent):
+    def _return_handler(self, node, parent):
         '''
         Transforms an fparser2 Return_Stmt to the PSyIR representation.
 
-        Note that this method contains ignored arguments to comform with
-        the handler(node, parent) method interface.
-
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Return_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+
+        :return: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Return`
+
         '''
-        return Return(parent=parent)
+        rtn = Return(parent=parent)
+        rtn.ast = node
+        return rtn
 
     def _assignment_handler(self, node, parent):
         '''
