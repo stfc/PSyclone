@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -43,8 +44,9 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
-from psyclone.psyGen import Symbol, Fparser2ASTProcessor, Node, CodeBlock
+from psyclone.psyGen import Symbol, Node, CodeBlock
 from psyclone.tests.utilities import create_schedule
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 @pytest.fixture(scope="function")
@@ -173,7 +175,7 @@ def test_fw_exception(fort_writer):
         "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # pylint: disable=abstract-method
     # modify the reference to b to be something unsupported
@@ -212,7 +214,7 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
         "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -257,7 +259,7 @@ def test_fw_binaryoperator(fort_writer):
         "    a = sign(1.0,1.0)\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -279,9 +281,9 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
         "    a = sign(1.0,1.0)\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
     # Remove sign() from the list of supported binary operators
-    monkeypatch.delitem(Fparser2ASTProcessor.binary_operators, "sign")
+    monkeypatch.delitem(Fparser2Reader.binary_operators, "sign")
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
@@ -303,7 +305,7 @@ def test_fw_naryopeator(fort_writer):
         "    a = max(1.0,1.0,2.0)\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -325,9 +327,9 @@ def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
         "    a = max(1.0,1.0,2.0)\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
     # Remove max() from the list of supported nary operators
-    monkeypatch.delitem(Fparser2ASTProcessor.nary_operators, "max")
+    monkeypatch.delitem(Fparser2Reader.nary_operators, "max")
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as err:
         _ = fort_writer(schedule)
@@ -354,7 +356,7 @@ def test_fw_reference(fort_writer):
         "    a(n) = 0.0\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -401,7 +403,7 @@ def test_fw_array(fort_writer):
         "    a(2,n,3) = 0.0\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -432,7 +434,7 @@ def test_fw_ifblock(fort_writer):
         "    end if\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -464,7 +466,7 @@ def test_fw_loop(fort_writer):
         "  end do\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -487,7 +489,7 @@ def test_fw_unaryoperator(fort_writer):
         "    a = -1\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -510,7 +512,7 @@ def test_fw_unaryoperator2(fort_writer):
         "    a = sin(1.0)\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -532,9 +534,9 @@ def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
         "    a = sin(1.0)\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
     # Remove sin() from the dict of unary operators
-    monkeypatch.delitem(Fparser2ASTProcessor.unary_operators, "sin")
+    monkeypatch.delitem(Fparser2Reader.unary_operators, "sin")
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
@@ -554,7 +556,7 @@ def test_fw_return(fort_writer):
         "  return\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
@@ -577,7 +579,7 @@ def test_fw_codeblock_1(fort_writer):
         "  print *,\"with more than one line\"\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
     # Check a code block exists in the schedule
     assert schedule.walk(CodeBlock)
     # Generate Fortran from the PSyIR schedule
@@ -605,7 +607,7 @@ def test_fw_codeblock_2(fort_writer):
         "    a(2,n,:) = 0.0\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Check a code block exists in the schedule
     assert schedule.walk(CodeBlock)
@@ -732,7 +734,7 @@ def test_module_name():
         "  a = b/c\n"
         "end subroutine tmp\n"
         "end module test")
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     fvisitor = FortranWriter()
@@ -752,3 +754,21 @@ def test_module_name():
         "\n"
         "  end subroutine tmp\n"
         "end module test") in result
+
+
+def test_fw_size():
+    ''' Check that the FortranWriter outputs a SIZE intrinsic call. '''
+    code = ("module test_mod\n"
+            "contains\n"
+            "subroutine test_kern(a)\n"
+            "  real, intent(in) :: a(:,:)\n"
+            "  integer :: mysize\n"
+            "  mysize = size(a, 2)\n"
+            "end subroutine test_kern\n"
+            "end module test_mod\n")
+    schedule = create_schedule(code, "test_kern")
+
+    # Generate Fortran from the PSyIR schedule
+    fvisitor = FortranWriter()
+    result = fvisitor(schedule)
+    assert "mysize=size(a, 2)" in result.lower()

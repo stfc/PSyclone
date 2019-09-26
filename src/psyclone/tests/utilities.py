@@ -42,7 +42,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
-from psyclone.psyGen import Fparser2ASTProcessor
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 # The various file suffixes we recognise as being Fortran
@@ -441,14 +441,16 @@ def get_invoke(algfile, api, idx=None, name=None):
 
 
 # =============================================================================
-def create_schedule(code, ast_processor=Fparser2ASTProcessor):
+def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
     '''Utility function that returns a PSyIR tree from Fortran
-    code using fparser2 and (by default) Fparser2ASTProcessor.
+    code using fparser2 and (by default) Fparser2Reader.
 
     :param str code: Fortran code.
-    :param ast_processor: the particular ASTProcessor to use. Defaults \
-    to FParser2ASTProcessor.
-    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2ASTProcessor`
+    :param str routine_name: the name of the Fortran routine for which to \
+                             create the PSyIR tree.
+    :param ast_processor: the particular front-end to use. Defaults \
+                          to Fparser2Reader.
+    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2Reader`
 
 
     :returns: PSyIR tree representing the Fortran code.
@@ -461,6 +463,6 @@ def create_schedule(code, ast_processor=Fparser2ASTProcessor):
 
     # Generate PSyIR schedule from fparser2 parse tree
     processor = ast_processor()
-    schedule = processor.generate_schedule("tmp", parse_tree)
+    schedule = processor.generate_schedule(routine_name, parse_tree)
 
     return schedule
