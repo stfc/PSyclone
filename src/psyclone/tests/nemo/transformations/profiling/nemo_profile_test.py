@@ -297,6 +297,36 @@ def test_profiling_case(parser):
             "END SUBROUTINE my_test" in code)
 
 
+def test_profiling_case_loop(parser):
+    ''' Check that we can put profiling around a CASE and a subsequent
+    loop. '''
+    code = ("subroutine my_test()\n"
+            "integer :: igrd\n"
+            "      SELECT CASE(igrd)\n"
+            "         CASE(1)\n"
+            "            pmask => tmask(:,:,:)\n"
+            "            bdypmask => bdytmask(:,:)\n"
+            "         CASE(3)\n"
+            "            pmask => vmask(:,:,:)\n"
+            "            bdypmask => bdyvmask(:,:)\n"
+            "         CASE DEFAULT ;   CALL ctl_stop( 'unrecognised value for igrd in bdy_nmn' )\n"
+            "      END SELECT\n"
+            "      DO ib = 1, idx%nblenrim(igrd)\n"
+            "         ii = idx%nbi(ib,igrd)\n"
+            "         ij = idx%nbj(ib,igrd)\n"
+            "      END DO\n"
+            "end subroutine\n")
+    psy, sched = get_nemo_schedule(parser, code)
+    PTRANS.apply(sched.children)
+    sched.view()
+    code = str(psy.gen)
+    print(code)
+    assert ("  CALL ProfileStart('my_test', 'r0', psy_profile0)\n"
+            "  SELECT CASE (igrd)\n" in code)
+    assert ("CALL ProfileEnd(psy_profile0)\n"
+            "END SUBROUTINE" in code)
+
+
 def test_profiling_no_spec_part(parser):
     ''' Check that attempting to add profiling to a routine that has no
     Specification_Part (i.e. no declarations) raises a NotImplementedError
