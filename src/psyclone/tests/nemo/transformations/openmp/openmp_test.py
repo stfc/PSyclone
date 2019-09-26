@@ -197,13 +197,30 @@ wmask(ji, jj, jk)
     assert ("An OpenMP DO can only be applied to a single loop but "
             "this Node has 2 children:" in str(err))
 
-    # Fix the schedule by removing the second loop:
-    del directive.children[1]
-    directive.ast = None  # To rerun the update code
 
-    directive.parent.ast = None
+def test_omp_do_update_error():
+    '''Check if the OMPDoDirective update function raises exception as
+    expected.'''
+    from psyclone.transformations import OMPLoopTrans
+    from psyclone.psyGen import OMPDoDirective
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    loop_trans = OMPLoopTrans()
+    new_sched, _ = loop_trans.apply(schedule
+                                    .children[0].loop_body[1]
+                                    .else_body[0].else_body[0])
+    directive = new_sched.children[0].loop_body[1].else_body[0].else_body[0]
+    assert isinstance(directive, OMPDoDirective)
 
-    directive.update()
+    # Note that the ast does NOT have a parent property defined!
+    # pylint: disable=protected-access
+    directive.parent.ast._parent = None
+    with pytest.raises(InternalError) as err:
+        directive.update()
+    assert ("Failed to find parent node in which to "
+            "insert OpenMP parallel do directive" in str(err))
 
 
 def test_omp_parallel_errs():
