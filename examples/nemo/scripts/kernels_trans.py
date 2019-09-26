@@ -80,8 +80,8 @@ PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc",
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
 ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
-              "ice_dyn_adv", # No significant compute
-              "ice_cor" # Non-performant because PSyIR doesn't yet support
+              "ice_dyn_adv" # No significant compute
+              #"ice_cor" # Non-performant because PSyIR doesn't yet support
                         # array ranges as function arguments
               ]
 
@@ -218,9 +218,9 @@ def have_loops(nodes):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoLoop
+    from psyclone.psyGen import Loop
     for node in nodes:
-        if node.walk(NemoLoop):
+        if node.walk(Loop):
             return True
     return False
 
