@@ -1037,11 +1037,16 @@ class Fparser2Reader(object):
 
             ifblock = IfBlock(parent=currentparent,
                               annotation='was_case')
-            # Since this IfBlock represents a CASE clause in the
-            # Fortran, we point to the parse tree of the content
-            # of the clause.
-            ifblock.ast = node.content[start_idx + 1]
-            ifblock.ast_end = node.content[end_idx - 1]
+            if idx == 0:
+                # If this is the first IfBlock then have it point to
+                # the original SELECT CASE in the parse tree
+                ifblock.ast = node
+            else:
+                # Otherwise, this IfBlock represents a CASE clause in the
+                # Fortran and so we point to the parse tree of the content
+                # of the clause.
+                ifblock.ast = node.content[start_idx + 1]
+                ifblock.ast_end = node.content[end_idx - 1]
 
             if isinstance(case.items[0],
                           Fortran2003.Case_Value_Range_List):

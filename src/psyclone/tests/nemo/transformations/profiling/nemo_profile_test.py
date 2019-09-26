@@ -271,9 +271,9 @@ def test_profiling_case(parser):
         "end subroutine my_test\n")
     psy, sched = get_nemo_schedule(parser, code)
     # Innermost if-body
-    PTRANS.apply(sched.children[1].if_body[2].if_body[0].if_body.children)
+    PTRANS.apply(sched[1].if_body[2].if_body[0].if_body.children)
     # Body of second CASE
-    PTRANS.apply(sched.children[1].else_body.children)
+    PTRANS.apply(sched[1].else_body.children)
     # Whole routine
     PTRANS.apply(sched.children)
     code = str(psy.gen)
