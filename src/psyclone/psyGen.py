@@ -6284,10 +6284,11 @@ class Reference(Node):
                 except KeyError:
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable.
-                    if test_node is scope:
-                        # The ancestor scope Node has been reached and nothing
-                        # has matched so return with None.
-                        return None
+                    pass
+            if test_node is scope:
+                # The ancestor scope Node has been reached and nothing
+                # has matched so return with None.
+                return None
             # Move on to the next ancestor.
             test_node = test_node.parent
         # scope has not been set and all Nodes have been checked (up

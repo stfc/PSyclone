@@ -3174,6 +3174,60 @@ def test_reference_can_be_printed():
     assert "Reference[name:'rname']" in str(ref)
 
 
+def test_reference_symbol():
+    '''Test that the symbol method in a Reference Node instance returns
+    the associated symbol if there is one and None if not. Also test
+    for an incorrect scope argument.
+
+    '''
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kernel_schedule = kernels[0].get_kernel_schedule()
+    references = kernel_schedule.walk(Reference)
+
+    # Symbol in KernelSchedule SymbolTable
+    field_old = references[0]
+    assert field_old.name == "field_old"
+    assert isinstance(field_old.symbol(), Symbol)
+    assert field_old.symbol().name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
+    assert isinstance(field_old.symbol(scope=kernel_schedule), Symbol)
+    assert field_old.symbol().name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with parent scope
+    assert field_old.symbol(scope=field_old.parent) is None
+
+    # Symbol in Container SymbolTable
+    alpha = references[6]
+    assert alpha.name == "alpha"
+    assert isinstance(alpha.symbol(), Symbol)
+    assert alpha.symbol().name == alpha.name
+
+    # Symbol in Container SymbolTable with KernelSchedule scope
+    assert alpha.symbol(scope=kernel_schedule) is None
+
+    # Symbol in Container SymbolTable with Container scope
+    from psyclone.psyGen import Container
+    assert isinstance(kernel_schedule.root, Container)
+    assert alpha.symbol(scope=kernel_schedule.root).name == alpha.name
+
+    # symbol method with invalid scope type
+    with pytest.raises(GenerationError) as excinfo:
+        _ = alpha.symbol(scope="hello")
+    assert ("The scope node 'hello' provided to the symbol method, is not "
+            "an ancestor of this reference node 'Reference[name:'alpha']'."
+            in str(excinfo.value))
+
+    # symbol method with invalid scope location
+    with pytest.raises(GenerationError) as excinfo:
+        _ = alpha.symbol(scope=alpha)
+    assert ("The scope node 'Reference[name:'alpha']' provided to the symbol "
+            "method, is not an ancestor of this reference node "
+            "'Reference[name:'alpha']'." in str(excinfo.value))
+
 # Test Array class
 
 
