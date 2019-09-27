@@ -316,3 +316,30 @@ def test_where_stmt(parser):
     fake_parent.view()
     assert len(fake_parent.children) == 1
     assert isinstance(fake_parent[0], Loop)
+
+
+def test_where_ordering(parser):
+    ''' Check that the generated schedule has the correct ordering when
+    a WHERE construct is processed. '''
+    from psyclone.psyGen import Assignment, Loop, CodeBlock
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "      zsml = 1.e-15_wp\n"
+        "      DO jj = 2, jpjm1\n"
+        "         DO ji = 2, jpim1\n"
+        "            zdiv(ji,jj) =  1.0_wp\n"
+        "         END DO\n"
+        "      END DO\n"
+        "      CALL lbc_lnk( zdiv, 'T', 1. )\n"
+        "      WHERE( pbef(:,:) == 0._wp .AND. paft(:,:) == 0._wp .AND. "
+        "zdiv(:,:) == 0._wp )   ;   zmsk(:,:) = 0._wp\n"
+        "      ELSEWHERE;   zmsk(:,:) = 1._wp * tmask(:,:,1)\n"
+        "      END WHERE\n")
+    fparser2spec = Fortran2003.Execution_Part(reader)
+    processor.process_nodes(fake_parent, fparser2spec.content, None)
+    fake_parent.view()
+    assert isinstance(fake_parent[0], Assignment)
+    assert isinstance(fake_parent[1], Loop)
+    assert isinstance(fake_parent[2], CodeBlock)
+    assert isinstance(fake_parent[3], Loop)
