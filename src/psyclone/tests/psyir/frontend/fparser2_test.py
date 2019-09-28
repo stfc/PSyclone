@@ -42,11 +42,11 @@ from fparser import api as fpapi
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
-    Symbol, SymbolTable, \
+    Symbol, SymbolTable, Container, \
     InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
-
+from fparser.common.readfortran import FortranStringReader
 
 # Fixtures
 
@@ -62,7 +62,7 @@ def f2008_parser():
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                    &
+     type(arg_type) meta_args(3) =                     &
           (/ arg_type(gh_field, gh_write,     w3),     &
              arg_type(gh_field, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_inc,       w1)      &
@@ -77,63 +77,87 @@ contains
 end module dummy_mod
 '''
 
+# Class Fparser2Reader
 
-def test_generate_schedule_empty_subroutine():
+# Method generate_schedule
+
+def test_generate_schedule_empty_subroutine(parser):
     ''' Tests the fp2Reader generate_schedule method with an empty
     subroutine.
     '''
-    ast1 = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
+    reader = FortranStringReader(FAKE_KERNEL_METADATA)
+    ast = parser(reader)
     processor = Fparser2Reader()
-
-    # Test properly formed but empty kernel module
-    schedule = processor.generate_schedule("dummy_code", ast2)
+    # Test properly formed but empty kernel schedule
+    schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
+
+    # Test that the container is created correctly
+    assert isinstance(schedule.parent, Container)
+    container = schedule.parent
+    assert len(container.children) == 1
+    assert container.children[0] is schedule
+    assert container.name == "dummy_mod"
+    assert len(container.symbol_table.symbols) == 0
 
     # Test that we get an error for a nonexistant subroutine name
     with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("nonexistent_code", ast2)
+        schedule = processor.generate_schedule("nonexistent_code", ast)
     assert "Unexpected kernel AST. Could not find " \
            "subroutine: nonexistent_code" in str(error.value)
 
     # Test corrupting ast by deleting subroutine
-    del ast2.content[0].content[2]
+    del ast.content[0].content[2]
     with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("dummy_code", ast2)
+        schedule = processor.generate_schedule("dummy_code", ast)
     assert "Unexpected kernel AST. Could not find " \
            "subroutine: dummy_code" in str(error.value)
 
 
-def test_generate_schedule_two_modules():
+def test_generate_schedule_module_decls(parser):
+    '''Test that the generate_schedule method in the Fparser2Reader class
+    stores module variables in the generated container's symbol table.
+
+    '''
+    input_code = FAKE_KERNEL_METADATA.replace(
+        "  end type dummy_type\n",
+        "  end type dummy_type\n"
+        "  real :: scalar1\n"
+        "  real :: array1(10,10,10)\n")
+    reader = FortranStringReader(input_code)
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    schedule = processor.generate_schedule("dummy_code", ast)
+    symbol_table = schedule.parent.symbol_table
+    assert isinstance(symbol_table, SymbolTable)
+    assert len(symbol_table.symbols) == 2
+    assert symbol_table.lookup("scalar1")
+    assert symbol_table.lookup("array1")
+
+
+def test_generate_schedule_two_modules(parser):
     ''' Tests the fparser2Reader generate_schedule method raises an exception
     when more than one fparser2 module node is provided.
     '''
-    ast1 = fpapi.parse(FAKE_KERNEL_METADATA*2, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
+    reader = FortranStringReader(FAKE_KERNEL_METADATA*2)
+    ast = parser(reader)
     processor = Fparser2Reader()
-
     # Test kernel with two modules
     with pytest.raises(GenerationError) as error:
-        _ = processor.generate_schedule("dummy_code", ast2)
+        _ = processor.generate_schedule("dummy_code", ast)
     assert ("Unexpected AST when generating 'dummy_code' kernel schedule."
             " Just one module definition per file supported.") \
         in str(error.value)
 
 
-def test_generate_schedule_dummy_subroutine():
+def test_generate_schedule_dummy_subroutine(parser):
     ''' Tests the fparser2Reader generate_schedule method with a simple
     subroutine.
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type), meta_args(3) =                    &
+         type(arg_type) meta_args(3) =                     &
               (/ arg_type(gh_field, gh_write,     w3),     &
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
@@ -151,15 +175,11 @@ def test_generate_schedule_dummy_subroutine():
       end subroutine dummy_code
     end module dummy_mod
     '''
-    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
+    reader = FortranStringReader(dummy_kernel_metadata)
+    ast = parser(reader)
     processor = Fparser2Reader()
-
     # Test properly formed kernel module
-    schedule = processor.generate_schedule("dummy_code", ast2)
+    schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
 
     # Test argument intent is inferred when not available in the declaration
@@ -168,20 +188,20 @@ def test_generate_schedule_dummy_subroutine():
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
-    del ast2.content[0].content[2].content[1].content[2]
-    schedule = processor.generate_schedule("dummy_code", ast2)
+    del ast.content[0].content[2].content[1].content[2]
+    schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
     assert not schedule.children
 
 
-def test_generate_schedule_no_args_subroutine():
+def test_generate_schedule_no_args_subroutine(parser):
     ''' Tests the fparser2Reader generate_schedule method with a simple
     subroutine with no arguments.
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
       type, extends(kernel_type) :: dummy_type
-        type(arg_type), meta_args(3) =                    &
+         type(arg_type) meta_args(3) =                      &
               (/ arg_type(gh_field, gh_write,     w3),     &
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
@@ -197,28 +217,24 @@ def test_generate_schedule_no_args_subroutine():
       end subroutine dummy_code
     end module dummy_mod
     '''
-    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
+    reader = FortranStringReader(dummy_kernel_metadata)
+    ast = parser(reader)
     processor = Fparser2Reader()
-
     # Test kernel with no arguments, should still proceed
-    schedule = processor.generate_schedule("dummy_code", ast2)
+    schedule = processor.generate_schedule("dummy_code", ast)
     assert isinstance(schedule, KernelSchedule)
     # TODO: In the future we could validate that metadata matches
     # the kernel arguments, then this test would fail. Issue #288
 
 
-def test_generate_schedule_unmatching_arguments():
+def test_generate_schedule_unmatching_arguments(parser):
     ''' Tests the fparser2Reader generate_schedule with unmatching kernel
     arguments and declarations raises the appropriate exception.
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type), meta_args(3) =                    &
+         type(arg_type) meta_args(3) =                     &
               (/ arg_type(gh_field, gh_write,     w3),     &
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
@@ -236,16 +252,12 @@ def test_generate_schedule_unmatching_arguments():
       end subroutine dummy_code
     end module dummy_mod
     '''
-    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
+    reader = FortranStringReader(dummy_kernel_metadata)
+    ast = parser(reader)
     processor = Fparser2Reader()
-
     # Test exception for unmatching argument list
     with pytest.raises(InternalError) as error:
-        _ = processor.generate_schedule("dummy_code", ast2)
+        _ = processor.generate_schedule("dummy_code", ast)
     assert "The kernel argument list" in str(error.value)
     assert "does not match the variable declarations for fparser nodes" \
         in str(error.value)

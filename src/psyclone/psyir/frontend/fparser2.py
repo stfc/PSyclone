@@ -1460,16 +1460,6 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
         self._check_declared(node.string, parent)
-        #if hasattr(parent.root, 'symbol_table'):
-        #    symbol_table = parent.root.symbol_table
-        #    try:
-        #        symbol_table.lookup(node.string)
-        #    except KeyError:
-        #        raise SymbolError(
-        #            "Undeclared reference '{0}' found when parsing fparser2 "
-        #            "node '{1}' inside '{2}'."
-        #            "".format(str(node.string), repr(node), parent.root.name))
-        #
         return Reference(node.string, parent)
 
     def _check_declared(self, name, node):
@@ -1536,18 +1526,6 @@ class Fparser2Reader(object):
         reference_name = node.items[0].string.lower()
 
         self._check_declared(reference_name, parent)
-
-        #if hasattr(parent.root, 'symbol_table'):
-        #    symbol_table = parent.root.symbol_table
-        #    try:
-        #        symbol_table.lookup(reference_name)
-        #    except KeyError:
-        #        raise GenerationError(
-        #            "Undeclared reference '{0}' found when parsing fparser2 "
-        #            "node '{1}' inside '{2}'."
-        #            "".format(str(reference_name), repr(node),
-        #                      parent.root.name))
-        #
         array = Array(reference_name, parent)
 
         if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
