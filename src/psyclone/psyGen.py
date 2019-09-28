@@ -112,7 +112,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Operation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
-                       "CodeBlock": "red"}
+                       "CodeBlock": "red",
+                       "Container": "green"}
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -6689,10 +6690,11 @@ class Container(Node):
         :param int indent: level to which to indent output.
 
         '''
-        print(self.indent(indent) + self.coloured_text + "[]")
+        print(self.indent(indent) + self.coloured_text + "[{0}]"
+              "".format(self.name))
 
     def __str__(self):
-        return "Container[]\n"
+        return "Container[{0}]\n".format(self.name)
 
 
 __all__ = ['Literal', 'Return']

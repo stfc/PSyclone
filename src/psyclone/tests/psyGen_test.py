@@ -57,7 +57,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective
+    ACCEnterDataDirective, ACCKernelsDirective, Container
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
@@ -3174,7 +3174,7 @@ def test_reference_can_be_printed():
     assert "Reference[name:'rname']" in str(ref)
 
 
-def test_reference_symbol():
+def test_reference_symbol(monkeypatch):
     '''Test that the symbol method in a Reference Node instance returns
     the associated symbol if there is one and None if not. Also test
     for an incorrect scope argument.
@@ -3214,19 +3214,24 @@ def test_reference_symbol():
     assert isinstance(kernel_schedule.root, Container)
     assert alpha.symbol(scope=kernel_schedule.root).name == alpha.name
 
-    # symbol method with invalid scope type
+    # Symbol method with invalid scope type
     with pytest.raises(GenerationError) as excinfo:
         _ = alpha.symbol(scope="hello")
     assert ("The scope node 'hello' provided to the symbol method, is not "
             "an ancestor of this reference node 'Reference[name:'alpha']'."
             in str(excinfo.value))
 
-    # symbol method with invalid scope location
+    # Symbol method with invalid scope location
     with pytest.raises(GenerationError) as excinfo:
         _ = alpha.symbol(scope=alpha)
     assert ("The scope node 'Reference[name:'alpha']' provided to the symbol "
             "method, is not an ancestor of this reference node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
+
+    # Symbol not in any container (rename alpha to something that is
+    # not defined)
+    monkeypatch.setattr(alpha, "_reference", "not_defined")
+    assert not alpha.symbol()
 
 # Test Array class
 
@@ -3426,6 +3431,56 @@ def test_return_can_be_printed():
     initialised fully)'''
     return_stmt = Return()
     assert "Return[]\n" in str(return_stmt)
+
+
+# Test Container class
+
+def test_container_init():
+    '''Test that a container is initialised as expected.'''
+    container = Container("test")
+    assert container._name == "test"
+    assert container._parent is None
+    assert isinstance(container._symbol_table, SymbolTable)
+
+
+def test_container_init_parent():
+    '''Test that a container parent argument is stored as expected.'''
+    container = Container("test", parent="hello")
+    assert container.parent == "hello"
+
+
+def test_container_name():
+    '''Test that the container name can be set and changed as
+    expected.'''
+    container = Container("test")
+    assert container.name == "test"
+    container.name = "new_test"
+    assert container.name == "new_test"
+
+    
+def test_container_symbol_table():
+    '''Test that the container symbol_table method returns the expected
+    content.'''
+    container = Container("test")
+    assert isinstance(container._symbol_table, SymbolTable)
+    assert container.symbol_table is container._symbol_table
+
+
+def test_container_view(capsys):
+    '''Check the view and colored_text methods of the Container class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    cont_stmt = Container("bin")
+    coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+    cont_stmt.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[bin]" in output
+
+
+def test_container_can_be_printed():
+    '''Test that a Container instance can always be printed (i.e. is
+    initialised fully)'''
+    cont_stmt = Container("box")
+    assert "Container[box]\n" in str(cont_stmt)
 
 
 # Test KernelSchedule Class
