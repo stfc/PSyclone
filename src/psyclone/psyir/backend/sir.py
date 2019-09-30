@@ -129,7 +129,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an unsupported PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyGen.Node`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if skip_nodes is set to False.
@@ -157,7 +157,7 @@ class SIRWriter(PSyIRVisitor):
         :param loop_node: a NemoLoop PSyIR node.
         :type loop_node: subclass of :py:class:`psyclone.nemo.NemoLoop`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if the loop is not triply nested with \
@@ -211,7 +211,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a NemoKern PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoKern`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -228,7 +228,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -265,7 +265,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Assigment`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -288,7 +288,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a BinaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if there is no mapping from the PSyIR \
@@ -335,7 +335,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Reference`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if this node has children.
@@ -355,7 +355,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an Array PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Array`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -375,7 +375,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Literal`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -392,7 +392,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a UnaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if there is no mapping from the PSyIR \
@@ -426,7 +426,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an IfBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.IfBlock`
 
-        :returns: the SIR code as a string.
+        :returns: SIR Python code.
         :rtype: str
 
         '''
@@ -448,7 +448,7 @@ class SIRWriter(PSyIRVisitor):
                 "".format(self._nindent, cond_part, then_part, else_part))
 
     def schedule_node(self, node):
-        '''This method is called when an Schedule instance is found in the
+        '''This method is called when a Schedule instance is found in the
         PSyIR tree. A Schedule instance captures an ordered sequence
         of PSyIR nodes and is therefore found in places such as the
         contents of the 'then' part of an 'if' statement and the
@@ -459,7 +459,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a Schedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Schedule`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
