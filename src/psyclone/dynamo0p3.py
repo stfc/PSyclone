@@ -4422,8 +4422,6 @@ class DynGlobalSum(GlobalSum):
                 format(self._supported_scalars, scalar.type,
                        scalar.call.name, scalar.name))
         super(DynGlobalSum, self).__init__(scalar, parent=parent)
-        self._text_name = "GlobalSum"
-        self._colour_key = "GlobalSum"
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -5491,8 +5489,6 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
-        self._text_name = "Loop"
-        self._colour_key = "Loop"
 
         # Get the namespace manager instance so we can look-up
         # the name of the nlayers and ndf variables
