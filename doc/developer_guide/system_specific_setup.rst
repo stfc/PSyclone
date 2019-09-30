@@ -145,7 +145,7 @@ tools to get access to testing and formatting tools.
 You can now run the PSyclone python tests::
 
    > cd PSyclone.git
-   > py.test
+   > pytest
 
 In order to see whether the Python code conforms to the pep8
 standards, use::
