@@ -305,7 +305,7 @@ def test_schedule_view(capsys):
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     expected_sched = (
-        isched_str + "[invoke=io_in_loop]\n"
+        isched_str + "[invoke='io_in_loop']\n"
         "    0: " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n"
         "        " + lit_str + "[value:'1']\n"
@@ -325,9 +325,6 @@ def test_schedule_view(capsys):
         "                        " + lit_str + "[value:'1']\n"
         "                        " + sched_str + "[]\n"
         "                            0: " + kern_str + "[]\n")
-    print(output)
-    print("=========")
-    print(expected_sched)
     assert expected_sched in output
 
 

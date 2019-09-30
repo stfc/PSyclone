@@ -1631,10 +1631,12 @@ class Schedule(Node):
 
     def node_str(self, colour=True):
         '''
-        :param bool colour: whether or not to add control codes for
-                            coloured output.
+        Returns a text description of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :return: text describing this node, possibly coloured.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
         :rtype: str
         '''
         return self.coloured_name(colour) + "[]"
@@ -1720,7 +1722,7 @@ class InvokeSchedule(Schedule):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return "{0}[invoke={1}]".format(
+        return "{0}[invoke='{1}']".format(
             self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
@@ -2814,6 +2816,8 @@ class GlobalSum(Node):
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
+        self._text_name = "GlobalSum"
+        self._colour_key = "GlobalSum"
 
     @property
     def scalar(self):
@@ -3044,6 +3048,8 @@ class Loop(Node):
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
         self._kern = None             # Kernel associated with this loop
+        self._text_name = "Loop"
+        self._colour_key = "Loop"
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -6405,4 +6411,5 @@ class Return(Node):
         return "Return[]\n"
 
 
-__all__ = ['Literal', 'Return']
+__all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation',
+           'Literal', 'Return']
