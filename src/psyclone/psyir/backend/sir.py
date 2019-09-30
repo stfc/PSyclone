@@ -117,6 +117,13 @@ class SIRWriter(PSyIRVisitor):
         # found in the PSyIR. This is required as the SIR declares
         # field names after the computation.
         self._field_names = set()
+        # The _scalar_names variable stores the unique scalar names
+        # found in the PSyIR. The current assumption is that scalars
+        # are temporaries. This is not necessarily correct and this
+        # problem is captured in issue #521. Scalar temporaries can be
+        # declared as field temporaries as the Dawn backend works out
+        # what is required.
+        self._scalar_names = set()
 
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
@@ -242,30 +249,30 @@ class SIRWriter(PSyIRVisitor):
         # scalars before any executable statements. To get round this
         # they are added in-place in the SIR, but before any SIR
         # executable statements, and they are initialised with 0.0.
-        scalar_names = set()
-        for kernel_node in node.walk(NemoKern):
-            kernel_schedule = kernel_node.get_kernel_schedule()
-            for assignment_node in kernel_schedule.walk(Assignment):
-                lhs = assignment_node.lhs
-                if not lhs.children:
-                    # This is an assignment to a scalar
-                    scalar_names.add(lhs.name)
-        for scalar_name in scalar_names:
-            # Hard-coded float here as we do not yet have a way of
-            # determining the type of the variable. This will be
-            # supported when the symbol table is added to the NEMO
-            # API.
-            #
-            # Initialise the scalar even though we really just
-            # want to declare it, as it is not possible to just
-            # declare a scalar in the SIR.
-            result += (
-                "{0}vertical_region_fns.append(make_var_decl_stmt("
-                "make_type(BuiltinType.Float), "
-                "\"{1}\", 0, \"=\", "
-                "make_literal_access_expr("
-                "\"0.0\", BuiltinType.Float)))\n"
-                "".format(self._nindent, scalar_name))
+        #scalar_names = set()
+        #for kernel_node in node.walk(NemoKern):
+        #    kernel_schedule = kernel_node.get_kernel_schedule()
+        #    for assignment_node in kernel_schedule.walk(Assignment):
+        #        lhs = assignment_node.lhs
+        #        if not lhs.children:
+        #            # This is an assignment to a scalar
+        #            scalar_names.add(lhs.name)
+        #for scalar_name in scalar_names:
+        #    # Hard-coded float here as we do not yet have a way of
+        #    # determining the type of the variable. This will be
+        #    # supported when the symbol table is added to the NEMO
+        #    # API.
+        #    #
+        #    # Initialise the scalar even though we really just
+        #    # want to declare it, as it is not possible to just
+        #    # declare a scalar in the SIR.
+        #    result += (
+        #        "{0}vertical_region_fns.append(make_var_decl_stmt("
+        #        "make_type(BuiltinType.Float), "
+        #        "\"{1}\", 0, \"=\", "
+        #        "make_literal_access_expr("
+        #        "\"0.0\", BuiltinType.Float)))\n"
+        #        "".format(self._nindent, scalar_name))
 
         exec_statements = ""
         for child in node.children:
@@ -281,6 +288,13 @@ class SIRWriter(PSyIRVisitor):
         functions = []
         for name in self._field_names:
             functions.append("make_field(\"{0}\")".format(name))
+        # The current assumption is that scalars are temporaries. This
+        # is not necessarily correct and this problem is captured in
+        # issue #521. Scalar temporaries can be declared as field
+        # temporaries as the Dawn backend works out what is required.
+        for name in self._scalar_names:
+            functions.append(
+                "make_field(\"{0}\", is_temporary=True)".format(name))
         result += ", ".join(functions)
         result += "]\n"
         result += (
@@ -366,6 +380,14 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Method reference_node in class SIRWriter: SIR Reference "
                 "node is not expected to have any children.")
+        # _scalar_names is a set so duplicates will be ignored. It
+        # captures all unique scalar names as scalars are currently
+        # treated as temporaries (#521 captures this) and scalar
+        # temporaries can be declared as field temporaries after the
+        # computation (as the Dawn backend works out if a scalar is
+        # required).
+        self._scalar_names.add(node.name)
+
         return "{0}make_var_access_expr(\"{1}\")".format(self._nindent,
                                                          node.name)
 
