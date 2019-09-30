@@ -42,6 +42,28 @@ from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import Symbol, SymbolTable, KernelSchedule, Return
 
 
+def test_oclw_initialization():
+    '''Test that the OpenCLWriter-specific parameters are error checked'''
+
+    # OCLWriter can be initialized with default values
+    oclwriter = OpenCLWriter()
+    assert oclwriter._kernels_local_size == 1
+
+    # Pass a kernels_local_size parameter
+    with pytest.raises(TypeError) as error:
+        oclwriter = OpenCLWriter(kernels_local_size='invalid')
+    assert "kernel_local_size should be an integer but found 'str'." \
+        in str(error)
+
+    with pytest.raises(TypeError) as error:
+        oclwriter = OpenCLWriter(kernels_local_size=-4)
+    assert "kernel_local_size should be a positive integer but found -4." \
+        in str(error)
+
+    oclwriter = OpenCLWriter(kernels_local_size=4)
+    assert oclwriter._kernels_local_size == 4
+
+
 def test_oclw_gen_id_variable():
     '''Check the OpenCLWriter class gen_id_variables method produces
     the expected declarations.
@@ -184,7 +206,7 @@ def test_oclw_kernelschedule():
         "}\n\n"
 
     # Set a local_size value different to 1 into the KernelSchedule
-    kschedule._opencl_options['local_size'] = '4'
+    oclwriter = OpenCLWriter(kernels_local_size=4)
     result = oclwriter(kschedule)
 
     assert result == "" \

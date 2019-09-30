@@ -3845,10 +3845,6 @@ class CodedKern(Kern):
 
             self._opencl_options[key] = value
 
-        # If options are valid copy them into the associated KernelSchedule
-        kschedule = self.get_kernel_schedule()
-        kschedule.set_opencl_options(options)
-
     def __str__(self):
         return "kern call: " + self._name
 
@@ -4141,7 +4137,8 @@ class CodedKern(Kern):
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
-            ocl_writer = OpenCLWriter()
+            ocl_writer = OpenCLWriter(
+                    kernels_local_size=self._opencl_options['local_size'])
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -6056,17 +6053,6 @@ class KernelSchedule(Schedule):
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table
-
-    def set_opencl_options(self, options):
-        '''
-        Set the opencl_options map. Note that KernelSchedule expects to
-        receive options which are already vaildated by the caller.
-
-        :param options: a set of options to tune the OpenCL code.
-        :type options: map of <string>:<value>
-        '''
-        for key, value in options.items():
-            self._opencl_options[key] = value
 
     def view(self, indent=0):
         '''

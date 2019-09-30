@@ -47,7 +47,38 @@ class OpenCLWriter(CWriter):
     produces OpenCL code conforming to Version 1.2 of the specification
     (https://www.khronos.org/registry/OpenCL/specs/opencl-1.2.pdf).
 
+    :param bool skip_nodes: if skip_nodes is False then an exception \
+    is raised if a visitor method for a PSyIR node has not been \
+    implemented, otherwise the visitor silently continues. This is an \
+    optional argument which defaults to False.
+    :param indent_string: specifies what to use for indentation. This \
+    is an optional argument that defaults to two spaces.
+    :type indent_string: str or NoneType
+    :param int initial_indent_depth: specifies how much indentation to \
+    start with. This is an optional argument that defaults to 0.
+    :param int kernel_local_size: uses the given local_size when generating \
+    OpenCL kernels.
+
+    :raises TypeError: if kernel_local_size is not a positive integer.
+
     '''
+    def __init__(self, skip_nodes=False, indent_string="  ",
+                 initial_indent_depth=0, kernels_local_size=1):
+
+        super(OpenCLWriter, self).__init__(
+            skip_nodes, indent_string, initial_indent_depth)
+
+        if not isinstance(kernels_local_size, int):
+            raise TypeError(
+                "kernel_local_size should be an integer but found "
+                "'{0}'.".format(type(kernels_local_size).__name__))
+
+        if kernels_local_size < 1:
+            raise TypeError(
+                "kernel_local_size should be a positive integer but found "
+                "{0}.".format(kernels_local_size))
+
+        self._kernels_local_size = kernels_local_size
 
     def gen_id_variable(self, symbol, dimension_index):
         '''
@@ -163,11 +194,10 @@ class OpenCLWriter(CWriter):
 
         # Start OpenCL kernel definition
         code = self._nindent
-        if node._opencl_options['local_size'] != 1:
-            loc_size_value = node._opencl_options['local_size']
+        if self._kernels_local_size != 1:
             code += "__attribute__((vec_type_hint(double)))\n"
             code += "__attribute__((reqd_work_group_size({0}, 1, 1)))\n" \
-                    "".format(loc_size_value)
+                    "".format(self._kernels_local_size)
         code += "__kernel void " + node.name + "(\n"
         self._depth += 1
         arguments = []
