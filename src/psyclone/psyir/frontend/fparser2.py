@@ -1339,6 +1339,11 @@ class Fparser2Reader(object):
         :param node: node in the fparser2 parse tree representing the WHERE.
         :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
                     :py:class:`fparser.two.Fortran2003.Where_Stmt`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: the top-level Loop object in the created loop nest.
+        :rtype: :py:class:`psyclone.psyGen.Loop`
 
         :raises InternalError: if the parse tree does not have the expected \
                                structure.
@@ -1363,7 +1368,7 @@ class Fparser2Reader(object):
             if not isinstance(node.content[0],
                               Fortran2003.Where_Construct_Stmt):
                 raise InternalError("Failed to find opening where construct "
-                                "statement in: {0}".format(str(node)))
+                                    "statement in: {0}".format(str(node)))
             if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
                 raise InternalError("Failed to find closing end where "
                                     "statement in: {0}".format(str(node)))
@@ -1394,7 +1399,7 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
-        # Create a list of all of the symbol names in the fparser2 parse
+        # Create a set of all of the symbol names in the fparser2 parse
         # tree so that we can find any clashes. We go as far back up the tree
         # as we can before searching for all instances of Fortran2003.Name.
         # TODO #500 - replace this by using the SymbolTable instead.
@@ -1402,89 +1407,86 @@ class Fparser2Reader(object):
         while hasattr(fp2_parent, "_parent") and fp2_parent._parent:
             fp2_parent = fp2_parent._parent
         name_list = walk_ast([fp2_parent], [Fortran2003.Name])
-        all_names = set([str(name) for name in name_list])
+        all_names = {str(name) for name in name_list}
 
-        # At this point we start adding nodes to the existing PSyIR tree so
-        # we protect this block within a try in case we hit an error and
-        # need to roll-back our additions.
-        original_children_count = len(parent.children)
-        try:
-            # Now create a loop nest of depth `rank`
-            new_parent = parent
-            for idx in range(rank, 0, -1):
-                # TODO #500 we should be using the SymbolTable for the new loop
-                # variable but that doesn't currently work for NEMO. Once #500
-                # is done we should handle clashes gracefully rather than
-                # simply aborting.
-                loop_vars[idx-1] = "widx{0}".format(idx)
-                if loop_vars[idx-1] in all_names:
-                    raise InternalError(
-                        "Cannot create Loop with variable '{0}' because code "
-                        "already contains a symbol with that name.".format(
-                            loop_vars[idx-1]))
-                loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
-                            annotations=annotations)
-                loop.ast = node # Point to the original WHERE statement in
-                                # the fparser2 parse tree.
-                # Add loop lower bound
-                loop.addchild(Literal("1", parent=loop))
-                # Add loop upper bound - we use the SIZE operator to query the
-                # extent of the current array dimension
-                size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
-                                            parent=loop)
-                loop.addchild(size_node)
-                size_node.addchild(Reference(arrays[0].name, parent=size_node))
-                size_node.addchild(Literal(str(idx), parent=size_node))
-                # Add loop increment
-                loop.addchild(Literal("1", parent=loop))
-                # Fourth child of a Loop must be a Schedule
-                sched = Schedule(parent=loop)
-                loop.addchild(sched)
-                # Finally, add the Loop we've constructed to its parent
+        # Now create a loop nest of depth `rank`
+        new_parent = parent
+        for idx in range(rank, 0, -1):
+            # TODO #500 we should be using the SymbolTable for the new loop
+            # variable but that doesn't currently work for NEMO. Once #500
+            # is done we should handle clashes gracefully rather than
+            # simply aborting.
+            loop_vars[idx-1] = "widx{0}".format(idx)
+            if loop_vars[idx-1] in all_names:
+                raise InternalError(
+                    "Cannot create Loop with variable '{0}' because code "
+                    "already contains a symbol with that name.".format(
+                        loop_vars[idx-1]))
+            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
+                        annotations=annotations)
+            loop.ast = node # Point to the original WHERE statement in
+                            # the fparser2 parse tree.
+            # Add loop lower bound
+            loop.addchild(Literal("1", parent=loop))
+            # Add loop upper bound - we use the SIZE operator to query the
+            # extent of the current array dimension
+            size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                        parent=loop)
+            loop.addchild(size_node)
+            size_node.addchild(Reference(arrays[0].name, parent=size_node))
+            size_node.addchild(Literal(str(idx), parent=size_node))
+            # Add loop increment
+            loop.addchild(Literal("1", parent=loop))
+            # Fourth child of a Loop must be a Schedule
+            sched = Schedule(parent=loop)
+            loop.addchild(sched)
+            # Finally, add the Loop we've constructed to its parent (but
+            # not into the exising PSyIR tree - that's done in
+            # process_nodes()).
+            if new_parent is not parent:
                 new_parent.addchild(loop)
-                new_parent = sched
-            # Now we have the loop nest, add an IF block to the innermost
-            # schedule
-            ifblock = IfBlock(parent=new_parent, annotations=annotations)
-            new_parent.addchild(ifblock)
-            ifblock.ast = node  # Point back to the original WHERE construct
-            # We construct the conditional expression from the original
-            # logical-array-expression of the WHERE. Each array reference must
-            # now be indexed by the loop variables of the loops we've just
-            # created.
-            self._array_syntax_to_indexed(fake_parent[0], loop_vars)
-            ifblock.addchild(fake_parent[0])
-            # Now construct the body of the IF using the body of the WHERE
-            sched = Schedule(parent=ifblock)
-            ifblock.addchild(sched)
-
-            if not was_single_stmt:
-                # Do we have an ELSE WHERE?
-                for idx, child in enumerate(node.content):
-                    if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                        self.process_nodes(sched, node.content[1:idx], node)
-                        self._array_syntax_to_indexed(sched, loop_vars)
-                        # Add an else clause to the IF block for the ELSEWHERE
-                        # clause
-                        sched = Schedule(parent=ifblock)
-                        ifblock.addchild(sched)
-                        self.process_nodes(sched, node.content[idx+1:-1], node)
-                        break
-                else:
-                    # No elsewhere clause was found
-                    self.process_nodes(sched, node.content[1:-1], node)
             else:
-                # We only had a single-statement WHERE
-                self.process_nodes(sched, node.items[1:], node)
-            # Convert all uses of array syntax to indexed accesses
-            self._array_syntax_to_indexed(sched, loop_vars)
+                # Keep a reference to the first loop as that's what this
+                # handler returns
+                root_loop = loop
+            new_parent = sched
+        # Now we have the loop nest, add an IF block to the innermost
+        # schedule
+        ifblock = IfBlock(parent=new_parent, annotations=annotations)
+        new_parent.addchild(ifblock)
+        ifblock.ast = node  # Point back to the original WHERE construct
+        # We construct the conditional expression from the original
+        # logical-array-expression of the WHERE. Each array reference must
+        # now be indexed by the loop variables of the loops we've just
+        # created.
+        self._array_syntax_to_indexed(fake_parent[0], loop_vars)
+        ifblock.addchild(fake_parent[0])
+        # Now construct the body of the IF using the body of the WHERE
+        sched = Schedule(parent=ifblock)
+        ifblock.addchild(sched)
 
-        except NotImplementedError as err:
-            # Some aspect of this WHERE construct is not supported so
-            # roll-back any changes before re-raising this exception (so
-            # that a CodeBlock will be created instead).
-            del parent.children[original_children_count:]
-            raise err
+        if not was_single_stmt:
+            # Do we have an ELSE WHERE?
+            for idx, child in enumerate(node.content):
+                if isinstance(child, Fortran2003.Elsewhere_Stmt):
+                    self.process_nodes(sched, node.content[1:idx], node)
+                    self._array_syntax_to_indexed(sched, loop_vars)
+                    # Add an else clause to the IF block for the ELSEWHERE
+                    # clause
+                    sched = Schedule(parent=ifblock)
+                    ifblock.addchild(sched)
+                    self.process_nodes(sched, node.content[idx+1:-1], node)
+                    break
+            else:
+                # No elsewhere clause was found
+                self.process_nodes(sched, node.content[1:-1], node)
+        else:
+            # We only had a single-statement WHERE
+            self.process_nodes(sched, node.items[1:], node)
+        # Convert all uses of array syntax to indexed accesses
+        self._array_syntax_to_indexed(sched, loop_vars)
+        # Return the top-level loop generated by this handler
+        return root_loop
 
     def _return_handler(self, _, parent):
         '''
