@@ -164,10 +164,9 @@ class VariableAccessInfo(object):
         return all(access.indices for access in self._accesses)
 
     def is_written(self):
-        '''Checks if the specified variable name is at least written once.
+        '''Checks if this variable is at least written once.
 
-        :returns: True if the specified variable name is written (at least \
-            once).
+        :returns: True if this variable is written (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type in
@@ -178,7 +177,7 @@ class VariableAccessInfo(object):
         '''Checks if this variable is always read, and never
         written.
 
-        :returns: True if the specified variable name is read only.
+        :returns: True if this variable is read only.
         :rtype: bool
         '''
         return all(access_info.access_type == AccessType.READ
@@ -187,17 +186,16 @@ class VariableAccessInfo(object):
     def is_read(self):
         '''Checks if this variable is at least read once.
 
-        :returns: True if the specified variable name is read (at least once).
+        :returns: True if this variable is read (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type in AccessType.all_read_accesses()
                    for access_info in self._accesses)
 
     def has_read_write(self):
-        '''Checks if the specified variable name has at least one READWRITE
-        access.
+        '''Checks if this variable has at least one READWRITE access.
 
-        :returns: True if the specified variable name is read (at least once).
+        :returns: True if this variable is read (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type == AccessType.READWRITE
