@@ -117,11 +117,11 @@ new code must be covered (i.e. executed) by one or more tests. As
 described in :ref:`user_guide:getting-going`, the test suite is
 written for use with ``pytest``.
 
-Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
-from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
+Tests should be run from the ``<PSYCLONEHOME>/src/psyclone/tests`` 
+directory, from which all tests in subdirectories 
 will be automatically found and started. If only a subset of all tests
 need to be run, ``pytest`` can be invoked from the corresponding
-subdirectory or with that subdirectory as an argument.
+subdirectory or with that subdirectory or filename as an argument.
 
 .. _test_coverage:
 
