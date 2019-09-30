@@ -38,29 +38,32 @@
 The PSyclone Internal Representation (PSyIR)
 ============================================
 
-The PSyIR is at the heart of PSyclone, representing code (at both the PSy-
-and kernel-layer levels) in a language-agnostic form. Transformations
-act on the PSyIR and ultimately the generated code is produced by one
-of the PSyIR's backends.
+The PSyIR is at the heart of PSyclone, representing code (at both the
+PSy- and kernel-layer levels) in a language-agnostic form. A PSyIR may
+be constructed from scratch (in Python) or by processing exising
+source code using a frontend. Transformations act on the PSyIR and
+ultimately the generated code is produced by one of the PSyIR's
+backends.
 
 Text Representation
 -------------------
 
 When developing a transformation script it is often necessary to examine
 the structure of the PSyIR. All nodes in the PSyIR have the ``view`` method
-that writes a text-representation of the PSyIR of that node and all of its
+that writes a text-representation of that node and all of its
 descendants to stdout. If the ``termcolor`` package is installed
 (see :ref:`getting-going`) then colour highlighting is used for this
 output. For instance, part of the Schedule constructed for the second NEMO
-`example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/runme_openmp.py>`_ is rendered as:
+`example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/
+runme_openmp.py>`_ is rendered as:
 
 .. image:: schedule_with_indices.png
 
-Note that in this view, only those nodes which are candidates for
-transformation have their indices shown. This means that nodes
-representing e.g. loop bounds or the conditional part of ``if``
-statements are not indexed. Therefore, for the example shown, the
-PSyIR node representing the ``if(l_hst)`` code would be reached by
+Note that in this view, only those nodes which are children of
+Schdules have their indices shown. This means that nodes representing
+e.g. loop bounds or the conditional part of ``if`` statements are not
+indexed. For the example shown, the PSyIR node representing the
+``if(l_hst)`` code would be reached by
 ``schedule.children[6].if_body.children[1]`` or, using the shorthand
 notation (see below), ``schedule[6].if_body[1]`` where ``schedule`` is
 the overall parent Schedule node (omitted from the above image).
@@ -81,16 +84,17 @@ navigation won't be future-proof.
 To solve this issue some Nodes also provide methods for semantic navigation:
 
 - ``Schedule``:
-   subscript operator for indexing the statements (children) inside the Schedule, e.g. ``sched[3]`` or ``sched[2:4]``.
+   subscript operator for indexing the statements (children) inside the
+   Schedule, e.g. ``sched[3]`` or ``sched[2:4]``.
 - ``Assignment``:
-   .. automethod:: psyclone.psyGen.Assignment.lhs
-   .. automethod:: psyclone.psyGen.Assignment.rhs
+   .. automethod:: psyclone.psyGen.Assignment.lhs()
+   .. automethod:: psyclone.psyGen.Assignment.rhs()
 - ``IfBlock``:
-   .. automethod:: psyclone.psyGen.IfBlock.condition
+   .. automethod:: psyclone.psyGen.IfBlock.condition()
 		
-   .. automethod:: psyclone.psyGen.IfBlock.if_body
+   .. automethod:: psyclone.psyGen.IfBlock.if_body()
 
-   .. automethod:: psyclone.psyGen.IfBlock.else_body
+   .. automethod:: psyclone.psyGen.IfBlock.else_body()
 
 These are the recommended methods to navigate the tree for analysis or
 operations that depend on the Node type.
