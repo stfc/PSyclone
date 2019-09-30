@@ -970,12 +970,16 @@ def test_goschedule_str():
         "End GOLoop\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
         "Literal[value:'1']\n"
-        "Literal[value:'SIZE(uold_fld%data, 2)']\n"
+        "BinaryOperation[operator:'SIZE']\n"
+        "Literal[value:'uold_fld%data']\n"
+        "Literal[value:'2']\n"
         "Literal[value:'1']\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
         "Literal[value:'1']\n"
-        "Literal[value:'SIZE(uold_fld%data, 1)']\n"
+        "BinaryOperation[operator:'SIZE']\n"
+        "Literal[value:'uold_fld%data']\n"
+        "Literal[value:'1']\n"
         "Literal[value:'1']\n"
         "Schedule:\n"
         "kern call: time_smooth_code\n"
@@ -1072,6 +1076,23 @@ def test_goloop_unmatched_offsets():
     assert "All Kernels must expect the same grid offset but kernel  " \
         "has offset go_offset_sw which does not match go_offset_ne" \
         in str(excinfo.value)
+
+
+def test_goloop_bounds_invalid_iteration_space():
+    ''' Check that the _upper/lower_bound() methods raise the expected error
+    if the iteration space is not recognised. '''
+    gosched = GOInvokeSchedule([])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    # Have to turn-off constant loop bounds to get to the error condition
+    gosched._const_loop_bounds = False
+    # Set the iteration space to something invalid
+    gojloop._iteration_space = "broken"
+    with pytest.raises(GenerationError) as err:
+        gojloop._upper_bound()
+    assert "Unrecognised iteration space, 'broken'." in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        gojloop._lower_bound()
+    assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
