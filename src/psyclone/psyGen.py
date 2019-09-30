@@ -3772,7 +3772,7 @@ class CodedKern(Kern):
         if self._kern_schedule is None:
             astp = Fparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
-	    # TODO: Validate kernel with metadata (issue #288).
+            # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
     def __str__(self):

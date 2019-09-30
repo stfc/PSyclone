@@ -50,6 +50,7 @@ from fparser.common.readfortran import FortranStringReader
 
 # Fixtures
 
+
 @pytest.fixture(scope="module")
 def f2008_parser():
     '''Initialise fparser2 with Fortran2008 standard'''
@@ -81,6 +82,7 @@ end module dummy_mod
 
 # Method generate_schedule
 
+
 def test_generate_schedule_empty_subroutine(parser):
     ''' Tests the fp2Reader generate_schedule method with an empty
     subroutine.
@@ -98,7 +100,7 @@ def test_generate_schedule_empty_subroutine(parser):
     assert len(container.children) == 1
     assert container.children[0] is schedule
     assert container.name == "dummy_mod"
-    assert len(container.symbol_table.symbols) == 0
+    assert not container.symbol_table.symbols
 
     # Test that we get an error for a nonexistant subroutine name
     with pytest.raises(GenerationError) as error:

@@ -1486,7 +1486,6 @@ class Fparser2Reader(object):
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(name))
 
-
     def _parenthesis_handler(self, node, parent):
         '''
         Transforms an fparser2 Parenthesis to the PSyIR representation.

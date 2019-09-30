@@ -489,6 +489,7 @@ def test_no_inline_global_var():
 
 # Method validate
 
+
 def test_kernel_trans_validate(monkeypatch):
     '''Check that the validate method in the class KernelTrans raises an
     exception if the reference is not found in any of the symbol
@@ -503,6 +504,7 @@ def test_kernel_trans_validate(monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kernel = kernels[0]
+
     def dummy_func():
         '''Simple Dummy function that raises SymbolError.'''
         from psyclone.psyGen import SymbolError

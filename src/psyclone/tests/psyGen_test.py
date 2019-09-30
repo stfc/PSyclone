@@ -3210,7 +3210,6 @@ def test_reference_symbol(monkeypatch):
     assert alpha.symbol(scope=kernel_schedule) is None
 
     # Symbol in Container SymbolTable with Container scope
-    from psyclone.psyGen import Container
     assert isinstance(kernel_schedule.root, Container)
     assert alpha.symbol(scope=kernel_schedule.root).name == alpha.name
 
@@ -3457,7 +3456,7 @@ def test_container_name():
     container.name = "new_test"
     assert container.name == "new_test"
 
-    
+
 def test_container_symbol_table():
     '''Test that the container symbol_table method returns the expected
     content.'''
