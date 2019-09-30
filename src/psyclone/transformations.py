@@ -2286,9 +2286,11 @@ class OCLTrans(Transformation):
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
 
-        # This transformation stores some options into the InvokeSchedule
         try:
+            # Store the provided OpenCL options in the InvokeSchedule.
             sched.set_opencl_options(options)
+
+        # The raised exceptions are converted to 'TransformationError's.
         except (TypeError, AttributeError) as error:
             raise TransformationError(str(error))
 
