@@ -846,7 +846,7 @@ can be parallelised::
           var = statement.variable_name
           # Check if there is a variable dependency that might 
           # prevent this loop from being parallelised:
-          if dt.can_loop_be_parallelised(statement, var):
+          if dt.can_loop_be_parallelised(statement):
               parallel_loop_dynamic.apply(statement)
           else:
               # Print all messages from the dependency analysis
