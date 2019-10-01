@@ -132,7 +132,7 @@ or when using the git version::
 
 
 The test dependencies are canonically documented in PSyclone's setup.py
-under the ``extras_requires`` section. This installes the recommended
+under the ``extras_requires`` section. This installs the recommended
 tools to get access to testing and formatting tools.
 
 .. warning::
