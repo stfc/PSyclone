@@ -232,12 +232,12 @@ class PSyIRVisitor(object):
     @abc.abstractproperty
     def directive_end(self):
         '''Returns the begining of the end of a directive, e.g. "}" in C (the
-        start directive contains the opening "}"), or "!$" in Fortran (to
+        start directive also contains the opening "{"), or "!$" in Fortran (to
         which e.g. "omp end do" will then be added). The string {0} will
-        be replaced with the end directive content. It must be implemented
-        by any visitor.
+        be replaced with the closing part of a directive. It must be
+        implemented by any visitor.
 
-        :return: the beginning of the closing part of a directive.
+        :return: the end of a directive (depending on language).
         :rtype: str
         '''
 

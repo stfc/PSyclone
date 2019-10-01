@@ -2432,16 +2432,16 @@ class OMPParallelDirective(OMPDirective):
                 call.reduction_sum_loop(parent)
 
     def begin_string(self):
-        '''Returns the opening statement of this directive, i.e.
+        '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
-        correct directive begin.
+        correct directive beginning (e.g. "$!").
 
         :returns: the opening statement of this directive.
         :rtype: str
 
         '''
         result = "omp parallel"
-        # TODO: not yet working with NEMO
+        # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
         private_list = self._get_private_list()
@@ -2454,7 +2454,7 @@ class OMPParallelDirective(OMPDirective):
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
         "omp end parallel". The visitor is responsible for adding the
-        correct directive begin.
+        correct directive end (e.g. "!$").
 
         :returns: the end statement for this directive.
         :rtype: str
@@ -2706,7 +2706,7 @@ class OMPDoDirective(OMPDirective):
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
         "omp end do". The visitor is responsible for adding the
-        correct directive ending (e.g. "$!).
+        correct directive beginning (e.g. "$!).
 
         :returns: the end statement for this directive.
         :rtype: str

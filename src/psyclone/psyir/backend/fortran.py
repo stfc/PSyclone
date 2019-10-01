@@ -565,14 +565,16 @@ class FortranWriter(PSyIRVisitor):
 
     @property
     def directive_start(self):
-        ''':returns: "!${0}" - the start of a directive in Fortran
+        ''':returns: "!${0}" - the start of a directive in Fortran. The string
+        {0} in the result will be replaced with the actual directive.
         :rtype: str
         '''
         return "!${0}\n"
 
     @property
     def directive_end(self):
-        ''':returns: "!${0}" - the end of a directive in Fortran
+        ''':returns: "!${0}" - the closing directive in Fortran. The string
+        {0} in the result will be replaced with the actual directive.
         :rtype: str
         '''
         return "!${0}\n"

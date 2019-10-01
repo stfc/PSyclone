@@ -217,8 +217,9 @@ def test_gocean_omp_do():
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
     # While this is invalid usage of OMP (omp must have a loop,
-    # not an assignment inside), it is sufficiend to test the
-    # visitor pattern to create the OMP DO directives.
+    # not an assignment inside), but GOLoops are not supported yet.
+    # it is sufficiend to test the # visitor pattern to create the
+    # OMP DO directives. TODO #440 fixes this.
     replace_child_with_assignment(omp_sched[0])
     fvisitor = FortranWriter()
     # GOInvokeSchedule is not yet supported, so start with
