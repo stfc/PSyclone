@@ -6423,7 +6423,9 @@ class BinaryOperation(Operation):
         # Logical Operators
         'AND', 'OR',
         # Other Maths Operators
-        'SIGN', 'MIN', 'MAX'
+        'SIGN', 'MIN', 'MAX',
+        # Query Operators
+        'SIZE'
         ])
 
     @property
@@ -6616,4 +6618,4 @@ class Return(Node):
         return "Return[]\n"
 
 
-__all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation']
+__all__ = ['Literal', 'Return']
