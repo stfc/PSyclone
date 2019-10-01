@@ -6238,9 +6238,11 @@ class Reference(Node):
         var_accesses.add_access(self._reference, AccessType.READ, self)
 
     def check_declared(self):
-        '''
-        raises SymbolError: if there is one or more ancestor symbol \
-        table(s) and the name is not found in one of them.
+        '''Check whether this reference has an associated symbol table entry.
+
+        raises SymbolError: if one or more ancestor symbol table(s) \
+        are found and the name of this reference is not found in any \
+        of them.
 
         '''
         found_symbol_table = False
@@ -6263,38 +6265,39 @@ class Reference(Node):
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(self.name))
 
-    def symbol(self, scope=None):
+    def symbol(self, scope_limit=None):
         '''Returns the symbol from a symbol table associated with this
-        reference or None is one is not found. The scope variable
+        reference or None is it is not found. The scope_limit variable
         limits the symbol table search to nodes within the scope.
 
-        :param scope: optional Node which limits the search for a \
-        symbol in a symbol table to nodes within the scope or no \
-        limits if scope is None (the default).
-        :type scope: :py:class:`psyclone.psyGen.Node` or `None`
+        :param scope_limit: optional Node which limits the symbol \
+        search space to the symbol tables of the nodes within the \
+        given scope. If it is None (the default), the whole scope (all \
+        symbol tables in ancestor nodes) is searched.
+        :type scope_limit: :py:class:`psyclone.psyGen.Node` or `None`
 
-        :returns: the Symbol associated with this reference if one is
+        :returns: the Symbol associated with this reference if one is \
         found or None if not.
         :rtype: :py:class:`psyclone.psyGen.Symbol` or `None`
 
         '''
-        if scope:
-            # Check that the scope Node is an ancestor of this
+        if scope_limit:
+            # Check that the scope_limit Node is an ancestor of this
             # Reference Node and raise an exception if not.
             found = False
             mynode = self.parent
             while mynode is not None:
-                if mynode is scope:
+                if mynode is scope_limit:
                     found = True
                     break
                 mynode = mynode.parent
             if not found:
-                # The scope node is not an ancestor of this reference
+                # The scope_limit node is not an ancestor of this reference
                 # so raise an exception.
                 raise GenerationError(
                     "The scope node '{0}' provided to the symbol method, is "
                     "not an ancestor of this reference node '{1}'."
-                    "".format(str(scope), str(self)))
+                    "".format(str(scope_limit), str(self)))
         test_node = self.parent
         # Iterate over ancestor Nodes of this Reference Node.
         while test_node:
@@ -6312,7 +6315,7 @@ class Reference(Node):
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable.
                     pass
-            if test_node is scope:
+            if test_node is scope_limit:
                 # The ancestor scope Node has been reached and nothing
                 # has matched so return with None.
                 return None
@@ -6655,12 +6658,11 @@ class Return(Node):
 
 
 class Container(Node):
-    '''Node representing something that contains one or more
-    KernelSchedule nodes and/or Container nodes, as well as a name and
-    a SymbolTable. This construct can be used to scope variables,
-    share variables between KernelSchedule nodes and scope the names
-    of KernelSchedules. In Fortran a container would naturally
-    represent a module or a submodule.
+    '''Node representing a set of KernelSchedule and/or Container nodes,
+    as well as a name and a SymbolTable. This construct can be used to
+    scope symbols of variables, KernelSchedule names and Container
+    names. In Fortran a container would naturally represent a module
+    or a submodule.
 
     :param str name: the name of the container.
     :param parent: optional parent node of this Container in the PSyIR.

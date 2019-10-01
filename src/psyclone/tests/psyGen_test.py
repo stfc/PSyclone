@@ -3194,11 +3194,11 @@ def test_reference_symbol(monkeypatch):
     assert field_old.symbol().name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.symbol(scope=kernel_schedule), Symbol)
+    assert isinstance(field_old.symbol(scope_limit=kernel_schedule), Symbol)
     assert field_old.symbol().name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope
-    assert field_old.symbol(scope=field_old.parent) is None
+    assert field_old.symbol(scope_limit=field_old.parent) is None
 
     # Symbol in Container SymbolTable
     alpha = references[6]
@@ -3207,22 +3207,22 @@ def test_reference_symbol(monkeypatch):
     assert alpha.symbol().name == alpha.name
 
     # Symbol in Container SymbolTable with KernelSchedule scope
-    assert alpha.symbol(scope=kernel_schedule) is None
+    assert alpha.symbol(scope_limit=kernel_schedule) is None
 
     # Symbol in Container SymbolTable with Container scope
     assert isinstance(kernel_schedule.root, Container)
-    assert alpha.symbol(scope=kernel_schedule.root).name == alpha.name
+    assert alpha.symbol(scope_limit=kernel_schedule.root).name == alpha.name
 
     # Symbol method with invalid scope type
     with pytest.raises(GenerationError) as excinfo:
-        _ = alpha.symbol(scope="hello")
+        _ = alpha.symbol(scope_limit="hello")
     assert ("The scope node 'hello' provided to the symbol method, is not "
             "an ancestor of this reference node 'Reference[name:'alpha']'."
             in str(excinfo.value))
 
     # Symbol method with invalid scope location
     with pytest.raises(GenerationError) as excinfo:
-        _ = alpha.symbol(scope=alpha)
+        _ = alpha.symbol(scope_limit=alpha)
     assert ("The scope node 'Reference[name:'alpha']' provided to the symbol "
             "method, is not an ancestor of this reference node "
             "'Reference[name:'alpha']'." in str(excinfo.value))

@@ -248,7 +248,7 @@ class KernelTrans(Transformation):
         # container containing this kernel which is not supported.
         from psyclone.psyGen import Reference, KernelSchedule
         for var in kernel_schedule.walk(Reference):
-            if not var.symbol(scope=var.ancestor(KernelSchedule)):
+            if not var.symbol(scope_limit=var.ancestor(KernelSchedule)):
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
                     "that are not captured in the PSyIR Symbol Table(s) "
