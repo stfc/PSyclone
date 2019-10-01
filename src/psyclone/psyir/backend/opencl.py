@@ -196,7 +196,6 @@ class OpenCLWriter(CWriter):
         # Start OpenCL kernel definition
         code = self._nindent
         if self._kernels_local_size != 1:
-            code += "__attribute__((vec_type_hint(double)))\n"
             code += "__attribute__((reqd_work_group_size({0}, 1, 1)))\n" \
                     "".format(self._kernels_local_size)
         code += "__kernel void " + node.name + "(\n"
