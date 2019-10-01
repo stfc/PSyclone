@@ -528,15 +528,62 @@ of the FortCL library (https://github.com/stfc/FortCL) to access
 OpenCL functionality. It also relies upon the OpenCL support provided
 by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
-At the moment we don't apply additional transformations to OpenCL kernels,
-this means that all references to the same kernel will have an indentical
-OpenCL generated output (with identical names). Nevertheless, we can use
-the `--kernel-renaming` psyclone argument to just generate a single output
-file (with the `single` option) or multiple index postfixed (identical)
-versions of the kernel (with the `multi` option, which is the default one).
+
+.. note:: The generated OpenCL files follow the `--kernel-renaming` argument
+    conventions, but in addition to the modulename they also include the
+    kernelname as part of the filename in the format:
+    `modulename_kernelname_index.cl`
+
+
+
+The ``OCLTrans`` transformation accepts an `options` argument with a
+map of optional parameters to tune the OpenCL host code in the PSy layer.
+These options will be attached to the transformed InvokeSchedule.
+The current available options are:
+
++--------------+----------------------------------------------+---------+
+| Option       |  Description                                 | Default |
++==============+==============================================+=========+
+| end_barrier  | Whether a synchronization                    | True    |
+|              | barrier should be placed at the end of the   |         |
+|              | Invoke.                                      |         |
++--------------+----------------------------------------------+---------+
+
+Additionally, each individual kernel (inside the Invoke that is going to
+be transformed) also accepts a map of options which
+are provided by the `set_opencl_options()` method of the `Kern` object.
+This can affect both the driver layer and/or the OpenCL kernels.
+The current available options are:
+
++--------------+---------------------------------------------+---------+
+| Option       |  Description                                | Default |
++==============+=============================================+=========+
+| local_size   | Number of work-items to compute             | 1       |
+|              | in a single kernel.                         |         |
++--------------+---------------------------------------------+---------+
+| queue_number | The identifier of the OpenCL Command Queue  | 1       | 
+|              | to which the kernel should be submitted.    |         |
++--------------+---------------------------------------------+---------+
+
+
+Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+multiple InvokeSchedule and kernel-specific optimization options.
+
+
+.. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
+    :language: python
+    :linenos:
+    :lines: 51-65
+
+
+.. note:: The OpenCL support is still in active development and the options
+    presented above should be considered at risk of changing or being implemented
+    as transformations in the near future.
+
+
 Because OpenCL kernels are linked at run-time, it will be up to the run-time
-environment to specify which of the kernels to use. For instace, one could
-merge multiple kenrels together in a single binary file and
+environment to specify which of the kernels to use. For instance, one could
+merge multiple kernels together in a single binary file and
 use the `PSYCLONE_KERNELS_FILE` provided by the FortCL library.
 
 The introduction of OpenCL code generation in PSyclone has been

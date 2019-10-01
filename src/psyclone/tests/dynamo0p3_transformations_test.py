@@ -6775,7 +6775,7 @@ def test_no_ocl():
     with pytest.raises(TransformationError) as err:
         _ = trans.apply(sched)
     assert ("OpenCL generation is currently only supported for the GOcean "
-            "API but got a Schedule of type:" in str(err))
+            "API but got an InvokeSchedule of type:" in str(err))
 
 
 def test_async_hex_wrong_node():
