@@ -242,6 +242,10 @@
 	76) PR #503 for #502. Adds size intrinsic to PSyIR and makes use
 	of it in the gocean api's for setting loop bounds.
 
+	77) PR #511 for #508. Includes the test directories in the Python
+	module so that the test utilities are available throught the test
+	directory hierarchy.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
