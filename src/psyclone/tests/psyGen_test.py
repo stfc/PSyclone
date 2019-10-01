@@ -50,7 +50,6 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
-from psyclone_test_utils import get_invoke
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
@@ -69,6 +68,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
+from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -146,7 +146,7 @@ def test_new_module():
     transformations.  There should be no transformations
     available as the new module uses a different
     transformation base class'''
-    from test_files import dummy_transformations
+    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations)
     assert trans.num_trans == 0
 
@@ -156,7 +156,7 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from test_files.dummy_transformations import \
+    from .test_files.dummy_transformations import \
         LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
@@ -167,7 +167,7 @@ def test_new_module_and_baseclass():
     transformations and the baseclass. There should be one
     transformation available as the module specifies one test
     transformation using the specified base class '''
-    from test_files import dummy_transformations
+    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations,
                       base_class=dummy_transformations.LocalTransformation)
     assert trans.num_trans == 1
@@ -744,7 +744,6 @@ def test_call_abstract_methods():
 def test_arguments_abstract():
     ''' Check that we raise NotImplementedError if any of the virtual methods
     of the Arguments class are called. '''
-    from psyclone.psyGen import Arguments
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args

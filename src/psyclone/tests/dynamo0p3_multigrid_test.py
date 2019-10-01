@@ -45,13 +45,15 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
+
 from fparser import api as fpapi
-from dynamo0p3_build import Dynamo0p3Build
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.configuration import Config
+
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

@@ -42,7 +42,11 @@ from setuptools import setup, find_packages
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 SRC_PATH = os.path.join(BASE_PATH, "src")
-PACKAGES = find_packages(where=SRC_PATH)
+PACKAGES = find_packages(where=SRC_PATH,
+                         exclude=["psyclone.tests",
+                                  "psyclone.tests.test_files",
+                                  "psyclone.tests.psyir",
+                                  "psyclone.tests.psyir.backend"])
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
@@ -102,7 +106,10 @@ if __name__ == '__main__':
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pytest<5.0"], # TODO: Issue 438. Fix > 5.0 broken tests.
+            'test': ["pytest<5.0",  # TODO: Issue 438. Fix > 5.0 broken tests.
+                     "pep8", "pylint==1.6.5", "pytest-cov",
+                     "pytest-pep8", "pytest-pylint", "pytest-flakes",
+                     "pytest-pep257"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
