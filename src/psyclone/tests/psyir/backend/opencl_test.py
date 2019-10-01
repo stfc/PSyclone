@@ -210,7 +210,6 @@ def test_oclw_kernelschedule():
     result = oclwriter(kschedule)
 
     assert result == "" \
-        "__attribute__((vec_type_hint(double)))\n" \
         "__attribute__((reqd_work_group_size(4, 1, 1)))\n" \
         "__kernel void kname(\n" \
         "  __global double * restrict data1,\n" \
