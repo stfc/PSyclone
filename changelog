@@ -246,6 +246,10 @@
 	module so that the test utilities are available throught the test
 	directory hierarchy.
 
+	78) PR #496 for #494, #495 and #499. Fixes for OpenCL generation
+	including the ability to specify kernel local size and command
+	queue parameters.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
