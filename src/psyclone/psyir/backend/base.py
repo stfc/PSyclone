@@ -185,7 +185,7 @@ class PSyIRVisitor(object):
         :param node: a Loop PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Loop`
 
-        :returns: the Fortran code as a string.
+        :returns: the loop node converted into a (language specific) string.
         :rtype: str
 
         '''
@@ -214,6 +214,7 @@ class PSyIRVisitor(object):
         4: step size
         5: body of the loop
         This is used by base.loop_node() to create a loop representation.
+
         :return: the format of a loop.
         :rtype: str
         '''
@@ -223,32 +224,35 @@ class PSyIRVisitor(object):
         '''Returns the start of a directive, e.g. "#pragma ...\n{" in C,
         or "!$" in Fortran. The string {0} in the result will be replaced
         with the actual directive. It must be implemented by any visitor.
+
         :return: the start of a directive.
         :rtype: str
         '''
 
     @abc.abstractproperty
     def directive_end(self):
-        '''Returns the end of a directive, e.g. "}" in C (the start
-        directive contains the opening "}", or "!$" in Fortran. The
-        string {0} will be replaced with the end directive content.
-        It must be implemented by any visitor.
-        :return: the end of a directive.
+        '''Returns the begining of the end of a directive, e.g. "}" in C (the
+        start directive contains the opening "}"), or "!$" in Fortran (to
+        which e.g. "omp end do" will then be added). The string {0} will
+        be replaced with the end directive content. It must be implemented
+        by any visitor.
+
+        :return: the beginning of the closing part of a directive.
         :rtype: str
         '''
 
     def ompdirective_node(self, node):
         '''This method is called when an OMPDirective instance is found in
-        the PSyIR tree. It returns the begin and end directive, and the
-        statements in between as a string (depending on the language).
+        the PSyIR tree. It returns the opening and closing directives, and
+        the statements in between as a string (depending on the language).
 
         :param node: a Directive PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Directive`
 
         :returns: the Fortran code as a string.
         :rtype: str
-        '''
 
+        '''
         result_list = [self.directive_start.format(node.begin_string())]
         self._depth += 1
         for child in node.children:

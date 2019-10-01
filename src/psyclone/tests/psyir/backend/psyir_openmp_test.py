@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.fortran module'''
+'''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
 
 from __future__ import absolute_import
 
@@ -82,7 +82,7 @@ def test_nemo_omp_parallel():
     result = cvisitor(schedule[0])
     correct = '''#pragma omp parallel private(a,i)
 {
-  for(i=1-1; i<20; i+=2)
+  for(i=1; i<=20; i+=2)
   {
     a = (2 * i);
     b[i] = (b[i] + a);
@@ -111,8 +111,7 @@ def replace_child_with_assignment(node):
     rhs = Reference('b', assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
-    del node.children[0]
-    node.addchild(assignment)
+    node.children[0] = assignment
 
 
 # ----------------------------------------------------------------------------
@@ -192,7 +191,7 @@ def test_nemo_omp_do():
     result = cvisitor(schedule[0])
     correct = '''#pragma omp do schedule(static)
 {
-  for(i=1-1; i<20; i+=2)
+  for(i=1; i<=20; i+=2)
   {
     a = (2 * i);
     b[i] = (b[i] + a);
@@ -203,7 +202,7 @@ def test_nemo_omp_do():
 
 # ----------------------------------------------------------------------------
 def test_gocean_omp_do():
-    '''Test that an OMP PARALLEL directive in a 'classical' API (gocean here)
+    '''Test that an OMP DO directive in a 'classical' API (gocean here)
     is created correctly.
     '''
 
@@ -218,7 +217,8 @@ def test_gocean_omp_do():
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
     # While this is invalid usage of OMP (omp must have a loop,
-    # not an assignment inside)
+    # not an assignment inside), it is sufficiend to test the
+    # visitor pattern to create the OMP DO directives.
     replace_child_with_assignment(omp_sched[0])
     fvisitor = FortranWriter()
     # GOInvokeSchedule is not yet supported, so start with

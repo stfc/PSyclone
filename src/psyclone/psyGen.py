@@ -2432,15 +2432,14 @@ class OMPParallelDirective(OMPDirective):
                 call.reduction_sum_loop(parent)
 
     def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
+        '''Returns the opening statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
         correct directive begin.
 
-        :returns: the beginning statement oforthis directive.
+        :returns: the opening statement of this directive.
         :rtype: str
-        '''
 
-        # pylint: disable=no-self-use
+        '''
         result = "omp parallel"
         # TODO: not yet working with NEMO
         # if not self._reprod:
@@ -2459,8 +2458,8 @@ class OMPParallelDirective(OMPDirective):
 
         :returns: the end statement for this directive.
         :rtype: str
-        '''
 
+        '''
         # pylint: disable=no-self-use
         return "omp end parallel"
 
@@ -2661,8 +2660,8 @@ class OMPDoDirective(OMPDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         :raises GenerationError: if this "!$omp do" is not enclosed within \
                                  an OMP Parallel region.
-        '''
 
+        '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
         # can apply transformations to the code). As an orphaned loop
@@ -2696,23 +2695,23 @@ class OMPDoDirective(OMPDirective):
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp do ...". The visitor is responsible for adding the
-        correct directive begin.
+        correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
         :rtype: str
-        '''
 
+        '''
         return "omp do schedule({0})".format(self._omp_schedule)
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
         "omp end do". The visitor is responsible for adding the
-        correct directive begin.
+        correct directive ending (e.g. "$!).
 
         :returns: the end statement for this directive.
         :rtype: str
-        '''
 
+        '''
         return "omp end do"
 
 

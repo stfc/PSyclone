@@ -51,9 +51,8 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 class CompileError(Exception):
     '''
-    Exception raised when compilation of a Fortran source file
+    Exception raised when compilation of a Fortran source file fails.
 
-    fails.
     :param value: description of the error condition.
     :type value: str or :py:class:`bytes`
 
@@ -178,6 +177,7 @@ class Compile(object):
         self._base_path = base_path
 
     def get_infrastructure_flags(self):
+        # pylint: disable=no-self-use
         '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.

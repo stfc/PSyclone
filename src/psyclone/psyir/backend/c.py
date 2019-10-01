@@ -430,14 +430,14 @@ class CWriter(PSyIRVisitor):
         :return: the format of a loop.
         :rtype: str
         '''
-        return "{0}for({1}={2}-1; {1}<{3}; {1}+={4})\n"\
+        return "{0}for({1}={2}; {1}<={3}; {1}+={4})\n"\
             "{0}{{\n"\
             "{5}"\
             "{0}}}\n"
 
     @property
     def directive_start(self):
-        ''':return: "#pragma" - the start of a directive in C.
+        ''':return: "#pragma" - the opening of a directive in C.
         :rtype: str
         '''
         # Note that {{ is replaced with a single { in the format call
@@ -445,7 +445,7 @@ class CWriter(PSyIRVisitor):
 
     @property
     def directive_end(self):
-        ''':return: "#pragma" - the start of a directive in C.
+        ''':return: "#pragma" - the closing of a directive in C.
         :rtype: str
         '''
         # Note that }} is replaced with a single } in the format call
