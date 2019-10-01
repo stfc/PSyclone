@@ -6237,6 +6237,32 @@ class Reference(Node):
         '''
         var_accesses.add_access(self._reference, AccessType.READ, self)
 
+    def check_declared(self):
+        '''
+        raises SymbolError: if there is one or more ancestor symbol \
+        table(s) and the name is not found in one of them.
+
+        '''
+        found_symbol_table = False
+        test_node = self.parent
+        while test_node:
+            if hasattr(test_node, 'symbol_table'):
+                found_symbol_table = True
+                symbol_table = test_node.symbol_table
+                if self.name in symbol_table:
+                    return
+            test_node = test_node.parent
+
+        # TODO: remove this if test, remove the initialisation of the
+        # found_symbol_table boolean variable and update the doc
+        # string when SymbolTables are suppported in the NEMO API, see
+        # issue #500. After this change has been made this method could
+        # make use of the symbol method to determine
+        # whether the reference has been declared (or not).
+        if found_symbol_table:
+            raise SymbolError(
+                "Undeclared reference '{0}' found.".format(self.name))
+
     def symbol(self, scope=None):
         '''Returns the symbol from a symbol table associated with this
         reference or None is one is not found. The scope variable

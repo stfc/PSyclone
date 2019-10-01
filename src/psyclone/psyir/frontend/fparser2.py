@@ -1459,32 +1459,9 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
-        self._check_declared(node.string, parent)
-        return Reference(node.string, parent)
-
-    def _check_declared(self, name, node):
-        '''
-        :param str: name of the symbol.
-        :param node: parent node of the PSyIR node we are constructing.
-        :type node: :py:class:`psyclone.psyGen.Node`
-
-        raises SymbolError: if there is one or more ancestor symbol \
-        table(s) and the name is not found in one of them.
-
-        '''
-        found_symbol_table = False
-        test_node = node
-        while test_node:
-            if hasattr(test_node, 'symbol_table'):
-                found_symbol_table = True
-                symbol_table = test_node.symbol_table
-                if name in symbol_table:
-                    return
-            test_node = test_node.parent
-
-        if found_symbol_table:
-            raise SymbolError(
-                "Undeclared reference '{0}' found.".format(name))
+        reference = Reference(node.string, parent)
+        reference.check_declared()
+        return reference
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1524,8 +1501,8 @@ class Fparser2Reader(object):
         '''
         reference_name = node.items[0].string.lower()
 
-        self._check_declared(reference_name, parent)
         array = Array(reference_name, parent)
+        array.check_declared()
 
         if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
             subscript_list = node.items[1].items
