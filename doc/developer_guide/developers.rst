@@ -1056,8 +1056,13 @@ The SIR back-end is limited in a number of ways:
 - anything other than real arrays (integer, logical etc.) will cause
   incorrect SIR code to be produced (see issue #468).
 - calls are not supported (and will cause a VisitorError exception).
-- control logic, other than triply nested loops, (if, case etc), is
-  not supported (and will cause a VisitorError exception).
+- loop bounds are not analysed so it is not possible to add in offset
+  and loop ordering for the vertical. This also means that the ordering
+  of loops (lat/lon/levels) is currently assumed.
+- Fortran literals such as `0.0d0` are output directly in the
+  generated code (but this could also be a frontend issue).
+- the only unary operator currently supported is '-' and the subject
+  of this unary operator must be a literal.
 
 The current implementation is not able to deal with variables local to
 a region (which the SIR expects), as, in Fortran, the standard scope
