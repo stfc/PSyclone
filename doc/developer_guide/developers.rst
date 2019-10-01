@@ -117,11 +117,11 @@ new code must be covered (i.e. executed) by one or more tests. As
 described in :ref:`user_guide:getting-going`, the test suite is
 written for use with ``pytest``.
 
-Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
-from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
+Tests should be run from the ``<PSYCLONEHOME>/src/psyclone/tests`` 
+directory, from which all tests in subdirectories 
 will be automatically found and started. If only a subset of all tests
 need to be run, ``pytest`` can be invoked from the corresponding
-subdirectory or with that subdirectory as an argument.
+subdirectory or with that subdirectory or filename as an argument.
 
 .. _test_coverage:
 
@@ -142,7 +142,7 @@ to ask for a terminal report of missed lines for the ``dynamo0p3`` module
 you would do::
 
   > cd <PSYCLONEHOME>
-  > py.test --cov-report term-missing --cov psyclone.dynamo0p3
+  > pytest --cov-report term-missing --cov psyclone.dynamo0p3
 
 Note that you specify the python module name, and not the file name.
 This will produce output along the lines of::
@@ -158,7 +158,7 @@ only selected tests to be run by specifying the file names on the command line.
 Additionally html output can be created by adding the option ``--cov-report html``::
 
   > cd <PSYCLONEHOME>/src/psyclone/tests
-  > py.test --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
+  > pytest --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
 
 The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
 and it highlights all source lines in red that are not covered by at least one test.
@@ -177,7 +177,7 @@ in parallel simply by providing the number of cores to use via the
 ``-n`` flag::
 
   > cd <PSYCLONEHOME>
-  > py.test -n 4
+  > pytest -n 4
 
 Running the test suite in parallel also changes the order in which
 tests are run which can reveal any problems resulting from tests not
@@ -211,13 +211,13 @@ The Gnu Fortran compiler (gfortran) is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
 specified by further command-line flags::
 
-  > py.test --compile --f90=ifort --f90flags="-O3"
+  > pytest --compile --f90=ifort --f90flags="-O3"
 
 If you want to test OpenCL code created by PSyclone, you must use the command line
 option --compileopencl (which can be used together with --compile,
 and --f90 and --f90flags), e.g.::
 
-  > py.test --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
+  > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
 
 Infrastructure libraries

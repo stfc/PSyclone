@@ -39,7 +39,7 @@ for the GOcean1.0 API '''
 
 from __future__ import absolute_import, print_function
 import os
-from psyclone_test_utils import Compile, CompileError
+from psyclone.tests.utilities import Compile, CompileError
 
 
 class GOcean1p0Build(Compile):
@@ -70,13 +70,11 @@ class GOcean1p0Build(Compile):
             self._build_infrastructure()
 
     def get_infrastructure_flags(self):
-        '''
-        Returns the required flag to use the infrastructure library
-        dl_esm_inf for gocean1p0. Each parameter must be a separate
-        entry in the list, e.g.: ["-I", "/some/path"] and not ["-I
-        /some/path"].
+        '''Returns the required flag to use the infrastructure library
+        dl_esm_inf for gocean1p0. Each parameter must be a separate entry
+        in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
 
-        :returns: A list of strings with the compiler flags required.
+        :returns: a list of strings with the compiler flags required.
         :rtype: list
 
         '''
@@ -134,14 +132,15 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
     only compile OpenCL code.
     '''
 
-    def code_compiles(self, psy):
+    def code_compiles(self, psy_ast):
         '''Attempts to build the OpenCL Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         If no Fortran compiler is available then returns True. All files
         produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :param psy_ast: the AST of the generated PSy layer
+        :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
+
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''
@@ -152,4 +151,4 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         # Don't call the base class code_compile() function, since it
         # will only work if --compile was specified. Call the internal
         # function instead that does the actual compilation.
-        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy)
+        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy_ast)
