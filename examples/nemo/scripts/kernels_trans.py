@@ -72,10 +72,12 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 # un-accelerated regions
 _AUTO_PROFILE = True
 # If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc",
-                    # These are small functions that the addition of profiing
-                    # prevents from being in-lined
-                    "interp1", "interp2", "interp3", "integ_spline"]
+PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc", "agrif", "flo_dom",
+                    "ice_thd_pnd", "mpp_",
+                    # These are small functions that the addition of profiling
+                    # prevents from being in-lined (and then breaks any attempt
+                    # to create OpenACC regions with calls to them)
+                    "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy"]
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
@@ -92,7 +94,7 @@ ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
 NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "solfrac", "One_on_L",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
-                      "Ri_bulk", "visc_air"])
+                      "Ri_bulk", "visc_air", "sbc_dcy"])
 
 
 def valid_kernel(node):
@@ -118,26 +120,21 @@ def valid_kernel(node):
                            NemoLoop)
     excluded_nodes = node.walk(excluded_node_types)
 
-    for node in excluded_nodes:
-        if isinstance(node, CodeBlock):
+    for enode in excluded_nodes:
+        if isinstance(enode, CodeBlock):
             return False
 
-        if isinstance(node, IfBlock):
+        if isinstance(enode, IfBlock):
             # We permit single-statement IF blocks or those that originate
             # from WHERE constructs inside KERNELS regions
-            if "was_single_stmt" not in node.annotations or \
-               "was_where" not in node.annotations:
+            if not ("was_single_stmt" in enode.annotations or \
+                    "was_where" in enode.annotations):
                 return False
 
-        if isinstance(node, Operation):
-            if node.operator == BinaryOperation.Operator.SUM or \
-               node.operator == NaryOperation.Operator.SUM:
-                #import pdb; pdb.set_trace()
-                pass
         # Need to check for SUM inside implicit loop, e.g.:
         #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
-        if isinstance(node, NemoLoop):
-            if contains_unsupported_sum(node.ast):
+        if isinstance(enode, NemoLoop):
+            if contains_unsupported_sum(enode.ast):
                 return False
 
     # For now we don't support putting *just* the implicit loop assignment in
@@ -198,12 +195,17 @@ def contains_unsupported_sum(fpnode):
     intrinsics = walk_ast([fpnode], [Fortran2003.Intrinsic_Function_Reference])
     for intrinsic in intrinsics:
         if str(intrinsic.items[0]).lower() == "sum":
-            # items[1] contains the Actual_Arg_Spec_List
-            actual_args = walk_ast(intrinsic.items[1].items,
-                                   [Fortran2003.Actual_Arg_Spec])
-            for arg in actual_args:
-                if str(arg.items[0]).lower() == "dim":
-                    return True
+            # If there's only one argument then we'll just have a Name
+            # and not an Actual_Arg_Spec_List (in which case we don't need to
+            # check for the 'dim' argument).
+            if isinstance(intrinsic.items[1],
+                          Fortran2003.Actual_Arg_Spec_List):
+                # items[1] contains the Actual_Arg_Spec_List
+                actual_args = walk_ast(intrinsic.items[1].items,
+                                       [Fortran2003.Actual_Arg_Spec])
+                for arg in actual_args:
+                    if str(arg.items[0]).lower() == "dim":
+                        return True
     return False
 
 
@@ -238,7 +240,7 @@ def add_kernels(children):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import IfBlock
+    from psyclone.psyGen import IfBlock, Reference
     added_kernels = False
     if not children:
         return added_kernels
@@ -320,13 +322,13 @@ def add_profile_region(nodes):
         # Check whether we should be adding profiling inside this routine
         routine_name = nodes[0].root.invoke.name
         for ignore in PROFILING_IGNORE:
-            if ignore in routine_name:
+            if ignore in routine_name.lower():
                 return
         if len(nodes) == 1:
-            if isinstance(nodes[0], CodeBlock):
-                # We don't put single CALLs inside profiling regions
-                if isinstance(nodes[0].ast, Call_Stmt):
-                    return
+            if isinstance(nodes[0], CodeBlock) and \
+               len(nodes[0].statements) == 1:
+                # Don't put single CodeBlocks in a profiling region
+                return
             elif isinstance(nodes[0], IfBlock) and \
                  "was_single_stmt" in nodes[0]._annotations and \
                  isinstance(nodes[0].if_body[0], CodeBlock):
