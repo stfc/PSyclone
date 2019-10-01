@@ -375,7 +375,7 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     otrans = OCLTrans()
     otrans.apply(sched)
     sched.kernels()[0].name = "name"
-    generated_code = str(psy.gen).lower()
+    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
 
     assert os.path.exists(
         os.path.join(str(kernel_outputdir), "compute_cu_name_0.cl"))
@@ -390,7 +390,7 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
     otrans.apply(sched)
-    generated_code = str(psy.gen).lower()
+    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
 
     assert os.path.exists(
         os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))

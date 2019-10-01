@@ -445,7 +445,7 @@ class Invokes(object):
                         # will be needed.
                         opencl_num_queues = max(
                             opencl_num_queues,
-                            kern._opencl_options['queue_number'])
+                            kern.opencl_options['queue_number'])
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
         if generate_ocl_init:
@@ -1683,18 +1683,21 @@ class InvokeSchedule(Schedule):
         :type options: dictionary of <string>:<value>
 
         '''
+        valid_opencl_options = ['end_barrier']
+
         # Validate that the options given are supported and store them
         for key, value in options.items():
-            if key == "end_barrier":
-                if not isinstance(value, bool):
-                    raise TypeError(
-                        "InvokeSchedule opencl_option 'end_barrier' "
-                        "should be a boolean.")
+            if key in valid_opencl_options:
+                if key == "end_barrier":
+                    if not isinstance(value, bool):
+                        raise TypeError(
+                            "InvokeSchedule opencl_option 'end_barrier' "
+                            "should be a boolean.")
             else:
                 raise AttributeError(
                     "InvokeSchedule does not support the opencl_option '{0}'. "
-                    "The supported options are: 'end_barrier'."
-                    "".format(key))
+                    "The supported options are: {1}."
+                    "".format(key, valid_opencl_options))
 
             self._opencl_options[key] = value
 
@@ -1813,7 +1816,7 @@ class InvokeSchedule(Schedule):
             for kern in self.coded_kernels():
                 opencl_num_queues = max(
                     opencl_num_queues,
-                    kern._opencl_options['queue_number'])
+                    kern.opencl_options['queue_number'])
             for queue_number in range(1, opencl_num_queues + 1):
                 parent.add(
                     AssignGen(parent, lhs=flag,
@@ -3816,6 +3819,14 @@ class CodedKern(Kern):
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
         return self._kern_schedule
 
+    @property
+    def opencl_options(self):
+        '''
+        :returns: dictionary of OpenCL options regarding the kernel.
+        :rtype: dictionary
+        '''
+        return self._opencl_options
+
     def set_opencl_options(self, options):
         '''
         Validate and store a set of options associated with the Kernel to
@@ -3825,23 +3836,26 @@ class CodedKern(Kern):
         :type options: dictionary of <string>:<value>
 
         '''
+        valid_opencl_kernel_options = ['local_size', 'queue_number']
+
         # Validate that the options given are supported
         for key, value in options.items():
-            if key == "local_size":
-                if not isinstance(value, int):
-                    raise TypeError(
-                        "CodedKern opencl_option 'local_size' should be an "
-                        "integer.")
-            elif key == "queue_number":
-                if not isinstance(value, int):
-                    raise TypeError(
-                        "CodedKern opencl_option 'queue_number' should be an "
-                        "integer.")
+            if key in valid_opencl_kernel_options:
+                if key == "local_size":
+                    if not isinstance(value, int):
+                        raise TypeError(
+                            "CodedKern opencl_option 'local_size' should be "
+                            "an integer.")
+                if key == "queue_number":
+                    if not isinstance(value, int):
+                        raise TypeError(
+                            "CodedKern opencl_option 'queue_number' should be "
+                            "an integer.")
             else:
                 raise AttributeError(
                     "CodedKern does not support the opencl_option '{0}'. "
-                    "The supported options are: 'local_size' and "
-                    "'queue_number'.".format(key))
+                    "The supported options are: {1}."
+                    "".format(key, valid_opencl_kernel_options))
 
             self._opencl_options[key] = value
 
@@ -6026,8 +6040,6 @@ class KernelSchedule(Schedule):
         super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
-        # Set OpenCL Options default values
-        self._opencl_options = {'local_size': 1, 'queue_number': 1}
 
     @property
     def name(self):

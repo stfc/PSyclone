@@ -2265,7 +2265,7 @@ class OCLTrans(Transformation):
         '''
         return "OCLTrans"
 
-    def apply(self, sched, opencl=True, options={}):
+    def apply(self, sched, opencl=True, options=None):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -2276,15 +2276,21 @@ class OCLTrans(Transformation):
         :param sched: InvokeSchedule to transform.
         :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param bool opencl: whether or not to enable OpenCL generation.
+        :param options: set of option to tune the OpenCL generation.
+        :type options: dictionary of string:values or None
 
         '''
         if opencl:
             self.validate(sched)
+
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
+
+        if not options:
+            options = {}
 
         try:
             # Store the provided OpenCL options in the InvokeSchedule.

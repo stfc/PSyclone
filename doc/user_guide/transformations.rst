@@ -566,7 +566,7 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of an PSyclone script that uses an ``OCLTans`` with
+Below is an example of a PSyclone script that uses an ``OCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 

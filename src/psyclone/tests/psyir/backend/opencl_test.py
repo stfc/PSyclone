@@ -55,7 +55,7 @@ def test_oclw_initialization():
     assert "kernel_local_size should be an integer but found 'str'." \
         in str(error)
 
-    with pytest.raises(TypeError) as error:
+    with pytest.raises(ValueError) as error:
         oclwriter = OpenCLWriter(kernels_local_size=-4)
     assert "kernel_local_size should be a positive integer but found -4." \
         in str(error)

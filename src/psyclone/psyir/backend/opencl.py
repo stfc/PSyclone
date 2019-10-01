@@ -59,7 +59,8 @@ class OpenCLWriter(CWriter):
     :param int kernel_local_size: uses the given local_size when generating \
     OpenCL kernels.
 
-    :raises TypeError: if kernel_local_size is not a positive integer.
+    :raises TypeError: if kernel_local_size is not an integer.
+    :raises ValueError: if kernel_local_size is not positive.
 
     '''
     def __init__(self, skip_nodes=False, indent_string="  ",
@@ -74,7 +75,7 @@ class OpenCLWriter(CWriter):
                 "'{0}'.".format(type(kernels_local_size).__name__))
 
         if kernels_local_size < 1:
-            raise TypeError(
+            raise ValueError(
                 "kernel_local_size should be a positive integer but found "
                 "{0}.".format(kernels_local_size))
 
