@@ -328,15 +328,25 @@ def test_profiling_case_loop(parser):
             "END SUBROUTINE" in code)
 
 
-def test_profiling_no_spec_part(parser):
+def test_profiling_no_spec_part(parser, monkeypatch):
     ''' Check that attempting to add profiling to a routine that has no
-    Specification_Part (i.e. no declarations) raises a NotImplementedError
+    Specification_Part (i.e. no declarations) raises the expected errors
     (this restriction will be lifted by #435). '''
     psy, sched = get_nemo_schedule(parser,
                                    "subroutine no_decs()\n"
                                    "  write(*,*) 'This is just a test'\n"
                                    "end subroutine no_decs\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(sched.children)
+    assert ("only be added to routines which contain existing variable "
+            "declarations" in str(err.value))
+    assert "'no_decs' does not have any" in str(err.value)
+
+    # Monkeypatch the validate method so that we can check that we raise the
+    # expected error at code-generation time too.
+    monkeypatch.setattr(PTRANS, "_validate", lambda nodes: None)
     PTRANS.apply(sched.children)
+
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
     assert ("Addition of profiling regions to routines without any "
