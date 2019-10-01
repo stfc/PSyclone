@@ -39,12 +39,14 @@ GOcean 1.0 API.'''
 
 from __future__ import print_function, absolute_import
 import pytest
-from gocean1p0_build import GOcean1p0OpenCLBuild
+
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError, Symbol
-from psyclone_test_utils import Compile, get_invoke
+from psyclone.tests.utilities import Compile, get_invoke
+
+from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
 
 API = "gocean1.0"
 
@@ -119,7 +121,7 @@ def test_psy_init(kernel_outputdir):
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init\n"
+        "        CALL ocl_env_init(1)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "
@@ -131,6 +133,113 @@ def test_psy_init(kernel_outputdir):
 
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+    # Test with a non-default number of OpenCL queues
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
+    generated_code = str(psy.gen)
+    expected = (
+        "    SUBROUTINE psy_init()\n"
+        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
+        "      CHARACTER(LEN=30) kernel_names(1)\n"
+        "      LOGICAL, save :: initialised=.False.\n"
+        "      ! Check to make sure we only execute this routine once\n"
+        "      IF (.not. initialised) THEN\n"
+        "        initialised = .True.\n"
+        "        ! Initialise the OpenCL environment/device\n"
+        "        CALL ocl_env_init(5)\n"
+        "        ! The kernels this PSy layer module requires\n"
+        "        kernel_names(1) = \"compute_cu_code\"\n"
+        "        ! Create the OpenCL kernel objects. Expects to find all of "
+        "the compiled\n"
+        "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
+        "        CALL add_kernels(1, kernel_names)\n"
+        "      END IF \n"
+        "    END SUBROUTINE psy_init\n")
+
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+def test_opencl_options_validation(kernel_outputdir):
+    ''' Check that OpenCL options which are not supported provide appropiate
+    errors.
+    '''
+    from psyclone.transformations import TransformationError
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+
+    # Unsupported options are not accepted
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched, options={'unsupported': 1})
+    assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
+        in str(err)
+
+    # end_barrier option must be a boolean
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched, options={'end_barrier': 1})
+    assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
+        in str(err)
+
+    # Unsupported kernel options are not accepted
+    with pytest.raises(AttributeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'unsupported': 1})
+    assert "CodedKern does not support the opencl_option 'unsupported'." \
+        in str(err)
+
+    # local_size must be an integer
+    with pytest.raises(TypeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'local_size': 'a'})
+    assert "CodedKern opencl_option 'local_size' should be an integer." \
+        in str(err)
+
+    # queue_number must be an integer
+    with pytest.raises(TypeError) as err:
+        sched.coded_kernels()[0].set_opencl_options({'queue_number': 'a'})
+    assert "CodedKern opencl_option 'queue_number' should be an integer." \
+        in str(err)
+
+
+def test_opencl_options_effects(kernel_outputdir):
+    ''' Check that the OpenCL options produce the expected changes in the
+    PSy layer.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+
+    # By default there is 1 queue, with an end barrier and local_size is 1
+    assert "localsize = (/1, 1/)" in generated_code
+    assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
+        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
+    assert "! Block until all kernels have finished\n" \
+        "      ierr = clFinish(cmd_queues(1))" in generated_code
+    assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+
+    # Change kernel local_size to 4
+    sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
+    generated_code = str(psy.gen)
+    assert "localsize = (/4, 1/)" in generated_code
+
+    # Change kernel queue to 2 (the barrier should then also go up to 2)
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
+    generated_code = str(psy.gen)
+    assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
+        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
+    assert "! Block until all kernels have finished\n" \
+        "      ierr = clFinish(cmd_queues(1))\n" \
+        "      ierr = clFinish(cmd_queues(2))\n" in generated_code
+    assert "ierr = clFinish(cmd_queues(3))" not in generated_code
+
+    # Remove barrier at the end of the Invoke
+    otrans.apply(sched, options={'end_barrier': False})
+    generated_code = str(psy.gen)
+    assert "! Block until all kernels have finished" not in generated_code
+    assert "ierr = clFinish(cmd_queues(2))" not in generated_code
 
 
 def test_set_kern_args(kernel_outputdir):
@@ -155,13 +264,12 @@ def test_set_kern_args(kernel_outputdir):
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the compute_cu_code OpenCL Kernel
-      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
-      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(cu_fld), C_LOC(cu_fld))
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
+      CALL check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
       CALL check_status('clSetKernelArg: arg 1 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(p_fld), C_LOC(p_fld))
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(u_fld), C_LOC(u_fld))
       CALL check_status('clSetKernelArg: arg 2 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(u_fld), C_LOC(u_fld))
-      CALL check_status('clSetKernelArg: arg 3 of compute_cu_code', ierr)
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
     assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
@@ -196,15 +304,14 @@ def test_set_kern_float_arg(kernel_outputdir):
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the bc_ssh_code OpenCL Kernel
-      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
-      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(a_scalar), C_LOC(a_scalar))
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
+      CALL check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
       CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstop), C_LOC(xstop))
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(tmask), C_LOC(tmask))
-      CALL check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
     # TODO #459: the usage of scalar variables in the code causes compilation
@@ -227,7 +334,7 @@ def test_set_arg_const_scalar():
             "arguments passed by value" in str(err))
 
 
-def test_opencl_kernel_code_generation():
+def test_opencl_kernel_code_generation(kernel_outputdir):
     # pylint: disable=invalid-name
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
@@ -254,11 +361,41 @@ def test_opencl_kernel_code_generation():
         "  int j = get_global_id(1);\n"
         "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
         " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
-        "}\n"
+        "}\n\n"
         )
 
     openclwriter = OpenCLWriter()
     assert expected_code == openclwriter(kschedule)
+
+
+def test_opencl_kernel_output_file(kernel_outputdir):
+    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+    '''
+    import os
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    sched.kernels()[0].name = "name"
+    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+
+    assert os.path.exists(
+        os.path.join(str(kernel_outputdir), "compute_cu_name_0.cl"))
+
+
+def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
+    '''Check that an OpenCL file named modulename_kernelname_0 is
+    generated without the _code suffix in the kernelname
+    '''
+    import os
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+
+    assert os.path.exists(
+        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
 
 
 def test_symtab_implementation_for_opencl():
@@ -327,6 +464,8 @@ def test_symtab_implementation_for_opencl():
         in str(err)
 
 
+@pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
+                          "#323 will add support for Use statments.")
 def test_opencl_kernel_with_use(kernel_outputdir):
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
