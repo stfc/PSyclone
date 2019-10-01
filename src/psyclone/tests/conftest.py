@@ -114,10 +114,10 @@ def infra_compile(tmpdir_factory, request):
     infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
     (if compilation was enabled).
     '''
-    from psyclone_test_utils import Compile
+    from psyclone.tests.utilities import Compile
     Compile.store_compilation_flags(request.config)
 
-    from dynamo0p3_build import Dynamo0p3Build
+    from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
     # Create a temporary directory to store the compiled files.
     # Note that this directory is unique even if compiled in
     # parallel, i.e. each process has its own copy of the
@@ -128,7 +128,7 @@ def infra_compile(tmpdir_factory, request):
     # compilation of the infrastructure files.
     Dynamo0p3Build(tmpdir)
 
-    from gocean1p0_build import GOcean1p0Build
+    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
     GOcean1p0Build(tmpdir)
 

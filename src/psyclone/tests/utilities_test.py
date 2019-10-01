@@ -39,7 +39,7 @@ psyclone_test_utils.'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone_test_utils import CompileError, get_invoke, Compile
+from psyclone.tests.utilities import CompileError, get_invoke, Compile
 
 
 HELLO_CODE = '''
@@ -128,12 +128,12 @@ def test_compile_str(monkeypatch, tmpdir):
     # Check that we always return True if compilation testing is disabled
     Compile.skip_if_compilation_disabled()
     _compile = Compile(tmpdir)
-    monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", False)
-    monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE_OPENCL",
-                        False)
+    test_compile = "psyclone.tests.utilities.Compile"
+    monkeypatch.setattr(test_compile+".TEST_COMPILE", False)
+    monkeypatch.setattr(test_compile+".TEST_COMPILE_OPENCL", False)
     assert _compile.string_compiles("not fortran")
     # Re-enable compilation testing and check that we can build hello world
-    monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", True)
+    monkeypatch.setattr(test_compile+".TEST_COMPILE", True)
     assert _compile.string_compiles(HELLO_CODE)
     # Repeat for some broken code
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
