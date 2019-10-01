@@ -408,11 +408,11 @@ def test_cw_loop():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
 
     cvisitor = CWriter()
     result = cvisitor(schedule[0])
-    correct = '''for(i=1-1; i<20; i+=2)
+    correct = '''for(i=1; i<=20; i+=2)
 {
   a = (2 * i);
 }'''

@@ -61,7 +61,7 @@ def test_nemo_omp_parallel():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
     from psyclone.transformations import OMPParallelTrans
 
     # Now apply a parallel transform
@@ -170,7 +170,7 @@ def test_nemo_omp_do():
           enddo
         end subroutine tmp
         end module test'''
-    schedule = create_schedule(code)
+    schedule = create_schedule(code, "tmp")
     from psyclone.transformations import OMPLoopTrans
 
     # Now apply a parallel transform
