@@ -2276,7 +2276,7 @@ class OCLTrans(Transformation):
         '''
         return "OCLTrans"
 
-    def apply(self, sched, opencl=True):
+    def apply(self, sched, opencl=True, options=None):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -2287,42 +2287,59 @@ class OCLTrans(Transformation):
         :param sched: InvokeSchedule to transform.
         :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param bool opencl: whether or not to enable OpenCL generation.
+        :param options: set of option to tune the OpenCL generation.
+        :type options: dictionary of string:values or None
 
         '''
         if opencl:
             self.validate(sched)
+
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
+
+        if not options:
+            options = {}
+
+        try:
+            # Store the provided OpenCL options in the InvokeSchedule.
+            sched.set_opencl_options(options)
+
+        # The raised exceptions are converted to 'TransformationError's.
+        except (TypeError, AttributeError) as error:
+            raise TransformationError(str(error))
+
         return sched, keep
 
     def validate(self, sched):
         '''
-        Checks that the supplied Schedule is valid and that an OpenCL
+        Checks that the supplied InvokeSchedule is valid and that an OpenCL
         version of it can be generated.
 
         :param sched: Schedule to check.
-        :type sched: :py:class:`psyclone.psyGen.Schedule`
+        :type sched: :py:class:`psyclone.psyGen.InvokeSchedule`
 
-        :raises TransformationError: if the Schedule is not for the GOcean1.0 \
-                                     API.
+        :raises TransformationError: if the InvokeSchedule is not for the \
+                                     GOcean1.0 API.
         :raises NotImplementedError: if any of the kernels have arguments \
                                      passed by value.
         '''
-        from psyclone.psyGen import Schedule, args_filter
+        from psyclone.psyGen import InvokeSchedule, args_filter
         from psyclone.gocean1p0 import GOInvokeSchedule
-        if isinstance(sched, Schedule):
+
+        if isinstance(sched, InvokeSchedule):
             if not isinstance(sched, GOInvokeSchedule):
                 raise TransformationError(
                     "OpenCL generation is currently only supported for the "
-                    "GOcean API but got a Schedule of type: '{0}'".
+                    "GOcean API but got an InvokeSchedule of type: '{0}'".
                     format(type(sched)))
         else:
             raise TransformationError(
                 "Error in OCLTrans: the supplied node must be a (sub-class "
-                "of) Schedule but got {0}".format(type(sched)))
+                "of) InvokeSchedule but got {0}".format(type(sched)))
+
         # Now we need to check the arguments of all the kernels
         args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)
         for arg in args:
@@ -2330,12 +2347,17 @@ class OCLTrans(Transformation):
                 raise NotImplementedError(
                     "Cannot generate OpenCL for Invokes that contain "
                     "kernels with arguments passed by value")
+
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
+            # TODO: While we are not able to capture the value of 'use'
+            # parameters (issue 323) we have to bypass this validation and
+            # provide them manually for the OpenCL kernels to compile.
+            continue
             global_symbols = ksched.symbol_table.global_symbols
             if global_symbols:
                 raise TransformationError(

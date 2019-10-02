@@ -430,6 +430,8 @@ class Invokes(object):
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         opencl_kernels = []
+        opencl_num_queues = 1
+        generate_ocl_init = False
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
             # If we are generating OpenCL for an Invoke then we need to
@@ -437,16 +439,21 @@ class Invokes(object):
             # calls. We do it here as this enables us to prevent
             # duplication.
             if invoke.schedule.opencl:
+                generate_ocl_init = True
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
+                        # Compute the maximum number of command queues that
+                        # will be needed.
+                        opencl_num_queues = max(
+                            opencl_num_queues,
+                            kern.opencl_options['queue_number'])
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
-                # We must also ensure that we have a kernel object for
-                # each kernel called from the PSy layer
-                self.gen_ocl_init(parent, opencl_kernels)
+        if generate_ocl_init:
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
 
     @staticmethod
-    def gen_ocl_init(parent, kernels):
+    def gen_ocl_init(parent, kernels, num_queues):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -456,6 +463,8 @@ class Invokes(object):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         :param kernels: List of kernel names called by the PSy layer.
         :type kernels: list of str
+        :param int num_queues: total number of queues needed for the OpenCL \
+                               implementation.
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
@@ -479,7 +488,7 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init"))
+        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -1662,7 +1671,36 @@ class InvokeSchedule(Schedule):
         Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barrier": True}
         self._name_space_manager = NameSpaceFactory().create()
+
+    def set_opencl_options(self, options):
+        '''
+        Validate and store a set of options associated with the InvokeSchedule
+        to tune the OpenCL code generation.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: dictionary of <string>:<value>
+
+        '''
+        valid_opencl_options = ['end_barrier']
+
+        # Validate that the options given are supported and store them
+        for key, value in options.items():
+            if key in valid_opencl_options:
+                if key == "end_barrier":
+                    if not isinstance(value, bool):
+                        raise TypeError(
+                            "InvokeSchedule opencl_option 'end_barrier' "
+                            "should be a boolean.")
+            else:
+                raise AttributeError(
+                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "The supported options are: {1}."
+                    "".format(key, valid_opencl_options))
+
+            self._opencl_options[key] = value
 
     @property
     def invoke(self):
@@ -1769,15 +1807,22 @@ class InvokeSchedule(Schedule):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl:
-            # Ensure we block at the end of the invoke to ensure all
-            # kernels have completed before we return.
-            # This code ASSUMES only the first command queue is used for
-            # executing kernels.
+        if self.opencl and self._opencl_options['end_barrier']:
+
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
-            parent.add(AssignGen(parent, lhs=flag,
-                                 rhs="clFinish(" + qlist + "(1))"))
+
+            # We need a clFinish for all the queues in the implementation
+            opencl_num_queues = 1
+            for kern in self.coded_kernels():
+                opencl_num_queues = max(
+                    opencl_num_queues,
+                    kern.opencl_options['queue_number'])
+            for queue_number in range(1, opencl_num_queues + 1):
+                parent.add(
+                    AssignGen(parent, lhs=flag,
+                              rhs="clFinish({0}({1}))".format(qlist,
+                                                              queue_number)))
 
     @property
     def opencl(self):
@@ -3748,6 +3793,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
+        self._opencl_options = {'local_size': 1, 'queue_number': 1}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -3774,6 +3820,46 @@ class CodedKern(Kern):
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
             # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
+
+    @property
+    def opencl_options(self):
+        '''
+        :returns: dictionary of OpenCL options regarding the kernel.
+        :rtype: dictionary
+        '''
+        return self._opencl_options
+
+    def set_opencl_options(self, options):
+        '''
+        Validate and store a set of options associated with the Kernel to
+        tune the OpenCL code generation.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: dictionary of <string>:<value>
+
+        '''
+        valid_opencl_kernel_options = ['local_size', 'queue_number']
+
+        # Validate that the options given are supported
+        for key, value in options.items():
+            if key in valid_opencl_kernel_options:
+                if key == "local_size":
+                    if not isinstance(value, int):
+                        raise TypeError(
+                            "CodedKern opencl_option 'local_size' should be "
+                            "an integer.")
+                if key == "queue_number":
+                    if not isinstance(value, int):
+                        raise TypeError(
+                            "CodedKern opencl_option 'queue_number' should be "
+                            "an integer.")
+            else:
+                raise AttributeError(
+                    "CodedKern does not support the opencl_option '{0}'. "
+                    "The supported options are: {1}."
+                    "".format(key, valid_opencl_kernel_options))
+
+            self._opencl_options[key] = value
 
     def __str__(self):
         return "kern call: " + self._name
@@ -3979,7 +4065,23 @@ class CodedKern(Kern):
         fdesc = None
         while not fdesc:
             name_idx += 1
-            new_suffix = "_{0}".format(name_idx)
+            new_suffix = ""
+
+            # GOcean OpenCL needs to differentiate between kernels generated
+            # from the same module file, so we include the kernelname into the
+            # output filename.
+            # TODO: Issue 499, this works as an OpenCL quickfix but it needs
+            # to be generalized and be consistent with the '--kernel-renaming'
+            # conventions.
+            if self.root.opencl:
+                if self.name.lower().endswith("_code"):
+                    new_suffix += "_" + self.name[:-5]
+                else:
+                    new_suffix += "_" + self.name
+
+            new_suffix += "_{0}".format(name_idx)
+
+            # Choose file extension
             if self.root.opencl:
                 new_name = old_base_name + new_suffix + ".cl"
             else:
@@ -4051,7 +4153,8 @@ class CodedKern(Kern):
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
-            ocl_writer = OpenCLWriter()
+            ocl_writer = OpenCLWriter(
+                    kernels_local_size=self._opencl_options['local_size'])
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
