@@ -211,7 +211,7 @@ def test_invalid_config_files(tmpdir):
 def test_valid_config_files():
     ''' Test if valid config files lead to the expected new loop boundaries
     '''
-    from psyclone_test_utils import get_invoke
+    from psyclone.tests.utilities import get_invoke
 
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
