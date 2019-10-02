@@ -901,9 +901,15 @@ def test_handling_nested_intrinsic(f2008_parser):
         "tmask_i(:,:) ) )")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     processor.process_nodes(fake_parent, [fp2node], None)
-    fake_parent.children[0].view()
     array_refs = fake_parent.walk(Reference)
     assert "sum" not in [str(ref.name) for ref in array_refs]
+    reader = FortranStringReader(
+        "zccc = SQRT(MAX(zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0.0))")
+    fp2node = Execution_Part(reader)
+    # Check that the frontend does not produce any CodeBlocks
+    processor.process_nodes(fake_parent, fp2node.content, None)
+    cblocks = fake_parent.children[1].walk(CodeBlock)
+    assert not cblocks
 
 
 @pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
