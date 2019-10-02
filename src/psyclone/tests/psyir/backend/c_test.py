@@ -306,7 +306,7 @@ def test_cw_unaryoperator():
                  (UnaryOperation.Operator.ASIN, 'asin(a)'),
                  (UnaryOperation.Operator.ATAN, 'atan(a)'),
                  (UnaryOperation.Operator.ABS, 'abs(a)'),
-                 (UnaryOperation.Operator.REAL, 'float(a)'))
+                 (UnaryOperation.Operator.REAL, '(float)a'))
 
     for operator, expected in test_list:
         # pylint: disable=protected-access

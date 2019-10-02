@@ -42,6 +42,28 @@ from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import Symbol, SymbolTable, KernelSchedule, Return
 
 
+def test_oclw_initialization():
+    '''Test that the OpenCLWriter-specific parameters are error checked'''
+
+    # OCLWriter can be initialized with default values
+    oclwriter = OpenCLWriter()
+    assert oclwriter._kernels_local_size == 1
+
+    # Pass a kernels_local_size parameter
+    with pytest.raises(TypeError) as error:
+        oclwriter = OpenCLWriter(kernels_local_size='invalid')
+    assert "kernel_local_size should be an integer but found 'str'." \
+        in str(error)
+
+    with pytest.raises(ValueError) as error:
+        oclwriter = OpenCLWriter(kernels_local_size=-4)
+    assert "kernel_local_size should be a positive integer but found -4." \
+        in str(error)
+
+    oclwriter = OpenCLWriter(kernels_local_size=4)
+    assert oclwriter._kernels_local_size == 4
+
+
 def test_oclw_gen_id_variable():
     '''Check the OpenCLWriter class gen_id_variables method produces
     the expected declarations.
@@ -127,11 +149,11 @@ def test_oclw_gen_array_length_variables():
 
 def test_oclw_kernelschedule():
     '''Check the OpenCLWriter class kernelschedule_node visitor produces
-    the expected C code.
+    the expected OpenCL code.
 
     '''
 
-    # The kernelschedule OpenCL Backend relies on abstrct methods that
+    # The kernelschedule OpenCL Backend relies on abstract methods that
     # need to be implemented by the APIs. A generic kernelschedule will
     # produce a NotImplementedError.
     oclwriter = OpenCLWriter()
@@ -181,4 +203,23 @@ def test_oclw_kernelschedule():
         "  int i = get_global_id(0);\n" \
         "  int j = get_global_id(1);\n" \
         "  return;\n" \
-        "}\n"
+        "}\n\n"
+
+    # Set a local_size value different to 1 into the KernelSchedule
+    oclwriter = OpenCLWriter(kernels_local_size=4)
+    result = oclwriter(kschedule)
+
+    assert result == "" \
+        "__attribute__((reqd_work_group_size(4, 1, 1)))\n" \
+        "__kernel void kname(\n" \
+        "  __global double * restrict data1,\n" \
+        "  __global double * restrict data2\n" \
+        "  ){\n" \
+        "  int data1LEN1 = get_global_size(0);\n" \
+        "  int data1LEN2 = get_global_size(1);\n" \
+        "  int data2LEN1 = get_global_size(0);\n" \
+        "  int data2LEN2 = get_global_size(1);\n" \
+        "  int i = get_global_id(0);\n" \
+        "  int j = get_global_id(1);\n" \
+        "  return;\n" \
+        "}\n\n"

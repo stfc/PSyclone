@@ -39,7 +39,7 @@ for the GOcean1.0 API '''
 
 from __future__ import absolute_import, print_function
 import os
-from .psyclone_test_utils import Compile, CompileError
+from psyclone.tests.utilities import Compile, CompileError
 
 
 class GOcean1p0Build(Compile):
@@ -138,8 +138,9 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         If no Fortran compiler is available then returns True. All files
         produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :param psy_ast: the AST of the generated PSy layer
+        :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
+
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''

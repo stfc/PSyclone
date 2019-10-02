@@ -46,7 +46,7 @@ from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import Config
 
-from .dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # constants
 API = "dynamo0.3"

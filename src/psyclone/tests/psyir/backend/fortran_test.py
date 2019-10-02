@@ -45,8 +45,8 @@ from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
     FortranWriter
 from psyclone.psyGen import Symbol, Node, CodeBlock
+from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from ...psyclone_test_utils import create_schedule
 
 
 @pytest.fixture(scope="function")

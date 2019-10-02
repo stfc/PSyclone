@@ -6,7 +6,7 @@
 *.MOD
 .cache
 .coverage
-doc/_build
+doc/*/_build
 fparser.log
 htmlcov
 dag

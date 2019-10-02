@@ -54,11 +54,10 @@ target machine. PSyclone has been tested under Python 2.7 and 3.6.
              *before* installing PSyclone.
 
 PSyclone immediately relies on four external Python packages; ``six``,
-``configparser``, ``fparser`` and ``pyparsing``. In order to run the
-test suite ``py.test`` is required. The easiest way to satisfy the
-Python dependencies is to use the Python Package Index (pypi.org) and
-``pip``. See https://packaging.python.org/installing/ for more
-information.
+``configparser``, ``fparser`` and ``pyparsing``. The easiest way to
+satisfy the Python dependencies is to use the Python Package Index
+(pypi.org) and ``pip``. See https://packaging.python.org/installing/
+for more information.
 
 If everything is working correctly then using pip to install PSyclone:
 
@@ -210,28 +209,6 @@ Installation (and uninstallation) of this package can be done via
 ``pip`` in exactly the same way as for graphviz, as described above.
 
 
-py.test
-^^^^^^^
-
-The PSyclone test suite uses py.test. This is not needed to use
-PSyclone but is useful to check whether PSyclone is working correctly
-on your system. You can test whether it is already installed by simply
-typing ``py.test`` at a shell prompt. If it is present you will get
-output that begins with
-::
-
-    ======================== test session starts ==================
-
-If you do not have it then py.test can again be installed using
-``pip`` or from here http://pytest.org/latest/ (or specifically here
-http://pytest.org/latest/getting-started.html).
-
-
-.. warning:: At the moment, Psyclone tests do not work with pytest version
-             5.0 or higher. `pip install psyclone` or `pip install -e .`
-             from the psyclone directory install the appropriate version
-             of pytest.
-
 .. _getting_going_env:
 
 Environment
@@ -310,54 +287,10 @@ the config file.
 Test
 ----
 
-You can install the necessary dependencies to run the PSyclone tests with::
-
-    > pip install psyclone[test]
-
-The test dependencies are canonically documented in PSyclone's setup.py
-under the ``extras_requires`` section.
-
-Once you have the necessary dependencies installed and your
-environment configured, you can check that things are working by using
-the PSyclone test suite. These tests are not required and can be
-skipped if preferred:
-::
-
-   > cd <PSYCLONEHOME>/src/psyclone/tests
-   > py.test
-
-If everything is working as expected then you should see output similar to:
-::
-
-   ============================= test session starts ==============================
-   platform linux2 -- Python 2.6.5 -- py-1.4.29 -- pytest-2.7.2
-   rootdir: /home/rupert/proj/GungHoSVN/PSyclone_r3373_scripts/src/tests, inifile: 
-   collected 175 items 
-
-   alggen_test.py .......xxxxxxxxxxx.
-   dynamo0p1_transformations_test.py .
-   dynamo0p3_test.py .....................................x
-   generator_test.py ...................
-   gocean0p1_transformations_test.py .......
-   gocean1p0_test.py ....
-   gocean1p0_transformations_test.py ......................x........
-   parser_test.py ..........
-   psyGen_test.py ..............................
-
-   =================== 160 passed, 15 xfailed in 13.59 seconds ====================
-
-Most of the tests use Fortran source files in the
-``<PSYCLONEHOME>/src/psyclone/tests`` directory and many of them can be compiled
-during the testing process. To enable compilation testing run:
-::
-
-   > py.test --compile --f90="<compiler_name>" --f90flags="<compiler_flags_list>"
-
-``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
-The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
-no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
-is on the user to provide correct values for these options. Full details
-are provided in the :ref:`compilation_testing` section.
+PSyclone contains an extensive test suite, but this test suite is not
+part of a standard installation. If you want to run the full test 
+suite, you need to install PSyclone from source, see 
+:ref:`dev-installation` in the :ref:`developers-guide`.
 
 .. _getting-going-run:
 

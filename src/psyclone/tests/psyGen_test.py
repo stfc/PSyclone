@@ -68,7 +68,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
-from .psyclone_test_utils import get_invoke
+from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
