@@ -161,7 +161,8 @@ class CWriter(PSyIRVisitor):
         # In C array expressions should be reversed from the PSyIR order
         # (column-major to row-major order) and flattened (1D).
         for child in reversed(node.children):
-            code = code + self._visit(child)
+            # This might need to be revisisted: TODO #523
+            code = code + "({0}-1)".format(self._visit(child))
             # For each dimension bigger than one, it needs to write the
             # appropriate operation to flatten the array. By convention,
             # the array dimensions are <name>LEN<DIM>.
