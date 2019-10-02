@@ -251,15 +251,15 @@ def test_set_kern_args(kernel_outputdir):
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine
     assert generated_code.count("SUBROUTINE compute_cu_code_set_args("
-                                "kernel_obj, nx, cu_fld, p_fld, u_fld)") == 1
+                                "kernel_obj, cu_fld, p_fld, u_fld)") == 1
     # Declarations
     expected = '''\
-    SUBROUTINE compute_cu_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
+    SUBROUTINE compute_cu_code_set_args(kernel_obj, cu_fld, p_fld, u_fld)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      INTEGER(KIND=c_intptr_t), intent(in), target :: cu_fld, p_fld, u_fld
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: cu_fld, p_fld, u_fld
       INTEGER(KIND=c_intptr_t), target :: kernel_obj'''
     assert expected in generated_code
     expected = '''\
@@ -273,10 +273,10 @@ def test_set_kern_args(kernel_outputdir):
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
     assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
-                                "kernel_obj, nx, u_fld, "
+                                "kernel_obj, u_fld, "
                                 "unew_fld, uold_fld)") == 1
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
-            "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
+            "cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
