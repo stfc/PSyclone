@@ -1282,16 +1282,18 @@ class Fparser2Reader(object):
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
-        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List) and \
-                len(node.items[1].items) > 1:
-            # We have more than one argument and therefore this is not a
-            # unary operation!
-            raise InternalError("Operation '{0}' has more than one argument "
-                                "and is therefore not unary!".
-                                format(str(node)))
-
+        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
+            if len(node.items[1].items) > 1:
+                # We have more than one argument and therefore this is not a
+                # unary operation!
+                raise InternalError("Operation '{0}' has more than one argument "
+                                    "and is therefore not unary!".
+                                    format(str(node)))
+            node_list = node.items[1].items
+        else:
+            node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-        self.process_nodes(parent=unary_op, nodes=[node.items[1]],
+        self.process_nodes(parent=unary_op, nodes=node_list,
                            nodes_parent=node)
 
         return unary_op

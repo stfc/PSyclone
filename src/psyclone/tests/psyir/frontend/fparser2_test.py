@@ -434,21 +434,6 @@ def test_process_declarations_stmt_functions(f2008_parser):
     assert "'. Statement Function declarations are not supported." \
         in str(error.value)
 
-    # The code below checks that misclassified Statment_Functions are
-    # recovered as arrays, this may become unecessary after fparser/#171
-    # is fixed.
-
-    # This Specification part is expected to contain a statment_function
-    # with the current fparser, this may change depending on how
-    # fparser/#171 is fixed.
-    reader = FortranStringReader("a(x) = 1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process '" in str(error.value)
-    assert "'. Statement Function declarations are not supported." \
-        in str(error.value)
-
     # If 'a' is declared in the symbol table as an array, it is an array
     # assignment which belongs in the execution part.
     fake_parent.symbol_table.add(Symbol('a', 'real', shape=[None]))
@@ -536,7 +521,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
         class UnrecognizedType(object):
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
-        fparser2spec.items[1].items[1].__class__ = UnrecognizedType
+        fparser2spec.items[1].items[0].items[1].__class__ = UnrecognizedType
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
