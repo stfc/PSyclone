@@ -127,8 +127,16 @@ def valid_kernel(node):
         if isinstance(enode, IfBlock):
             # We permit single-statement IF blocks or those that originate
             # from WHERE constructs inside KERNELS regions
-            if not ("was_single_stmt" in enode.annotations or \
-                    "was_where" in enode.annotations):
+            if "was_single_stmt" in enode.annotations or \
+               "was_where" in enode.annotations:
+                continue
+            # When using CUDA managed memory, only allocated arrays are
+            # automatically put onto the GPU (although
+            # this includes those that are created by compiler-generated allocs
+            # e.g. for automatic arrays). We assume that all arrays of rank 2 or
+            # greater are dynamically allocated.
+            arrays = enode.children[0].walk(Array)
+            if any([len(array.children) == 1 for array in arrays]):
                 return False
 
         # Need to check for SUM inside implicit loop, e.g.:
