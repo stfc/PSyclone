@@ -41,7 +41,6 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
-from gocean1p0_build import GOcean1p0Build
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
@@ -51,7 +50,8 @@ from psyclone.transformations import TransformationError, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
     ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
-from psyclone_test_utils import count_lines, get_invoke, Compile
+from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
+from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
 # The version of the PSyclone API that the tests in this file
 # exercise
@@ -1475,7 +1475,8 @@ def test_ocl_apply(kernel_outputdir):
     # transformation to something that is not an InvokeSchedule
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
-    assert "the supplied node must be a (sub-class of) Schedule " in str(err)
+    assert "the supplied node must be a (sub-class of) InvokeSchedule " \
+        in str(err)
 
     new_sched, _ = ocl.apply(schedule)
     assert new_sched.opencl
@@ -1485,9 +1486,9 @@ def test_ocl_apply(kernel_outputdir):
     # Check that the new kernel files have been generated
     kernel_files = os.listdir(str(kernel_outputdir))
     assert len(kernel_files) == 2
-    assert "kernel_ne_offset_0.cl" in kernel_files
-    assert "kernel_scalar_int_0.cl" in kernel_files
-    assert GOcean1p0Build(kernel_outputdir).code_compiles(psy)
+    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
+    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_acc_parallel_not_a_loop():

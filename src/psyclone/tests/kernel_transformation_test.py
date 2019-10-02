@@ -40,14 +40,16 @@ from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
+
 from fparser.two.utils import walk_ast
-from dynamo0p3_build import Dynamo0p3Build
-from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
+
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.utilities import get_invoke
 
 
 def setup_module():
@@ -190,7 +192,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
             break
     assert found
 
-    from gocean1p0_build import GOcean1p0Build
+    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     # If compilation fails this will raise an exception
     GOcean1p0Build(kernel_outputdir).compile_file(filename)
 
