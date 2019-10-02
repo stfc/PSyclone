@@ -295,13 +295,12 @@ def test_set_kern_float_arg(kernel_outputdir):
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      INTEGER(KIND=c_intptr_t), intent(in), target :: ssh_fld, tmask
+      INTEGER, intent(in), target :: xstop
       REAL(KIND=go_wp), intent(in), target :: a_scalar
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: ssh_fld, tmask
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
-      INTEGER, target :: xstop
 '''
-    print(generated_code)
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the bc_ssh_code OpenCL Kernel

@@ -1059,7 +1059,7 @@ class GOKern(CodedKern):
         self.gen_data_on_ocl_device(parent)
 
         # Then we set the kernel arguments
-        arguments = [kernel, garg.name+"%grid%nx"]
+        arguments = [kernel]
         for arg in self._arguments.args:
             if arg.type == "scalar":
                 arguments.append(arg.name)
@@ -1119,9 +1119,7 @@ class GOKern(CodedKern):
         # the OpenCL transformation.
         kobj = self._name_space_manager.create_name(
             root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
-        nx_name = self._name_space_manager.create_name(
-            root_name="nx", context="ArgSetter", label="nx")
-        args = [kobj, nx_name] + [arg.name for arg in self._arguments.args]
+        args = [kobj] + [arg.name for arg in self._arguments.args]
 
         sub_name = self._name_space_manager.create_name(
             root_name=self.name+"_set_args", context=self.name+"ArgSetter",
@@ -1257,9 +1255,9 @@ class GOKern(CodedKern):
                         rhs=".true."))
 
                 # Ensure data copies have finished
-                ifthen.add(CommentGen(parent,
+                ifthen.add(CommentGen(ifthen,
                            " Block until data copies have finished"))
-                ifthen.add(AssignGen(parent, lhs=flag,
+                ifthen.add(AssignGen(ifthen, lhs=flag,
                                      rhs="clFinish(" + qlist + "(1))"))
 
     def get_kernel_schedule(self):
