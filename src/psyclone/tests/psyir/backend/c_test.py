@@ -394,7 +394,7 @@ def test_cw_loop():
     '''Tests writing out a Loop node in C. It parses Fortran code
     and outputs it as C.'''
 
-    from psyclone.tests.psyclone_test_utils import create_schedule
+    from psyclone.tests.utilities import create_schedule
 
     # Generate PSyIR from Fortran code.
     code = '''

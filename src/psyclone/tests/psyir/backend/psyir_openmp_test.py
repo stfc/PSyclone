@@ -41,7 +41,7 @@ from __future__ import absolute_import
 from psyclone.psyGen import Assignment, Reference
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.psyclone_test_utils import create_schedule
+from psyclone.tests.utilities import create_schedule, get_invoke
 
 
 # ----------------------------------------------------------------------------
@@ -121,7 +121,6 @@ def test_gocean_omp_parallel():
     '''
 
     from psyclone.transformations import OMPParallelTrans
-    from psyclone.tests.psyclone_test_utils import get_invoke
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0)
@@ -207,7 +206,6 @@ def test_gocean_omp_do():
     '''
 
     from psyclone.transformations import OMPLoopTrans
-    from psyclone.tests.psyclone_test_utils import get_invoke
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0)
