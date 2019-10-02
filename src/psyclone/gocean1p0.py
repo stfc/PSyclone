@@ -1059,7 +1059,10 @@ class GOKern(CodedKern):
                 # the pointers to device memory for grid properties in
                 # "<grid-prop-name>_device" which is a bit hacky but
                 # works for now.
-                arguments.append(garg.name+"%grid%"+arg.name+"_device")
+                if arg.is_scalar():
+                    arguments.append(garg.name+"%grid%"+arg.dereference_name)
+                else:
+                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
         sub_name = self._name_space_manager.create_name(
             root_name=self.name+"_set_args", context=self.name+"ArgSetter",
             label=self.name+"_set_args")
@@ -1119,21 +1122,29 @@ class GOKern(CodedKern):
         sub.add(UseGen(sub, name="clfortran", only=True,
                        funcnames=["clSetKernelArg"]))
         # Declare arguments
-        sub.add(DeclGen(sub, datatype="integer", target=True,
-                        entity_decls=[nx_name]))
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
 
-        # Arrays (grid properties and fields)
-        args = args_filter(self._arguments.args,
-                           arg_types=["field", "grid_property"])
+        # Get all Grid property arguments
+        grid_prop_args = args_filter(self._arguments.args,
+                                     arg_types=["field", "grid_property"])
+
+        # Array grid properties are c_intptr_t
+        args = [x for x in grid_prop_args if not x.is_scalar()]
         if args:
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                            intent="in", target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar grid properties are all integers
+        args = [x for x in grid_prop_args if x.is_scalar()]
+        if args:
+            sub.add(DeclGen(sub, datatype="integer", intent="in",
                             target=True,
                             entity_decls=[arg.name for arg in args]))
-        # Scalars
-        args = args_filter(self._arguments.args,
-                           arg_types=["scalar"],
+
+        # Scalars arguments
+        args = args_filter(self._arguments.args, arg_types=["scalar"],
                            is_literal=False)
         for arg in args:
             if arg.space.lower() == "go_r_scalar":
@@ -1179,7 +1190,8 @@ class GOKern(CodedKern):
                           funcnames=["create_rw_buffer"]))
         parent.add(CommentGen(parent, " Ensure field data is on device"))
         for arg in self._arguments.args:
-            if arg.type == "field" or arg.type == "grid_property":
+            if (arg.type == "field" or
+               (arg.type == "grid_property" and not arg.is_scalar())):
 
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping

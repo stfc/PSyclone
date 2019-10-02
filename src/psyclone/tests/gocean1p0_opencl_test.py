@@ -182,17 +182,18 @@ def test_set_kern_float_arg(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, ''' + \
+    SUBROUTINE bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, ''' + \
         '''xstop, tmask)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
       REAL(KIND=go_wp), intent(in), target :: a_scalar
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: ssh_fld, xstop, tmask
+      INTEGER(KIND=c_intptr_t), target :: ssh_fld, tmask
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
-      INTEGER, target :: nx
+      INTEGER, target :: xstop
 '''
+    print(generated_code)
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the bc_ssh_code OpenCL Kernel
@@ -207,10 +208,7 @@ def test_set_kern_float_arg(kernel_outputdir):
       CALL check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
-    # TODO #459: the usage of scalar variables in the code causes compilation
-    # errors. Once #459 is fixed this test can be re-enabled. Also note that
-    # the kernel_outputdir fixture needs to be added as parameter.
-    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
