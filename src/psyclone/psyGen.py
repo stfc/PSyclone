@@ -1305,12 +1305,6 @@ class Node(object):
             result += str(entity)+"\n"
         return result
 
-    def list_to_string(self, my_list):
-        ''':returns: a comma-delimited string of all members.
-        :rtype: str
-        '''
-        return ",".join(my_list)
-
     def addchild(self, child, index=None):
         if index is not None:
             self._children.insert(index, child)
@@ -2082,7 +2076,7 @@ class ACCEnterDataDirective(ACCDirective):
                 if var not in var_list:
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
-        var_str = self.list_to_string(var_list)
+        var_str = ",".join(var_list)
         # 4. Add the enter data directive.
         if var_str:
             copy_in_str = "copyin("+var_str+")"
@@ -2417,7 +2411,7 @@ class OMPParallelDirective(OMPDirective):
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
-        private_str = self.list_to_string(private_list)
+        private_str = ",".join(private_list)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -2490,7 +2484,7 @@ class OMPParallelDirective(OMPDirective):
         # if not self._reprod:
         #     result += self._reduction_string()
         private_list = self._get_private_list()
-        private_str = self.list_to_string(private_list)
+        private_str = ",".join(private_list)
 
         if private_str:
             result = "{0} private({1})".format(result, private_str)
@@ -2798,7 +2792,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_str = self.list_to_string(self._get_private_list())
+        private_str = ",".join(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
                                 "schedule({1})".
