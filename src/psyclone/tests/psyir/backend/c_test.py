@@ -200,8 +200,7 @@ def test_cw_array():
     result = cwriter(assignment)
     # Results is reversed and flatten (row-major 1D)
     # dimensions are called <name>LEN<dimension> by convention
-    assert result == "a[((-2)-1) * aLEN2 * aLEN1 + (1-1) * aLEN1 + (b-1)]"\
-                     " = 0.0;\n"
+    assert result == "a[(-2) * aLEN2 * aLEN1 + 1 * aLEN1 + b] = 0.0;\n"
 
 
 def test_cw_ifblock():
@@ -316,7 +315,7 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    # pylint: disable=too-few-public-methods
+    # pylint: disable=abstract-method, too-few-public-methods
     class Unsupported():
         '''Dummy class'''
         def __init__(self):
@@ -395,7 +394,7 @@ def test_cw_loop():
     '''Tests writing out a Loop node in C. It parses Fortran code
     and outputs it as C.'''
 
-    from psyclone.tests.utilities import create_schedule
+    from psyclone.tests.psyclone_test_utils import create_schedule
 
     # Generate PSyIR from Fortran code.
     code = '''
