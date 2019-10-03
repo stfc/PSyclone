@@ -339,10 +339,22 @@ information about the exact location.
 
 .. automethod:: psyclone.psyGen.Node.walk
 
+.. _container-label:
+
 Container
 =========
 
-The Container node supports a hierarchy ...
+The Container node contains one or more Containers and/or
+KernelSchedules (see :ref:`kernel_schedule-label`). Similarly to
+KernelSchedule it contains a SymbolTable
+(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) specified in the Container scope (see
+:ref:`symbol-label`).
+
+A Container can be used to capture a hierarchical grouping of
+KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
+specified in a Container is visible to all Containers and
+KernelSchedules within it (and their descendents).
 
 .. autoclass:: psyclone.psyGen.Container
     :members:
@@ -377,19 +389,13 @@ with a `psyclone.psyGen.NameSpace` and a reference to its associated
 KernelSchedule
 ---------------
 
-The `KernelSchedule` is a PSyIR node that represents a kernel subroutine. It
-extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
-(`psyclone.psyGen.SymbolTable`) that keeps a record of the symbols
-(`psyclone.psyGen.Symbol`) used in the kernel scope. A `Symbol` is defined as:
+The `KernelSchedule` is a PSyIR node that represents a kernel
+subroutine. It extends the `psyclone.psyGen.Schedule` functionality
+with a SymbolTable (`psyclone.psyGen.SymbolTable`) that keeps a record
+of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
+(see :ref:`symbol-label`).
 
-.. autoclass:: psyclone.psyGen.Symbol
-    :members:
-
-
-The Symbol Table has the following interface:
-
-.. autoclass:: psyclone.psyGen.SymbolTable
-    :members:
+.. _symbol-label:
 
 Control Flow Nodes
 ==================
@@ -508,6 +514,24 @@ Directives. Directives currently do not place their children in a
 Schedule. As the structure of Directives is under discussion, it was
 decided to raise an exception if the parent node of a CodeBlock is a
 Directive (for the time being).
+
+
+Symbol Table and Symbol
+=======================
+
+The Container (see :ref:`container-label` and KernelSchedule (see
+:ref:`kernel_schedule-label`) nodes contain a SymbolTable
+(`psyclone.psyGen.SymbolTable`) which keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) specified and used within them.  A `Symbol`
+is defined as:
+
+.. autoclass:: psyclone.psyGen.Symbol
+    :members:
+
+The SymbolTable has the following interface:
+
+.. autoclass:: psyclone.psyGen.SymbolTable
+    :members:
 
 
 Dependence Analysis
