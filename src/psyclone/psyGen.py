@@ -6475,6 +6475,8 @@ class BinaryOperation(Operation):
         'AND', 'OR',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
+        # Casting operators with precise type specified by second argument
+        'REAL', 'INT',
         # Query Operators
         'SIZE'
         ])
