@@ -98,6 +98,8 @@ class Fparser2Reader(object):
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
+        ('int', BinaryOperation.Operator.INT),
+        ('real', BinaryOperation.Operator.REAL),
         ('sign', BinaryOperation.Operator.SIGN),
         ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
