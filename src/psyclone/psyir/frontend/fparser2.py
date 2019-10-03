@@ -1483,17 +1483,8 @@ class Fparser2Reader(object):
                               parent.root.name))
 
         array = Array(reference_name, parent)
-
-        if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
-            subscript_list = node.items[1].items
-
-            self.process_nodes(parent=array, nodes=subscript_list,
-                               nodes_parent=node.items[1])
-        else:
-            # When there is only one dimension fparser does not have
-            # a Subscript_List
-            self.process_nodes(parent=array, nodes=[node.items[1]],
-                               nodes_parent=node)
+        self.process_nodes(parent=array, nodes=node.items[1].items,
+                           nodes_parent=node.items[1])
 
         return array
 
