@@ -367,18 +367,12 @@ class Fparser2Reader(object):
             from fparser.two.Fortran2003 import Dummy_Arg_List
             if isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
                 arg_list = subroutine.content[0].items[2].items
-            elif subroutine.content[0].items[2]:
-                # Routine has a single argument
-                arg_list = [subroutine.content[0].items[2]]
             else:
                 # Routine has no arguments
                 arg_list = []
         except ValueError:
             # Subroutine without declarations, continue with empty lists.
             decl_list = []
-            arg_list = []
-        except (IndexError, AttributeError):
-            # Subroutine without argument list, continue with empty list.
             arg_list = []
         finally:
             self.process_declarations(new_schedule, decl_list, arg_list)
