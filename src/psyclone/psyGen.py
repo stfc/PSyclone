@@ -6397,7 +6397,7 @@ class Reference(Node):
             if not found:
                 # The scope_limit node is not an ancestor of this reference
                 # so raise an exception.
-                raise GenerationError(
+                raise TypeError(
                     "The scope node '{0}' provided to the symbol method, is "
                     "not an ancestor of this reference node '{1}'."
                     "".format(str(scope_limit), str(self)))

@@ -38,15 +38,13 @@
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
 import pytest
-from fparser import api as fpapi
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
     Symbol, SymbolTable, Container, \
     InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
-from fparser.common.readfortran import FortranStringReader
 
 # Fixtures
 
@@ -78,10 +76,10 @@ contains
 end module dummy_mod
 '''
 
+
 # Class Fparser2Reader
 
 # Method generate_schedule
-
 
 def test_generate_schedule_empty_subroutine(parser):
     ''' Tests the fp2Reader generate_schedule method with an empty
@@ -270,7 +268,6 @@ def test_process_declarations(f2008_parser):
     converts the fparser2 declarations to symbols in the provided
     parent Kernel Schedule.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -368,7 +365,6 @@ def test_process_not_supported_declarations(f2008_parser):
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -392,7 +388,6 @@ def test_process_declarations_intent(f2008_parser):
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part, Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -432,7 +427,6 @@ def test_process_declarations_stmt_functions(f2008_parser):
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
     from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
@@ -500,7 +494,6 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part, Name
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
@@ -574,7 +567,6 @@ def test_parse_array_dimensions_attributes(f2008_parser):
 def test_use_stmt(f2008_parser):
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -595,7 +587,6 @@ def test_use_stmt(f2008_parser):
 def test_use_stmt_error(f2008_parser, monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
     a USE statement doesn't have the expected structure. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -615,7 +606,6 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
     import fparser
 
@@ -642,7 +632,6 @@ def test_handling_assignment_stmt(f2008_parser):
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
@@ -661,7 +650,6 @@ def test_handling_name(f2008_parser):
     ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyGen import SymbolError
     reader = FortranStringReader("x=1")
@@ -688,7 +676,6 @@ def test_handling_parenthesis(f2008_parser):
     ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=(x+1)")
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
@@ -707,7 +694,6 @@ def test_handling_part_ref(f2008_parser):
     ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyGen import SymbolError
     reader = FortranStringReader("x(2)=1")
@@ -749,7 +735,6 @@ def test_handling_intrinsics(f2008_parser):
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
 
@@ -799,7 +784,6 @@ def test_handling_intrinsics(f2008_parser):
 def test_intrinsic_no_args(f2008_parser):
     ''' Check that an intrinsic with no arguments results in a
     NotImplementedError. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
@@ -816,7 +800,6 @@ def test_unary_op_handler_error(f2008_parser):
     ''' Check that the unary op handler raises the expected error if the
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
@@ -838,7 +821,6 @@ def test_unary_op_handler_error(f2008_parser):
 def test_binary_op_handler_error(f2008_parser):
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, Name
     processor = Fparser2Reader()
     fake_parent = Node()
@@ -861,7 +843,6 @@ def test_binary_op_handler_error(f2008_parser):
 def test_nary_op_handler_error(f2008_parser):
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, Name
     processor = Fparser2Reader()
     fake_parent = Node()
@@ -883,7 +864,6 @@ def test_nary_op_handler_error(f2008_parser):
 
 def test_handling_nested_intrinsic(f2008_parser):
     ''' Check that we correctly handle nested intrinsic functions. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
@@ -903,7 +883,6 @@ def test_handling_nested_intrinsic(f2008_parser):
                    "non-NEMO PSyIR")
 def test_handling_array_product(f2008_parser):
     ''' Check that we correctly handle array products. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
@@ -919,7 +898,6 @@ def test_handling_if_stmt(f2008_parser):
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
@@ -938,7 +916,6 @@ def test_handling_if_construct(f2008_parser):
     ''' Test that fparser2 If_Construct is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''if (condition1 == 1) then
@@ -990,7 +967,6 @@ def test_handling_if_construct_errors(f2008_parser):
     ''' Test that unsupported If_Construct structures raise the proper
     errors.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
 
     reader = FortranStringReader(
@@ -1055,7 +1031,6 @@ def test_handling_complex_if_construct(f2008_parser):
     ''' Test that nested If_Construct structures and empty bodies are
     handled properly.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''if (condition1) then
@@ -1088,7 +1063,6 @@ def test_handling_case_construct(f2008_parser):
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (selector)
@@ -1128,7 +1102,6 @@ def test_handling_case_construct(f2008_parser):
 def test_case_default(f2008_parser):
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
@@ -1165,7 +1138,6 @@ def test_case_default(f2008_parser):
 def test_handling_case_list(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of conditions. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
@@ -1197,7 +1169,6 @@ def test_handling_case_list(f2008_parser):
 def test_handling_case_range(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a range. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
@@ -1222,7 +1193,6 @@ def test_handling_case_range(f2008_parser):
 def test_handling_case_range_list(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of ranges. '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
@@ -1256,7 +1226,6 @@ def test_handling_invalid_case_construct(f2008_parser):
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, Name
 
     # CASE (default) is just a regular symbol named default
@@ -1319,7 +1288,6 @@ def test_handling_numberbase(f2008_parser):
     ''' Test that fparser2 NumberBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1")
     fparser2number = Execution_Part.match(reader)[0][0].items[2]
@@ -1338,7 +1306,6 @@ def test_handling_binaryopbase(f2008_parser):
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1+4")
     fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
@@ -1402,7 +1369,6 @@ def test_handling_unaryopbase(f2008_parser):
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
     reader = FortranStringReader("x=-4")
     fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
@@ -1451,7 +1417,6 @@ def test_handling_return_stmt(f2008_parser):
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
@@ -1469,7 +1434,6 @@ def test_handling_return_stmt(f2008_parser):
 
 def test_handling_end_do_stmt(f2008_parser):
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         do i=1,10
@@ -1486,7 +1450,6 @@ def test_handling_end_do_stmt(f2008_parser):
 
 def test_handling_end_subroutine_stmt(f2008_parser):
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Subroutine_Subprogram
     reader = FortranStringReader('''
         subroutine dummy_code()
@@ -1503,7 +1466,6 @@ def test_handling_end_subroutine_stmt(f2008_parser):
 def test_do_construct(f2008_parser):
     ''' Check that do loop constructs are converted to the expected
     PSyIR node'''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyGen import Loop
     reader = FortranStringReader('''
@@ -1528,7 +1490,6 @@ def test_do_construct(f2008_parser):
 
 def test_do_construct_while(f2008_parser):
     ''' Check that do while constructs are placed in Codeblocks '''
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         do while(a .gt. b)\n
@@ -1549,7 +1510,6 @@ def test_nodes_to_code_block_1(f2008_parser):
     schedule as parent).
 
     '''
-    from fparser.common.readfortran import FortranStringReader
     reader = FortranStringReader('''
         program test
         do while(a .gt. b)
@@ -1571,7 +1531,6 @@ def test_nodes_to_code_block_2(f2008_parser):
     has a schedule as parent).
 
     '''
-    from fparser.common.readfortran import FortranStringReader
     reader = FortranStringReader('''
         program test
         if (.true.) then
@@ -1594,7 +1553,6 @@ def test_nodes_to_code_block_3(f2008_parser):
     structure property set to expression.
 
     '''
-    from fparser.common.readfortran import FortranStringReader
     # The string "HELLO" is currently a code block in the PSyIR
     reader = FortranStringReader('''
         program test
@@ -1626,7 +1584,6 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
     ''' Check that encountering a loop in the fparser parse tree that is
     missing a Loop_Control element raises an InternalError. '''
     from fparser.two.utils import walk_ast
-    from fparser.common.readfortran import FortranStringReader
     from fparser.two import Fortran2003
     reader = FortranStringReader('''
         do while(a .gt. b)\n

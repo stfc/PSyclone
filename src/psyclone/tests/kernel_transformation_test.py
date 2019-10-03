@@ -487,10 +487,10 @@ def test_no_inline_global_var():
             "'alpha') that are not captured in the PSyIR Symbol Table(s) "
             "within KernelSchedule scope." in str(err))
 
+
 # Class KernelTrans
 
 # Method validate
-
 
 def test_kernel_trans_validate(monkeypatch):
     '''Check that the validate method in the class KernelTrans raises an

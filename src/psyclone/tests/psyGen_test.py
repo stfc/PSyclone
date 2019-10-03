@@ -3213,14 +3213,14 @@ def test_reference_symbol(monkeypatch):
     assert alpha.symbol(scope_limit=kernel_schedule.root).name == alpha.name
 
     # Symbol method with invalid scope type
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = alpha.symbol(scope_limit="hello")
     assert ("The scope node 'hello' provided to the symbol method, is not "
             "an ancestor of this reference node 'Reference[name:'alpha']'."
             in str(excinfo.value))
 
     # Symbol method with invalid scope location
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = alpha.symbol(scope_limit=alpha)
     assert ("The scope node 'Reference[name:'alpha']' provided to the symbol "
             "method, is not an ancestor of this reference node "
