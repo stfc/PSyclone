@@ -618,10 +618,8 @@ class Fparser2Reader(object):
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
                     array_name = fn_name
-                    if hasattr(arg_list, 'items'):
-                        array_subscript = arg_list.items
-                    else:
-                        array_subscript = [arg_list]
+                    array_subscript = arg_list.items
+
                     assignment_rhs = scalar_expr
 
                     # Create assingment node
