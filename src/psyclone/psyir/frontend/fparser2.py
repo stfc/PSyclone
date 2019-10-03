@@ -1395,12 +1395,7 @@ class Fparser2Reader(object):
         # Now work out how many arguments it has
         num_args = 0
         if len(node.items) > 1:
-            # TODO Once fparser #203 is on master this check on isinstance
-            # will probably be unnecessary.
-            if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-                num_args = len(node.items[1].items)
-            else:
-                num_args = len(node.items) - 1
+            num_args = len(node.items[1].items)
 
         # We don't handle any intrinsics that don't have arguments
         if num_args == 1:
