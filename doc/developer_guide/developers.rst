@@ -339,11 +339,18 @@ information about the exact location.
 
 .. automethod:: psyclone.psyGen.Node.walk
 
+Container
+=========
+
+The Container node supports a hierarchy ...
+
+.. autoclass:: psyclone.psyGen.Container
+    :members:
 
 Schedule
 ========
 
-The Schedule node represents a sequence of statements. It is a important node
+The Schedule node represents a sequence of statements. It is an important node
 in PSyclone because two of its specialisations: `InvokeSchedule` and
 `KernelSchedule` (described below), are used as the root nodes of PSy-layer
 invokes and kernel subroutines. This makes them the starting points for any
