@@ -43,12 +43,13 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     DynamoExtractRegionTrans, GOceanExtractRegionTrans
+
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

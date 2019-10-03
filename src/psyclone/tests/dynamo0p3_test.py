@@ -60,7 +60,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
-from dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 
 # constants

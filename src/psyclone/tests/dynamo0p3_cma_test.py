@@ -42,7 +42,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
