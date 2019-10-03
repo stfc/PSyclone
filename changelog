@@ -250,6 +250,9 @@
 	including the ability to specify kernel local size and command
 	queue parameters.
 
+	79 PR #517 for #513. Adds support for if statements to the SIR
+	backend.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

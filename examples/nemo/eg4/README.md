@@ -1,3 +1,39 @@
+<!--
+BSD 3-Clause License
+
+Copyright (c) 2019, Science and Technology Facilities Council.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+Author R. W. Ford, STFC Daresbury Lab
+-->
+
 # SIR Examples #
 
 The SIR and its Dawn back-end come with three examples which create
@@ -15,6 +51,11 @@ through PSyclone they should produce the same (or equivalent) SIR as
 is in the examples. This then validates that the translation works
 correctly.
 
+An additional example (if_example.f90) extracted from a tracer
+advection benchmark (which itself was extracted from the NEMO code
+base) tests the ability of PSyclone and Dawn to deal with IF
+statements.
+
 To test this, run:
 
 ```
@@ -25,6 +66,10 @@ To test this, run:
 
 PSyclone has been tested with Dawn master commit hash
 568375f8bf3bdb064d006d958323b1b8e31b726e on Monday 9th September 2019.
+
+This version contains a bug which causes the if_example.f90 example to
+fail. There is an easy fix (see #513) which has been reported to the
+Dawn developers.
 
 To build Dawn with Python support:
 
@@ -41,8 +86,8 @@ To build Dawn with Python support:
 ## Running existing Dawn examples ##
 
 ```
+> export PYTHONPATH=<path>/dawn/bundle/install/python
 > cd dawn/bundle/install/examples/python
-> cp <path>/dawn/bundle/install/examples/python/config.py .
 > python3 [copy_stencil.py, hori_diff.py, tridiagonal_solve.py]
 > ls data/[copy_stencil.cpp, hori_diff.cpp, tridiagonal_solve.cpp]
 ```
@@ -52,9 +97,11 @@ To build Dawn with Python support:
 1. Add the generated code inbetween the "PSyclone code start" and
    "PSyclone code end" comments in the supplied dawn_script.py file
    (in the same directory as this README).
-2. Run the script with python3
-   > python3 dawn_script.py
-3. Cuda code will be output in data/psyclone.cpp
+2. `> cp <path>/dawn/bundle/install/examples/python/config.py .`
+3. `> export PYTHONPATH=<path>/dawn/bundle/install/python`
+4. Run the script with python3
+   `> python3 dawn_script.py`
+5. Cuda code will be output in `data/psyclone.cpp`
 
 ## Issues/limitations ##
 
@@ -64,9 +111,10 @@ To build Dawn with Python support:
    convention.
 3. Literals are assumed to be floating point numbers (as the PSyIR
    does not currently capture the type of a literal).
-4. The only unary operator currently supported is '-'.
-5. The subject of the unary operator must be a literal.
-6. Support for binary operators is limited to '+','-'. '*' and '/'.
+4. Fortran literals such as `0.0d0` are output directly in the
+   generated cuda code.
+5. The only unary operator currently supported is '-'.
+6. The subject of the unary operator must be a literal.
 7. Loops must be triply nested.
 8. Loops must be perfectly nested (no computation between different
    loop levels).

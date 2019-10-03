@@ -189,9 +189,13 @@ ${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
 cd -
 echo "Running example nemo/eg4"
 cd nemo/eg4
-${PSYCLONE} -api "nemo" -s ./sir_trans.py copy_stencil.f90 -opsy /dev/null
-${PSYCLONE} -api "nemo" -s ./sir_trans.py hori_diff.f90 -opsy /dev/null
-${PSYCLONE} -api "nemo" -s ./sir_trans.py tridiagonal_solve.f90 -opsy /dev/null
+for file in "copy_stencil.f90" \
+		"hori_diff.f90" \
+		"tridiagonal_solve.f90" \
+		"if_example.f90"; do
+    echo "file" ${file} "..."
+    ${PSYCLONE} -api "nemo" -s ./sir_trans.py ${file} -opsy /dev/null
+done
 cd -
 
 echo "Running transformation examples"
