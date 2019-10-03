@@ -354,7 +354,7 @@ KernelSchedule it contains a SymbolTable
 A Container can be used to capture a hierarchical grouping of
 KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
 specified in a Container is visible to all Containers and
-KernelSchedules within it (and their descendents).
+KernelSchedules within it and their descendents.
 
 .. autoclass:: psyclone.psyGen.Container
     :members:
@@ -395,7 +395,6 @@ with a SymbolTable (`psyclone.psyGen.SymbolTable`) that keeps a record
 of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
 (see :ref:`symbol-label`).
 
-.. _symbol-label:
 
 Control Flow Nodes
 ==================
@@ -515,6 +514,7 @@ Schedule. As the structure of Directives is under discussion, it was
 decided to raise an exception if the parent node of a CodeBlock is a
 Directive (for the time being).
 
+.. _symbol-label:
 
 Symbol Table and Symbol
 =======================
