@@ -752,55 +752,50 @@ def test_handling_part_ref(f2008_parser):
     assert len(new_node.children) == 3  # Array dimensions
 
 
-def test_handling_intrinsics(f2008_parser):
+@pytest.mark.parametrize("code, expected_type, expected_op",
+        [('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
+         ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
+         ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
+         ('ix = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
+         ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
+         ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
+         ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
+         ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
+         ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
+         ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
+         ('x = real(a, 8)', BinaryOperation, BinaryOperation.Operator.REAL),
+         ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
+         ('x = int(a, 8)', BinaryOperation, BinaryOperation.Operator.INT),
+         ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
+         ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
+         ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
+         ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
+         ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
+         ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
+         ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
+         ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
+         ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+         ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
+         ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
+         # Check that we get a CodeBlock for an unsupported N-ary operation
+         ('x = reshape(a, b, c)', CodeBlock, None)])
+def test_handling_intrinsics(code, expected_type, expected_op, f2008_parser):
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
-
-    # Test parsing all supported binary operators.
-    testlist = (
-        ('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
-        ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
-        ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
-        ('ix = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
-        ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
-        ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
-        ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
-        ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
-        ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
-        ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
-        ('x = real(a, 8)', CodeBlock, None),
-        ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
-        ('x = int(a, 8)', CodeBlock, None),
-        ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
-        ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
-        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-        ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
-        ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
-        ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
-        ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-        ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
-        ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-        ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
-        ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
-        # Check that we get a CodeBlock for an unsupported N-ary operation
-        ('x = reshape(a, b, c)', CodeBlock, None),
-    )
-
-    for code, expected_type, expected_op in testlist:
-        fake_parent = Node()
-        reader = FortranStringReader(code)
-        fp2node = Execution_Part.match(reader)[0][0].items[2]
-        processor.process_nodes(fake_parent, [fp2node], None)
-        assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], expected_type), \
+    fake_parent = Node()
+    reader = FortranStringReader(code)
+    fp2node = Execution_Part.match(reader)[0][0].items[2]
+    processor.process_nodes(fake_parent, [fp2node], None)
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent.children[0], expected_type), \
+        "Fails when parsing '" + code + "'"
+    if expected_type is not CodeBlock:
+        assert fake_parent.children[0]._operator == expected_op, \
             "Fails when parsing '" + code + "'"
-        if expected_type is not CodeBlock:
-            assert fake_parent.children[0]._operator == expected_op, \
-                "Fails when parsing '" + code + "'"
 
 
 def test_intrinsic_no_args(f2008_parser):
