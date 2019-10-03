@@ -467,27 +467,6 @@ class Fparser2Reader(object):
         :raises GenerationError: If the parse tree for a USE statement does \
                                  not have the expected structure.
         '''
-
-        def iterateitems(nodes):
-            '''
-            At the moment fparser nodes can be of type None, a single element
-            or a list of elements. This helper function provide a common
-            iteration interface. This could be improved when fpaser/#170 is
-            fixed.
-
-            :param nodes: fparser2 AST node.
-            :type nodes: None or List or :py:class:`fparser.two.utils.Base`
-
-            :returns: Returns nodes but always encapsulated in a list
-            :rtype: list
-
-            '''
-            if nodes is None:
-                return []
-            if type(nodes).__name__.endswith("_List"):
-                return nodes.items
-            return [nodes]
-
         # Look at any USE statments
         for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
 
@@ -503,8 +482,7 @@ class Fparser2Reader(object):
                     "Expected the parse tree for a USE statement to contain "
                     "5 items but found {0} for '{1}'".format(len(decl.items),
                                                              text))
-            if not isinstance(decl.items[4],
-                              (Fortran2003.Name, Fortran2003.Only_List)):
+            if not isinstance(decl.items[4], Fortran2003.Only_List):
                 # This USE doesn't have an ONLY clause so we skip it. We
                 # don't raise an error as this will only become a problem if
                 # this Schedule represents a kernel that is the target of a
@@ -513,7 +491,7 @@ class Fparser2Reader(object):
                 # module because they will not be present in the SymbolTable.
                 continue
             mod_name = str(decl.items[2])
-            for name in iterateitems(decl.items[4]):
+            for name in decl.items[4].items:
                 # Create an entry in the SymbolTable for each symbol named
                 # in the ONLY clause.
                 parent.symbol_table.add(
@@ -548,31 +526,38 @@ class Fparser2Reader(object):
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
             interface = None
-            for attr in iterateitems(attr_specs):
-                if isinstance(attr, Fortran2003.Attr_Spec):
-                    normalized_string = str(attr).lower().replace(' ', '')
-                    if "intent(in)" in normalized_string:
-                        interface = Symbol.Argument(access=Symbol.Access.READ)
-                    elif "intent(out)" in normalized_string:
-                        interface = Symbol.Argument(access=Symbol.Access.WRITE)
-                    elif "intent(inout)" in normalized_string:
-                        interface = Symbol.Argument(
-                            access=Symbol.Access.READWRITE)
+            if attr_specs:
+                for attr in attr_specs.items:
+                    if isinstance(attr, Fortran2003.Attr_Spec):
+                        normalized_string = str(attr).lower().replace(' ', '')
+                        if "intent(in)" in normalized_string:
+                            interface = Symbol.Argument(
+                                access=Symbol.Access.READ)
+                        elif "intent(out)" in normalized_string:
+                            interface = Symbol.Argument(
+                                access=Symbol.Access.WRITE)
+                        elif "intent(inout)" in normalized_string:
+                            interface = Symbol.Argument(
+                                access=Symbol.Access.READWRITE)
+                        else:
+                            raise NotImplementedError(
+                                "Could not process {0}. Unrecognized "
+                                "attribute '{1}'.".format(decl.items,
+                                                          str(attr)))
+                    elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                        attribute_shape = \
+                            self._parse_dimensions(attr, parent.symbol_table)
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
-                            "'{1}'.".format(decl.items, str(attr)))
-                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    attribute_shape = \
-                        self._parse_dimensions(attr, parent.symbol_table)
-                else:
-                    raise NotImplementedError(
-                        "Could not process {0}. Unrecognized attribute "
-                        "type {1}.".format(decl.items, str(type(attr))))
+                            "type {1}.".format(decl.items, str(type(attr))))
 
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
-            for entity in iterateitems(entities):
+            if not entities:
+                continue
+
+            for entity in entities.items:
                 (name, array_spec, char_len, initialisation) = entity.items
 
                 # If the entity has an array-spec shape, it has priority.
@@ -1043,19 +1028,10 @@ class Fparser2Reader(object):
             ifblock.ast = node.content[start_idx + 1]
             ifblock.ast_end = node.content[end_idx - 1]
 
-            if isinstance(case.items[0],
-                          Fortran2003.Case_Value_Range_List):
-                # We have a list of conditions in one CASE stmt which
-                # we need to combine with OR operators
-                self._process_case_value_list(selector,
-                                              case.items[0].items,
-                                              case.items[0], ifblock)
-            else:
-                # We only have a single condition
-                # TODO once fparser/#170 is done we might never take
-                # this branch...
-                self._process_case_value(selector, case.items[0],
-                                         case, ifblock)
+            # Process the logical expression
+            self._process_case_value_list(selector,
+                                          case.items[0].items,
+                                          case.items[0], ifblock)
 
             # Add If_body
             ifbody = Schedule(parent=ifblock)
