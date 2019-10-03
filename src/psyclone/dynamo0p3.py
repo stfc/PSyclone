@@ -71,9 +71,7 @@ CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
-VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
-                         "any_space_4", "any_space_5", "any_space_6",
-                         "any_space_7", "any_space_8", "any_space_9"]
+VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
 
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
