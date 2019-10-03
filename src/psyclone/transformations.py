@@ -435,7 +435,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     >>> from psyclone.transformations import DynamoLoopFuseTrans
     >>> ftrans =  DynamoLoopFuseTrans()
     >>>
-    >>> new_schedule, memento = ftrans.apply(schedule[0], children[1])
+    >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
     >>> new_schedule.view()
 
     The optional argument `same_space` can be set as
@@ -516,7 +516,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      does not apply because neither field \
                                      is on `ANY_SPACE` or the spaces are not \
                                      the same.
-        :raises TransformationError: if one or more of the iteration spaces
+        :raises TransformationError: if one or more of the iteration spaces \
                                      is unknown (`ANY_SPACE`) and the \
                                      `same_space` flag is not set to `True`.
         :raises TransformationError: if the loops are over different spaces \
