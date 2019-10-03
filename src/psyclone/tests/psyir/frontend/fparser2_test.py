@@ -1114,8 +1114,8 @@ def test_handling_case_construct(f2008_parser):
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
-    assert ifnode.ast is fparser2case_construct.content[2]
-    assert ifnode.ast_end is fparser2case_construct.content[2]
+    assert ifnode.if_body.ast is fparser2case_construct.content[2]
+    assert ifnode.if_body.ast_end is fparser2case_construct.content[2]
     assert 'was_case' in ifnode.annotations
     assert ifnode.condition.children[0].name == 'selector'
     assert ifnode.condition.children[1].name == 'label1'
