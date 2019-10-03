@@ -331,7 +331,7 @@ def test_profiling_case_loop(parser):
 def test_profiling_no_spec_part(parser, monkeypatch):
     ''' Check that attempting to add profiling to a routine that has no
     Specification_Part (i.e. no declarations) raises the expected errors
-    (this restriction will be lifted by #435). '''
+    in the NEMO API (this restriction will be lifted by #435). '''
     psy, sched = get_nemo_schedule(parser,
                                    "subroutine no_decs()\n"
                                    "  write(*,*) 'This is just a test'\n"
