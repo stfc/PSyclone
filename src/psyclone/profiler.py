@@ -405,14 +405,16 @@ class ProfileNode(Node):
         decln = Fortran2003.Type_Declaration_Stmt(reader)
         spec_part.content.append(decln)
 
-        # Find the parent in the parse tree
-        if isinstance(self.children[0], Schedule):
+        # Find the parent in the parse tree - first get a pointer to the
+        # AST for the content of this region.
+        if isinstance(self.children[0], Schedule) and \
+           not self.children[0].ast:
             # TODO #435 Schedule should really have a valid ast pointer.
             content_ast = self.children[0][0].ast
         else:
             content_ast = self.children[0].ast
+        # Now store the parent of this region
         fp_parent = content_ast._parent
-
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,

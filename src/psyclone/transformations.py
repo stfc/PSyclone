@@ -2404,6 +2404,37 @@ class ProfileRegionTrans(RegionTrans):
         ''' Returns the name of this transformation as a string '''
         return "ProfileRegionTrans"
 
+    def _validate(self, nodes):
+        '''
+        Calls the _validate method of the base class and then checks that,
+        for the NEMO API, the routine that will contain the profiling
+        region already has a Specification_Part (because we've not yet
+        implemented the necessary support if it doesn't).
+
+        :raises TransformationError: if we're using the NEMO API and the \
+                                     target routine has no Specification_Part.
+        '''
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk_ast
+        from psyclone.nemo import NemoInvoke
+
+        super(ProfileRegionTrans, self)._validate(nodes)
+
+        # The checks below are only for the NEMO API and can be removed
+        # once #435 is done.
+        invoke = nodes[0].root.invoke
+        if not isinstance(invoke, NemoInvoke):
+            return
+        # Get the parse tree of the routine containing this region
+        ptree = invoke._ast
+        # Search for the Specification_Part
+        if not walk_ast([ptree], [Fortran2003.Specification_Part]):
+            raise TransformationError(
+                "For the NEMO API, profiling can only be added to routines "
+                "which contain existing variable declarations (i.e. a "
+                "Specification Part) but '{0}' does not have any.".format(
+                    invoke.name))
+
     def apply(self, nodes):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
@@ -2443,8 +2474,8 @@ class ProfileRegionTrans(RegionTrans):
                                       "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
-        # Do the checks in the base class
-        super(ProfileRegionTrans, self)._validate(node_list)
+        # Perform validation checks
+        self._validate(node_list)
 
         # create a memento of the schedule and the proposed
         # transformation
