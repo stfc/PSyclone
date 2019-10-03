@@ -55,7 +55,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     KernCallArgList, DynACCEnterDataDirective, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -3130,7 +3130,7 @@ def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in DISCONTINUOUS_FUNCTION_SPACES:
+    for fspace in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
                             "arg_type(gh_field,gh_inc, " +
                             fspace + ")", 1)
@@ -3140,21 +3140,6 @@ def test_fs_discontinuous_and_inc_error():
         assert ("It does not make sense for a field on a discontinuous "
                 "space (" + fspace + ") to have a 'gh_inc' access"
                 in str(excinfo.value))
-
-
-def test_fs_any_discontinuous_space_and_inc_error():
-    ''' Test that an error is raised if any_discontinuous_space and
-    gh_inc are provided for the same field in the metadata '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
-        code = CODE.replace("arg_type(gh_field,gh_read, w3)",
-                            "arg_type(gh_field,gh_inc, " +
-                            fspace + ")", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
-        with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("field on any_discontinuous_space cannot have 'gh_inc'"
-                " access" in str(excinfo.value))
 
 
 def test_fs_continuous_and_readwrite_error():

@@ -64,7 +64,7 @@ def trans(psy):
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
         ftrans.same_space = True
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule[0], schedule[1])
 
         # Add an OpenMP do directive to the resultant loop-fused loop,
         # specifying that we want reproducible reductions

@@ -364,8 +364,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>>
     >>> from psyclone.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
-    >>> new_schedule, memento = ftrans.apply(schedule.children[0],
-                                             schedule.children[1])
+    >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
     >>> new_schedule.view()
     '''
 
@@ -434,10 +433,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>>
     >>> from psyclone.transformations import DynamoLoopFuseTrans
-    >>> ftrans =  DynamoExtractRegionTrans()
+    >>> ftrans =  DynamoLoopFuseTrans()
     >>>
-    >>> new_schedule, memento = ftrans.apply(schedule.children[0],
-                                             schedule.children[1])
+    >>> new_schedule, memento = ftrans.apply(schedule[0], children[1])
     >>> new_schedule.view()
 
     The optional argument `same_space` can be set as
@@ -522,7 +520,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      is unknown (`ANY_SPACE`) and the \
                                      `same_space` flag is not set to `True`.
         :raises TransformationError: if the loops are over different spaces \
-                                     that are not both discontinuous.
+                                     that are not both discontinuous and \
+                                     the loops both iterate over cells.
         :raises TransformationError: if the loops' upper bound names are \
                                      not the same.
         :raises TransformationError: if the halo-depth indices of two loops \

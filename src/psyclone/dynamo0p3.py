@@ -656,19 +656,13 @@ class DynArgDescriptor03(Descriptor):
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
             # Test allowed accesses for fields
-            if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
+            if self._function_space1.lower() in \
+               VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
                and self._access_type == AccessType.INC:
                 raise ParseError(
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
-            if self._function_space1.lower() in \
-               VALID_ANY_DISCONTINUOUS_SPACE_NAMES and \
-               self._access_type == AccessType.INC:
-                raise ParseError(
-                    "In the Dynamo0.3 API a field on any_discontinuous_space "
-                    "cannot have 'gh_inc' access because it is discontinuous")
-            # TODO (issue #138): extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
@@ -676,8 +670,9 @@ class DynArgDescriptor03(Descriptor):
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
             # TODO: extend restriction to "gh_write" for kernels that loop
-            # over cells (issue (#138) and allow "gh_write" and "gh_readwrite"
-            # for kernels (built-ins) that loop over DoFs (issue #471)
+            # over cells (issue #138) and update access rules for kernels
+            # (built-ins) that loop over DoFs to accesses for discontinuous
+            # quantities (issue #471)
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
