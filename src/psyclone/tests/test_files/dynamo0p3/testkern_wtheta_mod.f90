@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,48 +31,50 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_wtheta_mod
 
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (wtheta) and reader (w3)
-  type, extends(kernel_type) :: testkern_wtheta_type
-     type(arg_type), dimension(2) :: meta_args =     &
-            (/ arg_type(gh_field, gh_write, wtheta), &
-               arg_type(gh_field, gh_read,  w3)      &
-             /)
+  ! Description: discontinuous field writer (wtheta) and reader
+  ! (any_discontinuous_space_1)
+  type, public, extends(kernel_type) :: testkern_wtheta_type
+     private
+     type(arg_type), dimension(2) :: meta_args = (/               &
+          arg_type(gh_field, gh_write, wtheta),                   &
+          arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
+          /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_wtheta_code
+     procedure, public, nopass :: code => testkern_wtheta_code
   end type testkern_wtheta_type
 
 contains
 
-  SUBROUTINE testkern_wtheta_code(nlayers,                             &
-                                  field1_wtheta,                       &
-                                  field2_w3,                           &
+  subroutine testkern_wtheta_code(nlayers,                             &
+                                  field1, field2,                      &
                                   ndf_wtheta, undf_wtheta, map_wtheta, &
-                                  ndf_w3, undf_w3, map_w3)
+                                  ndf_anydspace_1, undf_anydspace_1,   &
+                                  map_anydspace_1)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf_wtheta
-    INTEGER, intent(in) :: undf_wtheta
-    INTEGER, intent(in) :: ndf_w3
-    INTEGER, intent(in) :: undf_w3
-    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field1_wtheta
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_w3
-    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
-    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), intent(in) :: ndf_anydspace_1
+    integer(kind=i_def), intent(in) :: undf_anydspace_1
+    integer(kind=i_def), intent(in), dimension(ndf_wtheta)      :: map_wtheta
+    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
+    real(kind=r_def), intent(out), dimension(undf_wtheta)     :: field1
+    real(kind=r_def), intent(in), dimension(undf_anydspace_1) :: field2
 
-  END SUBROUTINE testkern_wtheta_code
+  end subroutine testkern_wtheta_code
 
 end module testkern_wtheta_mod

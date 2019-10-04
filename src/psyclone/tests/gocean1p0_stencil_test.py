@@ -39,15 +39,16 @@ GOcean 1.0 API.'''
 from __future__ import absolute_import
 import os
 import pytest
-from gocean1p0_build import GOcean1p0Build
+
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError
 from psyclone.parse.utils import ParseError
-
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr
+
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

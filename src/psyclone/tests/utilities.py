@@ -36,8 +36,14 @@
 ''' Test utilities including support for testing that code compiles. '''
 
 from __future__ import absolute_import, print_function
+
 import os
 import pytest
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
@@ -46,8 +52,8 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 class CompileError(Exception):
     '''
     Exception raised when compilation of a Fortran source file
-    fails.
 
+    fails.
     :param value: description of the error condition.
     :type value: str or :py:class:`bytes`
 
@@ -178,6 +184,7 @@ class Compile(object):
         :returns: A list of strings with the compiler flags required.
         :rtype: list
         '''
+        # pylint: disable=no-self-use
         return []
 
     @staticmethod
@@ -190,6 +197,7 @@ class Compile(object):
 
     @staticmethod
     def skip_if_opencl_compilation_disabled():
+        # pylint:disable=invalid-name
         '''This function is used in all tests that should only run
         if opencl compilation is enabled. It calls pytest.skip if
         opencl compilation is not enabled.'''
@@ -430,3 +438,31 @@ def get_invoke(algfile, api, idx=None, name=None):
     else:
         invoke = psy.invokes.invoke_list[idx]
     return psy, invoke
+
+
+# =============================================================================
+def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
+    '''Utility function that returns a PSyIR tree from Fortran
+    code using fparser2 and (by default) Fparser2Reader.
+
+    :param str code: Fortran code.
+    :param str routine_name: the name of the Fortran routine for which to \
+                             create the PSyIR tree.
+    :param ast_processor: the particular front-end to use. Defaults \
+                          to Fparser2Reader.
+    :type ast_processor: :py:class:`psyclone.psyGen.Fparser2Reader`
+
+
+    :returns: PSyIR tree representing the Fortran code.
+    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    reader = FortranStringReader(code)
+    f2003_parser = ParserFactory().create(std="f2003")
+    parse_tree = f2003_parser(reader)
+
+    # Generate PSyIR schedule from fparser2 parse tree
+    processor = ast_processor()
+    schedule = processor.generate_schedule(routine_name, parse_tree)
+
+    return schedule

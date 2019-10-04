@@ -45,7 +45,7 @@ from psyclone import nemo
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
-from psyclone_test_utils import get_invoke
+from psyclone.tests.utilities import get_invoke
 
 # Constants
 API = "nemo"
