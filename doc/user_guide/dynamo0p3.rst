@@ -1097,9 +1097,9 @@ kernel metadata::
     type(arg_type), dimension(2) :: meta_args = &
         (/ arg_type(gh_field, gh_read, w1),     &
            arg_type(gh_field, gh_write, w0) /)
-    type(reference_element_data_type), dimension(2) :: &
-      meta_reference_element =                         &
-        (/ reference_element_data_type(normals_to_horizontal_faces),
+    type(reference_element_data_type), dimension(2) ::               &
+      meta_reference_element =                                       &
+        (/ reference_element_data_type(normals_to_horizontal_faces), &
            reference_element_data_type(normals_to_vertical_faces) /)
   contains
     procedure, nopass :: code => testkern_code
@@ -1365,7 +1365,7 @@ reference element (to be implemented in Issue #150)::
 
 Then the kernel must be passed the number of horizontal faces of the
 reference element and the array of face normals::
-  
+
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        nfaces_re_h, normals_face_h)
