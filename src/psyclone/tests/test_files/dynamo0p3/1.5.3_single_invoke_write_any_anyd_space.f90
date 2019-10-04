@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
-program multikernel_invokes_w3
+program single_invoke_fs
 
-  ! Description: multiple kernel calls within an invoke iterating
-  ! over w3 (discontinuous with readwrite access) and reading from
-  ! continuous fields
-  use testkern_w3_mod, only: testkern_w3_type
-  use inf,             only: field_type
+  ! Description: single function that writes to fields on any_space (continuous)
+  ! and any_discontinuous_space
+  use testkern_write_any_anyd_mod, only: testkern_write_any_anyd_type
+  use inf,                         only: field_type
+
   implicit none
-  type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: a
 
-  call invoke(                              &
-       testkern_w3_type(a, f1, f2, m1, m2), &
-       testkern_w3_type(a, f1, f2, m1, m2)  &
-          )
+  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
 
-end program multikernel_invokes_w3
+  call invoke( testkern_write_any_anyd_type(f1, m1, m2, f2, f3, f4, m3) )
+
+end program single_invoke_fs

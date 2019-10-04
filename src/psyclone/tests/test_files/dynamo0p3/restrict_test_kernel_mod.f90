@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
+!
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,50 +32,53 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
-module testkern_wtheta_mod
+module restrict_test_kernel_mod
 
   use constants_mod
-  use argument_mod
   use kernel_mod
+  use argument_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (wtheta) and reader
-  ! (any_discontinuous_space_1)
-  type, public, extends(kernel_type) :: testkern_wtheta_type
+  type, public, extends(kernel_type) :: restrict_test_kernel_type
      private
-     type(arg_type), dimension(2) :: meta_args = (/               &
-          arg_type(gh_field, gh_write, wtheta),                   &
-          arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
+     type(arg_type) :: meta_args(2) = (/                                &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE   ) &
           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, public, nopass :: code => testkern_wtheta_code
-  end type testkern_wtheta_type
+    integer :: iterates_over = CELLS
+  contains
+    procedure, nopass :: restrict_test_kernel_code
+  end type restrict_test_kernel_type
+
+  public :: restrict_test_kernel_code
 
 contains
 
-  subroutine testkern_wtheta_code(nlayers,                             &
-                                  field1, field2,                      &
-                                  ndf_wtheta, undf_wtheta, map_wtheta, &
-                                  ndf_anydspace_1, undf_anydspace_1,   &
-                                  map_anydspace_1)
+  subroutine restrict_test_kernel_code(nlayers,                &
+                                       cell_map,               &
+                                       ncell_f_per_c,          &
+                                       ncell_f,                &
+                                       coarse, fine,           &
+                                       undf_any1, dofmap_any1, &
+                                       ndf_any2, undf_any2, dofmap_any2)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: undf_wtheta
-    integer(kind=i_def), intent(in) :: ndf_anydspace_1
-    integer(kind=i_def), intent(in) :: undf_anydspace_1
-    integer(kind=i_def), intent(in), dimension(ndf_wtheta)      :: map_wtheta
-    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
-    real(kind=r_def), intent(out), dimension(undf_wtheta)     :: field1
-    real(kind=r_def), intent(in), dimension(undf_anydspace_1) :: field2
+    integer(kind=i_def), intent(in) :: ncell_f_per_c
+    integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map
+    integer(kind=i_def), intent(in) :: ncell_f
+    integer(kind=i_def), intent(in) :: ndf_any2
+    integer(kind=i_def), dimension(ndf_any2, ncell_f), intent(in) :: dofmap_any2
+    integer(kind=i_def), dimension(ndf_any2), intent(in) :: dofmap_any1
+    integer(kind=i_def), intent(in) :: undf_any2, undf_any1
+    real(kind=r_def), dimension(undf_any1), intent(inout) :: coarse
+    real(kind=r_def), dimension(undf_any2), intent(in) :: fine
 
-  end subroutine testkern_wtheta_code
+  end subroutine restrict_test_kernel_code
 
-end module testkern_wtheta_mod
+end module restrict_test_kernel_mod
