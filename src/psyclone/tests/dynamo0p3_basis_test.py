@@ -1429,7 +1429,10 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
+    assert ("Unsupported space for basis function, expecting one of "
+            "['w3', 'wtheta', 'w2v', 'w2broken', 'w0', 'w1', 'w2',"
+            " 'w2h', 'w2trace', 'any_w2'] but found 'any_space_1'"
+            in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                            "any_discontinuous_space_5")
@@ -1440,7 +1443,8 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
+    assert "Unsupported space for basis function" in str(excinfo.value)
+    assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
 # diff basis function : spaces
@@ -1752,8 +1756,10 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
+    assert ("Unsupported space for differential basis function, expecting "
+            "one of ['w3', 'wtheta', 'w2v', 'w2broken', 'w0', 'w1', 'w2',"
+            " 'w2h', 'w2trace', 'any_w2'] but found 'any_space_1'"
+            in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                                 "any_discontinuous_space_5")
@@ -1764,8 +1770,9 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
+    assert ("Unsupported space for differential basis function"
+            in str(excinfo.value))
+    assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
 def test_dynbasisfns_unsupp_qr(monkeypatch):
