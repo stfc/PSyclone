@@ -674,7 +674,7 @@ In this case the metadata should be specified as being ``any_w2``.
 
 It may be that a Kernel is written such that a field and/or operators
 may be on/map-between any function space(s). In this case the metadata
-should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_9``
+should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_10``
 (see :ref:`Supported Function Spaces <dynamo0.3-function-space>`). If
 the generic function spaces are known to be discontinuous the metadata
 may be specified as being one of ``ANY_DISCONTINUOUS_SPACE_1``, ...,
@@ -834,7 +834,7 @@ In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
 sections above:
 
-* ``ANY_SPACE_n``, *n = 1, 2, ... 9*, for when the function space
+* ``ANY_SPACE_n``, *n = 1, 2, ... 10*, for when the function space
   of the modified argument(s) cannot be determined and/or for when a
   Kernel has been written so that it works with fields on any of the
   available spaces;
@@ -1040,7 +1040,9 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.:
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_REAL, GH_READ) /)
 
-.. note:: The order with which arguments are specified in metadata for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
+.. note:: The order with which arguments are specified in metadata for CMA
+          kernels does not affect the process of identifying the type of
+          kernel (whether it is assembly, matrix-matrix etc.)
 
 .. _dynamo0.3-meta-funcs:
 
