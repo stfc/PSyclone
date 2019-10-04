@@ -1021,7 +1021,7 @@ class Node(object):
     def annotations(self):
         ''' Return the list of annotations attached to this Node.
 
-        :return: List of anotations
+        :returns: List of anotations
         :rtype: list of str
         '''
         return self._annotations
@@ -1422,7 +1422,8 @@ class Node(object):
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class\
             or a tuple of such classes.
-        :return: list with all nodes that are instances of my_type \
+
+        :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
         :rtype: list of :py:class:`psyclone.Node` instances.
         '''
@@ -1605,7 +1606,7 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured.
+        :returns: Text containing the name of this node, possibly coloured.
         :rtype: str
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1616,7 +1617,7 @@ class Schedule(Node):
         in the Schedule.
 
         :param int index: index of the statement to access.
-        :return: statement in a given position in the Schedule sequence.
+        :returns: statement in a given position in the Schedule sequence.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         return self._children[index]
@@ -3131,7 +3132,7 @@ class Loop(Node):
     @property
     def start_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop start expression.
+        :returns: the PSyIR Node representing the Loop start expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3158,7 +3159,7 @@ class Loop(Node):
     @property
     def stop_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop stop expression.
+        :returns: the PSyIR Node representing the Loop stop expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3185,7 +3186,7 @@ class Loop(Node):
     @property
     def step_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop step expression.
+        :returns: the PSyIR Node representing the Loop step expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3212,7 +3213,7 @@ class Loop(Node):
     @property
     def loop_body(self):
         '''
-        :return: the PSyIR Schedule with the loop body statements.
+        :returns: the PSyIR Schedule with the loop body statements.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
 
         '''
@@ -3437,7 +3438,7 @@ class Loop(Node):
             :param expr: a PSyIR expression.
             :type expr: :py:class:`psyclone.psyGen.Node`
 
-            :return: True if it is equal to the literal '1', false otherwise.
+            :returns: True if it is equal to the literal '1', false otherwise.
             '''
             return isinstance(expr, Literal) and expr.value == '1'
 
@@ -4946,7 +4947,7 @@ class KernelArgument(Argument):
 
     @abc.abstractmethod
     def is_scalar(self):
-        ''':return: whether this variable is a scalar variable or not.
+        ''':returns: whether this variable is a scalar variable or not.
         :rtype: bool'''
 
 
@@ -5126,7 +5127,7 @@ class IfBlock(Node):
         ''' Return the PSyIR Node representing the conditional expression
         of this IfBlock.
 
-        :return: IfBlock conditional expression.
+        :returns: IfBlock conditional expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
@@ -5141,7 +5142,7 @@ class IfBlock(Node):
     def if_body(self):
         ''' Return the Schedule executed when the IfBlock evaluates to True.
 
-        :return: Schedule to be executed when IfBlock evaluates to True.
+        :returns: Schedule to be executed when IfBlock evaluates to True.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
@@ -5159,7 +5160,7 @@ class IfBlock(Node):
         ''' If available return the Schedule executed when the IfBlock
         evaluates to False, otherwise return None.
 
-        :return: Schedule to be executed when IfBlock evaluates \
+        :returns: Schedule to be executed when IfBlock evaluates \
             to False, if it doesn't exist returns None.
         :rtype: :py:class:`psyclone.psyGen.Schedule` or NoneType
         '''
@@ -5997,7 +5998,7 @@ class SymbolTable(object):
     @property
     def iteration_indices(self):
         '''
-        :return: List of symbols representing kernel iteration indices.
+        :returns: List of symbols representing kernel iteration indices.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -6009,7 +6010,7 @@ class SymbolTable(object):
     @property
     def data_arguments(self):
         '''
-        :return: List of symbols representing kernel data arguments.
+        :returns: List of symbols representing kernel data arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -6301,7 +6302,7 @@ class Reference(Node):
     def name(self):
         ''' Return the name of the referenced symbol.
 
-        :return: Name of the referenced symbol.
+        :returns: Name of the referenced symbol.
         :rtype: str
         '''
         return self._reference
@@ -6467,7 +6468,7 @@ class Operation(Node):
         Abstract method to return the name of this node type with control
         codes for terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
 
@@ -6476,7 +6477,7 @@ class Operation(Node):
         '''
         Return the operator.
 
-        :return: Enumerated type capturing the operator.
+        :returns: Enumerated type capturing the operator.
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
                 :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
                 :py:class:`psyclone.psyGen.NaryOperation.Operator`
@@ -6538,7 +6539,7 @@ class UnaryOperation(Operation):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
 
         '''
@@ -6697,7 +6698,7 @@ class Literal(Node):
         '''
         Return the value of the literal.
 
-        :return: String representing the literal value.
+        :returns: String representing the literal value.
         :rtype: str
         '''
         return self._value
@@ -6743,7 +6744,7 @@ class Return(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Return", SCHEDULE_COLOUR_MAP["Return"])

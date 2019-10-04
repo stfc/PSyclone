@@ -14,7 +14,7 @@ manual for more details (../../psyclone.pdf or
 http://psyclone.readthedocs.io/en/stable/). After doing this `psyclone`
 should be on your PATH.
 
-PSyclone can be run for the first two examples by entering the directory and 
+PSyclone can be run for the first two examples by entering the directory and
 executing, e.g.
 ```
 python ./runme.py
@@ -156,6 +156,8 @@ cd eg10/
 psyclone intergrid_3levels.x90
 ```
 
+This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE` metadata.
+
 # Example 11: Asynchronous halo exchanges #
 
 This example shows how asynchronous halo exchange calls can be created
@@ -194,26 +196,29 @@ cd eg12/
 python find_kernel.py
 ```
 
-For example, looking for `matrix_vector_code` call in
+For example, looking for `matrix_vector_kernel_code` call in
 `gw_mixed_schur_preconditioner_alg_mod.x90` returns:
 ```
 Kernel call 'matrix_vector_code' was found in
 
 - Invoke 'invoke_0' with the Schedule:
-Schedule[invoke='invoke_0' dm=False]
+InvokeSchedule[invoke='invoke_0', dm=False]
     ...
-    Loop[type='',field_space='any_space_1',it_space='cells', upper_bound='ncells']
-        CodedKern matrix_vector_code(m_lumped,ones,mb) [module_inline=False]
-    Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
-        BuiltIn x_divideby_y(self_mb_lumped_inv,ones,m_lumped)
+    Loop[type='', field_space='any_space_1', it_space='cells', upper_bound='ncells']
+        Literal[value:'NOT_INITIALISED']
+        Literal[value:'NOT_INITIALISED']
+        Literal[value:'1']
+        Schedule[]
+            CodedKern matrix_vector_kernel_code(m_lumped,ones,mb) [module_inline=False]
+    Loop[type='dofs', field_space='any_space_1', it_space='dofs', upper_bound='ndofs']
+        Literal[value:'NOT_INITIALISED']
+        Literal[value:'NOT_INITIALISED']
+        Literal[value:'1']
+        Schedule[]
+            BuiltIn x_divideby_y(self_mb_lumped_inv,ones,m_lumped)
 
 - Invoke 'invoke_1' with the Schedule:
-Schedule[invoke='invoke_1' dm=False]
-    ...
-    Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
-        BuiltIn setval_c(self_rhs_u,0.0_r_def)
-    Loop[type='',field_space='any_space_1',it_space='cells', upper_bound='ncells']
-        CodedKern matrix_vector_code(self_rhs_u,self_mb_rb,self_q) [module_inline=False]
+InvokeSchedule[invoke='invoke_1', dm=False]
     ...
 ```
 

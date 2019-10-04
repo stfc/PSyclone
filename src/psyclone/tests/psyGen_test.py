@@ -1536,10 +1536,10 @@ def test_node_args():
     loop2_args = loop2.args
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
-    # 4) Loopfuse
+    # 4) Loop fuse
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -1738,9 +1738,9 @@ def test_call_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1767,9 +1767,9 @@ def test_call_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()

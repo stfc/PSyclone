@@ -1,15 +1,8 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,35 +32,53 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified, A. R. Porter, STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module prolong_vec_kernel_mod
+
+  use constants_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: prolong_vec_kernel_type
-     type(arg_type), dimension(2) :: meta_args =                  &
-          (/ arg_type(gh_field*3,gh_write,w1, mesh_arg=gh_fine),  &
-             arg_type(gh_field*3,gh_read, w2, mesh_arg=gh_coarse) &
-           /)
-     integer :: iterates_over = cells
+
+  implicit none
+
+  type, public, extends(kernel_type) :: prolong_vec_kernel_type
+     private
+     type(arg_type), dimension(2) :: meta_args = (/             &
+          arg_type(GH_FIELD*3, GH_INC,  W1, mesh_arg=GH_FINE),  &
+          arg_type(GH_FIELD*3, GH_READ, W2, mesh_arg=GH_COARSE) &
+          /)
+     integer :: iterates_over = CELLS
    contains
      procedure, nopass :: code => prolong_vec_kernel_code
   end type prolong_vec_kernel_type
+
+  public :: prolong_vec_kernel_code
+
 contains
 
   subroutine prolong_vec_kernel_code(nlayers,                      &
-                                 cell_map, ncell_f_per_c, ncell_f, &
-                                 fld1_1, fld1_2, fld1_3,           &
-                                 fld2_1, fld2_2, fld2_3,           &
-                                 ndf_w1, undf_w1, dofmap_w1,       &
-                                 undf_w2, dofmap_w2)
-    integer, intent(in) :: nlayers, ncell_f_per_c, ncell_f
-    real(kind=r_def), dimension(:) :: fld1_1, fld1_2, fld1_3, &
-                                      fld2_1, fld2_2, fld2_3
-    integer :: ndf_w1, undf_w1, undf_w2
-    integer, dimension(:) :: cell_map, dofmap_w2
-    integer, dimension(:,:) :: dofmap_w1
+                                     cell_map,                     &
+                                     ncell_f_per_c,                &
+                                     ncell_f,                      &
+                                     fine_1, fine_2, fine_3,       &
+                                     coarse_1, coarse_2, coarse_3, &
+                                     ndf_w1, undf_w1, dofmap_w1,   &
+                                     undf_w2, dofmap_w2)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ncell_f_per_c
+    integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map
+    integer(kind=i_def), intent(in) :: ncell_f
+    integer(kind=i_def), intent(in) :: ndf_w1, undf_w1, undf_w2
+    integer(kind=i_def), dimension(ndf_w1, ncell_f), intent(in) :: dofmap_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: dofmap_w2
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: fine_1, fine_2, fine_3
+    real(kind=r_def), dimension(undf_w2), intent(in) :: coarse_1, coarse_2, coarse_3
 
   end subroutine prolong_vec_kernel_code
+
 end module prolong_vec_kernel_mod
