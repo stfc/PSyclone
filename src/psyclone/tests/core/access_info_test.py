@@ -158,6 +158,8 @@ def test_variable_access_info_read_write():
     assert vai_array.is_array()
 
     # Adding a non-array access marks this as not array:
+    # TODO #500: once we have a symboltable, this test
+    # needs to be adjusted.
     vai_array.add_access(AccessType.WRITE, 3, Node())
     assert not vai_array.is_array()
 
@@ -267,5 +269,4 @@ def test_variables_access_info_merge():
     # location 0,1 in - the one at 0 is merged with the current 1,
     # and the new location 1 increases the current location from
     # 1 to 2:
-    # pylint: disable=protected-access
-    assert var_accesses1._location == 2
+    assert var_accesses1.location == 2

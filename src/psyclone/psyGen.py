@@ -987,7 +987,7 @@ class Node(object):
         :param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`.
 
-        :returns: if self has the same result as other.
+        :returns: whether self has the same result as other.
         :rtype: bool
         '''
 
@@ -1558,7 +1558,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns True if this Node is within an OpenMP parallel region.
+        ''':returns: True if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -2595,9 +2595,12 @@ class OMPParallelDirective(OMPDirective):
         parent_ast = self.parent.ast
         while parent_ast:
             if hasattr(parent_ast, "content") and \
-                            parent_ast is not self.children[0].ast:
+                    parent_ast is not self.children[0].ast:
                 break
             parent_ast = parent_ast._parent
+
+        if not parent_ast:
+            raise InternalError("Cannot find parent ast.")
 
         # Find the locations in which we must insert the begin/end
         # directives...

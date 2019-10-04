@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
-''' Module containing tests the dependency tools.'''
+''' Module containing tests for the dependency tools.'''
 
 from __future__ import absolute_import
 import pytest
@@ -45,7 +45,7 @@ from psyclone.psyGen import PSyFactory
 
 # -----------------------------------------------------------------------------
 def test_messages():
-    '''Tests the messaging system of the dependenc tools.'''
+    '''Tests the messaging system of the dependency tools.'''
 
     dep_tools = DependencyTools()
     assert dep_tools.get_all_messages() == []
@@ -98,7 +98,6 @@ def test_nested_loop_detection(parser):
     # Now disable the test for nested loops:
     parallel = dep_tools.can_loop_be_parallelised(loops[0], "jk", False)
     assert parallel
-    assert not dep_tools.get_all_messages()
     # Make sure can_loop_be_parallelised clears old messages automatically
     assert not dep_tools.get_all_messages()
 
@@ -175,8 +174,9 @@ def test_arrays_parallelise(parser):
     # Use a stencil access (with write), which prevents parallelisation
     parallel = dep_tools.can_loop_be_parallelised(loops[3], "jj")
     assert not parallel
-    assert "Variable mask is using index jj + 1 and jj and can therefore "\
-           "not be parallelised" in dep_tools.get_all_messages()[0]
+    assert "Variable mask is written and is accessed using indices jj + 1 "\
+           "and jj and can therefore not be parallelised" \
+           in dep_tools.get_all_messages()[0]
 
 
 # -----------------------------------------------------------------------------
@@ -218,7 +218,7 @@ def test_scalar_parallelise(parser):
     # Write only scalar variable: a(ji, jj) = b
     parallel = dep_tools.can_loop_be_parallelised(loops[1], "jj")
     assert not parallel
-    assert "Variable 'b' is only written once" \
+    assert "Scalar variable 'b' is only written once" \
         in dep_tools.get_all_messages()[0]
 
     # Write to scalar variable happens first
@@ -236,7 +236,7 @@ def test_scalar_parallelise(parser):
 def test_derived_type(parser):
     '''Tests assignment to derived type variables. For now (see #363)
     they are only partially supported, and as default assume that these
-    kind of statements are parallelisable.
+    kind of statements are not parallelisable.
     '''
     reader = FortranStringReader('''program test
                                  do jj = 1, jpj   ! loop 0
@@ -287,3 +287,10 @@ def test_derived_type(parser):
     assert len(dep_tools.get_all_messages()) == 1
     assert "Assignment to derived type 'b % b(ji, jj)' is not supported yet" \
            in dep_tools.get_all_messages()[0]
+
+    # If both derived types are ignored, the loop should be marked
+    # to be parallelisable
+    parallel = dep_tools.\
+        can_loop_be_parallelised(loops[1], "jj",
+                                 variables_to_ignore=["a % b", "b % b"])
+    assert parallel

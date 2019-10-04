@@ -52,14 +52,11 @@ class DependencyTools(object):
     useful for the user to see.
 
     :param loop_types_to_parallelise: A list of loop types that will be \
-                                      considered for parallelisation. An \
-                                      example loop type might be 'lat',\
-                                      indicating that only loops over \
-                                      latitudes should be parallelised. The\
-                                      actually supported list of loop types\
-                                      is specified in the PSyclone config\
-                                      file. This can be used to exclude for\
-                                      example 1-dimensional loops.
+                considered for parallelisation. An example loop type might be\
+                'lat', indicating that only loops over latitudes should be\
+                parallelised. The actually supported list of loop types is\
+                specified in the PSyclone config file. This can be used to\
+                exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: list of str
     '''
 
@@ -113,7 +110,7 @@ class DependencyTools(object):
     # -------------------------------------------------------------------------
     def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
         '''Simple first test to see if a loop should even be considered to
-        be parallelised. The default implementation test if the loop
+        be parallelised. The default implementation tests whether the loop
         has a certain type (e.g. 'latitude'), and optional tests for
         nested loops (to avoid parallelising single loops which will likely
         result in a slowdown due to thread synchronisation costs). This
@@ -207,10 +204,8 @@ class DependencyTools(object):
                 found_dimension_index = dimension_index
                 all_indices.append(index_expression)
 
-        # The variable is an array variable, which does not depend
-        # on the loop variable at all (see examples below)
         if not all_indices:
-            # An array is used that is not actually dependend on the parallel
+            # An array is used that is not actually dependent on the parallel
             # loop variable. This means the variable can not always be safely
             # parallelised. Example 1:
             # do j=1, n
@@ -228,7 +223,7 @@ class DependencyTools(object):
             # So in any case we add the information for the user to decide.
             self._add_warning("Variable '{0}' is written to, and "
                               "does not depend on the loop "
-                              "variable '{1}'"
+                              "variable '{1}'."
                               .format(var_info.var_name,
                                       loop_variable))
             return False
@@ -244,8 +239,9 @@ class DependencyTools(object):
         for index in all_indices[1:]:
             if not first_index.math_equal(index):
                 visitor = FortranWriter()
-                self._add_warning("Variable {0} is using index {1} and {2} "
-                                  "and can therefore not be parallelised"
+                self._add_warning("Variable {0} is written and is accessed "
+                                  "using indices {1} and {2} and can "
+                                  "therefore not be parallelised."
                                   .format(var_info.var_name,
                                           visitor(first_index),
                                           visitor(index)))
@@ -268,14 +264,14 @@ class DependencyTools(object):
             return True
 
         all_accesses = var_info.all_accesses
-        # The variable is used only once. Either it is a read-only variable,
-        # or it is supposed to store the result from the loop to be used
-        # outside of the loop (or it is bad code). Read-only access has already
-        # been tested above, so it must be a write access here, which prohibits
-        # parallelisation.
-        # We could potentially use lastprivate here?
         if len(all_accesses) == 1:
-            self._add_warning("Variable '{0}' is only written once"
+            # The variable is used only once. Either it is a read-only
+            # variable, or it is supposed to store the result from the loop to
+            # be used outside of the loop (or it is bad code). Read-only access
+            # has already been tested above, so it must be a write access here,
+            # which prohibits parallelisation.
+            # We could potentially use lastprivate here?
+            self._add_warning("Scalar variable '{0}' is only written once."
                               .format(var_info.var_name))
             return False
 
