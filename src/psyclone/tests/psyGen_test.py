@@ -3215,15 +3215,14 @@ def test_reference_symbol(monkeypatch):
     # Symbol method with invalid scope type
     with pytest.raises(TypeError) as excinfo:
         _ = alpha.symbol(scope_limit="hello")
-    assert ("The scope node 'hello' provided to the symbol method, is not "
-            "an ancestor of this reference node 'Reference[name:'alpha']'."
-            in str(excinfo.value))
+    assert ("The scope_limit argument 'hello' provided to the symbol method, "
+            "is not of type `Node`." in str(excinfo.value))
 
     # Symbol method with invalid scope location
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         _ = alpha.symbol(scope_limit=alpha)
-    assert ("The scope node 'Reference[name:'alpha']' provided to the symbol "
-            "method, is not an ancestor of this reference node "
+    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
+            "symbol method, is not an ancestor of this reference node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
     # Symbol not in any container (rename alpha to something that is
@@ -4195,7 +4194,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # This example does not conform to the <name>_code, <name>_mod
     # convention so monkeypatch it to avoid the PSyIR code generation
     # raising an exception. This limitation is the subject of issue
-    # #393.
+    # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
     _, _ = ktrans.apply(kernels[0], number_of_layers=100)

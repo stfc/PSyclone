@@ -4124,7 +4124,7 @@ class CodedKern(Kern):
                 # <name>_code convention as this is currently assumed
                 # when recreating the kernel module name from the
                 # PSyIR in the Fortran back end. This limitation is
-                # the subject of #393.
+                # the subject of #520.
 
                 if self.name.lower().rstrip("_code") != \
                    self.module_name.lower().rstrip("_mod") or \
@@ -4214,7 +4214,7 @@ class CodedKern(Kern):
         name is then inferred from the subroutine name by assuming
         there is a naming convention (<name>_code and <name>_mod),
         which is not always the case. This limitation is the subject
-        of #393.
+        of #520.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -4236,7 +4236,7 @@ class CodedKern(Kern):
         # an assumption in the PSyIR that the module name has the same
         # root name as the subroutine name. These names are used when
         # generating the modified kernel code. This limitation is the
-        # subject of #393.
+        # subject of #520.
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
 
@@ -6386,6 +6386,13 @@ class Reference(Node):
 
         '''
         if scope_limit:
+
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}' provided to the symbol "
+                    "method, is not of type `Node`."
+                    "".format(str(scope_limit), str(self)))
+
             # Check that the scope_limit Node is an ancestor of this
             # Reference Node and raise an exception if not.
             found = False
@@ -6398,9 +6405,9 @@ class Reference(Node):
             if not found:
                 # The scope_limit node is not an ancestor of this reference
                 # so raise an exception.
-                raise TypeError(
-                    "The scope node '{0}' provided to the symbol method, is "
-                    "not an ancestor of this reference node '{1}'."
+                raise ValueError(
+                    "The scope_limit node '{0}' provided to the symbol "
+                    "method, is not an ancestor of this reference node '{1}'."
                     "".format(str(scope_limit), str(self)))
         test_node = self.parent
         # Iterate over ancestor Nodes of this Reference Node.

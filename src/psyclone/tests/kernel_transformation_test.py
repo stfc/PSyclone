@@ -246,7 +246,7 @@ def test_kernel_conformance_error(mod_name, sub_name, kernel_outputdir,
                                   monkeypatch):
     '''Check that an exception is raised if a kernel does not conform to
     the <name>_mod, <name>_code convention and is output via a PSyIR
-    back-end. This limitation is the subject of issue #393.
+    back-end. This limitation is the subject of issue #520.
 
     '''
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
