@@ -65,10 +65,10 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
 # Continuous FS
-# Space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Space any_w2 can be w2, w2h, w2v, w2broken or w2trace
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
 # Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
@@ -3365,10 +3365,10 @@ class DynBasisFunctions(DynCollection):
                                  (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
         if function_space.orig_name.lower() in \
-           ["w0", "w3", "wtheta"]:
+           ["w0", "w2trace", "w3", "wtheta"]:
             first_dim = "1"
         elif (function_space.orig_name.lower() in
-              ["w1", "w2", "w2h", "w2v", "any_w2"]):
+              ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]):
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
@@ -3415,10 +3415,10 @@ class DynBasisFunctions(DynCollection):
 
         '''
         if function_space.orig_name.lower() in \
-           ["w2", "w2h", "w2v", "any_w2"]:
+           ["w2", "w2h", "w2v", "w2broken", "any_w2"]:
             first_dim = "1"
         elif (function_space.orig_name.lower() in
-              ["w0", "w1", "w3", "wtheta"]):
+              ["w0", "w1", "w2trace", "w3", "wtheta"]):
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first

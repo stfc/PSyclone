@@ -4853,8 +4853,8 @@ def test_dynloop_load_unexpected_func_space():
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'wtheta', 'w2v', 'w0', 'w1', 'w2', 'w2h', "
-            "'any_w2'] but found 'broken'" in str(err))
+            "one of ['w3', 'wtheta', 'w2v', 'w2broken', 'w0', 'w1', 'w2', "
+            "'w2h', 'w2trace', 'any_w2'] but found 'broken'" in str(err))
 
 
 def test_dynkernargs_unexpect_stencil_extent():
