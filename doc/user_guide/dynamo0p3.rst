@@ -1062,11 +1062,11 @@ kernel metadata::
   type, extends(kernel_type) :: testkern_type
     type(arg_type), dimension(2) :: meta_args = &
         (/ arg_type(gh_field, gh_read, w1),     &
-	   arg_type(gh_field, gh_write, w0) /)
+           arg_type(gh_field, gh_write, w0) /)
     type(reference_element_data_type), dimension(2) :: &
       meta_reference_element =                         &
-        (/ reference_element_data_type(face_normals_horizontal),
-	   reference_element_data_type(face_normals_vertical) /)
+        (/ reference_element_data_type(normals_to_horizontal_faces),
+           reference_element_data_type(normals_to_vertical_faces) /)
   contains
     procedure, nopass :: code => testkern_code
   end type testkern_type
@@ -1075,20 +1075,24 @@ This metadata specifies that the ``testkern_type`` kernel requires two
 properties of the reference element. The supported properties are
 listed below:
 
-=========================== ===================================================
-Name                        Description
-=========================== ===================================================
-horizontal_face_normals     Array of normals pointing in the positive (x, y, z)
-                            axis direction for each horizontal face indexed as
-			    (face, component).
-vertical_face_normals       Array of normals pointing in the positive (x, y, z)
-                            axis direction for each vertical face indexed as
-			    (face, component).
-horizontal_face_out_normals Array of outward-pointing normals for each
-                            horizontal face indexed as (component, face).
-vertical_face_out_normals   Array of outward-pointing normals for each
-                            vertical face indexed as (component, face).
-=========================== ===================================================
+.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+
+=================================== ===========================================
+Name                                Description
+=================================== ===========================================
+normals_to_horizontal_faces         Array of normals pointing in the positive
+                                    (x, y, z) axis direction for each
+                                    horizontal face indexed as (face,
+                                    component).
+normals_to_vertical_faces           Array of normals pointing in the positive
+                                    (x, y, z) axis direction for each vertical
+                                    face indexed as (face, component).
+outward_normals_to_horizontal_faces Array of outward-pointing normals for each
+                                    horizontal face indexed as (component,
+                                    face).
+outward_normals_to_vertical_faces   Array of outward-pointing normals for each
+                                    vertical face indexed as (component, face).
+=================================== ===========================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1264,17 +1268,19 @@ rules, along with PSyclone's naming conventions, are:
            freedom for the function space. The name of the array is
            ``"orientation_"<field_function_space>``.
 	   
-5) If either the ``horizontal_face_normals`` or ``horizontal_face_out_normals``
-   properties of the reference element are required then pass the number of
+5) If either the ``normals_to_horizontal_faces`` or
+   ``outward_normals_to_horizontal_faces`` properties of the reference
+   element are required then pass the number of
    horizontal faces of the reference element (``nfaces_re_h``). Similarly,
-   if either ``vertical_face_normals`` or ``vertical_face_out_normals`` are
+   if either the ``normals_to_vertical_faces`` or
+   ``outward_normals_to_vertical_faces`` are
    required then pass the number of vertical faces (``nfaces_re_v``). Then,
    in the order specified in the ``meta_reference_element`` metadata:
 
-   1) For ``horizontal/vertical_face_normals``, pass a rank-2 integer array
-      with dimensions ``(nfaces_re_h/v, 3)``.
-   2) For ``horizontal/vertical_face_out_normals``, pass a rank-2 integer
-      array with dimensions ``(3, nfaces_re_h/v)``.
+   1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
+      array with dimensions ``(nfaces_re_h/v, 3)``.
+   2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
+      integer array with dimensions ``(3, nfaces_re_h/v)``.
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``):
 
@@ -1342,14 +1348,14 @@ and at W1)::
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
 If the metadata specifies that the kernel requires a property of the
-reference element::
+reference element (to be implemented in Issue #150)::
 
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
           (/ arg_type(gh_operator, gh_write, w0, w1), &
              arg_type(gh_field*3, gh_read, w0) /)
      type(reference_element_data_type) :: meta_reference_element(1) =  &
-          (/ reference_element_data_type(horizontal_face_normals) /)
+          (/ reference_element_data_type(normals_to_horizontal_faces) /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_operator_code
@@ -1360,7 +1366,7 @@ reference element and the array of face normals::
   
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       nfaces_re_h, h_face_normals)
+       nfaces_re_h, normals_face_h)
 
 Rules for CMA Kernels
 #####################
