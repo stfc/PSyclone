@@ -259,6 +259,9 @@
 	81) PR #460 for #133. Add support for ANY_DISCONTINUOUS_SPACE in
 	the dynamo0.3 API (LFRic).
 
+	82) PR #531 for #455. Add ANY_SPACE_10 to the dynamo0.3 API
+	(LFRic) to be consistent with LFRic infrastructure.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
