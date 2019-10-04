@@ -1037,11 +1037,16 @@ class Fparser2Reader(object):
 
             ifblock = IfBlock(parent=currentparent,
                               annotation='was_case')
-            # Since this IfBlock represents a CASE clause in the
-            # Fortran, we point to the parse tree of the content
-            # of the clause.
-            ifblock.ast = node.content[start_idx + 1]
-            ifblock.ast_end = node.content[end_idx - 1]
+            if idx == 0:
+                # If this is the first IfBlock then have it point to
+                # the original SELECT CASE in the parse tree
+                ifblock.ast = node
+            else:
+                # Otherwise, this IfBlock represents a CASE clause in the
+                # Fortran and so we point to the parse tree of the content
+                # of the clause.
+                ifblock.ast = node.content[start_idx + 1]
+                ifblock.ast_end = node.content[end_idx - 1]
 
             if isinstance(case.items[0],
                           Fortran2003.Case_Value_Range_List):
@@ -1221,19 +1226,22 @@ class Fparser2Reader(object):
                                nodes=[node],
                                nodes_parent=node_parent)
 
-    def _return_handler(self, _, parent):
+    def _return_handler(self, node, parent):
         '''
         Transforms an fparser2 Return_Stmt to the PSyIR representation.
 
-        Note that this method contains ignored arguments to comform with
-        the handler(node, parent) method interface.
-
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Return_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+
+        :return: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Return`
+
         '''
-        return Return(parent=parent)
+        rtn = Return(parent=parent)
+        rtn.ast = node
+        return rtn
 
     def _assignment_handler(self, node, parent):
         '''
