@@ -189,25 +189,23 @@ class DependencyTools(object):
                                       "not supported yet.".format(var_string))
                     return False
                 index_expression.reference_accesses(accesses)
-                try:
-                    _ = accesses[loop_variable]
-                    # This array would be parallelised across different
-                    # indices (e.g. a(i,j), and a(j,i) ):
-                    if found_dimension_index > -1 and \
-                            found_dimension_index != dimension_index:
-                        self._add_warning("Variable '{0}' is using loop "
-                                          "variable {1} in index {2} and {3}."
-                                          .format(var_info.var_name,
-                                                  loop_variable,
-                                                  found_dimension_index,
-                                                  dimension_index))
-                        return False
-                    found_dimension_index = dimension_index
-                    all_indices.append(index_expression)
-                except KeyError:
-                    # Raised when the loop variable is not at all used in the
-                    # current dimension --> keep on looking
+                if loop_variable not in accesses:
                     continue
+
+                # if a previously identified index location does not match
+                # the current index location (e.g. a(i,j), and a(j,i) ), then
+                # the loop can not be parallelised
+                if found_dimension_index > -1 and \
+                        found_dimension_index != dimension_index:
+                    self._add_warning("Variable '{0}' is using loop "
+                                      "variable {1} in index {2} and {3}."
+                                      .format(var_info.var_name,
+                                              loop_variable,
+                                              found_dimension_index,
+                                              dimension_index))
+                    return False
+                found_dimension_index = dimension_index
+                all_indices.append(index_expression)
 
         # The variable is an array variable, which does not depend
         # on the loop variable at all (see examples below)

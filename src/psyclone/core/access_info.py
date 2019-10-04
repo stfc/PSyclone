@@ -200,7 +200,7 @@ class VariableAccessInfo(object):
                    for access_info in self._accesses)
 
     def __getitem__(self, index):
-        ''':Return: the access information for the specified index.
+        ''':return: the access information for the specified index.
         :rtype: py:class:`psyclone.core.access_info.AccessInfo`
 
         :raises IndexError: If there is no access with the specified index.
@@ -256,7 +256,7 @@ class VariableAccessInfo(object):
 
 
 # =============================================================================
-class VariablesAccessInfo(object):
+class VariablesAccessInfo(dict):
     '''This class stores all VariableAccessInfo instances for all variables
     in the corresponding code section. It maintains a 'location' information,
     which is an integer number that is increased for each new statement. It
@@ -266,7 +266,7 @@ class VariablesAccessInfo(object):
     def __init__(self):
         # This dictionary stores the mapping of variable names to the
         # corresponding VariableAccessInfo instance.
-        self._var_to_varinfo = {}
+        dict.__init__(self)
 
         # Stores the current location information
         self._location = 0
@@ -287,7 +287,7 @@ class VariablesAccessInfo(object):
         this kernel indicates a READWRITE access, this is marked as READWRITE
         in the string output.'''
 
-        all_vars = list(self._var_to_varinfo.keys())
+        all_vars = list(self.keys())
         all_vars.sort()
         output_list = []
         for var_name in all_vars:
@@ -333,14 +333,13 @@ class VariablesAccessInfo(object):
         :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
 
         '''
-        if var_name in self._var_to_varinfo:
-            self._var_to_varinfo[var_name].add_access(access_type,
-                                                      self._location, node,
-                                                      indices)
+        if var_name in self:
+            self[var_name].add_access(access_type, self._location,
+                                      node, indices)
         else:
             var_info = VariableAccessInfo(var_name)
             var_info.add_access(access_type, self._location, node, indices)
-            self._var_to_varinfo[var_name] = var_info
+            self[var_name] = var_info
 
     @property
     def all_vars(self):
@@ -348,22 +347,9 @@ class VariablesAccessInfo(object):
                      order to make test results reproducible).
         :rtype: list of str.
         '''
-        list_of_vars = list(self._var_to_varinfo.keys())
+        list_of_vars = list(self.keys())
         list_of_vars.sort()
         return list_of_vars
-
-    def __getitem__(self, name):
-        '''Returns the access information for the specified variable.
-
-        :param str name: The variable name to get the access info for.
-
-        :returns: The VariableAccessInfo for the variable
-        :rtype: :py:class:`psyclone.core.access_info.VariableAccessInfo`
-
-        :raises: KeyError if there is no information for the specified \
-            variable.
-        '''
-        return self._var_to_varinfo[name]
 
     def merge(self, other_access_info):
         '''Merges data from a VariablesAccessInfo instance to the
@@ -386,11 +372,11 @@ class VariablesAccessInfo(object):
                 if access_info.location > max_new_location:
                     max_new_location = access_info.location
                 new_location = access_info.location + self._location
-                if var_name in self._var_to_varinfo:
-                    var_info = self._var_to_varinfo[var_name]
+                if var_name in self:
+                    var_info = self[var_name]
                 else:
                     var_info = VariableAccessInfo(var_name)
-                    self._var_to_varinfo[var_name] = var_info
+                    self[var_name] = var_info
 
                 var_info.add_access(access_info.access_type, new_location,
                                     access_info.node, access_info.indices)
