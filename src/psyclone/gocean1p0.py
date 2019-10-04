@@ -54,7 +54,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, AccessType, \
-    Literal, Reference, ACCEnterDataDirective, Schedule
+    Literal, ACCEnterDataDirective, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -1113,8 +1113,7 @@ class GOKern(CodedKern):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
-            AssignGen, CommentGen
+        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, CommentGen
         # Currently literal arguments are checked for and rejected by
         # the OpenCL transformation.
         kobj = self._name_space_manager.create_name(
@@ -1154,7 +1153,7 @@ class GOKern(CodedKern):
                             target=True,
                             entity_decls=[arg.name for arg in args]))
 
-        # Scalars arguments
+        # Scalar arguments
         args = args_filter(self._arguments.args, arg_types=["scalar"],
                            is_literal=False)
         for arg in args:
@@ -1194,8 +1193,8 @@ class GOKern(CodedKern):
                           funcnames=["create_rw_buffer"]))
         parent.add(CommentGen(parent, " Ensure field data is on device"))
         for arg in self._arguments.args:
-            if (arg.type == "field" or
-               (arg.type == "grid_property" and not arg.is_scalar())):
+            if (arg.type == "field" or (arg.type == "grid_property"
+                                        and not arg.is_scalar())):
 
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping
@@ -1256,7 +1255,7 @@ class GOKern(CodedKern):
 
                 # Ensure data copies have finished
                 ifthen.add(CommentGen(ifthen,
-                           " Block until data copies have finished"))
+                                      " Block until data copies have finished"))
                 ifthen.add(AssignGen(ifthen, lhs=flag,
                                      rhs="clFinish(" + qlist + "(1))"))
 
