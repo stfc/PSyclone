@@ -262,8 +262,8 @@
 	82) PR #531 for #455. Add ANY_SPACE_10 to the dynamo0.3 API
 	(LFRic) to be consistent with LFRic infrastructure.
 
-  83) PR #360 for part of #150. Document the rules for reference element
-  properties in the dynamo0.3 API (LFRic).
+	83) PR #360 for part of #150. Document the rules for reference
+	element properties in the dynamo0.3 API (LFRic).
 
 release 1.7.0 20th December 2018
 
