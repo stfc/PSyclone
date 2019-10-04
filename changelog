@@ -256,6 +256,9 @@
 	80) PR #522 for #519. Fix for adding profiling around a select 
 	case construct.
 
+	81) PR #460 for #133. Add support for ANY_DISCONTINUOUS_SPACE in
+	the dynamo0.3 API (LFRic).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

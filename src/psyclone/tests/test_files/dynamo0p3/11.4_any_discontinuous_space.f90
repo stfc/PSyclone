@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,23 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author I. Kavcic, Met Office
 
-program restrict_prolong
+program any_discontinuous_space_op_example_1
 
-  ! Description: invoke containing restrictions/prolongations where
-  ! fields swap roles (what was 'fine' becomes 'coarse')
-  use restrict_test_kernel_mod, only: restrict_test_kernel_type
-  use prolong_test_kernel_mod,  only: prolong_test_kernel_type
+  ! Description: single kernel call in an invoke where the arguments are
+  ! specified as any_discontinuous_space
+  use testkern_any_discontinuous_space_op_1_mod, only : &
+                  testkern_any_discontinuous_space_op_1_type
+  use inf, only : field_type,    &
+                  operator_type
 
   implicit none
 
-  type(field_type) :: fld_f, fld_m, fld_c
+  type(field_type)      :: f1(3), f2
+  type(operator_type)   :: op3, op4
+  real(r_def)           :: rdt
 
-  call invoke(                                         &
-              prolong_test_kernel_type(fld_m, fld_c),  & ! coarse -> medium
-              prolong_test_kernel_type(fld_f, fld_m),  & ! medium -> fine
-              restrict_test_kernel_type(fld_m, fld_f), & ! fine -> medium
-              restrict_test_kernel_type(fld_c, fld_m) )  ! medium -> coarse
+  call invoke(testkern_any_discontinuous_space_op_1_type(f1, f2, op3, op4, rdt))
 
-end program restrict_prolong
+end program any_discontinuous_space_op_example_1
