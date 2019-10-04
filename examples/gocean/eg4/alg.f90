@@ -46,7 +46,7 @@ contains
     call invoke(kern_use_var(fld1),   &
                 kern_call_kern(fld2), &
                 kern_nested_use(fld1))
-    
+
   end subroutine do_update
-  
+
 end module alg

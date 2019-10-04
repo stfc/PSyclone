@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 program single_invoke_builtin_then_kernel
 
   ! Description: single invoke call with a builtin followed by a kernel call
-  use testkern,            only: testkern_type
+  use testkern_mod,        only: testkern_type
   use testkern_wtheta_mod, only: testkern_wtheta_type
   use testkern_w2_only,    only: testkern_w2_only_type
   use inf,                 only: field_type

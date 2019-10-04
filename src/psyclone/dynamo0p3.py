@@ -56,7 +56,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    CodedKern, ACCEnterDataDirective
 
 # First section : Parser specialisations and classes
 
@@ -5273,7 +5274,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
@@ -5370,7 +5371,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -5502,6 +5503,12 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
         # At this stage we don't know what our loop bounds are
         self._lower_bound_name = None
         self._lower_bound_index = None
@@ -5526,7 +5533,7 @@ class DynLoop(Loop):
         else:
             upper_bound = self._upper_bound_name
         print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}', "
+              "[type='{0}', field_space='{1}', it_space='{2}', "
               "upper_bound='{3}']".format(self._loop_type,
                                           self._field_space.orig_name,
                                           self.iteration_space, upper_bound))
@@ -5719,7 +5726,7 @@ class DynLoop(Loop):
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
-            kernels = self.walk(self.children, DynKern)
+            kernels = self.walk(DynKern)
             if not kernels:
                 raise InternalError(
                     "Failed to find a kernel within a loop over colours.")
@@ -6018,9 +6025,11 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+
         Loop.gen_code(self, parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":
@@ -6568,20 +6577,22 @@ class DynKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        parent_loop = self.parent.parent
+
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
+        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
                                           arg_accesses=[AccessType.READ,
                                                         AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_halo_depth > 1:
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_halo_depth))
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map
@@ -8268,6 +8279,121 @@ class DynKernelArguments(Arguments):
 
         return self._raw_arg_list
 
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched.
+        :rtype: list of str
+
+        '''
+        class KernCallAccArgList(KernCallArgList):
+            '''
+            Kernel call arguments that need to be declared by OpenACC
+            directives. KernCallArgList only needs to be specialised
+            where modified, or additional, arguments are required.
+            Scalars are apparently not required but it is valid in
+            OpenACC to include them and requires less specialisation
+            to keep them in.
+
+            '''
+            def field_vector(self, argvect):
+                '''
+                Add the field vector associated with the argument 'argvect' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param argvect: the kernel argument (vector field).
+                :type argvect:  :py:class:`psyclone.dynamo0p3.\
+                                DynKernelArgument`
+
+                '''
+                for idx in range(1, argvect.vector_size+1):
+                    text1 = argvect.proxy_name + "(" + str(idx) + ")"
+                    self._arglist.append(text1)
+                    text2 = text1 + "%data"
+                    self._arglist.append(text2)
+
+            def field(self, arg):
+                '''
+                Add the field associated with the argument 'arg' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param arg: the kernel argument (field).
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                text1 = arg.proxy_name
+                self._arglist.append(text1)
+                text2 = text1 + "%data"
+                self._arglist.append(text2)
+
+            def stencil(self, arg):
+                '''
+                Add the stencil dofmap associated with this kernel
+                argument. OpenACC requires the full dofmap to be
+                specified.
+
+                :param arg: the meta-data description of the kernel \
+                argument with which the stencil is associated.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                var_name = DynStencils.dofmap_name(arg)
+                self._arglist.append(var_name)
+
+            def operator(self, arg):
+                '''
+                Add the operator arguments to the argument list if
+                they have not already been added. OpenACC requires the
+                derived type and the dereferenced data to be
+                specified.
+
+                :param arg: the meta-data description of the operator.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                if arg.proxy_name_indexed not in self._arglist:
+                    self._arglist.append(arg.proxy_name_indexed)
+                    self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
+                    self._arglist.append(arg.proxy_name_indexed +
+                                         "%local_stencil")
+
+            def fs_compulsory_field(self, function_space):
+                '''
+                Add compulsory arguments associated with this function space to
+                the list. OpenACC requires the full function-space map
+                to be specified.
+
+                :param arg: the current functionspace.
+                :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+                '''
+                undf_name = get_fs_undf_name(function_space)
+                self._arglist.append(undf_name)
+                map_name = get_fs_map_name(function_space)
+                self._arglist.append(map_name)
+
+        create_acc_arg_list = KernCallAccArgList(self._parent_call)
+        create_acc_arg_list.generate()
+        return create_acc_arg_list.arglist
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        # Return nothing for the moment as it is unclear whether
+        # scalars need to be explicitly dealt with (for OpenACC) in
+        # the dynamo api.
+        return []
+
 
 class DynKernelArgument(KernelArgument):
     ''' Provides information about individual Dynamo kernel call
@@ -8568,16 +8694,32 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.addchild(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
 
         # Return the outermost loop
         return cloop
+
+
+class DynACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, _):
+        '''
+        Provide a hook to be able to add information about data being on a
+        device (or not). This is currently not used in dynamo0p3.
+
+        '''
+        return None
 
 
 # The list of module members that we wish AutoAPI to generate
@@ -8623,4 +8765,5 @@ __all__ = [
     'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
-    'DynKernCallFactory']
+    'DynKernCallFactory',
+    'DynACCEnterDataDirective']

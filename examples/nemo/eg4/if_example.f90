@@ -1,7 +1,11 @@
 ! -----------------------------------------------------------------------------
+!
+! Original code Governed by the CeCILL licence (http://www.cecill.info)
+!
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Code modifications Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,32 +35,30 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 
-module testkern
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args =    &
-          (/ arg_type(gh_real, gh_read),     &
-             arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w3)  &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
-contains
+! Code extracted from the tra_adv benchmark, with a SIGN intrinsic
+! replaced with equivalent code and the resultant expression
+! simplified. Temporarily made the scalar tmpx into an array as
+! scalars are not yet supported, see #472.
+program test_ifs
 
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer :: nlayers
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+  integer, parameter :: jpi=10, jpj=10, jpk=10
+  real, dimension(jpi,jpj,jpk) :: zwx, zslpx, tmpx
+  !real :: tmpx
+  integer :: ji, jj, jk
+  
+  DO jk = 1, jpk-1
+     DO jj = 2, jpj
+        DO ji = 2, jpi
+           !tmpx = zwx(ji,jj,jk) * zwx(ji-1,jj,jk)
+           !if (tmpx .ge. 0.0d0) then
+           tmpx(i,j,k) = zwx(ji,jj,jk) * zwx(ji-1,jj,jk)
+           if (tmpx(i,j,k) .ge. 0.0d0) then
+              zslpx(ji,jj,jk) = 0.5d0 * ( zwx(ji,jj,jk) + zwx(ji-1,jj,jk) )
+           else
+              zslpx(ji,jj,jk) = 0.0d0
+           end if
+        END DO
+     END DO
+  END DO
 
-  end subroutine testkern_code
-end module testkern
+end program

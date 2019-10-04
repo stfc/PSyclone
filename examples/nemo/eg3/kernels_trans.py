@@ -99,7 +99,7 @@ def trans(psy):
         add_kernels(sched.children)
         sched.view()
 
-        directives = sched.walk(sched.children, ACCDirective)
+        directives = sched.walk(ACCDirective)
         if not directives:
             # We only need a data region if we've added any directives
             continue

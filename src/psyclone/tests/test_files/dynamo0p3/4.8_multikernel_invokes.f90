@@ -40,7 +40,7 @@ program multikernel_invokes_7
   ! the two kernels are on different spaces
 
   use ru_kernel_mod, only: ru_kernel_type
-  use testkern,      only: testkern_type
+  use testkern_mod,  only: testkern_type
   use inf,           only: field_type
 
   implicit none

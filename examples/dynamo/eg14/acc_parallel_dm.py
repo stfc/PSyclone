@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,33 +31,36 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+
+'''File containing a PSyclone transformation script for the Dynamo0p3
+API to apply OpenACC Loop, Parallel and Enter Data directives
+generically in the presence of halo exchanges. The psyclone script can
+apply this transformation script via its -s option.
+
+'''
+from __future__ import print_function
+from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
+    ACCLoopTrans
 
 
-''' Module which performs pytest set-up so that we can specify
-    command-line options '''
+def trans(psy):
+    '''PSyclone transformation script for the dynamo0p3 api to apply
+    OpenACC loop, parallel and enter data directives generically.
 
-from __future__ import absolute_import
-import pytest
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_psyclone_config():
-    '''This per session fixture defines the environment variable
-    PSYCLONE_CONFIG to point to the config file included in the
-    PSyclone repo. This way all tests will get the same config,
-    independent of a potential psyclone config file installed by
-    the user.
     '''
-    from psyclone.configuration import Config
-    import os
-    config_file = Config.get_repository_config_file()
+    loop_trans = ACCLoopTrans()
+    parallel_trans = ACCParallelTrans()
+    enter_data_trans = ACCEnterDataTrans()
 
-    # In case that PSyclone is installed and tested (e.g. travis),
-    # the 'repository' config file does not exist (since it is
-    # installed in a different directory). In that case the standard
-    # search path of the Configuration object will find the right
-    # config file. So only overwrite the default search path behaviour
-    # if the repository config file is actually found:
-    if os.path.isfile(config_file):
-        os.environ["PSYCLONE_CONFIG"] = config_file
+    # Loop over all of the Invokes in the PSy object
+    for invoke in psy.invokes.invoke_list:
+
+        print("Transforming invoke '"+invoke.name+"'...")
+        schedule = invoke.schedule
+        for loop in schedule.loops():
+            _, _ = loop_trans.apply(loop)
+            _, _ = parallel_trans.apply(loop.parent)
+        _, _ = enter_data_trans.apply(schedule)
+
+    return psy

@@ -90,12 +90,12 @@ LF3_SCHED, _ = FUSE_TRANS.apply(LF2_SCHED.children[0],
 LF3_SCHED.view()
 
 # fuse all inner loops
-LF4_SCHED, _ = FUSE_TRANS.apply(LF3_SCHED.children[0].children[0],
-                                LF3_SCHED.children[0].children[1])
-LF5_SCHED, _ = FUSE_TRANS.apply(LF4_SCHED.children[0].children[0],
-                                LF4_SCHED.children[0].children[1])
-LF6_SCHED, _ = FUSE_TRANS.apply(LF5_SCHED.children[0].children[0],
-                                LF5_SCHED.children[0].children[1])
+LF4_SCHED, _ = FUSE_TRANS.apply(LF3_SCHED.children[0].loop_body[0],
+                                LF3_SCHED.children[0].loop_body[1])
+LF5_SCHED, _ = FUSE_TRANS.apply(LF4_SCHED.children[0].loop_body[0],
+                                LF4_SCHED.children[0].loop_body[1])
+LF6_SCHED, _ = FUSE_TRANS.apply(LF5_SCHED.children[0].loop_body[0],
+                                LF5_SCHED.children[0].loop_body[1])
 LF6_SCHED.view()
 
 PSY.invokes.get('invoke_0').schedule = LF6_SCHED
