@@ -827,14 +827,14 @@ was not possible.
 .. autoclass:: psyclone.dependency_tools.DependencyTools
     :members:
 
-Here an example on how to use this class. It takes a list of statements
+An example of how to use this class is shown below. It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
 can be parallelised::
 
   parallel_loop = OMPLoopTrans()
   # The loops in the Fortran functions that must be parallelised
   # are over the 'grid' domain. Note that the psyclone config
-  # files specifies the mapping of loop variable to type, e.g.:
+  # file specifies the mapping of loop variable to type, e.g.:
   #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
   # This means any loop using the variable 'np' is considered a
   # loop of type 'grid'
@@ -842,8 +842,6 @@ can be parallelised::
 
   for statement in statements:
       if isinstance(statement, NemoLoop):
-          # Get the loop variable of the potential parallel loop:
-          var = statement.variable_name
           # Check if there is a variable dependency that might 
           # prevent this loop from being parallelised:
           if dt.can_loop_be_parallelised(statement):
