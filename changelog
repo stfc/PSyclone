@@ -253,7 +253,7 @@
 	79) PR #517 for #513. Adds support for if statements to the SIR
 	backend.
 
-	80) PR #522 for #519. Fix for adding profiling around a select 
+	80) PR #522 for #519. Fix for adding profiling around a select
 	case construct.
 
 	81) PR #460 for #133. Add support for ANY_DISCONTINUOUS_SPACE in
@@ -261,6 +261,9 @@
 
 	82) PR #531 for #455. Add ANY_SPACE_10 to the dynamo0.3 API
 	(LFRic) to be consistent with LFRic infrastructure.
+
+  83) PR #360 for part of #150. Document the rules for reference element
+  properties in the dynamo0.3 API (LFRic).
 
 release 1.7.0 20th December 2018
 
