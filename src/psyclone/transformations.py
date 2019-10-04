@@ -2932,9 +2932,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
-                if info.function_space.lower() in \
-                   (VALID_ANY_SPACE_NAMES +
-                    VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"]):
+                if (info.function_space.lower() in
+                    (VALID_ANY_SPACE_NAMES +
+                     VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "

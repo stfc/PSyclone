@@ -41,7 +41,7 @@ that are lower in the schedule e.g. coloured loops. This can be
 applied via the -s option in the psyclone script.
 
 '''
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 

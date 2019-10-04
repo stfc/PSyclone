@@ -339,7 +339,7 @@ testing purposes and should produce appropriate errors. For example:
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`
 for function-space identifiers) are currently only supported for
-:ref:`Dynamo0.3 fields <dynamo0.3-field>` in stub generator. Basis and
+:ref:`Dynamo0.3 fields <dynamo0.3-field>` in the stub generator. Basis and
 differential basis functions on these generic function spaces, required
 for :ref:`quadrature <dynamo0.3-quadrature>` and
 :ref:`evaluators <dynamo0.3-gh-shape>`, are not supported. Hence,
