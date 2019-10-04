@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 program single_invoke_builtin_then_kernel
 
@@ -41,9 +41,11 @@ program single_invoke_builtin_then_kernel
   use testkern_wtheta_mod, only: testkern_wtheta_type
   use testkern_w2_only,    only: testkern_w2_only_type
   use inf,                 only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2, f3, f4
-  real(r_def) :: scalar = 0.0
+  real(r_def)      :: scalar = 0.0
   
   call invoke(                               &
        setval_c(f5, 0.0),                    &
@@ -52,7 +54,7 @@ program single_invoke_builtin_then_kernel
        ! f2 function space w2, read
        testkern_w2_only_type(f3, f2),        &
        ! f4 function space wtheta, write
-       ! f5 function space w3, read
+       ! f5 function space any_discontinuous_space_1, read
        testkern_wtheta_type(f4, f5),         &
        ! scalar, read
        ! f1 function space w1, write

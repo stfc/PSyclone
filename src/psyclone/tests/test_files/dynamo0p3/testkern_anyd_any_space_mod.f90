@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,9 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author I. Kavcic, Met Office
 
-module testkern_wtheta_mod
+module testkern_anyd_any_space_mod
 
   use constants_mod
   use argument_mod
@@ -42,39 +41,48 @@ module testkern_wtheta_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (wtheta) and reader
-  ! (any_discontinuous_space_1)
-  type, public, extends(kernel_type) :: testkern_wtheta_type
+  ! Description: discontinuous field readwriter (any_discontinuous_space_1)
+  ! and continuous readers (any_space_1 and any_w2)
+  type, public, extends(kernel_type) :: testkern_anyd_any_space_type
      private
-     type(arg_type), dimension(2) :: meta_args = (/               &
-          arg_type(gh_field, gh_write, wtheta),                   &
-          arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
+     type(arg_type), dimension(3) :: meta_args = (/                    &
+          arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
+          arg_type(gh_field, gh_read,      any_space_1),               &
+          arg_type(gh_field, gh_read,      any_w2)                     &
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_wtheta_code
-  end type testkern_wtheta_type
+     procedure, public, nopass :: code => testkern_anyd_any_space_code
+  end type testkern_anyd_any_space_type
 
 contains
 
-  subroutine testkern_wtheta_code(nlayers,                             &
-                                  field1, field2,                      &
-                                  ndf_wtheta, undf_wtheta, map_wtheta, &
-                                  ndf_anydspace_1, undf_anydspace_1,   &
-                                  map_anydspace_1)
+  subroutine testkern_anyd_any_space_code(nlayers,                &
+                                          field1, field2, field3, &
+                                          ndf_anydspace_1,        &
+                                          undf_anydspace_1,       &
+                                          map_anydspace_1,        &
+                                          ndf_any_space_1,        &
+                                          undf_any_space_1,       &
+                                          map_any_space_1,        &
+                                          ndf_any_w2, undf_any_w2, map_any_w2)
+
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: undf_wtheta
     integer(kind=i_def), intent(in) :: ndf_anydspace_1
-    integer(kind=i_def), intent(in) :: undf_anydspace_1
-    integer(kind=i_def), intent(in), dimension(ndf_wtheta)      :: map_wtheta
+    integer(kind=i_def), intent(in) :: ndf_any_space_1
+    integer(kind=i_def), intent(in) :: ndf_any_w2
+    integer(kind=i_def), intent(in) :: undf_anydspace_1, &
+                                       undf_any_space_1, undf_any_w2
     integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
-    real(kind=r_def), intent(out), dimension(undf_wtheta)     :: field1
-    real(kind=r_def), intent(in), dimension(undf_anydspace_1) :: field2
+    integer(kind=i_def), intent(in), dimension(ndf_any_space_1) :: map_any_space_1
+    integer(kind=i_def), intent(in), dimension(ndf_any_space_1) :: map_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_anydspace_1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_any_space_1)    :: field2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)         :: field3
 
-  end subroutine testkern_wtheta_code
+  end subroutine testkern_anyd_any_space_code
 
-end module testkern_wtheta_mod
+end module testkern_anyd_any_space_mod

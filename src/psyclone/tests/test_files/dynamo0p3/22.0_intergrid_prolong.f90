@@ -1,9 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,15 +31,18 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke_prolong
 
   ! Description: invoke of single kernel that performs a prolongation
-  use prolong_kernel_mod, only: prolong_kernel_type
+  use prolong_test_kernel_mod, only: prolong_test_kernel_type
+
   implicit none
+
   type(field_type) :: field1, field2
 
-  call invoke( prolong_kernel_type(field1, field2) )
+  call invoke( prolong_test_kernel_type(field1, field2) )
 
 end program single_invoke_prolong
