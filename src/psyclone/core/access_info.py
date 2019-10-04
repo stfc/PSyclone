@@ -161,12 +161,12 @@ class VariableAccessInfo(object):
     def is_array(self):
         ''':returns: True if all accesses to this variable involve indices.
         :rtype: bool'''
+        # TODO #500: Till we have access to a SymbolTable, we use this
+        # function to detect which variables are arrays.
         return all(access.indices for access in self._accesses)
 
     def is_written(self):
-        '''Checks if this variable is at least written once.
-
-        :returns: True if this variable is written (at least once).
+        ''':returns: True if this variable is written (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type in
@@ -184,9 +184,7 @@ class VariableAccessInfo(object):
                    for access_info in self._accesses)
 
     def is_read(self):
-        '''Checks if this variable is at least read once.
-
-        :returns: True if this variable is read (at least once).
+        ''':returns: True if this variable is read (at least once).
         :rtype: bool
         '''
         return any(access_info.access_type in AccessType.all_read_accesses()
