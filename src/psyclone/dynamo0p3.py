@@ -74,11 +74,8 @@ CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
-# Valid any_space metadata (general FS, treated as continuous)
-# TODO (issue #455): add any_space_10
-VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
-                         "any_space_4", "any_space_5", "any_space_6",
-                         "any_space_7", "any_space_8", "any_space_9"]
+# Valid any_space metadata (general FS, could be continuous or discontinuous)
+VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
 
 # Valid any_discontinuous_space metadata (general FS known to be discontinuous)
 VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
