@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,37 +41,37 @@ module testkern_w2v_mod
 
   implicit none
 
-  ! Description: discontinuous field readwriter (w2v) and reader (wtheta)
+  ! Description: discontinuous field readwriter (w2v) and reader (w2broken)
   type, extends(kernel_type) :: testkern_w2v_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_field, gh_readwrite, w2v),   &
-             arg_type(gh_field, gh_read,      wtheta) &
-           /)
+     private
+     type(arg_type), dimension(2) :: meta_args = (/  &
+          arg_type(gh_field, gh_readwrite, w2v),     &
+          arg_type(gh_field, gh_read,      w2broken) &
+          /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_w2v_code
+     procedure, public, nopass :: code => testkern_w2v_code
   end type testkern_w2v_type
 
 contains
 
-  SUBROUTINE testkern_w2v_code(nlayers,                    &
-                               field1_w2v,                 &
-                               field2_wtheta,              &
+  subroutine testkern_w2v_code(nlayers,                    &
+                               field1, field2,             &
                                ndf_w2v, undf_w2v, map_w2v, &
-                               ndf_wtheta, undf_wtheta, map_wtheta)
+                               ndf_w2broken, undf_w2broken, map_w2broken)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf_w2v
-    INTEGER, intent(in) :: undf_w2v
-    INTEGER, intent(in) :: ndf_wtheta
-    INTEGER, intent(in) :: undf_wtheta
-    REAL(KIND=r_def), intent(inout), dimension(undf_w2v) :: field1_w2v
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_wtheta
-    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
-    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), intent(in) :: undf_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2broken
+    integer(kind=i_def), intent(in) :: undf_w2broken
+    integer(kind=i_def), intent(in), dimension(ndf_w2v)      :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_w2broken) :: map_w2broken
+    real(kind=r_def), intent(inout), dimension(undf_w2v)      :: field1
+    real(kind=r_def), intent(in),    dimension(undf_w2broken) :: field2
 
-  END SUBROUTINE testkern_w2v_code
+  end subroutine testkern_w2v_code
 
 end module testkern_w2v_mod

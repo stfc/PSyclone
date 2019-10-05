@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,17 +33,19 @@
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic Met Office
 
-program single_invoke_w2v_wtheta
+program single_invoke_w2v_w2broken
 
   ! Description: single function in an invoke iterating over w2v and
-  ! reading from wtheta (both discontinuous)
+  ! reading from w2broken (both discontinuous)
   use testkern_w2v_mod, only: testkern_w2v_type
   use inf,              only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2
 
   call invoke(                   &
        testkern_w2v_type(f1, f2) &
-          )
+             )
 
-end program single_invoke_w2v_wtheta
+end program single_invoke_w2v_w2broken
