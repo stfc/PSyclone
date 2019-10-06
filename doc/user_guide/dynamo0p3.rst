@@ -825,7 +825,7 @@ spaces described below.
 Other spaces required for representation of scalar or component-wise
 vector variables are:
 
-* ``WTHETA`` is the space of scalar functions based on the vertical
+* ``Wtheta`` is the space of scalar functions based on the vertical
   part of ``W2``, discontinuous in the horizontal and continuous
   in the vertical;
 
@@ -837,12 +837,12 @@ vector variables are:
   part of ``W2``, discontinuous in the horizontal and continuous
   in the vertical;
 
-* ``W2BROKEN`` is the space of vector functions, locally identical
+* ``W2broken`` is the space of vector functions, locally identical
   to the velocity space ``W2``. However, DoFs are topologically
   discontinuous in all directions despite their placement on cell
   faces;
 
-* ``W2TRACE`` is the space of scalar functions, resulting from
+* ``W2trace`` is the space of scalar functions, resulting from
   taking the ``trace`` of a ``W2`` element and defined only on the
   faces. DoFs are shared between faces, hence making this space
   fully continuous.
@@ -862,7 +862,7 @@ sections above:
   so that it works with fields on any of the discontinuous spaces;
 
 * ``ANY_W2`` for any type of ``W2`` function spaces (``W2``, ``W2H``,
-  ``W2V``, ``W2BROKEN`` or ``W2TRACE``).
+  ``W2V``, ``W2broken`` or ``W2trace``).
 
 As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
 ``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
@@ -881,21 +881,23 @@ applies to the three generic ``ANY_*_*`` function space identifiers
 above. The valid metadata values for continuous and discontinuous
 function apaces are summarised in the table below.
 
-========================= ============================
-Function Space Continuity Function Space Metadata
-========================= ============================
-**Continuous**            | W0, W1, W2, W2H, W2TRACE,
-                          | ANY_W2, ANY_SPACE_n
-**Discontinuous**         | W3, WTHETA, W2V, W2BROKEN,
-                          | ANY_DISCONTINUOUS_SPACE_n
-========================= ============================
+.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+
+========================= ===========================================
+Function Space Continuity Function Space Name
+========================= ===========================================
+**Continuous**            ``W0``, ``W1``, ``W2``, ``W2H``, W2trace``,
+                          ``ANY_W2``, ``ANY_SPACE_n``
+**Discontinuous**         ``W3``, ``Wtheta``, ``W2V``, ``W2broken``,
+                          ``ANY_DISCONTINUOUS_SPACE_n``
+========================= ===========================================
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
 PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
 transformation (see :ref:`dynamo0.3-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
-function space ``WTHETA`` is given in ``examples/dynamo/eg9``, with the
+function space ``Wtheta`` is given in ``examples/dynamo/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
@@ -1127,22 +1129,22 @@ listed below:
 
 .. tabularcolumns:: |p{5.5cm}|p{8cm}|
 
-=================================== ===========================================
-Name                                Description
-=================================== ===========================================
-normals_to_horizontal_faces         Array of normals pointing in the positive
-                                    (x, y, z) axis direction for each
-                                    horizontal face indexed as (face,
-                                    component).
-normals_to_vertical_faces           Array of normals pointing in the positive
-                                    (x, y, z) axis direction for each vertical
-                                    face indexed as (face, component).
-outward_normals_to_horizontal_faces Array of outward-pointing normals for each
-                                    horizontal face indexed as (component,
-                                    face).
-outward_normals_to_vertical_faces   Array of outward-pointing normals for each
-                                    vertical face indexed as (component, face).
-=================================== ===========================================
+======================================= ===========================================
+Name                                    Description
+======================================= ===========================================
+``normals_to_horizontal_faces``         Array of normals pointing in the positive
+                                        (x, y, z) axis direction for each
+                                        horizontal face indexed as (face,
+                                        component).
+``normals_to_vertical_faces``           Array of normals pointing in the positive
+                                        (x, y, z) axis direction for each vertical
+                                        face indexed as (face, component).
+``outward_normals_to_horizontal_faces`` Array of outward-pointing normals for each
+                                        horizontal face indexed as (component,
+                                        face).
+``outward_normals_to_vertical_faces``   Array of outward-pointing normals for each
+                                        vertical face indexed as (component, face).
+======================================= ===========================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1293,20 +1295,14 @@ rules, along with PSyclone's naming conventions, are:
             ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
             as appropriate.
 
-         where ``dimension`` is 1 or 3 and depends upon the function space and
-         whether or not it is a basis or a differential basis function. For
-         the former it is (``W0``=1, ``W1``=3, ``W2``=3, ``W3``=1,
-         ``WTHETA``=1, ``W2H``=3, ``W2V``=3, ``W2BROKEN``=3, ``W2TRACE``=1,
-         ``ANY_W2``=3). For the latter it is (``W0``=3, ``W1``=3, ``W2``=1,
-         ``W3``=3, ``WTHETA``=3, ``W2H``=1, ``W2V``=1, ``W2BROKEN``=1,
-         ``W2TRACE``=3, ``ANY_W2``=3). ``number_of_dofs`` is the number of
+         where ``dimension`` is 1 or 3 and depends upon the function space
+         and whether or not it is a basis or a differential basis function
+         (see the table below). ``number_of_dofs`` is the number of
          degrees of freedom (DoFs) associated with the function space and
-         ``np_*`` are the number of points to be evaluated:
-
-         i) ``*_xyz`` in all directions (3D);
-         ii) ``*_xy`` in the horizontal plane (2D);
-         iii) ``*_x, *_y`` in the horizontal (1D); and
-         iv) ``*_z`` in the vertical (1D).
+         ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in
+         all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
+         iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
+         vertical (1D).
 
       2) If it is an orientation array, include the associated argument.
          The argument is an integer array with intent ``in``. There is
@@ -1339,6 +1335,20 @@ rules, along with PSyclone's naming conventions, are:
    2) Include weights which are real arrays of kind ``r_def``:
 
       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``.
+
+.. tabularcolumns:: |p{5.5cm}|p{2cm}|p{8cm}|
+
+================== ========= =======================================
+Function Type      Dimension Function Space Name
+================== ========= =======================================
+Basis                  1     ``W0``, ``W3``, ``Wtheta``, ``W2trace``
+                       3     ``W1``, ``W2``, ``W2H``, ``W2V``,
+                             ``W2broken``, ``ANY_W2``
+Differential Basis     1     ``W2``, ``W2H``, ``W2V``, ``W2broken``
+                       3     ``W0``, ``W1``, ``W3``, ``Wtheta``,
+                             ``W2trace``, ``ANY_W2``
+================== ========= =======================================
+
 
 Examples
 ^^^^^^^^
@@ -2181,7 +2191,7 @@ infrastructure.
 Up to and including version 1.4.0 of PSyclone, boundary conditions
 were applied automatically after a call to ``matrix_vector_type`` if
 the field arguments were on a vector function space (one of ``W1``,
-``W2``, ``W2H``, ``W2V`` or ``W2BROKEN``). With the subsequent introduction
+``W2``, ``W2H``, ``W2V`` or ``W2broken``). With the subsequent introduction
 of the ability to apply boundary conditions to operators this functionality
 is no longer required and has been removed.
 

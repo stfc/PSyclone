@@ -145,7 +145,7 @@ def test_arg_descriptor_vector_str():
     expected = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_write'\n"
+        "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
     assert expected in dkm_str
 
@@ -5071,32 +5071,32 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w2v_w1(tmpdir):
-    ''' Check that generated loop over cells in the psy layer has the
+def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
+    ''' Check that generated loop over cells in the PSy layer has the
     correct upper bound when a kernel writes to two fields, the first on
-    a discontinuous space (w2v) and the second on a continuous space (w1).
+    a discontinuous space (w2broken) and the second on a continuous space (w1).
     The resulting loop (when dm=True) must include the L1 halo because of
     the second field argument which is continuous '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        if dist_mem:
-            output = (
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-            assert output in generated_code
-        else:
-            output = (
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
-            assert output in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert output in generated_code
+    else:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+        assert output in generated_code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_itn_space_fld_and_op_writers(tmpdir):
@@ -5154,30 +5154,33 @@ def test_itn_space_any_any_discontinuous(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_w1():
-    ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any_space and W1 (continuous) '''
+def test_itn_space_any_w2trace(dist_mem, tmpdir):
+    ''' Check generated loop over cells has correct upper bound when a
+    kernel writes to fields on any_space and W2trace (both continuous) '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
+        os.path.join(BASE_PATH,
+                     "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        if dist_mem:
-            output = (
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-            assert output in generated_code
-        else:
-            # Loop upper bound should use f2 as that field is *definitely*
-            # on a continuous space (as opposed to the one on any_space
-            # that might be).
-            output = (
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
-            assert output in generated_code
+
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert output in generated_code
+    else:
+        # Loop upper bound should use f2 as that field is *definitely*
+        # on a continuous space (as opposed to the one on any_space
+        # that might be).
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
+        assert output in generated_code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_unexpected_type_error():
@@ -5543,9 +5546,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
     class returns the correct values. Check that the code is generated
     correctly when annexed dofs are and are not computed by default as
     the number of halo exchanges produced is different in the two
-    cases.
-
-    '''
+    cases. '''
 
     # 1) Discontinuous fields return true
     # 1a) Check w3, wtheta and w2v in turn
@@ -5574,11 +5575,21 @@ def test_arg_discontinuous(monkeypatch, annexed):
         field = kernel.arguments.args[idarg]
         assert field.space == fspace
         assert field.discontinuous
-        # 1b) w2broken is checked from the "read" argument in w2v testkern
-        if fspace == 'w2v':
-            read_field = kernel.arguments.args[1]
-            assert read_field.space == 'w2broken'
-            assert read_field.discontinuous
+
+    # 1b) w2broken returns true
+    _, info = parse(
+        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if annexed:
+        index = 5
+    else:
+        index = 6
+    kernel = schedule.children[index].loop_body[0]
+    field = kernel.arguments.args[6]
+    assert field.space == 'w2broken'
+    assert field.discontinuous
 
     # 1c) any_discontinuous_space returns true
     _, info = parse(
@@ -5587,11 +5598,9 @@ def test_arg_discontinuous(monkeypatch, annexed):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     if annexed:
         index = 0
     else:
-        # 2 halo exchanges produced (reads from two continuous spaces)
         index = 2
     kernel = schedule.children[index].loop_body[0]
     field = kernel.arguments.args[0]
@@ -5599,8 +5608,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
     assert field.discontinuous
 
     # 2) any_space field returns false
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "11_any_space.f90"),
+    _, info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -5614,14 +5622,29 @@ def test_arg_discontinuous(monkeypatch, annexed):
     assert not field.discontinuous
 
     # 3) Continuous field returns false
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke.f90"),
+    # 3a) Test w1
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[3].loop_body[0]
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
+    assert not field.discontinuous
+    # 3b) Test w2trace
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if annexed:
+        index = 5
+    else:
+        index = 7
+    kernel = schedule.children[index].loop_body[0]
+    field = kernel.arguments.args[3]
+    assert field.space == 'w2trace'
     assert not field.discontinuous
 
 
