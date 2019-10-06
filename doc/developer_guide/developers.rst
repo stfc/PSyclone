@@ -117,11 +117,11 @@ new code must be covered (i.e. executed) by one or more tests. As
 described in :ref:`user_guide:getting-going`, the test suite is
 written for use with ``pytest``.
 
-Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
-from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
+Tests should be run from the ``<PSYCLONEHOME>/src/psyclone/tests`` 
+directory, from which all tests in subdirectories 
 will be automatically found and started. If only a subset of all tests
 need to be run, ``pytest`` can be invoked from the corresponding
-subdirectory or with that subdirectory as an argument.
+subdirectory or with that subdirectory or filename as an argument.
 
 .. _test_coverage:
 
@@ -142,7 +142,7 @@ to ask for a terminal report of missed lines for the ``dynamo0p3`` module
 you would do::
 
   > cd <PSYCLONEHOME>
-  > py.test --cov-report term-missing --cov psyclone.dynamo0p3
+  > pytest --cov-report term-missing --cov psyclone.dynamo0p3
 
 Note that you specify the python module name, and not the file name.
 This will produce output along the lines of::
@@ -158,7 +158,7 @@ only selected tests to be run by specifying the file names on the command line.
 Additionally html output can be created by adding the option ``--cov-report html``::
 
   > cd <PSYCLONEHOME>/src/psyclone/tests
-  > py.test --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
+  > pytest --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
 
 The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
 and it highlights all source lines in red that are not covered by at least one test.
@@ -177,7 +177,7 @@ in parallel simply by providing the number of cores to use via the
 ``-n`` flag::
 
   > cd <PSYCLONEHOME>
-  > py.test -n 4
+  > pytest -n 4
 
 Running the test suite in parallel also changes the order in which
 tests are run which can reveal any problems resulting from tests not
@@ -211,13 +211,13 @@ The Gnu Fortran compiler (gfortran) is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
 specified by further command-line flags::
 
-  > py.test --compile --f90=ifort --f90flags="-O3"
+  > pytest --compile --f90=ifort --f90flags="-O3"
 
 If you want to test OpenCL code created by PSyclone, you must use the command line
 option --compileopencl (which can be used together with --compile,
 and --f90 and --f90flags), e.g.::
 
-  > py.test --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
+  > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
 
 Infrastructure libraries
@@ -296,9 +296,9 @@ The PSyclone Internal Representation (PSyIR)
 The PSyclone Internal Representation (PSyIR) is a language-independent
 AST that PSyclone uses to represent the PSy layer and the kernel
 code. The PSyIR can be constructed from scratch or produced from
-existing code using one of the (front-end) ASTProcessors provided in
-PSyclone and it can be transformed back to a particular language using
-the (back-end) support provided in PSyclone.
+existing code using one of the front-ends (Readers) and it can be
+transformed back to a particular language using the back-ends (Writers)
+provided in PSyclone.
 
 Nodes
 =====
@@ -1056,8 +1056,13 @@ The SIR back-end is limited in a number of ways:
 - anything other than real arrays (integer, logical etc.) will cause
   incorrect SIR code to be produced (see issue #468).
 - calls are not supported (and will cause a VisitorError exception).
-- control logic, other than triply nested loops, (if, case etc), is
-  not supported (and will cause a VisitorError exception).
+- loop bounds are not analysed so it is not possible to add in offset
+  and loop ordering for the vertical. This also means that the ordering
+  of loops (lat/lon/levels) is currently assumed.
+- Fortran literals such as `0.0d0` are output directly in the
+  generated code (but this could also be a frontend issue).
+- the only unary operator currently supported is '-' and the subject
+  of this unary operator must be a literal.
 
 The current implementation is not able to deal with variables local to
 a region (which the SIR expects), as, in Fortran, the standard scope
@@ -2401,7 +2406,8 @@ Kernel Transformations
 PSyclone is able to perform kernel transformations. Currently it has
 two ways to apply transformations: by directly manipulating the
 language AST or by translating the language AST to PSyIR, applying the
-transformation, and producing the resulting language AST or code.
+transformation in the PSyIR and using one of the back-ends to generate
+the resulting code.
 
 For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
@@ -2421,15 +2427,15 @@ to generate the PSyIR representation of the kernel code.
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
 
-The AST to AST transformation is done using an ASTProcessor.
-At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
-version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
-(In the future we aim to have a generic ASTProcessor class, specialized
-for different language parsers: <parser>ASTProcessor, and specialized again
-for specific APIs when additional functionality is requiered
-<API><parser>ASTProcessor.)
+The language AST to PSyIR transformation is done using a PSyIR front-end.
+This are found in the `psyclone.psyir.frontend` module. 
+The only currently available front-end is `Fparser2Reader` but this can
+be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
+sub-class).
+The naming convention used for the PSyIR front-ends is
+<API><languageAST>Reader.
 
-.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
     :members:
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a

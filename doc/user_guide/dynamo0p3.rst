@@ -32,8 +32,8 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified I. Kavcic, Met Office
-      
+.. Modified by I. Kavcic, Met Office
+
 .. _dynamo0.3-api:
 
 Dynamo0.3 API
@@ -140,7 +140,7 @@ vector size of 3.
 Scalar
 ++++++
 
-In Dynamo 0.3 API a scalar is a single value variable that can be
+In Dynamo0.3 API a scalar is a single value variable that can be
 either real or integer. Real scalars are identified with ``GH_REAL``
 and integer scalars are identified with ``GH_INTEGER`` metadata.
 
@@ -154,7 +154,7 @@ metadata.
 Column-Wise Operator
 ++++++++++++++++++++
 
-The Dynamo 0.3 API has support for the construction and use of
+The Dynamo0.3 API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
 identifier is ``GH_COLUMNWISE_OPERATOR``. As the name suggests,
 these are operators constructed for a whole column of the mesh.
@@ -207,7 +207,7 @@ A full example of CMA operator construction is available in
 Quadrature
 ++++++++++
 
-Kernels conforming to the Dynamo 0.3 API may require quadrature
+Kernels conforming to the Dynamo0.3 API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
 the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
 must be passed to the kernel from the Algorithm layer in the form of a
@@ -223,7 +223,7 @@ kernel, e.g.:
                   kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
 
-This quadrature object specifies the set of points at which the 
+This quadrature object specifies the set of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
 
 .. _dynamo0.3-alg-stencil:
@@ -350,12 +350,14 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo API there are four
+in the :ref:`kernel-layer` section. In the Dynamo0.3 API there are four
 different Kernel types; general purpose, CMA, inter-grid and
 :ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
 other three, user-supplied kernel types and then goes on to describe
 their metadata and subroutine arguments.
+
+.. _dynamo0.3-user-kernel-rules:
 
 Rules for all User-Supplied Kernels
 +++++++++++++++++++++++++++++++++++
@@ -369,18 +371,23 @@ types.
     over that space.
 
  2) The continuity of the iteration space of the Kernel is determined
-    from the function space of the modified argument
-    (see :ref:`dynamo0.3-function-space`).
+    from the function space of the modified argument (see Section
+    :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
     If more than one argument is modified then the iteration space is taken
-    to be the largest required by any of those arguments. e.g. if a Kernel
-    writes to two fields, the first on W3 (discontinuous) and the
-    second on W1 (continuous), then the iteration space of that Kernel
+    to be the largest required by any of those arguments. E.g. if a Kernel
+    writes to two fields, the first on ``W3`` (discontinuous) and the
+    second on ``W1`` (continuous), then the iteration space of that Kernel
     will be determined by the field on the continuous space.
 
- 3) If the function space of the modified argument(s) cannot be
-    determined then they are assumed to be continuous. This is
-    the case if any of the modified arguments are declared as ``ANY_SPACE``
-    and their actual space cannot be determined statically. This assumption
+ 3) If any of the modified arguments are declared with the generic
+    function space metadata (e.g. ``ANY_SPACE_n``, see
+    :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
+    and their actual space cannot be determined statically then the
+    iteration space is assumed to be
+
+    1) discontinuous for ``ANY_DISCONTINUOUS_SPACE_n``;
+
+    2) continuous for ``ANY_SPACE_n`` and ``ANY_W2``.  This assumption
     is always safe but leads to additional computation if the quantities
     being updated are actually on discontinuous function spaces.
 
@@ -409,16 +416,16 @@ Rules specific to General-Purpose Kernels without CMA Operators
     same or different function spaces.
 
  3) A Kernel may not write to a scalar argument. (Only
-    :ref:`dynamo0.3-built-ins` are permitted to do this.) Any scalar
-    aguments must therefore be declared in the metadata as
-    ``GH_READ`` - see below.
+    :ref:`built-ins <dynamo0.3-built-ins>` are permitted to do this.) Any
+    scalar aguments must therefore be declared in the metadata as
+    ``GH_READ`` - see :ref:`below <dynamo0.3-valid-access>`.
 
 .. _dynamo0.3-cma-mdata-rules:
 
 Rules for Kernels that work with CMA Operators
 ++++++++++++++++++++++++++++++++++++++++++++++
 
-The Dynamo 0.3 API has support for kernels that assemble, apply (or
+The Dynamo0.3 API has support for kernels that assemble, apply (or
 inverse-apply) column-wise/Column Matrix Assembly (CMA) operators.
 Such operators may also be used by matrix-matrix kernels. There are
 thus three types of CMA-related kernels.  Since, by definition, CMA
@@ -508,21 +515,22 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the Dynamo0.3 API kernel
-metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
-'iterates_over' and 5) 'procedure'.
+metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
+4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
 
 ::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
+    type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These five metadata elements are discussed in order in the following
+These six metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -625,7 +633,7 @@ For example:
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
        /)
 
-.. note:: In the Dynamo 0.3 API only :ref:`dynamo0.3-built-ins` are permitted
+.. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to real
           scalars (``GH_REAL``) as the LFRic infrastructure does not
@@ -655,9 +663,9 @@ operator to a field might look like:
        /)
 
 In some cases a Kernel may be written so that it works for fields and/or
-operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
-``w2v``. In this case the metadata should be specified as being
-``any_w2``.
+operators from any type of ``w2`` space (see Section
+:ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
+In this case the metadata should be specified as being ``any_w2``.
 
 .. Warning:: in the current implementation it is assumed that all
              fields and/or operators specifying ``any_w2`` within a
@@ -667,11 +675,17 @@ operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
 
 It may be that a Kernel is written such that a field and/or operators
 may be on/map-between any function space(s). In this case the metadata
-should be specified as being one of ``any_space_1``, ``any_space_2``,
-..., ``any_space_9``. The reason for having different names is that a
-Kernel might be written to allow 2 or more arguments to be able to
-support any function space but for a particular call the function
-spaces may have to be the same as each other.
+should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_10``
+(see :ref:`Supported Function Spaces <dynamo0.3-function-space>`). If
+the generic function spaces are known to be discontinuous the metadata
+may be specified as being one of ``ANY_DISCONTINUOUS_SPACE_1``, ...,
+``ANY_DISCONTINUOUS_SPACE_10`` in order to avoid unnecessary computation
+into the halos (see rules for
+:ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
+The reason for having different names is that a Kernel might be written
+to allow 2 or more arguments to be able to support any function space
+but for a particular call the function spaces may have to be the same
+as each other.
 
 In the example below, the first field entry supports any function space but
 it must be the same as the operator's ``to`` function space. Similarly,
@@ -688,31 +702,13 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        /)
 
 Note also that the scope of this naming of any-space function spaces is
-restricted to the argument list of individual kernels. i.e. if an
+restricted to the argument list of individual kernels. I.e. if an
 Invoke contains say, two kernel calls that each support arguments on
 any function space, e.g. ``ANY_SPACE_1``, there is no requirement that
 these two function spaces be the same. Put another way, if an Invoke
 contained two calls of a kernel with arguments described by the above
 metadata then the first field argument passed to each kernel call
 need not be on the same space.
-
-.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
-          ``GH_READWRITE`` as its access pattern must be a discontinuous
-          function in the horizontal (see :ref:`dynamo0.3-valid-access`
-          below). That means it must belong to ``w3``, ``wtheta`` or
-          ``w2v`` function spaces (see :ref:`dynamo0.3-function-space`).
-          A ``GH_FIELD`` that specifies ``GH_INC`` as its access
-          pattern may be continuous in the vertical (and discontinuous
-          in the horizontal), continuous in the horizontal (and
-          discontinuous in the vertical), or continuous in both. In
-          each case the code is the same. However, if a field is
-          discontinuous in the horizontal then it will not need
-          colouring and, if is described as being on any space, there
-          is currently no way to determine this from the metadata
-          (unless we can statically determine the space of the field
-          being passed in). At the moment this type of Kernel is
-          always treated as if it is continuous in the horizontal,
-          even if it is not.
 
 .. _dynamo0.3-valid-access:
 
@@ -730,10 +726,10 @@ the function space it is on. Valid values are given in the table
 below.
 
 ======================	============================    =========================
-Argument Type     	Function space                  Access type
+Argument Type           Function Space                  Access Type
 ======================	============================    =========================
 *GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
-GH_REAL           	n/a                             GH_SUM (Built-ins only)
+GH_REAL                 n/a                             GH_SUM (Built-ins only)
 GH_FIELD                Discontinuous                   GH_WRITE, GH_READWRITE
 GH_FIELD                Continuous                      GH_INC
 GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
@@ -745,7 +741,19 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
           currently support integer reductions, integer scalar arguments
           are restricted to having read-only access.*
 
-There is no restriction on the number and function-spaces of other
+.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
+          ``GH_READWRITE`` as its access pattern must be a discontinuous
+          function in the horizontal (see :ref:`dynamo0.3-function-space`
+          for list of discontinuous function spaces) and it will not
+          need colouring. If the field is described as being on any space,
+          there is currently no way to determine this from the metadata
+          (unless we can statically determine the space of the field
+          being passed in). At the moment this type of Kernel is always
+          treated as if it is continuous in the horizontal, even if it is
+          not (see rules for :ref:`user-supplied kernels
+          <dynamo0.3-user-kernel-rules>` above).
+
+There is no restriction on the number and function spaces of other
 quantities that a general-purpose kernel can modify other than that it
 must modify at least one. The rules for kernels involving CMA operators,
 however, are stricter and only one argument may be modified (the CMA
@@ -755,9 +763,9 @@ on different function spaces then PSyclone generates loop bounds
 appropriate to the largest iteration space. This means that if a
 single kernel updates one quantity on a continuous function space and
 one on a discontinuous space then the resulting loop will include
-cells in the level 1 halo since they are required for a quantity on a
+cells in the level-1 halo since they are required for a quantity on a
 continuous space. As a consequence, any quantities on a discontinuous
-space will then be computed redundantly in the level 1 halo. Currently
+space will then be computed redundantly in the level-1 halo. Currently
 PSyclone makes no attempt to take advantage of this (by e.g. setting
 the appropriate level-1 halo to 'clean').
 
@@ -808,8 +816,8 @@ spaces described below.
   All dofs lie within the cell volume and are not shared across the
   cell boundaries.
 
-Additional function spaces required for representation of scalar or
-component-wise vector variables are:
+Other spaces required for representation of scalar or component-wise
+vector variables are:
 
 * ``wtheta`` is the space of scalar functions based on the vertical
   part of ``w2``, discontinuous in the horizontal and continuous
@@ -823,25 +831,48 @@ component-wise vector variables are:
   part of ``w2``, continuous in the horizontal and discontinuous
   in the vertical.
 
+In addition to the specific function space metadata, there are also
+three generic function space metadata descriptors mentioned in
+sections above:
+
+* ``ANY_SPACE_n``, *n = 1, 2, ... 10*, for when the function space
+  of the modified argument(s) cannot be determined and/or for when a
+  Kernel has been written so that it works with fields on any of the
+  available spaces;
+
+* ``ANY_DISCONTINUOUS_SPACE_n``, *n = 1, 2, ... 10*, for when the
+  function space of the modified argument(s) cannot be determined but
+  is known to be discontinuous and/or for when a Kernel has been written
+  so that it works with fields on any of the discontinuous spaces;
+
+* ``ANY_W2`` for any type of ``w2`` function spaces (``w2``, ``w2h``
+  or ``w2v``).
+
+As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
+``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
+continuous while ``ANY_DISCONTINUOUS_SPACE_n`` spaces are treated
+as discontinuous.
+
 Since the Dynamo0.3 API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
-horizontal continuity.
+**continuity in the horizontal**. For example, a ``GH_FIELD`` that
+specifies ``GH_INC`` as its access pattern (see
+:ref:dynamo0.3-valid-access: above) may be continuous in the vertical
+(and discontinuous in the horizontal), continuous in the horizontal
+(and discontinuous in the vertical), or continuous in both. In each
+case the code is the same. This principle of horizontal continuity also
+applies to the three generic ``ANY_*_*`` function space identifiers
+above. The valid metadata values for continuous and discontinuous
+function apaces are summarised in the table below.
 
-* **Continuous** function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
-
-* **Discontinuous** function spaces are ``w3``, ``wtheta`` and ``w2v``.
-
-Two additonal function space metadata descriptors as mentioned in
-sections above are:
-
-* ``ANY_W2`` for any type of ``w2`` function spaces;
-
-* ``ANY_SPACE`` for when the function space of the modified argument(s)
-  cannot be determined and/or for when a Kernel has been written so that
-  it works with fields on any of the available spaces.
-
-As mentioned previously, both ``ANY_W2`` and ``ANY_SPACE`` function
-space types are treated as continuous.
+========================= ===========================
+Function Space Continuity Function Space Metadata
+========================= ===========================
+**Continuous**            | W0, W1, W2, W2H, ANY_W2,
+                          | ANY_SPACE_n
+**Discontinuous**         | W3, WTHETA, W2V,
+                          | ANY_DISCONTINUOUS_SPACE_n
+========================= ===========================
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -961,9 +992,9 @@ metadata for such a kernel is given below:
 
 ::
 
-  type(arg_type) :: meta_args(2) = (/                               &
-      arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
-      arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+  type(arg_type) :: meta_args(2) = (/                                                  &
+      arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
+      arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE  )  &
       /)
 
 Note that an inter-grid kernel must have at least one field (or field-
@@ -982,7 +1013,7 @@ Column-wise operators are constructed from cell-wise (local) operators.
 Therefore, in order to **assemble** a CMA operator, a kernel must have at
 least one read-only LMA operator, e.g.:
 ::
-   
+
    type(arg_type) :: meta_args(2) = (/                                       &
         arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
@@ -992,7 +1023,7 @@ CMA operators (and their inverse) are **applied** to fields. Therefore any
 kernel of this type must have one read-only CMA operator, one read-only
 field and a field that is updated, e.g.:
 ::
-   
+
    type(arg_type) :: meta_args(3) = (/                                      &
         arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
         arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
@@ -1003,14 +1034,18 @@ field and a field that is updated, e.g.:
 operators. They must therefore have one such operator that is updated while
 the rest are read-only. They may also have read-only scalar arguments, e.g.:
 ::
-   
+
    type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_REAL, GH_READ) /)
 
-.. note:: The order with which arguments are specified in metadata for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
+.. note:: The order with which arguments are specified in metadata for CMA
+          kernels does not affect the process of identifying the type of
+          kernel (whether it is assembly, matrix-matrix etc.)
+
+.. _dynamo0.3-meta-funcs:
 
 meta_funcs
 ##########
@@ -1022,7 +1057,7 @@ this metadata should be omitted.) Consider the
 following kernel metadata:
 
 ::
-   
+
     type, extends(kernel_type) :: testkern_operator_type
       type(arg_type), dimension(3) :: meta_args =   &
           (/ arg_type(gh_operator,gh_write,w0,w0),  &
@@ -1048,6 +1083,50 @@ basis functions (``gh_diff_basis``) on one or more of the function
 spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
+
+meta_reference_element
+######################
+
+A kernel that requires properties of the reference element in LFRic
+specifies those properties through the ``meta_reference_element``
+metadata entry.  (If no reference element properties are required then
+this metadata should be omitted.)  Consider the following example
+kernel metadata::
+
+  type, extends(kernel_type) :: testkern_type
+    type(arg_type), dimension(2) :: meta_args = &
+        (/ arg_type(gh_field, gh_read, w1),     &
+           arg_type(gh_field, gh_write, w0) /)
+    type(reference_element_data_type), dimension(2) ::               &
+      meta_reference_element =                                       &
+        (/ reference_element_data_type(normals_to_horizontal_faces), &
+           reference_element_data_type(normals_to_vertical_faces) /)
+  contains
+    procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+This metadata specifies that the ``testkern_type`` kernel requires two
+properties of the reference element. The supported properties are
+listed below:
+
+.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+
+=================================== ===========================================
+Name                                Description
+=================================== ===========================================
+normals_to_horizontal_faces         Array of normals pointing in the positive
+                                    (x, y, z) axis direction for each
+                                    horizontal face indexed as (face,
+                                    component).
+normals_to_vertical_faces           Array of normals pointing in the positive
+                                    (x, y, z) axis direction for each vertical
+                                    face indexed as (face, component).
+outward_normals_to_horizontal_faces Array of outward-pointing normals for each
+                                    horizontal face indexed as (component,
+                                    face).
+outward_normals_to_vertical_faces   Array of outward-pointing normals for each
+                                    vertical face indexed as (component, face).
+=================================== ===========================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1186,12 +1265,26 @@ rules, along with PSyclone's naming conventions, are:
 	      target function space (e.g\. as specified by ``gh_evaluator_targets``).
 	      Each of these arrays are of rank 3 with extent (``dimension``, ``number_of_dofs``,
 	      ``ndf_<target_function_space>``). The name of the argument is ``"basis_"<field_function_space>"_on_"<target_function_space>`` or ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``, as appropriate.
-	      
+
            where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D).
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
-5) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+5) If either the ``normals_to_horizontal_faces`` or
+   ``outward_normals_to_horizontal_faces`` properties of the reference
+   element are required then pass the number of
+   horizontal faces of the reference element (``nfaces_re_h``). Similarly,
+   if either the ``normals_to_vertical_faces`` or
+   ``outward_normals_to_vertical_faces`` are
+   required then pass the number of vertical faces (``nfaces_re_v``). Then,
+   in the order specified in the ``meta_reference_element`` metadata:
+
+   1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
+      array with dimensions ``(nfaces_re_h/v, 3)``.
+   2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
+      integer array with dimensions ``(3, nfaces_re_h/v)``.
+
+6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
     1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
@@ -1206,10 +1299,10 @@ Examples
 ^^^^^^^^
 
 .. highlight:: fortran
-	  
+
 For instance, if a kernel has only one written argument and requires an
 evaluator then its metadata might be::
-  
+
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
           (/ arg_type(gh_operator, gh_write, w0, w1), &
@@ -1228,7 +1321,7 @@ be::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0_on_w0, ndf_w1)    
+       basis_w0_on_w0, ndf_w1)
 
 where ``local_stencil`` is the operator, ``xdata``, ``ydata``
 etc\. are the three components of the field vector and ``map_w0`` is
@@ -1251,10 +1344,31 @@ If instead, ``gh_evaluator_targets`` is specified in the metadata::
 
 then we will need to pass two sets of basis functions (evaluated at W0
 and at W1)::
-  
+
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
+
+If the metadata specifies that the kernel requires a property of the
+reference element (to be implemented in Issue #150)::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(reference_element_data_type) :: meta_reference_element(1) =  &
+          (/ reference_element_data_type(normals_to_horizontal_faces) /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+Then the kernel must be passed the number of horizontal faces of the
+reference element and the array of face normals::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       nfaces_re_h, normals_face_h)
 
 Rules for CMA Kernels
 #####################
@@ -1279,21 +1393,21 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
     4) Include the total number of cells, ``ncell_3d``, which is an integer
        with intent ``in``.
     5) For each argument in the ``meta_args`` metadata array:
-       
+
        1) If it is a LMA operator, include a real, 3-dimensional
           array of type ``r_def``. The first two dimensions are the local
           degrees of freedom for the ``to`` and ``from`` spaces,
           respectively. The third dimension is ``ncell_3d``.
-	  
+
        2) If it is a CMA operator, include a real, 3-dimensional array
           of type ``r_def``. The first dimension is is
           ``"bandwidth_"<operator_name>``, the second is
           ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
-	  
+
 	  1) Include the number of rows in the banded matrix.  This is
 	     an integer with intent ``in`` and is named as
 	     ``"nrow_"<operator_name>``.
-          2) If the from-space of the operator is *not* the same as the 
+          2) If the from-space of the operator is *not* the same as the
 	     to-space then include the number of columns in the banded
 	     matrix.  This is an integer with intent ``in`` and is named as
 	     ``"ncol_"<operator_name>``.
@@ -1310,8 +1424,8 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
 
        3) If it is a field or scalar argument then include arguments following
-          the same rules as for general-purpose kernels. 
-	  
+          the same rules as for general-purpose kernels.
+
     6) For each unique function space in the order they appear in the
        metadata arguments (the ``to`` function space of an operator is
        considered to be before the ``from`` function space of the same
@@ -1463,9 +1577,9 @@ Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
+:ref:`built-ins` section.  In the Dynamo0.3 API, calls to
 Built-ins generally follow a convention that the field/scalar written
-to comes first in the argument list. Dynamo 0.3 Built-ins must conform to the
+to comes first in the argument list. Dynamo0.3 Built-ins must conform to the
 following four rules:
 
  1) Built-in kernels must have one and only one modified (i.e. written
@@ -1548,7 +1662,7 @@ X_plus_Y
 
 
 Sums two fields (Z = X + Y): ::
-  
+
   field3(:) = field1(:) + field2(:)
 
 where:
@@ -1577,7 +1691,7 @@ aX_plus_Y
 **aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
 Performs Z = aX + Y: ::
-   
+
   field3(:) = scalar*field1(:) + field2(:)
 
 where:
@@ -1592,7 +1706,7 @@ inc_aX_plus_Y
 **inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
 
 Performs X = aX + Y (increments the first field): ::
-   
+
   field1(:) = scalar*field1(:) + field2(:)
 
 where:
@@ -1622,7 +1736,7 @@ aX_plus_bY
 **aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
 
 Performs Z = aX + bY: ::
-   
+
   field3(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
@@ -1637,7 +1751,7 @@ inc_aX_plus_bY
 **inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
 Performs X = aX + bY (increments the first field): ::
-   
+
   field1(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
@@ -1656,9 +1770,9 @@ X_minus_Y
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
-Subtracts the second field from the first and stores the result in the 
+Subtracts the second field from the first and stores the result in the
 third (Z = X - Y): ::
-  
+
   field3(:) = field1(:) - field2(:)
 
 where:
@@ -1687,7 +1801,7 @@ aX_minus_Y
 **aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
 Performs Z = aX - Y: ::
-   
+
   field3(:) = scalar*field1(:) - field2(:)
 
 where:
@@ -1736,7 +1850,7 @@ X_times_Y
 
 **X_times_Y** (*field3*, *field1*, *field2*)
 
-Multiplies two fields together and returns the result in a third 
+Multiplies two fields together and returns the result in a third
 field (Z = X*Y): ::
 
   field3(:) = field1(:)*field2(:)
@@ -1766,7 +1880,7 @@ inc_aX_times_Y
 **inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
 Performs X = a*X*Y (increments the first field): ::
-   
+
   field1(:) = scalar*field1(:)*field2(:)
 
 where:
@@ -1786,9 +1900,9 @@ a_times_X
 
 **a_times_X** (*field2*, *scalar*, *field1*)
 
-Multiplies a field by a scalar and stores the result in a second 
+Multiplies a field by a scalar and stores the result in a second
 field (Y = a*X): ::
-  
+
   field2(:) = scalar*field1(:)
 
 where:
@@ -1822,7 +1936,7 @@ X_divideby_Y
 
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
-Divides the first field by the second and returns the result in the 
+Divides the first field by the second and returns the result in the
 third (Z = X/Y): ::
 
   field3(:) = field1(:)/field2(:)
@@ -1970,7 +2084,7 @@ sum_X
 
 Sums all of the elements of the field *field* and returns the result
 in the scalar variable *sumfld*: ::
-  
+
   sumfld = SUM(field(:))
 
 where:
@@ -2059,7 +2173,7 @@ the boundary between processors must be replicated (as different cells
 share the same dof). Only one processor can own a dof, therefore
 processors will have continuous fields which contain dofs that the
 processor does not own. These unowned dofs are called `annexed` in the
-dynamo0.3 api and are a separate, but related, concept to field halos.
+Dynamo0.3 API and are a separate, but related, concept to field halos.
 
 When a kernel that iterates over cells needs to read a continuous
 field then the annexed dofs must be up-to-date on all processors. If
@@ -2078,29 +2192,33 @@ to the :ref:`dynamo0.3-developers` developers section.
 Transformations
 ---------------
 
-This section describes the dynamo-api-specific transformations. In all
+This section describes the Dynamo0.3-API-specific transformations. In
 cases, excepting **Dynamo0p3RedundantComputationTrans**,
 **Dynamo0p3AsyncHaloExchangeTrans** and **Dynamo0p3KernelConstTrans**,
 these transformations are specialisations of generic transformations
 described in the :ref:`transformations` section. The difference
 between these transformations and the generic ones is that these
-perform dynamo-api-specific checks to make sure the transformations
+perform Dynamo0.3-API-specific checks to make sure the transformations
 are valid. In practice these transformations perform the required
 checks then call the generic ones internally.
 
-The use of the dynamo-api-specific transformations is exactly the same
-as the equivalent generic ones in all cases excepting
+The use of the Dynamo0.3-API-specific transformations is exactly the
+same as the equivalent generic ones in all cases excepting
 **DynamoLoopFuseTrans**. In this case an additional optional argument
-**same_space** has been added to the **apply** method. The reason for
-this is to allow loop fusion when one or more of the iteration-spaces
-is determined by a function space that is unknown by PSyclone at
-compile time. This is the case when the **ANY_SPACE** function space
-is specified in the Kernel metadata. By default PSyclone will not
-allow loop fusion if it does not know the spaces are the same. The
-**same_space** option allows the user to specify that
-the spaces are the same. This option should therefore be used with
-caution. Note, if PSyclone knows the spaces are different this option
-has no effect and the transformation will always raise an exception.
+**same_space** can be set after creating an instance of the transformation.
+The reason for this is to allow loop fusion when one or more of the
+iteration spaces is determined by a function space that is unknown by
+PSyclone at compile time. This is the case when the ``ANY_SPACE_n``
+function space is specified in the Kernel metadata. Setting
+``ftrans.same_space = True`` allows the user to specify that the spaces are
+the same. This option should therefore be used with caution. PSyclone will
+raise an error if **same_space** is used when at least one of the function
+spaces is not ``ANY_SPACE_n`` or both spaces are not the same. As a general
+PSyclone will not allow loop fusion if it does not know the spaces
+are the same. The exception are loops over discontinuous spaces (see
+:ref:`dynamo0.3-function-space` for list of discontinuous function spaces)
+for which loop fusion is allowed (unless the loop bounds become different
+due to a prior transformation).
 
 The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
@@ -2117,7 +2235,7 @@ The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
 that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
-all versions of the Dynamo API.
+all versions of the Dynamo0.3 API.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
 	  supported for loops that contain inter-grid kernels. Attempting

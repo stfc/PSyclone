@@ -161,7 +161,8 @@ Example 10
 ^^^^^^^^^^
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
-fields (map between grids of different resolutions).
+fields (map between grids of different resolutions), as well as the
+use of ``ANY_DISCONTINUOUS_SPACE`` metadata.
 
 Example 11
 ^^^^^^^^^^
@@ -267,7 +268,7 @@ Example 3: OpenACC parallelisation of tra_adv
 Demonstrates the introduction of simple OpenACC parallelisation (using the
 ``data`` and ``kernels`` directives) for a NEMO tracer-advection benchmark.
 
-.. _nemo-eg4-sir
+.. _nemo-eg4-sir:
 
 Example 4: Transforming Fortran code to the SIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
