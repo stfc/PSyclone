@@ -1064,10 +1064,6 @@ The SIR back-end is limited in a number of ways:
 - the only unary operator currently supported is '-' and the subject
   of this unary operator must be a literal.
 
-The current implementation is not able to deal with variables local to
-a region (which the SIR expects), as, in Fortran, the standard scope
-of a local variable is the whole routine, not a sub-region of code.
-
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
 run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
