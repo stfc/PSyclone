@@ -2582,6 +2582,7 @@ class OMPParallelDirective(OMPDirective):
                                correct structure to permit the insertion \
                                of the OpenMP parallel region.
         '''
+        # TODO #435: Remove this function once this is fixed
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
@@ -2634,6 +2635,7 @@ class OMPParallelDirective(OMPDirective):
         # In order to avoid this problem when an "omp do" is present, test
         # for this case and if so move the "omp end parallel" two statements
         # further down, i.e. after the loop and "omp end do" statement.
+        # TODO #435
         if isinstance(parent_ast.content[end_idx], Comment) and \
                 "omp do" in str(parent_ast.content[end_idx]):
             # We need to test for instance, otherwise the string representation
@@ -2799,6 +2801,7 @@ class OMPDoDirective(OMPDirective):
         # This initial loop is necessary in case that the parent is e.g. an
         # omp parallel node (which has no ast either). So we search up
         # till we find the first tree to actually have an ast.
+        # TODO #435
         while not parent.ast:
             parent = parent.parent
         parent_ast = parent.ast
@@ -6644,6 +6647,7 @@ class BinaryOperation(Operation):
             # Support some commutative law, unfortunately we now need
             # to repeat some tests already done in super(), since we
             # don't know why the above test failed
+            # TODO #533 for documenting restrictions
             # pylint: disable=unidiomatic-typecheck
             if type(self) != type(other):
                 return False
