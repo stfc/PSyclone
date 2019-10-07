@@ -226,6 +226,29 @@ def test_omp_do_update_error():
             "insert OpenMP parallel do directive" in str(err))
 
 
+def test_omp_do_update_error2():
+    '''Check if the OMPDoDirective update function raises exception as
+    expected.'''
+    from psyclone.transformations import OMPParallelTrans
+    from psyclone.psyGen import OMPParallelDirective
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    par_trans = OMPParallelTrans()
+
+    new_sched, _ = par_trans.apply(schedule[0].loop_body[1].else_body[0]
+                                   .else_body[0])
+    directive = new_sched[0].loop_body[1].else_body[0].else_body[0]
+    assert isinstance(directive, OMPParallelDirective)
+    # Note that the ast does NOT have a parent property defined!
+    # pylint: disable=protected-access
+    directive.parent.ast._parent = None
+    with pytest.raises(InternalError) as err:
+        directive.update()
+    assert "Cannot find parent ast for omp parallel" in str(err)
+
+
 def test_omp_parallel_errs():
     ''' Check that we raise the expected errors when incorrectly attempting
     to add an OpenMP parallel region containing more than one node. '''

@@ -2600,7 +2600,7 @@ class OMPParallelDirective(OMPDirective):
             parent_ast = parent_ast._parent
 
         if not parent_ast:
-            raise InternalError("Cannot find parent ast.")
+            raise InternalError("Cannot find parent ast for omp parallel.")
 
         # Find the locations in which we must insert the begin/end
         # directives...
