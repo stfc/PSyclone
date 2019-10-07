@@ -265,6 +265,8 @@
 	83) PR #360 for part of #150. Document the rules for reference
 	element properties in the dynamo0.3 API (LFRic).
 
+	84) PR #518 for #393. Add the Container PSyIR node.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
