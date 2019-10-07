@@ -869,16 +869,20 @@ class DynKernMetadata(KernelType):
         self._arg_descriptors = []
         for arg_type in self._inits:
             self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+
+        # Get a list of the Type declarations in the metadata
+        type_declns = [cline for cline in self._ktype.content if
+                       isinstance(cline, fparser.one.typedecl_statements.Type)]
+
         # parse the func_type metadata if it exists
         found = False
-        for line in self._ktype.content:
-            if isinstance(line, fparser.one.typedecl_statements.Type):
-                for entry in line.selector:
-                    if entry == "func_type":
-                        if line.entity_decls[0].split()[0].split("(")[0] == \
-                                "meta_funcs":
-                            found = True
-                            break
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "func_type":
+                    if line.entity_decls[0].split()[0].split("(")[0] == \
+                       "meta_funcs":
+                        found = True
+                        break
         if not found:
             func_types = []
         else:
@@ -953,6 +957,15 @@ class DynKernMetadata(KernelType):
         for target in _targets:
             if target not in self._eval_targets:
                 self._eval_targets.append(target)
+
+        # Does this kernel require any properties of the reference element?
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "reference_element_data_type":
+                    if line.entity_decls[0].split()[0].split("(")[0] == \
+                       "meta_reference_element":
+                        re_props = self.getkerneldescriptors(
+                            line, var_name="meta_reference_element")
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
