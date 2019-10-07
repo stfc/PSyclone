@@ -2637,7 +2637,8 @@ class OMPParallelDirective(OMPDirective):
         # further down, i.e. after the loop and "omp end do" statement.
         # TODO #435
         if isinstance(parent_ast.content[end_idx], Comment) and \
-                "omp do" in str(parent_ast.content[end_idx]):
+                "omp do" in str(parent_ast.content[end_idx]) and \
+                "omp end do" in str(parent_ast.content[end_idx+2]):
             # We need to test for instance, otherwise the string representation
             # of a loop could somewhere contain an "omp do"
             parent_ast.content.insert(end_idx+3, enddir)
