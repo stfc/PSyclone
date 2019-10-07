@@ -39,7 +39,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.dependency_tools import DependencyTools
+from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.psyGen import PSyFactory
 
 
