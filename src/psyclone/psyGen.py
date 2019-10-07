@@ -4168,9 +4168,14 @@ class CodedKern(Kern):
             # exist.
             from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
-            new_kern_code = fortran_writer(self.get_kernel_schedule())
+            # Start from the root of the schedule as we want to output
+            # any module information surrounding the kernel subroutine
+            # as well as the subroutine itself.
+            new_kern_code = fortran_writer(self.get_kernel_schedule().root)
             fll = FortLineLength()
             new_kern_code = fll.process(new_kern_code)
+            print (new_kern_code)
+            exit(1)
         else:
             # This is an old style transformation which modifes the
             # fp2 parse tree directly. Therefore use the fp2

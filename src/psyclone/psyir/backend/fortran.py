@@ -174,6 +174,9 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        from psyclone.psyGen import Symbol
+        if isinstance(symbol.interface, Symbol.FortranGlobal):
+            return "{0}use {1}, only : {2}\n".format(self._nindent, symbol.interface.module_name, symbol.name)
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
         kind = gen_kind(symbol)
@@ -190,6 +193,54 @@ class FortranWriter(PSyIRVisitor):
         if symbol.is_constant:
             result += " = {0}".format(symbol.constant_value)
         result += "\n"
+        return result
+
+    def container_node(self, node):
+        '''This method is called when a Container instance is found in
+        the PSyIR tree.
+
+        A container node is mapped to a module in the Fortran back end.
+
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Container`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if the name attribute of the supplied \
+        node is empty or None.
+
+        '''
+        if not node.name:
+            raise VisitorError("Expected node name to have a value.")
+
+        # Test: all children must be kernelschedule
+
+        result = (
+            "{0}module {1}\n"
+            "".format(self._nindent, node.name))
+
+        self._depth += 1
+
+        declarations = ""
+        for symbol in node.symbol_table.symbols:
+            declarations += self.gen_declaration(symbol)
+
+        # Get the subroutine statements.
+        subroutines = ""
+        for child in node.children:
+            subroutines += self._visit(child)
+
+        result += (
+            "{1}\n"
+            "{0}contains\n"
+            "{2}\n"
+            "".format(self._nindent, declarations, subroutines))
+
+        self._depth -= 1
+        result += (
+            "{0}end module {1}\n"
+            "".format(self._nindent, node.name))
         return result
 
     def kernelschedule_node(self, node):
@@ -213,17 +264,8 @@ class FortranWriter(PSyIRVisitor):
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
-        module_name = node.name.rstrip("_code") + "_mod"
-        result = (
-            "{0}module {1}\n"
-            "".format(self._nindent, module_name))
-
-        self._depth += 1
         args = [symbol.name for symbol in node.symbol_table.argument_list]
-        result += (
-            "{0}use constants_mod, only : r_def, i_def\n"
-            "{0}implicit none\n"
-            "{0}contains\n"
+        result = (
             "{0}subroutine {1}({2})\n"
             "".format(self._nindent, node.name, ",".join(args)))
 
@@ -246,10 +288,6 @@ class FortranWriter(PSyIRVisitor):
             "{0}end subroutine {1}\n"
             "".format(self._nindent, node.name))
 
-        self._depth -= 1
-        result += (
-            "{0}end module {1}\n"
-            "".format(self._nindent, module_name))
         return result
 
     def assignment_node(self, node):
