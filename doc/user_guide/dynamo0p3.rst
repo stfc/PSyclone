@@ -731,18 +731,16 @@ then the permitted access modes depend on the type of data it is and
 the function space it is on. Valid values are given in the table
 below.
 
-.. tabularcolumns:: |p{5.5cm}|p{6cm}|p{6cm}|
-
-==========================  ============================    =============================
-Argument Type               Function Space                  Access Type
-==========================  ============================    =============================
-*``GH_INTEGER``*            *n/a*                           *``GH_SUM`` (Built-ins only)*
-``GH_REAL``                 n/a                             ``GH_SUM`` (Built-ins only)
-``GH_FIELD``                Discontinuous                   ``GH_WRITE``, ``GH_READWRITE``
-``GH_FIELD``                Continuous                      ``GH_INC``
-``GH_OPERATOR``             Any for both 'to' and 'from'    ``GH_WRITE``, ``GH_READWRITE``
-``GH_COLUMNWISE_OPERATOR``  Any for both 'to' and 'from'    ``GH_WRITE``, ``GH_READWRITE``
-==========================  ============================    ==============================
+======================  ============================  =========================
+Argument Type           Function Space                Access Type
+======================  ============================  =========================
+*GH_INTEGER*            *n/a*                         *GH_SUM (Built-ins only)*
+GH_REAL                 n/a                           GH_SUM (Built-ins only)
+GH_FIELD                Discontinuous                 GH_WRITE, GH_READWRITE
+GH_FIELD                Continuous                    GH_INC
+GH_OPERATOR             Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
+GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
+======================  ============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
           scalar arguments. *Since the LFRic infrastructure does not
@@ -796,8 +794,8 @@ sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
 point is a vector. In Dynamo0.3 API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
-is 3 (see the table at the end of :ref:`<dynamo0.3-stub-generation-rules>`
-Section for dimensions of basis and differential basis functions).
+is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for dimensions
+of basis and differential basis functions).
 
 Function spaces can share DoFs between cells in the horizontal, vertical
 or both directions. Depending on the function space and FEM order,
@@ -886,16 +884,17 @@ applies to the three generic ``ANY_*_*`` function space identifiers
 above. The valid metadata values for continuous and discontinuous
 function apaces are summarised in the table below.
 
-.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+.. tabularcolumns:: |l|l|
 
-========================= ===========================================
-Function Space Continuity Function Space Name
-========================= ===========================================
-**Continuous**            ``W0``, ``W1``, ``W2``, ``W2H``, W2trace``,
-                          ``ANY_W2``, ``ANY_SPACE_n``
-**Discontinuous**         ``W3``, ``Wtheta``, ``W2V``, ``W2broken``,
-                          ``ANY_DISCONTINUOUS_SPACE_n``
-========================= ===========================================
++---------------------------+----------------------------+
+| Function Space Continuity | Function Space Name        |
++===========================+============================+
+| **Continuous**            | W0, W1, W2, W2H, W2trace,  |
+|                           | ANY_W2, ANY_SPACE_n        |
++---------------------------+----------------------------+
+| **Discontinuous**         | W3, Wtheta, W2V, W2broken, |
+|                           | ANY_DISCONTINUOUS_SPACE_n  |
++---------------------------+----------------------------+
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -1132,24 +1131,24 @@ This metadata specifies that the ``testkern_type`` kernel requires two
 properties of the reference element. The supported properties are
 listed below:
 
-.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+.. tabularcolumns:: |p{5.5cm}|p{8.5cm}|
 
-======================================= ===========================================
-Name                                    Description
-======================================= ===========================================
-``normals_to_horizontal_faces``         Array of normals pointing in the positive
-                                        (x, y, z) axis direction for each
-                                        horizontal face indexed as (face,
-                                        component).
-``normals_to_vertical_faces``           Array of normals pointing in the positive
-                                        (x, y, z) axis direction for each vertical
-                                        face indexed as (face, component).
-``outward_normals_to_horizontal_faces`` Array of outward-pointing normals for each
-                                        horizontal face indexed as (component,
-                                        face).
-``outward_normals_to_vertical_faces``   Array of outward-pointing normals for each
-                                        vertical face indexed as (component, face).
-======================================= ===========================================
+===================================  ===========================================
+Name                                 Description
+===================================  ===========================================
+normals_to_horizontal_faces          Array of normals pointing in the positive
+                                     (x, y, z) axis direction for each
+                                     horizontal face indexed as (face,
+                                     component).
+normals_to_vertical_faces            Array of normals pointing in the positive
+                                     (x, y, z) axis direction for each vertical
+                                     face indexed as (face, component).
+outward_normals_to_horizontal_faces  Array of outward-pointing normals for each
+                                     horizontal face indexed as (component,
+                                     face).
+outward_normals_to_vertical_faces    Array of outward-pointing normals for each
+                                     vertical face indexed as (component, face).
+===================================  ===========================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1301,13 +1300,31 @@ rules, along with PSyclone's naming conventions, are:
             as appropriate.
 
          where ``dimension`` is 1 or 3 and depends upon the function space
-         and whether or not it is a basis or a differential basis function
-         (see the table below). ``number_of_dofs`` is the number of
-         degrees of freedom (DoFs) associated with the function space and
-         ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in
+         (see :ref:`dynamo0.3-function-space` above for more information) and
+         whether or not it is a basis or a differential basis function (see
+         the table below). ``number_of_dofs`` is the number of degrees of
+         freedom (DoFs) associated with the function space and ``np_*`` are
+         the number of points to be evaluated: i) ``*_xyz`` in
          all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
          iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
          vertical (1D).
+
+         .. tabularcolumns:: |l|c|l|
+
+         +---------------+-----------+-------------------------+
+         | Function Type | Dimension | Function Space Name     |
+         +===============+===========+=========================+
+         | Basis         |    1      | W0, W3, Wtheta, W2trace |
+         |               +-----------+-------------------------+
+         |               |    3      | W1, W2, W2H, W2V,       |
+         |               |           | W2broken, ANY_W2        |
+         +---------------+-----------+-------------------------+
+         | Differential  |    1      | W2, W2H, W2V, W2broken  |
+         | Basis         +-----------+-------------------------+
+         |               |    3      | W0, W1, W3, Wtheta,     |
+         |               |           | W2trace, ANY_W2         |
+         +---------------+-----------+-------------------------+
+
 
       2) If it is an orientation array, include the associated argument.
          The argument is an integer array with intent ``in``. There is
@@ -1340,20 +1357,6 @@ rules, along with PSyclone's naming conventions, are:
    2) Include weights which are real arrays of kind ``r_def``:
 
       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``.
-
-.. tabularcolumns:: |p{5.5cm}|p{2cm}|p{8cm}|
-
-================== ========= =======================================
-Function Type      Dimension Function Space Name
-================== ========= =======================================
-Basis                  1     ``W0``, ``W3``, ``Wtheta``, ``W2trace``
-                       3     ``W1``, ``W2``, ``W2H``, ``W2V``,
-                             ``W2broken``, ``ANY_W2``
-Differential Basis     1     ``W2``, ``W2H``, ``W2V``, ``W2broken``
-                       3     ``W0``, ``W1``, ``W3``, ``Wtheta``,
-                             ``W2trace``, ``ANY_W2``
-================== ========= =======================================
-
 
 Examples
 ^^^^^^^^
