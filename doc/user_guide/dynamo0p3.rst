@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified I. Kavcic, Met Office
+.. Modified by I. Kavcic, Met Office
 
 .. _dynamo0.3-api:
 
@@ -515,21 +515,22 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the Dynamo0.3 API kernel
-metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
-'iterates_over' and 5) 'procedure'.
+metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
+4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
 
 ::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
+    type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These five metadata elements are discussed in order in the following
+These six metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -674,7 +675,7 @@ In this case the metadata should be specified as being ``any_w2``.
 
 It may be that a Kernel is written such that a field and/or operators
 may be on/map-between any function space(s). In this case the metadata
-should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_9``
+should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_10``
 (see :ref:`Supported Function Spaces <dynamo0.3-function-space>`). If
 the generic function spaces are known to be discontinuous the metadata
 may be specified as being one of ``ANY_DISCONTINUOUS_SPACE_1``, ...,
@@ -834,7 +835,7 @@ In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
 sections above:
 
-* ``ANY_SPACE_n``, *n = 1, 2, ... 9*, for when the function space
+* ``ANY_SPACE_n``, *n = 1, 2, ... 10*, for when the function space
   of the modified argument(s) cannot be determined and/or for when a
   Kernel has been written so that it works with fields on any of the
   available spaces;
@@ -1040,7 +1041,9 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.:
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_REAL, GH_READ) /)
 
-.. note:: The order with which arguments are specified in metadata for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
+.. note:: The order with which arguments are specified in metadata for CMA
+          kernels does not affect the process of identifying the type of
+          kernel (whether it is assembly, matrix-matrix etc.)
 
 .. _dynamo0.3-meta-funcs:
 
@@ -1080,6 +1083,50 @@ basis functions (``gh_diff_basis``) on one or more of the function
 spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
+
+meta_reference_element
+######################
+
+A kernel that requires properties of the reference element in LFRic
+specifies those properties through the ``meta_reference_element``
+metadata entry.  (If no reference element properties are required then
+this metadata should be omitted.)  Consider the following example
+kernel metadata::
+
+  type, extends(kernel_type) :: testkern_type
+    type(arg_type), dimension(2) :: meta_args = &
+        (/ arg_type(gh_field, gh_read, w1),     &
+           arg_type(gh_field, gh_write, w0) /)
+    type(reference_element_data_type), dimension(2) ::               &
+      meta_reference_element =                                       &
+        (/ reference_element_data_type(normals_to_horizontal_faces), &
+           reference_element_data_type(normals_to_vertical_faces) /)
+  contains
+    procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+This metadata specifies that the ``testkern_type`` kernel requires two
+properties of the reference element. The supported properties are
+listed below:
+
+.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+
+=================================== ===========================================
+Name                                Description
+=================================== ===========================================
+normals_to_horizontal_faces         Array of normals pointing in the positive
+                                    (x, y, z) axis direction for each
+                                    horizontal face indexed as (face,
+                                    component).
+normals_to_vertical_faces           Array of normals pointing in the positive
+                                    (x, y, z) axis direction for each vertical
+                                    face indexed as (face, component).
+outward_normals_to_horizontal_faces Array of outward-pointing normals for each
+                                    horizontal face indexed as (component,
+                                    face).
+outward_normals_to_vertical_faces   Array of outward-pointing normals for each
+                                    vertical face indexed as (component, face).
+=================================== ===========================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1223,7 +1270,21 @@ rules, along with PSyclone's naming conventions, are:
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
-5) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+5) If either the ``normals_to_horizontal_faces`` or
+   ``outward_normals_to_horizontal_faces`` properties of the reference
+   element are required then pass the number of
+   horizontal faces of the reference element (``nfaces_re_h``). Similarly,
+   if either the ``normals_to_vertical_faces`` or
+   ``outward_normals_to_vertical_faces`` are
+   required then pass the number of vertical faces (``nfaces_re_v``). Then,
+   in the order specified in the ``meta_reference_element`` metadata:
+
+   1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
+      array with dimensions ``(nfaces_re_h/v, 3)``.
+   2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
+      integer array with dimensions ``(3, nfaces_re_h/v)``.
+
+6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
     1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
@@ -1287,6 +1348,27 @@ and at W1)::
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
+
+If the metadata specifies that the kernel requires a property of the
+reference element (to be implemented in Issue #150)::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(reference_element_data_type) :: meta_reference_element(1) =  &
+          (/ reference_element_data_type(normals_to_horizontal_faces) /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+Then the kernel must be passed the number of horizontal faces of the
+reference element and the array of face normals::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       nfaces_re_h, normals_face_h)
 
 Rules for CMA Kernels
 #####################

@@ -44,8 +44,8 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, KernelSchedule, \
-    Assignment, Return, Array, InternalError, GenerationError, SymbolError
+    Symbol, KernelSchedule, Container, \
+    Assignment, Return, Array, InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -346,10 +346,21 @@ class Fparser2Reader(object):
                                   "module definition per file supported."
                                   "".format(name))
 
-        # TODO: Metadata can be also accessed for validation (issue #288)
+        module = module_ast.content[0]
+        mod_content = module.content
+        mod_name = str(mod_content[0].items[1])
+
+        # Create a container to capture the module information and
+        # connect it to the schedule.
+        new_container = Container(mod_name)
+        new_schedule.parent = new_container
+        new_container.children = [new_schedule]
+
+        mod_spec = mod_content[1]
+        decl_list = mod_spec.content
+        self.process_declarations(new_container, decl_list, [])
 
         try:
-            mod_content = module_ast.content[0].content
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
             subroutine = search_subroutine(subroutines.content, name)
@@ -1456,17 +1467,9 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
-        if hasattr(parent.root, 'symbol_table'):
-            symbol_table = parent.root.symbol_table
-            try:
-                symbol_table.lookup(node.string)
-            except KeyError:
-                raise SymbolError(
-                    "Undeclared reference '{0}' found when parsing fparser2 "
-                    "node '{1}' inside '{2}'."
-                    "".format(str(node.string), repr(node), parent.root.name))
-
-        return Reference(node.string, parent)
+        reference = Reference(node.string, parent)
+        reference.check_declared()
+        return reference
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1506,18 +1509,8 @@ class Fparser2Reader(object):
         '''
         reference_name = node.items[0].string.lower()
 
-        if hasattr(parent.root, 'symbol_table'):
-            symbol_table = parent.root.symbol_table
-            try:
-                symbol_table.lookup(reference_name)
-            except KeyError:
-                raise GenerationError(
-                    "Undeclared reference '{0}' found when parsing fparser2 "
-                    "node '{1}' inside '{2}'."
-                    "".format(str(reference_name), repr(node),
-                              parent.root.name))
-
         array = Array(reference_name, parent)
+        array.check_declared()
 
         if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
             subscript_list = node.items[1].items
