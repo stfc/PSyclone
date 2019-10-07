@@ -827,6 +827,14 @@ was not possible.
 .. autoclass:: psyclone.dependency_tools.DependencyTools
     :members:
 
+.. note:: There is limited support for detecting index expression that are
+    identical because of the commutative law, e.g. `i+k` and `k+i` would be
+    considered equal. But this only applies if two items are switched that
+    are part of the same PSyIR node. An expression like `i+k+1` is stored as
+    `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
+    be equal, because `i+1` and `i+k` are not the same.
+
+
 An example of how to use this class is shown below. It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
 can be parallelised::
@@ -835,7 +843,9 @@ can be parallelised::
   # The loops in the Fortran functions that must be parallelised
   # are over the 'grid' domain. Note that the psyclone config
   # file specifies the mapping of loop variable to type, e.g.:
+  #
   #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+  #
   # This means any loop using the variable 'np' is considered a
   # loop of type 'grid'
   dt = DependencyTools(["grid"])
@@ -845,7 +855,7 @@ can be parallelised::
           # Check if there is a variable dependency that might 
           # prevent this loop from being parallelised:
           if dt.can_loop_be_parallelised(statement):
-              parallel_loop_dynamic.apply(statement)
+              parallel_loop.apply(statement)
           else:
               # Print all messages from the dependency analysis
               # as feedback for the user:
