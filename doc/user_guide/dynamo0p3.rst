@@ -731,16 +731,18 @@ then the permitted access modes depend on the type of data it is and
 the function space it is on. Valid values are given in the table
 below.
 
-======================	============================    =========================
-Argument Type           Function Space                  Access Type
-======================	============================    =========================
-*GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
-GH_REAL                 n/a                             GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous                   GH_WRITE, GH_READWRITE
-GH_FIELD                Continuous                      GH_INC
-GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
-GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
-======================  ============================    =========================
+.. tabularcolumns:: |p{5.5cm}|p{6cm}|p{6cm}|
+
+==========================  ============================    =============================
+Argument Type               Function Space                  Access Type
+==========================  ============================    =============================
+*``GH_INTEGER``*            *n/a*                           *``GH_SUM`` (Built-ins only)*
+``GH_REAL``                 n/a                             ``GH_SUM`` (Built-ins only)
+``GH_FIELD``                Discontinuous                   ``GH_WRITE``, ``GH_READWRITE``
+``GH_FIELD``                Continuous                      ``GH_INC``
+``GH_OPERATOR``             Any for both 'to' and 'from'    ``GH_WRITE``, ``GH_READWRITE``
+``GH_COLUMNWISE_OPERATOR``  Any for both 'to' and 'from'    ``GH_WRITE``, ``GH_READWRITE``
+==========================  ============================    ==============================
 
 .. note:: As mentioned above, note that only Built-ins may modify
           scalar arguments. *Since the LFRic infrastructure does not
@@ -792,7 +794,10 @@ Supported Function Spaces
 As mentioned in the :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector.
+point is a vector. In Dynamo0.3 API the dimension of the basis function
+set for the scalar function spaces is 1 and for the vector function spaces
+is 3 (see the table at the end of :ref:`<dynamo0.3-stub-generation-rules>`
+Section for dimensions of basis and differential basis functions).
 
 Function spaces can share DoFs between cells in the horizontal, vertical
 or both directions. Depending on the function space and FEM order,
@@ -1441,12 +1446,16 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
 
 1) Include the ``cell`` argument. ``cell`` is an integer and has
    intent ``in``.
+
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
    is an integer and has intent ``in``.
+
 3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
    an integer with intent ``in``.
+
 4) Include the total number of cells, ``ncell_3d``, which is an integer
    with intent ``in``.
+
 5) For each argument in the ``meta_args`` metadata array:
 
    1) If it is a LMA operator, include a real, 3-dimensional
@@ -1462,19 +1471,25 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
       1) Include the number of rows in the banded matrix.  This is
          an integer with intent ``in`` and is named as
          ``"nrow_"<operator_name>``.
+
       2) If the from-space of the operator is *not* the same as the
          to-space then include the number of columns in the banded
          matrix.  This is an integer with intent ``in`` and is named as
          ``"ncol_"<operator_name>``.
+
       3) Include the bandwidth of the banded matrix. This is an
          integer with intent ``in`` and is named as
          ``"bandwidth_"<operator_name>``.
+
       4) Include banded-matrix parameter ``alpha``. This is an integer
          with intent ``in`` and is named as ``"alpha_"<operator_name>``.
+
       5) Include banded-matrix parameter ``beta``. This is an integer
          with intent ``in`` and is named as ``"beta_"<operator_name>``.
+
       6) Include banded-matrix parameter ``gamma_m``. This is an integer
          with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
+
       7) Include banded-matrix parameter ``gamma_p``. This is an integer
          with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
 
@@ -1698,16 +1713,20 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    1) Are always  written in long form and lower case (e.g. **field1**,
       **field2**, **scalar1**, **scalar2**);
+
    2) *LHS* result arguments are always listed first;
+
    3) *RHS* arguments are listed in order of appearance in the mathematical
       expression, except when one of them is the *LHS* result.
 
 5) Built-ins names in Fortran consist of:
 
    1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
+
    2) Descriptive name of mathematical operation on *RHS* arguments in the
       form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
       ``<RHSargs>_<operationname>_<RHSargs>`` for more;
+
    3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
       arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
 
@@ -1716,7 +1735,9 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    1) Operators and *RHS* arguments are all in upper case (e.g. **X**,
       **Y**, **A**, **B**, **Plus**, **Minus**);
+
    2) There are no underscores;
+
    3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
 
 Addition
