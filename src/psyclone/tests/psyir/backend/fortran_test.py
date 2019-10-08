@@ -43,14 +43,14 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
-from psyclone.psyGen import Symbol, Node, CodeBlock
+from psyclone.psyGen import Symbol, Node, CodeBlock, Container
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 @pytest.fixture(scope="function")
 def fort_writer():
-    '''Create and return a FortanWriter object with default settings.'''
+    '''Create and return a FortranWriter object with default settings.'''
     return FortranWriter()
 
 
@@ -173,6 +173,65 @@ def test_fw_exception(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
     assert "Unsupported node 'Unsupported' found" in str(excinfo)
+
+
+def test_fw_container_1(fort_writer, monkeypatch):
+    '''Check the FortranWriter class outputs correct code when a Container
+    node with no content is found. Also tests that an exception is
+    raised if Container.name does not have a value.
+
+    '''
+    container = Container("test")
+    result = fort_writer(container)
+    assert (
+        "module test\n\n"
+        "  contains\n\n"
+        "end module test\n" in result)
+
+    monkeypatch.setattr(container, "_name", None)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer(container)
+    assert "Expected node name to have a value." in str(excinfo)
+
+
+def test_fw_container_2(fort_writer):
+    '''Check the FortranWriter class outputs correct code when a Container
+    node is found with a subroutine, use statements and
+    declarations. Also raise an exception if the Container contains a
+    Container.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "use test2_mod, only : a,b\n"
+        "real :: c,d\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+    container = schedule.root
+
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(container)
+
+    assert (
+        "module test\n"
+        "  use test2_mod, only : a\n"
+        "  use test2_mod, only : b\n"
+        "  real :: c\n"
+        "  real :: d\n\n"
+        "  contains\n"
+        "  subroutine tmp()\n\n\n"
+        "  end subroutine tmp\n\n"
+        "end module test\n" in result)
+
+    container.children.append(Container("child", parent=container))
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer(container)
+    assert ("The Fortran back-end requires all children of a Container "
+            "to be KernelSchedules." in str(excinfo))
 
 
 def test_fw_kernelschedule(fort_writer, monkeypatch):
@@ -685,46 +744,7 @@ def test_fw_nemoimplicitloop(fort_writer, parser):
     assert "a(:, :, :) = 0.0\n" in result
 
 
-@pytest.mark.xfail(reason="issue #430 : module name should be specified")
-def test_module_name():
-    '''Check the FortranWriter class outputs the module name specified in
-    the original kernel.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp(a,b,c)\n"
-        "  real, intent(out) :: a(:)\n"
-        "  real, intent(in) :: b(:)\n"
-        "  integer, intent(in) :: c\n"
-        "  a = b/c\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = create_schedule(code, "tmp")
-
-    # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
-
-    assert(
-        "module test\n"
-        "  use constants_mod, only : r_def, i_def\n"
-        "  implicit none\n"
-        "  contains\n"
-        "  subroutine tmp(a,b,c)\n"
-        "    real(r_def), dimension(:), intent(out) :: a\n"
-        "    real(r_def), dimension(:), intent(in) :: b\n"
-        "    integer(i_def), intent(in) :: c\n"
-        "\n"
-        "    a=b / c\n"
-        "\n"
-        "  end subroutine tmp\n"
-        "end module test") in result
-
-
-def test_fw_size():
+def test_fw_size(fort_writer):
     ''' Check that the FortranWriter outputs a SIZE intrinsic call. '''
     code = ("module test_mod\n"
             "contains\n"
@@ -737,6 +757,5 @@ def test_fw_size():
     schedule = create_schedule(code, "test_kern")
 
     # Generate Fortran from the PSyIR schedule
-    fvisitor = FortranWriter()
-    result = fvisitor(schedule)
+    result = fort_writer(schedule)
     assert "mysize=size(a, 2)" in result.lower()

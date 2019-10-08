@@ -193,13 +193,13 @@ class FortranWriter(PSyIRVisitor):
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
-        # All children must be kernelschedule as we don't support
-        # modules within modules.
+        # All children must be kernelschedule as modules within
+        # modules are not supported.
         from psyclone.psyGen import KernelSchedule
-        if not isinstance(node.children, KernelSchedule):
+        if not all([isinstance(child, KernelSchedule) for child in node.children]):
             raise VisitorError(
-                "The Fortran back-end requires each child of a Container "
-                "to be a KernelSchedule")
+                "The Fortran back-end requires all children of a Container "
+                "to be KernelSchedules.")
 
         result = (
             "{0}module {1}\n"
