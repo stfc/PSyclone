@@ -45,6 +45,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import os
+from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
 from psyclone.parse.kernel import Descriptor, KernelType
@@ -172,6 +173,19 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 # Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
+
+
+class RefElemProperty(Enum):
+    '''
+    Enumeration of the various properties of the Reference Element
+    (that a kernel can request).
+
+    '''
+    NORMALS_TO_HORIZONTAL_FACES = 1
+    NORMALS_TO_VERTICAL_FACES = 2
+    OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
+    OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
+
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
@@ -865,6 +879,10 @@ class DynKernMetadata(KernelType):
         # set to True if all the checks in _validate_inter_grid() pass.
         self._is_intergrid = False
 
+        # The properties of the Reference Element that this kernel
+        # requires. Will be a list of RefElemProperty values.
+        self.reference_element_properties = []
+
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
@@ -958,14 +976,40 @@ class DynKernMetadata(KernelType):
             if target not in self._eval_targets:
                 self._eval_targets.append(target)
 
+        reference_element_property_map = {
+            "normals_to_horizontal_faces":
+            RefElemProperty.NORMALS_TO_HORIZONTAL_FACES,
+            "normals_to_vertical_faces":
+            RefElemProperty.NORMALS_TO_VERTICAL_FACES,
+            "outward_normals_to_horizontal_faces":
+            RefElemProperty.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
+            "outward_normals_to_vertical_faces":
+            RefElemProperty.OUTWARD_NORMALS_TO_VERTICAL_FACES
+        }
+
         # Does this kernel require any properties of the reference element?
+        re_properties = []
         for line in type_declns:
             for entry in line.selector:
                 if entry == "reference_element_data_type":
-                    if line.entity_decls[0].split()[0].split("(")[0] == \
-                       "meta_reference_element":
-                        re_props = self.getkerneldescriptors(
-                            line, var_name="meta_reference_element")
+                    # getkerneldescriptors raises a ParseError if the named
+                    # element cannot be found.
+                    re_properties = self.getkerneldescriptors(
+                        line, var_name="meta_reference_element",
+                        var_type="reference_element_data_type")
+                    break
+            if re_properties:
+                break
+        try:
+            for re_prop in re_properties:
+                for arg in re_prop.args:
+                    self.reference_element_properties.append(
+                        reference_element_property_map[str(arg).lower()])
+        except KeyError:
+            raise ParseError("Unsupported reference-element property: '{0}'. "
+                             "Supported values are: {1}".format(
+                                 arg, [str(key) for key in
+                                       reference_element_property_map.keys()]))
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API

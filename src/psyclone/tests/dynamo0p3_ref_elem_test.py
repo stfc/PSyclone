@@ -79,17 +79,71 @@ def setup():
 
 
 def test_mdata_parse():
+    ''' Check that we get the correct list of reference-element properties. '''
+    from psyclone.dynamo0p3 import RefElemProperty
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = REF_ELEM_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_relem_type"
     dkm = DynKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[1])
-    expected = (
-        "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
-    print(dkm_str)
-    assert expected in dkm_str
+    assert dkm.reference_element_properties == \
+        [RefElemProperty.NORMALS_TO_HORIZONTAL_FACES,
+         RefElemProperty.NORMALS_TO_VERTICAL_FACES]
+
+
+def test_mdata_invalid_property():
+    ''' Check that we raise the expected error if an unrecognised property
+    is requested. '''
+    from psyclone.parse.utils import ParseError
+    code = REF_ELEM_MDATA.replace("normals_to_vertical_faces",
+                                  "not_a_property")
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_relem_type"
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name=name)
+    assert ("property: 'not_a_property'. Supported values are: "
+            "['normals_to_horizontal_faces'," in str(err.value))
+
+
+def test_mdata_wrong_arg_count():
+    ''' Check that we raise the expected error if the wrong dimension value
+    is specified for the meta_reference_element array. '''
+    from psyclone.parse.utils import ParseError
+    code = REF_ELEM_MDATA.replace("element_data_type), dimension(2)",
+                                  "element_data_type), dimension(3)")
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_relem_type"
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name=name)
+    assert ("'meta_reference_element' metadata, the number of args" in
+            str(err.value))
+
+
+def test_mdata_wrong_name():
+    ''' Check that we raise the expected error if the array holding properties
+    of the reference_element is given the wrong name. '''
+    from psyclone.parse.utils import ParseError
+    code = REF_ELEM_MDATA.replace("meta_reference_element =",
+                                  "meta_ref_elem =")
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_relem_type"
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name=name)
+    assert ("No kernel metadata with type name 'meta_reference_element' found"
+            in str(err.value))
+
+
+def test_mdata_wrong_type_var():
+    ''' Check that we raise the expected error if the array holding properties
+    of the reference_reference_element_data_type(normals_toelement contains an
+    item of the wrong type. '''
+    from psyclone.parse.utils import ParseError
+    code = REF_ELEM_MDATA.replace("reference_element_data_type(normals_to",
+                                  "ref_element_data_type(normals_to")
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_relem_type"
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name=name)
+    assert ("'meta_reference_element' meta-data must consist of an array of "
+            "structure constructors, all of type 'reference_element_data_type'"
+            " but found: ['ref_element_data_type'," in str(err.value))
