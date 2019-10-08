@@ -270,6 +270,7 @@ class Compile(object):
         stat = build.returncode
         if stat != 0:
             import sys
+            print("Compiling: {0}".format(" ".join(arg_list)), file=sys.stderr)
             print(output, file=sys.stderr)
             if error:
                 print("=========", file=sys.stderr)
