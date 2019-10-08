@@ -109,30 +109,6 @@ def gen_dims(symbol):
     return dims
 
 
-def gen_kind(symbol):
-    '''Infer the expected Fortran kind value from the Symbol
-    instance. This is a temporary LFRic-specific hack which simply
-    adds a hardcoded kind value for real variables and a hardcoded
-    kind value for integer variables. To work correctly in general the
-    symbol table needs some additional information added to it, see
-    issue #375.
-
-    :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyGen.Symbol`
-
-    :returns: the Fortran kind value for the symbol instance in lower \
-    case, or None if no kind value is required.
-    :rtype: str or NoneType
-
-    '''
-    kind = None
-    if symbol.datatype == "real":
-        kind = "r_def"
-    elif symbol.datatype == "integer":
-        kind = "i_def"
-    return kind
-
-
 def _reverse_map(op_map):
     '''
     Reverses the supplied fortran2psyir mapping to make a psyir2fortran
@@ -179,7 +155,9 @@ class FortranWriter(PSyIRVisitor):
             return "{0}use {1}, only : {2}\n".format(self._nindent, symbol.interface.module_name, symbol.name)
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
-        kind = gen_kind(symbol)
+        # The PSyIR does not currently capture kind information, see
+        # issue #375
+        kind = None
         result = "{0}{1}".format(self._nindent, symbol.datatype)
         if kind:
             result += "({0})".format(kind)
