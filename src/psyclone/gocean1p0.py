@@ -1193,8 +1193,8 @@ class GOKern(CodedKern):
                           funcnames=["create_rw_buffer"]))
         parent.add(CommentGen(parent, " Ensure field data is on device"))
         for arg in self._arguments.args:
-            if (arg.type == "field" or (arg.type == "grid_property"
-                                        and not arg.is_scalar())):
+            if arg.type == "field" or \
+               (arg.type == "grid_property" and not arg.is_scalar()):
 
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping
@@ -1254,8 +1254,8 @@ class GOKern(CodedKern):
                         rhs=".true."))
 
                 # Ensure data copies have finished
-                ifthen.add(CommentGen(ifthen,
-                                      " Block until data copies have finished"))
+                ifthen.add(CommentGen(
+                    ifthen, " Block until data copies have finished"))
                 ifthen.add(AssignGen(ifthen, lhs=flag,
                                      rhs="clFinish(" + qlist + "(1))"))
 
