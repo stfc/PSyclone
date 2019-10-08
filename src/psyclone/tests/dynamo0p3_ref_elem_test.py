@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@ of the dynamo0.3 API.
 '''
 
 from __future__ import absolute_import, print_function
-import os
 import pytest
 import fparser
 from fparser import api as fpapi
@@ -47,9 +46,6 @@ from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata
 
 # Constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
 
 REF_ELEM_MDATA = '''
 module testkern_relem_mod
