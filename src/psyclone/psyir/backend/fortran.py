@@ -39,7 +39,9 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyGen import Symbol
 from fparser.two import Fortran2003
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -60,8 +62,6 @@ def gen_intent(symbol):
     :rtype: str or NoneType
 
     '''
-    from psyclone.psyGen import Symbol
-
     mapping = {Symbol.Access.UNKNOWN: None,
                Symbol.Access.READ: "in",
                Symbol.Access.WRITE: "out",
@@ -91,7 +91,6 @@ def gen_dims(symbol):
     supported.
 
     '''
-    from psyclone.psyGen import Symbol
 
     dims = []
     for index in symbol.shape:
@@ -150,9 +149,11 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        from psyclone.psyGen import Symbol
         if isinstance(symbol.interface, Symbol.FortranGlobal):
-            return "{0}use {1}, only : {2}\n".format(self._nindent, symbol.interface.module_name, symbol.name)
+            # This is a use statement
+            return "{0}use {1}, only : {2}\n".format(
+                self._nindent, symbol.interface.module_name, symbol.name)
+        # It is not a use statement so is a variable declaration.
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
         # The PSyIR does not currently capture kind information, see
@@ -297,7 +298,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         # reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         mapping = _reverse_map(Fparser2Reader.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
@@ -327,7 +327,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         mapping = _reverse_map(Fparser2Reader.nary_operators)
         arg_list = []
         for child in node.children:
@@ -474,7 +473,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         mapping = _reverse_map(Fparser2Reader.unary_operators)
 
         content = self._visit(node.children[0])

@@ -42,8 +42,7 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.base import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, gen_dims, gen_kind, \
-    FortranWriter
+from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
 from psyclone.psyGen import Symbol, Node, CodeBlock
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -112,27 +111,6 @@ def test_gen_dims_error(monkeypatch):
     assert "unsupported gen_dims index 'invalid'" in str(excinfo)
 
 
-def test_gen_kind():
-    '''Check the gen_kind function produces the expected kind values. Note
-    these are currently hardcoded to support the LFRic API. Issue #375
-    captures this problem.
-
-    '''
-    int_symbol = Symbol(
-        "dummy1", "integer",
-        interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    real_symbol = Symbol(
-        "dummy2", "real",
-        interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    logical_symbol = Symbol(
-        "dummy3", "boolean",
-        interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-
-    assert gen_kind(int_symbol) == "i_def"
-    assert gen_kind(real_symbol) == "r_def"
-    assert gen_kind(logical_symbol) is None
-
-
 def test_fw_gen_declaration(fort_writer):
     '''Check the FortranWriter class gen_declaration method produces
     the expected declarations.
@@ -141,24 +119,24 @@ def test_fw_gen_declaration(fort_writer):
     # Basic entry
     symbol = Symbol("dummy1", "integer")
     result = fort_writer.gen_declaration(symbol)
-    assert result == "integer(i_def) :: dummy1\n"
+    assert result == "integer :: dummy1\n"
 
     # Array with intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.READ))
     result = fort_writer.gen_declaration(symbol)
-    assert result == "integer(i_def), dimension(2,:,2), intent(in) :: dummy2\n"
+    assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
     result = fort_writer.gen_declaration(symbol)
-    assert result == "integer(i_def), dimension(2,:,2) :: dummy2\n"
+    assert result == "integer, dimension(2,:,2) :: dummy2\n"
 
     # Constant
     symbol = Symbol("dummy3", "integer", constant_value=10)
     result = fort_writer.gen_declaration(symbol)
-    assert result == "integer(i_def), parameter :: dummy3 = 10\n"
+    assert result == "integer, parameter :: dummy3 = 10\n"
 
 
 def test_fw_exception(fort_writer):
@@ -220,19 +198,14 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
     result = fort_writer(schedule)
 
     assert(
-        "module tmp_mod\n"
-        "  use constants_mod, only : r_def, i_def\n"
-        "  implicit none\n"
-        "  contains\n"
-        "  subroutine tmp(a,b,c)\n"
-        "    real(r_def), dimension(:), intent(out) :: a\n"
-        "    real(r_def), dimension(:), intent(in) :: b\n"
-        "    integer(i_def), intent(in) :: c\n"
+        "subroutine tmp(a,b,c)\n"
+        "  real, dimension(:), intent(out) :: a\n"
+        "  real, dimension(:), intent(in) :: b\n"
+        "  integer, intent(in) :: c\n"
         "\n"
-        "    a=b / c\n"
+        "  a=b / c\n"
         "\n"
-        "  end subroutine tmp\n"
-        "end module tmp_mod") in result
+        "end subroutine tmp\n") in result
 
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
@@ -364,19 +337,14 @@ def test_fw_reference(fort_writer):
     # The asserts need to be split as the declaration order can change
     # between different versions of Psython.
     assert (
-        "module tmp_mod\n"
-        "  use constants_mod, only : r_def, i_def\n"
-        "  implicit none\n"
-        "  contains\n"
-        "  subroutine tmp(a,n)\n"
-        "    integer(i_def), intent(in) :: n\n"
-        "    real(r_def), dimension(n), intent(out) :: a\n"
+        "subroutine tmp(a,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, dimension(n), intent(out) :: a\n"
         "\n"
-        "    a=1\n"
-        "    a(n)=0.0\n"
+        "  a=1\n"
+        "  a(n)=0.0\n"
         "\n"
-        "  end subroutine tmp\n"
-        "end module tmp_mod") in result
+        "end subroutine tmp\n") in result
 
     # Now add a child to the reference node
     reference = schedule[1].lhs.children[0]
@@ -439,14 +407,14 @@ def test_fw_ifblock(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert (
-        "    if (n > 2) then\n"
-        "      n=n + 1\n"
-        "    end if\n"
-        "    if (n > 4) then\n"
-        "      a=-1\n"
-        "    else\n"
-        "      a=1\n"
-        "    end if\n") in result
+        "  if (n > 2) then\n"
+        "    n=n + 1\n"
+        "  end if\n"
+        "  if (n > 4) then\n"
+        "    a=-1\n"
+        "  else\n"
+        "    a=1\n"
+        "  end if\n") in result
 
 
 def test_fw_loop(fort_writer):
@@ -560,7 +528,7 @@ def test_fw_return(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "    return\n" in result
+    assert "  return\n" in result
 
 
 def test_fw_codeblock_1(fort_writer):
@@ -585,9 +553,9 @@ def test_fw_codeblock_1(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert (
-        "    a=1\n"
-        "    PRINT *, \"I am a code block\"\n"
-        "    PRINT *, \"with more than one line\"\n" in result)
+        "  a=1\n"
+        "  PRINT *, \"I am a code block\"\n"
+        "  PRINT *, \"with more than one line\"\n" in result)
 
 
 def test_fw_codeblock_2(fort_writer):

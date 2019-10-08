@@ -4174,8 +4174,6 @@ class CodedKern(Kern):
             new_kern_code = fortran_writer(self.get_kernel_schedule().root)
             fll = FortLineLength()
             new_kern_code = fll.process(new_kern_code)
-            print (new_kern_code)
-            exit(1)
         else:
             # This is an old style transformation which modifes the
             # fp2 parse tree directly. Therefore use the fp2
