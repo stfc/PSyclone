@@ -858,6 +858,19 @@ class DynKernMetadata(KernelType):
     :raises ParseError: if the meta-data does not conform to the \
                         rules for the Dynamo 0.3 API.
     '''
+
+    # Mapping from meta-data text to our property enumeration.
+    reference_element_property_map = {
+        "normals_to_horizontal_faces":
+        RefElemProperty.NORMALS_TO_HORIZONTAL_FACES,
+        "normals_to_vertical_faces":
+        RefElemProperty.NORMALS_TO_VERTICAL_FACES,
+        "outward_normals_to_horizontal_faces":
+        RefElemProperty.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
+        "outward_normals_to_vertical_faces":
+        RefElemProperty.OUTWARD_NORMALS_TO_VERTICAL_FACES
+    }
+
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
 
@@ -892,21 +905,15 @@ class DynKernMetadata(KernelType):
         type_declns = [cline for cline in self._ktype.content if
                        isinstance(cline, fparser.one.typedecl_statements.Type)]
 
-        # parse the func_type metadata if it exists
-        found = False
+        # Parse the func_type metadata if it exists
+        func_types = []
         for line in type_declns:
             for entry in line.selector:
                 if entry == "func_type":
-                    if line.entity_decls[0].split()[0].split("(")[0] == \
-                       "meta_funcs":
-                        found = True
-                        break
-        if not found:
-            func_types = []
-        else:
-            # use the base class method to extract the information
-            func_types = self.getkerneldescriptors(self._ktype,
-                                                   var_name="meta_funcs")
+                    func_types = self.getkerneldescriptors(
+                        line, var_name="meta_funcs")
+                    break
+
         self._func_descriptors = []
         # populate a list of function descriptor objects which we
         # return via the func_descriptors method.
@@ -976,17 +983,6 @@ class DynKernMetadata(KernelType):
             if target not in self._eval_targets:
                 self._eval_targets.append(target)
 
-        reference_element_property_map = {
-            "normals_to_horizontal_faces":
-            RefElemProperty.NORMALS_TO_HORIZONTAL_FACES,
-            "normals_to_vertical_faces":
-            RefElemProperty.NORMALS_TO_VERTICAL_FACES,
-            "outward_normals_to_horizontal_faces":
-            RefElemProperty.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
-            "outward_normals_to_vertical_faces":
-            RefElemProperty.OUTWARD_NORMALS_TO_VERTICAL_FACES
-        }
-
         # Does this kernel require any properties of the reference element?
         re_properties = []
         for line in type_declns:
@@ -1004,12 +1000,13 @@ class DynKernMetadata(KernelType):
             for re_prop in re_properties:
                 for arg in re_prop.args:
                     self.reference_element_properties.append(
-                        reference_element_property_map[str(arg).lower()])
+                        self.reference_element_property_map[str(arg).lower()])
         except KeyError:
-            raise ParseError("Unsupported reference-element property: '{0}'. "
-                             "Supported values are: {1}".format(
-                                 arg, [str(key) for key in
-                                       reference_element_property_map.keys()]))
+            raise ParseError(
+                "Unsupported reference-element property: '{0}'. Supported "
+                "values are: {1}".format(
+                    arg, [str(key) for key in
+                          self.reference_element_property_map.keys()]))
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
