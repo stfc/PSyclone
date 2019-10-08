@@ -1002,11 +1002,12 @@ class DynKernMetadata(KernelType):
                     self.reference_element_properties.append(
                         self.reference_element_property_map[str(arg).lower()])
         except KeyError:
+            # Sort for consistency when testing
+            sorted_keys = sorted([str(key) for key in
+                                  self.reference_element_property_map.keys()])
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(
-                    arg, [str(key) for key in
-                          self.reference_element_property_map.keys()]))
+                "values are: {1}".format(arg, sorted_keys))
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
