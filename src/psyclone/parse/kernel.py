@@ -669,29 +669,32 @@ class KernelType(object):
         self._inits = self.getkerneldescriptors(self._ktype)
         self._arg_descriptors = []  # this is set up by the subclasses
 
-    def getkerneldescriptors(self, ast, var_name='meta_args'):
+    def getkerneldescriptors(self, ast, var_name='meta_args', var_type=None):
         '''Get the required argument metadata information for a
         kernel.
 
-        :param ast: metadata describing kernel arguments
+        :param ast: metadata describing kernel arguments.
         :type ast: :py:class:`fparser.one.block_statements.Type`
         :param str var_name: the name of the variable storing the \
-        argument metadata. This argument is optional and defaults to \
-        'meta_args'.
+               argument metadata. this argument is optional and defaults to \
+               'meta_args'.
+        :param str var_type: the type of the structure constructor used to \
+                             define the meta-data or None.
 
-        :returns: Argument metadata parsed using the expression parser
-        (as fparser1 will not parse expressions and arguments).
+        :returns: Argument metadata parsed using the expression parser \
+                  (as fparser1 will not parse expressions and arguments).
         :rtype: :py:class:`psyclone.expression.LiteralArray`
 
-        :raises ParseError: if 'var_name' is not found in the metadata
-        :raises ParseError: if 'var_name' is not an array
-        :raises ParseError: if 'var_name' is not a 1D array
+        :raises ParseError: if 'var_name' is not found in the metadata.
+        :raises ParseError: if 'var_name' is not an array.
+        :raises ParseError: if 'var_name' is not a 1D array.
         :raises ParseError: if the structure constructor uses '[...]' \
-        as only '(/.../)' is supported.
+                            as only '(/.../)' is supported.
         :raises ParseError: if the argument metadata can't be parsed.
         :raises ParseError: if the dimensions specified does not tally \
-        with the number of metadata arguments.
-
+                            with the number of metadata arguments.
+        :raises ParseError: if var_type is specified and a structure \
+                            constructor for a different type is found.
         '''
         descs = ast.get_variable(var_name)
         if "INTEGER" in str(descs):
@@ -731,6 +734,13 @@ class KernelType(object):
                 "metadata, the number of args '{1}' and extent of the "
                 "dimension '{2}' do not match.".format(var_name, nargs,
                                                        len(inits)))
+        if var_type:
+            # Check that each element in the list is of the correct type
+            if not all([init.name == var_type for init in inits]):
+                raise ParseError(
+                    "The '{0}' meta-data must consist of an array of structure"
+                    " constructors, all of type '{1}' but found: {2}".format(
+                        var_name, var_type, [init.name for init in inits]))
         return inits
 
     @property
