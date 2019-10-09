@@ -267,6 +267,9 @@
 
 	84) PR #518 for #393. Add the Container PSyIR node.
 
+	85) PR #525 for #459. Bug fix for passing scalar grid properties
+	to GOcean kernels when using OpenCL.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
