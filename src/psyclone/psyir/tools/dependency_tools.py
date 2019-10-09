@@ -321,12 +321,16 @@ class DependencyTools(object):
 
         :returns: True if the loop can be parallelised.
         :rtype: bool
+
+        :raises TypeError: if the supplied node is not a Loop.
+
         '''
         self._clear_messages()
 
         if not isinstance(loop, Loop):
-            raise TypeError("can_loop_be_parallelised: Loop must be an "
-                            "instance of class Loop")
+            raise TypeError("can_loop_be_parallelised: node must be an "
+                            "instance of class Loop but got '{0}'".
+                            format(type(loop).__name__))
         if not loop_variable:
             loop_variable = loop.variable_name
 
