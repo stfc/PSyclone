@@ -112,13 +112,16 @@ class RegionTrans(Transformation):
     # overwritten:
     # pylint: disable=abstract-method,arguments-differ
 
-    def _validate(self, node_list):
+    def _validate(self, node_list, options=None):
         '''
         Checks that the nodes in node_list are valid for a region
         transformation.
 
         :param node_list: list of PSyIR nodes.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary or set with options for transformations.\
+                        This transform checks for "disable-node-type-check".
+        :type options: dict or set or None
 
         :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
@@ -132,8 +135,11 @@ class RegionTrans(Transformation):
                                      a single-line if statment.
 
         '''
-        from psyclone.psyGen import IfBlock, Literal, Reference
+        # pylint: disable=too-many-branches
+        from psyclone.psyGen import IfBlock
         from psyclone.nemo import NemoInvokeSchedule
+        if not options:
+            options = {}
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -151,14 +157,15 @@ class RegionTrans(Transformation):
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
-        for child in node_list:
-            flat_list = [item for item in child.walk(object)
-                         if not isinstance(item, Schedule)]
-            for item in flat_list:
-                if not isinstance(item, self.valid_node_types):
-                    raise TransformationError(
-                        "Nodes of type '{0}' cannot be enclosed by a {1} "
-                        "transformation".format(type(item), self.name))
+        if "disable-node-type-check" not in options:
+            for child in node_list:
+                flat_list = [item for item in child.walk(object)
+                             if not isinstance(item, Schedule)]
+                for item in flat_list:
+                    if not isinstance(item, self.valid_node_types):
+                        raise TransformationError(
+                            "Nodes of type '{0}' cannot be enclosed by a {1} "
+                            "transformation".format(type(item), self.name))
 
         # Sanity check that we've not been passed the condition part of
         # an If statement (which is child 0)
@@ -705,17 +712,23 @@ class ParallelLoopTrans(Transformation):
         :type children: list of :py:class:`psyclone.psyGen.Node`.
         :param int collapse: the number of tightly-nested loops to which \
                              this directive applies or None.
+
         :returns: the new Directive node.
         :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
         '''
 
-    def _validate(self, node, collapse=None):
+    def _validate(self, node, options=None):
         '''
         Perform validation checks before applying the transformation
 
         :param node: the node we are checking.
         :type node: :py:class:`psyclone.psyGen.Node`.
         :param int collapse: number of nested loops to collapse or None.
+        :param options: a dictionary or set with options for transformations.\
+                        This transform supports "collapse", which is the\
+                        number of nested loops to collapse.
+        :type options: dict or set or None
+
         :raises TransformationError: if the node is not a \
         :py:class:`psyclone.psyGen.Loop`
         :raises TransformationError: if the \
@@ -729,11 +742,17 @@ class ParallelLoopTrans(Transformation):
                 "Cannot apply a parallel-loop directive to something that is "
                 "not a loop")
         # Check we are not a sequential loop
-        # TODO add a list of loop types that are sequential
+        # TODO add a list of loop types that are sequentialomp
         if node.loop_type == 'colours':
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
+        if not options:
+            options = {}
+        if "collapse" in options:
+            collapse = options["collapse"]
+        else:
+            collapse = None
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
@@ -757,14 +776,14 @@ class ParallelLoopTrans(Transformation):
                     "Cannot apply COLLAPSE({0}) clause to a loop nest "
                     "containing only {1} loops".format(collapse, loop_count))
 
-    def apply(self, node, collapse=None):
+    def apply(self, node, options=None):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives,
         e.g. for OpenMP:
 
-        .. code-block:: fortran
+        .. code-block:: fortrannumber of nested loops to collapse
 
           !$OMP DO
           do ...
@@ -778,19 +797,28 @@ class ParallelLoopTrans(Transformation):
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
         :type node: :py:class:`psyclone.psyGen.Node`.
-        :param int collapse: number of loops to collapse into single \
-                             iteration space or None.
+        :param options: a dictionary or set with options for transformations.\
+                        This transform supports "collapse", which is the\
+                        number of loops to collapse into single iteration\
+                        space or None.
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
                    :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(node, collapse)
+        if not options:
+            options = {}
+        self._validate(node, options)
 
         schedule = node.root
 
+        if "collapse" in options:
+            collapse = options["collapse"]
+        else:
+            collapse = None
+
         # create a memento of the schedule and the proposed
         # transformation
-        keep = Memento(schedule, self, [node, collapse])
+        keep = Memento(schedule, self, [node, options])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -1057,7 +1085,7 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      sequential=self._sequential)
         return directive
 
-    def apply(self, node, collapse=None, independent=True, sequential=False):
+    def apply(self, node, options=None):
         '''
         Apply the ACCLoop transformation to the specified node. This node
         must be a Loop since this transformation corresponds to
@@ -1077,21 +1105,33 @@ class ACCLoopTrans(ParallelLoopTrans):
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
         :type node: :py:class:`psyclone.psyGen.Loop`.
-        :param int collapse: number of loops to collapse into single \
-                             iteration space or None.
-        :param bool independent: whether to add the "independent" clause to \
-                                 the directive (not strictly necessary within \
-                                 PARALLEL regions).
+        :param options: a dictionary or set with options for transformations.\
+                        This transform supports:\
+                        - "collapse" (int): number of nested loops to\
+                          collapse.
+                        - "independent"whether to add the "independent" clause\
+                          to the directive (not strictly necessary within \
+                          PARALLEL regions).
+        :type options: dict or None
+
         :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
                   :py:class:`psyclone.undoredo.Memento`)
 
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
-        self._independent = independent
-        self._sequential = sequential
+        if not options:
+            options = {}
+        if "independent" in options:
+            self._independent = options["independent"]
+        else:
+            self._independent = True
+        if "sequential" in options:
+            self._sequential = options["sequential"]
+        else:
+            self._sequential = False
         # Call the apply() method of the base class
-        return super(ACCLoopTrans, self).apply(node, collapse)
+        return super(ACCLoopTrans, self).apply(node, options)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -1656,16 +1696,22 @@ class ParallelRegionTrans(RegionTrans):
     def name(self):
         ''' Returns the name of this transformation as a string.'''
 
-    def _validate(self, node_list):
+    def _validate(self, node_list, options=None):
         '''
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
 
         :param list node_list: List of nodes to put into a parallel region
+        :param options: a dictionary or set with options for transformations.\
+                        This transform supports "disable-node-type-check".
+        :type options: dict or set or None
+
         :raises TransformationError: if the nodes cannot be put into a \
                                      parallel region.
         '''
 
+        if not options:
+            options = {}
         # temporary dynamo0.3-specific test for haloexchange calls
         # existing within a parallel region. As we are going to
         # support this in the future, see #526, it does not warrant
@@ -1690,9 +1736,9 @@ class ParallelRegionTrans(RegionTrans):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
                     "children of the same parent.".format(self.name))
-        super(ParallelRegionTrans, self)._validate(node_list)
+        super(ParallelRegionTrans, self)._validate(node_list, options)
 
-    def apply(self, nodes):
+    def apply(self, nodes, options=None):
         '''
         Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Loops in the
@@ -1700,6 +1746,10 @@ class ParallelRegionTrans(RegionTrans):
 
         :param nodes: a single Node or a list of Nodes.
         :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :param options: a dictionary or set with options for transformations.\
+                        This transform checks for "disable-node-type-check".
+        :type options: dict or set or None
+
         :raises TransformationError: if the nodes argument is not of the \
                                      correct type.
         '''
@@ -1720,7 +1770,9 @@ class ParallelRegionTrans(RegionTrans):
                                       "schedule but have been passed an "
                                       "object of type: {1}".
                                       format(self.name, arg_type))
-        self._validate(node_list)
+        if not options:
+            options = {}
+        self._validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
@@ -1821,12 +1873,16 @@ class OMPParallelTrans(ParallelRegionTrans):
         '''
         return "OMPParallelTrans"
 
-    def _validate(self, node_list):
+    def _validate(self, node_list, options=None):
         '''
         Perform OpenMP-specific validation checks.
 
         :param node_list: List of Nodes to put within parallel region.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :param options: a dictionary or set with options for transformations.\
+                        This transform checks for "disable-node-type-check".
+        :type options: dict or set or None
+
         :raises TransformationError: if the target Nodes are already within \
                                      some OMP parallel region.
         '''
@@ -1838,7 +1894,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                                       "region within another OpenMP region.")
 
         # Now call the general validation checks
-        super(OMPParallelTrans, self)._validate(node_list)
+        super(OMPParallelTrans, self)._validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -2944,8 +3000,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                    (VALID_ANY_SPACE_NAMES +
-                     VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
+                        (VALID_ANY_SPACE_NAMES +
+                         VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "

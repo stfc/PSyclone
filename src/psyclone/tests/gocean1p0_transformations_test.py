@@ -440,7 +440,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
 
     # Repeat after turning off constant loop bounds
     newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
@@ -460,7 +460,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -495,7 +495,7 @@ def test_omp_region_retains_kernel_order2(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -535,7 +535,7 @@ def test_omp_region_retains_kernel_order3(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -982,6 +982,8 @@ def test_omp_region_invalid_node():
     assert ("ACCParallelDirective'>' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err))
 
+    # Check that the test can be disabled with the appropriate option:
+    ompr.apply(new_sched.children, {"disable-node-type-check"})
 
 @pytest.mark.xfail(reason="OMP Region with children of different types "
                    "not yet implemented")
@@ -1791,25 +1793,25 @@ def test_acc_collapse(tmpdir):
 
     # Check that we reject non-integer collapse arguments
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, collapse=child)
+        _, _ = acclpt.apply(child, {"collapse": child})
     assert ("The 'collapse' argument must be an integer but got an object "
             "of type" in str(err))
 
     # Check that we reject invalid depths
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, collapse=1)
+        _, _ = acclpt.apply(child, {"collapse": 1})
     assert ("It only makes sense to collapse 2 or more loops but got a "
             "value of 1" in str(err))
 
     # Check that we reject attempts to collapse more loops than we have
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, collapse=3)
+        _, _ = acclpt.apply(child, {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
             "only 2 loops" in str(err))
 
     # Finally, do something valid and check that we get the correct
     # generated code
-    new_sched, _ = acclpt.apply(child, collapse=2)
+    new_sched, _ = acclpt.apply(child, {"collapse": 2})
 
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
@@ -1835,8 +1837,8 @@ def test_acc_indep(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
-    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
+    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1857,7 +1859,7 @@ def test_acc_loop_seq():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], sequential=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], {"sequential": True})
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1875,9 +1877,9 @@ def test_acc_loop_view(capsys):
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                            name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
-    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
-    new_sched, _ = acclpt.apply(schedule.children[2], sequential=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
+    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
+    new_sched, _ = acclpt.apply(schedule.children[2], {"sequential": True})
     # Check the view method
     new_sched.view()
     output, _ = capsys.readouterr()

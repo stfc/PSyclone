@@ -878,7 +878,7 @@ def test_acc_dir_view(capsys):
 
     # Loop directive with collapse
     new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
-                               collapse=2)
+                               {"collapse": 2})
     new_sched.children[1].children[0].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
@@ -2234,9 +2234,9 @@ def test_accenterdatadirective_gencode_1():
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_enter_trans.apply(sched)
+    acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
+        str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel directives within the region."
             in str(excinfo.value))
@@ -2254,9 +2254,9 @@ def test_accenterdatadirective_gencode_2():
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_enter_trans.apply(sched)
+    acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
+        str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel directives within the region."
             in str(excinfo.value))
@@ -2907,6 +2907,7 @@ def test_codeblock_structure(structure):
 def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
+    # pylint: disable=too-many-statements
     from psyclone.psyGen import Loop
     loop = Loop()
 
@@ -3529,7 +3530,7 @@ def test_kernelschedule_name_setter():
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
-
+    # pylint: disable=too-many-statements
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
     # real constants are not currently supported
