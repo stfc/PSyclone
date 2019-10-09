@@ -855,7 +855,7 @@ PSyclone contains a class that provides useful tools for dependency analaysis.
 It especially provides messages for the user to indicate why parallelisation
 was not possible.
 
-.. autoclass:: psyclone.dependency_tools.DependencyTools
+.. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
     :members:
 
 .. note:: There is limited support for detecting index expression that are
