@@ -176,11 +176,11 @@ class FortranWriter(PSyIRVisitor):
         argument declaration).
 
         '''
-        if not symbol.scope=="local" and not isinstance(symbol.interface,
-                                                        Symbol.Argument):
+        if not symbol.scope == "local" and not isinstance(symbol.interface,
+                                                          Symbol.Argument):
             raise VisitorError(
-                "gen_vardecl requires the symbol to be a local declaration or an "
-                "argument declaration.")
+                "gen_vardecl requires the symbol to be a local declaration "
+                "or an argument declaration.")
 
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
@@ -224,7 +224,8 @@ class FortranWriter(PSyIRVisitor):
         # All children must be kernelschedule as modules within
         # modules are not supported.
         from psyclone.psyGen import KernelSchedule
-        if not all([isinstance(child, KernelSchedule) for child in node.children]):
+        if not all([isinstance(child, KernelSchedule)
+                    for child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
                 "to be KernelSchedules.")
@@ -237,12 +238,12 @@ class FortranWriter(PSyIRVisitor):
 
         declarations = ""
         # Use statements
-        for symbol in [sym for sym in node.symbol_table.symbols if \
+        for symbol in [sym for sym in node.symbol_table.symbols if
                        isinstance(sym.interface, Symbol.FortranGlobal)]:
             declarations += self.gen_use(symbol)
         # Variable declarations
-        for symbol in [sym for sym in node.symbol_table.symbols if \
-                       sym.scope=="local"]:
+        for symbol in [sym for sym in node.symbol_table.symbols if
+                       sym.scope == "local"]:
             declarations += self.gen_vardecl(symbol)
 
         # Get the subroutine statements.
@@ -292,16 +293,16 @@ class FortranWriter(PSyIRVisitor):
         # Declare the kernel data.
         declarations = ""
         # Use statements
-        for symbol in [sym for sym in node.symbol_table.symbols if \
+        for symbol in [sym for sym in node.symbol_table.symbols if
                        isinstance(sym.interface, Symbol.FortranGlobal)]:
             declarations += self.gen_use(symbol)
         # Argument variable declarations
-        for symbol in [sym for sym in node.symbol_table.symbols if \
+        for symbol in [sym for sym in node.symbol_table.symbols if
                        isinstance(sym.interface, Symbol.Argument)]:
             declarations += self.gen_vardecl(symbol)
         # Local variable declarations
-        for symbol in [sym for sym in node.symbol_table.symbols if \
-                       sym.scope=="local"]:
+        for symbol in [sym for sym in node.symbol_table.symbols if
+                       sym.scope == "local"]:
             declarations += self.gen_vardecl(symbol)
         # Get the executable statements.
         exec_statements = ""

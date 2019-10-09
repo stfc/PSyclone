@@ -117,7 +117,8 @@ def test_fw_gen_use(fort_writer):
     does not describe a use statement.
 
     '''
-    symbol = Symbol("dummy1", "deferred", interface=Symbol.FortranGlobal("my_module"))
+    symbol = Symbol("dummy1", "deferred",
+                    interface=Symbol.FortranGlobal("my_module"))
     result = fort_writer.gen_use(symbol)
     assert result == "use my_module, only : dummy1\n"
 
@@ -157,13 +158,14 @@ def test_fw_gen_vardecl(fort_writer):
     assert result == "integer, parameter :: dummy3 = 10\n"
 
     # Use statement
-    symbol = Symbol("dummy1", "deferred", interface=Symbol.FortranGlobal("my_module"))
+    symbol = Symbol("dummy1", "deferred",
+                    interface=Symbol.FortranGlobal("my_module"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("gen_vardecl requires the symbol to be a local declaration or an "
             "argument declaration." in str(excinfo.value))
 
-    
+
 def test_fw_exception(fort_writer):
     '''Check the FortranWriter class instance raises an exception if an
     unsupported PSyIR node is found.

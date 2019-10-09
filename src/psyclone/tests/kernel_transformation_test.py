@@ -243,7 +243,7 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
      ("testkern", "testkern_code"),
      ("testkern1_mod", "testkern2_code")])
 def test_kernel_module_name(mod_name, sub_name, kernel_outputdir,
-                                  monkeypatch):
+                            monkeypatch):
     '''Check that there is no limitation on kernel and module names. In
     particular check that the names do not have to conform to the
     <name>_mod, <name>_code convention.
