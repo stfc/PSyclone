@@ -1,4 +1,39 @@
-.. Modified I. Kavcic Met Office
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
+
 .. _built-ins:
 
 Built-ins
@@ -17,7 +52,10 @@ specification of what is required without an implementation. Therefore
 the PSy layer is free to implement these operations in whatever way it
 chooses.
 
-.. note:: In general, PSyclone will need to know the types of the arguments being passed to any Built-ins. The parser obtains this information from an API-specific file that contains the metadata for all Built-in operations supported for that API.
+.. note:: In general, PSyclone will need to know the types of the arguments
+          being passed to any Built-ins. The parser obtains this information
+          from an API-specific file that contains the metadata for all
+          Built-in operations supported for that API.
 
 Example
 -------
@@ -43,10 +81,10 @@ required for the Built-in since it is provided as part of the environment
 
     real(kind=r_def), parameter :: MU = 0.9_r_def
     ...
-    
+
     do iter = 1,n_iter
       call invoke( setval_c(Ax, 0.0) )
-      call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
+      call invoke( matrix_vector_kernel_mm_type(Ax, lhs, mm) )
       ...
     end do
 
@@ -60,25 +98,25 @@ Below is an example of a kernel that is consistent with the
     type, public, extends(kernel_type) :: matrix_vector_kernel_mm_type
       private
       type(arg_type) :: meta_args(3) = (/                                  &
-           arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+           arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
            arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
            arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
            /)
       integer :: iterates_over = CELLS
     contains
-      procedure, nopass ::matrix_vector_mm_code
+      procedure, nopass :: matrix_vector_mm_code
     end type
   contains
     subroutine matrix_vector_mm_code(cell,        &
                                      nlayers,     &
-                                     lhs, x,      & 
+                                     lhs, x,      &
                                      ncell_3d,    &
                                      mass_matrix, &
-                                     ndf,undf,map)
+                                     ndf, undf, map)
     end subroutine matrix_vector_mm_code
   end module matrix_vector_mm_mod
 
-We now translate the algorithm layer code and generate the psy layer
+We now translate the algorithm layer code and generate the PSy layer
 code. The algorithm code is assumed to be in a file call
 `solver_mod.x90`. In this case we use the top level python
 interface. See the :ref:`api-label` section for different ways to
@@ -87,8 +125,8 @@ translate/generate code.
 
 	>>> from psyclone.generator import generate
 	>>> alg, psy = generate("solver_mod.x90")
-	>>> print alg
-	>>> print psy
+	>>> print(alg)
+	>>> print(psy)
 
 The resultant generated algorithm code is given below.
 
@@ -96,10 +134,14 @@ Ignoring the difference in case (which is due to the output format of
 the code parser) the differences between the original algorithm code
 and the translated algorithm code are:
 
-* the generic calls to ``invoke`` have been replaced by specific ``CALL invoke_xx``. The calls within the invoke are removed, as are duplicate arguments and any literals leaving the three fields being passed in.
-* a use statement is added for the each of the new ``CALL invoke_xx`` which will call the generated PSy layer code.
+* The generic calls to ``invoke`` have been replaced by specific
+  ``CALL invoke_xx``. The calls within the invoke are removed, as are
+  duplicate arguments and any literals leaving the three fields being
+  passed in;
+* A use statement is added for the each of the new ``CALL invoke_xx``
+  which will call the generated PSy layer code.
 
-The existance of a call to a Built-in has made no difference at this point:
+The existence of a call to a Built-in has made no difference at this point:
 ::
 
     SUBROUTINE jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
@@ -120,7 +162,7 @@ The existance of a call to a Built-in has made no difference at this point:
       DO iter = 1,n_iter
         CALL invoke_4(ax)
         CALL invoke_5_matrix_vector_kernel_mm_type(ax, lhs, mm)
-	...
+        ...
       END DO
     END SUBROUTINE jacobi_solver_algorithm
 
@@ -130,7 +172,8 @@ layer. However, in the case of the `setval_c` Built-in, the
 code for this has been written directly into the PSy layer (the loop
 setting `ax_proxy%data(df) = 0.0`). This example illustrates that
 Built-ins may be implemented in whatever way the generator
-sees fit with no change to the algorithm and kernel layers.  ::
+sees fit with no change to the algorithm and kernel layers.
+::
 
   MODULE solver_mod_psy
     ...
@@ -149,12 +192,12 @@ sees fit with no change to the algorithm and kernel layers.  ::
       !
       undf_any_space_1 = ax_proxy%vspace%get_undf()
       !
-      ...      
+      ...
       ! Call our kernels
       !
       DO df=1,undf_any_space_1
         ax_proxy%data(df) = 0.0
-      END DO 
+      END DO
       !
       ...
       !
@@ -187,12 +230,12 @@ sees fit with no change to the algorithm and kernel layers.  ::
         map_any_space_1 => ax_proxy%vspace%get_cell_dofmap(cell)
         !
         CALL matrix_vector_mm_code(cell, nlayers, ax_proxy%data,            &
-	                           lhs_proxy%data, mm_proxy%ncell_3d,       &
-				   mm_proxy%local_stencil, ndf_any_space_1, &
-				   undf_any_space_1, map_any_space_1)
-	...
+                                   lhs_proxy%data, mm_proxy%ncell_3d,       &
+                                   mm_proxy%local_stencil, ndf_any_space_1, &
+                                   undf_any_space_1, map_any_space_1)
+        ...
         !
-      END DO 
+      END DO
       !
       ...
       !
@@ -201,7 +244,7 @@ sees fit with no change to the algorithm and kernel layers.  ::
   END MODULE solver_mod_psy
 
 This example is distributed with PSyclone and can be found in
-``<PSYCLONEHOME>/examples/dynamo/eg4``.
+``<PSYCLONEHOME>/examples/dynamo/eg3``.
 
 Supported Built-in operations
 -----------------------------
@@ -223,14 +266,14 @@ Adding new additional Built-in operations
  5. Add metadata describing this call to the appropriate file specified in
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
     this is ``dynamo0p3_builtins_mod.f90``.
- 6. Add relevant tests to the PSyclone test file for the API to be extended. 
-    *e.g.* for dynamo0.3 it is ``src/tests/dynamo0p3_builtins_test.py``. 
-    The tests rely on ``single_invoke`` Fortran examples in the relevant 
-    ``src/tests/test_files/`` subfolder. 
- 7. Add an appropriate Fortran ``single_invoke`` example for the new    
+ 6. Add relevant tests to the PSyclone test file for the API to be extended.
+    *e.g.* for dynamo0.3 it is ``src/tests/dynamo0p3_builtins_test.py``.
+    The tests rely on ``single_invoke`` Fortran examples in the relevant
+    ``src/tests/test_files/`` subfolder.
+ 7. Add an appropriate Fortran ``single_invoke`` example for the new
     Built-in in the relevant ``src/tests/test_files/`` subfolder. *e.g.*
     for dynamo0.3 it is ``src/tests/test_files/dynamo0p3/``.
-    Names of examples follow the template 
+    Names of examples follow the template
     ``<category.number>.<subcategory.number>_<single_invoke_name>.f90``.
     *e.g.* for dynamo0.3 ``<category.number>`` is 15.
  8. Document the new Built-in in the documentation of the

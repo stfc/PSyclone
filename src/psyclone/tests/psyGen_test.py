@@ -50,14 +50,13 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
-from psyclone_test_utils import get_invoke
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective
+    ACCEnterDataDirective, ACCKernelsDirective, Container
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
@@ -69,6 +68,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
+from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -146,7 +146,7 @@ def test_new_module():
     transformations.  There should be no transformations
     available as the new module uses a different
     transformation base class'''
-    from test_files import dummy_transformations
+    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations)
     assert trans.num_trans == 0
 
@@ -156,7 +156,7 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from test_files.dummy_transformations import \
+    from .test_files.dummy_transformations import \
         LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
@@ -167,7 +167,7 @@ def test_new_module_and_baseclass():
     transformations and the baseclass. There should be one
     transformation available as the module specifies one test
     transformation using the specified base class '''
-    from test_files import dummy_transformations
+    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations,
                       base_class=dummy_transformations.LocalTransformation)
     assert trans.num_trans == 1
@@ -744,7 +744,6 @@ def test_call_abstract_methods():
 def test_arguments_abstract():
     ''' Check that we raise NotImplementedError if any of the virtual methods
     of the Arguments class are called. '''
-    from psyclone.psyGen import Arguments
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args
@@ -1537,10 +1536,10 @@ def test_node_args():
     loop2_args = loop2.args
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
-    # 4) Loopfuse
+    # 4) Loop fuse
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -1739,9 +1738,9 @@ def test_call_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1768,9 +1767,9 @@ def test_call_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()
@@ -3190,6 +3189,63 @@ def test_reference_can_be_printed():
     assert "Reference[name:'rname']" in str(ref)
 
 
+def test_reference_symbol(monkeypatch):
+    '''Test that the symbol method in a Reference Node instance returns
+    the associated symbol if there is one and None if not. Also test
+    for an incorrect scope argument.
+
+    '''
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kernel_schedule = kernels[0].get_kernel_schedule()
+    references = kernel_schedule.walk(Reference)
+
+    # Symbol in KernelSchedule SymbolTable
+    field_old = references[0]
+    assert field_old.name == "field_old"
+    assert isinstance(field_old.symbol(), Symbol)
+    assert field_old.symbol().name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
+    assert isinstance(field_old.symbol(scope_limit=kernel_schedule), Symbol)
+    assert field_old.symbol().name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with parent scope
+    assert field_old.symbol(scope_limit=field_old.parent) is None
+
+    # Symbol in Container SymbolTable
+    alpha = references[6]
+    assert alpha.name == "alpha"
+    assert isinstance(alpha.symbol(), Symbol)
+    assert alpha.symbol().name == alpha.name
+
+    # Symbol in Container SymbolTable with KernelSchedule scope
+    assert alpha.symbol(scope_limit=kernel_schedule) is None
+
+    # Symbol in Container SymbolTable with Container scope
+    assert isinstance(kernel_schedule.root, Container)
+    assert alpha.symbol(scope_limit=kernel_schedule.root).name == alpha.name
+
+    # Symbol method with invalid scope type
+    with pytest.raises(TypeError) as excinfo:
+        _ = alpha.symbol(scope_limit="hello")
+    assert ("The scope_limit argument 'hello' provided to the symbol method, "
+            "is not of type `Node`." in str(excinfo.value))
+
+    # Symbol method with invalid scope location
+    with pytest.raises(ValueError) as excinfo:
+        _ = alpha.symbol(scope_limit=alpha)
+    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
+            "symbol method, is not an ancestor of this reference node "
+            "'Reference[name:'alpha']'." in str(excinfo.value))
+
+    # Symbol not in any container (rename alpha to something that is
+    # not defined)
+    monkeypatch.setattr(alpha, "_reference", "not_defined")
+    assert not alpha.symbol()
+
 # Test Array class
 
 
@@ -3388,6 +3444,56 @@ def test_return_can_be_printed():
     initialised fully)'''
     return_stmt = Return()
     assert "Return[]\n" in str(return_stmt)
+
+
+# Test Container class
+
+def test_container_init():
+    '''Test that a container is initialised as expected.'''
+    container = Container("test")
+    assert container._name == "test"
+    assert container._parent is None
+    assert isinstance(container._symbol_table, SymbolTable)
+
+
+def test_container_init_parent():
+    '''Test that a container parent argument is stored as expected.'''
+    container = Container("test", parent="hello")
+    assert container.parent == "hello"
+
+
+def test_container_name():
+    '''Test that the container name can be set and changed as
+    expected.'''
+    container = Container("test")
+    assert container.name == "test"
+    container.name = "new_test"
+    assert container.name == "new_test"
+
+
+def test_container_symbol_table():
+    '''Test that the container symbol_table method returns the expected
+    content.'''
+    container = Container("test")
+    assert isinstance(container._symbol_table, SymbolTable)
+    assert container.symbol_table is container._symbol_table
+
+
+def test_container_view(capsys):
+    '''Check the view and colored_text methods of the Container class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    cont_stmt = Container("bin")
+    coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+    cont_stmt.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[bin]" in output
+
+
+def test_container_can_be_printed():
+    '''Test that a Container instance can always be printed (i.e. is
+    initialised fully)'''
+    cont_stmt = Container("box")
+    assert "Container[box]\n" in str(cont_stmt)
 
 
 # Test KernelSchedule Class
@@ -4104,7 +4210,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # This example does not conform to the <name>_code, <name>_mod
     # convention so monkeypatch it to avoid the PSyIR code generation
     # raising an exception. This limitation is the subject of issue
-    # #393.
+    # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
     _, _ = ktrans.apply(kernels[0], number_of_layers=100)

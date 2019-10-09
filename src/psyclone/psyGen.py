@@ -112,7 +112,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Operation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
-                       "CodeBlock": "red"}
+                       "CodeBlock": "red",
+                       "Container": "green"}
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -429,6 +430,8 @@ class Invokes(object):
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
         opencl_kernels = []
+        opencl_num_queues = 1
+        generate_ocl_init = False
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
             # If we are generating OpenCL for an Invoke then we need to
@@ -436,16 +439,21 @@ class Invokes(object):
             # calls. We do it here as this enables us to prevent
             # duplication.
             if invoke.schedule.opencl:
+                generate_ocl_init = True
                 for kern in invoke.schedule.coded_kernels():
                     if kern.name not in opencl_kernels:
+                        # Compute the maximum number of command queues that
+                        # will be needed.
+                        opencl_num_queues = max(
+                            opencl_num_queues,
+                            kern.opencl_options['queue_number'])
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
-                # We must also ensure that we have a kernel object for
-                # each kernel called from the PSy layer
-                self.gen_ocl_init(parent, opencl_kernels)
+        if generate_ocl_init:
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
 
     @staticmethod
-    def gen_ocl_init(parent, kernels):
+    def gen_ocl_init(parent, kernels, num_queues):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -455,6 +463,8 @@ class Invokes(object):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         :param kernels: List of kernel names called by the PSy layer.
         :type kernels: list of str
+        :param int num_queues: total number of queues needed for the OpenCL \
+                               implementation.
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
@@ -478,7 +488,7 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init"))
+        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -1030,7 +1040,7 @@ class Node(object):
     def annotations(self):
         ''' Return the list of annotations attached to this Node.
 
-        :return: List of anotations
+        :returns: List of anotations
         :rtype: list of str
         '''
         return self._annotations
@@ -1431,7 +1441,8 @@ class Node(object):
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class\
             or a tuple of such classes.
-        :return: list with all nodes that are instances of my_type \
+
+        :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
         :rtype: list of :py:class:`psyclone.Node` instances.
         '''
@@ -1614,7 +1625,7 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured.
+        :returns: Text containing the name of this node, possibly coloured.
         :rtype: str
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1625,7 +1636,7 @@ class Schedule(Node):
         in the Schedule.
 
         :param int index: index of the statement to access.
-        :return: statement in a given position in the Schedule sequence.
+        :returns: statement in a given position in the Schedule sequence.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         return self._children[index]
@@ -1680,7 +1691,36 @@ class InvokeSchedule(Schedule):
         Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barrier": True}
         self._name_space_manager = NameSpaceFactory().create()
+
+    def set_opencl_options(self, options):
+        '''
+        Validate and store a set of options associated with the InvokeSchedule
+        to tune the OpenCL code generation.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: dictionary of <string>:<value>
+
+        '''
+        valid_opencl_options = ['end_barrier']
+
+        # Validate that the options given are supported and store them
+        for key, value in options.items():
+            if key in valid_opencl_options:
+                if key == "end_barrier":
+                    if not isinstance(value, bool):
+                        raise TypeError(
+                            "InvokeSchedule opencl_option 'end_barrier' "
+                            "should be a boolean.")
+            else:
+                raise AttributeError(
+                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "The supported options are: {1}."
+                    "".format(key, valid_opencl_options))
+
+            self._opencl_options[key] = value
 
     @property
     def invoke(self):
@@ -1787,15 +1827,22 @@ class InvokeSchedule(Schedule):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl:
-            # Ensure we block at the end of the invoke to ensure all
-            # kernels have completed before we return.
-            # This code ASSUMES only the first command queue is used for
-            # executing kernels.
+        if self.opencl and self._opencl_options['end_barrier']:
+
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
-            parent.add(AssignGen(parent, lhs=flag,
-                                 rhs="clFinish(" + qlist + "(1))"))
+
+            # We need a clFinish for all the queues in the implementation
+            opencl_num_queues = 1
+            for kern in self.coded_kernels():
+                opencl_num_queues = max(
+                    opencl_num_queues,
+                    kern.opencl_options['queue_number'])
+            for queue_number in range(1, opencl_num_queues + 1):
+                parent.add(
+                    AssignGen(parent, lhs=flag,
+                              rhs="clFinish({0}({1}))".format(qlist,
+                                                              queue_number)))
 
     @property
     def opencl(self):
@@ -3126,7 +3173,7 @@ class Loop(Node):
     @property
     def start_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop start expression.
+        :returns: the PSyIR Node representing the Loop start expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3153,7 +3200,7 @@ class Loop(Node):
     @property
     def stop_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop stop expression.
+        :returns: the PSyIR Node representing the Loop stop expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3180,7 +3227,7 @@ class Loop(Node):
     @property
     def step_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop step expression.
+        :returns: the PSyIR Node representing the Loop step expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3207,7 +3254,7 @@ class Loop(Node):
     @property
     def loop_body(self):
         '''
-        :return: the PSyIR Schedule with the loop body statements.
+        :returns: the PSyIR Schedule with the loop body statements.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
 
         '''
@@ -3432,7 +3479,7 @@ class Loop(Node):
             :param expr: a PSyIR expression.
             :type expr: :py:class:`psyclone.psyGen.Node`
 
-            :return: True if it is equal to the literal '1', false otherwise.
+            :returns: True if it is equal to the literal '1', false otherwise.
             '''
             return isinstance(expr, Literal) and expr.value == '1'
 
@@ -3788,6 +3835,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
+        self._opencl_options = {'local_size': 1, 'queue_number': 1}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -3812,7 +3860,48 @@ class CodedKern(Kern):
         if self._kern_schedule is None:
             astp = Fparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
+
+    @property
+    def opencl_options(self):
+        '''
+        :returns: dictionary of OpenCL options regarding the kernel.
+        :rtype: dictionary
+        '''
+        return self._opencl_options
+
+    def set_opencl_options(self, options):
+        '''
+        Validate and store a set of options associated with the Kernel to
+        tune the OpenCL code generation.
+
+        :param options: a set of options to tune the OpenCL code.
+        :type options: dictionary of <string>:<value>
+
+        '''
+        valid_opencl_kernel_options = ['local_size', 'queue_number']
+
+        # Validate that the options given are supported
+        for key, value in options.items():
+            if key in valid_opencl_kernel_options:
+                if key == "local_size":
+                    if not isinstance(value, int):
+                        raise TypeError(
+                            "CodedKern opencl_option 'local_size' should be "
+                            "an integer.")
+                if key == "queue_number":
+                    if not isinstance(value, int):
+                        raise TypeError(
+                            "CodedKern opencl_option 'queue_number' should be "
+                            "an integer.")
+            else:
+                raise AttributeError(
+                    "CodedKern does not support the opencl_option '{0}'. "
+                    "The supported options are: {1}."
+                    "".format(key, valid_opencl_kernel_options))
+
+            self._opencl_options[key] = value
 
     def __str__(self):
         return "kern call: " + self._name
@@ -4018,7 +4107,23 @@ class CodedKern(Kern):
         fdesc = None
         while not fdesc:
             name_idx += 1
-            new_suffix = "_{0}".format(name_idx)
+            new_suffix = ""
+
+            # GOcean OpenCL needs to differentiate between kernels generated
+            # from the same module file, so we include the kernelname into the
+            # output filename.
+            # TODO: Issue 499, this works as an OpenCL quickfix but it needs
+            # to be generalized and be consistent with the '--kernel-renaming'
+            # conventions.
+            if self.root.opencl:
+                if self.name.lower().endswith("_code"):
+                    new_suffix += "_" + self.name[:-5]
+                else:
+                    new_suffix += "_" + self.name
+
+            new_suffix += "_{0}".format(name_idx)
+
+            # Choose file extension
             if self.root.opencl:
                 new_name = old_base_name + new_suffix + ".cl"
             else:
@@ -4060,7 +4165,7 @@ class CodedKern(Kern):
                 # <name>_code convention as this is currently assumed
                 # when recreating the kernel module name from the
                 # PSyIR in the Fortran back end. This limitation is
-                # the subject of #393.
+                # the subject of #520.
 
                 if self.name.lower().rstrip("_code") != \
                    self.module_name.lower().rstrip("_mod") or \
@@ -4090,7 +4195,8 @@ class CodedKern(Kern):
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
-            ocl_writer = OpenCLWriter()
+            ocl_writer = OpenCLWriter(
+                    kernels_local_size=self._opencl_options['local_size'])
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -4149,7 +4255,7 @@ class CodedKern(Kern):
         name is then inferred from the subroutine name by assuming
         there is a naming convention (<name>_code and <name>_mod),
         which is not always the case. This limitation is the subject
-        of #393.
+        of #520.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -4171,7 +4277,7 @@ class CodedKern(Kern):
         # an assumption in the PSyIR that the module name has the same
         # root name as the subroutine name. These names are used when
         # generating the modified kernel code. This limitation is the
-        # subject of #393.
+        # subject of #520.
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
 
@@ -4882,7 +4988,7 @@ class KernelArgument(Argument):
 
     @abc.abstractmethod
     def is_scalar(self):
-        ''':return: whether this variable is a scalar variable or not.
+        ''':returns: whether this variable is a scalar variable or not.
         :rtype: bool'''
 
 
@@ -5051,7 +5157,7 @@ class IfBlock(Node):
         ''' Return the PSyIR Node representing the conditional expression
         of this IfBlock.
 
-        :return: IfBlock conditional expression.
+        :returns: IfBlock conditional expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
@@ -5066,7 +5172,7 @@ class IfBlock(Node):
     def if_body(self):
         ''' Return the Schedule executed when the IfBlock evaluates to True.
 
-        :return: Schedule to be executed when IfBlock evaluates to True.
+        :returns: Schedule to be executed when IfBlock evaluates to True.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
@@ -5084,7 +5190,7 @@ class IfBlock(Node):
         ''' If available return the Schedule executed when the IfBlock
         evaluates to False, otherwise return None.
 
-        :return: Schedule to be executed when IfBlock evaluates \
+        :returns: Schedule to be executed when IfBlock evaluates \
             to False, if it doesn't exist returns None.
         :rtype: :py:class:`psyclone.psyGen.Schedule` or NoneType
         '''
@@ -5922,7 +6028,7 @@ class SymbolTable(object):
     @property
     def iteration_indices(self):
         '''
-        :return: List of symbols representing kernel iteration indices.
+        :returns: List of symbols representing kernel iteration indices.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -5934,7 +6040,7 @@ class SymbolTable(object):
     @property
     def data_arguments(self):
         '''
-        :return: List of symbols representing kernel data arguments.
+        :returns: List of symbols representing kernel data arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -6225,7 +6331,7 @@ class Reference(Node):
     def name(self):
         ''' Return the name of the referenced symbol.
 
-        :return: Name of the referenced symbol.
+        :returns: Name of the referenced symbol.
         :rtype: str
         '''
         return self._reference
@@ -6263,6 +6369,102 @@ class Reference(Node):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         var_accesses.add_access(self._reference, AccessType.READ, self)
+
+    def check_declared(self):
+        '''Check whether this reference has an associated symbol table entry.
+
+        raises SymbolError: if one or more ancestor symbol table(s) \
+        are found and the name of this reference is not found in any \
+        of them.
+
+        '''
+        found_symbol_table = False
+        test_node = self.parent
+        while test_node:
+            if hasattr(test_node, 'symbol_table'):
+                found_symbol_table = True
+                symbol_table = test_node.symbol_table
+                if self.name in symbol_table:
+                    return
+            test_node = test_node.parent
+
+        # TODO: remove this if test, remove the initialisation of the
+        # found_symbol_table boolean variable and update the doc
+        # string when SymbolTables are suppported in the NEMO API, see
+        # issue #500. After this change has been made this method could
+        # make use of the symbol method to determine
+        # whether the reference has been declared (or not).
+        if found_symbol_table:
+            raise SymbolError(
+                "Undeclared reference '{0}' found.".format(self.name))
+
+    def symbol(self, scope_limit=None):
+        '''Returns the symbol from a symbol table associated with this
+        reference or None is it is not found. The scope_limit variable
+        limits the symbol table search to nodes within the scope.
+
+        :param scope_limit: optional Node which limits the symbol \
+        search space to the symbol tables of the nodes within the \
+        given scope. If it is None (the default), the whole scope (all \
+        symbol tables in ancestor nodes) is searched.
+        :type scope_limit: :py:class:`psyclone.psyGen.Node` or `None`
+
+        :returns: the Symbol associated with this reference if one is \
+        found or None if not.
+        :rtype: :py:class:`psyclone.psyGen.Symbol` or `None`
+
+        '''
+        if scope_limit:
+
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}' provided to the symbol "
+                    "method, is not of type `Node`."
+                    "".format(str(scope_limit), str(self)))
+
+            # Check that the scope_limit Node is an ancestor of this
+            # Reference Node and raise an exception if not.
+            found = False
+            mynode = self.parent
+            while mynode is not None:
+                if mynode is scope_limit:
+                    found = True
+                    break
+                mynode = mynode.parent
+            if not found:
+                # The scope_limit node is not an ancestor of this reference
+                # so raise an exception.
+                raise ValueError(
+                    "The scope_limit node '{0}' provided to the symbol "
+                    "method, is not an ancestor of this reference node '{1}'."
+                    "".format(str(scope_limit), str(self)))
+        test_node = self.parent
+        # Iterate over ancestor Nodes of this Reference Node.
+        while test_node:
+            # For simplicity, test every Node for the existence of a
+            # SymbolTable (rather than checking for the particular
+            # Node types which we know to have SymbolTables).
+            if hasattr(test_node, 'symbol_table'):
+                # This Node does have a SymbolTable.
+                symbol_table = test_node.symbol_table
+                try:
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
+                    return symbol_table.lookup(self.name)
+                except KeyError:
+                    # The Reference Node does not match any Symbols in
+                    # this SymbolTable.
+                    pass
+            if test_node is scope_limit:
+                # The ancestor scope Node has been reached and nothing
+                # has matched so return with None.
+                return None
+            # Move on to the next ancestor.
+            test_node = test_node.parent
+        # scope has not been set and all Nodes have been checked (up
+        # to the root Node) but there has been no match so return with
+        # None.
+        return None
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -6302,7 +6504,7 @@ class Operation(Node):
         Abstract method to return the name of this node type with control
         codes for terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
 
@@ -6311,7 +6513,7 @@ class Operation(Node):
         '''
         Return the operator.
 
-        :return: Enumerated type capturing the operator.
+        :returns: Enumerated type capturing the operator.
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
                 :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
                 :py:class:`psyclone.psyGen.NaryOperation.Operator`
@@ -6373,7 +6575,7 @@ class UnaryOperation(Operation):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
 
         '''
@@ -6531,7 +6733,7 @@ class Literal(Node):
         '''
         Return the value of the literal.
 
-        :return: String representing the literal value.
+        :returns: String representing the literal value.
         :rtype: str
         '''
         return self._value
@@ -6577,7 +6779,7 @@ class Return(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
@@ -6592,6 +6794,74 @@ class Return(Node):
 
     def __str__(self):
         return "Return[]\n"
+
+
+class Container(Node):
+    '''Node representing a set of KernelSchedule and/or Container nodes,
+    as well as a name and a SymbolTable. This construct can be used to
+    scope symbols of variables, KernelSchedule names and Container
+    names. In Fortran a container would naturally represent a module
+    or a submodule.
+
+    :param str name: the name of the container.
+    :param parent: optional parent node of this Container in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, name, parent=None):
+        super(Container, self).__init__(parent=parent)
+        self._name = name
+        self._symbol_table = SymbolTable(self)
+
+    @property
+    def name(self):
+        '''
+        :returns: name of the container.
+        :rtype: str
+
+        '''
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        '''Sets a new name for the container.
+
+        :param str new_name: new name for the container.
+
+        '''
+        self._name = new_name
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: table containing symbol information for the container.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+
+        '''
+        return self._symbol_table
+
+    @property
+    def coloured_text(self):
+        '''Return the name of this node type with control codes for terminal
+        colouring.
+
+        :return: name of node + control chars for colour.
+        :rtype: str
+
+        '''
+        return colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+
+    def view(self, indent=0):
+        '''Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+
+        '''
+        print(self.indent(indent) + self.coloured_text + "[{0}]"
+              "".format(self.name))
+
+    def __str__(self):
+        return "Container[{0}]\n".format(self.name)
 
 
 __all__ = ['Literal', 'Return']

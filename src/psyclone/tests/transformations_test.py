@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''
 API-agnostic tests for various transformation classes.
@@ -143,7 +144,7 @@ def test_fusetrans_error_incomplete():
 
     # Check first loop
     with pytest.raises(TransformationError) as err:
-        fuse._validate(loop1, loop2)
+        fuse.validate(loop1, loop2)
     assert "Error in LoopFuse transformation. The first loop does not have " \
         "4 children." in str(err.value)
 
@@ -155,7 +156,7 @@ def test_fusetrans_error_incomplete():
 
     # Check second loop
     with pytest.raises(TransformationError) as err:
-        fuse._validate(loop1, loop2)
+        fuse.validate(loop1, loop2)
     assert "Error in LoopFuse transformation. The second loop does not have " \
         "4 children." in str(err.value)
 
@@ -166,7 +167,7 @@ def test_fusetrans_error_incomplete():
     loop2.loop_body.addchild(Return(parent=loop2.loop_body))
 
     # Validation should now pass
-    fuse._validate(loop1, loop2)
+    fuse.validate(loop1, loop2)
 
 
 def test_fusetrans_error_not_same_parent():
@@ -196,7 +197,7 @@ def test_fusetrans_error_not_same_parent():
 
     # Try to fuse loops with different parents
     with pytest.raises(TransformationError) as err:
-        fuse._validate(loop1, loop2)
+        fuse.validate(loop1, loop2)
     assert "Error in LoopFuse transformation. Loops do not have the " \
         "same parent" in str(err.value)
 
