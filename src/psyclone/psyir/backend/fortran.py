@@ -139,21 +139,49 @@ class FortranWriter(PSyIRVisitor):
     generating Fortran).
 
     '''
-    def gen_declaration(self, symbol):
-        '''Create and return the Fortran declaration for this Symbol.
+    def gen_use(self, symbol):
+        '''Create and return the Fortran use statement for this Symbol.
 
         :param symbol: the symbol instance.
         :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
-        :returns: the Fortran declaration as a string.
+        :returns: the Fortran use statement as a string.
         :rtype: str
 
+        :raises VisitorError: if the symbol argument does not specify \
+        a use statement (its interface value is not a FortranGlobal \
+        instance).
+
         '''
-        if isinstance(symbol.interface, Symbol.FortranGlobal):
-            # This is a use statement
-            return "{0}use {1}, only : {2}\n".format(
-                self._nindent, symbol.interface.module_name, symbol.name)
-        # It is not a use statement so is a variable declaration.
+        if not symbol.interface or not isinstance(symbol.interface,
+                                                  Symbol.FortranGlobal):
+            raise VisitorError(
+                "gen_use requires the symbol interface to be a FortranGlobal "
+                "instance.")
+
+        return "{0}use {1}, only : {2}\n".format(
+            self._nindent, symbol.interface.module_name, symbol.name)
+
+    def gen_vardecl(self, symbol):
+        '''Create and return the Fortran variable declaration for this Symbol.
+
+        :param symbol: the symbol instance.
+        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :returns: the Fortran variable declaration as a string.
+        :rtype: str
+
+        :raises VisitorError: if the symbol does not specify a \
+        variable declaration (it is not a local declaration or an \
+        argument declaration).
+
+        '''
+        if not symbol.scope=="local" and not isinstance(symbol.interface,
+                                                        Symbol.Argument):
+            raise VisitorError(
+                "gen_vardecl requires the symbol to be a local declaration or an "
+                "argument declaration.")
+
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
         # The PSyIR does not currently capture kind information, see
@@ -208,8 +236,14 @@ class FortranWriter(PSyIRVisitor):
         self._depth += 1
 
         declarations = ""
-        for symbol in node.symbol_table.symbols:
-            declarations += self.gen_declaration(symbol)
+        # Use statements
+        for symbol in [sym for sym in node.symbol_table.symbols if \
+                       isinstance(sym.interface, Symbol.FortranGlobal)]:
+            declarations += self.gen_use(symbol)
+        # Variable declarations
+        for symbol in [sym for sym in node.symbol_table.symbols if \
+                       sym.scope=="local"]:
+            declarations += self.gen_vardecl(symbol)
 
         # Get the subroutine statements.
         subroutines = ""
@@ -257,8 +291,18 @@ class FortranWriter(PSyIRVisitor):
         self._depth += 1
         # Declare the kernel data.
         declarations = ""
-        for symbol in node.symbol_table.symbols:
-            declarations += self.gen_declaration(symbol)
+        # Use statements
+        for symbol in [sym for sym in node.symbol_table.symbols if \
+                       isinstance(sym.interface, Symbol.FortranGlobal)]:
+            declarations += self.gen_use(symbol)
+        # Argument variable declarations
+        for symbol in [sym for sym in node.symbol_table.symbols if \
+                       isinstance(sym.interface, Symbol.Argument)]:
+            declarations += self.gen_vardecl(symbol)
+        # Local variable declarations
+        for symbol in [sym for sym in node.symbol_table.symbols if \
+                       sym.scope=="local"]:
+            declarations += self.gen_vardecl(symbol)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:

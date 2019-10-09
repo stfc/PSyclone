@@ -111,34 +111,59 @@ def test_gen_dims_error(monkeypatch):
     assert "unsupported gen_dims index 'invalid'" in str(excinfo)
 
 
-def test_fw_gen_declaration(fort_writer):
-    '''Check the FortranWriter class gen_declaration method produces
-    the expected declarations.
+def test_fw_gen_use(fort_writer):
+    '''Check the FortranWriter class gen_use method produces the expected
+    declaration. Also check that an exception is raised if the symbol
+    does not describe a use statement.
+
+    '''
+    symbol = Symbol("dummy1", "deferred", interface=Symbol.FortranGlobal("my_module"))
+    result = fort_writer.gen_use(symbol)
+    assert result == "use my_module, only : dummy1\n"
+
+    symbol = Symbol("dummy1", "integer")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(symbol)
+    assert ("gen_use requires the symbol interface to be a FortranGlobal "
+            "instance." in str(excinfo.value))
+
+
+def test_fw_gen_vardecl(fort_writer):
+    '''Check the FortranWriter class gen_vardecl method produces the
+    expected declarations. Also check that an exception is raised if
+    the symbol does not describe a variable declaration statement.
 
     '''
     # Basic entry
     symbol = Symbol("dummy1", "integer")
-    result = fort_writer.gen_declaration(symbol)
+    result = fort_writer.gen_vardecl(symbol)
     assert result == "integer :: dummy1\n"
 
     # Array with intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    result = fort_writer.gen_declaration(symbol)
+    result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
     symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
                     interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    result = fort_writer.gen_declaration(symbol)
+    result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2) :: dummy2\n"
 
     # Constant
     symbol = Symbol("dummy3", "integer", constant_value=10)
-    result = fort_writer.gen_declaration(symbol)
+    result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
+    # Use statement
+    symbol = Symbol("dummy1", "deferred", interface=Symbol.FortranGlobal("my_module"))
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert ("gen_vardecl requires the symbol to be a local declaration or an "
+            "argument declaration." in str(excinfo.value))
 
+    
 def test_fw_exception(fort_writer):
     '''Check the FortranWriter class instance raises an exception if an
     unsupported PSyIR node is found.
