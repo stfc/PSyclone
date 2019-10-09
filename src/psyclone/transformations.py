@@ -971,7 +971,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                                     reprod=self._reprod)
         return _directive
 
-    def apply(self, node, reprod=None):
+    def apply(self, node, options=None):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -988,29 +988,33 @@ class OMPLoopTrans(ParallelLoopTrans):
         :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP PARALLEL region.
 
-        The optional reprod argument will cause a reproducible
-        reduction to be generated if it is set to True, otherwise the default
-        value (as read from the psyclone.cfg file) will be used. Note,
-        reproducible in this case means obtaining the same results
+        If the keyword "reprod" is specified in the options, it will cause a
+        reproducible reduction to be generated if it is set to True, otherwise
+        the default value (as read from the psyclone.cfg file) will be used.
+        Note, reproducible in this case means obtaining the same results
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
 
         :param node: the supplied node to which we will apply the \
-        OMPLoopTrans transformation
+                     OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: optional argument to determine whether to \
-        generate reproducible OpenMP reductions (True) or not \
-        (False). The default value is None which will cause PSyclone \
-        to look up a default value
-        :type reprod: Boolean or None
+        :param options: a dictionary or set with options for transformations\
+                        and validation. This transformation accepts "reprod",\
+                        indicating if reproducible reductions should be used.\
+                        By default the value form the config file will be used.
+        :type options: dict or set or None
+
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        if reprod:
-            self._reprod = reprod
 
-        return super(OMPLoopTrans, self).apply(node)
+        if "reprod" in options:
+            self._reprod = options["reprod"]
+        else:
+            self._reprod = Config.get().reproducible_reductions
+
+        return super(OMPLoopTrans, self).apply(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
@@ -1162,8 +1166,18 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
-    def _validate(self, node):
-        ''' validity checks for input arguments '''
+    def _validate(self, node, options=None):
+        '''Validity checks for input arguments.
+
+        :param node: The PSyIR node to validate.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary or set with options for transformations.
+        :type options: dict or set or None
+
+        :raises TransformationError: if the nodes is not a Loop.
+        :raises TransformationError: if the nodes is over colours.
+
+         '''
         # Check that the supplied Node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node, Loop):
@@ -1175,8 +1189,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The requested loop is over colours and "
                                       "must be computed serially.")
+        super(OMPParallelLoopTrans, self)._validate(node, options)
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -1191,12 +1206,16 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         :param node: the node (loop) to which to apply the transformation.
         :type node: :py:class:`psyclone.f2pygen.DoGen`
+        :param options: a dictionary or set with options for transformations\
+                        and validation.
+        :type options: dict or set or None
+
         :returns: Two-tuple of transformed schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
-        self._validate(node)
+        self._validate(node, options)
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -1242,7 +1261,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
 
         '''Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
@@ -1250,12 +1269,14 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary or set with options for transformations.
+        :type options: dict or set or None
 
         :raise TransformationError: if the associated loop requires \
         colouring.
 
         '''
-        OMPParallelLoopTrans._validate(self, node)
+        super(OMPParallelLoopTrans, self)._validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -1292,18 +1313,21 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
 
         :param node: A Loop node from an AST.
         :type node: :py:class:`psyclone.psyGen.Loop`
-        :raises TransformationError: if the supplied node is not an inner or
+        :param options: a dictionary or set with options for transformations\
+                        and validation.
+        :type options: dict or set or None
+
+        :raises TransformationError: if the supplied node is not an inner or\
             outer loop.
 
         '''
-
-        OMPParallelLoopTrans._validate(self, node)
+        OMPParallelLoopTrans._validate(self, node, options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1330,24 +1354,28 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def apply(self, node, reprod=None):
+    def apply(self, node, options=None):
         '''Perform Dynamo 0.3 specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: if reproducible reductions should be used.
-        :type reprod: bool or None (default, which indicates to use the \
-              default from the config file).
+        :param options: a dictionary or set with options for transformations\
+                        and validation. This transformation accepts "reprod",\
+                        indicating if reproducible reductions should be used.\
+                        Bu default the value form the config file will be used.
+        :type options: dict or set or None
 
         :raise TransformationError: if an OMP loop transform would create \
                 incorrect code.
         '''
+        if not options:
+            options = {}
 
-        if reprod is None:
-            reprod = Config.get().reproducible_reductions
+        if "reprod" not in options:
+            options["reprod"] = Config.get().reproducible_reductions
 
-        OMPLoopTrans._validate(self, node)
+        OMPLoopTrans._validate(self, node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be
@@ -1357,7 +1385,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 " with INC access. Colouring is required.".
                 format(self.name))
 
-        return OMPLoopTrans.apply(self, node, reprod=reprod)
+        return OMPLoopTrans.apply(self, node, options)
 
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
