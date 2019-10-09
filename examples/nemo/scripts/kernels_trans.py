@@ -72,7 +72,7 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 # un-accelerated regions
 _AUTO_PROFILE = True
 # If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc", "agrif", "flo_dom",
+PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "ice_thd_pnd", "mpp_",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
@@ -82,7 +82,8 @@ PROFILING_IGNORE = ["_init", "_rst", "iom", "alloc", "agrif", "flo_dom",
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
 ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
-              "ice_dyn_adv" # No significant compute
+              "ice_dyn_adv", # No significant compute
+              "iom_open", "iom_get_123d"
               #"ice_cor" # Non-performant because PSyIR doesn't yet support
                         # array ranges as function arguments
               ]
