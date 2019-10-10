@@ -184,12 +184,12 @@ class FortranWriter(PSyIRVisitor):
 
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
+        result = "{0}{1}".format(self._nindent, symbol.datatype)
         # The PSyIR does not currently capture kind information, see
         # issue #375
-        kind = None
-        result = "{0}{1}".format(self._nindent, symbol.datatype)
-        if kind:
-            result += "({0})".format(kind)
+        # kind = ...
+        # if kind:
+        #     result += "({0})".format(kind)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
         if intent:

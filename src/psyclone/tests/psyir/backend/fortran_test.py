@@ -272,6 +272,7 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
         "module test\n"
         "contains\n"
         "subroutine tmp(a,b,c)\n"
+        "  use my_mod, only : d\n"
         "  real, intent(out) :: a(:)\n"
         "  real, intent(in) :: b(:)\n"
         "  integer, intent(in) :: c\n"
@@ -285,6 +286,7 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
 
     assert(
         "subroutine tmp(a,b,c)\n"
+        "  use my_mod, only : d\n"
         "  real, dimension(:), intent(out) :: a\n"
         "  real, dimension(:), intent(in) :: b\n"
         "  integer, intent(in) :: c\n"
