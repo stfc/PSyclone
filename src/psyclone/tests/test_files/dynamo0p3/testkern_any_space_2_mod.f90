@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -56,11 +56,11 @@ contains
        ncell_3d, local_stencil, istep, ndf_any_space_1_f2,              &
        undf_any_space_1_f2, map_any_space_1_f2)
     implicit none
-    integer :: cell, nlayers, ncell_3d, istep, ndf_any_space_1_f2, &
-         undf_any_space_1_f2
-    integer, dimension(:) :: map_any_space_1_f2
-    real(kind=r_def), dimension(:) :: f2_data, f1_data
-    real(kind=r_def), dimension(:,:,:) :: local_stencil
+    integer, intent(in) :: cell, nlayers, ncell_3d, istep, &
+         ndf_any_space_1_f2, undf_any_space_1_f2
+    integer, intent(in), dimension(:) :: map_any_space_1_f2
+    real(kind=r_def), intent(inout), dimension(:) :: f2_data, f1_data
+    real(kind=r_def), intent(in), dimension(:,:,:) :: local_stencil
   end subroutine testkern_any_space_2_code
 !
 end module testkern_any_space_2_mod

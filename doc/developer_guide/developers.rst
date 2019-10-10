@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _developers-guide:
 
 Developers' guide
@@ -72,6 +107,8 @@ the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
 :ref:`user_guide:getting-going` section.)
 
+.. _test_suite:
+
 Test Suite
 ==========
 
@@ -80,12 +117,13 @@ new code must be covered (i.e. executed) by one or more tests. As
 described in :ref:`user_guide:getting-going`, the test suite is
 written for use with ``pytest``.
 
-Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
-from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
+Tests should be run from the ``<PSYCLONEHOME>/src/psyclone/tests`` 
+directory, from which all tests in subdirectories 
 will be automatically found and started. If only a subset of all tests
 need to be run, ``pytest`` can be invoked from the corresponding
-subdirectory or with that subdirectory as an argument.
+subdirectory or with that subdirectory or filename as an argument.
 
+.. _test_coverage:
 
 Coverage
 --------
@@ -104,7 +142,7 @@ to ask for a terminal report of missed lines for the ``dynamo0p3`` module
 you would do::
 
   > cd <PSYCLONEHOME>
-  > py.test --cov-report term-missing --cov psyclone.dynamo0p3
+  > pytest --cov-report term-missing --cov psyclone.dynamo0p3
 
 Note that you specify the python module name, and not the file name.
 This will produce output along the lines of::
@@ -120,7 +158,7 @@ only selected tests to be run by specifying the file names on the command line.
 Additionally html output can be created by adding the option ``--cov-report html``::
 
   > cd <PSYCLONEHOME>/src/psyclone/tests
-  > py.test --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
+  > pytest --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
 
 The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
 and it highlights all source lines in red that are not covered by at least one test.
@@ -139,7 +177,7 @@ in parallel simply by providing the number of cores to use via the
 ``-n`` flag::
 
   > cd <PSYCLONEHOME>
-  > py.test -n 4
+  > pytest -n 4
 
 Running the test suite in parallel also changes the order in which
 tests are run which can reveal any problems resulting from tests not
@@ -173,13 +211,13 @@ The Gnu Fortran compiler (gfortran) is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
 specified by further command-line flags::
 
-  > py.test --compile --f90=ifort --f90flags="-O3"
+  > pytest --compile --f90=ifort --f90flags="-O3"
 
 If you want to test OpenCL code created by PSyclone, you must use the command line
 option --compileopencl (which can be used together with --compile,
 and --f90 and --f90flags), e.g.::
 
-  > py.test --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
+  > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
 
 Infrastructure libraries
@@ -258,9 +296,9 @@ The PSyclone Internal Representation (PSyIR)
 The PSyclone Internal Representation (PSyIR) is a language-independent
 AST that PSyclone uses to represent the PSy layer and the kernel
 code. The PSyIR can be constructed from scratch or produced from
-existing code using one of the (front-end) ASTProcessors provided in
-PSyclone and it can be transformed back to a particular language using
-the (back-end) support provided in PSyclone.
+existing code using one of the front-ends (Readers) and it can be
+transformed back to a particular language using the back-ends (Writers)
+provided in PSyclone.
 
 Nodes
 =====
@@ -286,10 +324,10 @@ navigation won't be future-proof.
 
 To solve this issue some nodes also provide methods for semantic navigation:
 
-- Schedule: subscript operator for indexing the statements inside the
+- `Schedule`: subscript operator for indexing the statements inside the
   Schedule. (e.g. `sched[3]` or `sched[2:4]`)
-- Assignment: `rhs` and `lhs` properties.
-- IfBlocks: `condition`, `if_body` and `else_body` properties.
+- `Assignment`: `rhs` and `lhs` properties.
+- `IfBlocks`: `condition`, `if_body` and `else_body` properties.
 
 These are the recommended methods to navigate the tree for analysis or
 operations that depend on the Node type.
@@ -301,13 +339,32 @@ information about the exact location.
 
 .. automethod:: psyclone.psyGen.Node.walk
 
+.. _container-label:
+
+Container
+=========
+
+The Container node contains one or more Containers and/or
+KernelSchedules (see :ref:`kernel_schedule-label`). Similarly to
+KernelSchedule it contains a SymbolTable
+(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) specified in the Container scope (see
+:ref:`symbol-label`).
+
+A Container can be used to capture a hierarchical grouping of
+KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
+specified in a Container is visible to all Containers and
+KernelSchedules within it and their descendents.
+
+.. autoclass:: psyclone.psyGen.Container
+    :members:
 
 Schedule
 ========
 
-The Schedule node represents a sequence of statements. It is a important node
-in PSyclone because two of its specialisations: InvokeSchedule and
-KernelSchedule (described below), are used as the root nodes of PSy-layer
+The Schedule node represents a sequence of statements. It is an important node
+in PSyclone because two of its specialisations: `InvokeSchedule` and
+`KernelSchedule` (described below), are used as the root nodes of PSy-layer
 invokes and kernel subroutines. This makes them the starting points for any
 walking of the PSyIR tree in PSyclone transformation scripts and a common
 target for the application of transformations.
@@ -319,7 +376,7 @@ target for the application of transformations.
 InvokeSchedule
 --------------
 
-The InvokeSchedule is a PSyIR node that represents an invoke subroutine in
+The `InvokeSchedule` is a PSyIR node that represents an invoke subroutine in
 the PSy-layer. It extends the `psyclone.psyGen.Schedule` functionality
 with a `psyclone.psyGen.NameSpace` and a reference to its associated
 `psyclone.psyGen.Invoke` object.
@@ -332,39 +389,41 @@ with a `psyclone.psyGen.NameSpace` and a reference to its associated
 KernelSchedule
 ---------------
 
-The KernelSchedule is a PSyIR node that represents a kernel subroutine. It
-extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
-(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
-(`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
+The `KernelSchedule` is a PSyIR node that represents a kernel
+subroutine. It extends the `psyclone.psyGen.Schedule` functionality
+with a SymbolTable (`psyclone.psyGen.SymbolTable`) that keeps a record
+of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
+(see :ref:`symbol-label`).
 
-.. autoclass:: psyclone.psyGen.Symbol
-    :members:
-
-
-The Symbol Table has the following interface:
-
-.. autoclass:: psyclone.psyGen.SymbolTable
-    :members:
 
 Control Flow Nodes
 ==================
 
-The PSyIR has two control flow nodes: IfBlock and Loop. These nodes represent
+The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These nodes represent
 the canonical structure with which conditional branching constructs and
 iteration constructs are built. Additional language-specific syntax for branching
 and iteration will be normalized to use these same constructs.
 For example, Fortran has the additional branching constructs `ELSE IF`
-and `CASE`: when a Fortran code is translated into the PSyIR, Psyclone will
-build a semantically equivalent implementation using IfBlocks.
+and `CASE`: when a Fortran code is translated into the PSyIR, PSyclone will
+build a semantically equivalent implementation using `IfBlocks`.
 However, the necessary nodes in the new tree structure will be annotated
 with information to enable the original language-specific syntax to be
 recreated if required.
 
+
+Branching construct
+-------------------
+
 .. autoclass:: psyclone.psyGen.IfBlock
     :members:
 
+
+Iteration construct
+-------------------
+
 .. autoclass:: psyclone.psyGen.Loop
     :members:
+
 
 Operation Nodes
 ===============
@@ -405,6 +464,76 @@ The operations supported by the `NaryOperation` are:
    :members:
    :undoc-members:
 
+
+CodeBlock Node
+==============
+
+The PSyIR CodeBlock node contains code that has no representation in
+the PSyIR. It is useful as it allows the PSyIR to represent complex
+code by using CodeBlocks to handle the parts which contain unsupported
+language features. One approach would be to work towards capturing all
+language features in the PSyIR, which would gradually remove the need
+for CodeBlocks. However, the purpose of the PSyIR is to capture code
+concepts that are relevant for performance, not all aspects of a code,
+therefore it is likely that that CodeBlocks will continue to be an
+important part of the PSyIR.
+
+.. autoclass:: psyclone.psyGen.CodeBlock
+   :members:
+   :undoc-members:
+
+The code represented by a CodeBlock is currently stored as a list of
+fparser2 nodes. Therefore, a CodeBlock's input and output language is
+limited to being Fortran. This means that only the fparser2 front-end
+and Fortran back-end can be used when there are CodeBlocks within a
+PSyIR tree. In theory, language interfaces could be written between
+CodeBlocks and other PSyIR Nodes to support different back-ends but
+this has not been implemented.
+
+The CodeBlock ``structure`` method indicates whether the code contains
+one or more Fortran expressions or one or more statements (which may
+themselves contain expressions). This is required by the Fortran
+back-end as expressions do not need indentation and a newline whereas
+statements do.
+
+A feature of the fparser2 node list is that if the first node in the
+list is a statement then so are all the other nodes in the list and
+that if the first node in the list is an expression then so are all
+the other nodes in the list. This allows the ``structure`` method to
+return a single value that represents all nodes in the list.
+
+The structure of the PSyIR hierarchy is used to determine whether the
+code in a CodeBlock contains expressions or statements. This is
+achieved by looking at the parent PSyIR Node. If the parent Node is a
+Schedule then the CodeBlock contains one or more statements, otherwise
+it contains one or more expressions. This logic works for existing
+PSyIR nodes and relies on any future PSyIR nodes being constructed so
+this continues to be true. The one exception to this rule is
+Directives. Directives currently do not place their children in a
+Schedule. As the structure of Directives is under discussion, it was
+decided to raise an exception if the parent node of a CodeBlock is a
+Directive (for the time being).
+
+.. _symbol-label:
+
+Symbol Table and Symbol
+=======================
+
+The Container (see :ref:`container-label` and KernelSchedule (see
+:ref:`kernel_schedule-label`) nodes contain a SymbolTable
+(`psyclone.psyGen.SymbolTable`) which keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) specified and used within them.  A `Symbol`
+is defined as:
+
+.. autoclass:: psyclone.psyGen.Symbol
+    :members:
+
+The SymbolTable has the following interface:
+
+.. autoclass:: psyclone.psyGen.SymbolTable
+    :members:
+
+
 Dependence Analysis
 ===================
 
@@ -412,7 +541,7 @@ Dependence Analysis in PSyclone produces ordering constraints between
 instances of the `Argument` class within a PSyIR.
 
 The `Argument` class is used to specify the data being passed into and
-out of instances of the `Kern` class, `HaloExchange` Class and
+out of instances of the `Kern` class, `HaloExchange` class and
 `GlobalSum` class (and their subclasses).
 
 As an illustration consider the following invoke::
@@ -567,6 +696,203 @@ write dependencies are handled by classes that make use of the
 DataAccess class i.e. the `_field_write_arguments()` and
 `_field_read_arguments()` methods, both of which are found in the
 `Arguments` class.
+
+Variable Accesses
+=================
+
+Especially in the NEMO API, it is not possible to rely on pre-defined
+kernel information to determine dependencies between loops. So an additional,
+somewhat lower-level API has been implemented that can be used to determine
+variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
+The only exception to this is if a kernel is called, in which case the
+metadata for the kernel declaration will be used to determine the variable
+accesses for the call statement. The information about all variable usage
+of a node can be gathered by creating an object of type
+`psyclone.core.access_info.VariablesAccessInfo`, and then calling
+the function `reference_accesses()` for the node:
+
+.. autofunction:: psyclone.psyGen.Node.reference_accesses
+
+.. autoclass:: psyclone.core.access_info.VariablesAccessInfo
+    :members:
+    :special-members: __str__
+
+This class collects information for each variable used in the tree
+starting with the given node. A `VariablesAccessInfo` instance can store
+information about variables in any arbitrary code, not only for a PSyIR
+node. You can pass it to more than one `reference_accesses()` function
+to add more variable access information, or use the `merge()` function to
+combine two `VariablesAccessInfo` objects into one. It is up to the user to
+keep track of which access information is stored in a `VariablesAccessInfo`
+instance.
+
+For each variable used an instance of
+`psyclone.core.access_info.VariableAccessInfo` is created, which collects
+all accesses for that variable using `psyclone.config.access_info.AccessInfo`
+instances:
+
+.. autoclass:: psyclone.core.access_info.VariableAccessInfo
+    :members:
+
+.. autoclass:: psyclone.core.access_info.AccessInfo
+    :members:
+
+Access Location
+---------------
+
+Variable accesses are stored in the order in which they happen. For example,
+an assignment `a=a+1` will store two access for the variable `a`, the
+first one being a READ access, followed by a WRITE access, since this is the
+order in which the accesses are executed.
+Additionally, the function `reference_accessess()` keeps track of the location
+at which the accesses happen. A location is an integer number, starting with 0,
+which is increased for each new statement. This makes it possible to
+compare accesses to variables: if two accesses have the same location value,
+it means the accesses happen in the same statement, for example `a=a+1`:
+the READ and WRITE access to `a` will have the same location number. If on the
+other hand the accesses happen in two separate statements, e.g. `a=b+1; c=a+1`
+then the first access to `a` (and the access to `b`) will have a smaller
+location number than the second access to `a` (and the access to `c`).
+If two statements have consecutive locations, this does not necessarily mean
+that the statements are executed one after another. For example in if-statements
+the statements in the if-body are counted first, then the statements in the
+else-body. It is the responsibility of the user to handle these cases - for
+example by creating separate `VariablesAccessInfo` for statements in the if-body
+and for the else-body.
+
+.. note:: When using different instances for an if- and else-body, the first
+    statement of the if-body will
+    have the same location number as the first statement of the else-body. So
+    you can only compare location numbers from the same `VariablesAccessInformation`
+    instance. If you merge two instances together, the locations of the merged-in
+    instance will be appropriately increased to follow the locations of the
+    instance to which it is merged.
+
+
+The location number is not exactly a line number - several statements can be
+on one line, which will get different location numbers. And certain lines
+will not have a location number (e.g. comment lines).
+
+As stated above, one instance of `VariablesAccessInfo` can be extended by adding
+additional variable information. It is the responsibility of the user to make
+sure the accesses are added in the right order - the `VariablesAccessInfo` object
+will always assume accesses happen at the current location, and a call to 
+`next_location()` is required to increase the location number.
+
+.. note:: It is not possible to add access information about an earlier
+     usage to an existing `VariablesAccessInfo` object. 
+
+
+Access Examples
+---------------
+
+Below we show a simple example of how to use this API. This is from the
+`psyclone.psyGen.OMPParallelDirective` (so `self` is an instance of this
+node), and this code is used to determine a list of all the scalar
+variables that must be declared as thread-private::
+
+  var_accesses = VariablesAccessInfo()
+  self.reference_accesses(var_accesses)
+  for var_name in var_accesses.all_vars:
+      accesses = var_accesses[var_name].all_accesses
+      # Ignore variables that are arrays, we only look at scalar ones.
+      # If we do have a symbol table, use the shape of the variable
+      # to determine if the variable is scalar or not
+      if symbol_table:
+          if len(symbol_table.lookup(var_name).shape) > 0:
+              continue
+
+      # If there is no symbol table, check instead if the first access of
+      # the variable has indices, and assume it is an array if it has:
+      elif accesses[0].indices is not None:
+          continue
+
+      # If a variable is only accessed once, it is either a coding error
+      # or a shared variable - anyway it is not private
+      if len(accesses) == 1:
+          continue
+
+      # We have at least two accesses. If the first one is a write,
+      # assume the variable should be private:
+      if accesses[0].access_type == AccessType.WRITE:
+          result.add(var_name.lower())
+
+
+The next, hypothetical example shows how the `VariablesAccessInfo` class
+can be used iteratively. Assume that you have a function that determines
+if the given variable accesses can be parallelised, and the aim is to
+determine the largest consecutive block of statements that can be
+executed in parallel. The accesses of one statement at a time are added
+until we find accesses that would prevent parallelisation::
+
+   # Create an empty instance to store accesses
+   accesses = VariablesAccessInfo()
+   list_of_parallelisable_statements = []
+   while next_statement is not None:
+       # Add the variable accesses of the next statement to
+       # the existing accesses:
+       next_statement.reference_accesses(accesses)
+       # Stop when the next statement can not be parallelised
+       # together with the previous accesses:
+       if not can_be_parallelised(accesses):
+           break
+       list_of_parallelisable_statements.append(next_statement)
+       # Assume there is a function that gives you the next statement:
+       next_statement = next_statement.next()
+
+
+.. note:: There is a certain overlap in the dependency analysis code
+          and the variable access API. More work on unifying those two
+          approaches will be undertaken in the future. Also, when calling
+          `reference_accesses()` for a Dynamo or GOcean kernel, the 
+          variable access mode for parameters is taken
+          from the kernel metadata, not from the actual kernel source 
+          code.
+
+Dependency Tools
+----------------
+PSyclone contains a class that provides useful tools for dependency analaysis.
+It especially provides messages for the user to indicate why parallelisation
+was not possible.
+
+.. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
+    :members:
+
+.. note:: There is limited support for detecting index expression that are
+    identical because of the commutative law, e.g. `i+k` and `k+i` would be
+    considered equal. But this only applies if two items are switched that
+    are part of the same PSyIR node. An expression like `i+k+1` is stored as
+    `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
+    be equal, because `i+1` and `i+k` are not the same.
+
+
+An example of how to use this class is shown below. It takes a list of statements
+(i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
+can be parallelised::
+
+  parallel_loop = OMPLoopTrans()
+  # The loops in the Fortran functions that must be parallelised
+  # are over the 'grid' domain. Note that the psyclone config
+  # file specifies the mapping of loop variable to type, e.g.:
+  #
+  #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+  #
+  # This means any loop using the variable 'np' is considered a
+  # loop of type 'grid'
+  dt = DependencyTools(["grid"])
+
+  for statement in statements:
+      if isinstance(statement, NemoLoop):
+          # Check if there is a variable dependency that might 
+          # prevent this loop from being parallelised:
+          if dt.can_loop_be_parallelised(statement):
+              parallel_loop.apply(statement)
+          else:
+              # Print all messages from the dependency analysis
+              # as feedback for the user:
+              for message in dt.get_all_messages():
+                  print(message)
+
 
 PSyIR back-ends
 ###############
@@ -787,8 +1113,66 @@ code (a KernelSchedule with all its children), these are:
 - `FortranWriter()` in `psyclone.psyir.backend.fortran`
 - `OpenCLWriter()` in `psyclone.psyir.backend.opencl`
 
-Additionally, there is a `psyclone.psyir.backend.c` back-end, but at the
-moment it is only capable of processing partial PSyIR expressions.
+Additionally, there are two partially-implemented back-ends
+
+- `psyclone.psyir.backend.c` which is currently limited to processing
+  partial PSyIR expressions.
+- `SIRWriter()` in `psyclone.psyir.backend.sir` which can generate
+  valid SIR from simple Fortran code conforming to the NEMO API.
+
+SIR back-end
+============
+
+The SIR back-end is limited in a number of ways:
+
+- only Fortran code containing 3 dimensional directly addressed
+  arrays, with simple stencil accesses, iterated with triply nested
+  loops is supported. Imperfectly nested loops, doubly nested loops,
+  etc will cause a ``VisitorError`` exception.
+- anything other than real arrays (integer, logical etc.) will cause
+  incorrect SIR code to be produced (see issue #468).
+- calls are not supported (and will cause a VisitorError exception).
+- loop bounds are not analysed so it is not possible to add in offset
+  and loop ordering for the vertical. This also means that the ordering
+  of loops (lat/lon/levels) is currently assumed.
+- Fortran literals such as `0.0d0` are output directly in the
+  generated code (but this could also be a frontend issue).
+- the only unary operator currently supported is '-' and the subject
+  of this unary operator must be a literal.
+
+The current implementation is not able to deal with variables local to
+a region (which the SIR expects), as, in Fortran, the standard scope
+of a local variable is the whole routine, not a sub-region of code.
+
+The current implementation also outputs text rather than running Dawn
+directly. This text needs to be pasted into another script in order to
+run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
+
+Currently there is no way to tell PSyclone to output SIR. Outputting
+SIR is achieved by writing a script which creates an SIRWriter and
+outputs the SIR (for kernels) from the PSyIR. Whilst the main
+'psyclone' program could have a '-backend' option added it is not
+clear this would be useful here as it is expected that the SIR will be
+output only for certain parts of the PSyIR and (an)other back-end(s)
+used for the rest. It is not yet clear how best to do this - perhaps
+mark regions using a transformation.
+
+It is unlikely that the SIR will be able to accept full NEMO code due
+to its complexities (hence the comment about using different
+back-ends in the previous paragraph). Therefore the approach that will
+be taken is to use PSyclone to transform NEMO to make regions that
+conform to the SIR constraints and to make these as large as
+possible. Once this is done then PSyclone will be used to generate and
+optimise the code that the SIR is not able to optimise and will let
+the SIR generate code for the bits that it is able to do. This
+approach seems a robust one but would require interface code between
+the Dawn generated cuda (or other) code and the PSyclone generated
+Fortran. In theory PSyclone could translate the remaining code to C
+but this would require no codeblocks in the PSyIR when parsing NEMO
+(which is a difficult thing to achieve), or interface code between
+codeblocks and the rest of the PSyIR.
+
+
 
 Parsing Code
 ############
@@ -2027,6 +2411,17 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Finally, those transformations that act on a Kernel must sub-class the
+``KernelTrans`` class:
+
+.. autoclass:: psyclone.transformations.KernelTrans
+   :members:
+   :private-members:
+   :noindex:
+
+In all cases, the `apply` method of any sub-class *must* ensure that
+the `validate` method of the parent class is called.
+
 Module: psyGen
 ==============
 
@@ -2078,15 +2473,19 @@ only used in ``DynKernelArguments.raw_arg_list()``.
 classes make use of ``DynCollection`` sub-classes in order
 to ensure that argument naming is consistent.
 
+Transformations
+###############
+
 Kernel Transformations
-----------------------
+======================
 
 PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIR, apply the transformation,
-and producing the resulting language AST or code.
+two ways to apply transformations: by directly manipulating the
+language AST or by translating the language AST to PSyIR, applying the
+transformation in the PSyIR and using one of the back-ends to generate
+the resulting code.
 
-For now, both methods only support fparser2 AST for kernel code.
+For now, both methods only support the fparser2 AST for kernel code.
 This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
 back into a Fortran string and then parsing that with fparser2.
@@ -2104,24 +2503,21 @@ to generate the PSyIR representation of the kernel code.
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
 
-The AST to AST transformation is done using an ASTProcessor.
-At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
-version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
-(In the future we aim to have a generic ASTProcessor class, specialized
-for different language parsers: <parser>ASTProcessor, and specialized again
-for specific APIs when additional functionality is requiered
-<API><parser>ASTProcessor.)
+The language AST to PSyIR transformation is done using a PSyIR front-end.
+This are found in the `psyclone.psyir.frontend` module. 
+The only currently available front-end is `Fparser2Reader` but this can
+be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
+sub-class).
+The naming convention used for the PSyIR front-ends is
+<API><languageAST>Reader.
 
-.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
     :members:
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
-
-Transformations
-###############
 
 OpenACC
 =======
@@ -2150,26 +2546,7 @@ an ``enter data`` directive to an Invoke:
    :noindex:
 
 The resulting generated code will then contain an ``enter data``
-directive protected by an ``IF(this is the first time in this
-Invoke)`` block, e.g. (for the GOcean1.0 API):
-
-.. code-block:: fortran
-
-      ! Ensure all fields are on the device and
-      ! copy them over if not.
-      IF (first_time) THEN
-        !$acc enter data  &
-        !$acc& copyin(sshn_t,sshn_t%data,un%grid,un%grid%tmask,...)
-        first_time = .false.
-        ssha_t%data_on_device = .true.
-        ...
-
-Note that the ``IF`` block is not strictly required as the OpenACC
-run-time identifies when a reference is already on the device and does
-not copy it it over again. However, when profiling an application, it
-was seen that there was a small overhead associated with doing the
-``enter data``, even when the data was already on the device. The ``IF``
-block eliminates this.
+directive.
 
 Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the

@@ -228,8 +228,8 @@ def test_multi_data():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0].children[0:2])
-    schedule, _ = acc_trans.apply(schedule.children[0].children[1:3])
+    schedule, _ = acc_trans.apply(schedule.children[0].loop_body[0:2])
+    schedule, _ = acc_trans.apply(schedule.children[0].loop_body[1:3])
     gen_code = str(psy.gen)
 
     assert ("  DO jk = 1, jpkm1\n"

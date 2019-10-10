@@ -56,26 +56,41 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    CodedKern, ACCEnterDataDirective
 
-# First section : Parser specialisations and classes
-
-# Function spaces (FS)
+# --------------------------------------------------------------------------- #
+# ========== First section : Parser specialisations and classes ============= #
+# --------------------------------------------------------------------------- #
+#
+# ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
 # Continuous FS
 # Space any_w2 can be w2, w2h or w2v
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+
 # Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
-VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
-                         "any_space_4", "any_space_5", "any_space_6",
-                         "any_space_7", "any_space_8", "any_space_9"]
+# Valid any_space metadata (general FS, could be continuous or discontinuous)
+VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
 
-VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
+# Valid any_discontinuous_space metadata (general FS known to be discontinuous)
+VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
+    ["any_discontinuous_space_{0}".format(x+1) for x in range(10)]
 
+# Valid discontinuous FS names (for optimisation purposes)
+VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
+    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+# FS names consist of all valid names
+VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
+                             VALID_ANY_SPACE_NAMES + \
+                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+# ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 
@@ -92,13 +107,13 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
-# Datatypes (scalars, fields, operators)
+# ---------- Datatypes (scalars, fields, operators) ------------------------- #
 GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
-# Stencils
+# ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
 # file as it causes failures with py.test 2.8.7. Therefore some parts
@@ -112,11 +127,13 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
+# ---------- Mesh types ----------------------------------------------------- #
 # These are the valid mesh types that may be specified for a field
 # using the mesh_arg=... meta-data element (for inter-grid kernels that
 # perform prolongation/restriction).
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
+# ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a fields
 # halo. It is useful to group these together as we often need to
 # determine whether an access to a field or other object includes
@@ -156,11 +173,12 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
+# ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 
-# Functions
+# ---------- Functions ------------------------------------------------------ #
 
 
 def get_fs_map_name(function_space):
@@ -334,9 +352,10 @@ def get_fs_operator_name(operator_name, function_space, qr_var=None,
 def mangle_fs_name(args, fs_name):
     ''' Construct the mangled version of a function-space name given
     a list of kernel arguments '''
-    if fs_name not in VALID_ANY_SPACE_NAMES:
-        # If the supplied function-space name is not any any-space then
-        # we don't need to mangle the name
+    if fs_name not in VALID_ANY_SPACE_NAMES + \
+       VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        # If the supplied function-space name is not any any_space
+        # or any_discontinuous_space then we don't need to mangle the name
         return fs_name
     for arg in args:
         for fspace in arg.function_spaces:
@@ -374,7 +393,7 @@ def cma_on_space(function_space, arguments):
                 return arg
     return None
 
-# Classes
+# ---------- Classes -------------------------------------------------------- #
 
 
 class FunctionSpace(object):
@@ -385,8 +404,10 @@ class FunctionSpace(object):
     def __init__(self, name, kernel_args):
         self._orig_name = name
         self._kernel_args = kernel_args
-        if self._orig_name not in VALID_ANY_SPACE_NAMES:
-            # We only need to name-mangle any-space spaces
+        if self._orig_name not in VALID_ANY_SPACE_NAMES + \
+           VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+            # We only need to name-mangle any_space and
+            # any_discontinuous_space spaces
             self._mangled_name = self._orig_name
         else:
             # We do not construct the name-mangled name at this point
@@ -632,24 +653,27 @@ class DynArgDescriptor03(Descriptor):
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
             # Test allowed accesses for fields
-            if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
+            if self._function_space1.lower() in \
+               VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
                and self._access_type == AccessType.INC:
                 raise ParseError(
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
-            # TODO: extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
-            # TODO: extend for "gh_write"
+            # TODO: extend restriction to "gh_write" for kernels that loop
+            # over cells (issue #138) and update access rules for kernels
+            # (built-ins) that loop over DoFs to accesses for discontinuous
+            # quantities (issue #471)
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
-                    "In the dynamo0.3 API a field on any_space cannot "
+                    "In the Dynamo0.3 API a field on any_space cannot "
                     "have 'gh_readwrite' access because it is treated "
                     "as continuous")
             if stencil and self._access_type != AccessType.READ:
@@ -709,6 +733,7 @@ class DynArgDescriptor03(Descriptor):
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
+            self._vector_size = 0
 
         # We should never get to here
         else:
@@ -1293,9 +1318,11 @@ class DynKernMetadata(KernelType):
         '''
         return self._is_intergrid
 
-# Second section : PSy specialisations
+# --------------------------------------------------------------------------- #
+# ========== Second section : PSy specialisations =========================== #
+# --------------------------------------------------------------------------- #
 
-# classes
+# ---------- Classes -------------------------------------------------------- #
 
 
 class DynamoPSy(PSy):
@@ -3331,7 +3358,8 @@ class DynBasisFunctions(DynCollection):
         :return: an integer length.
         :rtype: string
 
-        :raises GenerationError: if an unsupported function space is supplied.
+        :raises GenerationError: if an unsupported function space is supplied \
+                                 (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
         if function_space.orig_name.lower() in \
            ["w0", "w3", "wtheta"]:
@@ -3340,6 +3368,10 @@ class DynBasisFunctions(DynCollection):
               ["w1", "w2", "w2h", "w2v", "any_w2"]):
             first_dim = "3"
         else:
+            # It is not possible to determine explicitly the first basis
+            # function array dimension from the metadata for any_space or
+            # any_discontinuous_space. This information needs to be passed
+            # from the PSy layer to the kernels (see issue #461).
             raise GenerationError(
                 "Unsupported space for basis function, "
                 "expecting one of {0} but found "
@@ -3374,6 +3406,10 @@ class DynBasisFunctions(DynCollection):
         :return: an integer length.
         :rtype: str
 
+        :raises GenerationError: if an unsupported function space is \
+                                 supplied (e.g. ANY_SPACE_*, \
+                                 ANY_DISCONTINUOUS_SPACE_*)
+
         '''
         if function_space.orig_name.lower() in \
            ["w2", "w2h", "w2v", "any_w2"]:
@@ -3382,6 +3418,11 @@ class DynBasisFunctions(DynCollection):
               ["w0", "w1", "w3", "wtheta"]):
             first_dim = "3"
         else:
+            # It is not possible to determine explicitly the first
+            # differential basis function array dimension from the metadata
+            # for any_space or any_discontinuous_space. This information
+            # needs to be passed from the PSy layer to the kernels
+            # (see issue #461).
             raise GenerationError(
                 "Unsupported space for differential basis function, expecting "
                 "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
@@ -5272,7 +5313,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
@@ -5369,7 +5410,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -5501,6 +5542,12 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
         # At this stage we don't know what our loop bounds are
         self._lower_bound_name = None
         self._lower_bound_index = None
@@ -5525,7 +5572,7 @@ class DynLoop(Loop):
         else:
             upper_bound = self._upper_bound_name
         print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}', "
+              "[type='{0}', field_space='{1}', it_space='{2}', "
               "upper_bound='{3}']".format(self._loop_type,
                                           self._field_space.orig_name,
                                           self.iteration_space, upper_bound))
@@ -5568,13 +5615,15 @@ class DynLoop(Loop):
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
-                      DISCONTINUOUS_FUNCTION_SPACES):
+                      VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
+                    # Iterate to ncells for all discontinuous quantities,
+                    # including any_discontinuous_space
                     self.set_upper_bound("ncells")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
-                    # We don't know whether any-space is continuous or not
+                    # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
                     self.set_upper_bound("cell_halo", index=1)
@@ -5718,7 +5767,7 @@ class DynLoop(Loop):
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
-            kernels = self.walk(self.children, DynKern)
+            kernels = self.walk(DynKern)
             if not kernels:
                 raise InternalError(
                     "Failed to find a kernel within a loop over colours.")
@@ -6017,9 +6066,11 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+
         Loop.gen_code(self, parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":
@@ -6161,6 +6212,28 @@ class DynKern(CodedKern):
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel metadata
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments.args:
+            if arg.is_scalar():
+                var_accesses.add_access(arg.name, arg.access, self)
+            else:
+                # It's an array, so add an arbitrary index value for the
+                # stored indices (which is at this stage the only way to
+                # indicate an array access).
+                var_accesses.add_access(arg.name, arg.access, self, [1])
+        super(DynKern, self).reference_accesses(var_accesses)
+        # Set the current location index to the next location, since after
+        # this kernel a new statement starts.
+        var_accesses.next_location()
 
     def load(self, call, parent=None):
         '''
@@ -6545,20 +6618,22 @@ class DynKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        parent_loop = self.parent.parent
+
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
+        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
                                           arg_accesses=[AccessType.READ,
                                                         AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_halo_depth > 1:
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_halo_depth))
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map
@@ -8198,9 +8273,10 @@ class DynKernelArguments(Arguments):
         # check first for any modified field on a continuous function
         # space, failing that we try any_space function spaces
         # (because we must assume such a space is continuous) and
-        # finally we try discontinuous function spaces. We do this
-        # because if a quantity on a continuous FS is modified then
-        # our iteration space must be larger (include L1 halo cells)
+        # finally we try all discontinuous function spaces including
+        # any_discontinuous_space. We do this because if a quantity on
+        # a continuous FS is modified then our iteration space must be
+        # larger (include L1-halo cells)
         write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
@@ -8208,7 +8284,7 @@ class DynKernelArguments(Arguments):
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
-                           DISCONTINUOUS_FUNCTION_SPACES]:
+                           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES]:
                 for arg in fld_args:
                     if arg.function_space.orig_name in spaces:
                         return arg
@@ -8244,6 +8320,121 @@ class DynKernelArguments(Arguments):
         self._raw_arg_list = create_arg_list.arglist
 
         return self._raw_arg_list
+
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched.
+        :rtype: list of str
+
+        '''
+        class KernCallAccArgList(KernCallArgList):
+            '''
+            Kernel call arguments that need to be declared by OpenACC
+            directives. KernCallArgList only needs to be specialised
+            where modified, or additional, arguments are required.
+            Scalars are apparently not required but it is valid in
+            OpenACC to include them and requires less specialisation
+            to keep them in.
+
+            '''
+            def field_vector(self, argvect):
+                '''
+                Add the field vector associated with the argument 'argvect' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param argvect: the kernel argument (vector field).
+                :type argvect:  :py:class:`psyclone.dynamo0p3.\
+                                DynKernelArgument`
+
+                '''
+                for idx in range(1, argvect.vector_size+1):
+                    text1 = argvect.proxy_name + "(" + str(idx) + ")"
+                    self._arglist.append(text1)
+                    text2 = text1 + "%data"
+                    self._arglist.append(text2)
+
+            def field(self, arg):
+                '''
+                Add the field associated with the argument 'arg' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param arg: the kernel argument (field).
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                text1 = arg.proxy_name
+                self._arglist.append(text1)
+                text2 = text1 + "%data"
+                self._arglist.append(text2)
+
+            def stencil(self, arg):
+                '''
+                Add the stencil dofmap associated with this kernel
+                argument. OpenACC requires the full dofmap to be
+                specified.
+
+                :param arg: the meta-data description of the kernel \
+                argument with which the stencil is associated.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                var_name = DynStencils.dofmap_name(arg)
+                self._arglist.append(var_name)
+
+            def operator(self, arg):
+                '''
+                Add the operator arguments to the argument list if
+                they have not already been added. OpenACC requires the
+                derived type and the dereferenced data to be
+                specified.
+
+                :param arg: the meta-data description of the operator.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                if arg.proxy_name_indexed not in self._arglist:
+                    self._arglist.append(arg.proxy_name_indexed)
+                    self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
+                    self._arglist.append(arg.proxy_name_indexed +
+                                         "%local_stencil")
+
+            def fs_compulsory_field(self, function_space):
+                '''
+                Add compulsory arguments associated with this function space to
+                the list. OpenACC requires the full function-space map
+                to be specified.
+
+                :param arg: the current functionspace.
+                :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+                '''
+                undf_name = get_fs_undf_name(function_space)
+                self._arglist.append(undf_name)
+                map_name = get_fs_map_name(function_space)
+                self._arglist.append(map_name)
+
+        create_acc_arg_list = KernCallAccArgList(self._parent_call)
+        create_acc_arg_list.generate()
+        return create_acc_arg_list.arglist
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        # Return nothing for the moment as it is unclear whether
+        # scalars need to be explicitly dealt with (for OpenACC) in
+        # the dynamo api.
+        return []
 
 
 class DynKernelArgument(KernelArgument):
@@ -8360,6 +8551,11 @@ class DynKernelArgument(KernelArgument):
     def type(self):
         ''' Returns the type of this argument. '''
         return self._type
+
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type in GH_VALID_SCALAR_NAMES
 
     @property
     def mesh(self):
@@ -8495,8 +8691,10 @@ class DynKernelArgument(KernelArgument):
     @property
     def discontinuous(self):
         '''Returns True if this argument is known to be on a discontinuous
-        function space, otherwise returns False.'''
-        if self.function_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+        function space including any_discontinuous_space, otherwise
+        returns False.'''
+        if self.function_space.orig_name in \
+           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
             return True
         if self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
             # we will eventually look this up based on our dependence
@@ -8540,10 +8738,11 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.addchild(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
@@ -8552,6 +8751,22 @@ class DynKernCallFactory(object):
         return cloop
 
 
+class DynACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, _):
+        '''
+        Provide a hook to be able to add information about data being on a
+        device (or not). This is currently not used in dynamo0p3.
+
+        '''
+        return None
+
+
+# ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
@@ -8595,4 +8810,5 @@ __all__ = [
     'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
-    'DynKernCallFactory']
+    'DynKernCallFactory',
+    'DynACCEnterDataDirective']

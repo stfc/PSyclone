@@ -43,6 +43,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -55,7 +56,6 @@ from psyclone.transformations import TransformationError, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
-from dynamo0p3_build import Dynamo0p3Build
 
 
 # The version of the API that the tests in this file
@@ -325,7 +325,7 @@ def test_colouring_not_a_loop(dist_mem):
 
 def test_no_colour_dofs(dist_mem):
     ''' Test that we raise the correct exception when attempting to apply
-    the loop-colouring tranformation to a loop that is over dofs rather than
+    the loop-colouring transformation to a loop that is over dofs rather than
     cells. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -437,7 +437,7 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     cschedule, _ = ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
 
     invoke.schedule = schedule
     code = str(psy.gen)
@@ -491,7 +491,7 @@ def test_omp_colour_orient_trans(monkeypatch, annexed, dist_mem):
     cschedule, _ = ctrans.apply(schedule.children[index])
 
     # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
 
     invoke.schedule = schedule
     code = str(psy.gen)
@@ -727,8 +727,8 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     schedule, _ = ctrans.apply(schedule.children[index+1])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index].children[0])
-    schedule, _ = otrans.apply(schedule.children[index+1].children[0])
+    schedule, _ = otrans.apply(schedule.children[index].loop_body[0])
+    schedule, _ = otrans.apply(schedule.children[index+1].loop_body[0])
 
     gen = str(psy.gen)
 
@@ -799,8 +799,8 @@ def test_omp_region_omp_do(dist_mem):
 
 
 def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
-    '''Test that we correctly generate code for the case of a single OMP
-    DO within an OMP PARALLEL region without colouring when a
+    ''' Test that we correctly generate code for the case of a single
+    OMP DO within an OMP PARALLEL region without colouring when a
     discontinuous field has readwrite access. We test when distributed
     memory is on or off. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -808,19 +808,19 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke_w3.f90"),
-                    api=TEST_API)
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "1_single_invoke_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_w3_type')
+    invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
     # Put an OMP PARALLEL around this loop
     if dist_mem and not annexed:
-        # there are 3 halo exchange calls
-        index = 3
+        # there are 2 halo exchange calls
+        index = 2
     else:
         # there are no halo exchange calls
         index = 0
@@ -846,7 +846,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     if dist_mem:
         loop_str = "cell=1,mesh%get_last_edge_cell()"
     else:
-        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -964,8 +964,8 @@ def test_multi_different_kernel_omp(
     schedule, _ = ctrans.apply(schedule.children[index2])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index1].children[0])
-    schedule, _ = otrans.apply(schedule.children[index2].children[0])
+    schedule, _ = otrans.apply(schedule.children[index1].loop_body[0])
+    schedule, _ = otrans.apply(schedule.children[index2].loop_body[0])
 
     code = str(psy.gen)
 
@@ -974,17 +974,41 @@ def test_multi_different_kernel_omp(
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
+def test_loop_fuse_invalid_space(monkeypatch):
+    ''' Test that we raise an appropriate error if the user attempts
+    to fuse loops that are on invalid spaces.
+    '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    first_invoke = psy.invokes.invoke_list[0]
+    schedule = first_invoke.schedule
+    first_kernel_args = schedule.coded_kernels()[0].arguments
+    # Get argument on the "write" space w1
+    _, fspace = first_kernel_args.get_arg_on_space_name("w1")
+    # Make function space invalid
+    monkeypatch.setattr(fspace, "_orig_name", "not_a_space_name")
+
+    # Apply transformation and raise the error
+    ftrans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = ftrans.apply(schedule.children[0],
+                            schedule.children[1])
+    assert ("One or both function spaces 'not_a_space_name' and 'w1' have "
+            "invalid names" in str(excinfo.value))
+
+
 def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
-    '''Test that we raise an appropriate error if the user attempts to
-    fuse loops that are on different spaces. We test with annexed is
-    False as this is how the test has been set up.
+    ''' Test that we raise an appropriate error if the user attempts
+    fuse loops that are on different spaces (unless they are both on
+    discontinuous spaces). We test with annexed is False as this is
+    how the test has been set up.
 
     '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
     for same_space in [False, True]:
@@ -994,6 +1018,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
         schedule = invoke.schedule
 
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = same_space
         mtrans = MoveTrans()
         if dist_mem:
             # c and g halo exchange between loops can be moved before
@@ -1008,52 +1033,39 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         with pytest.raises(TransformationError) as excinfo:
             _, _ = ftrans.apply(schedule.children[index],
-                                schedule.children[index+1],
-                                same_space=same_space)
-        assert "Error in DynamoLoopFuse transformation" in \
-            str(excinfo.value)
-        assert "Cannot fuse loops that are over different spaces" in \
-            str(excinfo.value)
-        same_space_warning = ("Note, the same_space flag was set, but "
-                              "does not apply because neither field "
-                              "is ANY_SPACE.")
+                                schedule.children[index+1])
 
         if same_space:
-            assert same_space_warning in str(excinfo.value)
+            assert ("The 'same_space' flag was set, but does not apply "
+                    "because neither field is on 'ANY_SPACE'" in
+                    str(excinfo.value))
         else:
-            assert same_space_warning not in str(excinfo.value)
+            assert ("Cannot fuse loops that are over different spaces "
+                    "'w2' and 'w1' unless they are both discontinuous"
+                    in str(excinfo.value))
 
 
-def test_loop_fuse_unexpected_error(dist_mem):
-    ''' Test that we catch an unexpected error when loop fusing. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "4_multikernel_invokes.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+def test_loop_fuse_same_space_error():
+    ''' Test that we raise an appropriate error if the user attempts
+    to incorrectly set the 'same_space' property
 
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
-
+    '''
     ftrans = DynamoLoopFuseTrans()
-
-    # cause an unexpected error
-    schedule.children[index].children = None
-
+    # Assert that 'same_space' is set to default False
+    assert ftrans.same_space is False
+    # Assert that None is also set to default False
+    ftrans.same_space = None
+    assert ftrans.same_space is False
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = ftrans.apply(schedule.children[index],
-                            schedule.children[index+1])
-    assert 'Unexpected exception' in str(excinfo.value)
+        ftrans.same_space = "foo"
+    assert ("The value of the 'same_space' flag must be either Boolean or "
+            "None type, but the type of flag provided was 'str'."
+            in str(excinfo.value))
 
 
 def test_loop_fuse(dist_mem):
     ''' Test that we are able to fuse two loops together. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -1101,8 +1113,7 @@ def test_loop_fuse(dist_mem):
 def test_loop_fuse_set_dirty():
     ''' Test that we are able to fuse two loops together and produce
     the expected set_dirty() calls. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -1121,8 +1132,7 @@ def test_loop_fuse_set_dirty():
 def test_loop_fuse_omp(dist_mem):
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -1180,18 +1190,19 @@ def test_loop_fuse_omp(dist_mem):
 
 
 def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that we can loop-fuse two loop nests and enclose them in an
-    OpenMP parallel region for a kernel with a discontinuous field has
-    readwrite access. We test when distributed memory is on or
+    ''' Test that we can loop-fuse two loop nests and enclose them in
+    an OpenMP parallel region for a kernel when discontinuous fields
+    have readwrite access. We test when distributed memory is on or
     off. Also test with and without annexed dofs being computed as
     this affects the generated code.
-
+    Note: Fusing loops over discontinuous readwriters over different
+    spaces is allowed unless their loop bounds differ due to a
+    previous transformation.
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "4.13_multikernel_invokes_w3.f90"),
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.13_multikernel_invokes_w3_anyd.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     invoke = psy.invokes.get('invoke_0')
@@ -1232,10 +1243,9 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
            "private(cell), schedule(static)" in line:
             omp_para_idx = idx
         if "CALL testkern_w3_code" in line:
-            if call1_idx == -1:
-                call1_idx = idx
-            else:
-                call2_idx = idx
+            call1_idx = idx
+        if "CALL testkern_anyd_any_space_code" in line:
+            call2_idx = idx
         if "END DO" in line:
             cell_enddo_idx = idx
         if "!$omp end parallel do" in line:
@@ -1295,10 +1305,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
                                schedule.children[index+1])
 
     # Enclose the colour loops within an OMP parallel region
-    schedule, _ = rtrans.apply(schedule.children[index].children)
+    schedule, _ = rtrans.apply(schedule.children[index].loop_body.children)
 
     # Put an OMP DO around each of the colour loops
-    for loop in schedule.children[index].children[0].children:
+    for loop in schedule[index].loop_body.children[0].children:
         schedule, _ = otrans.apply(loop)
 
     code = str(psy.gen)
@@ -1359,11 +1369,11 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
 def test_loop_fuse_cma(dist_mem):
     ''' Test that we can loop fuse two loops when one contains a
     call to a CMA-related kernel. '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "20.6_multi_invoke_with_cma.f90"),
                     api=TEST_API)
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     mtrans = MoveTrans()
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     invoke = psy.invokes.get('invoke_0')
@@ -1382,8 +1392,7 @@ def test_loop_fuse_cma(dist_mem):
 
     # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[index],
-                               schedule.children[index+1],
-                               same_space=True)
+                               schedule.children[index+1])
     code = str(psy.gen)
     print(code)
     assert (
@@ -1474,7 +1483,7 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
             index = 8
     else:
         index = 1
-    kern_call = schedule.children[index].children[0]
+    kern_call = schedule.children[index].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -1627,10 +1636,9 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     schedule, _ = otrans.apply(schedule.children[0])
@@ -1835,10 +1843,9 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
 
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
@@ -2470,6 +2477,7 @@ def test_multi_reduction_real_fuse():
             schedule = invoke.schedule
 
             ftrans = DynamoLoopFuseTrans()
+            ftrans.same_space = True
             if distmem:
                 # We need to remove the global sum. This makes the
                 # code invalid in this particular case but allows us
@@ -2477,10 +2485,9 @@ def test_multi_reduction_real_fuse():
                 del schedule.children[1]
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert (
-                "Error in DynamoLoopFuse transformation. Cannot fuse loops "
+                "Error in DynamoLoopFuse transformation: Cannot fuse loops "
                 "when each loop already contains a "
                 "reduction") in str(excinfo.value)
 
@@ -2735,6 +2742,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -2742,8 +2750,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                                        position="after")
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
@@ -2755,8 +2762,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                                            position="after")
             rtrans = DynamoOMPParallelLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -2818,6 +2824,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -2825,8 +2832,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
                                        position="after")
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
@@ -2838,8 +2844,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0], reprod=False)
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -2979,18 +2984,17 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
             otrans = DynamoOMPParallelLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -3052,19 +3056,18 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0], reprod=False)
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -3128,11 +3131,10 @@ def test_multi_builtins_fuse_error():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     assert ("Cannot fuse loops as the first loop has a reduction and "
             "the second loop reads the result of the "
             "reduction") in str(excinfo.value)
@@ -3152,7 +3154,7 @@ def test_loop_fuse_error(dist_mem):
         schedule, _ = ftrans.apply(schedule.children[0],
                                    schedule.children[1])
     assert ("One or more of the iteration spaces is unknown "
-            "('any_space') so loop fusion might be "
+            "('ANY_SPACE') so loop fusion might be "
             "invalid") in str(excinfo.value)
 
 # Repeat the reduction tests for the reproducible version
@@ -3427,6 +3429,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -3436,15 +3439,13 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
             # we can't loop fuse as the loop bounds differ
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not (distmem and annexed)
             # we can loop fuse as the loop bounds are the same
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = otrans.apply(schedule.children[0], reprod=True)
@@ -3547,19 +3548,18 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
+        ftrans.same_space = True
         if distmem and annexed:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1],
-                                           same_space=True)
+                                           schedule.children[1])
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
         else:  # not distmem and annexed
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1],
-                                       same_space=True)
+                                       schedule.children[1])
             schedule, _ = otrans.apply(schedule.children[0], reprod=True)
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -3732,11 +3732,13 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
 
     # Ensure we check for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -3760,50 +3762,74 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     result, _ = capsys.readouterr()
     if dist_mem:  # annexed can be True or False
         expected = (
-            sched + "[invoke='invoke_0', dm=True]\n"
+            isched + "[invoke='invoke_0', dm=True]\n"
             "    " + directive+"[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " x_innerproduct_y(asum,f1,f2)\n"
             "    " + gsum + "[scalar='asum']\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='nannexed']\n"
-            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " inc_a_times_x(asum,f1)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " sum_x(bsum,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " sum_x(bsum,f2)\n"
             "    " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
     else:  # not dist_mem. annexed can be True or False
         expected = (
-            sched + "[invoke='invoke_0', dm=False]\n"
+            isched + "[invoke='invoke_0', dm=False]\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " x_innerproduct_y(asum,f1,f2)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " inc_a_times_x(asum,f1)\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " inc_a_times_x(asum,f1)\n"
             "    " + directive + "[OMP parallel]\n"
             "        " + directive + "[OMP do][reprod=True]\n"
-            "            " + loop + "[type='dofs',"
-            "field_space='any_space_1',it_space='dofs', "
+            "            " + loop + "[type='dofs', "
+            "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n"
-            "                " + call + " sum_x(bsum,f2)\n")
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'NOT_INITIALISED']\n"
+            "                " + lit + "[value:'1']\n"
+            "                " + sched + "[]\n"
+            "                    " + call + " sum_x(bsum,f2)\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
@@ -3863,7 +3889,7 @@ def test_list_multiple_reductions():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         omp_loop_directive = schedule.children[0].children[0]
-        call = omp_loop_directive.children[0].children[0]
+        call = omp_loop_directive.children[0].loop_body[0]
         arg = call.arguments.args[2]
         arg._type = "gh_real"
         arg.descriptor._access = AccessType.SUM
@@ -4859,7 +4885,7 @@ def test_rc_updated_dependence_analysis():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[0]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     f2_field = kernel.args[1]
     assert not f2_field.backward_dependence()
     # set our loop to redundantly compute to the level 2 halo. This
@@ -5076,7 +5102,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     assert "IF (f4_proxy%is_dirty(depth=" not in result
     # Increase RC depth to 3 and check that halo exchange is not removed
     # when a discontinuous field has readwrite access
-    call = f4_write_loop.children[0]
+    call = f4_write_loop.loop_body[0]
     f4_arg = call.arguments.args[0]
     monkeypatch.setattr(f4_arg, "_access", value=AccessType.READWRITE)
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
@@ -5294,7 +5320,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
+    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
             "are not the same. Found '3' and '1'" in str(excinfo.value))
     # now redundantly compute to the full halo
     rc_trans.apply(schedule.children[index+1])
@@ -5309,7 +5335,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
+    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
 
 
@@ -5320,7 +5346,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     the exception is raised correctly. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
-                    api="dynamo0.3")
+                    api=TEST_API)
     # First test for f1 readwrite to read dependency
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -5330,19 +5356,19 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         # Indices of loops to fuse in the schedule
         f_trans.apply(schedule.children[2], schedule.children[3])
-    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
     # Now test for f1 write to read dependency
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    call = schedule.children[0].children[0]
+    call = schedule.children[0].loop_body[0]
     f1_arg = call.arguments.args[0]
     monkeypatch.setattr(f1_arg, "_access", value=AccessType.WRITE)
     rc_trans.apply(schedule.children[0], depth=3)
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
-    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
 
@@ -5474,13 +5500,13 @@ def test_rc_no_directive():
 
     # create an openmp transformation and apply this to the loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule.children[3].children[0])
+    schedule, _ = otrans.apply(schedule.children[3].loop_body[0])
 
     # create a redundant computation transformation and apply this to the loop
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(
-            schedule.children[3].children[0].children[0], depth=1)
+            schedule.children[3].loop_body[0].children[0], depth=1)
     assert ("Redundant computation must be applied before directives are added"
             in str(excinfo.value))
 
@@ -5544,7 +5570,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the DynInvokeSchedule"
             in str(excinfo.value))
@@ -5557,20 +5583,20 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
     # make the innermost loop iterate over cells (it should be
     # colour). We can ignore the previous monkeypatches as this
     # exception is encountered before the previous ones.
-    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
                         "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'colour'" in str(excinfo.value))
 
@@ -5596,7 +5622,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     schedule, _ = ctrans.apply(schedule.children[3])
 
     # make the loop type invalid
-    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
                         "invalid")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5607,7 +5633,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], depth=1)
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
@@ -5634,7 +5660,7 @@ def test_rc_colour_no_loop_decrease():
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[3].children[0]
+    loop = schedule.children[3].loop_body[0]
     schedule, _ = rc_trans.apply(loop, depth=2)
     invoke.schedule = schedule
     # now try to reduce the redundant computation to the level 1 halo
@@ -5675,7 +5701,7 @@ def test_rc_colour(tmpdir):
     # create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the colour loop
-    rc_trans.apply(cschedule.children[3].children[0], depth=2)
+    rc_trans.apply(cschedule.children[3].loop_body[0], depth=2)
 
     result = str(psy.gen)
 
@@ -5726,7 +5752,7 @@ def test_rc_max_colour(tmpdir):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the colour loop out to the full
     # halo depth
-    rc_trans.apply(cschedule.children[3].children[0])
+    rc_trans.apply(cschedule.children[3].loop_body[0])
 
     result = str(psy.gen)
     assert (
@@ -5892,8 +5918,7 @@ def test_rc_then_colour2(tmpdir):
 def test_loop_fuse_then_rc(tmpdir):
     '''Test that we are able to fuse two loops together, perform
     redundant computation and then colour.'''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+    _, info = parse(os.path.join(BASE_PATH,
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -6418,7 +6443,7 @@ def test_intergrid_colour(dist_mem):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
@@ -6445,8 +6470,8 @@ def test_intergrid_colour(dist_mem):
             "colour)\n")
     assert expected in gen
     expected = (
-        "          call prolong_kernel_code(nlayers, cell_map_fld_m(:,"
-        "cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
+        "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "(:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
         "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
         "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
     assert expected in gen
@@ -6462,18 +6487,18 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     loop = loops[1]
     # To a prolong kernel
-    new_sched, _ = ctrans.apply(loop)
+    _, _ = ctrans.apply(loop)
     # Update our list of loops
-    loops = new_sched.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     # Trigger the error by calling the internal method to get the upper
     # bound before the colourmaps have been set-up
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_kernel_code' has not" in str(err))
+            "but kernel 'prolong_test_kernel_code' has not" in str(err))
     # Set-up the colourmaps
     psy.invokes.invoke_list[0].meshes._colourmap_init()
     # Check that the upper bound is now correct
@@ -6481,12 +6506,12 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
     loop = loops[2]
-    monkeypatch.setattr(loops[3].children[0], "is_coloured", lambda: True)
-    loop.children.append(loops[3].children[0])
+    monkeypatch.setattr(loops[3].loop_body[0], "is_coloured", lambda: True)
+    loop.children.append(loops[3].loop_body[0])
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'restrict_kernel_code' has not" in str(err))
+            "but kernel 'restrict_test_kernel_code' has not" in str(err))
 
 
 def test_intergrid_omp_parado(dist_mem, tmpdir):
@@ -6501,13 +6526,13 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
     # To a restrict kernel
     _, _ = ctrans.apply(loops[3])
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OMP to loops over coloured cells
     _, _ = otrans.apply(loops[2])
@@ -6537,13 +6562,13 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     # Colour the first loop
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = otrans.apply(loops[1])
     # Put the parallel loop inside a parallel region
-    dirs = schedule.walk(schedule.children, psyGen.Directive)
+    dirs = schedule.walk(psyGen.Directive)
     _, _ = ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
@@ -6555,8 +6580,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             "        !$omp do schedule(static)\n"
             "        DO cell=1,{0}\n"
             "          !\n"
-            "          CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
-            "cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
+            "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
+            "(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
             "        END DO \n"
@@ -6576,13 +6601,13 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.view()
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = DynamoLoopFuseTrans()
     _, _ = ctrans.apply(loops[0])
     _, _ = ctrans.apply(loops[1])
     schedule.view()
-    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loops = schedule.walk(psyGen.Loop)
     _, _ = ftrans.apply(loops[0], loops[2])
     schedule.view()
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
@@ -6594,15 +6619,14 @@ def test_intergrid_err(dist_mem):
     # Use an example that contains both prolongation and restriction
     # kernels
     _, invoke_info = parse(os.path.join(
-        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+        BASE_PATH, "22.2.1_intergrid_3levels_anyd.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(schedule.children, psyGen.Loop)
-
+    loops = schedule.walk(psyGen.Loop)
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
-        "kernels as children and ")
+        "kernels as descendents and ")
 
     if dist_mem:
         # Cannot apply redundant computation unless DM is enabled
@@ -6616,40 +6640,123 @@ def test_intergrid_err(dist_mem):
         lftrans.apply(loops[0], loops[1])
     assert expected_err in str(excinfo)
 
+# Start OpenACC section
 
-def test_no_acc():
+
+# Class ACCEnterDataTrans start
+def test_accenterdatatrans():
+    '''Test that an ACCEnterDataTrans transformation can add an OpenACC
+    Enter Data directive to the PSy-layer in the dynamo0.3 API.
+
     '''
-    Check that attempting to add any sort of OpenACC directive to a
-    dynamo0p3 InvokeSchedule causes an error.
-
-    '''
-    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-        ACCParallelTrans
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    acclt = ACCLoopTrans()
-
+    from psyclone.transformations import ACCEnterDataTrans
+    from psyclone.psyGen import ACCEnterDataDirective
+    acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
+                                 "1_single_invoke.f90"))
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_enter_trans.apply(sched)
+    assert isinstance(sched[0], ACCEnterDataDirective)
+    # This code can't be generated as ACCEnterData requires at least one
+    # parallel directive within its region and this example does not
+    # add one.
 
-    with pytest.raises(NotImplementedError) as err:
-        _ = accdt.apply(sched)
-    assert ("ACCEnterDataDirective not implemented for a schedule of type "
-            in str(err))
+# Class ACCEnterDataTrans end
 
-    with pytest.raises(NotImplementedError) as err:
-        _ = accpt.apply(sched.children)
-    assert ("OpenACC parallel regions are currently only supported for "
-            "the gocean 1.0 and nemo APIs" in str(err))
 
-    with pytest.raises(NotImplementedError) as err:
-        _ = acclt.apply(sched.children[0])
-    assert ("OpenACC loop transformations are currently only supported for "
-            "the gocean 1.0 and nemo APIs" in str(err))
+# Class ACCKernelsTrans start
+def test_acckernelstrans():
+    '''
+    Test that an ACCKernelsTrans transformation can add an OpenACC
+    Kernels directive to the PSy layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCKernelsTrans
+    kernels_trans = ACCKernelsTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = kernels_trans.apply(sched.children)
+    code = str(psy.gen)
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n" in code)
+
+# Class ACCKernelsTrans end
+
+
+# Class ACCParallelTrans start
+def test_accparalleltrans():
+    '''
+    Test that an ACCParallelTrans transformation can add an OpenACC
+    Parallel directive to the PSy layer in the dynamo0.3 API. An
+    EnterData directive is also required otherwise the transformation
+    raises an exception at code-generation time.
+
+    '''
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
+        "ndf_w3,undf_w3,map_w3)\n"
+        "      !\n"
+        "      !$acc parallel default(present)\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end parallel\n") in code
+
+# Class ACCParallelTrans end
+# Class ACCLoopTrans start
+
+
+def test_acclooptrans():
+    '''Test that an ACCLoopTrans transformation can add an OpenACC Loop
+    directive to the PSy layer in the dynamo0.3 API.
+
+    '''
+    from psyclone.transformations import ACCLoopTrans, ACCParallelTrans, \
+        ACCEnterDataTrans
+    acc_par_trans = ACCParallelTrans()
+    acc_loop_trans = ACCLoopTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_loop_trans.apply(sched.children[0])
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
+        "ndf_w3,undf_w3,map_w3)\n"
+        "      !\n"
+        "      !$acc parallel default(present)\n"
+        "      !$acc loop independent\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
+    assert (
+        "      END DO \n"
+        "      !$acc end parallel\n") in code
+
+# Class ACCLoopTrans end
+
+# End OpenACC section
 
 
 def test_no_ocl():
@@ -6666,7 +6773,7 @@ def test_no_ocl():
     with pytest.raises(TransformationError) as err:
         _ = trans.apply(sched)
     assert ("OpenCL generation is currently only supported for the GOcean "
-            "API but got a Schedule of type:" in str(err))
+            "API but got an InvokeSchedule of type:" in str(err))
 
 
 def test_async_hex_wrong_node():
@@ -7288,7 +7395,7 @@ def create_kernel(file_name):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = schedule.children[0].loop_body[0]
     return kernel
 
 
@@ -7358,13 +7465,13 @@ def test_kern_const_apply(capsys):
         element_order_expected
 
 
-def test_kern_const_anyspace_apply(capsys):
-    '''Check that we generate the expected output from the apply method
-    when a function space is specified as any_space (as these are
-    skipped by the transformation).
+def test_kern_const_anyspace_anydspace_apply(capsys):
+    ''' Check that we generate the expected output from the apply method
+    when a function space is specified as any_space and
+    any_discontinuous_space (as these are skipped by the transformation).
 
     '''
-    kernel = create_kernel("1.5.3_single_invoke_write_anyspace_w3.f90")
+    kernel = create_kernel("1.5.3_single_invoke_write_any_anyd_space.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
@@ -7373,11 +7480,13 @@ def test_kern_const_anyspace_apply(capsys):
     assert result == (
         "    Skipped dofs, arg position 9, function space any_space_1\n"
         "    Modified ndf_w2, arg position 12, function space w2, value 6.\n"
-        "    Modified ndf_w3, arg position 15, function space w3, value 1.\n"
-        "    Modified ndf_wtheta, arg position 18, function space wtheta, "
+        "    Modified ndf_w1, arg position 15, function space w1, value 12.\n"
+        "    Skipped dofs, arg position 18, function space "
+        "any_discontinuous_space_1\n"
+        "    Modified ndf_wtheta, arg position 21, function space wtheta, "
         "value 2.\n"
-        "    Modified ndf_w2h, arg position 21, function space w2h, value 4.\n"
-        "    Modified ndf_w2v, arg position 24, function space w2v, "
+        "    Modified ndf_w2h, arg position 24, function space w2h, value 4.\n"
+        "    Modified ndf_w2v, arg position 27, function space w2v, "
         "value 2.\n")
 
 

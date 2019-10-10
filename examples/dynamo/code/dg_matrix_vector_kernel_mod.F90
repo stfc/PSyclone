@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,16 +37,18 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified by R. W. Ford, STFC Daresbury Lab
 !
 module dg_matrix_vector_kernel_mod
 
-  use argument_mod,      only : arg_type,              &
-                                GH_FIELD, GH_OPERATOR, &
-                                GH_READ, GH_WRITE,     &
-                                ANY_SPACE_1,           &
+  use argument_mod,      only : arg_type,                  &
+                                GH_FIELD, GH_OPERATOR,     &
+                                GH_READ, GH_WRITE,         &
+                                ANY_DISCONTINUOUS_SPACE_1, &
+                                ANY_SPACE_1,               &
                                 CELLS
+
   use constants_mod,     only : r_def, i_def
-  use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
 
   implicit none
@@ -57,14 +59,16 @@ module dg_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: dg_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                  &
-        arg_type(GH_FIELD,    GH_WRITE, W3),             &
-        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),    &
-        arg_type(GH_OPERATOR, GH_READ,  W3, ANY_SPACE_1) &
-        /)
+    type(arg_type) :: meta_args(3) = (/                                  &
+         arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_1),               &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+                                             ANY_SPACE_1)                &
+         /)
+
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: dg_matrix_vector_code
+    procedure, nopass :: dg_matrix_vector_kernel_code
   end type
 
   !----------------------------------------------------------------------------
@@ -79,7 +83,7 @@ module dg_matrix_vector_kernel_mod
   !----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !----------------------------------------------------------------------------
-  public dg_matrix_vector_code
+  public dg_matrix_vector_kernel_code
 
 contains
 
@@ -103,14 +107,16 @@ contains
 !! @param[in] x input data
 !> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] matrix Matrix values in LMA form
-subroutine dg_matrix_vector_code(cell,              &
-                                 nlayers,           &
-                                 lhs, x,            &
-                                 ncell_3d,          &
-                                 matrix,            &
-                                 ndf1, undf1, map1, &
-                                 ndf2, undf2, map2)
+subroutine dg_matrix_vector_kernel_code(cell,              &
+                                        nlayers,           &
+                                        lhs, x,            &
+                                        ncell_3d,          &
+                                        matrix,            &
+                                        ndf1, undf1, map1, &
+                                        ndf2, undf2, map2)
  
+  implicit none
+
   ! Arguments
   integer(kind=i_def),                  intent(in)    :: cell, nlayers, &
                                                          ncell_3d
@@ -137,6 +143,6 @@ subroutine dg_matrix_vector_code(cell,              &
        lhs(map1(df)+k) = lhs_e(df) 
     end do
   end do
-end subroutine dg_matrix_vector_code
+end subroutine dg_matrix_vector_kernel_code
 
 end module dg_matrix_vector_kernel_mod

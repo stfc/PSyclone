@@ -43,12 +43,13 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     DynamoExtractRegionTrans, GOceanExtractRegionTrans
+
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -94,8 +95,8 @@ def test_node_list_error(tmpdir):
         etrans.apply(node_list)
     assert "Children are not consecutive children of one parent:" \
            in str(excinfo)
-    assert ("kern call: testkern_code\\nEndLoop\' has position 0, "
-            "but previous child had position 0.") in str(excinfo)
+    assert "has position 0, but previous child had position 0."\
+        in str(excinfo)
 
     # Supply Nodes which are not children of the same parent
     node_list = [invoke0.schedule.children[1],
@@ -185,7 +186,7 @@ def test_kern_builtin_no_loop():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # Test Built-in call
-    builtin_call = schedule.children[1].children[0]
+    builtin_call = schedule.children[1].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = dynetrans.apply(builtin_call)
     assert ("Extraction of a Kernel or a Built-in call without its "
@@ -200,7 +201,7 @@ def test_kern_builtin_no_loop():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # Test Kernel call
-    kernel_call = schedule.children[0].children[0].children[0]
+    kernel_call = schedule.children[0].loop_body[0].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = gocetrans.apply(kernel_call)
     assert ("Extraction of a Kernel or a Built-in call without its "
@@ -216,9 +217,10 @@ def test_loop_no_directive_dynamo0p3():
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.13_multikernel_invokes_w3.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "4.13_multikernel_invokes_w3_anyd.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -289,7 +291,7 @@ def test_no_colours_loop_dynamo0p3():
     # Colour first loop that calls testkern_code (loop is over cells and
     # is not on a discontinuous space)
     schedule, _ = ctrans.apply(schedule.children[0])
-    colour_loop = schedule.children[0].children[0]
+    colour_loop = schedule.children[0].loop_body[0]
     # Apply OMP Parallel DO Directive to the colour Loop
     schedule, _ = otrans.apply(colour_loop)
     directive = schedule.children[0].children[0]
@@ -347,7 +349,7 @@ def test_extract_node_position():
     abspos = child.abs_position
     dpth = child.depth
     schedule, _ = gocetrans.apply(child)
-    extract_node = schedule.walk(schedule.children, ExtractNode)
+    extract_node = schedule.walk(ExtractNode)
     # The result is only one ExtractNode in the list with position 1
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
@@ -371,7 +373,7 @@ def test_extract_node_position():
     abspos = children[0].abs_position
     dpth = children[0].depth
     schedule, _ = dynetrans.apply(children)
-    extract_node = schedule.walk(schedule.children, ExtractNode)
+    extract_node = schedule.walk(ExtractNode)
     # The result is only one ExtractNode in the list with position 0
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
@@ -404,26 +406,15 @@ def test_extract_node_representation(capsys):
     assert schedule.children[1].dag_name == "extract_1"
 
     # Test __str__ method
-    correct = ("""Schedule:
-Loop[]: cell= lower=,,
-kern call: testkern_code
-EndLoop
-ExtractStart
-Loop[]: cell= lower=,,
-kern call: testkern_code
-EndLoop
-Loop[]: cell= lower=,,
-kern call: ru_code
-EndLoop
-ExtractEnd
-Loop[]: cell= lower=,,
-kern call: ru_code
-EndLoop
-Loop[]: cell= lower=,,
-kern call: testkern_code
-EndLoop
-End Schedule""")
-    assert correct in str(schedule)
+    assert "End DynLoop\nExtractStart\nDynLoop[id:''" in str(schedule)
+    assert "End DynLoop\nExtractEnd\nDynLoop[id:''" in str(schedule)
+    # Count the loops inside and outside the extract to check it is in
+    # the right place
+    [before, after] = str(schedule).split("ExtractStart")
+    [inside, after] = after.split("ExtractEnd")
+    assert before.count("Loop[") == 1
+    assert inside.count("Loop[") == 2
+    assert after.count("Loop[") == 2
 
 
 def test_single_node_dynamo0p3():
@@ -520,7 +511,7 @@ def test_single_node_ompparalleldo_gocean1p0():
         "      ! ExtractStart\n"
         "      ! CALL write_extract_arguments(argument_list)\n"
         "      !\n"
-        "      !$omp parallel do default(shared), private(j,i), "
+        "      !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
         "      DO j=2,jstop+1\n"
         "        DO i=2,istop\n"
@@ -566,7 +557,7 @@ def test_node_list_ompparallel_gocean1p0():
         "      ! ExtractStart\n"
         "      ! CALL write_extract_arguments(argument_list)\n"
         "      !\n"
-        "      !$omp parallel default(shared), private(j,i)\n"
+        "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop+1\n"
@@ -687,7 +678,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     in Dynamo0.3 API. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
-    from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+    from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
     etrans = DynamoExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -705,7 +696,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
-           not in DISCONTINUOUS_FUNCTION_SPACES \
+           not in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
            and child.iteration_space == "cells":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
@@ -713,7 +704,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     for child in schedule.children:
         if isinstance(child, Loop):
             if child.loop_type == "colours":
-                schedule, _ = otrans.apply(child.children[0])
+                schedule, _ = otrans.apply(child.loop_body[0])
             else:
                 schedule, _ = otrans.apply(child)
 

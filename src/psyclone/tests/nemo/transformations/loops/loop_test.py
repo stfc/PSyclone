@@ -68,20 +68,20 @@ def test_implicit_loop_trans():
     # The code being tested has a triply-nested implicit loop so applying
     # the transform once gives an outer explicit loop and an inner,
     # doubly-nested implicit loop
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 2
     assert loops[0].loop_type == "levels"
-    new_loop, _ = exp_trans.apply(new_loop.children[0])
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    new_loop, _ = exp_trans.apply(new_loop.loop_body[0])
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 3
     assert loops[1].loop_type == "lat"
-    new_loop, _ = exp_trans.apply(new_loop.children[0])
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    new_loop, _ = exp_trans.apply(new_loop.loop_body[0])
+    loops = sched.walk(nemo.NemoLoop)
     # We should still have 3 loops since the last transformation
     # should have created an explicit loop containing a kernel
     assert len(loops) == 3
     assert loops[2].loop_type == "lon"
-    assert isinstance(loops[2].children[0], nemo.NemoKern)
+    assert isinstance(loops[2].loop_body[0], nemo.NemoKern)
     # Finally, check the generated code
     gen_code = str(psy.gen)
     assert ("  INTEGER :: jk\n"
@@ -112,7 +112,7 @@ def test_implicit_loop_sched2():
     _, _ = exp_trans.apply(loop_levels.children[0])
     # We should have 3 loops (one from the explicit loop over levels and
     # the other two from the implicit loops over ji and jj).
-    loops = sched.walk(sched.children, nemo.NemoLoop)
+    loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 3
     assert loop_levels.children[0].loop_type == "lat"
     kerns = sched.kern_calls()

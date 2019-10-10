@@ -50,6 +50,11 @@ class AccessType(Enum):
     READ = 3
     READWRITE = 4
     SUM = 5
+    # This is used internally to indicate unknown access type of
+    # a variable, e.g. when a variable is passed to a subroutine
+    # and the access type of this variable in the subroutine
+    # is unknown
+    UNKNOWN = 6
 
     def __str__(self):
         '''Convert to a string representation, returning just the

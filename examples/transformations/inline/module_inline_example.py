@@ -55,7 +55,7 @@ def inline():
     invoke = invokes.get("invoke_0_testkern_type")
     schedule = invoke.schedule
     schedule.view()
-    kern = schedule.children[0].children[0]
+    kern = schedule.children[0].loop_body[0]
     # setting module inline directly
     kern.module_inline = True
     schedule.view()

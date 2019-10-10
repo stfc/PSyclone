@@ -66,7 +66,16 @@ application to run on a GPU by adding OpenACC directives. A Makefile
 is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
 requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf) be
-installed.
+installed/available - it is provided as a git submodule of the PSyclone
+project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
+for details on working with submodules).
+
+The supplied Makefile also provides a second, "profile" target which
+performs the same OpenACC transformations but then encloses the whole
+of the resulting PSy layer in a profiling region. By linking this with
+the PSyclone NVTX profiling wrapper (and the NVTX library itself), the
+resulting application can be profiled using NVIDIA's `nvprof` or
+`nvvp` tools.
 
 Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
@@ -152,7 +161,8 @@ Example 10
 ^^^^^^^^^^
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
-fields (map between grids of different resolutions).
+fields (map between grids of different resolutions), as well as the
+use of ``ANY_DISCONTINUOUS_SPACE`` metadata.
 
 Example 11
 ^^^^^^^^^^
@@ -190,6 +200,51 @@ to the specified Kernel:
 
   > python find_kernel.py
 
+Example 13 : Kernel transformation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates how an LFRic kernel can be transformed. The example
+transformation makes Kernel values constant where appropriate. For
+example, the number of levels is usually passed into a kernel by
+argument but the transformation allows a particular value to be
+specified which the transformation then sets as a parameter in the
+kernel. Hard-coding values in a kernel helps the compiler to do a
+better job when optimising the code.
+
+Example 14: OpenACC
+^^^^^^^^^^^^^^^^^^^
+
+Example of adding OpenACC directives in the dynamo0.3 API. This is a
+work in progress so the generated code may not work as
+expected. However it is never-the-less useful as a starting
+point. Three scripts are provided.
+
+The first script (`acc_kernels.py`) shows how to add OpenACC Kernels
+directives to the PSy-layer. This example only works with distributed
+memory switched off as the OpenACC Kernels transformation does not yet
+support halo exchanges within an OpenACC Kernels region.
+
+The second script (`acc_parallel.py`)shows how to add OpenACC Loop,
+Parallel and Enter Data directives to the PSy-layer. Again this
+example only works with distributed memory switched off as the OpenACC
+Parallel transformation does not support halo exchanges within an
+OpenACC Parallel region.
+
+The third script (`acc_parallel_dm.py`) is the same as the second
+except that it does support distributed memory being switched on by
+placing an OpenACC Parallel directive around each OpenACC Loop
+directive, rather than having one for the whole invoke. This approach
+avoids having halo exchanges within an OpenACC Parallel region.
+
+The generated code has a number of problems including 1) it does not
+modify the kernels to include the OpenACC Routine directive, 2) a
+loop's upper bound is computed via a derived type (this should be
+computed beforehand) 3) set_dirty and set_clean calls are placed
+within an OpenACC Parallel directive and 4) there are no checks on
+whether loops are parallel or not, it is just assumed they are -
+i.e. support for colouring or locking is not yet implemented.
+
+
 NEMO
 ----
 
@@ -212,3 +267,16 @@ Example 3: OpenACC parallelisation of tra_adv
 
 Demonstrates the introduction of simple OpenACC parallelisation (using the
 ``data`` and ``kernels`` directives) for a NEMO tracer-advection benchmark.
+
+.. _nemo-eg4-sir:
+
+Example 4: Transforming Fortran code to the SIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates that simple Fortran code examples which conform to the
+NEMO API can be transformed to the Stencil Intermediate Representation
+(SIR). The SIR is the front-end language to DAWN
+(https://github.com/MeteoSwiss-APN/dawn), a tool which generates
+optimised cuda, or gridtools code. Thus these simple Fortran examples
+can be transformed to optimised cuda and/or gridtools code by using
+PSyclone and then DAWN.

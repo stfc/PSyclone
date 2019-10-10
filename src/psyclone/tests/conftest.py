@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 
 ''' Module which performs pytest set-up so that we can specify
@@ -39,6 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.configuration import Config
 
 
 # fixtures defined here are available to all tests
@@ -91,7 +93,6 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
-    from psyclone.configuration import Config
     import os
     config_file = Config.get_repository_config_file()
 
@@ -113,10 +114,10 @@ def infra_compile(tmpdir_factory, request):
     infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
     (if compilation was enabled).
     '''
-    from psyclone_test_utils import Compile
+    from psyclone.tests.utilities import Compile
     Compile.store_compilation_flags(request.config)
 
-    from dynamo0p3_build import Dynamo0p3Build
+    from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
     # Create a temporary directory to store the compiled files.
     # Note that this directory is unique even if compiled in
     # parallel, i.e. each process has its own copy of the
@@ -127,7 +128,7 @@ def infra_compile(tmpdir_factory, request):
     # compilation of the infrastructure files.
     Dynamo0p3Build(tmpdir)
 
-    from gocean1p0_build import GOcean1p0Build
+    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
     GOcean1p0Build(tmpdir)
 
@@ -140,3 +141,11 @@ def parser():
     '''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create()
+
+
+@pytest.fixture(scope="function")
+def kernel_outputdir(tmpdir, monkeypatch):
+    '''Sets the PSyclone _kernel_output_dir Config parameter to tmpdir.'''
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    return tmpdir

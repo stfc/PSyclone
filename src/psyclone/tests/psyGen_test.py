@@ -50,23 +50,25 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
-from psyclone_test_utils import get_invoke
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return
-from psyclone.psyGen import Fparser2ASTProcessor
+    KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
+    ACCEnterDataDirective, ACCKernelsDirective, Container
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
+from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
-    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
+    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
+    ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
+from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -75,13 +77,6 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 # Module fixtures
-
-@pytest.fixture(scope="module")
-def f2008_parser():
-    '''Initialise fparser2 with Fortran2008 standard'''
-    from fparser.two.parser import ParserFactory
-    return ParserFactory().create(std="f2008")
-
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
@@ -151,7 +146,7 @@ def test_new_module():
     transformations.  There should be no transformations
     available as the new module uses a different
     transformation base class'''
-    from test_files import dummy_transformations
+    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations)
     assert trans.num_trans == 0
 
@@ -161,7 +156,7 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from test_files.dummy_transformations import \
+    from .test_files.dummy_transformations import \
         LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
@@ -172,7 +167,7 @@ def test_new_module_and_baseclass():
     transformations and the baseclass. There should be one
     transformation available as the module specifies one test
     transformation using the specified base class '''
-    from test_files import dummy_transformations
+    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations,
                       base_class=dummy_transformations.LocalTransformation)
     assert trans.num_trans == 1
@@ -524,7 +519,7 @@ def test_derived_type_deref_naming():
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
-        "      USE testkern, ONLY: testkern_code\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1_my_field\n"
@@ -692,8 +687,8 @@ def test_kern_coloured_text():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    ckern = schedule.children[0].children[0]
-    bkern = schedule.children[1].children[0]
+    ckern = schedule.children[0].loop_body[0]
+    bkern = schedule.children[1].loop_body[0]
     ret_str = ckern.coloured_text
     assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
     ret_str = bkern.coloured_text
@@ -717,7 +712,6 @@ def test_kern_abstract_methods():
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    from psyclone.psyGen import Kern, Arguments
     my_arguments = Arguments(None)
 
     class KernType(object):  # pylint: disable=too-few-public-methods
@@ -750,7 +744,6 @@ def test_call_abstract_methods():
 def test_arguments_abstract():
     ''' Check that we raise NotImplementedError if any of the virtual methods
     of the Arguments class are called. '''
-    from psyclone.psyGen import Arguments
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args
@@ -768,7 +761,6 @@ def test_incremented_arg():
     ''' Check that we raise the expected exception when
     CodedKern.incremented_arg() is called for a kernel that does not have
     an argument that is incremented '''
-    from psyclone.psyGen import CodedKern
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     import fparser
@@ -838,25 +830,20 @@ def test_ompdo_directive_class_view(capsys):
             case["current_class"].view(omp_parallel_loop)
 
             out, _ = capsys.readouterr()
+
+            directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+            loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+
             expected_output = (
-                colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
-                case["current_string"] + "\n"
-                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
-                "[type='',field_space='w1',it_space='cells', "
-                "upper_bound='ncells']\n"
-                "        "+colored("CodedKern",
-                                   SCHEDULE_COLOUR_MAP["CodedKern"]) +
-                " testkern_code(a,f1,f2,m1,m2) "
-                "[module_inline=False]")
-            print(out)
-            print(expected_output)
+                directive + case["current_string"] + "\n"
+                "    " + loop + "[type='', field_space='w1', it_space='cells',"
+                )
+
             assert expected_output in out
 
 
 def test_acc_dir_view(capsys):
     ''' Test the view() method of OpenACC directives '''
-    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-        ACCParallelTrans
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
@@ -1139,11 +1126,11 @@ def test_argument_depends_on():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    arg_f1_inc_1 = schedule.children[0].children[0].arguments.args[0]
-    arg_f1_inc_2 = schedule.children[2].children[0].arguments.args[0]
-    arg_f2_read_1 = schedule.children[0].children[0].arguments.args[2]
-    arg_f2_inc = schedule.children[1].children[0].arguments.args[0]
-    arg_f2_read_2 = schedule.children[2].children[0].arguments.args[1]
+    arg_f1_inc_1 = schedule.children[0].loop_body[0].arguments.args[0]
+    arg_f1_inc_2 = schedule.children[2].loop_body[0].arguments.args[0]
+    arg_f2_read_1 = schedule.children[0].loop_body[0].arguments.args[2]
+    arg_f2_inc = schedule.children[1].loop_body[0].arguments.args[0]
+    arg_f2_read_2 = schedule.children[2].loop_body[0].arguments.args[1]
     # different names returns False
     assert not arg_f2_inc._depends_on(arg_f1_inc_1)
     # same name both reads returns False
@@ -1162,8 +1149,8 @@ def test_argument_depends_on():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
-    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[0]
+    arg_f1_write_1 = schedule.children[0].loop_body[0].arguments.args[1]
+    arg_f1_write_2 = schedule.children[1].loop_body[0].arguments.args[0]
     assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
@@ -1177,7 +1164,7 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns none if none found
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
@@ -1185,8 +1172,8 @@ def test_argument_find_argument():
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
-    f3_first_read = schedule.children[0].children[0].arguments.args[3]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_first_read = schedule.children[0].loop_body[0].arguments.args[3]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
     # 3: haloexchange node
@@ -1198,12 +1185,12 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) kern arg depends on halo arg
-    m2_read_arg = schedule.children[3].children[0].arguments.args[4]
+    m2_read_arg = schedule.children[3].loop_body[0].arguments.args[4]
     m2_halo_field = schedule.children[2].field
     result = m2_read_arg._find_argument(schedule.children)
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
-    result = m2_halo_field._find_argument([schedule.children[3].children[0]])
+    result = m2_halo_field._find_argument([schedule.children[3].loop_body[0]])
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
@@ -1213,12 +1200,12 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
-    kern_asum_arg = schedule.children[3].children[0].arguments.args[1]
+    kern_asum_arg = schedule.children[3].loop_body[0].arguments.args[1]
     glob_sum_arg = schedule.children[2].scalar
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
     # b) kern arg depends on globalsum arg
-    result = glob_sum_arg._find_argument([schedule.children[3].children[0]])
+    result = glob_sum_arg._find_argument([schedule.children[3].loop_body[0]])
     assert result == kern_asum_arg
 
 
@@ -1232,28 +1219,28 @@ def test_argument_find_read_arguments():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     call_nodes = schedule.kernels()
     assert f1_first_read._find_read_arguments(call_nodes) == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
     result = f3_write._find_read_arguments(call_nodes[4:])
     assert len(result) == 3
     for idx in range(3):
         loop = schedule.children[idx+4]
-        assert result[idx] == loop.children[0].arguments.args[3]
+        assert result[idx] == loop.loop_body[0].arguments.args[3]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
-    f2_write = schedule.children[0].children[0].arguments.args[0]
+    f2_write = schedule.children[0].loop_body[0].arguments.args[0]
     assert f2_write._find_read_arguments(call_nodes[1:]) == []
     # 4: Return list of readers before a subsequent writer
-    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
     result = f3_write._find_read_arguments(call_nodes)
     assert len(result) == 3
     for idx in range(3):
         loop = schedule.children[idx]
-        assert result[idx] == loop.children[0].arguments.args[3]
+        assert result[idx] == loop.loop_body[0].arguments.args[3]
 
 
 def test_globalsum_arg():
@@ -1297,20 +1284,20 @@ def test_argument_forward_read_dependencies():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     _ = schedule.kernels()
     assert f1_first_read.forward_read_dependencies() == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
     result = f3_write.forward_read_dependencies()
     assert len(result) == 3
     for idx in range(3):
         loop = schedule.children[idx+4]
-        assert result[idx] == loop.children[0].arguments.args[3]
+        assert result[idx] == loop.loop_body[0].arguments.args[3]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
-    f2_write = schedule.children[0].children[0].arguments.args[0]
+    f2_write = schedule.children[0].loop_body[0].arguments.args[0]
     assert f2_write.forward_read_dependencies() == []
 
 
@@ -1330,13 +1317,13 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
     # 1: returns none if none found (check many reads)
     assert not f1_first_read.forward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
-    f3_next_read = schedule.children[4].children[0].arguments.args[3]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_next_read = schedule.children[4].loop_body[0].arguments.args[3]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
     # 3: haloexchange dependencies
@@ -1350,9 +1337,9 @@ def test_argument_forward_dependence(monkeypatch, annexed):
         index = 7
     else:
         index = 8
-    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[index-1].loop_body[0].arguments.args[0]
     f2_halo_field = schedule.children[index].field
-    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
+    f2_next_arg = schedule.children[index+1].loop_body[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1366,10 +1353,10 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[1]
-    sum_arg = schedule.children[1].children[0].arguments.args[0]
+    prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
+    sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[1]
+    next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
     assert result == sum_arg
@@ -1397,13 +1384,13 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_last_read = schedule.children[6].children[0].arguments.args[2]
+    f1_last_read = schedule.children[6].loop_body[0].arguments.args[2]
     # 1: returns none if none found (check many reads)
     assert not f1_last_read.backward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[0]
-    f3_prev_read = schedule.children[2].children[0].arguments.args[3]
+    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_prev_read = schedule.children[2].loop_body[0].arguments.args[3]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
     # 3: haloexchange dependencies
@@ -1417,9 +1404,9 @@ def test_argument_backward_dependence(monkeypatch, annexed):
         index = 7
     else:
         index = 8
-    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[index-1].loop_body[0].arguments.args[0]
     f2_halo_field = schedule.children[index].field
-    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
+    f2_next_arg = schedule.children[index+1].loop_body[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -1433,10 +1420,10 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[1]
-    sum_arg = schedule.children[1].children[0].arguments.args[0]
+    prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
+    sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[1]
+    next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
     assert result == global_sum_arg
@@ -1532,9 +1519,9 @@ def test_node_args():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop1 = schedule.children[0]
-    kern1 = loop1.children[0]
+    kern1 = loop1.loop_body[0]
     loop2 = schedule.children[1]
-    kern2 = loop2.children[0]
+    kern2 = loop2.loop_body[0]
     # 1) Schedule (not that this is useful)
     all_args = kern1.arguments.args
     all_args.extend(kern2.arguments.args)
@@ -1549,13 +1536,13 @@ def test_node_args():
     loop2_args = loop2.args
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
-    # 4) Loopfuse
+    # 4) Loop fuse
     ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    ftrans.same_space = True
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]
-    kern1 = loop.children[0]
-    kern2 = loop.children[1]
+    kern1 = loop.loop_body[0]
+    kern2 = loop.loop_body[1]
     loop_args = loop.args
     kern_args = kern1.arguments.args
     kern_args.extend(kern2.arguments.args)
@@ -1573,8 +1560,8 @@ def test_call_args():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kern = schedule.children[0].children[0]
-    builtin = schedule.children[1].children[0]
+    kern = schedule.children[0].loop_body[0]
+    builtin = schedule.children[1].loop_body[0]
     # 1) kern
     for idx, arg in enumerate(kern.args):
         assert arg == kern.arguments.args[idx]
@@ -1751,21 +1738,21 @@ def test_call_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-    read4 = schedule.children[0].children[4]
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
     assert not read4.forward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies
     # a) check first read returned
-    writer = schedule.children[0].children[3]
-    next_read = schedule.children[0].children[4]
+    writer = schedule.children[0].loop_body[3]
+    next_read = schedule.children[0].loop_body[4]
     assert writer.forward_dependence() == next_read
     # a) check writer returned
-    first_loop = schedule.children[0].children[0]
+    first_loop = schedule.children[0].loop_body[0]
     assert first_loop.forward_dependence() == writer
 
 
@@ -1780,16 +1767,16 @@ def test_call_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     # 1: loop no backwards dependence
-    call3 = schedule.children[0].children[2]
+    call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()
     # 2: call to call backward dependence
     # a) many steps
-    last_call_node = schedule.children[0].children[6]
-    prev_dep_call_node = schedule.children[0].children[3]
+    last_call_node = schedule.children[0].loop_body[6]
+    prev_dep_call_node = schedule.children[0].loop_body[3]
     assert last_call_node.backward_dependence() == prev_dep_call_node
     # b) previous
     assert prev_dep_call_node.backward_dependence() == call3
@@ -1915,7 +1902,7 @@ def test_directive_get_private(monkeypatch):
     pvars = directive._get_private_list()
     assert pvars == ['cell']
     # Now use monkeypatch to break the Call within the loop
-    call = directive.children[0].children[0].children[0]
+    call = directive.children[0].children[0].loop_body[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
@@ -1996,14 +1983,13 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     node = kern.ancestor(Node)
-    assert isinstance(node, Loop)
-    node = kern.ancestor(Node, excluding=[Loop])
-    assert node is sched
+    assert isinstance(node, Schedule)
+    node = kern.ancestor(Node, excluding=[Schedule])
+    assert node is sched.children[0].loop_body[0]
 
 
 def test_dag_names():
@@ -2022,8 +2008,8 @@ def test_dag_names():
     schedule.children[3].loop_type = "colour"
     assert schedule.children[3].dag_name == "loop_[colour]_4"
     schedule.children[3].loop_type = ""
-    assert (schedule.children[3].children[0].dag_name ==
-            "kernel_testkern_code_5")
+    assert (schedule.children[3].loop_body[0].dag_name ==
+            "kernel_testkern_code_9")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -2032,8 +2018,8 @@ def test_dag_names():
     schedule = invoke.schedule
     global_sum = schedule.children[2]
     assert global_sum.dag_name == "globalsum(asum)_2"
-    builtin = schedule.children[1].children[0]
-    assert builtin.dag_name == "builtin_sum_x_4"
+    builtin = schedule.children[1].loop_body[0]
+    assert builtin.dag_name == "builtin_sum_x_12"
 
 
 def test_openmp_pdo_dag_name():
@@ -2085,9 +2071,6 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    from psyclone.psyGen import ACCEnterDataDirective
-    from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-        ACCLoopTrans
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
@@ -2107,17 +2090,226 @@ def test_acc_dag_names():
     name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
 
+# Class ACCKernelsDirective start
 
+
+# (1/1) Method __init__
+def test_acckernelsdirective_init():
+    '''Test an ACCKernelsDirective can be created and that the optional
+    arguments are set and can be set as expected.
+
+    '''
+    directive = ACCKernelsDirective()
+    assert directive._default_present
+    assert directive.parent is None
+    assert directive.children == []
+    directive = ACCKernelsDirective(default_present=False)
+    assert not directive._default_present
+
+
+# (1/1) Method dag_name
+def test_acckernelsdirective_dagname():
+    '''Check that the dag_name method in the ACCKernelsDirective class
+    behaves as expected.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+    assert sched.children[0].dag_name == "ACC_kernels_1"
+
+
+# (1/1) Method view
+def test_acckernelsdirective_view(capsys):
+    '''Check that the view method in the ACCKernelsDirective class behaves
+    as expected.
+
+    '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    colour = SCHEDULE_COLOUR_MAP["Directive"]
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched)
+
+    sched.children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Kernels]")
+    assert "Loop" in out
+    assert "CodedKern" in out
+
+
+# (1/1) Method gen_code
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_gencode(default_present):
+    '''Check that the gen_code method in the ACCKernelsDirective class
+    generates the expected code. Use the dynamo0.3 API.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    _, _ = trans.apply(sched, default_present=default_present)
+
+    code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " default(present)"
+    assert (
+        "      !$acc kernels{0}\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
+    assert (
+        "      END DO \n"
+        "      !$acc end kernels\n" in code)
+
+
+# (1/1) Method update
+@pytest.mark.parametrize("default_present", [False, True])
+def test_acckernelsdirective_update(parser, default_present):
+    '''Check that the update method in the ACCKernelsDirective class
+    generates the expected code. Use the nemo API.
+
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    reader = FortranStringReader("program implicit_loop\n"
+                                 "real(kind=wp) :: sto_tmp(5,5)\n"
+                                 "sto_tmp(:,:) = 0.0_wp\n"
+                                 "end program implicit_loop\n")
+    code = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels_trans = ACCKernelsTrans()
+    schedule, _ = kernels_trans.apply(schedule.children[0:1],
+                                      default_present=default_present)
+    gen_code = str(psy.gen)
+    string = ""
+    if default_present:
+        string = " DEFAULT(PRESENT)"
+    assert ("  !$ACC KERNELS{0}\n"
+            "  sto_tmp(:, :) = 0.0_wp\n"
+            "  !$ACC END KERNELS\n".format(string) in gen_code)
+
+# Class ACCKernelsDirective end
+
+# Class ACCEnterDataDirective start
+
+
+# (1/1) Method __init__
 def test_acc_datadevice_virtual():
     ''' Check that we can't instantiate an instance of
     ACCEnterDataDirective. '''
-    from psyclone.psyGen import ACCEnterDataDirective
     # pylint:disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
         ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err))
+
+# (1/1) Method view
+# Covered in test test_acc_dir_view
+
+# (1/1) Method dag_name
+# Covered in test_acc_dag_names
+
+
+# (1/4) Method gen_code
+def test_accenterdatadirective_gencode_1():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with a single loop, raises the expected exception as there is no
+    following OpenACC Parallel directive and at least one is
+    required. This test uses the dynamo0.3 API.
+
+    '''
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_enter_trans.apply(sched)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel directives within the region."
+            in str(excinfo.value))
+
+
+# (2/4) Method gen_code
+def test_accenterdatadirective_gencode_2():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with multiple loops, raises the expected exception, as there is no
+    following OpenACC Parallel directive and at least one is
+    required. This test uses the dynamo0.3 API.
+
+    '''
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0').schedule
+    _ = acc_enter_trans.apply(sched)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
+            "there are no ACCParallel directives within the region."
+            in str(excinfo.value))
+
+
+# (3/4) Method gen_code
+def test_accenterdatadirective_gencode_3():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with a single loop, produces the expected code (there should be
+    "copy in" data as there is a following OpenACC parallel
+    directive). This test uses the dynamo0.3 API.
+
+    '''
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
+        "ndf_w3,undf_w3,map_w3)\n" in code)
+
+
+# (4/4) Method gen_code
+def test_accenterdatadirective_gencode_4():
+    '''Test that an OpenACC Enter Data directive, when added to a schedule
+    with multiple loops and multiple OpenACC parallel directives,
+    produces the expected code (when the same argument is used in
+    multiple loops there should only be one entry). This test uses the
+    dynamo0.3 API.
+
+    '''
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0').schedule
+    _ = acc_par_trans.apply(sched.children[1])
+    _ = acc_par_trans.apply(sched.children[0])
+    _ = acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
+        "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
+        "f3_proxy,f3_proxy%data)\n" in code)
+
+# Class ACCEnterDataDirective end
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
@@ -2225,8 +2417,8 @@ def test_haloexchange_vector_index_depend():
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
     field = first_d_field_halo_exchange.field
-    all_nodes = schedule.walk(schedule.children, Node)
-    following_nodes = all_nodes[4:]
+    all_nodes = schedule.walk(Node)
+    following_nodes = all_nodes[5:]
     result_list = field._find_read_arguments(following_nodes)
     assert len(result_list) == 1
     assert result_list[0].call.name == 'ru_code'
@@ -2247,7 +2439,7 @@ def test_find_write_arguments_for_write():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     field_writer = kernel.arguments.args[1]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
@@ -2455,7 +2647,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     rc_trans.apply(schedule.children[index], depth=2)
     del schedule.children[index]
     loop = schedule.children[index+2]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
     with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
@@ -2490,7 +2682,7 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
         index = 4
     del schedule.children[index]
     loop = schedule.children[index+1]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
@@ -2528,7 +2720,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[index], depth=2)
     loop = schedule.children[index+3]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
     vector_size = d_field.vector_size
     result_list = d_field.backward_write_dependencies()
@@ -2550,25 +2742,12 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     assert len(indices) == vector_size
 
 
-def test_loop_props():
-    ''' Tests for the properties of a Loop object. '''
-    from psyclone.psyGen import Loop
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
-    sched = invoke.schedule
-    loop = sched.children[0].children[0]
-    assert isinstance(loop, Loop)
-    with pytest.raises(GenerationError) as err:
-        loop.loop_type = "not_a_valid_type"
-    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err))
-
-
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    loop = sched.children[0].children[0]
+    loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop, parent=None)
     assert "Please implement me" in str(err)
@@ -2580,7 +2759,7 @@ def test_kern_ast():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].children[0].children[0]
+    kern = sched.children[0].loop_body[0].loop_body[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
@@ -2612,7 +2791,7 @@ def test_dataaccess_vector():
     field_d_v3 = halo_exchange_d_v3.field
     # d from a kernel argument
     loop = schedule.children[6]
-    kernel = loop.children[0]
+    kernel = loop.loop_body[0]
     d_arg = kernel.arguments.args[5]
 
     access = DataAccess(d_arg)
@@ -2680,7 +2859,7 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 def test_codeblock_view(capsys):
     ''' Check the view and colored_text methods of the Code Block class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
     cblock.view()
     output, _ = capsys.readouterr()
@@ -2691,9 +2870,152 @@ def test_codeblock_view(capsys):
 def test_codeblock_can_be_printed():
     '''Test that a CodeBlock instance can always be printed (i.e. is
     initialised fully)'''
-    cblock = CodeBlock([])
+    cblock = CodeBlock([], "dummy")
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
+
+
+def test_codeblock_getastnodes():
+    '''Test that the get_ast_nodes method of a CodeBlock instance returns
+    a copy of the list of nodes from the original AST that are associated with
+    this code block.
+
+    For simplicity we use a list of strings rather than an AST.
+
+    '''
+    original = ["hello", "there"]
+    cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
+    result = cblock.get_ast_nodes
+    assert result == original
+    # Check that the list is a copy not a reference.
+    assert result is not original
+
+
+@pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
+                                       CodeBlock.Structure.EXPRESSION])
+def test_codeblock_structure(structure):
+    '''Check that the structure property in the CodeBlock class is set to
+    the provided value.
+
+    '''
+    cblock = CodeBlock([], structure)
+    assert cblock.structure == structure
+
+# Test Loop class
+
+
+def test_loop_navigation_properties():
+    ''' Tests the start_expr, stop_expr, step_expr and loop_body
+    setter and getter properties'''
+    from psyclone.psyGen import Loop
+    loop = Loop()
+
+    # Properties return an error if the node is incomplete
+    error_str = ("Loop malformed or incomplete. It should have exactly 4 "
+                 "children, but found")
+    with pytest.raises(InternalError) as err:
+        _ = loop.start_expr
+    assert error_str in str(err.value)
+
+    # Expressions that are not PSyIR are not accepted
+    with pytest.raises(TypeError) as err:
+        loop.start_expr = "start"
+    assert "Only PSyIR nodes can be assigned as the Loop start expression" \
+        ", but found '" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        loop.stop_expr = "stop"
+    assert "Only PSyIR nodes can be assigned as the Loop stop expression" \
+        ", but found '" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        loop.step_expr = "step"
+    assert "Only PSyIR nodes can be assigned as the Loop step expression" \
+        ", but found '" in str(err.value)
+
+    loop.addchild(Literal("start", parent=loop))
+    loop.addchild(Literal("stop", parent=loop))
+    loop.addchild(Literal("step", parent=loop))
+
+    # If it's not fully complete, it still returns an error
+    with pytest.raises(InternalError) as err:
+        _ = loop.start_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.stop_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.step_expr
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _ = loop.loop_body
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.start_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.stop_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
+        loop.step_expr = Literal("invalid", parent=loop)
+    assert error_str in str(err.value)
+
+    # The fourth child has to be a Schedule
+    loop.addchild(Literal("loop_body", parent=loop))
+    with pytest.raises(InternalError) as err:
+        _ = loop.loop_body
+    assert "Loop malformed or incomplete. Fourth child should be a " \
+        "Schedule node, but found loop with " in str(err.value)
+
+    # Fix loop and check that Getters properties work
+    del loop.children[3]
+    loop.addchild(Schedule(parent=loop))
+    loop.loop_body.addchild(Return(parent=loop.loop_body))
+
+    assert loop.start_expr.value == "start"
+    assert loop.stop_expr.value == "stop"
+    assert loop.step_expr.value == "step"
+    assert isinstance(loop.loop_body[0], Return)
+
+    # Test Setters
+    loop.start_expr = Literal("newstart", parent=loop)
+    loop.stop_expr = Literal("newstop", parent=loop)
+    loop.step_expr = Literal("newstep", parent=loop)
+
+    assert loop.start_expr.value == "newstart"
+    assert loop.stop_expr.value == "newstop"
+    assert loop.step_expr.value == "newstep"
+
+
+def test_loop_invalid_type():
+    ''' Tests assigning an invalid type to a Loop object. '''
+    from psyclone.psyGen import Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].loop_body[0]
+    assert isinstance(loop, Loop)
+    with pytest.raises(GenerationError) as err:
+        loop.loop_type = "not_a_valid_type"
+    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
+            "['inner', 'outer']" in str(err))
+
+
+def test_loop_gen_code():
+    ''' Check that the Loop gen_code method prints the proper loop '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # By default DynLoop has step = 1 and it is not printed in the Fortran DO
+    gen = str(psy.gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+
+    # Change step to 2
+    loop = psy.invokes.get('invoke_important_invoke').schedule[3]
+    loop.step_expr = Literal("2", parent=loop)
+
+    # Now it is printed in the Fortran DO with the expression  ",2" at the end
+    gen = str(psy.gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
 
 # Test IfBlock class
@@ -2848,8 +3170,65 @@ def test_reference_can_be_printed():
     kschedule.symbol_table.add(Symbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
-    assert "Reference[name:'rname']\n" in str(ref)
+    assert "Reference[name:'rname']" in str(ref)
 
+
+def test_reference_symbol(monkeypatch):
+    '''Test that the symbol method in a Reference Node instance returns
+    the associated symbol if there is one and None if not. Also test
+    for an incorrect scope argument.
+
+    '''
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kernel_schedule = kernels[0].get_kernel_schedule()
+    references = kernel_schedule.walk(Reference)
+
+    # Symbol in KernelSchedule SymbolTable
+    field_old = references[0]
+    assert field_old.name == "field_old"
+    assert isinstance(field_old.symbol(), Symbol)
+    assert field_old.symbol().name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
+    assert isinstance(field_old.symbol(scope_limit=kernel_schedule), Symbol)
+    assert field_old.symbol().name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with parent scope
+    assert field_old.symbol(scope_limit=field_old.parent) is None
+
+    # Symbol in Container SymbolTable
+    alpha = references[6]
+    assert alpha.name == "alpha"
+    assert isinstance(alpha.symbol(), Symbol)
+    assert alpha.symbol().name == alpha.name
+
+    # Symbol in Container SymbolTable with KernelSchedule scope
+    assert alpha.symbol(scope_limit=kernel_schedule) is None
+
+    # Symbol in Container SymbolTable with Container scope
+    assert isinstance(kernel_schedule.root, Container)
+    assert alpha.symbol(scope_limit=kernel_schedule.root).name == alpha.name
+
+    # Symbol method with invalid scope type
+    with pytest.raises(TypeError) as excinfo:
+        _ = alpha.symbol(scope_limit="hello")
+    assert ("The scope_limit argument 'hello' provided to the symbol method, "
+            "is not of type `Node`." in str(excinfo.value))
+
+    # Symbol method with invalid scope location
+    with pytest.raises(ValueError) as excinfo:
+        _ = alpha.symbol(scope_limit=alpha)
+    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
+            "symbol method, is not an ancestor of this reference node "
+            "'Reference[name:'alpha']'." in str(excinfo.value))
+
+    # Symbol not in any container (rename alpha to something that is
+    # not defined)
+    monkeypatch.setattr(alpha, "_reference", "not_defined")
+    assert not alpha.symbol()
 
 # Test Array class
 
@@ -2900,7 +3279,7 @@ def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1")
-    assert "Literal[value:'1']\n" in str(literal)
+    assert "Literal[value:'1']" in str(literal)
 
 
 # Test BinaryOperation class
@@ -2945,14 +3324,14 @@ def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
+    assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("2", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(binary_operation)
-    assert "Literal[value:'2']\n" in str(binary_operation)
+    assert "Literal[value:'2']" in str(binary_operation)
 
 
 # Test UnaryOperation class
@@ -2995,11 +3374,11 @@ def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
+    assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(unary_operation)
+    assert "Literal[value:'1']" in str(unary_operation)
 
 
 def test_naryoperation_view(capsys):
@@ -3022,14 +3401,14 @@ def test_naryoperation_can_be_printed():
     '''Test that an Nary Operation instance can always be printed (i.e. is
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    assert "NaryOperation[operator:'MAX']\n" in str(nary_operation)
+    assert "NaryOperation[operator:'MAX']" in str(nary_operation)
     nary_operation.addchild(Literal("1", parent=nary_operation))
     nary_operation.addchild(Literal("2", parent=nary_operation))
     nary_operation.addchild(Literal("3", parent=nary_operation))
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(nary_operation)
     assert "Literal[value:'2']\n" in str(nary_operation)
-    assert "Literal[value:'3']\n" in str(nary_operation)
+    assert "Literal[value:'3']" in str(nary_operation)
 
 
 # Test Return class
@@ -3049,6 +3428,56 @@ def test_return_can_be_printed():
     initialised fully)'''
     return_stmt = Return()
     assert "Return[]\n" in str(return_stmt)
+
+
+# Test Container class
+
+def test_container_init():
+    '''Test that a container is initialised as expected.'''
+    container = Container("test")
+    assert container._name == "test"
+    assert container._parent is None
+    assert isinstance(container._symbol_table, SymbolTable)
+
+
+def test_container_init_parent():
+    '''Test that a container parent argument is stored as expected.'''
+    container = Container("test", parent="hello")
+    assert container.parent == "hello"
+
+
+def test_container_name():
+    '''Test that the container name can be set and changed as
+    expected.'''
+    container = Container("test")
+    assert container.name == "test"
+    container.name = "new_test"
+    assert container.name == "new_test"
+
+
+def test_container_symbol_table():
+    '''Test that the container symbol_table method returns the expected
+    content.'''
+    container = Container("test")
+    assert isinstance(container._symbol_table, SymbolTable)
+    assert container.symbol_table is container._symbol_table
+
+
+def test_container_view(capsys):
+    '''Check the view and colored_text methods of the Container class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    cont_stmt = Container("bin")
+    coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+    cont_stmt.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[bin]" in output
+
+
+def test_container_can_be_printed():
+    '''Test that a Container instance can always be printed (i.e. is
+    initialised fully)'''
+    cont_stmt = Container("box")
+    assert "Container[box]\n" in str(cont_stmt)
 
 
 # Test KernelSchedule Class
@@ -3085,7 +3514,7 @@ def test_kernelschedule_can_be_printed():
     assignment.addchild(rhs)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
     assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End Schedule" in str(kschedule)
+    assert "End KernelSchedule" in str(kschedule)
 
 
 def test_kernelschedule_name_setter():
@@ -3715,6 +4144,28 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 
 
+def test_symboltable_global_symbols():
+    ''' Test that the global_symbols property returns those symbols with
+    'global' scope (i.e. that represent data that exists outside the current
+    scoping unit) but are not routine arguments. '''
+    sym_table = SymbolTable()
+    assert sym_table.global_symbols == []
+    # Add some local symbols
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", [None]))
+    assert sym_table.global_symbols == []
+    # Add some global symbols
+    sym_table.add(Symbol("gvar1", "real", [],
+                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    assert sym_table.lookup("gvar1") in sym_table.global_symbols
+    sym_table.add(
+        Symbol("gvar2", "real", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)))
+    gsymbols = sym_table.global_symbols
+    assert len(gsymbols) == 1
+    assert sym_table.lookup("gvar2") not in gsymbols
+
+
 def test_symboltable_abstract_properties():
     '''Test that the SymbolTable abstract properties raise the appropriate
     error.'''
@@ -3731,1434 +4182,26 @@ def test_symboltable_abstract_properties():
         "API-specific." in str(error.value)
 
 
-# Test Fparser2ASTProcessor
+def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
+    '''Modified Fortran kernels are written to file linewrapped at 132
+    characters. This test checks that this linewrapping works.
 
-def test_fparser2astprocessor_generate_schedule_empty_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with an empty
-    subroutine.
     '''
-    ast1 = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
-    processor = Fparser2ASTProcessor()
-
-    # Test properly formed but empty kernel module
-    schedule = processor.generate_schedule("dummy_code", ast2)
-    assert isinstance(schedule, KernelSchedule)
-
-    # Test that we get an error for a nonexistant subroutine name
-    with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("nonexistent_code", ast2)
-    assert "Unexpected kernel AST. Could not find " \
-           "subroutine: nonexistent_code" in str(error.value)
-
-    # Test corrupting ast by deleting subroutine
-    del ast2.content[0].content[2]
-    with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("dummy_code", ast2)
-    assert "Unexpected kernel AST. Could not find " \
-           "subroutine: dummy_code" in str(error.value)
-
-
-def test_fparser2astprocessor_generate_schedule_two_modules():
-    ''' Tests the fparser2AST generate_schedule method raises an exception
-    when more than one fparser2 module node is provided.
-    '''
-    ast1 = fpapi.parse(FAKE_KERNEL_METADATA*2, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
-    processor = Fparser2ASTProcessor()
-
-    # Test kernel with two modules
-    with pytest.raises(GenerationError) as error:
-        _ = processor.generate_schedule("dummy_code", ast2)
-    assert ("Unexpected AST when generating 'dummy_code' kernel schedule."
-            " Just one module definition per file supported.") \
-        in str(error.value)
-
-
-def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with a simple
-    subroutine.
-    '''
-    dummy_kernel_metadata = '''
-    module dummy_mod
-      type, extends(kernel_type) :: dummy_type
-         type(arg_type), meta_args(3) =                    &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
-               /)
-         integer :: iterates_over = cells
-       contains
-         procedure, nopass :: code => dummy_code
-      end type dummy_type
-    contains
-     subroutine dummy_code(f1, f2, f3)
-        real(wp), dimension(:,:), intent(in)  :: f1
-        real(wp), dimension(:,:), intent(out)  :: f2
-        real(wp), dimension(:,:) :: f3
-        f2 = f1 + 1
-      end subroutine dummy_code
-    end module dummy_mod
-    '''
-    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
-    processor = Fparser2ASTProcessor()
-
-    # Test properly formed kernel module
-    schedule = processor.generate_schedule("dummy_code", ast2)
-    assert isinstance(schedule, KernelSchedule)
-
-    # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').scope == 'global'
-    assert schedule.symbol_table.lookup('f3').access is Symbol.Access.READWRITE
-
-    # Test that a kernel subroutine without Execution_Part still creates a
-    # valid KernelSchedule
-    del ast2.content[0].content[2].content[1].content[2]
-    schedule = processor.generate_schedule("dummy_code", ast2)
-    assert isinstance(schedule, KernelSchedule)
-    assert not schedule.children
-
-
-def test_fparser2astprocessor_generate_schedule_no_args_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with a simple
-    subroutine with no arguments.
-    '''
-    dummy_kernel_metadata = '''
-    module dummy_mod
-      type, extends(kernel_type) :: dummy_type
-        type(arg_type), meta_args(3) =                    &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
-               /)
-         integer :: iterates_over = cells
-       contains
-         procedure, nopass :: code => dummy_code
-      end type dummy_type
-    contains
-     subroutine dummy_code()
-        real(wp), dimension(:,:) :: f3
-        f3 = f3 + 1
-      end subroutine dummy_code
-    end module dummy_mod
-    '''
-    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
-    processor = Fparser2ASTProcessor()
-
-    # Test kernel with no arguments, should still proceed
-    schedule = processor.generate_schedule("dummy_code", ast2)
-    assert isinstance(schedule, KernelSchedule)
-    # TODO: In the future we could validate that metadata matches
-    # the kernel arguments, then this test would fail. Issue #288
-
-
-def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
-    ''' Tests the fparser2AST generate_schedule with unmatching kernel
-    arguments and declarations raises the appropriate exception.
-    '''
-    dummy_kernel_metadata = '''
-    module dummy_mod
-      type, extends(kernel_type) :: dummy_type
-         type(arg_type), meta_args(3) =                    &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
-               /)
-         integer :: iterates_over = cells
-       contains
-         procedure, nopass :: code => dummy_code
-      end type dummy_type
-    contains
-     subroutine dummy_code(f1, f2, f3, f4)
-        real(wp), dimension(:,:), intent(in)  :: f1
-        real(wp), dimension(:,:), intent(out)  :: f2
-        real(wp), dimension(:,:) :: f3
-        f2 = f1 + 1
-      end subroutine dummy_code
-    end module dummy_mod
-    '''
-    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
-    metadata = DynKernMetadata(ast1)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    ast2 = my_kern.ast
-    processor = Fparser2ASTProcessor()
-
-    # Test exception for unmatching argument list
-    with pytest.raises(InternalError) as error:
-        _ = processor.generate_schedule("dummy_code", ast2)
-    assert "The kernel argument list" in str(error.value)
-    assert "does not match the variable declarations for fparser nodes" \
-        in str(error.value)
-
-
-def test_fparser2astprocessor_process_declarations(f2008_parser):
-    '''Test that process_declarations method of fparse2astprocessor
-    converts the fparser2 declarations to symbols in the provided
-    parent Kernel Schedule.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-
-    # Test simple declarations
-    reader = FortranStringReader("integer :: l1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l1").name == 'l1'
-    assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("l1").shape == []
-    assert fake_parent.symbol_table.lookup("l1").scope == 'local'
-    assert not fake_parent.symbol_table.lookup("l1").access
-    assert not fake_parent.symbol_table.lookup("l1").interface
-
-    reader = FortranStringReader("Real      ::      l2")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l2").name == "l2"
-    assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
-
-    reader = FortranStringReader("LOGICAL      ::      b")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("b").name == "b"
-    assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
-
-    # RHS array specifications
-    reader = FortranStringReader("integer :: l3(l1)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
-    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
-    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
-
-    reader = FortranStringReader("integer :: l4(l1, 2)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
-    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
-    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
-
-    reader = FortranStringReader("integer :: l5(2), l6(3)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").shape == [3]
-
-    # Test that component-array-spec has priority over dimension attribute
-    reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
-    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
-
-    # Test with unsupported data type
-    reader = FortranStringReader("doubleprecision     ::      c2")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
-            "types are supported.") in str(error.value)
-
-    # Test with unsupported attribute
-    reader = FortranStringReader("real, public :: p2")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Unrecognized attribute type " in str(error.value)
-
-    # Initialisations are not supported
-    reader = FortranStringReader("integer :: l1 = 1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Initialisations on the declaration statements are not "
-            "supported.") in str(error.value)
-
-    # Char lengths are not supported
-    # TODO: It would be simpler to do just a Specification_Part(reader) instead
-    # of parsing a full program, but fparser/169 needs to be fixed first.
-    reader = FortranStringReader("program dummy\ncharacter :: l*4"
-                                 "\nend program")
-    program = f2008_parser(reader)
-    fparser2spec = program.content[0].content[1].content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Character length specifications are not "
-            "supported.") in str(error.value)
-
-
-def test_fparser2astprocessor_process_not_supported_declarations(f2008_parser):
-    '''Test that process_declarations method raises the proper errors when
-    declarations contain unsupported attributes.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-
-    reader = FortranStringReader("integer, external :: arg1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
-
-    reader = FortranStringReader("integer, save :: arg1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
-
-
-def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
-    '''Test that process_declarations method handles various different
-    specifications of variable attributes.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part, Name
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-
-    reader = FortranStringReader("integer, intent(in) :: arg1")
-    fparser2spec = Specification_Part(reader).content[0]
-    arg_list = [Name("arg1")]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg1").access == Symbol.Access.READ
-
-    reader = FortranStringReader("integer, intent( IN ) :: arg2")
-    arg_list.append(Name("arg2"))
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg2").access == Symbol.Access.READ
-
-    reader = FortranStringReader("integer, intent( Out ) :: arg3")
-    arg_list.append(Name("arg3"))
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg3").access == \
-        Symbol.Access.WRITE
-
-    reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
-    arg_list.append(Name("arg4"))
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg4").access is \
-        Symbol.Access.READWRITE
-
-
-def test_fparser2astprocessor_process_declarations_stmt_functions(
-        f2008_parser):
-    '''Test that process_declarations method handles statement functions
-    appropriately.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
-    from fparser.two.Fortran2003 import Stmt_Function_Stmt
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-
-    # If 'a' is not declared it could be a statement function, which are
-    # unsupported and produce a NotImplementedError.
-    reader = FortranStringReader("a(x) = 1")
-    fparser2spec = Stmt_Function_Stmt(reader)
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process '" in str(error.value)
-    assert "'. Statement Function declarations are not supported." \
-        in str(error.value)
-
-    # The code below checks that misclassified Statment_Functions are
-    # recovered as arrays, this may become unecessary after fparser/#171
-    # is fixed.
-
-    # This Specification part is expected to contain a statment_function
-    # with the current fparser, this may change depending on how
-    # fparser/#171 is fixed.
-    reader = FortranStringReader("a(x) = 1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process '" in str(error.value)
-    assert "'. Statement Function declarations are not supported." \
-        in str(error.value)
-
-    # If 'a' is declared in the symbol table as an array, it is an array
-    # assignment which belongs in the execution part.
-    fake_parent.symbol_table.add(Symbol('a', 'real', shape=[None]))
-    fake_parent.symbol_table.add(Symbol('x', 'real', shape=[]))
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert len(fake_parent.children) == 1
-    array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
-    assert array.name == "a"
-
-    # Test that it works with multi-dimensional arrays
-    fake_parent = KernelSchedule("dummy_schedule")
-    reader = FortranStringReader("b(x, y) = 1")
-    fparser2spec = Stmt_Function_Stmt(reader)
-    fake_parent.symbol_table.add(Symbol('b', 'real', shape=[None, None]))
-    fake_parent.symbol_table.add(Symbol('x', 'integer', shape=[]))
-    fake_parent.symbol_table.add(Symbol('y', 'integer', shape=[]))
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert len(fake_parent.children) == 1
-    array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
-    assert array.name == "b"
-
-    # Test that if symbol is not an array, it raises GenerationError
-    fake_parent.symbol_table.lookup('b')._shape = []
-    with pytest.raises(InternalError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process '" in str(error.value)
-    assert "'. Symbol 'b' is in the SymbolTable but it is not an array as " \
-        "expected, so it can not be recovered as an array assignment." \
-        in str(error.value)
-
-
-def test_fparser2astprocessor_parse_array_dimensions_attributes(
-        f2008_parser):
-    '''Test that process_declarations method parses multiple specifications
-    of array attributes.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part, Name
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
-
-    sym_table = SymbolTable()
-    reader = FortranStringReader("dimension(:)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert shape == [None]
-
-    reader = FortranStringReader("dimension(:,:,:)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert shape == [None, None, None]
-
-    reader = FortranStringReader("dimension(3,5)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert shape == [3, 5]
-
-    sym_table.add(Symbol('var1', 'integer', []))
-    reader = FortranStringReader("dimension(var1)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert len(shape) == 1
-    assert shape[0] == sym_table.lookup('var1')
-
-    # Assumed size arrays not supported
-    reader = FortranStringReader("dimension(*)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert "Could not process " in str(error.value)
-    assert "Assumed-size arrays are not supported." in str(error.value)
-
-    # Explicit shape symbols must be integer
-    reader = FortranStringReader("dimension(var2)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    with pytest.raises(NotImplementedError) as error:
-        sym_table.add(Symbol("var2", "real", []))
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert "Could not process " in str(error.value)
-    assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
-
-    # Explicit shape symbols can only be Literal or Symbol
-    with pytest.raises(NotImplementedError) as error:
-        class UnrecognizedType(object):
-            '''Type guaranteed to not be part of the _parse_dimensions
-            conditional type handler.'''
-        fparser2spec.items[1].items[1].__class__ = UnrecognizedType
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
-    assert "Could not process " in str(error.value)
-    assert ("Only scalar integer literals or symbols are supported for "
-            "explicit shape array declarations.") in str(error.value)
-
-    # Test dimension and intent arguments together
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-    reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec],
-                                   [Name("array3")])
-    assert fake_parent.symbol_table.lookup("array3").name == "array3"
-    assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
-    assert fake_parent.symbol_table.lookup("array3").shape == [None]
-    assert fake_parent.symbol_table.lookup("array3").scope == "global"
-    assert fake_parent.symbol_table.lookup("array3").access is \
-        Symbol.Access.READ
-
-
-def test_fparser2astprocessor_use(f2008_parser):
-    ''' Check that SymbolTable entries are correctly created from
-    module use statements. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-    reader = FortranStringReader("use my_mod, only: some_var\n"
-                                 "use this_mod\n"
-                                 "use other_mod, only: var1, var2\n")
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
-    for var in ["some_var", "var1", "var2"]:
-        assert fake_parent.symbol_table.lookup(var).name == var
-        assert fake_parent.symbol_table.lookup(var).scope == "global"
-    assert fake_parent.symbol_table.lookup("some_var").interface.module_name \
-        == "my_mod"
-    assert fake_parent.symbol_table.lookup("var2").interface.module_name == \
-        "other_mod"
-
-
-def test_fp2astproc_use_error(f2008_parser, monkeypatch):
-    ''' Check that we raise the expected error if the parse tree representing
-    a USE statement doesn't have the expected structure. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2ASTProcessor()
-    reader = FortranStringReader("use my_mod, only: some_var\n"
-                                 "use this_mod\n"
-                                 "use other_mod, only: var1, var2\n")
-    fparser2spec = Specification_Part(reader)
-    monkeypatch.setattr(fparser2spec.content[0], "items",
-                        [None, "hello", None])
-    with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("Expected the parse tree for a USE statement to contain 5 items "
-            "but found 3 for 'hello'" in str(err))
-
-
-def test_fparser2astprocessor_parse_array_dimensions_unhandled(
-        f2008_parser, monkeypatch):
-    '''Test that process_declarations method parses multiple specifications
-    of array attributes.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
-    import fparser
-
-    def walk_ast_return(_1, _2):
-        '''Function that returns a unique object that will not be part
-        of the implemented handling in the walk_ast method caller.'''
-        class Invalid(object):
-            '''Class that would be invalid to return from an fparser2 parse
-            tree.'''
-        newobject = Invalid()
-        return [newobject]
-
-    monkeypatch.setattr(fparser.two.utils, 'walk_ast', walk_ast_return)
-
-    reader = FortranStringReader("dimension(:)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    with pytest.raises(InternalError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, None)
-    assert "Reached end of loop body and" in str(error.value)
-    assert " has not been handled." in str(error.value)
-
-
-def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
-    ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x=1")
-    fparser2assignment = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2assignment], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Assignment)
-    assert len(new_node.children) == 2
-
-
-def test_fparser2astprocessor_handling_name(f2008_parser):
-    ''' Test that fparser2 Name is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x=1")
-    fparser2name = Execution_Part.match(reader)[0][0].items[0]
-
-    # Check a new node is generated and connected to parent
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2name], None)
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Reference)
-    assert new_node._reference == "x"
-
-    # If the parent root has a symbol table it checks if the symbol
-    # is declared.
-    fake_parent = KernelSchedule('kernel')
-    processor = Fparser2ASTProcessor()
-
-    with pytest.raises(GenerationError) as error:
-        processor.process_nodes(fake_parent, [fparser2name], None)
-    assert "Undeclared reference 'x' found when parsing fparser2 node " \
-           "'Name('x')' inside 'kernel'." in str(error)
-
-    fake_parent.symbol_table.add(Symbol('x', 'integer'))
-    processor.process_nodes(fake_parent, [fparser2name], None)
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Reference)
-    assert new_node._reference == "x"
-
-
-def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
-    ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x=(x+1)")
-    fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2parenthesis], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    # Check parenthesis are ignored and process_nodes uses its child
-    assert isinstance(new_node, BinaryOperation)
-
-
-def test_fparser2astprocessor_handling_part_ref(f2008_parser):
-    ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x(2)=1")
-    fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
-    assert len(new_node.children) == 1  # Array dimensions
-
-    # If the parent root has a symbol table it checks if the symbol
-    # is declared.
-    fake_parent = KernelSchedule('kernel')
-    processor = Fparser2ASTProcessor()
-
-    with pytest.raises(GenerationError) as error:
-        processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    assert "Undeclared reference 'x' found when parsing fparser2 " \
-           "node " in str(error)
-    assert " inside 'kernel'." in str(error)
-
-    fake_parent.symbol_table.add(Symbol('x', 'integer'))
-    processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
-    assert len(new_node.children) == 1  # Array dimensions
-
-    # Parse a complex array expression
-    fake_parent = Node()
-    reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
-    fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
-
-    fake_parent = Node()
-    processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
-    assert len(new_node.children) == 3  # Array dimensions
-
-
-def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
-    ''' Test that fparser2 Intrinsic_Function_Reference nodes are
-    handled appropriately.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    processor = Fparser2ASTProcessor()
-
-    # Test parsing all supported binary operators.
-    testlist = (
-        ('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
-        ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
-        ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
-        ('ix = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
-        ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
-        ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
-        ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
-        ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
-        ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
-        ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
-        ('x = real(a, 8)', CodeBlock, None),
-        ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
-        ('x = int(a, 8)', CodeBlock, None),
-        ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
-        ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
-        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-        ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
-        ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
-        ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
-        ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-        ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
-        ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-        ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
-        ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
-        # Check that we get a CodeBlock for an unsupported N-ary operation
-        ('x = reshape(a, b, c)', CodeBlock, None),
-    )
-
-    for code, expected_type, expected_op in testlist:
-        fake_parent = Node()
-        reader = FortranStringReader(code)
-        fp2node = Execution_Part.match(reader)[0][0].items[2]
-        processor.process_nodes(fake_parent, [fp2node], None)
-        assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], expected_type), \
-            "Fails when parsing '" + code + "'"
-        if expected_type is not CodeBlock:
-            assert fake_parent.children[0]._operator == expected_op, \
-                "Fails when parsing '" + code + "'"
-
-
-def test_fp2astproc_intrinsic_no_args(f2008_parser):
-    ''' Check that an intrinsic with no arguments results in a
-    NotImplementedError. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    processor = Fparser2ASTProcessor()
-    fake_parent = Node()
-    reader = FortranStringReader("x = SUM(a, b)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Manually remove the arguments
-    fp2node.items = (fp2node.items[0],)
-    with pytest.raises(NotImplementedError) as err:
-        processor._intrinsic_handler(fp2node, fake_parent)
-    assert "SUM" in str(err)
-
-
-def test_fp2astproc_unary_op_handler_error(f2008_parser):
-    ''' Check that the unary op handler raises the expected error if the
-    parse tree has an unexpected structure. This is a hard error to
-    provoke since fparser checks that the number of arguments is correct. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    processor = Fparser2ASTProcessor()
-    fake_parent = Node()
-    reader = FortranStringReader("x = exp(a)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Create an fparser node for a binary operation so that we can steal
-    # its operands
-    reader = FortranStringReader("x = max(a, b)")
-    maxnode = Execution_Part.match(reader)[0][0].items[2]
-    # Break the number of arguments in the fparser node by using those
-    # from the binary operation
-    fp2node.items = (fp2node.items[0], maxnode.items[1])
-    with pytest.raises(InternalError) as err:
-        processor._unary_op_handler(fp2node, fake_parent)
-    assert ("Operation 'EXP(a, b)' has more than one argument and is "
-            "therefore not unary" in str(err))
-
-
-def test_fp2astproc_binary_op_handler_error(f2008_parser):
-    ''' Check that the binary op handler raises the expected errors if the
-    parse tree has an unexpected structure. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, Name
-    processor = Fparser2ASTProcessor()
-    fake_parent = Node()
-    reader = FortranStringReader("x = SUM(a, b)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Break the number of arguments in the fparser node
-    fp2node.items[1].items = (Name('a'),)
-    with pytest.raises(InternalError) as err:
-        processor._binary_op_handler(fp2node, fake_parent)
-    assert ("Binary operator should have exactly two arguments but found 1 "
-            "for 'SUM(a)'." in str(err))
-    # Now break the 'items' tuple of this fparser node
-    fp2node.items = (fp2node.items[0], Name('dummy'))
-    with pytest.raises(InternalError) as err:
-        processor._binary_op_handler(fp2node, fake_parent)
-    assert ("binary intrinsic operation 'SUM(dummy)'. Expected second child "
-            "to be Actual_Arg_Spec_List" in str(err))
-
-
-def test_fp2astproc_nary_op_handler_error(f2008_parser):
-    ''' Check that the Nary op handler raises the expected error if the parse
-    tree has an unexpected structure. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, Name
-    processor = Fparser2ASTProcessor()
-    fake_parent = Node()
-    reader = FortranStringReader("x = SUM(a, b, mask)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Give the node an incorrect number of arguments for the Nary handler
-    fp2node.items[1].items = (Name('a'),)
-    with pytest.raises(InternalError) as err:
-        processor._nary_op_handler(fp2node, fake_parent)
-    assert ("An N-ary operation must have more than two arguments but found 1 "
-            "for 'SUM(a)'" in str(err))
-    # Break the 'items' tuple of this fparser node
-    fp2node.items = (fp2node.items[0], Name('dummy'))
-    with pytest.raises(InternalError) as err:
-        processor._nary_op_handler(fp2node, fake_parent)
-    assert ("Expected second 'item' of N-ary intrinsic 'SUM(dummy)' in fparser"
-            " parse tree to be an Actual_Arg_Spec_List" in str(err))
-
-
-def test_fp2astproc_handling_nested_intrinsic(f2008_parser):
-    ''' Check that we correctly handle nested intrinsic functions. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    processor = Fparser2ASTProcessor()
-    fake_parent = Node()
-    reader = FortranStringReader(
-        "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
-        "tmask_i(:,:) ) &\n"
-        "   &  / MAX( 1.e-20, SUM( e1t(:,:) * e2t(:,:) * wmask (:,:,jk) * "
-        "tmask_i(:,:) ) )")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    processor.process_nodes(fake_parent, [fp2node], None)
-    fake_parent.children[0].view()
-    array_refs = fake_parent.walk(fake_parent.children, Reference)
-    assert "sum" not in [str(ref.name) for ref in array_refs]
-
-
-@pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
-                   "non-NEMO PSyIR")
-def testfp2astproc_handling_array_product(f2008_parser):
-    ''' Check that we correctly handle array products. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    processor = Fparser2ASTProcessor()
-    fake_parent = Node()
-    reader = FortranStringReader(
-        "ze_z(:,:) = e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk)")
-    fp2node = Execution_Part.match(reader)
-    processor.process_nodes(fake_parent, [fp2node[0][0]], None)
-    fake_parent.children[0].view()
-    assert not fake_parent.walk(fake_parent.children, CodeBlock)
-
-
-def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
-    ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("if(x==1)y=1")
-    fparser2if_stmt = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2if_stmt], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, IfBlock)
-    assert len(new_node.children) == 2
-
-
-def test_fparser2astprocessor_handling_if_construct(f2008_parser):
-    ''' Test that fparser2 If_Construct is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader(
-        '''if (condition1 == 1) then
-            branch1 = 1
-            branch1 = 2
-        elseif (condition2 == 2) then
-            branch2 = 1
-        else
-            branch3 = 1
-        endif''')
-    fparser2if_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2if_construct], None)
-
-    # Check a new node was properly generated and connected to parent
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert ifnode.ast is fparser2if_construct
-    assert 'was_elseif' not in ifnode.annotations
-
-    # First level contains: condition1, branch1 and elsebody
-    assert len(ifnode.children) == 3
-    assert ifnode.condition.children[0].name == 'condition1'
-    assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.children[1].ast is fparser2if_construct.content[1]
-    assert ifnode.children[1].ast_end is fparser2if_construct.content[2]
-    assert ifnode.if_body[0].children[0].name == 'branch1'
-    assert isinstance(ifnode.children[2], Schedule)
-    assert ifnode.children[2].ast is fparser2if_construct.content[3]
-
-    # Second level contains condition2, branch2, elsebody
-    ifnode = ifnode.else_body[0]
-    assert 'was_elseif' in ifnode.annotations
-    assert ifnode.condition.children[0].name == 'condition2'
-    assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.if_body[0].children[0].name == 'branch2'
-    assert isinstance(ifnode.children[2], Schedule)
-
-    # Third level is just branch3
-    elsebody = ifnode.else_body[0]
-    assert elsebody.children[0].name == 'branch3'
-    assert elsebody.ast is fparser2if_construct.content[6]
-
-
-def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
-    ''' Test that unsupported If_Construct structures raise the proper
-    errors.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-
-    reader = FortranStringReader(
-        '''if (condition1) then
-        elseif (condition2) then
-        endif''')
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-
-    # Test with no opening If_Then_Stmt
-    fparser2if_construct = Execution_Part.match(reader)[0][0]
-    del fparser2if_construct.content[0]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
-    assert "Failed to find opening if then statement in:" in str(error.value)
-
-    reader = FortranStringReader(
-        '''if (condition1) then
-        elseif (condition2) then
-        endif''')
-
-    # Test with no closing End_If_Stmt
-    fparser2if_construct = Execution_Part.match(reader)[0][0]
-    del fparser2if_construct.content[-1]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
-    assert "Failed to find closing end if statement in:" in str(error.value)
-
-    reader = FortranStringReader(
-        '''if (condition1) then
-        elseif (condition2) then
-        else
-        endif''')
-
-    # Test with else clause before and elseif clause
-    fparser2if_construct = Execution_Part.match(reader)[0][0]
-    children = fparser2if_construct.content
-    children[1], children[2] = children[2], children[1]  # Swap clauses
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
-    assert ("Else clause should only be found next to last clause, but "
-            "found") in str(error.value)
-
-    reader = FortranStringReader(
-        '''if (condition1) then
-        elseif (condition2) then
-        else
-        endif''')
-
-    # Test with unexpected clause
-    fparser2if_construct = Execution_Part.match(reader)[0][0]
-    children = fparser2if_construct.content
-    children[1] = children[-1]  # Add extra End_If_Stmt
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
-    assert ("Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt are "
-            "expected, but found") in str(error.value)
-
-
-def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
-    ''' Test that nested If_Construct structures and empty bodies are
-    handled properly.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader(
-        '''if (condition1) then
-        elseif (condition2) then
-            if (condition3) then
-            elseif (condition4) then
-                if (condition6) found = 1
-            elseif (condition5) then
-            else
-            endif
-        else
-        endif''')
-    fparser2if_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2if_construct], None)
-
-    elseif = fake_parent.children[0].children[2].children[0]
-    assert 'was_elseif' in elseif.annotations
-    nested_if = elseif.children[1].children[0]
-    assert 'was_elseif' not in nested_if.annotations  # Was manually nested
-    elseif2 = nested_if.children[2].children[0]
-    assert 'was_elseif' in elseif2.annotations
-    nested_if2 = elseif2.children[1].children[0]
-    assert nested_if2.children[1].children[0].children[0].name == 'found'
-
-
-def test_fparser2astprocessor_handling_case_construct(f2008_parser):
-    ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-
-    # Check a new node was properly generated and connected to parent
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert ifnode.ast is fparser2case_construct.content[1]
-    assert ifnode.ast_end is fparser2case_construct.content[2]
-    assert 'was_case' in ifnode.annotations
-    assert ifnode.condition.children[0].name == 'selector'
-    assert ifnode.condition.children[1].name == 'label1'
-    assert ifnode.if_body[0].children[0].name == 'branch1'
-    assert isinstance(ifnode.else_body[0], IfBlock)
-    assert ifnode.else_body[0].condition.children[1].name == 'label2'
-    assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
-    assert ifnode.else_body[0].ast is \
-        fparser2case_construct.content[3]
-    assert ifnode.else_body[0].children[1].ast is \
-        fparser2case_construct.content[4]
-    assert ifnode.else_body[0].children[1].ast_end is \
-        fparser2case_construct.content[4]
-    assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
-
-
-def test_fp2astproc_case_default(f2008_parser):
-    ''' Check that the fparser2ASTProcessor handles SELECT blocks with
-    a default clause. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
-    case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
-                    "CASE (label1)\nbranch1 = 1\n",
-                    "CASE (label2)\nbranch2 = 1\n"]
-    # Loop over the 3 possible locations for the 'default' clause
-    for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
-        fortran_text = (
-            "SELECT CASE (selector)\n"
-            "{0}{1}{2}"
-            "END SELECT\n".format(case_clauses[idx1], case_clauses[idx2],
-                                  case_clauses[idx3]))
-        reader = FortranStringReader(fortran_text)
-        fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-        fake_parent = Node()
-        processor = Fparser2ASTProcessor()
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
-        assigns = fake_parent.walk(fake_parent.children, Assignment)
-        # Check that the assignment to 'branch 3' (in the default clause) is
-        # the deepest in the tree
-        assert "branch3" in str(assigns[2])
-        assert isinstance(assigns[2].ast, Assignment_Stmt)
-        assert isinstance(assigns[2].parent, Schedule)
-        assert isinstance(assigns[2].parent.ast, Assignment_Stmt)
-        assert "branch3 * 2" in str(assigns[2].parent.ast_end)
-        assert isinstance(assigns[2].parent.parent, IfBlock)
-        # Check that the if-body of the parent IfBlock also contains
-        # an Assignment
-        assert isinstance(assigns[2].parent.parent.children[1], Schedule)
-        assert isinstance(assigns[2].parent.parent.children[1].children[0],
-                          Assignment)
-
-
-def test_fp2astproc_handling_case_list(f2008_parser):
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a list of conditions. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (label2, label3)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.condition, BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.OR
-    eqnode = ifnode.condition.children[0]
-    assert eqnode.operator == BinaryOperation.Operator.EQ
-    assert "my_var" in str(eqnode.children[0])
-    assert "label2" in str(eqnode.children[1])
-    eqnode = ifnode.children[0].children[1]
-    assert eqnode.operator == BinaryOperation.Operator.EQ
-    assert "my_var" in str(eqnode.children[0])
-    assert "label3" in str(eqnode.children[1])
-
-    assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
-
-
-def test_fp2astproc_handling_case_range(f2008_parser):
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a range. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (label4:label5)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.children[0], BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.AND
-    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.GE
-    assert ifnode.condition.children[1].operator == BinaryOperation.Operator.LE
-    assert "branch3" in str(ifnode.if_body[0].lhs)
-
-
-def test_fp2astproc_handling_case_range_list(f2008_parser):
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a list of ranges. '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (:label1, label5:, label6)
-                branch4 = 1
-            END SELECT''')
-    # We should end up with:
-    #    my_var <= label1 OR my_var >= label5 OR my_var == label6
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.condition, BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.OR
-    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.LE
-    assert "label1" in str(ifnode.condition.children[0].children[1])
-    orop = ifnode.condition.children[1]
-    assert orop.operator == BinaryOperation.Operator.OR
-    assert orop.children[0].operator == BinaryOperation.Operator.GE
-    assert "label5" in str(orop.children[0].children[1])
-    assert orop.children[1].operator == BinaryOperation.Operator.EQ
-    assert "label6" in str(orop.children[1].children[1])
-    assert "branch4" in str(ifnode.if_body[0].lhs)
-
-
-def test_fp2astproc_handling_invalid_case_construct(f2008_parser):
-    ''' Test that the Case_Construct handler raises the proper errors when
-    it parses invalid or unsupported fparser2 trees.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, Name
-
-    # CASE (default) is just a regular symbol named default
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (default)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert isinstance(fake_parent.children[0], IfBlock)
-
-    # Test with no opening Select_Case_Stmt
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    del fparser2case_construct.content[0]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert "Failed to find opening case statement in:" in str(error.value)
-
-    # Test with no closing End_Select_Stmt
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    del fparser2case_construct.content[-1]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert "Failed to find closing case statement in:" in str(error.value)
-
-    # Test when one clause is not of the expected type
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    fparser2case_construct.content[1].items = (Name("Fake"), None)
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
-    assert "to be a Case_Selector but got" in str(error.value)
-
-
-def test_fparser2astprocessor_handling_numberbase(f2008_parser):
-    ''' Test that fparser2 NumberBase is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x=1")
-    fparser2number = Execution_Part.match(reader)[0][0].items[2]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2number], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Literal)
-    assert new_node._value == "1"
-
-
-def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
-    ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x=1+4")
-    fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fp2binaryop], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, BinaryOperation)
-    assert len(new_node.children) == 2
-    assert new_node._operator == BinaryOperation.Operator.ADD
-
-    # Test parsing all supported binary operators.
-    testlist = (('+', BinaryOperation.Operator.ADD),
-                ('-', BinaryOperation.Operator.SUB),
-                ('*', BinaryOperation.Operator.MUL),
-                ('/', BinaryOperation.Operator.DIV),
-                ('**', BinaryOperation.Operator.POW),
-                ('==', BinaryOperation.Operator.EQ),
-                ('.eq.', BinaryOperation.Operator.EQ),
-                ('.EQ.', BinaryOperation.Operator.EQ),
-                ('/=', BinaryOperation.Operator.NE),
-                ('.ne.', BinaryOperation.Operator.NE),
-                ('>', BinaryOperation.Operator.GT),
-                ('.GT.', BinaryOperation.Operator.GT),
-                ('<', BinaryOperation.Operator.LT),
-                ('.lt.', BinaryOperation.Operator.LT),
-                ('>=', BinaryOperation.Operator.GE),
-                ('.ge.', BinaryOperation.Operator.GE),
-                ('<=', BinaryOperation.Operator.LE),
-                ('.LE.', BinaryOperation.Operator.LE),
-                ('.and.', BinaryOperation.Operator.AND),
-                ('.or.', BinaryOperation.Operator.OR))
-
-    for opstring, expected in testlist:
-        # Manipulate the fparser2 ParseTree so that it contains the operator
-        # under test
-        fp2binaryop.items = (fp2binaryop.items[0], opstring,
-                             fp2binaryop.items[2])
-        # And then translate it to PSyIR again.
-        fake_parent = Node()
-        processor.process_nodes(fake_parent, [fp2binaryop], None)
-        assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], BinaryOperation), \
-            "Fails when parsing '" + opstring + "'"
-        assert fake_parent.children[0]._operator == expected, \
-            "Fails when parsing '" + opstring + "'"
-
-    # Test that an unsupported binary operator creates a CodeBlock
-    fake_parent = Node()
-    fp2binaryop.items = (fp2binaryop.items[0], 'unsupported',
-                         fp2binaryop.items[2])
-    processor.process_nodes(fake_parent, [fp2binaryop], None)
-    assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
-    ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
-    reader = FortranStringReader("x=-4")
-    fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
-    assert isinstance(fp2unaryop, UnaryOpBase)
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fp2unaryop], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, UnaryOperation)
-    assert len(new_node.children) == 1
-    assert new_node._operator == UnaryOperation.Operator.MINUS
-
-    # Test parsing all supported unary operators.
-    testlist = (('+', UnaryOperation.Operator.PLUS),
-                ('-', UnaryOperation.Operator.MINUS),
-                ('.not.', UnaryOperation.Operator.NOT),
-                ('.NOT.', UnaryOperation.Operator.NOT))
-
-    for opstring, expected in testlist:
-        # Manipulate the fparser2 ParseTree so that it contains the operator
-        # under test
-        fp2unaryop.items = (opstring, fp2unaryop.items[1])
-        # And then translate it to PSyIR again.
-        fake_parent = Node()
-        processor.process_nodes(fake_parent, [fp2unaryop], None)
-        assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], UnaryOperation), \
-            "Fails when parsing '" + opstring + "'"
-        assert fake_parent.children[0]._operator == expected, \
-            "Fails when parsing '" + opstring + "'"
-
-    # Test that an unsupported unary operator creates a CodeBlock
-    fp2unaryop.items = ('unsupported', fp2unaryop.items[1])
-    fake_parent = Node()
-    processor.process_nodes(fake_parent, [fp2unaryop], None)
-
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, CodeBlock)
-
-
-def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
-    ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
-    reader = FortranStringReader("return")
-    return_stmt = Execution_Part.match(reader)[0][0]
-    assert isinstance(return_stmt, Return_Stmt)
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [return_stmt], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Return)
-    assert not new_node.children
-
-
-def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
-    ''' Test that fparser2 End_Do_Stmt are ignored.'''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader('''
-        do i=1,10
-            a=a+1
-        end do
-        ''')
-    fparser2enddo = Execution_Part.match(reader)[0][0].content[-1]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2enddo], None)
-    assert not fake_parent.children  # No new children created
-
-
-def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
-    ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Subroutine_Subprogram
-    reader = FortranStringReader('''
-        subroutine dummy_code()
-        end subroutine dummy_code
-        ''')
-    fparser2endsub = Subroutine_Subprogram.match(reader)[0][-1]
-
-    fake_parent = Node()
-    processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2endsub], None)
-    assert not fake_parent.children  # No new children created
+    from psyclone.transformations import Dynamo0p3KernelConstTrans
+    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    # This example does not conform to the <name>_code, <name>_mod
+    # convention so monkeypatch it to avoid the PSyIR code generation
+    # raising an exception. This limitation is the subject of issue
+    # #520.
+    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
+    ktrans = Dynamo0p3KernelConstTrans()
+    _, _ = ktrans.apply(kernels[0], number_of_layers=100)
+    # Generate the code (this triggers the generation of new kernels)
+    _ = str(psy.gen)
+    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
+    assert os.path.isfile(filepath)
+    # Check that the argument list is line wrapped as it is longer
+    # than 132 characters.
+    assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()

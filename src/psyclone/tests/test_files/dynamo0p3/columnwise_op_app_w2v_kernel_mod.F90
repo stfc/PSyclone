@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 ! Kernel which applies a columnwise assembled operator to a field on W2V (discontinuous)
 module columnwise_op_app_w2v_kernel_mod
@@ -83,55 +83,59 @@ end interface
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_app_w2v_kernel_code
+
 contains
-  
+
   type(columnwise_op_app_w2v_kernel_type) function &
        columnwise_op_app_w2v_kernel_constructor() result(self)
     implicit none
     return
   end function columnwise_op_app_w2v_kernel_constructor
 
-  SUBROUTINE columnwise_op_app_w2v_kernel_code(cell,                        &
-                                               ncell_2d,                    &
-                                               field_1_w2v,                 &
-                                               field_2_any_space_2_field_2, &
-                                               cma_op_3,                    &
-                                               cma_op_3_nrow,               &
-                                               cma_op_3_ncol,               &
-                                               cma_op_3_bandwidth,          &
-                                               cma_op_3_alpha,              &
-                                               cma_op_3_beta,               &
-                                               cma_op_3_gamma_m,            &
-                                               cma_op_3_gamma_p,            &
-                                               ndf_w2v,                     &
-                                               undf_w2v,                    &
-                                               map_w2v,                     &
-                                               cma_indirection_map_w2v,     &
-                                               ndf_any_space_2_field_2,     &
-                                               undf_any_space_2_field_2,    &
-                                               map_any_space_2_field_2,     &
-                                               cma_indirection_map_any_space_2_field_2)
+  subroutine columnwise_op_app_w2v_kernel_code(cell,                    &
+                                               ncell_2d,                &
+                                               field1,                  &
+                                               field2,                  &
+                                               cma_op,                  &
+                                               cma_op_nrow,             &
+                                               cma_op_ncol,             &
+                                               cma_op_bandwidth,        &
+                                               cma_op_alpha,            &
+                                               cma_op_beta,             &
+                                               cma_op_gamma_m,          &
+                                               cma_op_gamma_p,          &
+                                               ndf_w2v,                 &
+                                               undf_w2v,                &
+                                               map_w2v,                 &
+                                               cma_indirection_map_w2v, &
+                                               ndf_any_space_2,         &
+                                               undf_any_space_2,        &
+                                               map_any_space_2,         &
+                                               cma_indirection_map_any_space_2)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: cell
-    INTEGER, intent(in) :: ncell_2d
-    INTEGER, intent(in) :: ndf_w2v
-    INTEGER, intent(in) :: undf_w2v
-    INTEGER, intent(in) :: ndf_any_space_2_field_2
-    INTEGER, intent(in) :: undf_any_space_2_field_2
-    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_1_w2v
-    REAL(KIND=r_def), intent(in), dimension(undf_any_space_2_field_2) :: field_2_any_space_2_field_2
-    INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth
-    INTEGER, intent(in) :: cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p
-    REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3
-    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
-    INTEGER, intent(in), dimension(cma_op_3_nrow) :: cma_indirection_map_w2v
-    INTEGER, intent(in), dimension(ndf_any_space_2_field_2) :: map_any_space_2_field_2
-    INTEGER, intent(in), dimension(cma_op_3_ncol) :: cma_indirection_map_any_space_2_field_2
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), intent(in) :: ndf_any_space_2
+    integer(kind=i_def), intent(in) :: undf_w2v
+    integer(kind=i_def), intent(in) :: undf_any_space_2
+    integer(kind=i_def), intent(in) :: cma_op_nrow
+    integer(kind=i_def), intent(in) :: cma_op_ncol
+    integer(kind=i_def), intent(in) :: cma_op_bandwidth
+    integer(kind=i_def), intent(in) :: cma_op_alpha, cma_op_beta
+    integer(kind=i_def), intent(in) :: cma_op_gamma_m, cma_op_gamma_p
+    integer(kind=i_def), intent(in), dimension(ndf_w2v)         :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_any_space_2) :: map_any_space_2
+    integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: cma_indirection_map_w2v
+    integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_any_space_2
+    real(kind=r_def), intent(out), dimension(undf_w2v)        :: field1
+    real(kind=r_def), intent(in), dimension(undf_any_space_2) :: field2
+    real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
-    write (*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"
+    write(*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"
 
-  END SUBROUTINE columnwise_op_app_w2v_kernel_code
+  end subroutine columnwise_op_app_w2v_kernel_code
 
 end module columnwise_op_app_w2v_kernel_mod
