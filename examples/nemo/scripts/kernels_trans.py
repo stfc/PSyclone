@@ -83,10 +83,7 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 # the PGI compiler or because it just isn't worth it)
 ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
               "ice_dyn_adv", # No significant compute
-              "iom_open", "iom_get_123d"
-              #"ice_cor" # Non-performant because PSyIR doesn't yet support
-                        # array ranges as function arguments
-              ]
+              "iom_open", "iom_get_123d"]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -112,7 +109,7 @@ def valid_kernel(node):
     '''
     from psyclone.nemo import NemoKern, NemoLoop
     from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array, \
-        Assignment, Operation, BinaryOperation, NaryOperation
+        Assignment, BinaryOperation, NaryOperation
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
     # Rather than walk the tree multiple times, look for both excluded node
@@ -153,7 +150,7 @@ def valid_kernel(node):
     # the fparser2 parse tree this will become possible.
     if isinstance(node.parent, Schedule) and \
        isinstance(node.parent.parent, IfBlock) and \
-       "was_single_stmt" in node.parent.parent._annotations:
+       "was_single_stmt" in node.parent.parent.annotations:
         return False
     # Check that there are no derived-type references in the sub-tree.
     # We exclude NemoKern nodes from this check as calling .ast on
@@ -249,20 +246,21 @@ def add_kernels(children):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import IfBlock, Reference
+    from psyclone.psyGen import IfBlock, Loop
     added_kernels = False
     if not children:
         return added_kernels
+
+    # Are we within a Loop of some kind?
+    parent_loop = children[0].ancestor(Loop)
 
     node_list = []
     for child in children[:]:
         # Can this node be included in a kernels region?
         if not valid_kernel(child):
             # It can't so we put what we have so far inside a kernels region
-            # provided it contains one or more loops
-            if have_loops(node_list):
-                success = try_kernels_trans(node_list)
-                added_kernels |= success
+            success = try_kernels_trans(node_list)
+            added_kernels |= success
             # A node that cannot be included in a kernels region marks the
             # end of the current candidate region so reset the list.
             node_list = []
@@ -277,28 +275,35 @@ def add_kernels(children):
         else:
             # We can - add this node to our list for the current region
             node_list.append(child)
-    if have_loops(node_list):
-        success = try_kernels_trans(node_list)
-        added_kernels |= success
+    success = try_kernels_trans(node_list)
+    added_kernels |= success
 
     return added_kernels
 
 
 def add_profiling(children):
     '''
+    Walks down the PSyIR and inserts the largest possible profiling regions.
+    Code that contains OpenACC directives is excluded.
+
+    :param children: sibling nodes in the PSyIR to which to attempt to add \
+                     profiling regions.
+    :type childre: list of :py:class:`psyclone.psyGen.Node`
+
     '''
     from psyclone.psyGen import IfBlock, ACCDirective, Assignment
-    added_kernels = False
+
     if not children:
-        return added_kernels
+        return
 
     node_list = []
     for child in children[:]:
-        # Can this node be included in a profiling region?
+        # Do we want this node to be included in a profiling region?
         if child.walk(ACCDirective):
-            # It can't so we put what we have so far inside a profiling region
+            # It contains OpenACC so we put what we have so far inside a
+            # profiling region
             add_profile_region(node_list)
-            # A node that cannot be included in a profiling region marks the
+            # A node that is not included in a profiling region marks the
             # end of the current candidate region so reset the list.
             node_list = []
             # Now we go down a level and try again
@@ -325,22 +330,21 @@ def add_profile_region(nodes):
     :type nodes: list of :py:class:`psyclone.psyGen.Node`
 
     '''
-    from fparser.two.Fortran2003 import Call_Stmt
     from psyclone.psyGen import CodeBlock, IfBlock
     if nodes and _AUTO_PROFILE:
         # Check whether we should be adding profiling inside this routine
-        routine_name = nodes[0].root.invoke.name
-        for ignore in PROFILING_IGNORE:
-            if ignore in routine_name.lower():
-                return
+        routine_name = nodes[0].root.invoke.name.lower()
+        if any([ignore in routine_name for ignore in PROFILING_IGNORE]):
+            return
         if len(nodes) == 1:
             if isinstance(nodes[0], CodeBlock) and \
                len(nodes[0].get_ast_nodes) == 1:
-                # Don't put single CodeBlocks in a profiling region
+                # Don't create profiling regions for CodeBlocks consisting
+                # of a single statement
                 return
-            elif isinstance(nodes[0], IfBlock) and \
-                 "was_single_stmt" in nodes[0]._annotations and \
-                 isinstance(nodes[0].if_body[0], CodeBlock):
+            if isinstance(nodes[0], IfBlock) and \
+               "was_single_stmt" in nodes[0].annotations and \
+               isinstance(nodes[0].if_body[0], CodeBlock):
                 # We also don't put single statements consisting of
                 # 'IF(condition) CALL blah()' inside profiling regions
                 return
@@ -363,7 +367,14 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import InternalError
+    from psyclone.psyGen import InternalError, Loop
+
+    for node in nodes:
+        if node.walk(Loop):
+            break
+    else:
+        return False
+
     try:
         _, _ = ACC_KERN_TRANS.apply(nodes, default_present=False)
         return True
@@ -380,9 +391,8 @@ def trans(psy):
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
-    '''
-    from psyclone.psyGen import ACCDirective
 
+    '''
     print("Invokes found:\n{0}\n".format(
         "\n".join([str(name) for name in psy.invokes.names])))
 
@@ -411,3 +421,5 @@ def trans(psy):
         sched.view()
 
         invoke.schedule = sched
+
+    return psy
