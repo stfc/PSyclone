@@ -1267,7 +1267,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         colouring.
 
         '''
-        super(OMPParallelLoopTrans, self)._validate(node, options)
+        self._validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -1318,7 +1318,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
             outer loop.
 
         '''
-        OMPParallelLoopTrans._validate(self, node, options)
+        self._validate(node, options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1370,7 +1370,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
 
-        OMPLoopTrans._validate(self, node, options)
+        self._validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be
