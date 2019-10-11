@@ -4875,16 +4875,17 @@ def test_dynloop_load_unexpected_func_space():
     def broken_func():
         ''' Returns the above field no matter what '''
         return field
-    # replace the iteration_space_arg method with our broke
+    # Replace the iteration_space_arg method with our broke
     # function. This is required as iteration_space_arg currently
     # never returns a field with an invalid function space.
+    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     kernel.arguments.iteration_space_arg = broken_func
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'wtheta', 'w2v', 'w2broken', 'w0', 'w1', 'w2', "
-            "'w2h', 'w2trace', 'any_w2'] but found 'broken'" in str(err))
+            "one of " + str(VALID_FUNCTION_SPACES) + " but found 'broken'"
+            in str(err))
 
 
 def test_dynkernargs_unexpect_stencil_extent():

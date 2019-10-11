@@ -7508,8 +7508,8 @@ def test_kern_const_anyw2_apply(capsys):
 
 # space_to_dofs values
 def test_kern_const_ndofs():
-    '''Test the computed number-of-dof values for different orders and
-    different function spaces.
+    '''Test the computed number-of-dof values per 3D cell on a quadrilateral
+    element for different orders and different function spaces.
 
     '''
     expected = {"w3": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],

@@ -669,7 +669,8 @@ operator to a field might look like:
        /)
 
 In some cases a Kernel may be written so that it works for fields and/or
-operators from any type of ``W2`` space (see Section
+operators from any type of a vector ``W2*`` space (all ``W2*`` spaces
+except for the ``W2trace`` space, see Section
 :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
 In this case the metadata should be specified as being ``ANY_W2``.
 
@@ -794,8 +795,8 @@ sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
 point is a vector. In Dynamo0.3 API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
-is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for dimensions
-of basis and differential basis functions).
+is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for the
+dimensions of basis and differential basis functions).
 
 Function spaces can share DoFs between cells in the horizontal, vertical
 or both directions. Depending on the function space and FEM order,
@@ -841,14 +842,12 @@ vector variables are:
   in the vertical;
 
 * ``W2broken`` is the space of vector functions, locally identical
-  to the velocity space ``W2``. However, DoFs are topologically
-  discontinuous in all directions despite their placement on cell
-  faces;
+  to the ``W2`` space. However, DoFs are topologically discontinuous in
+  all directions despite their placement on cell faces;
 
-* ``W2trace`` is the space of scalar functions, resulting from
-  taking the ``trace`` of a ``W2`` element and defined only on the
-  faces. DoFs are shared between faces, hence making this space
-  fully continuous.
+* ``W2trace`` is the space of scalar functions defined only on cell faces,
+  resulting from taking the trace of a ``W2`` space. DoFs are shared between
+  faces, hence making this space fully continuous.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -864,8 +863,8 @@ sections above:
   is known to be discontinuous and/or for when a Kernel has been written
   so that it works with fields on any of the discontinuous spaces;
 
-* ``ANY_W2`` for any type of ``W2`` function spaces (``W2``, ``W2H``,
-  ``W2V``, ``W2broken`` or ``W2trace``).
+* ``ANY_W2`` for any type of a vector ``W2*`` function space, i.e.\ ``W2``,
+  ``W2H``, ``W2V`` and ``W2broken`` but not ``W2trace``.
 
 As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
 ``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
@@ -889,10 +888,10 @@ function apaces are summarised in the table below.
 +---------------------------+----------------------------+
 | Function Space Continuity | Function Space Name        |
 +===========================+============================+
-| **Continuous**            | W0, W1, W2, W2H, W2trace,  |
+| Continuous                | W0, W1, W2, W2H, W2trace,  |
 |                           | ANY_W2, ANY_SPACE_n        |
 +---------------------------+----------------------------+
-| **Discontinuous**         | W3, Wtheta, W2V, W2broken, |
+| Discontinuous             | W2V, W2broken, W3, Wtheta, |
 |                           | ANY_DISCONTINUOUS_SPACE_n  |
 +---------------------------+----------------------------+
 
@@ -1291,7 +1290,7 @@ rules, along with PSyclone's naming conventions, are:
             ``"diff_basis_"<field_function_space>``, as appropriate.
 
          2) If ``gh_shape`` is ``gh_evaluator`` then we pass one array for
-            each target function space (e.g\. as specified by
+            each target function space (i.e.\ as specified by
             ``gh_evaluator_targets``). Each of these arrays are of rank 3
             with extent (``dimension``, ``number_of_dofs``,
             ``ndf_<target_function_space>``). The name of the argument is
@@ -1311,20 +1310,17 @@ rules, along with PSyclone's naming conventions, are:
 
          .. tabularcolumns:: |l|c|l|
 
-         +---------------+-----------+-------------------------+
-         | Function Type | Dimension | Function Space Name     |
-         +===============+===========+=========================+
-         | Basis         |    1      | W0, W3, Wtheta, W2trace |
-         |               +-----------+-------------------------+
-         |               |    3      | W1, W2, W2H, W2V,       |
-         |               |           | W2broken, ANY_W2        |
-         +---------------+-----------+-------------------------+
-         | Differential  |    1      | W2, W2H, W2V, W2broken  |
-         | Basis         +-----------+-------------------------+
-         |               |    3      | W0, W1, W3, Wtheta,     |
-         |               |           | W2trace, ANY_W2         |
-         +---------------+-----------+-------------------------+
-
+         +---------------+-----------+------------------------------------+
+         | Function Type | Dimension | Function Space Name                |
+         +===============+===========+====================================+
+         | Basis         |    1      | W0, W2trace, W3, Wtheta            |
+         |               +-----------+------------------------------------+
+         |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
+         +---------------+-----------+------------------------------------+
+         | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
+         | Basis         +-----------+------------------------------------+
+         |               |    3      | W0, W1, W2trace, W3, Wtheta        |
+         +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.
          The argument is an integer array with intent ``in``. There is
