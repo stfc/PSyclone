@@ -983,7 +983,7 @@ def test_omp_region_invalid_node():
             "OMPParallelTrans transformation" in str(err))
 
     # Check that the test can be disabled with the appropriate option:
-    ompr.apply(new_sched.children, {"disable-node-type-check"})
+    ompr.apply(new_sched.children, {"node-type-check": False})
 
 @pytest.mark.xfail(reason="OMP Region with children of different types "
                    "not yet implemented")

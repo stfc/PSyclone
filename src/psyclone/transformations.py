@@ -119,9 +119,9 @@ class RegionTrans(Transformation):
 
         :param node_list: list of PSyIR nodes.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
-        :param options: a dictionary or set with options for transformations.\
-                        This transform checks for "disable-node-type-check".
-        :type options: dict or set or None
+        :param options: a dictionary with options for transformations.\
+                        This transform checks for "node-type-check".
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
@@ -157,7 +157,7 @@ class RegionTrans(Transformation):
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
-        if "disable-node-type-check" not in options:
+        if options.get("node-type-check", True):
             for child in node_list:
                 flat_list = [item for item in child.walk(object)
                              if not isinstance(item, Schedule)]
@@ -724,10 +724,10 @@ class ParallelLoopTrans(Transformation):
         :param node: the node we are checking.
         :type node: :py:class:`psyclone.psyGen.Node`.
         :param int collapse: number of nested loops to collapse or None.
-        :param options: a dictionary or set with options for transformations.\
+        :param options: a dictionary with options for transformations.\
                         This transform supports "collapse", which is the\
                         number of nested loops to collapse.
-        :type options: dict or set or None
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the node is not a \
         :py:class:`psyclone.psyGen.Loop`
@@ -749,10 +749,8 @@ class ParallelLoopTrans(Transformation):
                                       "must be computed serially.")
         if not options:
             options = {}
-        if "collapse" in options:
-            collapse = options["collapse"]
-        else:
-            collapse = None
+        collapse = options.get("collapse", None)
+
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
@@ -797,10 +795,12 @@ class ParallelLoopTrans(Transformation):
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
         :type node: :py:class:`psyclone.psyGen.Node`.
-        :param options: a dictionary or set with options for transformations.\
+        :param options: a dictionary with options for transformations.\
                         This transform supports "collapse", which is the\
                         number of loops to collapse into single iteration\
                         space or None.
+        :type options: dictionary of string:values or None
+
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
                    :py:class:`psyclone.undoredo.Memento`)
 
@@ -811,10 +811,7 @@ class ParallelLoopTrans(Transformation):
 
         schedule = node.root
 
-        if "collapse" in options:
-            collapse = options["collapse"]
-        else:
-            collapse = None
+        collapse = options.get("collapse", None)
 
         # create a memento of the schedule and the proposed
         # transformation
@@ -998,21 +995,20 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param node: the supplied node to which we will apply the \
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param options: a dictionary or set with options for transformations\
+        :param options: a dictionary with options for transformations\
                         and validation. This transformation accepts "reprod",\
                         indicating if reproducible reductions should be used.\
                         By default the value form the config file will be used.
-        :type options: dict or set or None
+        :type options: dictionary of string:values or None
 
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
-
-        if "reprod" in options:
-            self._reprod = options["reprod"]
-        else:
-            self._reprod = Config.get().reproducible_reductions
+        if not options:
+            options = {}
+        self._reprod = options.get("reprod",
+                                   Config.get().reproducible_reductions)
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -1109,14 +1105,14 @@ class ACCLoopTrans(ParallelLoopTrans):
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
         :type node: :py:class:`psyclone.psyGen.Loop`.
-        :param options: a dictionary or set with options for transformations.\
+        :param options: a dictionary with options for transformations.\
                         This transform supports:\
                         - "collapse" (int): number of nested loops to\
                           collapse.
                         - "independent"whether to add the "independent" clause\
                           to the directive (not strictly necessary within \
                           PARALLEL regions).
-        :type options: dict or None
+        :type options: dictionary of string:values or None
 
         :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
                   :py:class:`psyclone.undoredo.Memento`)
@@ -1126,14 +1122,9 @@ class ACCLoopTrans(ParallelLoopTrans):
         # creating the directive (in the _directive() method).
         if not options:
             options = {}
-        if "independent" in options:
-            self._independent = options["independent"]
-        else:
-            self._independent = True
-        if "sequential" in options:
-            self._sequential = options["sequential"]
-        else:
-            self._sequential = False
+        self._independent = options.get("independent", True)
+        self._sequential = options.get("sequential", False)
+
         # Call the apply() method of the base class
         return super(ACCLoopTrans, self).apply(node, options)
 
@@ -1171,8 +1162,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         :param node: The PSyIR node to validate.
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param options: a dictionary or set with options for transformations.
-        :type options: dict or set or None
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the nodes is not a Loop.
         :raises TransformationError: if the nodes is over colours.
@@ -1206,9 +1197,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         :param node: the node (loop) to which to apply the transformation.
         :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary or set with options for transformations\
+        :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dict or set or None
+        :type options: dictionary of string:values or None
 
         :returns: Two-tuple of transformed schedule and a record of the \
                   transformation.
@@ -1269,8 +1260,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param options: a dictionary or set with options for transformations.
-        :type options: dict or set or None
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raise TransformationError: if the associated loop requires \
         colouring.
@@ -1319,9 +1310,9 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
         :param node: A Loop node from an AST.
         :type node: :py:class:`psyclone.psyGen.Loop`
-        :param options: a dictionary or set with options for transformations\
+        :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dict or set or None
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the supplied node is not an inner or\
             outer loop.
@@ -1360,11 +1351,11 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param options: a dictionary or set with options for transformations\
+        :param options: a dictionary with options for transformations\
                         and validation. This transformation accepts "reprod",\
                         indicating if reproducible reductions should be used.\
-                        Bu default the value form the config file will be used.
-        :type options: dict or set or None
+                        By default the value form the config file will be used.
+        :type options: dictionary of string:values or None
 
         :raise TransformationError: if an OMP loop transform would create \
                 incorrect code.
@@ -1372,8 +1363,12 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         if not options:
             options = {}
 
-        if "reprod" not in options:
-            options["reprod"] = Config.get().reproducible_reductions
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy()
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
 
         OMPLoopTrans._validate(self, node, options)
 
@@ -1730,16 +1725,14 @@ class ParallelRegionTrans(RegionTrans):
         put inside a parallel region.
 
         :param list node_list: List of nodes to put into a parallel region
-        :param options: a dictionary or set with options for transformations.\
-                        This transform supports "disable-node-type-check".
-        :type options: dict or set or None
+        :param options: a dictionary with options for transformations.\
+                        This transform supports "node-type-check".
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the nodes cannot be put into a \
                                      parallel region.
         '''
 
-        if not options:
-            options = {}
         # temporary dynamo0.3-specific test for haloexchange calls
         # existing within a parallel region. As we are going to
         # support this in the future, see #526, it does not warrant
@@ -1774,9 +1767,9 @@ class ParallelRegionTrans(RegionTrans):
 
         :param nodes: a single Node or a list of Nodes.
         :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
-        :param options: a dictionary or set with options for transformations.\
-                        This transform checks for "disable-node-type-check".
-        :type options: dict or set or None
+        :param options: a dictionary with options for transformations.\
+                        This transform checks for "node-type-check".
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the nodes argument is not of the \
                                      correct type.
@@ -1798,8 +1791,6 @@ class ParallelRegionTrans(RegionTrans):
                                       "schedule but have been passed an "
                                       "object of type: {1}".
                                       format(self.name, arg_type))
-        if not options:
-            options = {}
         self._validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1907,9 +1898,9 @@ class OMPParallelTrans(ParallelRegionTrans):
 
         :param node_list: List of Nodes to put within parallel region.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`.
-        :param options: a dictionary or set with options for transformations.\
-                        This transform checks for "disable-node-type-check".
-        :type options: dict or set or None
+        :param options: a dictionary with options for transformations.\
+                        This transform checks for "node-type-check".
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the target Nodes are already within \
                                      some OMP parallel region.
