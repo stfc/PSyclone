@@ -51,7 +51,7 @@ highest possible location(s) in the schedule tree (i.e. to enclose as
 much code as possible in each Kernels region). However, due to
 limitations in the PGI compiler, we must take care to exclude certain
 nodes (such as If blocks) from within Kernel regions. If a proposed
-region is found to contain such a node (by the ``valid_kernel``
+region is found to contain such a node (by the ``valid_acc_kernel``
 routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel
 region.
@@ -62,6 +62,9 @@ from __future__ import print_function
 from psyclone.psyGen import TransInfo
 from psyclone.transformations import TransformationError
 
+# Which version of the PGI compiler we are targetting (different versions
+# have different bugs we have to workaround).
+PGI_VERSION = 1940  # i.e. 19.4
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
@@ -81,7 +84,8 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
-ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
+ACC_IGNORE = ["asm_inc_init", # Triggers "missing branch target block"
+              "turb_ncar", # Resulting code seg. faults with PGI 19.4
               "ice_dyn_adv", # No significant compute
               "iom_open", "iom_get_123d"]
 
@@ -92,10 +96,49 @@ ACC_IGNORE = ["turb_ncar", # Resulting code seg. faults with PGI 19.4
 NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "solfrac", "One_on_L",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
-                      "Ri_bulk", "visc_air", "sbc_dcy"])
+                      "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
+                      "glob_sum_full"])
 
 
-def valid_kernel(node):
+class ExcludeSettings(object):
+    '''
+    Class to hold settings on what to exclude from OpenACC KERNELS
+    regions.
+
+    :param dict settings: map of settings to override or None.
+
+    '''
+    def __init__(self, settings=None):
+        # Default settings
+        # Whether we exclude IFs where the logical expression is not a
+        # comparison operation.
+        self.ifs_scalars = True
+        # Whe
+        self.ifs_1d_arrays = True
+        self.inside_kernels = True
+        # Override default settings if necessary
+        if settings:
+            if "ifs_scalars" in settings:
+                self.ifs_scalars = settings["ifs_scalars"]
+            if "ifs_1d_arrays" in settings:
+                self.ifs_1d_arrays = settings["ifs_1d_arrays"]
+            if "inside_kernels" in settings:
+                self.inside_kernels = settings["inside_kernels"]
+
+# Routines which we know contain structures that, by default, we would normally
+# exclude from OpenACC Kernels regions but are OK in these specific cases.
+EXCLUDING = {"default": ExcludeSettings(),
+             "hpg_sco": ExcludeSettings({"ifs_scalars": False,
+                                         "ifs_1d_arrays": False,
+                                         "inside_kernels": False}),
+             "zps_hde": ExcludeSettings({"ifs_scalars": False}),
+             "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
+             "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
+                                              "ifs_scalars": False}),
+             "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
+             "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
+
+def valid_acc_kernel(node):
     '''
     Whether the sub-tree that has `node` at its root is eligible to be
     enclosed within an OpenACC KERNELS directive.
@@ -109,24 +152,56 @@ def valid_kernel(node):
     '''
     from psyclone.nemo import NemoKern, NemoLoop
     from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array, \
-        Assignment, BinaryOperation, NaryOperation
+        Assignment, BinaryOperation, NaryOperation, Loop, Literal
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
+
+    # The Fortran routine which our parent Invoke represents
+    routine_name = node.root.invoke.name
+    # Allow for per-routine setting of what to exclude from within KERNELS
+    # regions. This is because sometimes things work in one context but not
+    # in another (with the PGI compiler).
+    if routine_name in EXCLUDING:
+        excluding = EXCLUDING[routine_name]
+    else:
+        excluding = EXCLUDING["default"]
+
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
     excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation,
-                           NemoLoop)
+                           NemoLoop, NemoKern)
     excluded_nodes = node.walk(excluded_node_types)
+    # Ensure we check inside Kernels too (but only for IfBlocks)
+    if excluding.inside_kernels:
+        for kernel in [enode for enode in excluded_nodes
+                       if isinstance(enode, NemoKern)]:
+            ksched = kernel.get_kernel_schedule()
+            excluded_nodes += ksched.walk(IfBlock)
 
     for enode in excluded_nodes:
         if isinstance(enode, CodeBlock):
             return False
 
         if isinstance(enode, IfBlock):
-            # We permit single-statement IF blocks or those that originate
-            # from WHERE constructs inside KERNELS regions
-            if "was_single_stmt" in enode.annotations or \
-               "was_where" in enode.annotations:
+            # We permit IF blocks that originate from WHERE constructs inside
+            # KERNELS regions
+            if "was_where" in enode.annotations:
+                continue
+
+            # Exclude things of the form IF(var == 0.0) because that causes
+            # deadlock in the code generated by the PGI compiler (<=19.4).
+            # Ideally we'd check for the type of the Literal but we don't
+            # have that concept so check for a decimal point in its value.
+            if PGI_VERSION <= 1940:
+                opn = enode.children[0]
+                if isinstance(opn, BinaryOperation) and \
+                   opn.operator == BinaryOperation.Operator.EQ and \
+                   isinstance(opn.children[1], Literal) and \
+                   "." in opn.children[1].value:
+                    return False
+
+            # We also permit single-statement IF blocks that contain a Loop
+            if "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
             # When using CUDA managed memory, only allocated arrays are
             # automatically put onto the GPU (although
@@ -134,14 +209,27 @@ def valid_kernel(node):
             # e.g. for automatic arrays). We assume that all arrays of rank 2 or
             # greater are dynamically allocated.
             arrays = enode.children[0].walk(Array)
-            if any([len(array.children) == 1 for array in arrays]):
+            # We also exclude if statements where the condition expression does
+            # not refer to arrays at all as this seems to cause issues for
+            # 19.4 of the compiler (get "Missing branch target block").
+            if not arrays and \
+               (excluding.ifs_scalars and not isinstance(enode.children[0],
+                                                         BinaryOperation)):
+                return False
+            if excluding.ifs_1d_arrays and \
+               any([len(array.children) == 1 for array in arrays]):
                 return False
 
-        # Need to check for SUM inside implicit loop, e.g.:
-        #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
         if isinstance(enode, NemoLoop):
-            if contains_unsupported_sum(enode.ast):
-                return False
+            if PGI_VERSION < 1940:
+                # Need to check for SUM inside implicit loop, e.g.:
+                #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
+                if contains_unsupported_sum(enode.ast):
+                    return False
+            else:
+                # Need to check for RESHAPE inside implicit loop
+                if contains_reshape(enode.ast):
+                    return False
 
     # For now we don't support putting *just* the implicit loop assignment in
     # things like:
@@ -215,6 +303,29 @@ def contains_unsupported_sum(fpnode):
     return False
 
 
+def contains_reshape(fpnode):
+    '''
+    Checks the supplied fparser2 parse tree for calls to the RESHAPE intrinsic.
+    The PGI compiler v.19.4 refuses to compile code that has such calls within
+    a KERNELS region. We have to check the parse tree to allow for the use
+    of RESHAPE within implicit loops which are not yet fully represented in
+    the PSyIR.
+
+    :param fpnode: fparser2 parse tree of code to check.
+    :type fpnode: :py:class:`fparser.two.Fortran2003.xxx`
+
+    :returns: True if the code fragment contains a RESHAPE call.
+    :rtype: bool
+    '''
+    from fparser.two.utils import walk_ast
+    from fparser.two import Fortran2003
+    intrinsics = walk_ast([fpnode], [Fortran2003.Intrinsic_Function_Reference])
+    for intrinsic in intrinsics:
+        if str(intrinsic.items[0]).lower() == "reshape":
+            return True
+    return False
+
+
 def have_loops(nodes):
     '''
     Checks to see whether there are any Loops in the list of nodes and
@@ -252,12 +363,12 @@ def add_kernels(children):
         return added_kernels
 
     # Are we within a Loop of some kind?
-    parent_loop = children[0].ancestor(Loop)
+    #parent_loop = children[0].ancestor(Loop)
 
     node_list = []
     for child in children[:]:
         # Can this node be included in a kernels region?
-        if not valid_kernel(child):
+        if not valid_acc_kernel(child):
             # It can't so we put what we have so far inside a kernels region
             success = try_kernels_trans(node_list)
             added_kernels |= success
@@ -349,7 +460,14 @@ def add_profile_region(nodes):
                 # 'IF(condition) CALL blah()' inside profiling regions
                 return
         try:
-            _, _ = PROFILE_TRANS.apply(nodes)
+            if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
+               "was_elseif" in nodes[0].annotations:
+                # Special case for IfBlocks that represent else-ifs in the
+                # fparser2 parse tree - we can't apply transformations to
+                # them, only to their body. TODO #435.
+                PROFILE_TRANS.apply(nodes[0].if_body)
+            else:
+                PROFILE_TRANS.apply(nodes)
         except TransformationError:
             pass
 
@@ -367,8 +485,9 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import InternalError, Loop
+    from psyclone.psyGen import InternalError, Loop, IfBlock
 
+    # We only enclose the proposed region if it contains a loop.
     for node in nodes:
         if node.walk(Loop):
             break
@@ -376,7 +495,14 @@ def try_kernels_trans(nodes):
         return False
 
     try:
-        _, _ = ACC_KERN_TRANS.apply(nodes, default_present=False)
+        if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
+           "was_elseif" in nodes[0].annotations:
+            # Special case for IfBlocks that represent else-ifs in the fparser2
+            # parse tree - we can't apply transformations to them, only to
+            # their body. TODO #435.
+            ACC_KERN_TRANS.apply(nodes[0].if_body, default_present=False)
+        else:
+            ACC_KERN_TRANS.apply(nodes, default_present=False)
         return True
     except (TransformationError, InternalError) as err:
         print("Failed to transform nodes: {0}", nodes)
@@ -407,6 +533,7 @@ def trans(psy):
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
         if invoke.name.lower() not in ACC_IGNORE:
+        #if not any([ignore in invoke.name.lower() for ignore in ACC_IGNORE]):
             print("Transforming invoke {0}:".format(invoke.name))
             add_kernels(sched.children)
         else:
