@@ -67,7 +67,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
 # Discontinuous FS
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
 # Continuous FS
-# Note, any_w2 is not a space on its own. any_w2 used as a common term for
+# Note, any_w2 is not a space on its own. any_w2 is used as a common term for
 # any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
 # (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
 # it needs to a) be treated as continuous and b) have vector basis and scalar
