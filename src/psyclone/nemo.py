@@ -46,7 +46,7 @@ from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
+    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule, \
     colored, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -358,8 +358,11 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         '''
         self._name_clashes_checked = value
 
+    def coded_kernels(self):
+        return self.walk(InlinedKern)
 
-class NemoKern(CodedKern):
+
+class NemoKern(InlinedKern):
     ''' Stores information about NEMO kernels as extracted from the
     NEMO code. Kernels are leaves in the PSyIR. I.e. they have
     no self._children but they do have a KernelSchedule.

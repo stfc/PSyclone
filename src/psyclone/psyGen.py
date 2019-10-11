@@ -104,6 +104,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "HaloExchangeEnd": "yellow",
                        "BuiltIn": "magenta",
                        "CodedKern": "magenta",
+                       "InlinedKern": "magenta",
                        "Profile": "green",
                        "Extract": "green",
                        "If": "red",
@@ -4321,6 +4322,37 @@ class CodedKern(Kern):
         :param bool value: True if kernel modified, False otherwise.
         '''
         self._modified = value
+
+
+class InlinedKern(Kern):
+    '''A class representing a kernel that is inlined. This is used by
+    the NEMO API, since the NEMO API has no function to call or parameters.
+    '''
+
+    def __init__(self):
+        self._kern_schedule = None
+
+    def __str__(self):
+        return "inlined kern: " + self._name
+
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :returns: the name of this node type, possibly with control codes
+                  for colour
+        :rtype: string
+        '''
+        return colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
+
+    def get_kernel_schedule(self):
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        if self._kern_schedule is None:
+            astp = Fparser2Reader()
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            # TODO: Validate kernel with metadata (issue #288).
+        return self._kern_schedule
 
 
 class BuiltIn(Kern):
