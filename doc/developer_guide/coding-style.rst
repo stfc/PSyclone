@@ -124,3 +124,6 @@ Some important details:
      text line if the overall description is short. Otherwise it should be on a
      separate line. An optional empty line between interface description and
      code should be included in the comment section.
+
+  #) Standard Python functions like `__str__` etc. need only be documented with a
+     simple informal comment.
