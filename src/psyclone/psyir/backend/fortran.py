@@ -153,11 +153,11 @@ class FortranWriter(PSyIRVisitor):
         instance).
 
         '''
-        if not symbol.interface or not isinstance(symbol.interface,
-                                                  Symbol.FortranGlobal):
+        if not isinstance(symbol.interface, Symbol.FortranGlobal):
             raise VisitorError(
-                "gen_use requires the symbol interface to be a FortranGlobal "
-                "instance.")
+                "gen_use() requires the symbol interface for symbol '{0}' to "
+                "be a FortranGlobal instance but found '{1}'."
+                "".format(symbol.name, type(symbol.interface).__name__))
 
         return "{0}use {1}, only : {2}\n".format(
             self._nindent, symbol.interface.module_name, symbol.name)
@@ -179,8 +179,11 @@ class FortranWriter(PSyIRVisitor):
         if not symbol.scope == "local" and not isinstance(symbol.interface,
                                                           Symbol.Argument):
             raise VisitorError(
-                "gen_vardecl requires the symbol to be a local declaration "
-                "or an argument declaration.")
+                "gen_vardecl requires the symbol '{0}' to be a local "
+                "declaration or an argument declaration, but found scope "
+                "'{1}' and interface '{2}'."
+                "".format(symbol.name, symbol.scope,
+                          type(symbol.interface).__name__))
 
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
@@ -202,6 +205,44 @@ class FortranWriter(PSyIRVisitor):
         result += "\n"
         return result
 
+    def gen_decls(self, symbol_table, args_allowed=True):
+        '''Create and return the Fortran declarations for this SymbolTable.
+
+        :param symbol_table: the SymbolTable instance.
+        :type symbol: :py:class:`psyclone.psyGen.SymbolTable`
+        :param bool args_allowed: if False then one or more argument
+        declarations in symbol_table will cause this method to raise
+        an exception. Defaults to True.
+
+        :returns: the Fortran declarations as a string.
+        :rtype: str
+
+        '''
+        declarations = ""
+        # Fortran requires use statements to be specified before
+        # variable declarations. As a convention, this method also
+        # declare any argument variables before local variables.
+
+        # 1: Use statements
+        for symbol in [sym for sym in symbol_table.symbols if
+                       isinstance(sym.interface, Symbol.FortranGlobal)]:
+            declarations += self.gen_use(symbol)
+        # 2: Argument variable declarations
+        symbols = [sym for sym in symbol_table.symbols if
+                   isinstance(sym.interface, Symbol.Argument)]
+        if symbols and not args_allowed:
+            raise VisitorError(
+                "Arguments are not allowed in this context but this symbol "
+                "table contains argument(s) '{0}'."
+                "".format([symbol.name for symbol in symbols]))
+        for symbol in symbols:
+            declarations += self.gen_vardecl(symbol)
+        # 3: Local variable declarations
+        for symbol in [sym for sym in symbol_table.symbols if
+                       sym.scope == "local"]:
+            declarations += self.gen_vardecl(symbol)
+        return declarations
+
     def container_node(self, node):
         '''This method is called when a Container instance is found in
         the PSyIR tree.
@@ -216,12 +257,14 @@ class FortranWriter(PSyIRVisitor):
 
         :raises VisitorError: if the name attribute of the supplied \
         node is empty or None.
+        :raises VisitorError: if any of the children of the supplied \
+        Container node are not KernelSchedules.
 
         '''
         if not node.name:
-            raise VisitorError("Expected node name to have a value.")
+            raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be kernelschedule as modules within
+        # All children must be KernelSchedules as modules within
         # modules are not supported.
         from psyclone.psyGen import KernelSchedule
         if not all([isinstance(child, KernelSchedule)
@@ -230,21 +273,13 @@ class FortranWriter(PSyIRVisitor):
                 "The Fortran back-end requires all children of a Container "
                 "to be KernelSchedules.")
 
-        result = (
-            "{0}module {1}\n"
-            "".format(self._nindent, node.name))
+        result = "{0}module {1}\n".format(self._nindent, node.name)
 
         self._depth += 1
 
-        declarations = ""
-        # Use statements
-        for symbol in [sym for sym in node.symbol_table.symbols if
-                       isinstance(sym.interface, Symbol.FortranGlobal)]:
-            declarations += self.gen_use(symbol)
-        # Variable declarations
-        for symbol in [sym for sym in node.symbol_table.symbols if
-                       sym.scope == "local"]:
-            declarations += self.gen_vardecl(symbol)
+        # Declare the Container's data and specify that Containers do
+        # not allow argument declarations.
+        declarations = self.gen_decls(node.symbol_table, args_allowed=False)
 
         # Get the subroutine statements.
         subroutines = ""
@@ -258,9 +293,7 @@ class FortranWriter(PSyIRVisitor):
             "".format(self._nindent, declarations, subroutines))
 
         self._depth -= 1
-        result += (
-            "{0}end module {1}\n"
-            "".format(self._nindent, node.name))
+        result += "{0}end module {1}\n".format(self._nindent, node.name)
         return result
 
     def kernelschedule_node(self, node):
@@ -291,19 +324,7 @@ class FortranWriter(PSyIRVisitor):
 
         self._depth += 1
         # Declare the kernel data.
-        declarations = ""
-        # Use statements
-        for symbol in [sym for sym in node.symbol_table.symbols if
-                       isinstance(sym.interface, Symbol.FortranGlobal)]:
-            declarations += self.gen_use(symbol)
-        # Argument variable declarations
-        for symbol in [sym for sym in node.symbol_table.symbols if
-                       isinstance(sym.interface, Symbol.Argument)]:
-            declarations += self.gen_vardecl(symbol)
-        # Local variable declarations
-        for symbol in [sym for sym in node.symbol_table.symbols if
-                       sym.scope == "local"]:
-            declarations += self.gen_vardecl(symbol)
+        declarations = self.gen_decls(node.symbol_table)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:

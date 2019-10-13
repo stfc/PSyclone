@@ -43,7 +43,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.base import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
-from psyclone.psyGen import Symbol, Node, CodeBlock, Container
+from psyclone.psyGen import Symbol, Node, CodeBlock, Container, SymbolTable
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -125,8 +125,9 @@ def test_fw_gen_use(fort_writer):
     symbol = Symbol("dummy1", "integer")
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_use(symbol)
-    assert ("gen_use requires the symbol interface to be a FortranGlobal "
-            "instance." in str(excinfo.value))
+    assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
+            "be a FortranGlobal instance but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_fw_gen_vardecl(fort_writer):
@@ -162,8 +163,35 @@ def test_fw_gen_vardecl(fort_writer):
                     interface=Symbol.FortranGlobal("my_module"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol to be a local declaration or an "
-            "argument declaration." in str(excinfo.value))
+    assert ("gen_vardecl requires the symbol 'dummy1' to be a local "
+            "declaration or an argument declaration, but found scope "
+            "'global' and interface 'FortranGlobal'." in str(excinfo.value))
+
+
+def test_gen_decls(fort_writer):
+    '''Check the FortranWriter class gen_decls method produces the
+    expected declarations. Also check that an exception is raised if
+    an 'argument' symbol exists in the supplied symbol table and the
+    optional argument 'args_allowed' is set to False.
+
+    '''
+    symbol_table = SymbolTable()
+    use_statement = Symbol("my_use", "deferred",
+                           interface=Symbol.FortranGlobal("my_module"))
+    symbol_table.add(use_statement)
+    argument_variable = Symbol("arg", "integer", interface=Symbol.Argument())
+    symbol_table.add(argument_variable)
+    local_variable = Symbol("local", "integer")
+    symbol_table.add(local_variable)
+    result = fort_writer.gen_decls(symbol_table)
+    assert (result ==
+            "use my_module, only : my_use\n"
+            "integer :: arg\n"
+            "integer :: local\n")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
+    assert ("Arguments are not allowed in this context but this symbol table "
+            "contains argument(s) '['arg']'." in str(excinfo.value))
 
 
 def test_fw_exception(fort_writer):
@@ -218,7 +246,7 @@ def test_fw_container_1(fort_writer, monkeypatch):
     monkeypatch.setattr(container, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
-    assert "Expected node name to have a value." in str(excinfo)
+    assert "Expected Container node name to have a value." in str(excinfo)
 
 
 def test_fw_container_2(fort_writer):
@@ -259,6 +287,32 @@ def test_fw_container_2(fort_writer):
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
             "to be KernelSchedules." in str(excinfo))
+
+
+def test_fw_container_3(fort_writer, monkeypatch):
+    '''Check the FortranWriter class raises an exception when a Container
+    node contains a symbol table with an argument declaration (as this
+    does not make sense).
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "real :: a\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+    container = schedule.root
+    symbol = container.symbol_table.symbols[0]
+    assert symbol.name == "a"
+    monkeypatch.setattr(symbol, "_interface", Symbol.Argument())
+
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer(container)
+    assert ("Arguments are not allowed in this context but this symbol table "
+            "contains argument(s) '['a']'." in str(excinfo))
 
 
 def test_fw_kernelschedule(fort_writer, monkeypatch):
@@ -423,7 +477,7 @@ def test_fw_reference(fort_writer):
     result = fort_writer(schedule)
 
     # The asserts need to be split as the declaration order can change
-    # between different versions of Psython.
+    # between different versions of Python.
     assert (
         "subroutine tmp(a,n)\n"
         "  integer, intent(in) :: n\n"
