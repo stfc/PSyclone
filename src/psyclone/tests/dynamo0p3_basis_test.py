@@ -1422,6 +1422,7 @@ def test_basis_unsupported_space():
     unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This information will be passed from the
     PSy layer to the kernels (see issue #461). '''
+    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1429,7 +1430,9 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
+    assert ("Unsupported space for basis function, expecting one of " +
+            str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
+            in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                            "any_discontinuous_space_5")
@@ -1440,7 +1443,8 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
+    assert "Unsupported space for basis function" in str(excinfo.value)
+    assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
 # diff basis function : spaces
@@ -1745,6 +1749,7 @@ def test_diff_basis_unsupp_space():
     and any_discontinuous_space_*) in kernel stub generation.
     This information will be passed from the PSy layer to the
     kernels (see issue #461). '''
+    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1752,8 +1757,9 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
+    assert ("Unsupported space for differential basis function, expecting one "
+            "of " + str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
+            in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                                 "any_discontinuous_space_5")
@@ -1764,8 +1770,9 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
+    assert ("Unsupported space for differential basis function"
+            in str(excinfo.value))
+    assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
 def test_dynbasisfns_unsupp_qr(monkeypatch):
