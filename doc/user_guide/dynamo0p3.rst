@@ -796,7 +796,7 @@ onto the underlying topology and, additionally, whether the data at a
 point is a vector. In Dynamo0.3 API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for the
-dimensions of basis and differential basis functions).
+dimensions of the basis and differential basis functions).
 
 Function spaces can share DoFs between cells in the horizontal, vertical
 or both directions. Depending on the function space and FEM order,
@@ -1290,7 +1290,7 @@ rules, along with PSyclone's naming conventions, are:
             ``"diff_basis_"<field_function_space>``, as appropriate.
 
          2) If ``gh_shape`` is ``gh_evaluator`` then we pass one array for
-            each target function space (i.e.\ as specified by
+            each target function space (i.e. as specified by
             ``gh_evaluator_targets``). Each of these arrays are of rank 3
             with extent (``dimension``, ``number_of_dofs``,
             ``ndf_<target_function_space>``). The name of the argument is
