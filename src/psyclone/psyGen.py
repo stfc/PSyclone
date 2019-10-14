@@ -1923,6 +1923,10 @@ class Directive(Node):
     OpenACC, compiler-specific) inherit from this class.
 
     '''
+    # The prefix to use when constructing this directive in Fortran
+    # (e.g. "OMP"). Must be set by sub-class.
+    _PREFIX = ""
+
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = Schedule(children=children, parent=self)
@@ -1959,19 +1963,6 @@ class Directive(Node):
     def dag_name(self):
         ''' return the base dag name for this node '''
         return "directive_" + str(self.abs_position)
-
-
-class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statements. '''
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
-
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        return "ACC_directive_" + str(self.abs_position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -2033,32 +2024,36 @@ class ACCDirective(Directive):
         content_ast = first_child.ast
         fp_parent = content_ast._parent
 
-        # Find the location of the AST of our first child node in the
-        # list of child nodes of our parent in the fparser parse tree.
-        ast_start_index = object_index(fp_parent.content,
-                                       content_ast)
-        if end_text:
-            if last_child.ast_end:
-                ast_end_index = object_index(fp_parent.content,
-                                             last_child.ast_end)
-            else:
-                ast_end_index = object_index(fp_parent.content,
-                                             last_child.ast)
+        try:
+            # Find the location of the AST of our first child node in the
+            # list of child nodes of our parent in the fparser parse tree.
+            ast_start_index = object_index(fp_parent.content,
+                                           content_ast)
+            if end_text:
+                if last_child.ast_end:
+                    ast_end_index = object_index(fp_parent.content,
+                                                 last_child.ast_end)
+                else:
+                    ast_end_index = object_index(fp_parent.content,
+                                                 last_child.ast)
 
-            text = "!$ACC " + end_text
-            directive = Comment(FortranStringReader(text,
-                                                    ignore_comments=False))
-            fp_parent.content.insert(ast_end_index+1, directive)
-            # Retro-fit parent information. # TODO remove/modify this once
-            # fparser/#102 is done (i.e. probably supply parent info as option
-            # to the Comment() constructor).
-            directive._parent = fp_parent
-            # Ensure this end directive is included with the set of statements
-            # belonging to this PSyIR node.
-            self.ast_end = directive
-            self.dir_body.ast_end = directive
+                text = "!$" + self._PREFIX + " " + end_text
+                directive = Comment(FortranStringReader(text,
+                                                        ignore_comments=False))
+                fp_parent.content.insert(ast_end_index+1, directive)
+                # Retro-fit parent information. # TODO remove/modify this once
+                # fparser/#102 is done (i.e. probably supply parent info as
+                # option to the Comment() constructor).
+                directive._parent = fp_parent
+                # Ensure this end directive is included with the set of
+                # statements belonging to this PSyIR node.
+                self.ast_end = directive
+                self.dir_body.ast_end = directive
+        except (IndexError, ValueError):
+            raise InternalError("Failed to find locations to insert "
+                                "begin/end directives.")
 
-        text = "!$ACC " + start_text
+        text = "!$" + self._PREFIX + " " + start_text
 
         if data_movement:
             if data_movement == "analyse":
@@ -2092,6 +2087,20 @@ class ACCDirective(Directive):
 
         self.ast = directive
         self.dir_body.ast = directive
+
+
+class ACCDirective(Directive):
+    ''' Base class for all OpenACC directive statements. '''
+    _PREFIX = "ACC"
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node.
+
+        :returns: Name of corresponding node in DAG
+        :rtype: str
+        '''
+        return "ACC_directive_" + str(self.abs_position)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2430,6 +2439,8 @@ class OMPDirective(Directive):
     Base class for all OpenMP-related directives
 
     '''
+    _PREFIX = "OMP"
+
     @property
     def dag_name(self):
         '''
@@ -2645,6 +2656,12 @@ class OMPParallelDirective(OMPDirective):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
+        self._add_region(
+            start_text="parallel default(shared), private({0})".format(
+                ",".join(self._get_private_list())),
+            end_text="end parallel")
+        return
+    
         # Ensure the fparser2 AST is up-to-date for all of our children
         Node.update(self)
 
@@ -2849,6 +2866,9 @@ class OMPDoDirective(OMPDirective):
                 "but this Node has {0} children: {1}".
                 format(len(self._children), self._children))
 
+        self._add_region(start_text="do schedule({0})".format(
+            self._omp_schedule), end_text="end do")
+        return
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the child of this node in the AST of our parent node
