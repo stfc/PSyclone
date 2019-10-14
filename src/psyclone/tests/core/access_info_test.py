@@ -51,7 +51,9 @@ def test_access_info():
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
     assert access_info.indices is None
+    assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
+    assert str(access_info) == "WRITE(12)"
     assert access_info.access_type == AccessType.WRITE
     with pytest.raises(InternalError) as err:
         access_info.change_read_to_write()
@@ -80,15 +82,20 @@ def test_variable_access_info():
 
     vai = VariableAccessInfo("var_name")
     assert vai.var_name == "var_name"
+    assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
     assert vai.all_accesses == []
 
-    vai.add_access(AccessType.READ, Node(), 2)
+    vai.add_access(AccessType.READ, 2, Node())
+    assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
+    assert vai.is_read_only()
     vai.change_read_to_write()
     assert not vai.is_read()
     assert vai.is_written()
+    assert not vai.is_read_only()
+    assert not vai.is_array()
 
     # Now we have one write access, which we should not be able to
     # change to write again:
@@ -103,11 +110,15 @@ def test_variable_access_info():
 
     # Add a READ access - now we should not be able to
     # change read to write anymore:
-    vai.add_access(AccessType.READ, Node(), 1)
+    vai.add_access(AccessType.READ, 1, Node())
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\
            "not one in change_read_to_write." in str(err)
+
+    # And make sure the variable is not read_only if a write is added
+    vai.add_access(AccessType.WRITE, 3, Node())
+    assert vai.is_read_only() is False
 
 
 # -----------------------------------------------------------------------------
@@ -124,19 +135,33 @@ def test_variable_access_info_read_write():
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
-    vai.add_access(AccessType.READ, Node(), 2)
-    vai.add_access(AccessType.WRITE, Node(), 2)
+    node = Node()
+    vai.add_access(AccessType.READ, 2, node)
+    assert vai[0].node == node
+    assert vai[0].location == 2
+    vai.add_access(AccessType.WRITE, 2, Node())
     assert vai.has_read_write() is False
 
-    vai.add_access(AccessType.READWRITE, Node(), 2)
+    vai.add_access(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
     vai = VariableAccessInfo("var_name")
-    vai.add_access(AccessType.READWRITE, Node(), 2)
+    vai.add_access(AccessType.READWRITE, 2, Node())
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
+
+    vai_array = VariableAccessInfo("array")
+    vai_array.add_access(AccessType.READ, 2, Node(), [1])
+    vai_array.add_access(AccessType.WRITE, 3, Node(), ["i"])
+    assert vai_array.is_array()
+
+    # Adding a non-array access marks this as not array:
+    # TODO #500: once we have a symboltable, this test
+    # needs to be adjusted.
+    vai_array.add_access(AccessType.WRITE, 3, Node())
+    assert not vai_array.is_array()
 
 
 # -----------------------------------------------------------------------------
@@ -185,6 +210,10 @@ def test_variables_access_info():
         var_accesses.is_read("does_not_exist")
     with pytest.raises(KeyError):
         var_accesses.is_written("does_not_exist")
+
+    assert "READWRITE" not in str(var_accesses)
+    var_accesses.add_access("readwrite", AccessType.READWRITE, node)
+    assert "READWRITE" in str(var_accesses)
 
 
 # -----------------------------------------------------------------------------
@@ -240,5 +269,4 @@ def test_variables_access_info_merge():
     # location 0,1 in - the one at 0 is merged with the current 1,
     # and the new location 1 increases the current location from
     # 1 to 2:
-    # pylint: disable=protected-access
-    assert var_accesses1._location == 2
+    assert var_accesses1.location == 2
