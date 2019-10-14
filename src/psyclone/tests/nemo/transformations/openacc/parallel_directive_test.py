@@ -90,7 +90,7 @@ def test_parallel_two_loops(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2])
+    schedule, _ = acc_trans.apply(schedule[0:2])
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
             "  REAL :: sto_tmp(jpi), sto_tmp2(jpi)\n"

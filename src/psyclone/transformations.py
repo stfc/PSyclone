@@ -805,8 +805,8 @@ class ParallelLoopTrans(Transformation):
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
 
-        # Change the node's parent to be the loop directive.
-        node.parent = directive
+        # Change the node's parent to be the loop directive's Schedule.
+        node.parent = directive.dir_body
 
         # Remove the reference to the loop from the original parent.
         node_parent.children.remove(node)
@@ -1176,9 +1176,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
-
-        # change the node's parent to be the loop directive
-        node.parent = directive
+ 
+        # change the node's parent to be the Schedule of the loop directive
+        node.parent = directive.dir_body
 
         # remove the original loop
         node_parent.children.remove(node)
@@ -1746,14 +1746,14 @@ class ParallelRegionTrans(RegionTrans):
                                      children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the region directive as their parent. Use a slice
+        # the region directive's Schedule as their parent. Use a slice
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
         for child in node_list[:]:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
-            child.parent = directive
+            child.parent = directive.dir_body
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
@@ -2141,21 +2141,20 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
+        dir_node = node.ancestor(Directive)
+        if dir_node:
+            raise TransformationError(
+                "In the Dynamo0p3RedundantComputation transformation apply "
+                "method the supplied loop is sits beneath a directive of "
+                "type {0}. Redundant computation must be applied before "
+                "directives are added.".format(type(dir_node)))
         if not (isinstance(node.parent, DynInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
-            if isinstance(node.parent, Directive):
-                raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method the parent of the supplied loop is a "
-                    "directive of type {0}. Redundant computation must be "
-                    "applied before directives are "
-                    "added.".format(type(node.parent)))
-            else:
-                raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method the parent of the supplied loop must be "
-                    "the DynInvokeSchedule, or a Loop, but found {0}".
-                    format(type(node.parent)))
+            raise TransformationError(
+                "In the Dynamo0p3RedundantComputation transformation "
+                "apply method the parent of the supplied loop must be "
+                "the DynInvokeSchedule, or a Loop, but found {0}".
+                format(type(node.parent)))
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
@@ -3371,9 +3370,9 @@ class ACCKernelsTrans(RegionTrans):
                                         default_present=default_present)
         start_index = parent.children.index(node_list[0])
 
-        for child in directive.children:
+        for child in directive.dir_body.children:
             parent.children.remove(child)
-            child.parent = directive
+            #child.parent = directive
 
         parent.children.insert(start_index, directive)
 
@@ -3482,9 +3481,9 @@ class ACCDataTrans(RegionTrans):
         directive = ACCDataDirective(parent=parent, children=node_list[:])
         start_index = parent.children.index(node_list[0])
 
-        for child in directive.children:
+        for child in directive.dir_body[:]:
             parent.children.remove(child)
-            child.parent = directive
+            child.parent = directive.dir_body
 
         parent.children.insert(start_index, directive)
 

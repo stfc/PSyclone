@@ -1695,6 +1695,17 @@ class Schedule(Node):
         result += "End Schedule"
         return result
 
+    def gen_code(self, parent):
+        '''
+        A Schedule does not have any direct Fortran representation. We just
+        call gen_code() for all of its children.
+
+        :param parent: node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        for child in self.children:
+            child.gen_code(parent)
+
 
 class InvokeSchedule(Schedule):
     '''
@@ -1913,9 +1924,36 @@ class Directive(Node):
 
     '''
     def __init__(self, ast=None, children=None, parent=None):
-        super(Directive, self).__init__(ast, children, parent)
+        # A Directive always contains a Schedule
+        sched = Schedule(children=children, parent=self)
+        if children:
+            # If we have children then set the Schedule's AST pointer to
+            # point to the AST associated with them.
+            sched.ast = children[0].ast
+            for child in children:
+                child.parent = sched
+        else:
+            sched.ast = ast
+        super(Directive, self).__init__(ast, children=[sched], parent=parent)
         self._text_name = "Directive"
         self._colour_key = "Directive"
+
+    @property
+    def dir_body(self):
+        '''
+        :returns: the Schedule associated with this directive.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
+
+        :raises InternalError: if this node does not have a single Schedule as\
+                               its child.
+        '''
+        if len(self.children) != 1 or not \
+           isinstance(self.children[0], Schedule):
+            raise InternalError(
+                "Directive malformed or incomplete. It should have a single "
+                "Schedule as a child but found: {0}".format(
+                    [type(child).__name__ for child in self.children]))
+        return self.children[0]
 
     @property
     def dag_name(self):
@@ -1986,7 +2024,13 @@ class ACCDirective(Directive):
         # directive which has no associated entry in the fparser2 parse tree.)
         # TODO this should be simplified/improved once
         # the fparser2 parse tree has parent information (fparser/#102).
-        content_ast = self.children[0].ast
+        if isinstance(self.children[0], Schedule):
+            first_child = self.children[0][0]
+            last_child = self.children[0][-1]
+        else:
+            first_child = self.children[0]
+            last_child = self.children[-1]
+        content_ast = first_child.ast
         fp_parent = content_ast._parent
 
         # Find the location of the AST of our first child node in the
@@ -1994,12 +2038,12 @@ class ACCDirective(Directive):
         ast_start_index = object_index(fp_parent.content,
                                        content_ast)
         if end_text:
-            if self.children[-1].ast_end:
+            if last_child.ast_end:
                 ast_end_index = object_index(fp_parent.content,
-                                             self.children[-1].ast_end)
+                                             last_child.ast_end)
             else:
                 ast_end_index = object_index(fp_parent.content,
-                                             self.children[-1].ast)
+                                             last_child.ast)
 
             text = "!$ACC " + end_text
             directive = Comment(FortranStringReader(text,
@@ -2012,6 +2056,7 @@ class ACCDirective(Directive):
             # Ensure this end directive is included with the set of statements
             # belonging to this PSyIR node.
             self.ast_end = directive
+            self.dir_body.ast_end = directive
 
         text = "!$ACC " + start_text
 
@@ -2046,6 +2091,7 @@ class ACCDirective(Directive):
         directive._parent = fp_parent
 
         self.ast = directive
+        self.dir_body.ast = directive
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2498,8 +2544,8 @@ class OMPParallelDirective(OMPDirective):
             parent.add(AssignGen(parent, lhs=thread_idx,
                                  rhs="omp_get_thread_num()+1"))
 
-        first_type = type(self.children[0])
-        for child in self.children:
+        first_type = type(self.dir_body[0])
+        for child in self.dir_body.children:
             if first_type != type(child):
                 raise NotImplementedError("Cannot correctly generate code"
                                           " for an OpenMP parallel region"
@@ -2637,6 +2683,7 @@ class OMPParallelDirective(OMPDirective):
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
         self.ast_end = enddir
+        self.dir_body.ast_end = enddir
         # FIXME: In case of:
         # omp parallel
         #    omp do
@@ -2663,6 +2710,7 @@ class OMPParallelDirective(OMPDirective):
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self.ast = startdir
+        self.dir_body.ast = startdir
         parent_ast.content.insert(start_idx, self.ast)
 
 
@@ -2838,10 +2886,13 @@ class OMPDoDirective(OMPDirective):
         enddir = Comment(FortranStringReader("!$omp end do",
                                              ignore_comments=False))
         parent_ast.content.insert(start_idx + 1, enddir)
+        self.ast_end = enddir
+        self.dir_body.ast_end = enddir
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
         self.ast = startdir
+        self.dir_body.ast = startdir
         parent_ast.content.insert(start_idx, self.ast)
 
 

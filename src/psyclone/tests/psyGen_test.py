@@ -785,14 +785,16 @@ def test_incremented_arg():
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
+    from psyclone.psyGen import Schedule
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     ompdo = OMPDoDirective(parent=schedule)
-    assert not ompdo.children
-    ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
     assert len(ompdo.children) == 1
+    assert isinstance(ompdo.children[0], Schedule)
+    ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
+    assert len(ompdo.dir_body.children) == 1
 
 
 def test_ompdo_directive_class_node_str(dist_mem):
@@ -844,34 +846,35 @@ def test_acc_dir_view(capsys):
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
+
     # Enter-data
     new_sched, _ = accdt.apply(schedule)
     # Artificially add a child to this directive so as to get full
     # coverage of the associated view() method
-    new_sched.children[0].addchild(new_sched.children[1])
-    new_sched.children[0].view()
+    new_sched[0].dir_body.addchild(new_sched[1])
+    new_sched[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC enter data]")
 
-    # Parallel region
-    new_sched, _ = accpt.apply(new_sched.children[1])
-    new_sched.children[1].view()
+    # Parallel region around outermost loop
+    new_sched, _ = accpt.apply(new_sched[1])
+    new_sched[1].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Parallel]")
 
-    # Loop directive
-    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
-    new_sched.children[1].children[0].view()
+    # Loop directive on outermost loop
+    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
+    new_sched[1].dir_body[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
-    new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
+    new_sched, _ = acclt.apply(new_sched[1].dir_body[0].dir_body[0],
                                collapse=2)
-    new_sched.children[1].children[0].children[0].view()
+    new_sched[1].dir_body[0].dir_body[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
@@ -1913,7 +1916,7 @@ def test_directive_get_private(monkeypatch):
     pvars = directive._get_private_list()
     assert pvars == ['cell']
     # Now use monkeypatch to break the Call within the loop
-    call = directive.children[0].children[0].loop_body[0]
+    call = directive.dir_body[0].dir_body[0].loop_body[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
@@ -2067,11 +2070,11 @@ def test_omp_dag_names():
     child = schedule.children[0]
     oschedule, _ = ptrans.apply(child)
     # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
+    schedule, _ = olooptrans.apply(oschedule[0].dir_body[0])
     # Replace the original loop schedule with the transformed one
     omp_par_node = schedule.children[0]
     assert omp_par_node.dag_name == "OMP_parallel_1"
-    assert omp_par_node.children[0].dag_name == "OMP_do_2"
+    assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"
     omp_directive = super(OMPParallelDirective, omp_par_node)
     assert omp_directive.dag_name == "OMP_directive_1"
     print(type(omp_directive))
@@ -2090,15 +2093,15 @@ def test_acc_dag_names():
     accpt = ACCParallelTrans()
     # Enter-data
     new_sched, _ = accdt.apply(schedule)
-    assert schedule.children[0].dag_name == "ACC_data_1"
+    assert schedule[0].dag_name == "ACC_data_1"
     # Parallel region
-    new_sched, _ = accpt.apply(new_sched.children[1])
-    assert schedule.children[1].dag_name == "ACC_parallel_2"
+    new_sched, _ = accpt.apply(new_sched[1])
+    assert schedule[1].dag_name == "ACC_parallel_3"
     # Loop directive
-    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
-    assert schedule.children[1].children[0].dag_name == "ACC_loop_3"
+    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
+    assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
     # Base class
-    name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
+    name = super(ACCEnterDataDirective, schedule[0]).dag_name
     assert name == "ACC_directive_1"
 
 # Class ACCKernelsDirective start
@@ -2110,10 +2113,12 @@ def test_acckernelsdirective_init():
     arguments are set and can be set as expected.
 
     '''
+    from psyclone.psyGen import Schedule
     directive = ACCKernelsDirective()
     assert directive._default_present
     assert directive.parent is None
-    assert directive.children == []
+    assert len(directive.children) == 1
+    assert isinstance(directive.children[0], Schedule)
     directive = ACCKernelsDirective(default_present=False)
     assert not directive._default_present
 

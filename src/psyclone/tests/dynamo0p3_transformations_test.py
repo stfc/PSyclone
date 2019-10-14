@@ -684,7 +684,7 @@ def test_colouring_after_openmp(dist_mem):
 
     # Now attempt to colour the loop within this OpenMP region
     with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = ctrans.apply(schedule.children[index].children[0])
+        schedule, _ = ctrans.apply(schedule[index].dir_body[0])
     assert "Cannot have a loop over colours" in str(excinfo.value)
     assert "within an OpenMP parallel region" in str(excinfo.value)
 
@@ -723,12 +723,12 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
         index = 0
 
     # colour each loop
-    schedule, _ = ctrans.apply(schedule.children[index])
-    schedule, _ = ctrans.apply(schedule.children[index+1])
+    schedule, _ = ctrans.apply(schedule[index])
+    schedule, _ = ctrans.apply(schedule[index+1])
 
     # Apply OpenMP to each of the colour loops
-    schedule, _ = otrans.apply(schedule.children[index].loop_body[0])
-    schedule, _ = otrans.apply(schedule.children[index+1].loop_body[0])
+    schedule, _ = otrans.apply(schedule[index].loop_body[0])
+    schedule, _ = otrans.apply(schedule[index+1].loop_body[0])
 
     gen = str(psy.gen)
 
@@ -758,11 +758,11 @@ def test_omp_region_omp_do(dist_mem):
         index = 0
 
     # Put an OMP PARALLEL around this loop
-    child = schedule.children[index]
+    child = schedule[index]
     oschedule, _ = ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule.children[index].children[0])
+    schedule, _ = olooptrans.apply(oschedule[index].dir_body[0])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = schedule
@@ -770,8 +770,6 @@ def test_omp_region_omp_do(dist_mem):
     # Store the results of applying this code transformation as
     # a string
     code = str(psy.gen)
-
-    print(code)
 
     omp_do_idx = -1
     omp_para_idx = -1
@@ -824,11 +822,11 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     else:
         # there are no halo exchange calls
         index = 0
-    child = schedule.children[index]
+    child = schedule[index]
     oschedule, _ = ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule.children[index].children[0])
+    schedule, _ = olooptrans.apply(oschedule[index].dir_body[0])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = schedule
@@ -1297,18 +1295,18 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         index = 0
 
     # colour each loop
-    schedule, _ = ctrans.apply(schedule.children[index])
-    schedule, _ = ctrans.apply(schedule.children[index+1])
+    schedule, _ = ctrans.apply(schedule[index])
+    schedule, _ = ctrans.apply(schedule[index+1])
 
     # fuse the sequential colours loop
-    schedule, _ = ftrans.apply(schedule.children[index],
-                               schedule.children[index+1])
+    schedule, _ = ftrans.apply(schedule[index],
+                               schedule[index+1])
 
     # Enclose the colour loops within an OMP parallel region
-    schedule, _ = rtrans.apply(schedule.children[index].loop_body.children)
+    schedule, _ = rtrans.apply(schedule[index].loop_body.children)
 
     # Put an OMP DO around each of the colour loops
-    for loop in schedule[index].loop_body.children[0].children:
+    for loop in schedule[index].loop_body[0].dir_body[:]:
         schedule, _ = otrans.apply(loop)
 
     code = str(psy.gen)
@@ -1697,12 +1695,12 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed, dist_mem):
     ptrans = OMPParallelTrans()
 
     # Put an OMP PARALLEL around this loop
-    child = schedule.children[0]
+    child = schedule[0]
     schedule, _ = ptrans.apply(child)
     # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(schedule.children[0].children[0])
+    schedule, _ = olooptrans.apply(schedule[0].dir_body[0])
     result = str(psy.gen)
-    print(result)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel default(shared), private(df)\n"
@@ -1756,10 +1754,10 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed, dist_mem):
     children = schedule.children
     schedule, _ = ptrans.apply(children)
     # Put an OMP DO around the loops
-    for child in schedule.children[0].children:
+    for child in schedule[0].dir_body[:]:
         schedule, _ = olooptrans.apply(child)
     result = str(psy.gen)
-    print(result)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel default(shared), private(df)\n"
@@ -1844,17 +1842,17 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     ftrans.same_space = True
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    schedule, _ = ftrans.apply(schedule[0], schedule[1])
+    schedule, _ = ftrans.apply(schedule[0], schedule[1])
 
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
 
     # Put an OMP PARALLEL around the loop
-    children = schedule.children[0]
+    children = schedule[0]
     schedule, _ = ptrans.apply(children)
     # Put an OMP DO around the loop
-    schedule, _ = olooptrans.apply(schedule.children[0].children[0])
+    schedule, _ = olooptrans.apply(schedule[0].dir_body[0])
     result = str(psy.gen)
     print(result)
     if dist_mem:  # annexed can be True or False
@@ -3269,28 +3267,28 @@ def test_reprod_reduction_real_do():
 def test_no_global_sum_in_parallel_region():
     '''test that we raise an error if we try to put a parallel region
     around loops with a global sum. '''
-    for distmem in [True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.17.1_one_reduction_one_standard_builtin.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=True)
-        schedule, _ = rtrans.apply(schedule.children)
-        invoke.schedule = schedule
-        with pytest.raises(NotImplementedError) as excinfo:
-            _ = str(psy.gen)
-        assert(
-            "Cannot correctly generate code for an OpenMP parallel region "
-            "containing children of different types") in str(excinfo.value)
+    distmem = True
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.17.1_one_reduction_one_standard_builtin.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyGen.Loop):
+            schedule, _ = otrans.apply(child, reprod=True)
+    schedule, _ = rtrans.apply(schedule.children)
+    invoke.schedule = schedule
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = str(psy.gen)
+    assert(
+        "Cannot correctly generate code for an OpenMP parallel region "
+        "containing children of different types") in str(excinfo.value)
 
 
 def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
@@ -3739,6 +3737,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    indent = "    "
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -3762,75 +3761,86 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     result, _ = capsys.readouterr()
     if dist_mem:  # annexed can be True or False
         expected = (
-            isched + "[invoke='invoke_0', dm=True]\n"
-            "    0: " + directive+"[OMP parallel]\n"
-            "        0: " + directive + "[OMP do][reprod=True]\n"
-            "            0: " + loop + "[type='dofs', "
+            isched + "[invoke='invoke_0', dm=True]\n" +
+            indent + "0: " + directive + "[OMP parallel]\n" +
+            2*indent + sched + "[]\n" +
+            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            4*indent + sched + "[]\n" +
+            5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
-            "upper_bound='ndofs']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'1']\n"
-            "                " + sched + "[]\n"
-            "                    0: " + call +
-            " x_innerproduct_y(asum,f1,f2)\n"
-            "    1: " + gsum + "[scalar='asum']\n"
-            "    2: " + directive + "[OMP parallel]\n"
-            "        0: " + directive + "[OMP do]\n"
-            "            0: " + loop + "[type='dofs', "
+            "upper_bound='ndofs']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'1']\n" +
+            6*indent + sched + "[]\n" +
+            7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
+            indent + "1: " + gsum + "[scalar='asum']\n" +
+            indent + "2: " + directive + "[OMP parallel]\n" +
+            2*indent + sched + "[]\n" +
+            3*indent + "0: " + directive + "[OMP do]\n" +
+            4*indent + sched + "[]\n" +
+            5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
-            "upper_bound='nannexed']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'1']\n"
-            "                " + sched + "[]\n"
-            "                    0: " + call + " inc_a_times_x(asum,f1)\n"
-            "    3: " + directive + "[OMP parallel]\n"
-            "        0: " + directive + "[OMP do][reprod=True]\n"
-            "            0: " + loop + "[type='dofs', "
+            "upper_bound='nannexed']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'1']\n" +
+            6*indent + sched + "[]\n" +
+            7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
+            indent + "3: " + directive + "[OMP parallel]\n" +
+            2*indent + sched + "[]\n" +
+            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            4*indent + sched + "[]\n" +
+            5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
-            "upper_bound='ndofs']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'1']\n"
-            "                " + sched + "[]\n"
-            "                    0: " + call + " sum_x(bsum,f2)\n"
-            "    4: " + gsum + "[scalar='bsum']\n")
+            "upper_bound='ndofs']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'1']\n" +
+            6*indent + sched + "[]\n" +
+            7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
+            indent + "4: " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
     else:  # not dist_mem. annexed can be True or False
         expected = (
-            isched + "[invoke='invoke_0', dm=False]\n"
-            "    0: " + directive + "[OMP parallel]\n"
-            "        0: " + directive + "[OMP do][reprod=True]\n"
-            "            0: " + loop + "[type='dofs', "
+            isched + "[invoke='invoke_0', dm=False]\n" +
+            indent + "0: " + directive + "[OMP parallel]\n" +
+            2*indent + sched + "[]\n" +
+            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            4*indent + sched + "[]\n" +
+            5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
-            "upper_bound='ndofs']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'1']\n"
-            "                " + sched + "[]\n"
-            "                    0: " + call + " x_innerproduct_y(asum,f1,f2)\n"
-            "    1: " + directive + "[OMP parallel]\n"
-            "        0: " + directive + "[OMP do]\n"
-            "            0: " + loop + "[type='dofs', "
+            "upper_bound='ndofs']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'1']\n" +
+            6*indent + sched + "[]\n" +
+            7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
+            indent + "1: " + directive + "[OMP parallel]\n" +
+            2*indent + sched + "[]\n" +
+            3*indent + "0: " + directive + "[OMP do]\n" +
+            4*indent + sched + "[]\n" +
+            5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
-            "upper_bound='ndofs']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'1']\n"
-            "                " + sched + "[]\n"
-            "                    0: " + call + " inc_a_times_x(asum,f1)\n"
-            "    2: " + directive + "[OMP parallel]\n"
-            "        0: " + directive + "[OMP do][reprod=True]\n"
-            "            0: " + loop + "[type='dofs', "
+            "upper_bound='ndofs']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'1']\n" +
+            6*indent + sched + "[]\n" +
+            7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
+            indent + "2: " + directive + "[OMP parallel]\n" +
+            2*indent + sched + "[]\n" +
+            3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
+            4*indent + sched + "[]\n" +
+            5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
-            "upper_bound='ndofs']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'NOT_INITIALISED']\n"
-            "                " + lit + "[value:'1']\n"
-            "                " + sched + "[]\n"
-            "                    0: " + call + " sum_x(bsum,f2)\n")
+            "upper_bound='ndofs']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
+            6*indent + lit + "[value:'1']\n" +
+            6*indent + sched + "[]\n" +
+            7*indent + "0: " + call + " sum_x(bsum,f2)\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
@@ -3889,8 +3899,8 @@ def test_list_multiple_reductions():
         # Apply an OpenMP Parallel directive around the OpenMP do directive
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
-        omp_loop_directive = schedule.children[0].children[0]
-        call = omp_loop_directive.children[0].loop_body[0]
+        omp_loop_directive = schedule[0].dir_body[0]
+        call = omp_loop_directive.dir_body[0].loop_body[0]
         arg = call.arguments.args[2]
         arg._type = "gh_real"
         arg.descriptor._access = AccessType.SUM
@@ -5497,17 +5507,17 @@ def test_rc_no_directive():
 
     # create a colouring transformation and apply this to the loop
     ctrans = Dynamo0p3ColourTrans()
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule[3])
 
     # create an openmp transformation and apply this to the loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule.children[3].loop_body[0])
+    schedule, _ = otrans.apply(schedule[3].loop_body[0])
 
     # create a redundant computation transformation and apply this to the loop
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(
-            schedule.children[3].loop_body[0].children[0], depth=1)
+            schedule[3].loop_body[0].dir_body[0], depth=1)
     assert ("Redundant computation must be applied before directives are added"
             in str(excinfo.value))
 
