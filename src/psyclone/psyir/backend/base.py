@@ -102,6 +102,52 @@ class PSyIRVisitor(object):
         self._indent = indent_string
         self._depth = initial_indent_depth
 
+    @abc.abstractmethod
+    def codeblock_node(self, node):
+        '''This method is called when a CodeBlock instance is found in the
+        PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
+        code.
+
+        :param node: A CodeBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.CodeBlock`
+
+        :raises VisitorError: The CodeBlock can not be translated to\
+                              the target language.
+
+        '''
+
+    @abc.abstractmethod
+    def literal_node(self, node):
+        '''This method is called when a Literal instance is found in the PSyIR
+        tree.
+
+        :param node: a Literal PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Literal`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+        '''
+
+    def reference_node(self, node):
+        # pylint: disable=no-self-use
+        '''This method is called when a Reference instance is found in the
+        PSyIR tree.
+
+        :param node: a Reference PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Reference`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if this node has children.
+
+        '''
+        if node.children:
+            raise VisitorError(
+                "Expecting a Reference with no children but found: {0}"
+                "".format(str(node)))
+        return node.name
+
     @property
     def _nindent(self):
         '''

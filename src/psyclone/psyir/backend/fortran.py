@@ -324,25 +324,6 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
 
-    def reference_node(self, node):
-        # pylint: disable=no-self-use
-        '''This method is called when a Reference instance is found in the
-        PSyIR tree.
-
-        :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        :raises VisitorError: if this node has children.
-
-        '''
-        if node.children:
-            raise VisitorError(
-                "PSyIR Reference node should not have any children.")
-        return node.name
-
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
@@ -361,7 +342,6 @@ class FortranWriter(PSyIRVisitor):
         return result
 
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 

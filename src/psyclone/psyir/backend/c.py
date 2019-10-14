@@ -117,26 +117,6 @@ class CWriter(PSyIRVisitor):
         result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
         return result
 
-    def reference_node(self, node):
-        # pylint: disable=no-self-use
-        '''This method is called when a Reference instance is found in the
-        PSyIR tree.
-
-        :param node: A Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
-
-        :returns: The C code as a string.
-        :rtype: str
-
-        :raises VisitorError: If this node has children.
-
-        '''
-        if node.children:
-            raise VisitorError(
-                "Expecting a Reference with no children but found: {0}"
-                "".format(str(node)))
-        return node.name
-
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
@@ -176,7 +156,6 @@ class CWriter(PSyIRVisitor):
         return code
 
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -423,7 +402,6 @@ class CWriter(PSyIRVisitor):
         :raises VisitorError: The CodeBlock can not be translated to C.
 
         '''
-        # pylint: disable=no-self-use,unused-argument
         raise VisitorError("CodeBlocks can not be translated to C.")
 
     @property
