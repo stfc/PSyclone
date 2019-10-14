@@ -6642,6 +6642,30 @@ class BinaryOperation(Operation):
         super(BinaryOperation, self).__init__(operator, parent)
         self._text_name = "BinaryOperation"
 
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+        :returns: True if the self has the same results as other.
+        :rtype: bool
+        '''
+        if not super(BinaryOperation, self).math_equal(other):
+            # Support some commutative law, unfortunately we now need
+            # to repeat some tests already done in super(), since we
+            # don't know why the above test failed
+            # TODO #533 for documenting restrictions
+            # pylint: disable=unidiomatic-typecheck
+            if type(self) != type(other):
+                return False
+            if self.operator != other.operator:
+                return False
+            if self.operator not in [self.Operator.ADD, self.Operator.MUL,
+                                     self.Operator.AND, self.Operator.OR,
+                                     self.Operator.EQ]:
+                return False
+            return self._children[0].math_equal(other.children[1]) and \
+                self._children[1].math_equal(other.children[0])
+        return self.operator == other.operator
+    
     @property
     def coloured_text(self):
         '''
