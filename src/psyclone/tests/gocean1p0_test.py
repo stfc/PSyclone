@@ -47,8 +47,8 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
-from psyclone_test_utils import get_invoke
-from gocean1p0_build import GOcean1p0Build
+from psyclone.tests.utilities import get_invoke
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
 

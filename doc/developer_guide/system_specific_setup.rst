@@ -121,11 +121,19 @@ You can now build the pdf documentation using
 
 Installing testing tools
 ^^^^^^^^^^^^^^^^^^^^^^^^
-The following modules are recommended to get access to testing and
-formatting tools::
 
-   > sudo pip install pytest pep8 pylint==1.6.5 pytest-cov pytest-pep8 \
-   pytest-pylint pytest-flakes pytest-pep257
+You can install the necessary dependencies to run the PSyclone tests with::
+
+    > pip install psyclone[test]
+
+or when using the git version::
+
+    > pip install .[test]
+
+
+The test dependencies are canonically documented in PSyclone's setup.py
+under the ``extras_requires`` section. This installs the recommended
+tools to get access to testing and formatting tools.
 
 .. warning::
     It appears that the 1.7 series of ``pylint`` has a bug (at least up to 1.7.2)
@@ -137,7 +145,7 @@ formatting tools::
 You can now run the PSyclone python tests::
 
    > cd PSyclone.git
-   > py.test
+   > pytest
 
 In order to see whether the Python code conforms to the pep8
 standards, use::

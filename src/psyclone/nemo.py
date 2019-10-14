@@ -385,8 +385,10 @@ class NemoKern(CodedKern):
         # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
         # We therefore don't have any children.
         self._children = []
+        # Name and colour-code to use for displaying this node
         self._text_name = "CodedKern"
         self._colour_key = "CodedKern"
+        self._reduction = False
 
     @staticmethod
     def match(node):

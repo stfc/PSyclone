@@ -43,12 +43,13 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     DynamoExtractRegionTrans, GOceanExtractRegionTrans
+
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -216,9 +217,10 @@ def test_loop_no_directive_dynamo0p3():
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.13_multikernel_invokes_w3.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "4.13_multikernel_invokes_w3_anyd.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -676,7 +678,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     in Dynamo0.3 API. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
-    from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+    from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
     etrans = DynamoExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -694,7 +696,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
-           not in DISCONTINUOUS_FUNCTION_SPACES \
+           not in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
            and child.iteration_space == "cells":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops

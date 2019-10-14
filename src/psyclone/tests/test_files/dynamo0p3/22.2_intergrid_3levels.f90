@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,24 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program restrict_prolong
 
   ! Description: invoke containing restrictions/prolongations where
   ! fields swap roles (what was 'fine' becomes 'coarse')
-  use restrict_kernel_mod, only: restrict_kernel_type
-  use prolong_kernel_mod, only: prolong_kernel_type
+  use restrict_test_kernel_mod, only: restrict_test_kernel_type
+  use prolong_test_kernel_mod,  only: prolong_test_kernel_type
+
   implicit none
+
   type(field_type) :: fld_f, fld_m, fld_c
 
-  call invoke(                                     &
-              prolong_kernel_type(fld_m, fld_c),   & ! coarse -> medium
-              prolong_kernel_type(fld_f, fld_m),   & ! medium -> fine
-              restrict_kernel_type(fld_m, fld_f),  & ! fine -> medium
-              restrict_kernel_type(fld_c, fld_m) )   ! medium -> coarse
+  call invoke(                                         &
+              prolong_test_kernel_type(fld_m, fld_c),  & ! coarse -> medium
+              prolong_test_kernel_type(fld_f, fld_m),  & ! medium -> fine
+              restrict_test_kernel_type(fld_m, fld_f), & ! fine -> medium
+              restrict_test_kernel_type(fld_c, fld_m) )  ! medium -> coarse
 
 end program restrict_prolong

@@ -129,7 +129,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an unsupported PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyGen.Node`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if skip_nodes is set to False.
@@ -157,7 +157,7 @@ class SIRWriter(PSyIRVisitor):
         :param loop_node: a NemoLoop PSyIR node.
         :type loop_node: subclass of :py:class:`psyclone.nemo.NemoLoop`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if the loop is not triply nested with \
@@ -211,7 +211,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a NemoKern PSyIR node.
         :type node: :py:class:`psyclone.nemo.NemoKern`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -228,7 +228,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -265,7 +265,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Assigment`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -288,7 +288,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a BinaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if there is no mapping from the PSyIR \
@@ -299,7 +299,16 @@ class SIRWriter(PSyIRVisitor):
             BinaryOperation.Operator.ADD: '+',
             BinaryOperation.Operator.SUB: '-',
             BinaryOperation.Operator.MUL: '*',
-            BinaryOperation.Operator.DIV: '/'}
+            BinaryOperation.Operator.DIV: '/',
+            BinaryOperation.Operator.POW: '**',
+            BinaryOperation.Operator.EQ: '==',
+            BinaryOperation.Operator.NE: '!=',
+            BinaryOperation.Operator.LE: '<=',
+            BinaryOperation.Operator.LT: '<',
+            BinaryOperation.Operator.GE: '>=',
+            BinaryOperation.Operator.GT: '>',
+            BinaryOperation.Operator.AND: '&&',
+            BinaryOperation.Operator.OR: '||'}
 
         self._depth += 1
         lhs = self._visit(node.children[0])
@@ -326,7 +335,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Reference`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if this node has children.
@@ -346,7 +355,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: an Array PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Array`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -366,7 +375,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Literal`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         '''
@@ -383,7 +392,7 @@ class SIRWriter(PSyIRVisitor):
         :param node: a UnaryOperation PSyIR node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
 
-        :returns: the SIR code as a string.
+        :returns: the SIR Python code.
         :rtype: str
 
         :raises VisitorError: if there is no mapping from the PSyIR \
@@ -409,3 +418,52 @@ class SIRWriter(PSyIRVisitor):
         # There is an assumption here that the literal is a float (see #468)
         return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
                 "".format(self._nindent, oper, result))
+
+    def ifblock_node(self, node):
+        '''This method is called when an IfBlock instance is found in
+        the PSyIR tree.
+
+        :param node: an IfBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.IfBlock`
+
+        :returns: SIR Python code.
+        :rtype: str
+
+        '''
+        cond_expr = self._visit(node.condition)
+        cond_part = ("make_expr_stmt({0})"
+                     "".format(cond_expr.lstrip().rstrip(",\n")))
+
+        then_statements = self._visit(node.if_body).lstrip().rstrip(",\n")
+        then_part = "make_block_stmt([{0}])".format(then_statements)
+
+        if node.else_body:
+            else_statements = self._visit(node.else_body)
+            else_part = ("make_block_stmt([{0}])"
+                         "".format(else_statements.lstrip().rstrip(",\n")))
+        else:
+            else_part = "None"
+
+        return ("{0}make_if_stmt({1}, {2}, {3})\n"
+                "".format(self._nindent, cond_part, then_part, else_part))
+
+    def schedule_node(self, node):
+        '''This method is called when a Schedule instance is found in the
+        PSyIR tree. A Schedule instance captures an ordered sequence
+        of PSyIR nodes and is therefore found in places such as the
+        contents of the 'then' part of an 'if' statement and the
+        contents of the 'else' part of an 'if' statement. The schedule
+        has no content so simply calls its children and returns the
+        agregated result.
+
+        :param node: a Schedule PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Schedule`
+
+        :returns: the SIR Python code.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result

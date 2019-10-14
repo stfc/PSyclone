@@ -40,14 +40,16 @@ from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
+
 from fparser.two.utils import walk_ast
-from dynamo0p3_build import Dynamo0p3Build
-from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
+
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.utilities import get_invoke
 
 
 def setup_module():
@@ -190,7 +192,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
             break
     assert found
 
-    from gocean1p0_build import GOcean1p0Build
+    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     # If compilation fails this will raise an exception
     GOcean1p0Build(kernel_outputdir).compile_file(filename)
 
@@ -244,7 +246,7 @@ def test_kernel_conformance_error(mod_name, sub_name, kernel_outputdir,
                                   monkeypatch):
     '''Check that an exception is raised if a kernel does not conform to
     the <name>_mod, <name>_code convention and is output via a PSyIR
-    back-end. This limitation is the subject of issue #393.
+    back-end. This limitation is the subject of issue #520.
 
     '''
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
@@ -472,7 +474,7 @@ def test_no_inline_after_trans(monkeypatch):
 
 def test_no_inline_global_var():
     ''' Check that we refuse to in-line a kernel that accesses a global
-    variable from an un-determined source. '''
+    variable. '''
     from psyclone.transformations import KernelModuleInlineTrans
     inline_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
@@ -481,6 +483,37 @@ def test_no_inline_global_var():
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         _, _ = inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data that are not "
-            "captured in the PSyIR Symbol Table (Undeclared reference 'alpha'"
-            " found" in str(err))
+    assert ("'kernel_with_global_code' contains accesses to data (variable "
+            "'alpha') that are not captured in the PSyIR Symbol Table(s) "
+            "within KernelSchedule scope." in str(err))
+
+
+# Class KernelTrans
+
+# Method validate
+
+def test_kernel_trans_validate(monkeypatch):
+    '''Check that the validate method in the class KernelTrans raises an
+    exception if the reference is not found in any of the symbol
+    tables. KernelTrans can't be instantiated as it is abstract so use
+    a the subclass.
+
+    '''
+    from psyclone.transformations import KernelModuleInlineTrans
+    kernel_trans = KernelModuleInlineTrans()
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kernel = kernels[0]
+
+    def dummy_func():
+        '''Simple Dummy function that raises SymbolError.'''
+        from psyclone.psyGen import SymbolError
+        raise SymbolError("error")
+    monkeypatch.setattr(kernel, "get_kernel_schedule", dummy_func)
+    with pytest.raises(TransformationError) as err:
+        _, _ = kernel_trans.apply(kernel)
+    assert ("'kernel_with_global_code' contains accesses to data that are "
+            "not captured in the PSyIR Symbol Table(s) (error)."
+            "" in str(err.value))
