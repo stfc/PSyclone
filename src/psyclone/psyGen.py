@@ -1527,8 +1527,8 @@ class Node(object):
 
     def coded_kernels(self):
         '''
-        Returns a list of all of the user-supplied kernels that are beneath
-        this node in the PSyIR.
+        Returns a list of all of the user-supplied kernels (as opposed to
+        builtins) that are beneath this node in the PSyIR.
 
         :returns: all user-supplied kernel calls below this node.
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
@@ -6190,7 +6190,7 @@ class SymbolTable(object):
 
 class KernelSchedule(Schedule):
     '''
-    A kernelSchedule inherits the functionality from Schedule and adds a symbol
+    A KernelSchedule inherits the functionality from Schedule and adds a symbol
     table to keep a record of the declared variables and their attributes.
 
     :param str name: Kernel subroutine name
