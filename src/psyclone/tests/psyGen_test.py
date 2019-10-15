@@ -791,8 +791,17 @@ def test_ompdo_constructor():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     ompdo = OMPDoDirective(parent=schedule)
+    # A Directive always has a Schedule
     assert len(ompdo.children) == 1
     assert isinstance(ompdo.children[0], Schedule)
+    # Check the dir_body property
+    assert isinstance(ompdo.dir_body, Schedule)
+    # Break the directive
+    ompdo.children[0] = "not-a-schedule"
+    with pytest.raises(InternalError) as err:
+        ompdo.dir_body
+    assert ("malformed or incomplete. It should have a single Schedule as a "
+            "child but found: ['str']" in str(err.value))
     ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
     assert len(ompdo.dir_body.children) == 1
 
