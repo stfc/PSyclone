@@ -81,32 +81,34 @@ def trans(psy):
                     oper_parent = oper.parent
                     assignment = oper.ancestor(Assignment)
 
-                    # Replace operation with a temporary.
+                    # Replace operation with a temporary (res_X).
                     oper_parent.children[oper.position] = Reference("res_{0}".format(key), parent=oper_parent)
 
+                    # Assign content of operation to a temporary (tmp_X)
                     new_assignment = Assignment(parent=assignment.parent)
-                    lhs = Reference("tmp0_{0}".format(key), parent=new_assignment)
+                    lhs = Reference("tmp_{0}".format(key), parent=new_assignment)
                     rhs = oper.children[0]
                     rhs.parent = new_assignment
                     new_assignment.children = [lhs, rhs]
                     assignment.parent.children.insert(assignment.position, new_assignment)
 
+                    # Set res_X to the absolute value of tmp_X
                     if_stmt = IfBlock(parent=assignment.parent)
                     if_condition = BinaryOperation(BinaryOperation.Operator.GT, parent=if_stmt)
-                    lhs = Reference("tmp0_{0}".format(key), parent=if_condition)
+                    lhs = Reference("tmp_{0}".format(key), parent=if_condition)
                     rhs = Literal("0.0", parent=if_condition)
                     if_condition.children = [lhs, rhs]
                     then_schedule = Schedule(parent=if_stmt)
                     then_body = Assignment(parent=then_schedule)
                     then_body_lhs = Reference("res_{0}".format(key), parent=then_body)
-                    then_body_rhs = Reference("tmp0_{0}".format(key), parent=then_body)
+                    then_body_rhs = Reference("tmp_{0}".format(key), parent=then_body)
                     then_body.children = [then_body_lhs, then_body_rhs]
                     then_schedule.children = [then_body]                    
                     else_schedule = Schedule(parent=if_stmt)
                     else_body = Assignment(parent=else_schedule)
                     else_body_lhs = Reference("res_{0}".format(key), parent=else_body)
                     else_body_rhs = BinaryOperation(BinaryOperation.Operator.MUL, parent=else_body)
-                    lhs_child = Reference("tmp0_{0}".format(key), parent=else_body_rhs)
+                    lhs_child = Reference("tmp_{0}".format(key), parent=else_body_rhs)
                     rhs_child = Literal("-1.0", parent=else_body_rhs)
                     else_body_rhs.children = [lhs_child, rhs_child]
                     else_body.children = [else_body_lhs, else_body_rhs]
@@ -148,12 +150,16 @@ def trans(psy):
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.SIGN:
                     print ("FOUND SIGN")
+                    # R=SIGN(A,B) if A<0 then (if B<0 R=B else R=B*-1) else ((if B>0 R=B else R=B*-1))
+                    # R=SIGN(A,B) R=ABS(B); if A<0 R=R*-1
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.MIN:
                     print ("FOUND BINARY MIN")
+                    # R=MIN(A,B) R=A; IF B<A R=B
             for oper in kernel_schedule.walk(NaryOperation):
                 if oper.operator == NaryOperation.Operator.MIN:
                     print ("FOUND NARY MIN")
+                    # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
         # kern = sir_writer(sched)
         kern = fortran_writer(sched)
         print(kern)
