@@ -89,6 +89,37 @@ def test_omp_explicit_gen():
     assert expected in gen_code
 
 
+@pytest.mark.xfail(reason="Loop boundary is declared private, #483")
+def test_omp_private_declaration():
+    ''' Check code generation and private/shared declaration when
+    an assignment is parallelised. In this case the code is like:
+    !$omp parallel default(shared), private()
+    jpk = 100
+    do k=1, jpk ...
+    enddo
+    !$omp end parallel
+    do k=1, jpk ...
+
+    In this case jpk should not be declared private, since then it
+    is not defined in the next loop.'''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "explicit_do_two_loops.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('explicit_do').schedule
+    schedule.view()
+    omp_parallel = TransInfo().get_trans_name('OMPParallelTrans')
+
+    # Apply "omp parallel" around one assignment to a scalar variable
+    # and a loop using this variable as loop boundary.
+    omp_parallel.apply(schedule.children[0:2])
+    expected = "!$omp parallel default(shared), private(ji,jj,jk)"
+
+    gen_code = str(psy.gen).lower()
+    assert expected in gen_code
+
+
 def test_omp_parallel():
     ''' Check insertion of an OpenMP parallel region containing a single,
     explicit loop. '''
