@@ -156,6 +156,7 @@ class CWriter(PSyIRVisitor):
         return code
 
     def literal_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -391,13 +392,11 @@ class CWriter(PSyIRVisitor):
         '''
         return "{0}return;\n".format(self._nindent)
 
-    def codeblock_node(self, node):
+    def codeblock_node(self, _):
+        # pylint: disable=no-self-use
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
         code.
-
-        :param node: A CodeBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.CodeBlock`
 
         :raises VisitorError: The CodeBlock can not be translated to C.
 
