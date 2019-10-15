@@ -313,13 +313,9 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
-        '''Dummy class'''
-        def __init__(self):
-            pass
-    # pylint: enable=too-few-public-methods
-    # pylint: disable=protected-access
+    # pylint: disable=too-few-public-methods,missing-docstring
+    class Unsupported(object):
+        pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
