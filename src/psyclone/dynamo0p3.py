@@ -65,10 +65,14 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
 # Continuous FS
-# Space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Note, any_w2 is not a space on its own. any_w2 is used as a common term for
+# any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
+# (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
+# it needs to a) be treated as continuous and b) have vector basis and scalar
+# differential basis dimensions.
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
 # Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
@@ -89,6 +93,16 @@ VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
                              VALID_ANY_SPACE_NAMES + \
                              VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+# Lists of function spaces that have
+# a) scalar basis functions;
+SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta"]
+# b) vector basis functions;
+VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
+# c) scalar differential basis functions;
+SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
+# d) vector differential basis functions.
+VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta"]
 
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
@@ -3361,11 +3375,9 @@ class DynBasisFunctions(DynCollection):
         :raises GenerationError: if an unsupported function space is supplied \
                                  (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
-        if function_space.orig_name.lower() in \
-           ["w0", "w3", "wtheta"]:
+        if function_space.orig_name.lower() in SCALAR_BASIS_SPACE_NAMES:
             first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w1", "w2", "w2h", "w2v", "any_w2"]):
+        elif function_space.orig_name.lower() in VECTOR_BASIS_SPACE_NAMES:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
@@ -3411,11 +3423,9 @@ class DynBasisFunctions(DynCollection):
                                  ANY_DISCONTINUOUS_SPACE_*)
 
         '''
-        if function_space.orig_name.lower() in \
-           ["w2", "w2h", "w2v", "any_w2"]:
+        if function_space.orig_name.lower() in SCALAR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w0", "w1", "w3", "wtheta"]):
+        elif function_space.orig_name.lower() in VECTOR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first

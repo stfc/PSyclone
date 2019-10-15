@@ -2779,17 +2779,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     '''
 
-    # ndofs for different function spaces on a quadrilateral element
-    # for different orders. Formulas kindly provided by Tom
-    # Melvin. See the Qr table at http://femtable.org/background.html,
+    # ndofs per 3D cell for different function spaces on a quadrilateral
+    # element for different orders. Formulas kindly provided by Tom Melvin and
+    # Thomas Gibson. See the Qr table at http://femtable.org/background.html,
     # for computed values of w0, w1, w2 and w3 up to order 7.
-    space_to_dofs = {"w3":     (lambda n: (n+1)**3),
-                     "w2":     (lambda n: 3*(n+2)*(n+1)**2),
-                     "w1":     (lambda n: 3*(n+2)**2*(n+1)),
-                     "w0":     (lambda n: (n+2)**3),
-                     "wtheta": (lambda n: (n+2)*(n+1)**2),
-                     "w2h":    (lambda n: 2*(n+2)*(n+1)**2),
-                     "w2v":    (lambda n: (n+2)*(n+1)**2)}
+    space_to_dofs = {"w3":       (lambda n: (n+1)**3),
+                     "w2":       (lambda n: 3*(n+2)*(n+1)**2),
+                     "w1":       (lambda n: 3*(n+2)**2*(n+1)),
+                     "w0":       (lambda n: (n+2)**3),
+                     "wtheta":   (lambda n: (n+2)*(n+1)**2),
+                     "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
+                     "w2v":      (lambda n: (n+2)*(n+1)**2),
+                     "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
+                     "w2trace":  (lambda n: 6*(n+1)**2)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
