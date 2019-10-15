@@ -647,12 +647,12 @@ def test_transform_errors(capsys):
     omp_loop = GOceanOMPLoopTrans()
 
     # Parallelise the first loop:
-    sched1, _ = omp_loop.apply(schedule.children[0])
+    sched1, _ = omp_loop.apply(schedule[0])
 
     # Inserting a ProfileRegion inside a omp do loop is syntactically
     # incorrect, the inner part must be a do loop only:
     with pytest.raises(TransformationError) as excinfo:
-        prt.apply(sched1.children[0].children[0])
+        prt.apply(sched1[0].dir_body[0])
 
     assert "A ProfileNode cannot be inserted between an OpenMP/ACC directive "\
            "and the loop(s) to which it applies!" in str(excinfo)
@@ -672,9 +672,9 @@ def test_omp_transform():
     omp_par = OMPParallelTrans()
 
     # Parallelise the first loop:
-    sched1, _ = omp_loop.apply(schedule.children[0])
-    sched2, _ = omp_par.apply(sched1.children[0])
-    sched3, _ = prt.apply(sched2.children[0])
+    sched1, _ = omp_loop.apply(schedule[0])
+    sched2, _ = omp_par.apply(sched1[0])
+    sched3, _ = prt.apply(sched2[0])
 
     correct = (
         "      CALL ProfileStart(\"boundary_conditions_ne_offset_mod\", "
@@ -694,7 +694,7 @@ def test_omp_transform():
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
-    sched3, _ = prt.apply(sched3.children[0].children[0].children[0])
+    sched3, _ = prt.apply(sched3[0].children[0].dir_body[0])
 
     code = str(invoke.gen())
 

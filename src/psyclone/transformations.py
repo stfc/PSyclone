@@ -2603,12 +2603,16 @@ class ProfileRegionTrans(RegionTrans):
 
         '''
         # Check whether we've been passed a list of nodes or just a
-        # single node. If the latter then we create ourselves a
-        # list containing just that node.
+        # single node.
         from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
+        elif isinstance(nodes, Schedule):
+            # We've been passed a Schedule so default to enclosing its
+            # children.
+            node_list = nodes.children
         elif isinstance(nodes, Node):
+            # Single node that's not a Schedule
             node_list = [nodes]
         else:
             arg_type = str(type(nodes))
@@ -2624,7 +2628,8 @@ class ProfileRegionTrans(RegionTrans):
         # the first child to be enclosed as that will become the
         # position of the new Profile node
         node_parent = node_list[0].parent
-        if isinstance(node_parent, (OMPDoDirective, ACCLoopDirective)):
+        if isinstance(node_parent, Schedule) and \
+           isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
             raise TransformationError("A ProfileNode cannot be inserted "
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
@@ -3826,9 +3831,10 @@ class ExtractRegionTrans(RegionTrans):
 
             # Check that ExtractNode is not inserted between a Loop and its
             # parent Directive when optimisations are applied, as this may
-            # result in including the end of Directive for extraction but
+            # result in including the end Directive for extraction but
             # not the beginning.
-            if isinstance(node, Loop) and isinstance(node.parent, Directive):
+            if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
+               and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
                     "Error in {0}: Extraction of a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
