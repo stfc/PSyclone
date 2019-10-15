@@ -314,7 +314,7 @@ def test_cw_unaryoperator():
 
     # Test that an unsupported operator raises an error
     class Unsupported(object):
-        # pylint: disable=too-few-public-methods,missing-docstring
+        # pylint: disable=missing-docstring
         pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
@@ -366,12 +366,10 @@ def test_cw_binaryoperator():
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=too-few-public-methods
     class Unsupported(object):
         '''Dummy class'''
         def __init__(self):
             pass
-    # pylint: enable=too-few-public-methods
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)

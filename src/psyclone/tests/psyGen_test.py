@@ -713,13 +713,13 @@ def test_call_abstract_methods():
     the expected exceptions '''
     my_arguments = Arguments(None)
 
-    class KernType(object):  # pylint: disable=too-few-public-methods
+    class KernType(object):
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):  # pylint: disable=too-few-public-methods
+    class DummyClass(object):
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
