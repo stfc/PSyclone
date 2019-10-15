@@ -309,9 +309,7 @@ def test_cw_unaryoperator():
                  (UnaryOperation.Operator.REAL, '(float)a'))
 
     for operator, expected in test_list:
-        # pylint: disable=protected-access
         unary_operation._operator = operator
-        # pylint: enable=protected-access
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
@@ -323,7 +321,6 @@ def test_cw_unaryoperator():
     # pylint: enable=too-few-public-methods
     # pylint: disable=protected-access
     unary_operation._operator = Unsupported
-    # pylint: enable=protected-access
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
     assert "The C backend does not support the '" in str(err)
@@ -369,9 +366,7 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.SIGN, 'copysign(a, b)'))
 
     for operator, expected in test_list:
-        # pylint: disable=protected-access
         binary_operation._operator = operator
-        # pylint: enable=protected-access
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
@@ -381,9 +376,7 @@ def test_cw_binaryoperator():
         def __init__(self):
             pass
     # pylint: enable=too-few-public-methods
-    # pylint: disable=protected-access
     binary_operation._operator = Unsupported
-    # pylint: enable=protected-access
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
     assert "The C backend does not support the '" in str(err)
