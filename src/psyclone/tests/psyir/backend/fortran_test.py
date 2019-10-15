@@ -385,7 +385,7 @@ def test_fw_reference(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = fort_writer(schedule)
-    assert "PSyIR Reference node should not have any children." in str(excinfo)
+    assert "Expecting a Reference with no children but found" in str(excinfo)
 
 
 def test_fw_array(fort_writer):
