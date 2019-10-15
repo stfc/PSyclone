@@ -313,8 +313,8 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    # pylint: disable=too-few-public-methods,missing-docstring
     class Unsupported(object):
+        # pylint: disable=too-few-public-methods,missing-docstring
         pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
