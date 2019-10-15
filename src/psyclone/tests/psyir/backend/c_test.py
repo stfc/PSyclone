@@ -379,8 +379,10 @@ def test_cw_binaryoperator():
 
 def test_cw_loop():
     '''Tests writing out a Loop node in C. It parses Fortran code
-    and outputs it as C.'''
+    and outputs it as C. Note that this is atm a literal translation,
+    the loops are not functionally identical to Fortran, see TODO #523.
 
+    '''
     from psyclone.tests.utilities import create_schedule
 
     # Generate PSyIR from Fortran code.
