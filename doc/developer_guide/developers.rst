@@ -339,11 +339,30 @@ information about the exact location.
 
 .. automethod:: psyclone.psyGen.Node.walk
 
+.. _container-label:
+
+Container
+=========
+
+The Container node contains one or more Containers and/or
+KernelSchedules (see :ref:`kernel_schedule-label`). Similarly to
+KernelSchedule it contains a SymbolTable
+(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) specified in the Container scope (see
+:ref:`symbol-label`).
+
+A Container can be used to capture a hierarchical grouping of
+KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
+specified in a Container is visible to all Containers and
+KernelSchedules within it and their descendents.
+
+.. autoclass:: psyclone.psyGen.Container
+    :members:
 
 Schedule
 ========
 
-The Schedule node represents a sequence of statements. It is a important node
+The Schedule node represents a sequence of statements. It is an important node
 in PSyclone because two of its specialisations: `InvokeSchedule` and
 `KernelSchedule` (described below), are used as the root nodes of PSy-layer
 invokes and kernel subroutines. This makes them the starting points for any
@@ -370,19 +389,12 @@ with a `psyclone.psyGen.NameSpace` and a reference to its associated
 KernelSchedule
 ---------------
 
-The `KernelSchedule` is a PSyIR node that represents a kernel subroutine. It
-extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
-(`psyclone.psyGen.SymbolTable`) that keeps a record of the symbols
-(`psyclone.psyGen.Symbol`) used in the kernel scope. A `Symbol` is defined as:
+The `KernelSchedule` is a PSyIR node that represents a kernel
+subroutine. It extends the `psyclone.psyGen.Schedule` functionality
+with a SymbolTable (`psyclone.psyGen.SymbolTable`) that keeps a record
+of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
+(see :ref:`symbol-label`).
 
-.. autoclass:: psyclone.psyGen.Symbol
-    :members:
-
-
-The Symbol Table has the following interface:
-
-.. autoclass:: psyclone.psyGen.SymbolTable
-    :members:
 
 Control Flow Nodes
 ==================
@@ -501,6 +513,25 @@ Directives. Directives currently do not place their children in a
 Schedule. As the structure of Directives is under discussion, it was
 decided to raise an exception if the parent node of a CodeBlock is a
 Directive (for the time being).
+
+.. _symbol-label:
+
+Symbol Table and Symbol
+=======================
+
+The Container (see :ref:`container-label` and KernelSchedule (see
+:ref:`kernel_schedule-label`) nodes contain a SymbolTable
+(`psyclone.psyGen.SymbolTable`) which keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) specified and used within them.  A `Symbol`
+is defined as:
+
+.. autoclass:: psyclone.psyGen.Symbol
+    :members:
+
+The SymbolTable has the following interface:
+
+.. autoclass:: psyclone.psyGen.SymbolTable
+    :members:
 
 
 Dependence Analysis
@@ -817,6 +848,51 @@ until we find accesses that would prevent parallelisation::
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.
+
+Dependency Tools
+----------------
+PSyclone contains a class that provides useful tools for dependency analaysis.
+It especially provides messages for the user to indicate why parallelisation
+was not possible.
+
+.. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
+    :members:
+
+.. note:: There is limited support for detecting index expression that are
+    identical because of the commutative law, e.g. `i+k` and `k+i` would be
+    considered equal. But this only applies if two items are switched that
+    are part of the same PSyIR node. An expression like `i+k+1` is stored as
+    `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
+    be equal, because `i+1` and `i+k` are not the same.
+
+
+An example of how to use this class is shown below. It takes a list of statements
+(i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
+can be parallelised::
+
+  parallel_loop = OMPLoopTrans()
+  # The loops in the Fortran functions that must be parallelised
+  # are over the 'grid' domain. Note that the psyclone config
+  # file specifies the mapping of loop variable to type, e.g.:
+  #
+  #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+  #
+  # This means any loop using the variable 'np' is considered a
+  # loop of type 'grid'
+  dt = DependencyTools(["grid"])
+
+  for statement in statements:
+      if isinstance(statement, NemoLoop):
+          # Check if there is a variable dependency that might 
+          # prevent this loop from being parallelised:
+          if dt.can_loop_be_parallelised(statement):
+              parallel_loop.apply(statement)
+          else:
+              # Print all messages from the dependency analysis
+              # as feedback for the user:
+              for message in dt.get_all_messages():
+                  print(message)
+
 
 PSyIR back-ends
 ###############

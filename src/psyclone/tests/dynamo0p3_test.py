@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office,
+# Modified I. Kavcic Met Office,
 #          C. M. Maynard, Met Office/University of Reading.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -42,23 +42,26 @@ from __future__ import absolute_import, print_function
 import os
 import sys
 import pytest
+
+import fparser
+from fparser import api as fpapi
+
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
+    KernCallArgList, DynACCEnterDataDirective, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, KernCallArgList, DynACCEnterDataDirective
+    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
-import fparser
-from fparser import api as fpapi
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -89,13 +92,13 @@ def test_get_op_orientation_name():
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                 &
-          (/ arg_type(gh_real, gh_read),            &
-             arg_type(gh_field,gh_write,w1),        &
-             arg_type(gh_field,gh_read, w2),        &
-             arg_type(gh_operator,gh_read, w2, w2), &
-             arg_type(gh_field,gh_read, w3),        &
-             arg_type(gh_integer, gh_read)          &
+     type(arg_type), meta_args(6) =                  &
+          (/ arg_type(gh_real, gh_read),             &
+             arg_type(gh_field, gh_inc, w1),         &
+             arg_type(gh_field, gh_read, w2),        &
+             arg_type(gh_operator, gh_read, w2, w2), &
+             arg_type(gh_field, gh_read, w3),        &
+             arg_type(gh_integer, gh_read)           &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -105,7 +108,7 @@ module testkern_qr
      integer, parameter :: iterates_over = cells
      integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
-     procedure() :: code => testkern_qr_code
+     procedure, nopass :: code => testkern_qr_code
   end type testkern_qr_type
 contains
   subroutine testkern_qr_code(a,b,c,d)
@@ -120,8 +123,8 @@ def test_arg_descriptor_wrong_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                        "arg_typ(gh_field,gh_read, w2)", 1)
+    code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+                        "arg_typ(gh_field, gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -134,7 +137,7 @@ def test_arg_descriptor_vector_str():
     ''' Test the str method of an argument descriptor containing a vector '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
-    code = CODE.replace("gh_field,gh_write,w1", "gh_field*3,gh_write,w1", 1)
+    code = CODE.replace("gh_field, gh_inc, w1", "gh_field*3, gh_inc, w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     dkm = DynKernMetadata(ast, name=name)
@@ -142,7 +145,7 @@ def test_arg_descriptor_vector_str():
     expected = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_write'\n"
+        "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
     assert expected in dkm_str
 
@@ -225,8 +228,8 @@ def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_type(gh_field,gh_write)", 1)
+    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
+                        "arg_type(gh_field, gh_inc)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -239,8 +242,8 @@ def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_type(gh_field,gh_write,w1,w1,w2)", 1)
+    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
+                        "arg_type(gh_field, gh_inc, w1, w1, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -253,8 +256,8 @@ def test_ad_fld_type_1st_arg():
     ''' Tests that an error is raised when the 1st argument is
     invalid'''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_type(gh_hedge,gh_write,w1)", 1)
+    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
+                        "arg_type(gh_hedge, gh_inc, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -292,7 +295,7 @@ def test_arg_descriptor_invalid_fs1():
     ''' Tests that an error is raised when an invalid function space
     name is provided as the third argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field,gh_read, w3", "gh_field,gh_read, w4", 1)
+    code = CODE.replace("gh_field, gh_read, w3", "gh_field, gh_read, w4", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -316,7 +319,7 @@ def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
     as its operator. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field,gh_write,w1", "gh_field+3,gh_write,w1", 1)
+    code = CODE.replace("gh_field, gh_inc, w1", "gh_field+3, gh_inc, w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -328,7 +331,7 @@ def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
     integer '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field,gh_write,w1", "gh_field*n,gh_write,w1", 1)
+    code = CODE.replace("gh_field, gh_inc, w1", "gh_field*n, gh_inc, w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -340,7 +343,7 @@ def test_invalid_vector_value_range():
     ''' Tests that an error is raised when a vector value is not a valid
     value (<2) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field,gh_write,w1", "gh_field*1,gh_write,w1", 1)
+    code = CODE.replace("gh_field, gh_inc, w1", "gh_field*1, gh_inc, w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -679,23 +682,26 @@ def test_field_fs(tmpdir):
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
-        "m3, m4)\n"
+        "m3, m4, f5, m5)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1, f3\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(inout) :: f3\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4, f5, "
+        "m5\n"
         "      INTEGER cell\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
-        "f3_proxy, f4_proxy, m3_proxy, m4_proxy\n"
+        "f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, m5_proxy\n"
         "      INTEGER, pointer :: map_any_w2(:,:) => null(), "
-        "map_w0(:,:) => null(), "
-        "map_w1(:,:) => null(), map_w2(:,:) => null(), "
-        "map_w2h(:,:) => null(), map_w2v(:,:) => null(), "
+        "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => null(), "
+        "map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
+        "map_w2trace(:,:) => null(), map_w2v(:,:) => null(), "
         "map_w3(:,:) => null(), map_wtheta(:,:) => null()\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
         "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
-        "ndf_w2v, undf_w2v, ndf_any_w2, undf_any_w2\n"
+        "ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, ndf_w2trace, "
+        "undf_w2trace, ndf_any_w2, undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -709,6 +715,8 @@ def test_field_fs(tmpdir):
         "      f4_proxy = f4%get_proxy()\n"
         "      m3_proxy = m3%get_proxy()\n"
         "      m4_proxy = m4%get_proxy()\n"
+        "      f5_proxy = f5%get_proxy()\n"
+        "      m5_proxy = m5%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -727,7 +735,9 @@ def test_field_fs(tmpdir):
         "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_w2 => m4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2broken => m4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2trace => f5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_w2 => m5_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w1\n"
         "      !\n"
@@ -764,12 +774,26 @@ def test_field_fs(tmpdir):
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise number of DoFs for w2broken\n"
+        "      !\n"
+        "      ndf_w2broken = m4_proxy%vspace%get_ndf()\n"
+        "      undf_w2broken = m4_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2trace\n"
+        "      !\n"
+        "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
+        "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Initialise number of DoFs for any_w2\n"
         "      !\n"
-        "      ndf_any_w2 = m4_proxy%vspace%get_ndf()\n"
-        "      undf_any_w2 = m4_proxy%vspace%get_undf()\n"
+        "      ndf_any_w2 = m5_proxy%vspace%get_ndf()\n"
+        "      undf_any_w2 = m5_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
@@ -795,16 +819,25 @@ def test_field_fs(tmpdir):
         "        CALL m4_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
+        "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f5_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m5_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
-        "m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, map_w0(:,cell), "
-        "ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
-        "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), "
-        "ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_any_w2, undf_any_w2, "
-        "map_any_w2(:,cell))\n"
+        "m3_proxy%data, m4_proxy%data, f5_proxy%data, m5_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, "
+        "undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
+        "ndf_wtheta, undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
+        "map_w2h(:,cell), ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_w2broken, "
+        "undf_w2broken, map_w2broken(:,cell), ndf_w2trace, undf_w2trace, "
+        "map_w2trace(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
         "      END DO \n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
@@ -1330,7 +1363,7 @@ def test_orientation():
 
 
 def test_any_space_1(tmpdir):
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
@@ -1366,7 +1399,7 @@ def test_any_space_1(tmpdir):
 
 
 def test_any_space_2():
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes multiple declarations of the same space, no
     func_type declarations and any_space used with an
     operator. '''
@@ -1389,7 +1422,7 @@ def test_any_space_2():
 
 
 def test_op_any_space_different_space_1():
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
@@ -1429,6 +1462,88 @@ def test_op_any_space_different_space_2(tmpdir):
         generated_code
     assert "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()" in \
         generated_code
+
+
+def test_op_any_discontinuous_space_1(tmpdir):
+    ''' Tests that any_discontinuous_space is implemented correctly
+    in the PSy layer. Includes multiple declarations of the same space,
+    field vectors and any_discontinuous_space used with operators
+    (same and different "to" and "from" spaces). '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
+    assert ("INTEGER, pointer :: map_any_discontinuous_space_1_f1(:,:) => "
+            "null()" in generated_code)
+    assert ("INTEGER ndf_any_discontinuous_space_1_f1, "
+            "undf_any_discontinuous_space_1_f1" in generated_code)
+    assert ("ndf_any_discontinuous_space_1_f1 = f1_proxy(1)%vspace%get_ndf()"
+            in generated_code)
+    assert ("undf_any_discontinuous_space_1_f1 = "
+            "f1_proxy(1)%vspace%get_undf()" in generated_code)
+    assert ("map_any_discontinuous_space_1_f1 => "
+            "f1_proxy(1)%vspace%get_whole_dofmap()" in generated_code)
+    assert ("ndf_any_discontinuous_space_3_op4 = "
+            "op4_proxy%fs_to%get_ndf()" in generated_code)
+    assert ("ndf_any_discontinuous_space_7_op4 = "
+            "op4_proxy%fs_from%get_ndf()" in generated_code)
+    assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, nlayers, "
+            "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
+            "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
+            "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
+            "ndf_any_discontinuous_space_1_f1, "
+            "undf_any_discontinuous_space_1_f1, "
+            "map_any_discontinuous_space_1_f1(:,cell), "
+            "ndf_any_discontinuous_space_2_f2, "
+            "undf_any_discontinuous_space_2_f2, "
+            "map_any_discontinuous_space_2_f2(:,cell), "
+            "ndf_any_discontinuous_space_3_op4, "
+            "ndf_any_discontinuous_space_7_op4)" in generated_code)
+
+
+def test_op_any_discontinuous_space_2(tmpdir):
+    ''' Tests that any_discontinuous_space is implemented correctly in the
+    PSy layer when including multiple spaces, operators on same and different
+    "to" and "from" spaces) and basis/differential basis functions '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.5_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert ("ndf_any_discontinuous_space_4_f1 = f1_proxy%vspace%get_ndf()" in
+            generated_code)
+    assert ("undf_any_discontinuous_space_4_f1 = "
+            "f1_proxy%vspace%get_undf()" in generated_code)
+    assert ("map_any_discontinuous_space_4_f1 => "
+            "f1_proxy%vspace%get_whole_dofmap()" in generated_code)
+    assert ("ndf_any_discontinuous_space_1_op1 = op1_proxy%fs_to%get_ndf()" in
+            generated_code)
+    assert ("ndf_any_discontinuous_space_2_op1 = "
+            "op1_proxy%fs_from%get_ndf()" in generated_code)
+    assert ("dim_any_discontinuous_space_4_f1 = "
+            "f1_proxy%vspace%get_dim_space()" in generated_code)
+    assert ("diff_dim_any_discontinuous_space_4_f1 = "
+            "f1_proxy%vspace%get_dim_space_diff()" in generated_code)
+    assert ("ALLOCATE (basis_any_discontinuous_space_1_op1_qr("
+            "dim_any_discontinuous_space_1_op1, "
+            "ndf_any_discontinuous_space_1_op1" in generated_code)
+    assert ("ALLOCATE (diff_basis_any_discontinuous_space_4_f1_qr"
+            "(diff_dim_any_discontinuous_space_4_f1, "
+            "ndf_any_discontinuous_space_4_f1" in generated_code)
+    assert ("CALL qr%compute_function(BASIS, op1_proxy%fs_to, "
+            "dim_any_discontinuous_space_1_op1, "
+            "ndf_any_discontinuous_space_1_op1, "
+            "basis_any_discontinuous_space_1_op1_qr)" in generated_code)
+    assert ("CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
+            "diff_dim_any_discontinuous_space_4_f1, "
+            "ndf_any_discontinuous_space_4_f1, "
+            "diff_basis_any_discontinuous_space_4_f1_qr)" in generated_code)
 
 
 def test_invoke_uniq_declns():
@@ -2155,7 +2270,7 @@ module stencil_mod
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => stencil_code
+     procedure, nopass :: code => stencil_code
   end type stencil_type
 contains
   subroutine stencil_code()
@@ -2499,7 +2614,7 @@ def test_arg_descriptor_fld_str():
     expected_output = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'\n"
-        "  access_descriptor[1]='gh_write'\n"
+        "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
     assert expected_output in result
 
@@ -2601,8 +2716,9 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space '''
+    any_space or any_discontinuous_space '''
     from psyclone.dynamo0p3 import mangle_fs_name
+    # Test any_space
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
@@ -2885,15 +3001,18 @@ def test_no_set_dirty_for_operator():
     assert "is_dirty" not in result
 
 
-def test_halo_exchange_different_spaces():
-    '''test that all of our different function spaces with a stencil
-    access result in halo calls including any_space'''
+def test_halo_exchange_different_spaces(tmpdir):
+    ''' Test that all of our different function spaces with a stencil
+    access result in halo calls including any_space, any_w2 and
+    any_discontinuous_space '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.3_halo_readers_all_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert result.count("halo_exchange") == 9
+    assert result.count("halo_exchange") == 12
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_halo_exchange_vectors_1(monkeypatch, annexed):
@@ -3041,9 +3160,9 @@ def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in DISCONTINUOUS_FUNCTION_SPACES:
-        code = CODE.replace("arg_type(gh_field,gh_read, w3)",
-                            "arg_type(gh_field,gh_inc, " +
+    for fspace in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+        code = CODE.replace("arg_type(gh_field, gh_read, w3)",
+                            "arg_type(gh_field, gh_inc, " +
                             fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -3058,8 +3177,8 @@ def test_fs_continuous_and_readwrite_error():
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in CONTINUOUS_FUNCTION_SPACES:
-        code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                            "arg_type(gh_field,gh_readwrite, " +
+        code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+                            "arg_type(gh_field, gh_readwrite, " +
                             fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -3074,8 +3193,8 @@ def test_fs_anyspace_and_readwrite_error():
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in VALID_ANY_SPACE_NAMES:
-        code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                            "arg_type(gh_field,gh_readwrite, " +
+        code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+                            "arg_type(gh_field, gh_readwrite, " +
                             fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -3276,7 +3395,7 @@ def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type gh_sum '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+    code = CODE.replace("arg_type(gh_field, gh_read, w2)",
                         "arg_type(gh_field, gh_sum, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -3291,7 +3410,7 @@ def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with
     access type gh_sum '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_sum, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -3812,7 +3931,7 @@ def test_multiple_stencil_same_name(dist_mem):
     assert output5 in result
 
 
-def test_multi_stencil_same_name_direction(dist_mem):
+def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
     '''test the case where there is more than one stencil in a kernel with
     the same name for direction'''
     _, invoke_info = parse(
@@ -3888,8 +4007,13 @@ def test_multi_stencil_same_name_direction(dist_mem):
         "f4_proxy%data, f4_stencil_size, direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+        "map_w2(:,cell), ndf_any_discontinuous_space_1_f4, "
+        "undf_any_discontinuous_space_1_f4, "
+        "map_any_discontinuous_space_1_f4(:,cell))")
     assert output5 in result
+
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_multi_kerns_stencils_diff_fields(dist_mem):
@@ -4441,6 +4565,59 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
     assert output3 in result
 
 
+def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
+    ''' Tests for stencils and any_discontinuous_space space within
+    a single kernel and between kernels. We test when
+    any_discontinuous_space is the same and when it is different
+    within kernels and between kernels for the case of different fields.
+    When it is the same we should have the same stencil dofmap
+    (as all other stencil information is the same) and when it is
+    different we should have a different stencil dofmap (as we do not
+    know whether they are on the same space). '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "19.24_any_discontinuous_space_stencil.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+
+    # Check compilation
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
+    # Use the same stencil dofmap
+    output1 = (
+        "        CALL testkern_same_any_dscnt_space_stencil_code("
+        "nlayers, f0_proxy%data, f1_proxy%data, f1_stencil_size, "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+        "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
+        "map_wtheta(:,cell), ndf_any_discontinuous_space_1_f1, "
+        "undf_any_discontinuous_space_1_f1, "
+        "map_any_discontinuous_space_1_f1(:,cell))")
+    assert output1 in result
+    # Use a different stencil dofmap
+    output2 = (
+        "        CALL testkern_different_any_dscnt_space_stencil_code("
+        "nlayers, f3_proxy%data, f4_proxy%data, f4_stencil_size, "
+        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
+        "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
+        "map_wtheta(:,cell), ndf_any_discontinuous_space_1_f4, "
+        "undf_any_discontinuous_space_1_f4, "
+        "map_any_discontinuous_space_1_f4(:,cell), "
+        "ndf_any_discontinuous_space_2_f5, "
+        "undf_any_discontinuous_space_2_f5, "
+        "map_any_discontinuous_space_2_f5(:,cell))")
+    assert output2 in result
+    # Check for halo exchanges and correct loop bounds
+    if dist_mem:
+        assert result.count("_proxy%halo_exchange(depth=extent)") == 4
+        assert result.count("DO cell=1,mesh%get_last_edge_cell()") == 2
+    else:
+        assert "halo_exchange(depth=extent)" not in result
+        assert "DO cell=1,f0_proxy%vspace%get_ncell()" in result
+        assert "DO cell=1,f3_proxy%vspace%get_ncell()" in result
+
+
 def test_stencil_args_unique_1(dist_mem):
     '''This test checks that stencil extent and direction arguments do not
     clash with internal names generated in the PSy-layer. f2_stencil_size
@@ -4675,8 +4852,8 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
 
 
 def test_dynloop_load_unexpected_func_space():
-    ''' The load function of an instance of the dynloop class raises an
-    error if an unexpexted function space is found. This test makes
+    ''' The load function of an instance of the DynLoop class raises an
+    error if an unexpected function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
     this error as it is unreachable. However, we can sabotage an
     earlier function to make it return an invalid value. '''
@@ -4698,16 +4875,17 @@ def test_dynloop_load_unexpected_func_space():
     def broken_func():
         ''' Returns the above field no matter what '''
         return field
-    # replace the iteration_space_arg method with our broke
+    # Replace the iteration_space_arg method with our broke
     # function. This is required as iteration_space_arg currently
     # never returns a field with an invalid function space.
+    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     kernel.arguments.iteration_space_arg = broken_func
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'wtheta', 'w2v', 'w0', 'w1', 'w2', 'w2h', "
-            "'any_w2'] but found 'broken'" in str(err))
+            "one of " + str(VALID_FUNCTION_SPACES) + " but found 'broken'"
+            in str(err))
 
 
 def test_dynkernargs_unexpect_stencil_extent():
@@ -4804,8 +4982,8 @@ def test_no_updated_args():
     ''' Check that we raise the expected exception when we encounter a
     kernel that does not write to any of its arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_type(gh_field,gh_read,w1)", 1)
+    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
+                        "arg_type(gh_field, gh_read, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -4828,7 +5006,7 @@ module testkern
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
+     procedure, nopass :: code => testkern_code
   end type testkern_type
 contains
   subroutine testkern_code(a,b)
@@ -4848,8 +5026,8 @@ def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                        "arg_type(gh_field,gh_write, w1)", 1)
+    code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+                        "arg_type(gh_field, gh_inc, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -4865,8 +5043,8 @@ def test_multiple_updated_op_args():
     ''' Check that we successfully parse the metadata for a kernel that
     writes to more than one of its field and operator arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_write, w1, w1)", 1)
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_write, w1, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -4894,32 +5072,32 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w2v_w1(tmpdir):
-    ''' Check that generated loop over cells in the psy layer has the
+def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
+    ''' Check that generated loop over cells in the PSy layer has the
     correct upper bound when a kernel writes to two fields, the first on
-    a discontinuous space (w2v) and the second on a continuous space (w1).
+    a discontinuous space (w2broken) and the second on a continuous space (w1).
     The resulting loop (when dm=True) must include the L1 halo because of
     the second field argument which is continuous '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        if dist_mem:
-            output = (
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-            assert output in generated_code
-        else:
-            output = (
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
-            assert output in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert output in generated_code
+    else:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+        assert output in generated_code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_itn_space_fld_and_op_writers(tmpdir):
@@ -4950,11 +5128,13 @@ def test_itn_space_fld_and_op_writers(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_w3(tmpdir):
-    ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W3 (discontinuous) '''
+def test_itn_space_any_any_discontinuous(tmpdir):
+    ''' Check that generated loop over cells has correct upper
+    bound when a kernel writes to fields on any_space (continuous)
+    and any_discontinuous_space '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
+        os.path.join(BASE_PATH,
+                     "1.5.3_single_invoke_write_any_anyd_space.f90"),
         api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API,
@@ -4975,30 +5155,33 @@ def test_itn_space_any_w3(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_w1():
-    ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W1 (continuous) '''
+def test_itn_space_any_w2trace(dist_mem, tmpdir):
+    ''' Check generated loop over cells has correct upper bound when a
+    kernel writes to fields on any_space and W2trace (both continuous) '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
+        os.path.join(BASE_PATH,
+                     "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        if dist_mem:
-            output = (
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-            assert output in generated_code
-        else:
-            # Loop upper bound should use f2 as that field is *definitely*
-            # on a continuous space (as opposed to the one on any_space
-            # that might be).
-            output = (
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
-            assert output in generated_code
+
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert output in generated_code
+    else:
+        # Loop upper bound should use f2 as that field is *definitely*
+        # on a continuous space (as opposed to the one on any_space
+        # that might be).
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
+        assert output in generated_code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_unexpected_type_error():
@@ -5271,10 +5454,10 @@ def test_anyw2_stencils():
         assert output in generated_code
 
 
-def test_no_halo_for_discontinous(tmpdir):
+def test_no_halo_for_discontinuous(tmpdir):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
-    field), we only read from a discontinous field and there are no
+    field), we only read from a discontinuous field and there are no
     stencil accesses '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w2v.f90"),
@@ -5360,26 +5543,26 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
 
 
 def test_arg_discontinuous(monkeypatch, annexed):
-    '''Test that the discontinuous method in the dynamo argument class
-    returns the correct values. Check that the code is generated
+    ''' Test that the discontinuous method in the Dynamo0.3 API argument
+    class returns the correct values. Check that the code is generated
     correctly when annexed dofs are and are not computed by default as
     the number of halo exchanges produced is different in the two
-    cases.
+    cases. '''
 
-    '''
-
-    # 1 discontinuous field returns true
-    # Check w3, wtheta and w2v in turn
+    # 1) Discontinuous fields return true
+    # 1a) Check w3, wtheta and w2v in turn
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     if annexed:
-        # no halo exchanges produced for the w3 example
+        # no halo exchanges produced for the w3 example (reads from
+        # continuous spaces)
         idchld_list = [0, 0, 0]
     else:
-        # 3 halo exchanges produced for the w3 example
+        # 3 halo exchanges produced for the w3 example (reads from
+        # continuous spaces)
         idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
-    fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
+    fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES[0:3],
                        zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"
@@ -5394,9 +5577,39 @@ def test_arg_discontinuous(monkeypatch, annexed):
         assert field.space == fspace
         assert field.discontinuous
 
-    # 2 any_space field returns false
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "11_any_space.f90"),
+    # 1b) w2broken returns true
+    _, info = parse(
+        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if annexed:
+        index = 5
+    else:
+        index = 6
+    kernel = schedule.children[index].loop_body[0]
+    field = kernel.arguments.args[6]
+    assert field.space == 'w2broken'
+    assert field.discontinuous
+
+    # 1c) any_discontinuous_space returns true
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "1_single_invoke_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if annexed:
+        index = 0
+    else:
+        index = 2
+    kernel = schedule.children[index].loop_body[0]
+    field = kernel.arguments.args[0]
+    assert field.space == 'any_discontinuous_space_1'
+    assert field.discontinuous
+
+    # 2) any_space field returns false
+    _, info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -5409,15 +5622,30 @@ def test_arg_discontinuous(monkeypatch, annexed):
     assert field.space == 'any_space_1'
     assert not field.discontinuous
 
-    # 3 continuous field returns false
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke.f90"),
+    # 3) Continuous field returns false
+    # 3a) Test w1
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[3].loop_body[0]
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
+    assert not field.discontinuous
+    # 3b) Test w2trace
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if annexed:
+        index = 5
+    else:
+        index = 7
+    kernel = schedule.children[index].loop_body[0]
+    field = kernel.arguments.args[3]
+    assert field.space == 'w2trace'
     assert not field.discontinuous
 
 
@@ -5632,7 +5860,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch, annexed):
+def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
@@ -5643,25 +5871,30 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api=TEST_API)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1_single_invoke_any_discontinuous_space.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
+    # First test compilation ...
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    # and then proceed to checks
     if annexed:
         # no halo exchanges generated
         loop = schedule.children[0]
     else:
-        # 3 halo exchanges generated
-        loop = schedule.children[3]
+        # 2 halo exchanges generated
+        loop = schedule.children[2]
     kernel = loop.loop_body[0]
-    f1_arg = kernel.arguments.args[1]
+    f2_arg = kernel.arguments.args[1]
     #
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
-        _ = loop._halo_read_access(f1_arg)
+        _ = loop._halo_read_access(f2_arg)
     assert ("Internal error in _halo_read_access. It should not be "
             "possible to get to here. loop upper bound name is 'invalid' "
-            "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
+            "and arg 'f2' access is 'gh_read'.") in str(excinfo.value)
 
 
 def test_new_halo_exch_vect_field(monkeypatch):

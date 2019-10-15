@@ -74,6 +74,11 @@ class AccessInfo(object):
         else:
             self._indices = None
 
+    def __str__(self):
+        '''Returns a string representating showing the access mode
+        and location, e.g.: WRITE(5).'''
+        return "{0}({1})".format(self._access_type, self._location)
+
     def change_read_to_write(self):
         '''This changes the access mode from READ to WRITE.
         This is used for processing assignment statements,
@@ -136,7 +141,15 @@ class VariableAccessInfo(object):
     def __init__(self, var_name):
         self._var_name = var_name
         # This is the list of AccessInfo instances for this variable.
+
         self._accesses = []
+
+    def __str__(self):
+        '''Returns a string representation of this object with the format:
+        var_name:WRITE(2),WRITE(3),READ(5).'''
+        return "{0}:{1}".format(self._var_name,
+                                ",".join([str(access)
+                                          for access in self._accesses]))
 
     @property
     def var_name(self):
@@ -145,43 +158,49 @@ class VariableAccessInfo(object):
         '''
         return self._var_name
 
-    def is_written(self):
-        '''Checks if the specified variable name is at least written once.
+    def is_array(self):
+        ''':returns: True if all accesses to this variable involve indices.
+        :rtype: bool'''
+        # TODO #500: Till we have access to a SymbolTable, we use this
+        # function to detect which variables are arrays.
+        return all(access.indices for access in self._accesses)
 
-        :returns: true if the specified variable name is written (at least \
-            once).
+    def is_written(self):
+        ''':returns: True if this variable is written (at least once).
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type in AccessType.all_write_accesses():
-                return True
-        return False
+        return any(access_info.access_type in
+                   AccessType.all_write_accesses()
+                   for access_info in self._accesses)
+
+    def is_read_only(self):
+        '''Checks if this variable is always read, and never
+        written.
+
+        :returns: True if this variable is read only.
+        :rtype: bool
+        '''
+        return all(access_info.access_type == AccessType.READ
+                   for access_info in self._accesses)
 
     def is_read(self):
-        '''Checks if the specified variable name is at least read once.
-
-        :returns: true if the specified variable name is read (at least once).
+        ''':returns: True if this variable is read (at least once).
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type in AccessType.all_read_accesses():
-                return True
-        return False
+        return any(access_info.access_type in AccessType.all_read_accesses()
+                   for access_info in self._accesses)
 
     def has_read_write(self):
-        '''Checks if the specified variable name has at least one READWRITE
-        access.
+        '''Checks if this variable has at least one READWRITE access.
 
-        :returns: true if the specified variable name is read (at least once).
+        :returns: True if this variable is read (at least once).
         :rtype: bool
         '''
-        for access_info in self._accesses:
-            if access_info.access_type == AccessType.READWRITE:
-                return True
-        return False
+        return any(access_info.access_type == AccessType.READWRITE
+                   for access_info in self._accesses)
 
     def __getitem__(self, index):
-        ''':Return: the access information for the specified index.
+        ''':return: the access information for the specified index.
         :rtype: py:class:`psyclone.core.access_info.AccessInfo`
 
         :raises IndexError: If there is no access with the specified index.
@@ -237,7 +256,7 @@ class VariableAccessInfo(object):
 
 
 # =============================================================================
-class VariablesAccessInfo(object):
+class VariablesAccessInfo(dict):
     '''This class stores all VariableAccessInfo instances for all variables
     in the corresponding code section. It maintains a 'location' information,
     which is an integer number that is increased for each new statement. It
@@ -247,7 +266,7 @@ class VariablesAccessInfo(object):
     def __init__(self):
         # This dictionary stores the mapping of variable names to the
         # corresponding VariableAccessInfo instance.
-        self._var_to_varinfo = {}
+        dict.__init__(self)
 
         # Stores the current location information
         self._location = 0
@@ -266,12 +285,9 @@ class VariablesAccessInfo(object):
         READ+WRITE. If a variable is is passed to a kernel for which no
         individual variable information is available, and the metadata for
         this kernel indicates a READWRITE access, this is marked as READWRITE
-        in the string output.
+        in the string output.'''
 
-        :returns: One line string listing all variables and their access mode.
-        :rtype: str
-        '''
-        all_vars = list(self._var_to_varinfo.keys())
+        all_vars = list(self.keys())
         all_vars.sort()
         output_list = []
         for var_name in all_vars:
@@ -317,34 +333,23 @@ class VariablesAccessInfo(object):
         :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
 
         '''
-        if var_name in self._var_to_varinfo:
-            self._var_to_varinfo[var_name].add_access(access_type,
-                                                      self._location, node,
-                                                      indices)
+        if var_name in self:
+            self[var_name].add_access(access_type, self._location,
+                                      node, indices)
         else:
             var_info = VariableAccessInfo(var_name)
             var_info.add_access(access_type, self._location, node, indices)
-            self._var_to_varinfo[var_name] = var_info
+            self[var_name] = var_info
 
     @property
     def all_vars(self):
-        ''':returns: all variables contained in this instance.
-        :rtype: List of str.
+        ''':returns: all variables contained in this instance, sorted (in \
+                     order to make test results reproducible).
+        :rtype: list of str.
         '''
-        return list(self._var_to_varinfo.keys())
-
-    def __getitem__(self, name):
-        '''Returns the access information for the specified variable.
-
-        :param str name: The variable name to get the access info for.
-
-        :returns: The VariableAccessInfo for the variable
-        :rtype: :py:class:`psyclone.core.access_info.VariableAccessInfo`
-
-        :raises: KeyError if there is no information for the specified \
-            variable.
-        '''
-        return self._var_to_varinfo[name]
+        list_of_vars = list(self.keys())
+        list_of_vars.sort()
+        return list_of_vars
 
     def merge(self, other_access_info):
         '''Merges data from a VariablesAccessInfo instance to the
@@ -367,11 +372,11 @@ class VariablesAccessInfo(object):
                 if access_info.location > max_new_location:
                     max_new_location = access_info.location
                 new_location = access_info.location + self._location
-                if var_name in self._var_to_varinfo:
-                    var_info = self._var_to_varinfo[var_name]
+                if var_name in self:
+                    var_info = self[var_name]
                 else:
                     var_info = VariableAccessInfo(var_name)
-                    self._var_to_varinfo[var_name] = var_info
+                    self[var_name] = var_info
 
                 var_info.add_access(access_info.access_type, new_location,
                                     access_info.node, access_info.indices)
@@ -384,7 +389,7 @@ class VariablesAccessInfo(object):
 
         :param str var_name: Name of the variable
 
-        :returns: true if the specified variable name is written (at least \
+        :returns: True if the specified variable name is written (at least \
             once).
         :rtype: bool
 
@@ -398,7 +403,7 @@ class VariablesAccessInfo(object):
         '''Checks if the specified variable name is at least read once.
 
         :param str var_name: Name of the variable
-        :returns: true if the specified variable name is read (at least \
+        :returns: True if the specified variable name is read (at least \
             once).
         :rtype: bool
         :raises: KeyError if the variable names can not be found.'''
@@ -411,7 +416,7 @@ class VariablesAccessInfo(object):
         access (which is typically only used in a function call)
 
         :param str var_name: Name of the variable
-        :returns: true if the specified variable name has (at least one) \
+        :returns: True if the specified variable name has (at least one) \
             READWRITE access.
         :rtype: bool
         :raises: KeyError if the variable names can not be found.'''

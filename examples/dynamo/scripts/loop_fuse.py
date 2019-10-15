@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply loop fusion generically. Fusion is attempted for all
@@ -40,17 +41,18 @@ that are lower in the schedule e.g. coloured loops. This can be
 applied via the -s option in the psyclone script.
 
 '''
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 
 def trans(psy):
-    '''PSyclone transformation script for the dynamo0.3 API to apply loop
+    '''PSyclone transformation script for the Dynamo0.3 API to apply loop
     fusion generically to all top level loops.
 
     '''
     total_fused = 0
     lf_trans = DynamoLoopFuseTrans()
+    lf_trans.same_space = True
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -58,13 +60,13 @@ def trans(psy):
         local_fused = 0
         schedule = invoke.schedule
 
-        # loop over all nodes in reverse order
+        # Loop over all nodes in reverse order
         idx = len(schedule.children) - 1
         while idx > 0:
             node = schedule.children[idx]
             prev_node = schedule.children[idx-1]
             try:
-                schedule, _ = lf_trans.apply(prev_node, node, same_space=False)
+                schedule, _ = lf_trans.apply(prev_node, node)
                 local_fused += 1
             except TransformationError:
                 pass
