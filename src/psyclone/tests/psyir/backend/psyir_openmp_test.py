@@ -100,7 +100,7 @@ def replace_child_with_assignment(node):
     This allows all tests to compare all output of the visitor
     pattern (even though in some cases the code might not
     compile, e.g. assignment as child of an OMP DO directive)
-
+    # TODO #440 tracks this
     :param node: the node whose child is replaced.
     :type node: :py:class:`psyclone.psyGen.Node`
     '''
@@ -130,6 +130,7 @@ def test_gocean_omp_parallel():
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
+    # TODO: #440 tracks this
     replace_child_with_assignment(omp_sched[0])
 
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
