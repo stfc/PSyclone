@@ -2473,7 +2473,7 @@ class OMPParallelDirective(OMPDirective):
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
-        correct directive beginning (e.g. "$!").
+        correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
         :rtype: str
@@ -2493,7 +2493,7 @@ class OMPParallelDirective(OMPDirective):
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
         "omp end parallel". The visitor is responsible for adding the
-        correct directive end (e.g. "!$").
+        correct directive beginning (e.g. "!$").
 
         :returns: the end statement for this directive.
         :rtype: str
@@ -2745,7 +2745,7 @@ class OMPDoDirective(OMPDirective):
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
         "omp end do". The visitor is responsible for adding the
-        correct directive beginning (e.g. "$!).
+        correct directive beginning (e.g. "!$").
 
         :returns: the end statement for this directive.
         :rtype: str
