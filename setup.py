@@ -45,12 +45,7 @@ SRC_PATH = os.path.join(BASE_PATH, "src")
 PACKAGES = find_packages(where=SRC_PATH,
                          exclude=["psyclone.tests",
                                   "psyclone.tests.test_files",
-                                  "psyclone.tests.core",
-                                  "psyclone.tests.nemo",
-                                  "psyclone.tests.parse",
-                                  "psyclone.tests.psyir",
-                                  "psyclone.tests.psyir.frontend",
-                                  "psyclone.tests.psyir.backend"])
+                                  "psyclone.tests.*"])
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
