@@ -1344,15 +1344,12 @@ class Node(object):
         :param int index: the position of this Node wrt its siblings or None.
 
         '''
-        # Those nodes in the PSyIR for which we do not prepend an index to any
-        # immediate child nodes because it would never make sense to apply
-        # a transformation to them without their parent. Note that nodes
-        # within e.g. a Loop will be children of a Schedule.
-        non_indexed_children = (Array, Assignment, IfBlock, Loop, Operation)
-
-        if isinstance(self.parent, non_indexed_children) or \
-           isinstance(self, Schedule) or \
-           index is None:
+        # TODO #542 remove ProfileNode and ExtractNode from this check once
+        # they each have a Schedule.
+        from psyclone.profiler import ProfileNode
+        from psyclone.extractor import ExtractNode
+        if not isinstance(self.parent, (Schedule, ProfileNode, ExtractNode)) \
+           or index is None:
             print("{0}{1}".format(self.indent(indent),
                                   self.node_str(colour=True)))
         else:
