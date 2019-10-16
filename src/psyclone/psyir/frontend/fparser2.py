@@ -467,6 +467,7 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+
         :raises NotImplementedError: The provided declarations contain
                                      attributes which are not supported yet.
         :raises GenerationError: If the parse tree for a USE statement does \
@@ -559,9 +560,6 @@ class Fparser2Reader(object):
 
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
-            if not entities:
-                continue
-
             for entity in entities.items:
                 (name, array_spec, char_len, initialisation) = entity.items
 
