@@ -1252,7 +1252,7 @@ class Fparser2Reader(object):
     def _array_notation_rank(array):
         '''
         Check that the supplied candidate array reference uses supported
-        array notation syntax and returns the rank of the sub-section of the
+        array notation syntax and return the rank of the sub-section of the
         array that is specified. e.g. for a reference "a(:, 2, :)" the rank
         of the sub-section is 2.
 
@@ -1275,6 +1275,8 @@ class Fparser2Reader(object):
             raise NotImplementedError("An Array reference in the PSyIR must "
                                       "have at least one child but '{0}' has "
                                       "none".format(array.name))
+        # TODO #412. This code will need re-writing once array notation is
+        # supported in the PSyIR (becaues then we won't have any CodeBlocks).
         cblocks = array.walk(CodeBlock)
         if not cblocks:
             raise NotImplementedError(
@@ -1350,7 +1352,19 @@ class Fparser2Reader(object):
     def _where_construct_handler(self, node, parent):
         '''
         Construct the canonical PSyIR representation of a WHERE construct or
-        statement.
+        statement. A construct has the form:
+
+            WHERE(logical-mask)
+              statements
+            [ELSE WHERE(logical-mask)
+              statements]
+            [ELSE
+              statements]
+            END WHERE
+
+        while a statement is just:
+
+            WHERE(logical-mask) statement
 
         :param node: node in the fparser2 parse tree representing the WHERE.
         :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
@@ -1365,11 +1379,9 @@ class Fparser2Reader(object):
                                structure.
 
         '''
-        # Check that the fparser2 parse tree has the expected structure
         if isinstance(node, Fortran2003.Where_Stmt):
-            was_single_stmt = True
-            annotations = ["was_where", "was_single_stmt"]
-            logical_expr = [node.items[0]]
+            # We have a Where statement. Check that the parse tree has the
+            # expected structure.
             if not len(node.items) == 2:
                 raise InternalError(
                     "Expected a Fortran2003.Where_Stmt to have exactly two "
@@ -1380,7 +1392,12 @@ class Fparser2Reader(object):
                     "Expected the second entry of a Fortran2003.Where_Stmt "
                     "items tuple to be an Assignment_Stmt but found: {0}".
                     format(type(node.items[1]).__name__))
+            was_single_stmt = True
+            annotations = ["was_where", "was_single_stmt"]
+            logical_expr = [node.items[0]]
         else:
+            # We have a Where construct. Check that the first and last
+            # children are what we expect.
             if not isinstance(node.content[0],
                               Fortran2003.Where_Construct_Stmt):
                 raise InternalError("Failed to find opening where construct "
@@ -1391,6 +1408,7 @@ class Fparser2Reader(object):
             was_single_stmt = False
             annotations = ["was_where"]
             logical_expr = node.content[0].items
+
         # Examine the logical-array expression (the mask) in order to
         # determine the number of nested loops required. The Fortran
         # standard allows bare array notation here (e.g. `a < 0.0` where
@@ -1401,15 +1419,23 @@ class Fparser2Reader(object):
 
         # Use a basic Schedule as our fake parent as it doesn't have a
         # SymbolTable (and thus won't check for variable declarations).
+        # TODO #500 Ultimately we need to be able to check for declarations
+        # and remove the need to have a 'fake parent' below.
         fake_parent = Schedule()
         self.process_nodes(fake_parent, logical_expr, None)
         arrays = fake_parent[0].walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
-            # because the code doesn't use explicit array syntax.
+            # because the code doesn't use explicit array syntax. At least one
+            # variable in the logical-array expression must be an array for
+            # this to be a valid WHERE().
+            # TODO #500 remove this check once the SymbolTable is working for
+            # the NEMO API.
             raise NotImplementedError("Only WHERE constructs using explicit "
                                       "array notation (e.g. my_array(:, :)) "
                                       "are supported.")
+        # All array sections in a Fortran WHERE must have the same rank so
+        # just look at the first array.
         rank = self._array_notation_rank(arrays[0])
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
@@ -1429,8 +1455,8 @@ class Fparser2Reader(object):
         new_parent = parent
         for idx in range(rank, 0, -1):
             # TODO #500 we should be using the SymbolTable for the new loop
-            # variable but that doesn't currently work for NEMO. Once #500
-            # is done we should handle clashes gracefully rather than
+            # variable but that doesn't currently work for NEMO. As part of
+            # #500 we should handle clashes gracefully rather than
             # simply aborting.
             loop_vars[idx-1] = "widx{0}".format(idx)
             if loop_vars[idx-1] in all_names:
@@ -1440,8 +1466,8 @@ class Fparser2Reader(object):
                         loop_vars[idx-1]))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
-            loop.ast = node # Point to the original WHERE statement in
-                            # the fparser2 parse tree.
+            # Point to the original WHERE statement in the parse tree.
+            loop.ast = node
             # Add loop lower bound
             loop.addchild(Literal("1", parent=loop))
             # Add loop upper bound - we use the SIZE operator to query the
@@ -1457,7 +1483,7 @@ class Fparser2Reader(object):
             sched = Schedule(parent=loop)
             loop.addchild(sched)
             # Finally, add the Loop we've constructed to its parent (but
-            # not into the exising PSyIR tree - that's done in
+            # not into the existing PSyIR tree - that's done in
             # process_nodes()).
             if new_parent is not parent:
                 new_parent.addchild(loop)

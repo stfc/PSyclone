@@ -245,7 +245,6 @@ def test_kernels_around_where_construct(parser):
     assert isinstance(sched[0], ACCKernelsDirective)
     assert isinstance(sched[0].children[0], Loop)
     new_code = str(psy.gen)
-    print(new_code)
     assert ("  !$ACC KERNELS\n"
             "  WHERE (a(:, :) < flag)" in new_code)
     assert ("  END WHERE\n"

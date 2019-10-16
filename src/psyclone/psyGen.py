@@ -3231,8 +3231,10 @@ class Loop(Node):
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
-    :param str annotation: Tag that provides additional information about the \
-        node (primarily relating to the input code that it was created from).
+    :param annotations: One or more labels that provide additional information\
+          about the node (primarily relating to the input code that it was \
+          created from).
+    :type annotations: list of str
 
     :raises InternalError: if the 'was_single_stmt' annotation is supplied \
                            without the 'was_where' annotation.

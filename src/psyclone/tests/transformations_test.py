@@ -121,13 +121,13 @@ def test_ifblock_children_region():
     # is an error because the first child is the conditional part of the
     # IfBlock.
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate(ifblock.children)
-    assert ("transformation to the immediate children of an IfBlock" in
-            str(err))
+        super(ACCParallelTrans, acct)._validate([ifblock.children[0]])
+    assert ("transformation to the immediate children of a Loop/IfBlock "
+            "unless it is to a single Schedule" in str(err.value))
     with pytest.raises(TransformationError) as err:
         super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
-    assert ("transformation to the immediate children of an IfBlock "
-            in str(err))
+    assert (" to multiple nodes when one or more is a Schedule. "
+            "Either target a single Schedule or " in str(err.value))
 
 
 def test_fusetrans_error_incomplete():
@@ -218,5 +218,5 @@ def test_regiontrans_wrong_children():
     parent.addchild(Schedule(parent=parent))
     with pytest.raises(TransformationError) as err:
         RegionTrans._validate(rtrans, parent.children)
-    assert ("Cannot apply transformation to the immediate children of a "
-            "Loop unless" in str(err.value))
+    assert ("Cannot apply a transformation to multiple nodes when one or more "
+            "is a Schedule" in str(err.value))

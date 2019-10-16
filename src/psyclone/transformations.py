@@ -117,9 +117,9 @@ class RegionTrans(Transformation):
         Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param node_list: list of PSyIR nodes.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
-
+        :param node_list: list of PSyIR nodes or a single Schedule.
+        :type node_list: :py:class:`psyclone.psyGen.Schedule` or a \
+                         list of :py:class:`psyclone.psyGen.Node`
         :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
                 a node is duplicated or the nodes have different parents.
@@ -129,11 +129,10 @@ class RegionTrans(Transformation):
                                      not a Schedule or a Directive.
         :raises TransformationError: if the nodes are in a NEMO Schedule and \
                                      the transformation acts on the child of \
-                                     a single-line if statment.
+                                     a single-line If or Where statment.
 
         '''
-        from psyclone.psyGen import IfBlock, Literal, Reference, Directive, \
-            Loop
+        from psyclone.psyGen import IfBlock, Loop
         from psyclone.nemo import NemoInvokeSchedule
         node_parent = node_list[0].parent
         prev_position = -1
@@ -161,23 +160,33 @@ class RegionTrans(Transformation):
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
 
-        # Sanity check that we've not been passed the condition part of
-        # an If statement or the bounds of a Loop. If the first node in the
-        # list is a Schedule then that must be the only entry.
-        from psyclone.profiler import ProfileNode
-        from psyclone.extractor import ExtractNode
-        if isinstance(node_parent, IfBlock) and \
-           not (isinstance(node_list[0], Schedule) and len(node_list) == 1):
+        # If we've been passed a list that contains one or more Schedules
+        # then something is wrong. e.g. two Schedules that are both children
+        # of an IfBlock would imply that the transformation is being applied
+        # around both the if-body and the else-body and that doesn't make
+        # sense.
+        if isinstance(node_list, list) and len(node_list) > 1 and \
+           any([isinstance(node, Schedule) for node in node_list]):
             raise TransformationError(
-                "Cannot apply a transformation to the immediate children of "
-                "an IfBlock unless it is to a single Schedule representing "
-                "either the if- or else-body.")
-        if isinstance(node_parent, Loop) and \
-           not (isinstance(node_list[0], Schedule) and len(node_list) == 1):
+                "Cannot apply a transformation to multiple nodes when one or "
+                "more is a Schedule. Either target a single Schedule or the"
+                " children of a Schedule.")
+
+        # Sanity check that we've not been passed the condition part of
+        # an If statement or the bounds of a Loop. If the parent node is
+        # a Loop of IfBlock then we can only accept a single Schedule.
+        # TODO #542 Once everything has a Schedule we can tidy this up
+        # a little by requiring that either the parent be a Schedule or
+        # that the node-list consists of a single Schedule.
+        if isinstance(node_parent, (Loop, IfBlock)) and \
+           not isinstance(node_list[0], Schedule):
+            # We've already checked for lists with len > 1 that contain a
+            # Schedule above so if the first item is a Schedule then that's
+            # all the list contains.
             raise TransformationError(
                 "Cannot apply transformation to the immediate children of a "
-                "Loop unless it is to the single Schedule representing the "
-                "Loop body.")
+                "Loop/IfBlock unless it is to a single Schedule representing"
+                " the Loop/If/Else body.")
 
         # The checks below this point only apply to the NEMO API and can be
         # removed once #435 is done.
