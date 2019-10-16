@@ -267,6 +267,19 @@
 
 	84) PR #518 for #393. Add the Container PSyIR node.
 
+	85) PR #525 for #459. Bug fix for passing scalar grid properties
+	to GOcean kernels when using OpenCL.
+
+	86) PR #485. Adds a psyclone.psyir.tools.dependency_analysis
+	module and associated DependencyTools class to help with
+	dependence analysis in the PSyIR.
+
+	87) PR #532 for #204. Adds support for W2broken and W2trace
+	function spaces in the dynamo0.3 (LFRic) API.
+
+	89) PR #515 for #512. Adds PSyIR backend support (Fortran and C)
+	for Directives.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
