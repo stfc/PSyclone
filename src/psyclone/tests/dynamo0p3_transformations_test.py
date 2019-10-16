@@ -7508,8 +7508,8 @@ def test_kern_const_anyw2_apply(capsys):
 
 # space_to_dofs values
 def test_kern_const_ndofs():
-    '''Test the computed number-of-dof values for different orders and
-    different function spaces.
+    '''Test the computed number-of-dof values per 3D cell on a quadrilateral
+    element for different orders and different function spaces.
 
     '''
     expected = {"w3": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
@@ -7518,10 +7518,14 @@ def test_kern_const_ndofs():
                 "w0": [8, 27, 64, 125, 216, 343, 512, 729, 1000, 1331],
                 "wtheta": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
                 "w2h": [4, 24, 72, 160, 300, 504, 784, 1152, 1620, 2200],
-                "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100]}
+                "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
+                "w2broken": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430,
+                             3300],
+                "w2trace": [6, 24, 54, 96, 150, 216, 294, 384, 486, 600]}
     kct = Dynamo0p3KernelConstTrans()
     for order in range(10):
-        for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h", "w2v"]:
+        for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
+                               "w2v", "w2broken", "w2trace"]:
             assert kct.space_to_dofs[function_space](order) == \
                 expected[function_space][order]
         # wtheta should equal w2v

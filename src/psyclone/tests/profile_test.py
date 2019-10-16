@@ -59,7 +59,6 @@ def teardown_function():
     change.
     '''
     Profiler.set_options([])
-    # pylint: disable=protected-access
     Profiler._namespace = NameSpace()
 
 

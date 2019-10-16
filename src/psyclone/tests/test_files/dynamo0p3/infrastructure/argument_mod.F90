@@ -39,7 +39,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified I. Kavcic, Met Office
- 
+
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
 module argument_mod
@@ -63,15 +63,17 @@ module argument_mod
   integer, public, parameter :: GH_MAX       = 17
 
   ! Function-space labels
-  integer, public, parameter :: W0      = 100
-  integer, public, parameter :: W1      = 101
-  integer, public, parameter :: W2      = 102
-  integer, public, parameter :: W3      = 103
-  integer, public, parameter :: Wtheta  = 104
-  integer, public, parameter :: W2V     = 105
-  integer, public, parameter :: W2H     = 106
-  integer, public, parameter :: Wchi    = 107
-  integer, public, parameter :: ANY_W2  = 108
+  integer, public, parameter :: W0        = 100
+  integer, public, parameter :: W1        = 101
+  integer, public, parameter :: W2        = 102
+  integer, public, parameter :: W2V       = 103
+  integer, public, parameter :: W2H       = 104
+  integer, public, parameter :: W2broken  = 105
+  integer, public, parameter :: W2trace   = 106
+  integer, public, parameter :: W3        = 107
+  integer, public, parameter :: Wtheta    = 108
+  integer, public, parameter :: Wchi      = 109
+  integer, public, parameter :: ANY_W2    = 110
 
   ! Distinct any_space IDs. Separate IDs required as we may have
   ! groups of fields that must be on the same space within a kernel
