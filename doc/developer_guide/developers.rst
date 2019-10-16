@@ -406,12 +406,12 @@ language-specific syntax for branching and iteration will be
 normalized to use these same constructs.  For example, Fortran has the
 additional branching constructs `ELSE IF` and `CASE`: when a Fortran
 code is translated into the PSyIR, PSyclone will build a semantically
-equivalent implementation using `IfBlocks`.  However, the necessary
-nodes in the new tree structure are annotated with information to
-enable the original language-specific syntax to be recreated if
-required (see below). Similarly, Fortran also has the `WHERE`
-construct and statement which are represented in the PSyIR with a
-combination of (annotated) `Loop` and `IfBlock` nodes.
+equivalent implementation using `IfBlocks`.  Similarly, Fortran also
+has the `WHERE` construct and statement which are represented in the
+PSyIR with a combination of `Loop` and `IfBlock` nodes. Such nodes in
+the new tree structure are annotated with information to enable the
+original language-specific syntax to be recreated if required (see
+below).
 
 Node annotation
 ---------------
@@ -435,10 +435,12 @@ Annotation         Node types         Origin
 `was_where`        `Loop`, `IfBlock`  Fortran `where` construct
 =================  =================  =================================
 
-.. note:: a `Loop` may only be given the `was_single_stmt` annotation
+.. note:: a `Loop` may currently only be given the `was_single_stmt` annotation
 	  if it also has the `was_where` annotation. (Thus indicating that
 	  this `Loop` originated from a WHERE *statement* in the original
-	  Fortran code.)
+	  Fortran code.) Representing single-statement loops in Fortran is
+	  the subject of GitHub Issue
+	  `#412 <https://github.com/stfc/PSyclone/issues/412>`_.
 
 Branching construct
 -------------------
