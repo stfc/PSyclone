@@ -207,7 +207,8 @@ class FortranWriter(PSyIRVisitor):
         return result
 
     def gen_decls(self, symbol_table, args_allowed=True):
-        '''Create and return the Fortran declarations for this SymbolTable.
+        '''Create and return the Fortran declarations for the supplied
+        SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyGen.SymbolTable`
@@ -218,11 +219,14 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran declarations as a string.
         :rtype: str
 
+        :raises VisitorError: if args_allowed is False and one or more \
+        argument declarations exist in symbol_table.
+
         '''
         declarations = ""
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
-        # declare any argument variables before local variables.
+        # declares any argument variables before local variables.
 
         # 1: Use statements
         for symbol in [sym for sym in symbol_table.symbols if
@@ -234,7 +238,7 @@ class FortranWriter(PSyIRVisitor):
         if symbols and not args_allowed:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
-                "table contains argument(s) '{0}'."
+                "table contains argument(s): '{0}'."
                 "".format([symbol.name for symbol in symbols]))
         for symbol in symbols:
             declarations += self.gen_vardecl(symbol)
@@ -428,6 +432,7 @@ class FortranWriter(PSyIRVisitor):
         result = "{0}({1})".format(node.name, ",".join(args))
         return result
 
+    # pylint: disable=no-self-use
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
@@ -442,6 +447,7 @@ class FortranWriter(PSyIRVisitor):
         result = node.value
         return result
 
+    # pylint: enable=no-self-use
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.

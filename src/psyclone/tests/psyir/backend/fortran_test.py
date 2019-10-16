@@ -191,7 +191,7 @@ def test_gen_decls(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
-            "contains argument(s) '['arg']'." in str(excinfo.value))
+            "contains argument(s): '['arg']'." in str(excinfo.value))
 
 
 def test_fw_exception(fort_writer):
@@ -312,7 +312,7 @@ def test_fw_container_3(fort_writer, monkeypatch):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("Arguments are not allowed in this context but this symbol table "
-            "contains argument(s) '['a']'." in str(excinfo))
+            "contains argument(s): '['a']'." in str(excinfo))
 
 
 def test_fw_kernelschedule(fort_writer, monkeypatch):
