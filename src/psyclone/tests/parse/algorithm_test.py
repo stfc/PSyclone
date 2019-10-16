@@ -37,6 +37,8 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
+from __future__ import absolute_import
+
 import pytest
 
 from fparser.two.Fortran2003 import Part_Ref
@@ -47,8 +49,6 @@ from psyclone.parse.algorithm import Parser, get_invoke_label, \
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import InternalError
 
-# pylint: disable=invalid-name
-# pylint: disable=too-few-public-methods
 
 # class parser() tests
 
@@ -319,7 +319,7 @@ def test_createvarname_unknown_content():
 def test_kernelcall_repr():
     '''Test that the __repr__ method in KernelCall() behaves as expected.'''
 
-    class ktype_dummy(object):
+    class KtypeDummy(object):
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -329,7 +329,7 @@ def test_kernelcall_repr():
             self.nargs = 2
             self.name = "dummy"
 
-    tmp = KernelCall("module_name", ktype_dummy(), ["a", "b"])
+    tmp = KernelCall("module_name", KtypeDummy(), ["a", "b"])
     assert repr(tmp) == "KernelCall('dummy', ['a', 'b'])"
 
 
@@ -339,7 +339,7 @@ def test_kernelcall_repr():
 def test_builtincall_repr():
     '''Test that the __repr__ method in BuiltInCall() behaves as expected.'''
 
-    class ktype_dummy(object):
+    class KtypeDummy(object):
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -349,7 +349,7 @@ def test_builtincall_repr():
             self.nargs = 2
             self.name = "dummy"
 
-    tmp = BuiltInCall(ktype_dummy(), ["a", "b"])
+    tmp = BuiltInCall(KtypeDummy(), ["a", "b"])
     assert repr(tmp) == "BuiltInCall('dummy', ['a', 'b'])"
 
 # Class Arg() tests

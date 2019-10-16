@@ -75,7 +75,6 @@ def test_compiler_with_flags(tmpdir):
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
         _compile = Compile(tmpdir)
-        # pylint: disable=protected-access
         _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")

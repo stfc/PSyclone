@@ -41,7 +41,6 @@ from __future__ import absolute_import, print_function
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
 # about such accesses
-# pylint: disable=protected-access
 
 import os
 import pytest
