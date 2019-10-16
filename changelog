@@ -274,6 +274,9 @@
 	module and associated DependencyTools class to help with
 	dependence analysis in the PSyIR.
 
+	87) PR #532 for #204. Adds support for W2broken and W2trace
+	function spaces in the dynamo0.3 (LFRic) API.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

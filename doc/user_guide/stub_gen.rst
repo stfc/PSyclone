@@ -1,3 +1,39 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
+
 .. _stub-generation:
 
 Stub Generation
@@ -153,7 +189,7 @@ is shown below:
     module simple_mod
     type, extends(kernel_type) :: simple_type
         type(arg_type), dimension(1) :: meta_args =  &
-            (/ arg_type(gh_field,gh_write,w1) /)
+            (/ arg_type(gh_field, gh_write, w1) /)
         integer :: iterates_over = cells
       contains
         procedure, nopass :: code => simple_code
@@ -163,11 +199,19 @@ is shown below:
     end subroutine
     end module simple_mod
 
-.. note::
-  The module name ``simple_mod`` and the type name ``simple_type`` share the same root ``simple`` and have the extensions ``_mod`` and ``_type`` respectively. This is a convention in Dynamo0.3 and is required by the kernel stub generator as it needs to determine the name of the type containing the metadata and infers this by reading the module name. If this rule is not followed the kernel stub generator will return with an error message (see Section :ref:`Errors <stub-generation-errors>`).
+.. note:: The module name ``simple_mod`` and the type name ``simple_type``
+          share the same root ``simple`` and have the extensions ``_mod``
+          and ``_type`` respectively. This is a convention in Dynamo0.3 API
+          and is required by the kernel stub generator as it needs to
+          determine the name of the type containing the metadata and infers
+          this by reading the module name. If this rule is not followed the
+          kernel stub generator will return with an error message
+          (see Section :ref:`Errors <stub-generation-errors>`).
 
-.. note::
-  Whilst strictly the kernel stub generator only requires the Kernel metadata to generate the appropriate stub code, the parser that the generator relies on currently requires a dummy kernel subroutine to exist.
+.. note:: Whilst strictly the kernel stub generator only requires the Kernel
+          metadata to generate the appropriate stub code, the parser that
+          the generator relies on currently requires a dummy kernel subroutine
+          to exist.
 
 If we run the kernel stub generator on the ``simple.f90`` example:
 ::
@@ -195,21 +239,40 @@ The subroutine content can then be copied into the required module,
 used as the basis for a new module, or checked with an existing
 subroutine for correctness.
 
-.. note::
-  The output does not currently conform to Met Office coding standards so must be modified accordingly.
+.. note:: The output does not currently conform to Met Office coding
+          standards so must be modified accordingly.
 
-.. note::
-  The code will not compile without a) providing the ``constants_mod``, ``argument_mod`` and ``kernel_mod`` modules in the compiler include path and b) adding in code that writes to any arguments declared as intent ``out`` or ``inout``. For a quick check, the ``USE`` declaration and ``KIND`` declarations can be removed and the ``field_1_w1`` array can be initialised with some value in the subroutine. At this point the Kernel should compile successfully.
+.. note:: The code will not compile without a) providing the
+          ``constants_mod``, ``argument_mod`` and ``kernel_mod`` modules
+          in the compiler include path and b) adding in code that writes
+          to any arguments declared as intent ``out`` or ``inout``. For a
+          quick check, the ``USE`` declaration and ``KIND`` declarations
+          can be removed and the ``field_1_w1`` array can be initialised
+          with some value in the subroutine. At this point the Kernel
+          should compile successfully.
 
-.. note::
-  Whilst there is only one field declared in the metadata there are 5 arguments to the Kernel. The first argument ``nlayers`` specifies the number of layers in a column for a field. The second argument is the array associated with the field. The field array is dimensioned as the number of unique degrees of freedom (undf) which is also passed into the kernel (the fourth argument). The naming convention is to call each field a ``field``, followed by its position in the (algorithm) argument list (which is reflected in the metadata ordering). The third argument is the number of degrees of freedom for the particular column and is used to dimension the final argument which is the degrees of freedom map (dofmap) which indicates the location of the required values in the field array. The naming convention for the ``dofmap``, ``undf`` and ``ndf`` is to append the name with the space that it is associated with.
+.. note:: Whilst there is only one field declared in the metadata there
+          are 5 arguments to the Kernel. The first argument ``nlayers``
+          specifies the number of layers in a column for a field. The
+          second argument is the array associated with the field. The
+          field array is dimensioned as the *number of unique degrees
+          of freedom* (hereafter ``undf``) which is also passed into
+          the kernel (the fourth argument). The naming convention is to
+          call each field a ``field``, followed by its position in the
+          (algorithm) argument list (which is reflected in the metadata
+          ordering). The third argument is the number of degrees of freedom
+          for the particular column and is used to dimension the final
+          argument which is the *degrees of freedom map* (dofmap) which
+          indicates the location of the required values in the field array.
+          The naming convention for the ``dofmap``, ``undf`` and ``ndf`` is
+          to append the name with the space that it is associated with.
 
 We now take a look at a more complicated example. The metadata in this
-example is the same as an actual Dynamo kernel, however the subroutine
+example is the same as an actual Dynamo0.3 kernel, however the subroutine
 content and various comments have been removed. The metadata specifies
 that there are four fields passed by the algorithm layer, the fourth
 of which is a vector field of size three. All three of the spaces
-require a basis function and the w0 and w2 function spaces
+require a basis function and the ``W0`` and ``W2`` function spaces
 additionally require a differential basis function. The content of the
 Kernel is given below.
 ::
@@ -233,12 +296,14 @@ Kernel is given below.
     integer :: iterates_over = CELLS
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
-    procedure, nopass ::ru_code
+    procedure, nopass :: ru_code
   end type
 
   contains
-  subroutine ru_code()
-  end subroutine ru_code
+
+    subroutine ru_code()
+    end subroutine ru_code
+
   end module ru_kernel_mod
 
 If we run the kernel stub generator on this example:
@@ -252,7 +317,11 @@ we obtain the following output:
   MODULE ru_mod
     IMPLICIT NONE
     CONTAINS
-    SUBROUTINE ru_code(nlayers, field_1_w2, field_2_w3, iscalar_3, rscalar_4, field_5_w0, field_6_w0_v1, field_6_w0_v2, field_6_w0_v3, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, np_xy, np_z, weights_xy, weights_z)
+    SUBROUTINE ru_code(nlayers, field_1_w2, field_2_w3, iscalar_3, rscalar_4, &
+      field_5_w0, field_6_w0_v1, field_6_w0_v2, field_6_w0_v3, ndf_w2, &
+      undf_w2, map_w2, basis_w2, diff_basis_w2, ndf_w3, undf_w3, map_w3, &
+      basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, np_xy, &
+      np_z, weights_xy, weights_z)
       USE constants_mod, ONLY: r_def
       IMPLICIT NONE
       INTEGER, intent(in) :: nlayers
@@ -286,9 +355,9 @@ we obtain the following output:
 
 The above example demonstrates that the argument list can get quite
 complex. Rather than going through an explanation of each argument you
-are referred to Section :ref:`Rules <dynamo0.3-stub-generation-rules>` for more details
-on the rules for argument types and argument ordering. Regarding
-naming conventions for arguments you can see that the arrays
+are referred to Section :ref:`Rules <dynamo0.3-stub-generation-rules>` for
+more details on the rules for argument types and argument ordering.
+Regarding naming conventions for arguments you can see that the arrays
 associated with the fields are labelled as 1-6 depending on their
 position in the metadata. For a vector field, each vector results in a
 different array. These are distinguished by appending ``_vx`` where ``x`` is
@@ -350,10 +419,10 @@ appropriate warnings because of that. For example:
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
-    one of ['w3', 'wtheta', 'w2v', 'w0', 'w1', 'w2', 'w2h', 'any_w2'] but
-    found 'any_space_1'"
+    one of ['w3', 'wtheta', 'w2v', 'w2broken', 'w0', 'w1', 'w2', 'w2h',
+    'w2trace', 'any_w2'] but found 'any_space_1'"
 
-As noted above, if the Dynamo0.3 naming convention for module and type
+As noted above, if the Dynamo0.3 API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example:
 ::
