@@ -95,6 +95,8 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyGen.IfBlock.if_body()
 
    .. automethod:: psyclone.psyGen.IfBlock.else_body()
+- ``Directive``:
+   .. automethod:: psyclone.psyGen.Directive.dir_body()
 
 These are the recommended methods to navigate the tree for analysis or
 operations that depend on the Node type.

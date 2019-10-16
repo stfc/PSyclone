@@ -286,8 +286,8 @@ class LoopFuseTrans(Transformation):
         :raises TransformationError: if the Nodes do not have the same parent.
         :raises TransformationError: if the Nodes are not next to each \
                                      other in the tree.
-        :raises TransformationError: if the :py:class:`psyclone.psyGen.Loop`s \
-                                     do not have the same iteration space.
+        :raises TransformationError: if the two Loops do not have the same \
+                                     iteration space.
         '''
 
         # Check that the supplied Node is a Loop
