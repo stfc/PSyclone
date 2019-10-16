@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, S. Siso STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -410,25 +411,6 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
 
-    def reference_node(self, node):
-        # pylint: disable=no-self-use
-        '''This method is called when a Reference instance is found in the
-        PSyIR tree.
-
-        :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        :raises VisitorError: if this node has children.
-
-        '''
-        if node.children:
-            raise VisitorError(
-                "PSyIR Reference node should not have any children.")
-        return node.name
-
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
@@ -447,7 +429,6 @@ class FortranWriter(PSyIRVisitor):
         return result
 
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -501,34 +482,23 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
-    def loop_node(self, node):
-        '''This method is called when a Loop instance is found in the
-        PSyIR tree.
+    @property
+    def do_loop_format(self):
+        '''Returns the format for a do/for loop. The format variables will
+        be replaced as follows:
+        0: indentation string
+        1: loop variable
+        2: first loop iteration
+        3: last loop iteration
+        4: step size
+        5: body of the loop
 
-        :param node: a Loop PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Loop`
-
-        :returns: the Fortran code as a string.
+        :return: the format of a loop.
         :rtype: str
-
         '''
-        start = self._visit(node.start_expr)
-        stop = self._visit(node.stop_expr)
-        step = self._visit(node.step_expr)
-        variable_name = node.variable_name
-
-        self._depth += 1
-        body = ""
-        for child in node.loop_body:
-            body += self._visit(child)
-        self._depth -= 1
-
-        result = (
-            "{0}do {1} = {2}, {3}, {4}\n"
-            "{5}"
+        return "{0}do {1} = {2}, {3}, {4}\n"\
+            "{5}"\
             "{0}enddo\n"
-            "".format(self._nindent, variable_name, start, stop, step, body))
-        return result
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
@@ -658,3 +628,19 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         return "{0}{1}\n".format(self._nindent, str(node.ast))
+
+    @property
+    def directive_start(self):
+        ''':returns: "!${0}" - the start of a directive in Fortran. The string
+        {0} in the result will be replaced with the actual directive.
+        :rtype: str
+        '''
+        return "!${0}\n"
+
+    @property
+    def directive_end(self):
+        ''':returns: "!${0}" - the closing directive in Fortran. The string
+        {0} in the result will be replaced with the actual directive.
+        :rtype: str
+        '''
+        return "!${0}\n"

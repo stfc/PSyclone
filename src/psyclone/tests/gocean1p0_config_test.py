@@ -56,14 +56,12 @@ def clear_config_instance():
     '''
 
     # Enforce loading of the default config file
-    # pylint: disable=protected-access
     Config._instance = None
 
     # Now execute all tests
     yield
 
     # Enforce loading of the default config file
-    # pylint: disable=protected-access
     Config._instance = None
 
 

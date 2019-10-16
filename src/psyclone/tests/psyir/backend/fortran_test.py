@@ -48,8 +48,8 @@ from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
-@pytest.fixture(scope="function")
-def fort_writer():
+@pytest.fixture(scope="function", name="fort_writer")
+def fixture_fort_writer():
     '''Create and return a FortranWriter object with default settings.'''
     return FortranWriter()
 
@@ -495,7 +495,7 @@ def test_fw_reference(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = fort_writer(schedule)
-    assert "PSyIR Reference node should not have any children." in str(excinfo)
+    assert "Expecting a Reference with no children but found" in str(excinfo)
 
 
 def test_fw_array(fort_writer):

@@ -51,9 +51,8 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 class CompileError(Exception):
     '''
-    Exception raised when compilation of a Fortran source file
+    Exception raised when compilation of a Fortran source file fails.
 
-    fails.
     :param value: description of the error condition.
     :type value: str or :py:class:`bytes`
 
@@ -184,7 +183,6 @@ class Compile(object):
         :returns: A list of strings with the compiler flags required.
         :rtype: list
         '''
-        # pylint: disable=no-self-use
         return []
 
     @staticmethod

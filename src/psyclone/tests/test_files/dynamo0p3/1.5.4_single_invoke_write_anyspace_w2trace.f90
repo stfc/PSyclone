@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,18 +36,15 @@
 
 program single_invoke_fs
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
+  ! Description: single function that writes to fields on ANY_SPACE
+  ! and W2trace (both continuous).
+  use testkern_write_any_w2trace_mod, only: testkern_write_any_w2trace_type
+  use inf,                            only: field_type
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4, f5, m1, m2, m3, m4, m5
+  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
 
-  call invoke(                              &
-       testkern_fs_type(f1, f2, m1, m2, f3, &
-                        f4, m3, m4, f5, m5) &
-          )
+  call invoke( testkern_write_any_w2trace_type(f1, m1, m2, f2, f3, f4, m3) )
 
 end program single_invoke_fs

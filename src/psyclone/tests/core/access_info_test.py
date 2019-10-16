@@ -123,7 +123,6 @@ def test_variable_access_info():
 
 # -----------------------------------------------------------------------------
 def test_variable_access_info_read_write():
-    # pylint: disable=invalid-name
     '''Test the handling of READWRITE accesses. A READWRITE indicates both
     a read and a write access, but if a variable as a READ and a WRITE
     access, this is not one READWRITE access. A READWRITE access is only
@@ -218,7 +217,6 @@ def test_variables_access_info():
 
 # -----------------------------------------------------------------------------
 def test_variables_access_info_merge():
-    # pylint: disable=invalid-name
     '''Tests the merge operation of VariablesAccessInfo.
     '''
     # First create one instance representing for example:
