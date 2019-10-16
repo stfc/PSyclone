@@ -308,7 +308,6 @@ def test_script_trans():
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
         example.'''
-    # pylint: disable=too-many-locals
     from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans

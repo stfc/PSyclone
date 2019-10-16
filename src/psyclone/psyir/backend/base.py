@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
+
 
 '''Generic PSyIR visitor code that can be specialised by different
 back ends.
@@ -39,6 +41,7 @@ back ends.
 '''
 # pylint: disable=eval-used
 
+import abc
 from psyclone.psyGen import Node
 
 
@@ -98,6 +101,26 @@ class PSyIRVisitor(object):
         self._skip_nodes = skip_nodes
         self._indent = indent_string
         self._depth = initial_indent_depth
+
+    def reference_node(self, node):
+        # pylint: disable=no-self-use
+        '''This method is called when a Reference instance is found in the
+        PSyIR tree.
+
+        :param node: a Reference PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Reference`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if this node has children.
+
+        '''
+        if node.children:
+            raise VisitorError(
+                "Expecting a Reference with no children but found: {0}"
+                "".format(str(node)))
+        return node.name
 
     @property
     def _nindent(self):
@@ -174,3 +197,86 @@ class PSyIRVisitor(object):
             raise VisitorError(
                 "Unsupported node '{0}' found: method names attempted were "
                 "{1}.".format(type(node).__name__, str(possible_method_names)))
+
+    def loop_node(self, node):
+        '''This method is called when a Loop instance is found in the
+        PSyIR tree.
+
+        :param node: a Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+
+        :returns: the loop node converted into a (language specific) string.
+        :rtype: str
+
+        '''
+        start = self._visit(node.start_expr)
+        stop = self._visit(node.stop_expr)
+        step = self._visit(node.step_expr)
+        variable_name = node.variable_name
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        return self.do_loop_format.format(self._nindent, variable_name,
+                                          start, stop, step, body)
+
+    @abc.abstractproperty
+    def do_loop_format(self):
+        '''Returns the format for a do/for loop. The format variables
+        will be replaced as follows:
+        0: indentation string
+        1: loop variable
+        2: first loop iteration
+        3: last loop iteration
+        4: step size
+        5: body of the loop
+        This is used by base.loop_node() to create a loop representation.
+
+        :return: the format of a loop.
+        :rtype: str
+        '''
+
+    @abc.abstractproperty
+    def directive_start(self):
+        '''Returns the start of a directive, e.g. "#pragma ...\n{" in C,
+        or "!$" in Fortran. The string {0} in the result will be replaced
+        with the actual directive. It must be implemented by any visitor.
+
+        :return: the start of a directive.
+        :rtype: str
+        '''
+
+    @abc.abstractproperty
+    def directive_end(self):
+        '''Returns the begining of the end of a directive, e.g. "}" in C (the
+        start directive also contains the opening "{"), or "!$" in Fortran (to
+        which e.g. "omp end do" will then be added). If the string contains
+        {0}, it will be replaced with the closing part of a directive (e.g.
+        "OMP END DO". It must be implemented by any visitor.
+
+        :return: the end of a directive (depending on language).
+        :rtype: str
+        '''
+
+    def ompdirective_node(self, node):
+        '''This method is called when an OMPDirective instance is found in
+        the PSyIR tree. It returns the opening and closing directives, and
+        the statements in between as a string (depending on the language).
+
+        :param node: a Directive PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Directive`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        result_list = [self.directive_start.format(node.begin_string())]
+        self._depth += 1
+        for child in node.children:
+            result_list.append(self._visit(child))
+        self._depth -= 1
+        result_list.append(self.directive_end.format(node.end_string()))
+        return "".join(result_list)

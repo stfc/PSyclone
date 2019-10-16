@@ -43,6 +43,7 @@ from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
 from collections import OrderedDict
+import re
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
@@ -112,7 +113,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Operation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
-                       "CodeBlock": "red"}
+                       "CodeBlock": "red",
+                       "Container": "green"}
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -978,6 +980,30 @@ class Node(object):
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
+    def math_equal(self, other):
+        '''Returns True if the self has the same results as other. The
+        implementation in the base class just confirms that the type is the
+        same, and the number of children as well.
+
+        :param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`.
+
+        :returns: whether self has the same result as other.
+        :rtype: bool
+        '''
+
+        # pylint: disable=unidiomatic-typecheck
+        if type(self) != type(other):
+            return False
+
+        if len(self.children) != len(other.children):
+            return False
+
+        for i, entity in enumerate(self.children):
+            if not entity.math_equal(other.children[i]):
+                return False
+        return True
+
     @property
     def ast(self):
         '''
@@ -1020,7 +1046,7 @@ class Node(object):
     def annotations(self):
         ''' Return the list of annotations attached to this Node.
 
-        :return: List of anotations
+        :returns: List of anotations
         :rtype: list of str
         '''
         return self._annotations
@@ -1305,14 +1331,6 @@ class Node(object):
             result += str(entity)+"\n"
         return result
 
-    def list_to_string(self, my_list):
-        result = ""
-        for idx, value in enumerate(my_list):
-            result += str(value)
-            if idx < (len(my_list) - 1):
-                result += ","
-        return result
-
     def addchild(self, child, index=None):
         if index is not None:
             self._children.insert(index, child)
@@ -1421,7 +1439,8 @@ class Node(object):
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class\
             or a tuple of such classes.
-        :return: list with all nodes that are instances of my_type \
+
+        :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
         :rtype: list of :py:class:`psyclone.Node` instances.
         '''
@@ -1532,7 +1551,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns true if this Node is within an OpenMP parallel region.
+        ''':returns: True if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -1604,7 +1623,7 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured.
+        :returns: Text containing the name of this node, possibly coloured.
         :rtype: str
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1615,7 +1634,7 @@ class Schedule(Node):
         in the Schedule.
 
         :param int index: index of the statement to access.
-        :return: statement in a given position in the Schedule sequence.
+        :returns: statement in a given position in the Schedule sequence.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         return self._children[index]
@@ -2084,7 +2103,7 @@ class ACCEnterDataDirective(ACCDirective):
                 if var not in var_list:
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
-        var_str = self.list_to_string(var_list)
+        var_str = ",".join(var_list)
         # 4. Add the enter data directive.
         if var_str:
             copy_in_str = "copyin("+var_str+")"
@@ -2419,7 +2438,7 @@ class OMPParallelDirective(OMPDirective):
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
-        private_str = self.list_to_string(private_list)
+        private_str = ",".join(private_list)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -2477,6 +2496,38 @@ class OMPParallelDirective(OMPDirective):
             parent.add(CommentGen(parent, ""))
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp parallel". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        result = "omp parallel"
+        # TODO #514: not yet working with NEMO, so commented out for now
+        # if not self._reprod:
+        #     result += self._reduction_string()
+        private_list = self._get_private_list()
+        private_str = ",".join(private_list)
+
+        if private_str:
+            result = "{0} private({1})".format(result, private_str)
+        return result
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end parallel". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end parallel"
 
     def _get_private_list(self):
         '''
@@ -2556,6 +2607,7 @@ class OMPParallelDirective(OMPDirective):
                                correct structure to permit the insertion \
                                of the OpenMP parallel region.
         '''
+        # TODO #435: Remove this function once this is fixed
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
@@ -2566,14 +2618,24 @@ class OMPParallelDirective(OMPDirective):
         if self.ast:
             return
 
+        parent_ast = self.parent.ast
+        while parent_ast:
+            if hasattr(parent_ast, "content") and \
+                    parent_ast is not self.children[0].ast:
+                break
+            parent_ast = parent_ast._parent
+
+        if not parent_ast:
+            raise InternalError("Cannot find parent ast for omp parallel.")
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = object_index(self._parent.ast.content,
-                                     self._children[0].ast)
-            end_idx = object_index(self._parent.ast.content,
-                                   self._children[-1].ast)
+            start_idx = object_index(parent_ast.content,
+                                     self.children[0].ast)
+            end_idx = object_index(parent_ast.content,
+                                   self.children[-1].ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2587,14 +2649,33 @@ class OMPParallelDirective(OMPDirective):
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
         self.ast_end = enddir
-        # If end_idx+1 takes us beyond the range of the list then the
-        # element is appended to the list
-        self._parent.ast.content.insert(end_idx+1, enddir)
+        # FIXME: In case of:
+        # omp parallel
+        #    omp do
+        #       loop
+        #    omp end do
+        # omp end parallel
+        # the "end parallel" statement will be inserted after the "omp do"
+        # statement!
+        # In order to avoid this problem when an "omp do" is present, test
+        # for this case and if so move the "omp end parallel" two statements
+        # further down, i.e. after the loop and "omp end do" statement.
+        # TODO #435
+        if isinstance(parent_ast.content[end_idx], Comment) and \
+                "omp do" in str(parent_ast.content[end_idx]) and \
+                "omp end do" in str(parent_ast.content[end_idx+2]):
+            # We need to test for instance, otherwise the string representation
+            # of a loop could somewhere contain an "omp do"
+            parent_ast.content.insert(end_idx+3, enddir)
+        else:
+            # If end_idx+1 takes us beyond the range of the list then the
+            # element is appended to the list
+            parent_ast.content.insert(end_idx + 1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self.ast = startdir
-        self._parent.ast.content.insert(start_idx, self.ast)
+        parent_ast.content.insert(start_idx, self.ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2675,8 +2756,8 @@ class OMPDoDirective(OMPDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         :raises GenerationError: if this "!$omp do" is not enclosed within \
                                  an OMP Parallel region.
-        '''
 
+        '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
         # can apply transformations to the code). As an orphaned loop
@@ -2706,6 +2787,98 @@ class OMPDoDirective(OMPDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        return "omp do schedule({0})".format(self._omp_schedule)
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end do". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        return "omp end do"
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        do.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+                                 correct structure to permit the insertion \
+                                 of the OpenMP parallel do.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
+        # Check that we haven't already been called
+        if self.ast:
+            return
+
+        # Since this is an OpenMP do, it can only be applied
+        # to a single loop.
+        if len(self._children) != 1:
+            raise GenerationError(
+                "An OpenMP DO can only be applied to a single loop "
+                "but this Node has {0} children: {1}".
+                format(len(self._children), self._children))
+
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the child of this node in the AST of our parent node
+        # TODO make this robust by using the new 'children' method to
+        # be introduced in fparser#105
+        # We have to take care to find a parent node (in the fparser2 AST)
+        # that has 'content'. This is because If-else-if blocks have their
+        # 'content' as siblings of the If-then and else-if nodes.
+        parent = self.parent
+        # This initial loop is necessary in case that the parent is e.g. an
+        # omp parallel node (which has no ast either). So we search up
+        # till we find the first tree to actually have an ast.
+        # TODO #435
+        while not parent.ast:
+            parent = parent.parent
+        parent_ast = parent.ast
+        while parent_ast:
+            if hasattr(parent_ast, "content") and \
+                    parent_ast is not self.children[0].ast:
+                break
+            parent_ast = parent_ast._parent
+        if not parent_ast:
+            raise InternalError("Failed to find parent node in which to "
+                                "insert OpenMP parallel do directive")
+        start_idx = object_index(parent_ast.content,
+                                 self.children[0].ast)
+
+        # Create the start directive
+        text = ("!$omp do schedule({0})".format(self._omp_schedule))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end do",
+                                             ignore_comments=False))
+        parent_ast.content.insert(start_idx + 1, enddir)
+
+        # Insert the start directive (do this second so we don't have
+        # to correct the location)
+        self.ast = startdir
+        parent_ast.content.insert(start_idx, self.ast)
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -2746,7 +2919,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_str = self.list_to_string(self._get_private_list())
+        private_str = ",".join(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
                                 "schedule({1})".
@@ -3130,7 +3303,7 @@ class Loop(Node):
     @property
     def start_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop start expression.
+        :returns: the PSyIR Node representing the Loop start expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3157,7 +3330,7 @@ class Loop(Node):
     @property
     def stop_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop stop expression.
+        :returns: the PSyIR Node representing the Loop stop expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3184,7 +3357,7 @@ class Loop(Node):
     @property
     def step_expr(self):
         '''
-        :return: the PSyIR Node representing the Loop step expression.
+        :returns: the PSyIR Node representing the Loop step expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -3211,7 +3384,7 @@ class Loop(Node):
     @property
     def loop_body(self):
         '''
-        :return: the PSyIR Schedule with the loop body statements.
+        :returns: the PSyIR Schedule with the loop body statements.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
 
         '''
@@ -3436,7 +3609,7 @@ class Loop(Node):
             :param expr: a PSyIR expression.
             :type expr: :py:class:`psyclone.psyGen.Node`
 
-            :return: True if it is equal to the literal '1', false otherwise.
+            :returns: True if it is equal to the literal '1', false otherwise.
             '''
             return isinstance(expr, Literal) and expr.value == '1'
 
@@ -3817,6 +3990,7 @@ class CodedKern(Kern):
         if self._kern_schedule is None:
             astp = Fparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
     @property
@@ -4121,7 +4295,7 @@ class CodedKern(Kern):
                 # <name>_code convention as this is currently assumed
                 # when recreating the kernel module name from the
                 # PSyIR in the Fortran back end. This limitation is
-                # the subject of #393.
+                # the subject of #520.
 
                 if self.name.lower().rstrip("_code") != \
                    self.module_name.lower().rstrip("_mod") or \
@@ -4152,7 +4326,7 @@ class CodedKern(Kern):
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
-                    kernels_local_size=self._opencl_options['local_size'])
+                kernels_local_size=self._opencl_options['local_size'])
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -4211,7 +4385,7 @@ class CodedKern(Kern):
         name is then inferred from the subroutine name by assuming
         there is a naming convention (<name>_code and <name>_mod),
         which is not always the case. This limitation is the subject
-        of #393.
+        of #520.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -4233,7 +4407,7 @@ class CodedKern(Kern):
         # an assumption in the PSyIR that the module name has the same
         # root name as the subroutine name. These names are used when
         # generating the modified kernel code. This limitation is the
-        # subject of #393.
+        # subject of #520.
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
 
@@ -4584,7 +4758,7 @@ class DataAccess(object):
 
     @property
     def covered(self):
-        '''Returns true if all of the data associated with this argument has
+        '''Returns True if all of the data associated with this argument has
         been covered by the arguments provided in update_coverage
 
         :return bool: True if all of an argument is covered by \
@@ -4944,7 +5118,7 @@ class KernelArgument(Argument):
 
     @abc.abstractmethod
     def is_scalar(self):
-        ''':return: whether this variable is a scalar variable or not.
+        ''':returns: whether this variable is a scalar variable or not.
         :rtype: bool'''
 
 
@@ -5124,7 +5298,7 @@ class IfBlock(Node):
         ''' Return the PSyIR Node representing the conditional expression
         of this IfBlock.
 
-        :return: IfBlock conditional expression.
+        :returns: IfBlock conditional expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
@@ -5139,7 +5313,7 @@ class IfBlock(Node):
     def if_body(self):
         ''' Return the Schedule executed when the IfBlock evaluates to True.
 
-        :return: Schedule to be executed when IfBlock evaluates to True.
+        :returns: Schedule to be executed when IfBlock evaluates to True.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
@@ -5157,7 +5331,7 @@ class IfBlock(Node):
         ''' If available return the Schedule executed when the IfBlock
         evaluates to False, otherwise return None.
 
-        :return: Schedule to be executed when IfBlock evaluates \
+        :returns: Schedule to be executed when IfBlock evaluates \
             to False, if it doesn't exist returns None.
         :rtype: :py:class:`psyclone.psyGen.Schedule` or NoneType
         '''
@@ -5995,7 +6169,7 @@ class SymbolTable(object):
     @property
     def iteration_indices(self):
         '''
-        :return: List of symbols representing kernel iteration indices.
+        :returns: List of symbols representing kernel iteration indices.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -6007,7 +6181,7 @@ class SymbolTable(object):
     @property
     def data_arguments(self):
         '''
-        :return: List of symbols representing kernel data arguments.
+        :returns: List of symbols representing kernel data arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -6263,20 +6437,41 @@ class Assignment(Node):
         self.lhs.reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
-        var_info = accesses_left[self.lhs.name]
-        try:
-            var_info.change_read_to_write()
-        except InternalError:
-            # An internal error typically indicates that the same variable
-            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-            # supported in PSyclone.
-            from psyclone.parse.utils import ParseError
-            raise ParseError("The variable '{0}' appears more than once on "
-                             "the left-hand side of an assignment."
-                             .format(self.lhs.name))
+        if isinstance(self.lhs, CodeBlock):
+            # TODO #363: Assignment to user defined type, not supported yet.
+            # Here an absolute hack to get at least some information out
+            # from the AST - though indices are just strings, which will
+            # likely cause problems later as well.
+            name = str(self.lhs.ast)
+            # A regular expression that tries to find the last parenthesis
+            # pair in the name ("a(i,j)" --> "(i,j)")
+            ind = re.search(r"\([^\(]+\)$", name)
+            if ind:
+                # Remove the index part of the name
+                name = name.replace(ind.group(0), "")
+                # The index must be added as a list
+                accesses_left.add_access(name, AccessType.WRITE, self,
+                                         [ind.group(0)])
+            else:
+                accesses_left.add_access(name, AccessType.WRITE, self)
+        else:
+            var_info = accesses_left[self.lhs.name]
+            try:
+                var_info.change_read_to_write()
+            except InternalError:
+                # An internal error typically indicates that the same variable
+                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+                # supported in PSyclone.
+                from psyclone.parse.utils import ParseError
+                raise ParseError("The variable '{0}' appears more than once "
+                                 "on the left-hand side of an assignment."
+                                 .format(self.lhs.name))
 
         # Merge the data (that shows now WRITE for the variable) with the
-        # parameter to this function:
+        # parameter to this function. It is important that first the
+        # RHS is added, so that in statements like 'a=a+1' the read on
+        # the RHS comes before the write on the LHS (they have the same
+        # location otherwise, but the order is still important)
         self.rhs.reference_accesses(var_accesses)
         var_accesses.merge(accesses_left)
         var_accesses.next_location()
@@ -6299,7 +6494,7 @@ class Reference(Node):
     def name(self):
         ''' Return the name of the referenced symbol.
 
-        :return: Name of the referenced symbol.
+        :returns: Name of the referenced symbol.
         :rtype: str
         '''
         return self._reference
@@ -6327,6 +6522,17 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']"
 
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+
+        :returns: True if the self has the same results as other.
+        :rtype: bool
+        '''
+        if not super(Reference, self).math_equal(other):
+            return False
+        return self.name == other.name
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
         it sets this variable to be read.
@@ -6337,6 +6543,102 @@ class Reference(Node):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         var_accesses.add_access(self._reference, AccessType.READ, self)
+
+    def check_declared(self):
+        '''Check whether this reference has an associated symbol table entry.
+
+        raises SymbolError: if one or more ancestor symbol table(s) \
+        are found and the name of this reference is not found in any \
+        of them.
+
+        '''
+        found_symbol_table = False
+        test_node = self.parent
+        while test_node:
+            if hasattr(test_node, 'symbol_table'):
+                found_symbol_table = True
+                symbol_table = test_node.symbol_table
+                if self.name in symbol_table:
+                    return
+            test_node = test_node.parent
+
+        # TODO: remove this if test, remove the initialisation of the
+        # found_symbol_table boolean variable and update the doc
+        # string when SymbolTables are suppported in the NEMO API, see
+        # issue #500. After this change has been made this method could
+        # make use of the symbol method to determine
+        # whether the reference has been declared (or not).
+        if found_symbol_table:
+            raise SymbolError(
+                "Undeclared reference '{0}' found.".format(self.name))
+
+    def symbol(self, scope_limit=None):
+        '''Returns the symbol from a symbol table associated with this
+        reference or None is it is not found. The scope_limit variable
+        limits the symbol table search to nodes within the scope.
+
+        :param scope_limit: optional Node which limits the symbol \
+        search space to the symbol tables of the nodes within the \
+        given scope. If it is None (the default), the whole scope (all \
+        symbol tables in ancestor nodes) is searched.
+        :type scope_limit: :py:class:`psyclone.psyGen.Node` or `None`
+
+        :returns: the Symbol associated with this reference if one is \
+        found or None if not.
+        :rtype: :py:class:`psyclone.psyGen.Symbol` or `None`
+
+        '''
+        if scope_limit:
+
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}' provided to the symbol "
+                    "method, is not of type `Node`."
+                    "".format(str(scope_limit), str(self)))
+
+            # Check that the scope_limit Node is an ancestor of this
+            # Reference Node and raise an exception if not.
+            found = False
+            mynode = self.parent
+            while mynode is not None:
+                if mynode is scope_limit:
+                    found = True
+                    break
+                mynode = mynode.parent
+            if not found:
+                # The scope_limit node is not an ancestor of this reference
+                # so raise an exception.
+                raise ValueError(
+                    "The scope_limit node '{0}' provided to the symbol "
+                    "method, is not an ancestor of this reference node '{1}'."
+                    "".format(str(scope_limit), str(self)))
+        test_node = self.parent
+        # Iterate over ancestor Nodes of this Reference Node.
+        while test_node:
+            # For simplicity, test every Node for the existence of a
+            # SymbolTable (rather than checking for the particular
+            # Node types which we know to have SymbolTables).
+            if hasattr(test_node, 'symbol_table'):
+                # This Node does have a SymbolTable.
+                symbol_table = test_node.symbol_table
+                try:
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
+                    return symbol_table.lookup(self.name)
+                except KeyError:
+                    # The Reference Node does not match any Symbols in
+                    # this SymbolTable.
+                    pass
+            if test_node is scope_limit:
+                # The ancestor scope Node has been reached and nothing
+                # has matched so return with None.
+                return None
+            # Move on to the next ancestor.
+            test_node = test_node.parent
+        # scope has not been set and all Nodes have been checked (up
+        # to the root Node) but there has been no match so return with
+        # None.
+        return None
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -6376,7 +6678,7 @@ class Operation(Node):
         Abstract method to return the name of this node type with control
         codes for terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
 
@@ -6385,7 +6687,7 @@ class Operation(Node):
         '''
         Return the operator.
 
-        :return: Enumerated type capturing the operator.
+        :returns: Enumerated type capturing the operator.
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
                 :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
                 :py:class:`psyclone.psyGen.NaryOperation.Operator`
@@ -6447,7 +6749,7 @@ class UnaryOperation(Operation):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
 
         '''
@@ -6478,6 +6780,31 @@ class BinaryOperation(Operation):
         # Query Operators
         'SIZE'
         ])
+
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+
+        :returns: True if the self has the same results as other.
+        :rtype: bool
+        '''
+        if not super(BinaryOperation, self).math_equal(other):
+            # Support some commutative law, unfortunately we now need
+            # to repeat some tests already done in super(), since we
+            # don't know why the above test failed
+            # TODO #533 for documenting restrictions
+            # pylint: disable=unidiomatic-typecheck
+            if type(self) != type(other):
+                return False
+            if self.operator != other.operator:
+                return False
+            if self.operator not in [self.Operator.ADD, self.Operator.MUL,
+                                     self.Operator.AND, self.Operator.OR,
+                                     self.Operator.EQ]:
+                return False
+            return self._children[0].math_equal(other.children[1]) and \
+                self._children[1].math_equal(other.children[0])
+        return self.operator == other.operator
 
     @property
     def coloured_text(self):
@@ -6606,7 +6933,7 @@ class Literal(Node):
         '''
         Return the value of the literal.
 
-        :return: String representing the literal value.
+        :returns: String representing the literal value.
         :rtype: str
         '''
         return self._value
@@ -6634,6 +6961,16 @@ class Literal(Node):
     def __str__(self):
         return "Literal[value:'" + self._value + "']"
 
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+
+        :return: if the self has the same results as other.
+        :type: bool
+        '''
+
+        return self.value == other.value
+
 
 class Return(Node):
     '''
@@ -6652,7 +6989,7 @@ class Return(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
@@ -6667,6 +7004,74 @@ class Return(Node):
 
     def __str__(self):
         return "Return[]\n"
+
+
+class Container(Node):
+    '''Node representing a set of KernelSchedule and/or Container nodes,
+    as well as a name and a SymbolTable. This construct can be used to
+    scope symbols of variables, KernelSchedule names and Container
+    names. In Fortran a container would naturally represent a module
+    or a submodule.
+
+    :param str name: the name of the container.
+    :param parent: optional parent node of this Container in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, name, parent=None):
+        super(Container, self).__init__(parent=parent)
+        self._name = name
+        self._symbol_table = SymbolTable(self)
+
+    @property
+    def name(self):
+        '''
+        :returns: name of the container.
+        :rtype: str
+
+        '''
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        '''Sets a new name for the container.
+
+        :param str new_name: new name for the container.
+
+        '''
+        self._name = new_name
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: table containing symbol information for the container.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+
+        '''
+        return self._symbol_table
+
+    @property
+    def coloured_text(self):
+        '''Return the name of this node type with control codes for terminal
+        colouring.
+
+        :return: name of node + control chars for colour.
+        :rtype: str
+
+        '''
+        return colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+
+    def view(self, indent=0):
+        '''Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+
+        '''
+        print(self.indent(indent) + self.coloured_text + "[{0}]"
+              "".format(self.name))
+
+    def __str__(self):
+        return "Container[{0}]\n".format(self.name)
 
 
 __all__ = ['Literal', 'Return']

@@ -54,7 +54,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, AccessType, \
-    Literal, Reference, ACCEnterDataDirective, Schedule
+    Literal, ACCEnterDataDirective, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -1059,7 +1059,7 @@ class GOKern(CodedKern):
         self.gen_data_on_ocl_device(parent)
 
         # Then we set the kernel arguments
-        arguments = [kernel, garg.name+"%grid%nx"]
+        arguments = [kernel]
         for arg in self._arguments.args:
             if arg.type == "scalar":
                 arguments.append(arg.name)
@@ -1070,7 +1070,10 @@ class GOKern(CodedKern):
                 # the pointers to device memory for grid properties in
                 # "<grid-prop-name>_device" which is a bit hacky but
                 # works for now.
-                arguments.append(garg.name+"%grid%"+arg.name+"_device")
+                if arg.is_scalar():
+                    arguments.append(garg.name+"%grid%"+arg.dereference_name)
+                else:
+                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
         sub_name = self._name_space_manager.create_name(
             root_name=self.name+"_set_args", context=self.name+"ArgSetter",
             label=self.name+"_set_args")
@@ -1110,15 +1113,12 @@ class GOKern(CodedKern):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
-            AssignGen, CommentGen
+        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, CommentGen
         # Currently literal arguments are checked for and rejected by
         # the OpenCL transformation.
         kobj = self._name_space_manager.create_name(
             root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
-        nx_name = self._name_space_manager.create_name(
-            root_name="nx", context="ArgSetter", label="nx")
-        args = [kobj, nx_name] + [arg.name for arg in self._arguments.args]
+        args = [kobj] + [arg.name for arg in self._arguments.args]
 
         sub_name = self._name_space_manager.create_name(
             root_name=self.name+"_set_args", context=self.name+"ArgSetter",
@@ -1132,21 +1132,29 @@ class GOKern(CodedKern):
         sub.add(UseGen(sub, name="clfortran", only=True,
                        funcnames=["clSetKernelArg"]))
         # Declare arguments
-        sub.add(DeclGen(sub, datatype="integer", target=True,
-                        entity_decls=[nx_name]))
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
 
-        # Arrays (grid properties and fields)
-        args = args_filter(self._arguments.args,
-                           arg_types=["field", "grid_property"])
+        # Get all Grid property arguments
+        grid_prop_args = args_filter(self._arguments.args,
+                                     arg_types=["field", "grid_property"])
+
+        # Array grid properties are c_intptr_t
+        args = [x for x in grid_prop_args if not x.is_scalar()]
         if args:
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                            intent="in", target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar grid properties are all integers
+        args = [x for x in grid_prop_args if x.is_scalar()]
+        if args:
+            sub.add(DeclGen(sub, datatype="integer", intent="in",
                             target=True,
                             entity_decls=[arg.name for arg in args]))
-        # Scalars
-        args = args_filter(self._arguments.args,
-                           arg_types=["scalar"],
+
+        # Scalar arguments
+        args = args_filter(self._arguments.args, arg_types=["scalar"],
                            is_literal=False)
         for arg in args:
             if arg.space.lower() == "go_r_scalar":
@@ -1185,7 +1193,8 @@ class GOKern(CodedKern):
                           funcnames=["create_rw_buffer"]))
         parent.add(CommentGen(parent, " Ensure field data is on device"))
         for arg in self._arguments.args:
-            if arg.type == "field" or arg.type == "grid_property":
+            if arg.type == "field" or \
+               (arg.type == "grid_property" and not arg.is_scalar()):
 
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping
@@ -1245,9 +1254,9 @@ class GOKern(CodedKern):
                         rhs=".true."))
 
                 # Ensure data copies have finished
-                ifthen.add(CommentGen(parent,
-                           " Block until data copies have finished"))
-                ifthen.add(AssignGen(parent, lhs=flag,
+                ifthen.add(CommentGen(
+                    ifthen, " Block until data copies have finished"))
+                ifthen.add(AssignGen(ifthen, lhs=flag,
                                      rhs="clFinish(" + qlist + "(1))"))
 
     def get_kernel_schedule(self):
@@ -1260,6 +1269,7 @@ class GOKern(CodedKern):
         if self._kern_schedule is None:
             astp = GOFparser2Reader()
             self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
 

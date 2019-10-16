@@ -69,9 +69,9 @@ TEST_API = "dynamo0.3"
 ALG_PATH = "../code"
 # Specify Algorithm file name
 ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
-# Specify the Kernel base name without the "_kernel_mod" and
+# Specify the Kernel base name without the "_mod" and
 # file extension
-KERNEL_BASENAME = "matrix_vector"
+KERNEL_BASENAME = "matrix_vector_kernel"
 # Specify whether to apply transformations before looking for the Kernel call
 # position
 TRANSFORM = False
