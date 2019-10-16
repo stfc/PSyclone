@@ -44,10 +44,9 @@ from fparser.two import pattern_tools
 from fparser.two.utils import walk_ast
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
-    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
-    Call_Stmt, Actual_Arg_Spec_List, Actual_Arg_Spec, Data_Ref, Part_Ref, \
-    Only_List, Char_Literal_Constant, Section_Subscript_List, \
-    Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant, \
+    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
+    Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
+    Section_Subscript_List, Name, Real_Literal_Constant, Int_Literal_Constant,\
     Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
 # pylint: enable=no-name-in-module
 
