@@ -280,6 +280,9 @@
 	89) PR #515 for #512. Adds PSyIR backend support (Fortran and C)
 	for Directives.
 
+	90) PR #534 for #520. Adds PSyIR Fortran backend support for the
+	Container Node.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
