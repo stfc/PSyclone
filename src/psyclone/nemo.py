@@ -387,7 +387,7 @@ class NemoKern(InlinedKern):
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
         # Create a kernel schedule
-        self._kern_schedule = KernelSchedule(self._name)
+        self._kern_schedule = KernelSchedule(self._name, self)
         # Attach the PSyIR sub-tree to it
         self._kern_schedule.children = psyir_nodes[:]
         # Update the parent info for each node we've moved

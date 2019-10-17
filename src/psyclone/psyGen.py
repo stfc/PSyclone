@@ -6194,10 +6194,13 @@ class KernelSchedule(Schedule):
     table to keep a record of the declared variables and their attributes.
 
     :param str name: Kernel subroutine name
+    :param parent: Parent of the KernelSchedule, defaults to None.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
 
-    def __init__(self, name):
-        super(KernelSchedule, self).__init__(sequence=None, parent=None)
+    def __init__(self, name, parent=None):
+        super(KernelSchedule, self).__init__(sequence=None, parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
