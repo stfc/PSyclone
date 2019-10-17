@@ -1,7 +1,7 @@
-# PSyclone Sub Generation
+# PSyclone Stub Generation
 
 PSyclone provides a utility to generate a Kernel's argument list and
-it's datatypes from the Kernel metadata. This is useful for people
+its datatypes from the Kernel metadata. This is useful for people
 developing new Kernels or modifying existing ones to make sure their
 implementation has the correct number and type of arguments.
 
