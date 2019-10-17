@@ -299,6 +299,23 @@ class Fparser2Reader(object):
         '''
         return KernelSchedule(name)
 
+    def generate_container(self, module_ast):
+        # Assume just 1 Fortran module definition in the file
+        if len(module_ast.content) > 1:
+            raise GenerationError("Unexpected AST when generating '{0}' "
+                                  "kernel schedule. Just one "
+                                  "module definition per file supported.")
+
+        module = module_ast.content[0]
+        mod_content = module.content
+        mod_name = str(mod_content[0].items[1])
+
+        # Create a container to capture the module information
+        new_container = Container(mod_name)
+        decl_list = mod_content[1].content
+        self.process_declarations(new_container, decl_list, [])
+        return new_container
+
     def generate_schedule(self, name, module_ast):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
@@ -559,6 +576,8 @@ class Fparser2Reader(object):
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
             interface = None
+            # 3) Record initialized constant values
+            has_constant_value = False
             for attr in iterateitems(attr_specs):
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
@@ -569,6 +588,10 @@ class Fparser2Reader(object):
                     elif "intent(inout)" in normalized_string:
                         interface = Symbol.Argument(
                             access=Symbol.Access.READWRITE)
+                    elif "parameter" == normalized_string:
+                        # Mark the existance of a constant value that we
+                        # expect to find the the RHS
+                        has_constant_value = True
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
@@ -585,6 +608,7 @@ class Fparser2Reader(object):
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialisation) = entity.items
+                ct_value = None
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
@@ -594,11 +618,21 @@ class Fparser2Reader(object):
                 else:
                     entity_shape = attribute_shape
 
-                if initialisation is not None:
-                    raise NotImplementedError(
-                        "Could not process {0}. Initialisations on the"
-                        " declaration statements are not supported."
-                        "".format(decl.items))
+                if initialisation:
+                    if not has_constant_value:
+                        raise NotImplementedError(
+                            "Could not process {0}. Initialisations on the"
+                            " declaration statements are just supported in "
+                            "parameter declarations.".format(decl.items))
+                    else:
+                        # If it is a parameter, get the initialization value
+                        expr = initialisation.items[1]
+                        if isinstance(expr, Fortran2003.NumberBase):
+                            value_str = expr.items[0]
+                            # Convert string literal to the Symbol datatype
+                            ct_value = Symbol.mapping[datatype](value_str)
+                        else:
+                            raise NotImplementedError("")
 
                 if char_len is not None:
                     raise NotImplementedError(
@@ -608,6 +642,7 @@ class Fparser2Reader(object):
 
                 parent.symbol_table.add(Symbol(str(name), datatype,
                                                shape=entity_shape,
+                                               constant_value=ct_value,
                                                interface=interface))
 
         try:

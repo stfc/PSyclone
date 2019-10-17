@@ -5422,9 +5422,13 @@ class Symbol(object):
                         'character',
                         'boolean',
                         'deferred')  # Type of this symbol not yet determined
+
     ## Mapping from supported data types for constant values to
     #  internal Python types
-    mapping = {'integer': int, 'character': str, 'boolean': bool}
+    mapping = {'integer': int,
+               'character': str,
+               'boolean': bool,
+               'real': float}
 
     class Access(Enum):
         '''
@@ -6018,6 +6022,45 @@ class SymbolTable(object):
         raise NotImplementedError(
             "Abstract property. Which symbols are data arguments is"
             " API-specific.")
+
+    def evaluate_deferred_symbols(self):
+        from os import listdir, path
+        from fparser.two.parser import ParserFactory
+        from fparser.common.readfortran import FortranFileReader
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        for symbol in self.symbols:
+            print("here")
+            self.view()
+            if symbol.datatype == "deferred":
+                if isinstance(symbol.interface, Symbol.FortranGlobal):
+                    filename = symbol.interface.module_name + '.f90'
+                    for directory in Config.get().include_paths:
+                        if filename in listdir(directory):
+                            # Parse the module source code
+                            reader = FortranFileReader(filename,
+                                                       ignore_comments=True)
+                            f2008_parser = ParserFactory().create(std="f2008")
+                            ast = f2008_parser(reader)
+                            fp2reader = Fparser2Reader()
+                            container = fp2reader.generate_container(ast)
+
+                            # Copy all the symbol properties but the interface
+                            tmp = symbol.interface
+                            decl = container.symbol_table.lookup(symbol.name)
+                            symbol.copy_properties(decl)
+                            symbol.interface = tmp
+
+                            # Finish the module search
+                            break
+                    else:
+                        raise GenerationError(
+                            "Module {0} not found in any of the include_path "
+                            "directories {1}."
+                            "".format(filename, Config.get().include_paths))
+                else:
+                    raise NotImplementedError(
+                        "Lazy evalution of Deferred {0} is not supported yet."
+                        "".format(symbol.interface))
 
     def view(self):
         '''
