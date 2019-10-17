@@ -6294,7 +6294,7 @@ class Reference(Node):
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent):
+    def __init__(self, reference_name, parent=None):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
 
