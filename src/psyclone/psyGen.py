@@ -6738,7 +6738,7 @@ class UnaryOperation(Operation):
         # Trigonometric Operators
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
-        'ABS', 'CEIL',
+        'ABS', 'CEIL', 'NINT',
         # Casting Operators
         'REAL', 'INT'
         ])

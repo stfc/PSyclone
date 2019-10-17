@@ -76,6 +76,7 @@ class Fparser2Reader(object):
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
         ('real', UnaryOperation.Operator.REAL),
+        ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
@@ -1432,7 +1433,7 @@ class Fparser2Reader(object):
 
         '''
         # First item is the name of the intrinsic
-        name = node.items[0].string.upper()
+        name = node.items[0].string.lower()
         # Now work out how many arguments it has
         num_args = 0
         if len(node.items) > 1:
@@ -1443,8 +1444,12 @@ class Fparser2Reader(object):
             else:
                 num_args = len(node.items) - 1
 
-        # We don't handle any intrinsics that don't have arguments
-        if num_args == 1:
+        # We don't handle any intrinsics that don't have arguments. There
+        # are some Fortran type-conversion intrinsics that take an optional
+        # kind parameter, e.g. NINT. Since 'kind' is a Fortran concept it is
+        # not counted as an argument when mapping to the equivalent, language-
+        # independent PSyIR operator.
+        if num_args == 1 or name in self.unary_operators:
             return self._unary_op_handler(node, parent)
         if num_args == 2:
             return self._binary_op_handler(node, parent)
@@ -1452,7 +1457,7 @@ class Fparser2Reader(object):
             return self._nary_op_handler(node, parent)
 
         # Intrinsic is not handled - this will result in a CodeBlock
-        raise NotImplementedError(name)
+        raise NotImplementedError(name.upper())
 
     def _name_handler(self, node, parent):
         '''
