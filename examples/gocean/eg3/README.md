@@ -27,7 +27,7 @@ psyclone -api "gocean1.0" -s ./ocl_trans.py alg.f90
 where `ocl_trans.py` simply applies the `psyclone.transformations.OCLTrans`
 transformation to the Schedule of the Invoke. This will generate the OpenCL
 driver layer to stdout and a 'kernel_name'.cl file for each of the kernels
-referenced in alg.f90 traslated to OpenCL.
+referenced in alg.f90 translated to OpenCL.
 
 Each OpenCL kernel needs to be compiled before buidling the driver layer.
 For example, the steps to generate the code using the Intel OpenCL SDK
