@@ -179,7 +179,8 @@ class NemoInvoke(Invoke):
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo module.
         processor = NemoFparser2Reader()
-        self._schedule = processor.generate_schedule(name, ast) #exe_part)
+        self._schedule = NemoInvokeSchedule(name, self, exe_part)
+        processor.process_nodes(self._schedule, exe_part.content, exe_part)
 
     def update(self):
         '''
@@ -297,7 +298,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
+class NemoInvokeSchedule(InvokeSchedule):
     '''
     The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
@@ -311,24 +312,19 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-    def __init__(self, name=None): #invoke, ast):
-        # pylint: disable=super-init-not-called, non-parent-init-called
+    def __init__(self, name, invoke, ast):
         from psyclone.psyGen import SymbolTable
-        #Node.__init__(self)
         super(NemoInvokeSchedule, self).__init__(None, None)
-        NemoFparser2Reader.__init__(self)
         # Currently only a KernelSchedule has a SymbolTable
         self._symbol_table = SymbolTable(self)
 
-        #self._invoke = invoke
-        #self._ast = ast
+        self._invoke = invoke
+        self._ast = ast
         # Whether or not we've already checked the associated Fortran for
         # potential name-clashes when inserting profiling code.
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
-
-        #self.process_nodes(self, ast.content, ast)
 
     def view(self, indent=0):
         '''

@@ -339,31 +339,26 @@ class Fparser2Reader(object):
 
         new_schedule = self._create_schedule(name)
 
-        # If we have a Module then we create a Container
-        if isinstance(module_ast.content[0], Fortran2003.Module):
-            # Assume just 1 Fortran module definition in the file
-            if len(module_ast.content) > 1:
-                import pdb; pdb.set_trace()
-                raise GenerationError("Unexpected AST when generating '{0}' "
-                                      "kernel schedule. Just one "
-                                      "module definition per file supported."
-                                      "".format(name))
+        # Assume just 1 Fortran module definition in the file
+        if len(module_ast.content) > 1:
+            raise GenerationError("Unexpected AST when generating '{0}' "
+                                  "kernel schedule. Just one "
+                                  "module definition per file supported."
+                                  "".format(name))
 
-            module = module_ast.content[0]
-            mod_content = module.content
-            mod_name = str(mod_content[0].items[1])
+        module = module_ast.content[0]
+        mod_content = module.content
+        mod_name = str(mod_content[0].items[1])
 
-            # Create a container to capture the module information and
-            # connect it to the schedule.
-            new_container = Container(mod_name)
-            new_schedule.parent = new_container
-            new_container.children = [new_schedule]
+        # Create a container to capture the module information and
+        # connect it to the schedule.
+        new_container = Container(mod_name)
+        new_schedule.parent = new_container
+        new_container.children = [new_schedule]
 
-            mod_spec = mod_content[1]
-            decl_list = mod_spec.content
-            self.process_declarations(new_container, decl_list, [])
-        else:
-            mod_content = module_ast.content
+        mod_spec = mod_content[1]
+        decl_list = mod_spec.content
+        self.process_declarations(new_container, decl_list, [])
 
         try:
             subroutines = first_type_match(mod_content,
