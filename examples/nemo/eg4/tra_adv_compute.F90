@@ -4,20 +4,21 @@ module tra_adv_compute_mod
 
 contains
 
-  subroutine tra_adv_compute(pun, pvn, pwn, mydomain, zslpx, zslpy, zwx, zwy, umask, vmask, tmask, zind)
+  subroutine tra_adv_compute(pun, pvn, pwn, umask, vmask, tmask, mydomain, jpi, jpj, jpk)
     implicit none
 
-    REAL*8, DIMENSION(:,:,:)   :: pun, pvn, pwn
-    REAL*8, DIMENSION(:,:,:)   :: mydomain, zslpx, zslpy, zwx, zwy, umask, vmask, tmask, zind
+    REAL*8, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, tmask
+    REAL*8, DIMENSION(:,:,:), intent(inout)   :: mydomain
+    INTEGER, INTENT(IN) :: jpi, jpj, jpk
     ! Not sure what to do with 2D and 1D arrays in the SIR backend
     !REAL*8, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
     !REAL*8, DIMENSION(:)       :: rnfmsk_z
     
     ! local variables
-    REAL*8                                        :: zice, zu, z0u, zzwx, zv, z0v, zzwy, ztra, zbtr, zdt, zalpha
-    REAL*8                                        :: r
+    REAL*8, DIMENSION(jpi,jpj, jpk)               :: zslpx, zslpy, zwx, zwy, zind
+    REAL*8                                        :: zu, z0u, zzwx, zv, z0v, zzwy, ztra, zbtr, zdt, zalpha
     REAL*8                                        :: zw, z0w
-    INTEGER                                       :: jpi, jpj, jpk, ji, jj, jk, jt
+    INTEGER                                       :: ji, jj, jk
 
     ! Not sure what to do with 2D and 1D arrays in the SIR backend
     !DO jk = 1, jpk

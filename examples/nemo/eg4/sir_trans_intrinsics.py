@@ -233,8 +233,8 @@ def trans(psy):
         sched = invoke.schedule
         for kernel in sched.walk(NemoKern):
 
-            kern = fortran_writer(sched)
-            print(kern)
+            #kern = fortran_writer(sched)
+            # print(kern)
 
             kernel_schedule = kernel.get_kernel_schedule()
             for oper in kernel_schedule.walk(UnaryOperation):

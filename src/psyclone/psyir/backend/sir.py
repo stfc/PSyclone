@@ -466,7 +466,7 @@ class SIRWriter(PSyIRVisitor):
         else:
             else_part = "None"
 
-        return ("{0}make_if_stmt({1}, {2}, {3})\n"
+        return ("{0}make_if_stmt({1}, {2}, {3}),\n"
                 "".format(self._nindent, cond_part, then_part, else_part))
 
     def schedule_node(self, node):
