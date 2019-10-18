@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, KernelSchedule, Container, \
+    DataSymbol, KernelSchedule, Container, \
     Assignment, Return, Array, InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -545,8 +545,8 @@ class Fparser2Reader(object):
                 # Create an entry in the SymbolTable for each symbol named
                 # in the ONLY clause.
                 parent.symbol_table.add(
-                    Symbol(str(name), datatype='deferred',
-                           interface=Symbol.FortranGlobal(mod_name)))
+                    DataSymbol(str(name), datatype='deferred',
+                               interface=DataSymbol.FortranGlobal(mod_name)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -582,12 +582,14 @@ class Fparser2Reader(object):
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if "intent(in)" in normalized_string:
-                        interface = Symbol.Argument(access=Symbol.Access.READ)
+                        interface = DataSymbol.Argument(
+                                        access=DataSymbol.Access.READ)
                     elif "intent(out)" in normalized_string:
-                        interface = Symbol.Argument(access=Symbol.Access.WRITE)
+                        interface = DataSymbol.Argument(
+                                        access=DataSymbol.Access.WRITE)
                     elif "intent(inout)" in normalized_string:
-                        interface = Symbol.Argument(
-                            access=Symbol.Access.READWRITE)
+                        interface = DataSymbol.Argument(
+                                        access=DataSymbol.Access.READWRITE)
                     elif "parameter" == normalized_string:
                         # Mark the existance of a constant value that we
                         # expect to find the the RHS
@@ -630,7 +632,7 @@ class Fparser2Reader(object):
                         if isinstance(expr, Fortran2003.NumberBase):
                             value_str = expr.items[0]
                             # Convert string literal to the Symbol datatype
-                            ct_value = Symbol.mapping[datatype](value_str)
+                            ct_value = DataSymbol.mapping[datatype](value_str)
                         else:
                             raise NotImplementedError("")
 
@@ -640,10 +642,10 @@ class Fparser2Reader(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                parent.symbol_table.add(Symbol(str(name), datatype,
-                                               shape=entity_shape,
-                                               constant_value=ct_value,
-                                               interface=interface))
+                parent.symbol_table.add(DataSymbol(str(name), datatype,
+                                                   shape=entity_shape,
+                                                   constant_value=ct_value,
+                                                   interface=interface))
 
         try:
             arg_symbols = []
@@ -655,8 +657,8 @@ class Fparser2Reader(object):
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
                     # A Fortran argument has intent(inout) by default
-                    symbol.interface = Symbol.Argument(
-                        access=Symbol.Access.READWRITE)
+                    symbol.interface = DataSymbol.Argument(
+                                           access=DataSymbol.Access.READWRITE)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the
             # argument list

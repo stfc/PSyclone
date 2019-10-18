@@ -209,7 +209,7 @@ class OpenCLWriter(CWriter):
         code += self._nindent + "){\n"
 
         # Declare local variables.
-        for symbol in symtab.local_symbols:
+        for symbol in symtab.local_variables:
             code += self.gen_local_variable(symbol)
 
         # Declare array length

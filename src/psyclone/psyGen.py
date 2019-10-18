@@ -5498,13 +5498,13 @@ class SymbolInterface(object):
 
     :param access: How the symbol is accessed within the section of code or \
                    None (if unknown).
-    :type access: :py:class:`psyclone.psyGen.SymbolAccess`
+    :type access: :py:class:`psyclone.psyGen.DataSymbol.Access`
     '''
     def __init__(self, access=None):
         self._access = None
         # Use the setter as that has error checking
         if not access:
-            self.access = Symbol.Access.UNKNOWN
+            self.access = DataSymbol.Access.UNKNOWN
         else:
             self.access = access
 
@@ -5512,7 +5512,7 @@ class SymbolInterface(object):
     def access(self):
         '''
         :returns: the access-type for this symbol.
-        :rtype: :py:class:`psyclone.psyGen.Symbol.Access`
+        :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access`
         '''
         return self._access
 
@@ -5522,26 +5522,57 @@ class SymbolInterface(object):
         Setter for the access type of this symbol.
 
         :param value: the new access type.
-        :type value: :py:class:`psyclon.psyGen.SymbolAccess`
+        :type value: :py:class:`psyclon.psyGen.DataSymbol.Access`
 
         :raises TypeError: if the supplied value is not of the correct type.
         '''
-        if not isinstance(value, Symbol.Access):
-            raise TypeError("SymbolInterface.access must be a 'Symbol.Access' "
-                            "but got '{0}'.".format(type(value)))
+        if not isinstance(value, DataSymbol.Access):
+            raise TypeError(
+                "SymbolInterface.access must be a 'DataSymbol.Access' "
+                "but got '{0}'.".format(type(value)))
         self._access = value
 
 
 class Symbol(object):
     '''
-    Symbol item for the Symbol Table. It contains information about: the name,
+    Symbol item for the Symbol Table. It always has a fixed name label that
+    matches with the key on the SymbolTables that conatin the symbol.
+
+    :param str name: Name of the symbol.
+    '''
+
+    def __init__(self, name):
+        self._name = name
+
+    @property
+    def name(self):
+        '''
+        :returns: Name of the Symbol.
+        :rtype: str
+        '''
+        return self._name
+
+    def __str__(self):
+        return self._name
+
+
+class ContainerSymbol(Symbol):
+
+    def __init__(self, name):
+        super(ContainerSymbol, self).__init__(name)
+        self._reference = None
+
+
+class DataSymbol(Symbol):
+    '''
+    Symbol identifying a data element. It contains information about:
     the datatype, the shape (in column-major order) and, for a symbol
     representing data that exists outside of the local scope, the interface
     to that symbol (i.e. the mechanism by which it is accessed).
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol. (One of \
-                     :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
+                     :py:attr:`psyclone.psyGen.DataSymbol.valid_data_types`.)
     :param list shape: Shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
@@ -5553,8 +5584,8 @@ class Symbol(object):
                       whether it is passed as a routine argument or accessed \
                       in some other way) or None if the symbol is local.
     :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
-    :param constant_value: Sets a fixed known value for this \
-                           Symbol. If the value is None (the default) \
+    :param constant_value: Sets a fixed known value for this DataSymbol. \
+                           If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
@@ -5581,7 +5612,7 @@ class Symbol(object):
 
     class Access(Enum):
         '''
-        Enumeration for the different types of access that a Symbol is
+        Enumeration for the different types of access that a DataSymbol is
         permitted to have.
 
         '''
@@ -5603,10 +5634,10 @@ class Symbol(object):
         argument.
 
         :param access: how the symbol is accessed within the local scope.
-        :type access: :py:class:`psyclone.psyGen.Symbol.Access`
+        :type access: :py:class:`psyclone.psyGen.DataSymbol.Access`
         '''
         def __init__(self, access=None):
-            super(Symbol.Argument, self).__init__(access=access)
+            super(DataSymbol.Argument, self).__init__(access=access)
             self._pass_by_value = False
 
         def __str__(self):
@@ -5614,20 +5645,20 @@ class Symbol(object):
 
     class FortranGlobal(SymbolInterface):
         '''
-        Describes the interface to a Fortran Symbol representing data that
+        Describes the interface to a Fortran DataSymbol representing data that
         is supplied as some sort of global variable. Currently only supports
         data accessed via a module 'USE' statement.
 
         :param str module_use: the name of the Fortran module from which the \
                                symbol is imported.
-        :param access: the manner in which the Symbol is accessed in the \
+        :param access: the manner in which the DataSymbol is accessed in the \
                        associated code section. If None is supplied then the \
-                       access is Symbol.Access.UNKNOWN.
-        :type access: :py:class:`psyclone.psyGen.Symbol.Access` or None.
+                       access is DataSymbol.Access.UNKNOWN.
+        :type access: :py:class:`psyclone.psyGen.DataSymbol.Access` or None.
         '''
         def __init__(self, module_use, access=None):
             self._module_name = ""
-            super(Symbol.FortranGlobal, self).__init__(access=access)
+            super(DataSymbol.FortranGlobal, self).__init__(access=access)
             self.module_name = module_use
 
         def __str__(self):
@@ -5665,29 +5696,30 @@ class Symbol(object):
     def __init__(self, name, datatype, shape=None, constant_value=None,
                  interface=None):
 
-        self._name = name
+        super(DataSymbol, self).__init__(name)
 
-        if datatype not in Symbol.valid_data_types:
+        if datatype not in DataSymbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes but found "
-                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
+                "DataSymbol can only be initialised with {0} datatypes but "
+                "found '{1}'.".format(str(DataSymbol.valid_data_types),
+                                      datatype))
         self._datatype = datatype
 
         if shape is None:
             shape = []
         elif not isinstance(shape, list):
-            raise TypeError("Symbol shape attribute must be a list.")
+            raise TypeError("DataSymbol shape attribute must be a list.")
 
         for dimension in shape:
-            if isinstance(dimension, Symbol):
+            if isinstance(dimension, DataSymbol):
                 if dimension.datatype != "integer" or dimension.shape:
                     raise TypeError(
-                        "Symbols that are part of another symbol shape can "
-                        "only be scalar integers, but found '{0}'."
+                        "DataSymbols that are part of another symbol shape can"
+                        " only be scalar integers, but found '{0}'."
                         "".format(str(dimension)))
             elif not isinstance(dimension, (type(None), int)):
-                raise TypeError("Symbol shape list elements can only be "
-                                "'Symbol', 'integer' or 'None'.")
+                raise TypeError("DataSymbol shape list elements can only be "
+                                "'DataSymbol', 'integer' or 'None'.")
         self._shape = shape
         # The following attributes have setter methods (with error checking)
         self._constant_value = None
@@ -5698,17 +5730,9 @@ class Symbol(object):
         self.constant_value = constant_value
 
     @property
-    def name(self):
-        '''
-        :returns: Name of the Symbol.
-        :rtype: str
-        '''
-        return self._name
-
-    @property
     def datatype(self):
         '''
-        :returns: Datatype of the Symbol.
+        :returns: Datatype of the DataSymbol.
         :rtype: str
         '''
         return self._datatype
@@ -5718,7 +5742,7 @@ class Symbol(object):
         '''
         :returns: How this symbol is accessed (read, readwrite etc.) within \
                   the local scope.
-        :rtype: :py:class:`psyclone.psyGen.Symbol.Access` or NoneType.
+        :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access` or NoneType.
         '''
         if self._interface:
             return self._interface.access
@@ -5757,7 +5781,7 @@ class Symbol(object):
     def interface(self):
         '''
         :returns: the an object describing the external interface to \
-                  this Symbol or None (if it is local).
+                  this DataSymbol or None (if it is local).
         :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` or \
                 NoneType.
         '''
@@ -5766,9 +5790,9 @@ class Symbol(object):
     @interface.setter
     def interface(self, value):
         '''
-        Setter for the Interface associated with this Symbol.
+        Setter for the Interface associated with this DataSymbol.
 
-        :param value: an Interface object describing how the Symbol is \
+        :param value: an Interface object describing how the DataSymbol is \
                       accessed by the code or None if it is local.
         :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` \
                      or NoneType.
@@ -5776,7 +5800,7 @@ class Symbol(object):
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
         if value is not None and not isinstance(value, SymbolInterface):
-            raise TypeError("The interface to a Symbol must be a "
+            raise TypeError("The interface to a DataSymbol must be a "
                             "SymbolInterface or None but got '{0}'".
                             format(type(value)))
         self._interface = value
@@ -5829,41 +5853,41 @@ class Symbol(object):
     def constant_value(self, new_value):
         '''
         :param constant_value: Set or change the fixed known value of \
-        the constant for this Symbol. If the value is None then this \
+        the constant for this DataSymbol. If the value is None then this \
         symbol does not have a fixed constant. The datatype of \
         new_value must be compatible with the datatype of the symbol.
         :type constant_value: int, str or bool
 
         :raises ValueError: If a non-None value is provided and 1) \
-        this Symbol instance does not have local scope, or 2) this \
-        Symbol instance is not a scalar (as the shape attribute is not \
+        this DataSymbol instance does not have local scope, or 2) this \
+        DataSymbol instance is not a scalar (as the shape attribute is not \
         empty), or 3) a constant value is provided but the type of the \
         value does not support this, or 4) the type of the value \
-        provided is not compatible with the datatype of this Symbol \
+        provided is not compatible with the datatype of this DataSymbol \
         instance.
 
         '''
         if new_value is not None:
             if self.scope != "local":
                 raise ValueError(
-                    "Symbol with a constant value is currently limited to "
+                    "DataSymbol with a constant value is currently limited to "
                     "having local scope but found '{0}'.".format(self.scope))
             if self.is_array:
                 raise ValueError(
-                    "Symbol with a constant value must be a scalar but the "
-                    "shape attribute is not empty.")
+                    "DataSymbol with a constant value must be a scalar but the"
+                    " shape attribute is not empty.")
             try:
-                lookup = Symbol.mapping[self.datatype]
+                lookup = DataSymbol.mapping[self.datatype]
             except KeyError:
                 raise ValueError(
                     "A constant value is not currently supported for "
                     "datatype '{0}'.".format(self.datatype))
             if not isinstance(new_value, lookup):
                 raise ValueError(
-                    "This Symbol instance's datatype is '{0}' which means "
+                    "This DataSymbol instance's datatype is '{0}' which means "
                     "the constant value is expected to be '{1}' but found "
                     "'{2}'.".format(self.datatype,
-                                    Symbol.mapping[self.datatype],
+                                    DataSymbol.mapping[self.datatype],
                                     type(new_value)))
         self._constant_value = new_value
 
@@ -5872,7 +5896,7 @@ class Symbol(object):
         if self.is_array:
             ret += "Array["
             for dimension in self.shape:
-                if isinstance(dimension, Symbol):
+                if isinstance(dimension, DataSymbol):
                     ret += dimension.name
                 elif isinstance(dimension, int):
                     ret += str(dimension)
@@ -5880,8 +5904,8 @@ class Symbol(object):
                     ret += "'Unknown bound'"
                 else:
                     raise InternalError(
-                        "Symbol shape list elements can only be 'Symbol', "
-                        "'integer' or 'None', but found '{0}'."
+                        "DataSymbol shape list elements can only be "
+                        "'DataSymbol', 'integer' or 'None', but found '{0}'."
                         "".format(type(dimension)))
                 ret += ", "
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
@@ -5902,12 +5926,12 @@ class Symbol(object):
 
         :returns: A symbol object with the same properties as this \
                   symbol object.
-        :rtype: :py:class:`psyclone.psyGen.Symbol`
+        :rtype: :py:class:`psyclone.psyGen.DataSymbol`
 
         '''
-        return Symbol(self.name, self.datatype, shape=self.shape[:],
-                      constant_value=self.constant_value,
-                      interface=self.interface)
+        return DataSymbol(self.name, self.datatype, shape=self.shape[:],
+                          constant_value=self.constant_value,
+                          interface=self.interface)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -5915,14 +5939,14 @@ class Symbol(object):
 
         :param symbol_in: The symbol from which the properties are \
                           copied from.
-        :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
+        :type symbol_in: :py:class:`psyclone.psyGen.DataSymbol`
 
         :raises TypeError: If the argument is not the expected type.
 
         '''
-        if not isinstance(symbol_in, Symbol):
-            raise TypeError("Argument should be of type 'Symbol' but found "
-                            "'{0}'.".format(type(symbol_in).__name__))
+        if not isinstance(symbol_in, DataSymbol):
+            raise TypeError("Argument should be of type 'DataSymbol' but found"
+                            " '{0}'.".format(type(symbol_in).__name__))
 
         self._datatype = symbol_in.datatype
         self._shape = symbol_in.shape[:]
@@ -6014,8 +6038,8 @@ class SymbolTable(object):
         Sets-up the internal list storing the order of the arguments to this
         kernel.
 
-        :param list argument_symbols: Ordered list of the Symbols representing\
-                                      the kernel arguments.
+        :param list argument_symbols: Ordered list of the DataSymbols \
+                                      representing the kernel arguments.
 
         :raises ValueError: If the new argument_list is not consistent with \
                             the existing entries in the SymbolTable.
@@ -6054,7 +6078,7 @@ class SymbolTable(object):
         and then returns the list of kernel arguments.
 
         :returns: Ordered list of arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         :raises InternalError: If the entries of the SymbolTable are not \
                                self-consistent.
@@ -6075,30 +6099,31 @@ class SymbolTable(object):
         Checks that the supplied list of Symbols are valid kernel arguments.
 
         :param arg_list: the proposed kernel arguments.
-        :type param_list: list of :py:class:`psyclone.psyGen.Symbol`
+        :type param_list: list of :py:class:`psyclone.psyGen.DataSymbol`
 
-        :raises TypeError: if any item in the supplied list is not a Symbol.
+        :raises TypeError: if any item in the supplied list is not a \
+            DataSymbol.
         :raises ValueError: if any of the symbols has no Interface.
-        :raises ValueError: if any of the symbols has an Interface that is \
-                            not a :py:class:`psyclone.psyGen.Symbol.Argument`.
+        :raises ValueError: if any of the symbols has an Interface and is not \
+                            a :py:class:`psyclone.psyGen.DataSymbol.Argument`.
 
         '''
         for symbol in arg_list:
-            if not isinstance(symbol, Symbol):
-                raise TypeError("Expected a list of Symbols but found an "
+            if not isinstance(symbol, DataSymbol):
+                raise TypeError("Expected a list of DataSymbols but found an "
                                 "object of type '{0}'.".format(type(symbol)))
             # All symbols in the argument list must have a
             # 'Symbol.Argument' interface
             if symbol.scope == 'local':
                 raise ValueError(
-                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "DataSymbol '{0}' is listed as a kernel argument but has "
                     "no associated Interface.".format(str(symbol)))
-            if not isinstance(symbol.interface, Symbol.Argument):
+            if not isinstance(symbol.interface, DataSymbol.Argument):
                 raise ValueError(
-                    "Symbol '{0}' is listed as a kernel argument but has "
+                    "DataSymbol '{0}' is listed as a kernel argument but has "
                     "an interface of type '{1}' rather than "
-                    "Symbol.Argument".format(str(symbol),
-                                             type(symbol.interface)))
+                    "DataSymbol.Argument"
+                    "".format(str(symbol), type(symbol.interface)))
 
     def _validate_non_args(self):
         '''
@@ -6114,10 +6139,10 @@ class SymbolTable(object):
                 # Symbols not in the argument list must not have a
                 # Symbol.Argument interface
                 if symbol.interface and isinstance(symbol.interface,
-                                                   Symbol.Argument):
+                                                   DataSymbol.Argument):
                     raise ValueError(
                         "Symbol '{0}' is not listed as a kernel argument and "
-                        "yet has a Symbol.Argument interface.".format(
+                        "yet has a DataSymbol.Argument interface.".format(
                             str(symbol)))
 
     @property
@@ -6129,30 +6154,32 @@ class SymbolTable(object):
         return list(self._symbols.values())
 
     @property
-    def local_symbols(self):
+    def local_variables(self):
         '''
-        :returns:  List of local symbols.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :returns:  List of symbols representing local variables.
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
         '''
-        return [sym for sym in self._symbols.values() if sym.scope == "local"]
+        return [sym for sym in self._symbols.values() if
+                isinstance(sym, DataSymbol) and sym.scope == "local"]
 
     @property
-    def global_symbols(self):
+    def global_variables(self):
         '''
         :returns: list of symbols that are not routine arguments but \
                   still have 'global' scope - i.e. are associated with \
                   data that exists outside the current scope.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         '''
-        return [sym for sym in self._symbols.values() if sym.scope == "global"
-                and not isinstance(sym.interface, Symbol.Argument)]
+        return [sym for sym in self._symbols.values() if
+                isinstance(sym, DataSymbol) and sym.scope == "global"
+                and not isinstance(sym.interface, DataSymbol.Argument)]
 
     @property
     def iteration_indices(self):
         '''
         :returns: List of symbols representing kernel iteration indices.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         :raises NotImplementedError: this method is abstract.
         '''
@@ -6164,7 +6191,7 @@ class SymbolTable(object):
     def data_arguments(self):
         '''
         :returns: List of symbols representing kernel data arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         :raises NotImplementedError: this method is abstract.
         '''
@@ -6181,7 +6208,7 @@ class SymbolTable(object):
             print("here")
             self.view()
             if symbol.datatype == "deferred":
-                if isinstance(symbol.interface, Symbol.FortranGlobal):
+                if isinstance(symbol.interface, DataSymbol.FortranGlobal):
                     filename = symbol.interface.module_name + '.f90'
                     for directory in Config.get().include_paths:
                         if filename in listdir(directory):

@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     ACCEnterDataDirective, ACCKernelsDirective, Container
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.psyGen import Symbol, SymbolTable
+from psyclone.psyGen import DataSymbol, SymbolTable
 from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
@@ -3150,7 +3150,7 @@ def test_reference_view(capsys):
     ''' Check the view and colored_text methods of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3163,7 +3163,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']" in str(ref)
@@ -3185,11 +3185,12 @@ def test_reference_symbol(monkeypatch):
     # Symbol in KernelSchedule SymbolTable
     field_old = references[0]
     assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol(), Symbol)
+    assert isinstance(field_old.symbol(), DataSymbol)
     assert field_old.symbol().name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.symbol(scope_limit=kernel_schedule), Symbol)
+    assert isinstance(field_old.symbol(scope_limit=kernel_schedule),
+                      DataSymbol)
     assert field_old.symbol().name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope
@@ -3198,7 +3199,7 @@ def test_reference_symbol(monkeypatch):
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    assert isinstance(alpha.symbol(), Symbol)
+    assert isinstance(alpha.symbol(), DataSymbol)
     assert alpha.symbol().name == alpha.name
 
     # Symbol in Container SymbolTable with KernelSchedule scope
@@ -3233,7 +3234,7 @@ def test_array_view(capsys):
     ''' Check the view and colored_text methods of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("aname", "integer", [None]))
+    kschedule.symbol_table.add(DataSymbol("aname", "integer", [None]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3246,7 +3247,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("aname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("aname", "integer"))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
@@ -3482,7 +3483,7 @@ def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", "integer"))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3501,7 +3502,7 @@ def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", "integer"))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3521,187 +3522,194 @@ def test_kernelschedule_name_setter():
     assert kschedule.name == "newname"
 
 
-# Test Symbol Class
+# Test DataSymbol Class
 def test_symbol_initialisation():
-    '''Test that a Symbol instance can be created when valid arguments are
+    '''Test that a DataSymbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 
     # Test with valid arguments
-    assert isinstance(Symbol('a', 'real'), Symbol)
+    assert isinstance(DataSymbol('a', 'real'), DataSymbol)
     # real constants are not currently supported
-    assert isinstance(Symbol('a', 'integer'), Symbol)
-    assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
-    assert isinstance(Symbol('a', 'character'), Symbol)
-    assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
-    assert isinstance(Symbol('a', 'boolean'), Symbol)
-    assert isinstance(Symbol('a', 'boolean', constant_value=False), Symbol)
-    assert isinstance(Symbol('a', 'real', [None]), Symbol)
-    assert isinstance(Symbol('a', 'real', [3]), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', []), Symbol)
-    assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
-                      Symbol)
+    assert isinstance(DataSymbol('a', 'integer'), DataSymbol)
+    assert isinstance(DataSymbol('a', 'integer', constant_value=0), DataSymbol)
+    assert isinstance(DataSymbol('a', 'character'), DataSymbol)
+    assert isinstance(DataSymbol('a', 'character', constant_value="hello"),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', 'boolean'), DataSymbol)
+    assert isinstance(DataSymbol('a', 'boolean', constant_value=False),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [None]), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [3]), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [3, None]), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', []), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [],
+                                 interface=DataSymbol.Argument()),
+                      DataSymbol)
     assert isinstance(
-        Symbol('a', 'real', [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol)
+        DataSymbol('a', 'real', [],
+                   interface=DataSymbol.Argument(
+                       access=DataSymbol.Access.READWRITE)),
+        DataSymbol)
     assert isinstance(
-        Symbol('a', 'real', [],
-               interface=Symbol.Argument(access=Symbol.Access.READ)),
-        Symbol)
+        DataSymbol('a', 'real', [],
+                   interface=DataSymbol.Argument(
+                       access=DataSymbol.Access.READ)),
+        DataSymbol)
     assert isinstance(
-        Symbol('a', 'deferred',
-               interface=Symbol.FortranGlobal(access=Symbol.Access.READ,
-                                              module_use='some_mod')),
-        Symbol)
-    dim = Symbol('dim', 'integer', [])
-    assert isinstance(Symbol('a', 'real', [dim]), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
+        DataSymbol('a', 'deferred',
+                   interface=DataSymbol.FortranGlobal(
+                       access=DataSymbol.Access.READ,
+                       module_use='some_mod')),
+        DataSymbol)
+    dim = DataSymbol('dim', 'integer', [])
+    assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [3, dim, None]), DataSymbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
-        Symbol('a', 'invalidtype', [], 'local')
+        DataSymbol('a', 'invalidtype', [], 'local')
     assert (
-        "Symbol can only be initialised with {0} datatypes but found "
-        "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
+        "DataSymbol can only be initialised with {0} datatypes but found "
+        "'invalidtype'.".format(str(DataSymbol.valid_data_types))) in str(
             error.value)
 
     # with pytest.raises(ValueError) as error:
-    #    Symbol('a', 'real', constant_value=3.14)
+    #    DataSymbol('a', 'real', constant_value=3.14)
     # assert ("A constant value is not currently supported for datatype "
     #        "'real'.") in str(error)
 
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', shape=dim)
-    assert "Symbol shape attribute must be a list." in str(error.value)
+        DataSymbol('a', 'real', shape=dim)
+    assert "DataSymbol shape attribute must be a list." in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', ['invalidshape'])
-    assert ("Symbol shape list elements can only be 'Symbol', "
+        DataSymbol('a', 'real', ['invalidshape'])
+    assert ("DataSymbol shape list elements can only be 'DataSymbol', "
             "'integer' or 'None'.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        bad_dim = Symbol('dim', 'real', [])
-        Symbol('a', 'real', [bad_dim], 'local')
+        bad_dim = DataSymbol('dim', 'real', [])
+        DataSymbol('a', 'real', [bad_dim], 'local')
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        bad_dim = Symbol('dim', 'integer', [3])
-        Symbol('a', 'real', [bad_dim], 'local')
+        bad_dim = DataSymbol('dim', 'integer', [3])
+        DataSymbol('a', 'real', [bad_dim], 'local')
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', interface=Symbol.Argument(), constant_value=9)
+        DataSymbol('a', 'integer', interface=DataSymbol.Argument(),
+                   constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
             "local scope but found 'global'.") in str(error)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', shape=[None], constant_value=9)
+        DataSymbol('a', 'integer', shape=[None], constant_value=9)
     assert ("Symbol with a constant value must be a scalar but the shape "
             "attribute is not empty.") in str(error)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', constant_value=9.81)
-    assert ("This Symbol instance's datatype is 'integer' which means the "
+        DataSymbol('a', 'integer', constant_value=9.81)
+    assert ("This DataSymbol instance's datatype is 'integer' which means the "
             "constant value is expected to be") in str(error)
     assert "'int'>' but found " in str(error)
     assert "'float'>'." in str(error)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'character', constant_value=42)
-    assert ("This Symbol instance's datatype is 'character' which means the "
-            "constant value is expected to be") in str(error)
+        DataSymbol('a', 'character', constant_value=42)
+    assert ("This DataSymbol instance's datatype is 'character' which means "
+            "the constant value is expected to be") in str(error)
     assert "'str'>' but found " in str(error)
     assert "'int'>'." in str(error)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'boolean', constant_value="hello")
-    assert ("This Symbol instance's datatype is 'boolean' which means the "
+        DataSymbol('a', 'boolean', constant_value="hello")
+    assert ("This DataSymbol instance's datatype is 'boolean' which means the "
             "constant value is expected to be") in str(error)
     assert "'bool'>' but found " in str(error)
     assert "'str'>'." in str(error)
 
 
 def test_symbol_map():
-    '''Test the mapping variable in the Symbol class does not raise any
+    '''Test the mapping variable in the DataSymbol class does not raise any
     exceptions when it is used with the valid_data_types variable in
-    the Symbol class.
+    the DataSymbol class.
 
     '''
     # "deferred" is not supported in the mapping so we expect
     # it to have 1 fewer entries than there are valid data types
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
-    for data_type in Symbol.valid_data_types:
+    assert len(DataSymbol.valid_data_types) == len(DataSymbol.mapping) + 1
+    for data_type in DataSymbol.valid_data_types:
         if data_type not in ["deferred"]:
-            assert data_type in Symbol.mapping
+            assert data_type in DataSymbol.mapping
 
 
 def test_symbol_can_be_printed():
-    '''Test that a Symbol instance can always be printed. (i.e. is
+    '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
-    symbol = Symbol("sname", "real")
+    symbol = DataSymbol("sname", "real")
     assert "sname: <real, Scalar, local>" in str(symbol)
 
-    sym1 = Symbol("s1", "integer")
+    sym1 = DataSymbol("s1", "integer")
     assert "s1: <integer, Scalar, local>" in str(sym1)
 
-    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    sym2 = DataSymbol("s2", "real", [None, 2, sym1])
     assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
 
-    sym3 = Symbol("s3", "real",
-                  interface=Symbol.FortranGlobal(module_use="my_mod"))
+    sym3 = DataSymbol("s3", "real",
+                      interface=DataSymbol.FortranGlobal(module_use="my_mod"))
     assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
             in str(sym3))
 
     sym2._shape.append('invalid')
     with pytest.raises(InternalError) as error:
         _ = str(sym2)
-    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
-            "'None', but found") in str(error.value)
+    assert ("DataSymbol shape list elements can only be 'DataSymbol', "
+            "'integer' or 'None', but found") in str(error.value)
 
-    sym3 = Symbol("s3", "integer", constant_value=12)
+    sym3 = DataSymbol("s3", "integer", constant_value=12)
     assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
 
 
 def test_symbol_constant_value_setter():
-    '''Test that a Symbol constant value can be set if given a new valid
+    '''Test that a DataSymbol constant value can be set if given a new valid
     constant value. Also test that is_constant returns True
 
     '''
 
     # Test with valid constant value
-    sym = Symbol('a', 'integer', constant_value=7)
+    sym = DataSymbol('a', 'integer', constant_value=7)
     assert sym.constant_value == 7
     sym.constant_value = 9
     assert sym.constant_value == 9
 
-    sym = Symbol('a', 'real', constant_value=3.1415)
+    sym = DataSymbol('a', 'real', constant_value=3.1415)
     assert sym.constant_value == 3.1415
     sym.constant_value = 1.0
     assert sym.constant_value == 1.0
 
 
 def test_symbol_is_constant():
-    '''Test that the Symbol is_constant property returns True if a
+    '''Test that the DataSymbol is_constant property returns True if a
     constant value is set and False if it is not.
 
     '''
-    sym = Symbol('a', 'integer')
+    sym = DataSymbol('a', 'integer')
     assert not sym.is_constant
     sym.constant_value = 9
     assert sym.is_constant
 
 
 def test_symbol_scalar_array():
-    '''Test that the Symbol property is_scalar returns True if the Symbol
-    is a scalar and False if not and that the Symbol property is_array
-    returns True if the Symbol is an array and False if not.
+    '''Test that the DataSymbol property is_scalar returns True if the
+    DataSymbol is a scalar and False if not and that the DataSymbol property
+    is_array returns True if the DataSymbol is an array and False if not.
 
     '''
-    sym1 = Symbol("s1", "integer")
-    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    sym1 = DataSymbol("s1", "integer")
+    sym2 = DataSymbol("s2", "real", [None, 2, sym1])
     assert sym1.is_scalar
     assert not sym1.is_array
     assert not sym2.is_scalar
@@ -3709,66 +3717,69 @@ def test_symbol_scalar_array():
 
 
 def test_symbol_invalid_interface():
-    ''' Check that the Symbol.interface setter rejects the supplied value if
-    it is not a SymbolInterface. '''
-    sym = Symbol("some_var", "real")
+    ''' Check that the DataSymbol.interface setter rejects the supplied value
+    if it is not a SymbolInterface. '''
+    sym = DataSymbol("some_var", "real")
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
-    assert ("interface to a Symbol must be a SymbolInterface or None but"
+    assert ("interface to a DataSymbol must be a SymbolInterface or None but"
             in str(err))
 
 
 def test_symbol_interface():
-    ''' Check the interface getter on a Symbol. '''
-    symbol = Symbol("some_var", "real",
-                    interface=Symbol.FortranGlobal(module_use="my_mod"))
+    ''' Check the interface getter on a DataSymbol. '''
+    symbol = DataSymbol("some_var", "real",
+                        interface=DataSymbol.FortranGlobal(
+                            module_use="my_mod"))
     assert symbol.interface.module_name == "my_mod"
 
 
 def test_symbol_interface_access():
     ''' Tests for the SymbolInterface.access setter. '''
-    symbol = Symbol("some_var", "real",
-                    interface=Symbol.FortranGlobal(module_use="my_mod"))
-    symbol.interface.access = Symbol.Access.READ
-    assert symbol.interface.access == Symbol.Access.READ
+    symbol = DataSymbol("some_var", "real",
+                        interface=DataSymbol.FortranGlobal(
+                            module_use="my_mod"))
+    symbol.interface.access = DataSymbol.Access.READ
+    assert symbol.interface.access == DataSymbol.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
         symbol.interface.access = "read"
-    assert "must be a 'Symbol.Access' but got " in str(err)
+    assert "must be a 'DataSymbol.Access' but got " in str(err)
 
 
 def test_symbol_argument_str():
-    ''' Check the __str__ method of the Symbol.Argument class. '''
-    # A Symbol.Argument represents a routine argument by default.
-    interface = Symbol.Argument()
+    ''' Check the __str__ method of the DataSymbol.Argument class. '''
+    # A DataSymbol.Argument represents a routine argument by default.
+    interface = DataSymbol.Argument()
     assert str(interface) == "Argument(pass-by-value=False)"
 
 
 def test_fortranglobal_str():
-    ''' Test the __str__ method of Symbol.FortranGlobal. '''
+    ''' Test the __str__ method of DataSymbol.FortranGlobal. '''
     # If it's not an argument then we have nothing else to say about it (since
     # other options are language specific and are implemented in sub-classes).
-    interface = Symbol.FortranGlobal("my_mod")
+    interface = DataSymbol.FortranGlobal("my_mod")
     assert str(interface) == "FortranModule(my_mod)"
 
 
 def test_fortranglobal_modname():
     ''' Test the FortranGlobal.module_name setter error conditions. '''
     with pytest.raises(ValueError) as err:
-        _ = Symbol.FortranGlobal("")
+        _ = DataSymbol.FortranGlobal("")
     assert "module_name must be one or more characters long" in str(err)
     with pytest.raises(TypeError) as err:
-        _ = Symbol.FortranGlobal(1)
+        _ = DataSymbol.FortranGlobal(1)
     assert "module_name must be a str but got" in str(err)
 
 
 def test_symbol_copy():
-    '''Test that the Symbol copy method produces a faithful separate copy
+    '''Test that the DataSymbol copy method produces a faithful separate copy
     of the original symbol.
 
     '''
-    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
-                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
+    symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
+                        interface=DataSymbol.Argument(
+                            access=DataSymbol.Access.READWRITE))
     new_symbol = symbol.copy()
 
     # Check the new symbol has the same properties as the original
@@ -3803,19 +3814,21 @@ def test_symbol_copy():
 
 
 def test_symbol_copy_properties():
-    '''Test that the Symbol copy_properties method works as expected.'''
+    '''Test that the DataSymbol copy_properties method works as expected.'''
 
-    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
-                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
+    symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
+                        interface=DataSymbol.Argument(
+                            access=DataSymbol.Access.READWRITE))
 
     # Check an exception is raised if an incorrect argument is passed
     # in
     with pytest.raises(TypeError) as excinfo:
         symbol.copy_properties(None)
-    assert ("Argument should be of type 'Symbol' but found 'NoneType'."
+    assert ("Argument should be of type 'DataSymbol' but found 'NoneType'."
             "") in str(excinfo.value)
 
-    new_symbol = Symbol("other_name", "integer", shape=[], constant_value=7)
+    new_symbol = DataSymbol("other_name", "integer", shape=[],
+                            constant_value=7)
 
     symbol.copy_properties(new_symbol)
 
@@ -3835,20 +3848,20 @@ def test_symboltable_add():
     sym_table = SymbolTable()
 
     # Declare a symbol
-    sym_table.add(Symbol("var1", "real", shape=[5, 1],
-                         interface=Symbol.FortranGlobal(
-                             access=Symbol.Access.READWRITE,
-                             module_use="some_mod")))
+    sym_table.add(DataSymbol("var1", "real", shape=[5, 1],
+                             interface=DataSymbol.FortranGlobal(
+                                 access=DataSymbol.Access.READWRITE,
+                                 module_use="some_mod")))
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
     assert sym_table._symbols["var1"].scope == "global"
-    assert sym_table._symbols["var1"].access is Symbol.Access.READWRITE
+    assert sym_table._symbols["var1"].access is DataSymbol.Access.READWRITE
     assert sym_table._symbols["var1"].interface.module_name == "some_mod"
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
-        sym_table.add(Symbol("var1", "real"))
+        sym_table.add(DataSymbol("var1", "real"))
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
@@ -3856,13 +3869,16 @@ def test_symboltable_add():
 def test_symboltable_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
-    symbol1 = Symbol("var1", "integer", shape=[], constant_value=7)
-    symbol2 = Symbol("dim1", "integer",
-                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    symbol3 = Symbol("dim2", "integer",
-                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
+    symbol1 = DataSymbol("var1", "integer", shape=[], constant_value=7)
+    symbol2 = DataSymbol("dim1", "integer",
+                         interface=DataSymbol.Argument(
+                             access=DataSymbol.Access.READ))
+    symbol3 = DataSymbol("dim2", "integer",
+                         interface=DataSymbol.Argument(
+                             access=DataSymbol.Access.READ))
+    symbol4 = DataSymbol("var2", "real", shape=[symbol2, symbol3],
+                         interface=DataSymbol.Argument(
+                             access=DataSymbol.Access.READWRITE))
     sym_table = SymbolTable()
     sym_table.add(symbol1)
 
@@ -3907,7 +3923,7 @@ def test_symboltable_swap_symbol_properties():
     assert symbol1.shape == [symbol2, symbol3]
     assert symbol1.scope == "global"
     assert symbol1.constant_value is None
-    assert symbol1.interface.access == Symbol.Access.READWRITE
+    assert symbol1.interface.access == DataSymbol.Access.READWRITE
 
     assert symbol4.name == "var2"
     assert symbol4.datatype == "integer"
@@ -3932,15 +3948,15 @@ def test_symboltable_lookup():
     '''Test that the lookup method retrieves symbols from the symbol table
     if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", shape=[None, None]))
-    sym_table.add(Symbol("var2", "integer", shape=[]))
-    sym_table.add(Symbol("var3", "real", shape=[]))
+    sym_table.add(DataSymbol("var1", "real", shape=[None, None]))
+    sym_table.add(DataSymbol("var2", "integer", shape=[]))
+    sym_table.add(DataSymbol("var3", "real", shape=[]))
 
-    assert isinstance(sym_table.lookup("var1"), Symbol)
+    assert isinstance(sym_table.lookup("var1"), DataSymbol)
     assert sym_table.lookup("var1").name == "var1"
-    assert isinstance(sym_table.lookup("var2"), Symbol)
+    assert isinstance(sym_table.lookup("var2"), DataSymbol)
     assert sym_table.lookup("var2").name == "var2"
-    assert isinstance(sym_table.lookup("var3"), Symbol)
+    assert isinstance(sym_table.lookup("var3"), DataSymbol)
     assert sym_table.lookup("var3").name == "var3"
 
     with pytest.raises(KeyError) as error:
@@ -3953,8 +3969,8 @@ def test_symboltable_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable.'''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real"))
-    sym_table.add(Symbol("var2", "integer"))
+    sym_table.add(DataSymbol("var1", "real"))
+    sym_table.add(DataSymbol("var2", "integer"))
     sym_table.view()
     output, _ = capsys.readouterr()
     assert "Symbol Table:\n" in output
@@ -3966,10 +3982,11 @@ def test_symboltable_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real"))
-    sym_table.add(Symbol("var2", "integer"))
-    sym_table.add(Symbol("var3", "deferred",
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    sym_table.add(DataSymbol("var1", "real"))
+    sym_table.add(DataSymbol("var2", "integer"))
+    sym_table.add(DataSymbol("var3", "deferred",
+                             interface=DataSymbol.FortranGlobal(
+                                 module_use="my_mod")))
     sym_table_text = str(sym_table)
     assert "Symbol Table:\n" in sym_table_text
     assert "var1" in sym_table_text
@@ -3979,18 +3996,18 @@ def test_symboltable_can_be_printed():
 
 def test_symboltable_specify_argument_list():
     '''Test that the specify argument list method sets the argument_list
-    with references to each Symbol and updates the Symbol attributes when
-    needed.'''
+    with references to each DataSymbol and updates the DataSymbol attributes
+    when needed.'''
     sym_table = SymbolTable()
-    sym_v1 = Symbol("var1", "real", [])
+    sym_v1 = DataSymbol("var1", "real", [])
     sym_table.add(sym_v1)
-    sym_table.add(Symbol("var2", "real", []))
-    sym_v1.interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
+    sym_table.add(DataSymbol("var2", "real", []))
+    sym_v1.interface = DataSymbol.Argument(access=DataSymbol.Access.UNKNOWN)
     sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.argument_list) == 1
     assert sym_table.argument_list[0].scope == 'global'
-    assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
+    assert sym_table.argument_list[0].access == DataSymbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
     sym_table.specify_argument_list([sym_v1])
@@ -3999,19 +4016,19 @@ def test_symboltable_specify_argument_list():
     # Check that specifying the Interface allows us to specify how
     # the argument is accessed
     sym_v2 = sym_table.lookup("var2")
-    sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_v2.interface = DataSymbol.Argument(access=DataSymbol.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1, sym_v2])
     assert sym_table.argument_list[1].scope == 'global'
-    assert sym_table.argument_list[1].access == Symbol.Access.READWRITE
+    assert sym_table.argument_list[1].access == DataSymbol.Access.READWRITE
 
 
 def test_symboltable_specify_argument_list_errors():
-    ''' Check that supplying specify_argument_list() with Symbols that
+    ''' Check that supplying specify_argument_list() with DataSymbols that
     don't have the correct Interface information raises the expected
     errors. '''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", []))
     sym_v1 = sym_table.lookup("var1")
     # Attempt to say the argument list consists of "var1" which at this
     # point is just a local variable.
@@ -4021,7 +4038,7 @@ def test_symboltable_specify_argument_list_errors():
     assert ("is listed as a kernel argument but has no associated "
             "Interface" in str(err))
     # Now add an Interface for "var1" but of the wrong type
-    sym_v1.interface = Symbol.FortranGlobal("some_mod")
+    sym_v1.interface = DataSymbol.FortranGlobal("some_mod")
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
     assert "Symbol 'var1:" in str(err)
@@ -4032,10 +4049,10 @@ def test_symboltable_argument_list_errors():
     ''' Tests the internal sanity checks of the SymbolTable.argument_list
     property. '''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_table.add(Symbol("var3", "real",
-                         interface=Symbol.FortranGlobal("some_mod")))
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", []))
+    sym_table.add(DataSymbol("var3", "real",
+                             interface=DataSymbol.FortranGlobal("some_mod")))
     # Manually put a local symbol into the internal list of arguments
     sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(ValueError) as err:
@@ -4065,28 +4082,29 @@ def test_symboltable_argument_list_errors():
     # objects that are not Symbols
     with pytest.raises(TypeError) as err:
         sym_table._validate_arg_list(["Not a symbol"])
-    assert "Expected a list of Symbols but found an object of type" in str(err)
+    assert "Expected a list of DataSymbols but found an object of type" \
+        in str(err)
 
 
 def test_symboltable_validate_non_args():
     ''' Checks for the validation of non-argument entries in the
     SymbolTable. '''
     sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_table.add(Symbol("var3", "real",
-                         interface=Symbol.FortranGlobal("some_mod")))
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", []))
+    sym_table.add(DataSymbol("var3", "real",
+                             interface=DataSymbol.FortranGlobal("some_mod")))
     # Everything should be fine so far
     sym_table._validate_non_args()
     # Add an entry with an Argument interface
-    sym_table.add(Symbol("var4", "real",
-                         interface=Symbol.Argument()))
+    sym_table.add(DataSymbol("var4", "real",
+                             interface=DataSymbol.Argument()))
     # Since this symbol isn't in the argument list, the SymbolTable
     # is no longer valid
     with pytest.raises(ValueError) as err:
         sym_table._validate_non_args()
     pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
-               "has a Symbol.Argument interface")
+               "has a DataSymbol.Argument interface")
     assert re.search(pattern, str(err)) is not None
 
 
@@ -4095,8 +4113,8 @@ def test_symboltable_contains():
     is in the SymbolTable, otherwise returns False.'''
     sym_table = SymbolTable()
 
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", [None]))
 
     assert "var1" in sym_table
     assert "var2" in sym_table
@@ -4108,61 +4126,65 @@ def test_symboltable_symbols():
     SymbolTable.'''
     sym_table = SymbolTable()
     assert sym_table.symbols == []
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", [None]))
     assert len(sym_table.symbols) == 2
-    sym_table.add(Symbol("var3", "real", [],
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
+    sym_table.add(DataSymbol("var3", "real", [],
+                             interface=DataSymbol.FortranGlobal(
+                                 module_use="my_mod")))
     assert len(sym_table.symbols) == 3
 
 
-def test_symboltable_local_symbols():
-    '''Test that the local_symbols property returns a list with the
+def test_symboltable_local_variables():
+    '''Test that the local_variables property returns a list with the
     symbols with local scope.'''
     sym_table = SymbolTable()
-    assert [] == sym_table.local_symbols
+    assert [] == sym_table.local_variables
 
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
-    sym_table.add(Symbol("var3", "real", []))
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", [None]))
+    sym_table.add(DataSymbol("var3", "real", []))
 
-    assert len(sym_table.local_symbols) == 3
-    assert sym_table.lookup("var1") in sym_table.local_symbols
-    assert sym_table.lookup("var2") in sym_table.local_symbols
-    assert sym_table.lookup("var3") in sym_table.local_symbols
+    assert len(sym_table.local_variables) == 3
+    assert sym_table.lookup("var1") in sym_table.local_variables
+    assert sym_table.lookup("var2") in sym_table.local_variables
+    assert sym_table.lookup("var3") in sym_table.local_variables
     sym_v1 = sym_table.lookup("var1")
-    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_v1.interface = DataSymbol.Argument(access=DataSymbol.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1])
 
-    assert len(sym_table.local_symbols) == 2
-    assert sym_table.lookup("var1") not in sym_table.local_symbols
-    assert sym_table.lookup("var2") in sym_table.local_symbols
-    assert sym_table.lookup("var3") in sym_table.local_symbols
+    assert len(sym_table.local_variables) == 2
+    assert sym_table.lookup("var1") not in sym_table.local_variables
+    assert sym_table.lookup("var2") in sym_table.local_variables
+    assert sym_table.lookup("var3") in sym_table.local_variables
 
-    sym_table.add(Symbol("var4", "real", [],
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
-    assert len(sym_table.local_symbols) == 2
-    assert sym_table.lookup("var4") not in sym_table.local_symbols
+    sym_table.add(DataSymbol("var4", "real", [],
+                             interface=DataSymbol.FortranGlobal(
+                                 module_use="my_mod")))
+    assert len(sym_table.local_variables) == 2
+    assert sym_table.lookup("var4") not in sym_table.local_variables
 
 
-def test_symboltable_global_symbols():
-    ''' Test that the global_symbols property returns those symbols with
+def test_symboltable_global_variables():
+    ''' Test that the global_variables property returns those DataSymbols with
     'global' scope (i.e. that represent data that exists outside the current
     scoping unit) but are not routine arguments. '''
     sym_table = SymbolTable()
-    assert sym_table.global_symbols == []
+    assert sym_table.global_variables == []
     # Add some local symbols
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
-    assert sym_table.global_symbols == []
+    sym_table.add(DataSymbol("var1", "real", []))
+    sym_table.add(DataSymbol("var2", "real", [None]))
+    assert sym_table.global_variables == []
     # Add some global symbols
-    sym_table.add(Symbol("gvar1", "real", [],
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
-    assert sym_table.lookup("gvar1") in sym_table.global_symbols
+    sym_table.add(DataSymbol("gvar1", "real", [],
+                             interface=DataSymbol.FortranGlobal(
+                                 module_use="my_mod")))
+    assert sym_table.lookup("gvar1") in sym_table.global_variables
     sym_table.add(
-        Symbol("gvar2", "real", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)))
-    gsymbols = sym_table.global_symbols
+        DataSymbol("gvar2", "real", [],
+                   interface=DataSymbol.Argument(
+                       access=DataSymbol.Access.READWRITE)))
+    gsymbols = sym_table.global_variables
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
 
