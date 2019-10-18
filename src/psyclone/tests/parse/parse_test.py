@@ -50,9 +50,6 @@ from psyclone.psyGen import InternalError
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")
 
-# pylint: disable=invalid-name
-# pylint: disable=protected-access
-
 
 def test_default_api():
     ''' Check that parse() picks up the default API if none is specified

@@ -43,6 +43,7 @@ from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
 from collections import OrderedDict
+import re
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
@@ -979,6 +980,30 @@ class Node(object):
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
+    def math_equal(self, other):
+        '''Returns True if the self has the same results as other. The
+        implementation in the base class just confirms that the type is the
+        same, and the number of children as well.
+
+        :param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`.
+
+        :returns: whether self has the same result as other.
+        :rtype: bool
+        '''
+
+        # pylint: disable=unidiomatic-typecheck
+        if type(self) != type(other):
+            return False
+
+        if len(self.children) != len(other.children):
+            return False
+
+        for i, entity in enumerate(self.children):
+            if not entity.math_equal(other.children[i]):
+                return False
+        return True
+
     @property
     def ast(self):
         '''
@@ -1306,14 +1331,6 @@ class Node(object):
             result += str(entity)+"\n"
         return result
 
-    def list_to_string(self, my_list):
-        result = ""
-        for idx, value in enumerate(my_list):
-            result += str(value)
-            if idx < (len(my_list) - 1):
-                result += ","
-        return result
-
     def addchild(self, child, index=None):
         if index is not None:
             self._children.insert(index, child)
@@ -1534,7 +1551,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns true if this Node is within an OpenMP parallel region.
+        ''':returns: True if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -2086,7 +2103,7 @@ class ACCEnterDataDirective(ACCDirective):
                 if var not in var_list:
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
-        var_str = self.list_to_string(var_list)
+        var_str = ",".join(var_list)
         # 4. Add the enter data directive.
         if var_str:
             copy_in_str = "copyin("+var_str+")"
@@ -2421,7 +2438,7 @@ class OMPParallelDirective(OMPDirective):
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
-        private_str = self.list_to_string(private_list)
+        private_str = ",".join(private_list)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -2479,6 +2496,38 @@ class OMPParallelDirective(OMPDirective):
             parent.add(CommentGen(parent, ""))
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp parallel". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        result = "omp parallel"
+        # TODO #514: not yet working with NEMO, so commented out for now
+        # if not self._reprod:
+        #     result += self._reduction_string()
+        private_list = self._get_private_list()
+        private_str = ",".join(private_list)
+
+        if private_str:
+            result = "{0} private({1})".format(result, private_str)
+        return result
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end parallel". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end parallel"
 
     def _get_private_list(self):
         '''
@@ -2558,6 +2607,7 @@ class OMPParallelDirective(OMPDirective):
                                correct structure to permit the insertion \
                                of the OpenMP parallel region.
         '''
+        # TODO #435: Remove this function once this is fixed
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
@@ -2568,14 +2618,24 @@ class OMPParallelDirective(OMPDirective):
         if self.ast:
             return
 
+        parent_ast = self.parent.ast
+        while parent_ast:
+            if hasattr(parent_ast, "content") and \
+                    parent_ast is not self.children[0].ast:
+                break
+            parent_ast = parent_ast._parent
+
+        if not parent_ast:
+            raise InternalError("Cannot find parent ast for omp parallel.")
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = object_index(self._parent.ast.content,
-                                     self._children[0].ast)
-            end_idx = object_index(self._parent.ast.content,
-                                   self._children[-1].ast)
+            start_idx = object_index(parent_ast.content,
+                                     self.children[0].ast)
+            end_idx = object_index(parent_ast.content,
+                                   self.children[-1].ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2589,14 +2649,33 @@ class OMPParallelDirective(OMPDirective):
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
         self.ast_end = enddir
-        # If end_idx+1 takes us beyond the range of the list then the
-        # element is appended to the list
-        self._parent.ast.content.insert(end_idx+1, enddir)
+        # FIXME: In case of:
+        # omp parallel
+        #    omp do
+        #       loop
+        #    omp end do
+        # omp end parallel
+        # the "end parallel" statement will be inserted after the "omp do"
+        # statement!
+        # In order to avoid this problem when an "omp do" is present, test
+        # for this case and if so move the "omp end parallel" two statements
+        # further down, i.e. after the loop and "omp end do" statement.
+        # TODO #435
+        if isinstance(parent_ast.content[end_idx], Comment) and \
+                "omp do" in str(parent_ast.content[end_idx]) and \
+                "omp end do" in str(parent_ast.content[end_idx+2]):
+            # We need to test for instance, otherwise the string representation
+            # of a loop could somewhere contain an "omp do"
+            parent_ast.content.insert(end_idx+3, enddir)
+        else:
+            # If end_idx+1 takes us beyond the range of the list then the
+            # element is appended to the list
+            parent_ast.content.insert(end_idx + 1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self.ast = startdir
-        self._parent.ast.content.insert(start_idx, self.ast)
+        parent_ast.content.insert(start_idx, self.ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2677,8 +2756,8 @@ class OMPDoDirective(OMPDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         :raises GenerationError: if this "!$omp do" is not enclosed within \
                                  an OMP Parallel region.
-        '''
 
+        '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
         # can apply transformations to the code). As an orphaned loop
@@ -2708,6 +2787,98 @@ class OMPDoDirective(OMPDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        return "omp do schedule({0})".format(self._omp_schedule)
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end do". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        return "omp end do"
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        do.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+                                 correct structure to permit the insertion \
+                                 of the OpenMP parallel do.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
+        # Check that we haven't already been called
+        if self.ast:
+            return
+
+        # Since this is an OpenMP do, it can only be applied
+        # to a single loop.
+        if len(self._children) != 1:
+            raise GenerationError(
+                "An OpenMP DO can only be applied to a single loop "
+                "but this Node has {0} children: {1}".
+                format(len(self._children), self._children))
+
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the child of this node in the AST of our parent node
+        # TODO make this robust by using the new 'children' method to
+        # be introduced in fparser#105
+        # We have to take care to find a parent node (in the fparser2 AST)
+        # that has 'content'. This is because If-else-if blocks have their
+        # 'content' as siblings of the If-then and else-if nodes.
+        parent = self.parent
+        # This initial loop is necessary in case that the parent is e.g. an
+        # omp parallel node (which has no ast either). So we search up
+        # till we find the first tree to actually have an ast.
+        # TODO #435
+        while not parent.ast:
+            parent = parent.parent
+        parent_ast = parent.ast
+        while parent_ast:
+            if hasattr(parent_ast, "content") and \
+                    parent_ast is not self.children[0].ast:
+                break
+            parent_ast = parent_ast._parent
+        if not parent_ast:
+            raise InternalError("Failed to find parent node in which to "
+                                "insert OpenMP parallel do directive")
+        start_idx = object_index(parent_ast.content,
+                                 self.children[0].ast)
+
+        # Create the start directive
+        text = ("!$omp do schedule({0})".format(self._omp_schedule))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end do",
+                                             ignore_comments=False))
+        parent_ast.content.insert(start_idx + 1, enddir)
+
+        # Insert the start directive (do this second so we don't have
+        # to correct the location)
+        self.ast = startdir
+        parent_ast.content.insert(start_idx, self.ast)
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -2748,7 +2919,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_str = self.list_to_string(self._get_private_list())
+        private_str = ",".join(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
                                 "schedule({1})".
@@ -4119,22 +4290,6 @@ class CodedKern(Kern):
                 # whilst old style (direct fp2) transformations still
                 # exist - #490.
 
-                # First check that the kernel module name and
-                # subroutine name conform to the <name>_mod and
-                # <name>_code convention as this is currently assumed
-                # when recreating the kernel module name from the
-                # PSyIR in the Fortran back end. This limitation is
-                # the subject of #520.
-
-                if self.name.lower().rstrip("_code") != \
-                   self.module_name.lower().rstrip("_mod") or \
-                   not self.name.lower().endswith("_code") or \
-                   not self.module_name.lower().endswith("_mod"):
-                    raise NotImplementedError(
-                        "PSyclone back-end code generation relies on kernel "
-                        "modules conforming to the <name>_mod and <name>_code "
-                        "convention. However, found '{0}', '{1}'."
-                        "".format(self.module_name, self.name))
                 # Rename PSyIR module and kernel names.
                 self._rename_psyir(new_suffix)
             else:
@@ -4155,7 +4310,7 @@ class CodedKern(Kern):
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
-                    kernels_local_size=self._opencl_options['local_size'])
+                kernels_local_size=self._opencl_options['local_size'])
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -4168,7 +4323,10 @@ class CodedKern(Kern):
             # exist.
             from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
-            new_kern_code = fortran_writer(self.get_kernel_schedule())
+            # Start from the root of the schedule as we want to output
+            # any module information surrounding the kernel subroutine
+            # as well as the subroutine itself.
+            new_kern_code = fortran_writer(self.get_kernel_schedule().root)
             fll = FortLineLength()
             new_kern_code = fll.process(new_kern_code)
         else:
@@ -4209,12 +4367,7 @@ class CodedKern(Kern):
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes. Currently it is only possible to set the
-        kernel subroutine name in a KernCall node. The kernel module
-        name is then inferred from the subroutine name by assuming
-        there is a naming convention (<name>_code and <name>_mod),
-        which is not always the case. This limitation is the subject
-        of #520.
+        KernelSchedule nodes.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -4232,13 +4385,9 @@ class CodedKern(Kern):
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
 
-        # Update the PSyIR with the new names. Note there is currently
-        # an assumption in the PSyIR that the module name has the same
-        # root name as the subroutine name. These names are used when
-        # generating the modified kernel code. This limitation is the
-        # subject of #520.
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
+        kern_schedule.root.name = new_mod_name[:]
 
     def _rename_ast(self, suffix):
         '''
@@ -4587,7 +4736,7 @@ class DataAccess(object):
 
     @property
     def covered(self):
-        '''Returns true if all of the data associated with this argument has
+        '''Returns True if all of the data associated with this argument has
         been covered by the arguments provided in update_coverage
 
         :return bool: True if all of an argument is covered by \
@@ -6266,20 +6415,41 @@ class Assignment(Node):
         self.lhs.reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
-        var_info = accesses_left[self.lhs.name]
-        try:
-            var_info.change_read_to_write()
-        except InternalError:
-            # An internal error typically indicates that the same variable
-            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-            # supported in PSyclone.
-            from psyclone.parse.utils import ParseError
-            raise ParseError("The variable '{0}' appears more than once on "
-                             "the left-hand side of an assignment."
-                             .format(self.lhs.name))
+        if isinstance(self.lhs, CodeBlock):
+            # TODO #363: Assignment to user defined type, not supported yet.
+            # Here an absolute hack to get at least some information out
+            # from the AST - though indices are just strings, which will
+            # likely cause problems later as well.
+            name = str(self.lhs.ast)
+            # A regular expression that tries to find the last parenthesis
+            # pair in the name ("a(i,j)" --> "(i,j)")
+            ind = re.search(r"\([^\(]+\)$", name)
+            if ind:
+                # Remove the index part of the name
+                name = name.replace(ind.group(0), "")
+                # The index must be added as a list
+                accesses_left.add_access(name, AccessType.WRITE, self,
+                                         [ind.group(0)])
+            else:
+                accesses_left.add_access(name, AccessType.WRITE, self)
+        else:
+            var_info = accesses_left[self.lhs.name]
+            try:
+                var_info.change_read_to_write()
+            except InternalError:
+                # An internal error typically indicates that the same variable
+                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+                # supported in PSyclone.
+                from psyclone.parse.utils import ParseError
+                raise ParseError("The variable '{0}' appears more than once "
+                                 "on the left-hand side of an assignment."
+                                 .format(self.lhs.name))
 
         # Merge the data (that shows now WRITE for the variable) with the
-        # parameter to this function:
+        # parameter to this function. It is important that first the
+        # RHS is added, so that in statements like 'a=a+1' the read on
+        # the RHS comes before the write on the LHS (they have the same
+        # location otherwise, but the order is still important)
         self.rhs.reference_accesses(var_accesses)
         var_accesses.merge(accesses_left)
         var_accesses.next_location()
@@ -6329,6 +6499,17 @@ class Reference(Node):
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']"
+
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+
+        :returns: True if the self has the same results as other.
+        :rtype: bool
+        '''
+        if not super(Reference, self).math_equal(other):
+            return False
+        return self.name == other.name
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.
@@ -6578,6 +6759,31 @@ class BinaryOperation(Operation):
         'SIZE'
         ])
 
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+
+        :returns: True if the self has the same results as other.
+        :rtype: bool
+        '''
+        if not super(BinaryOperation, self).math_equal(other):
+            # Support some commutative law, unfortunately we now need
+            # to repeat some tests already done in super(), since we
+            # don't know why the above test failed
+            # TODO #533 for documenting restrictions
+            # pylint: disable=unidiomatic-typecheck
+            if type(self) != type(other):
+                return False
+            if self.operator != other.operator:
+                return False
+            if self.operator not in [self.Operator.ADD, self.Operator.MUL,
+                                     self.Operator.AND, self.Operator.OR,
+                                     self.Operator.EQ]:
+                return False
+            return self._children[0].math_equal(other.children[1]) and \
+                self._children[1].math_equal(other.children[0])
+        return self.operator == other.operator
+
     @property
     def coloured_text(self):
         '''
@@ -6732,6 +6938,16 @@ class Literal(Node):
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']"
+
+    def math_equal(self, other):
+        ''':param other: the node to compare self with.
+        :type other: py:class:`psyclone.psyGen.Node`
+
+        :return: if the self has the same results as other.
+        :type: bool
+        '''
+
+        return self.value == other.value
 
 
 class Return(Node):

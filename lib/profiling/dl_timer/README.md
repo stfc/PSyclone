@@ -1,27 +1,34 @@
+# PSyclone Wrapper Library for `dl_timer`
+
 This is a wrapper library that maps the PSyclone profiling API
 to the dl_timer API. This library is thread-safe.
 
 
-Dependencies
-------------
+## Dependencies
+
 The library dl_timer must be installed. It can be downloaded from
 https://bitbucket.org/apeg/dl_timer
 It uses the ProfileData type and dl_timer's timer_register function
 to store the module/region name and the index used by dl_timer.
 
-Compilation
------------
-    gfortran -c dl_timer.f90 -I PATH-TO-DLTIMER/src/
+## Compilation
+
+```sh
+gfortran -c dl_timer.f90 -I PATH-TO-DLTIMER/src/
+```
 
 The application needs to provide the dl_timer directory as module or include
-path, and link with dl_timer.o and dl_timer::
-    
-    gfortran -o a.out ... PATH-TO-PSYCLONE/lib/profiling/dl_timer/dl_timer.o \
-             -L PATH-TO-DLTIMER -ldltimer
+path, and link with `dl_timer.o` and dl_timer:
+
+```sh
+gfortran -o a.out ... PATH-TO-PSYCLONE/lib/profiling/dl_timer/dl_timer.o \
+         -L PATH-TO-DLTIMER -ldltimer
+```
 
 
 Example output:
 
+```
 =============================== Timing report ===============================
 Timed using POSIX timer. Units are seconds.
 Reported resolution =  0.1000E-08 (s)
@@ -42,4 +49,4 @@ psy_time_step_mod:swlat_update_c    11  0.19000E+01   0.17272E+00  0.24E-02
 -----------------------------------------------------------------------------
 * corrected for systematic error
 =============================================================================
-
+```

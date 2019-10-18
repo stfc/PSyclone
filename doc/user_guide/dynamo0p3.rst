@@ -63,7 +63,7 @@ Algorithm
 
 The general requirements for the structure of an Algorithm are explained
 in the :ref:`algorithm-layer` section. This section explains the
-Dynamo0.3-specific specialisations and extensions.
+Dynamo0.3-API-specific specialisations and extensions.
 
 .. _dynamo0.3-example:
 
@@ -76,23 +76,23 @@ objects and their use are discussed in the following sections.
 
 ::
 
-  real(kind=r_def)      	 :: scalar1
-  integer(kind=i_def)   	 :: stencil_extent
-  type(field_type)      	 :: field1, field2, field3
-  type(field_type)      	 :: field5(3), field6(3)
-  type(quadrature_type) 	 :: qr
-  type(operator_type)   	 :: operator1
+  real(kind=r_def)           :: scalar1
+  integer(kind=i_def)        :: stencil_extent
+  type(field_type)           :: field1, field2, field3
+  type(field_type)           :: field5(3), field6(3)
+  type(quadrature_type)      :: qr
+  type(operator_type)        :: operator1
   type(columnwise_operator_type) :: cma_op1
   ...
   call invoke( kernel1(field1, field2, operator1, qr),           &
                builtin1(scalar1, field2, field3),                &
                kernel2(field1, stencil_extent, field3, scalar1), &
-	       assembly_kernel(cma_op1, operator1),              &
+               assembly_kernel(cma_op1, operator1),              &
                name="some_calculation"                           &
              )
   call invoke( prolong_kernel_type(field1, field4),              &
                restrict_kernel_type(field5, field6)
-	     )
+             )
 
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
@@ -120,7 +120,8 @@ of basis functions multiplied by coefficients which are the data points.
 Points of evaluation are determined by a quadrature object
 (:ref:`dynamo0.3-quadrature`) and are independent of the function space
 the field is on. Placement of field data points, also called degrees of
-freedom ("dof"), is determined by the function space the field is on.
+freedom (hereafter "DoFs"), is determined by the function space the field
+is on.
 
 .. _dynamo0.3-field-vector:
 
@@ -258,7 +259,10 @@ access.
 where, again, ``field2`` has kernel metadata specifying that it has a
 stencil access.
 
-.. note:: The stencil extent specified in the Algorithm layer is not the same as the stencil size passed in to the Kernel. The latter contains the number of cells in the stencil which is dependent on both the stencil type and extent.
+.. note:: The stencil extent specified in the Algorithm layer is not the
+          same as the stencil size passed in to the Kernel. The latter
+          contains the number of cells in the stencil which is dependent
+          on both the stencil type and extent.
 
 If the Kernel metadata specifies that the stencil is of type
 ``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
@@ -365,60 +369,60 @@ Rules for all User-Supplied Kernels
 In the following, 'operator' refers to both LMA and CMA operator
 types.
 
- 1) A Kernel must have at least one argument that is a field, field
-    vector, or operator. This rule reflects the fact that a Kernel
-    iterates over a space and therefore must have some representation
-    over that space.
+1) A Kernel must have at least one argument that is a field, field
+   vector, or operator. This rule reflects the fact that a Kernel
+   iterates over a space and therefore must have some representation
+   over that space.
 
- 2) The continuity of the iteration space of the Kernel is determined
-    from the function space of the modified argument (see Section
-    :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
-    If more than one argument is modified then the iteration space is taken
-    to be the largest required by any of those arguments. E.g. if a Kernel
-    writes to two fields, the first on ``W3`` (discontinuous) and the
-    second on ``W1`` (continuous), then the iteration space of that Kernel
-    will be determined by the field on the continuous space.
+2) The continuity of the iteration space of the Kernel is determined
+   from the function space of the modified argument (see Section
+   :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
+   If more than one argument is modified then the iteration space is taken
+   to be the largest required by any of those arguments. E.g. if a Kernel
+   writes to two fields, the first on ``W3`` (discontinuous) and the
+   second on ``W1`` (continuous), then the iteration space of that Kernel
+   will be determined by the field on the continuous space.
 
- 3) If any of the modified arguments are declared with the generic
-    function space metadata (e.g. ``ANY_SPACE_n``, see
-    :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
-    and their actual space cannot be determined statically then the
-    iteration space is assumed to be
+3) If any of the modified arguments are declared with the generic
+   function space metadata (e.g. ``ANY_SPACE_n``, see
+   :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
+   and their actual space cannot be determined statically then the
+   iteration space is assumed to be
 
-    1) discontinuous for ``ANY_DISCONTINUOUS_SPACE_n``;
+   1) discontinuous for ``ANY_DISCONTINUOUS_SPACE_n``;
 
-    2) continuous for ``ANY_SPACE_n`` and ``ANY_W2``.  This assumption
-    is always safe but leads to additional computation if the quantities
-    being updated are actually on discontinuous function spaces.
+   2) continuous for ``ANY_SPACE_n`` and ``ANY_W2``.  This assumption
+      is always safe but leads to additional computation if the quantities
+      being updated are actually on discontinuous function spaces.
 
- 4) Operators do not have halo operations operating on them as they
-    are either cell- (LMA) or column-based (CMA) and therefore act
-    like discontinuous fields.
+4) Operators do not have halo operations operating on them as they
+   are either cell- (LMA) or column-based (CMA) and therefore act
+   like discontinuous fields.
 
- 5) Any Kernel that writes to an operator will have its iteration
-    space expanded such that valid values for the operator are
-    computed in the level-1 halo.
+5) Any Kernel that writes to an operator will have its iteration
+   space expanded such that valid values for the operator are
+   computed in the level-1 halo.
 
- 6) Any Kernel that reads from an operator must not access halos
-    beyond level 1. In this case PSyclone will check that the Kernel
-    does not require values beyond the level-1 halo. If it does then
-    PSyclone will abort.
+6) Any Kernel that reads from an operator must not access halos
+   beyond level 1. In this case PSyclone will check that the Kernel
+   does not require values beyond the level-1 halo. If it does then
+   PSyclone will abort.
 
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- 1) General-purpose kernels accept arguments of any of the following
-    types: field, field vector, LMA operator, scalar integer, scalar
-    real.
+1) General-purpose kernels accept arguments of any of the following
+   types: field, field vector, LMA operator, scalar integer, scalar
+   real.
 
- 2) A Kernel is permitted to write to more than one
-    quantity (field or operator) and these quantities may be on the
-    same or different function spaces.
+2) A Kernel is permitted to write to more than one
+   quantity (field or operator) and these quantities may be on the
+   same or different function spaces.
 
- 3) A Kernel may not write to a scalar argument. (Only
-    :ref:`built-ins <dynamo0.3-built-ins>` are permitted to do this.) Any
-    scalar aguments must therefore be declared in the metadata as
-    ``GH_READ`` - see :ref:`below <dynamo0.3-valid-access>`.
+3) A Kernel may not write to a scalar argument. (Only
+   :ref:`built-ins <dynamo0.3-built-ins>` are permitted to do this.) Any
+   scalar aguments must therefore be declared in the metadata as
+   ``GH_READ`` - see :ref:`below <dynamo0.3-valid-access>`.
 
 .. _dynamo0.3-cma-mdata-rules:
 
@@ -435,11 +439,11 @@ parallelised without colouring.
 
 All three CMA-related kernel types must obey the following rules:
 
-  1) Since a CMA operator only acts within a single column of data,
-     stencil operations are not permitted.
+1) Since a CMA operator only acts within a single column of data,
+   stencil operations are not permitted.
 
-  2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
-     permitted as arguments.
+2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
+   permitted as arguments.
 
 There are then additional rules specific to each of the three
 CMA kernel types. These are described below.
@@ -548,7 +552,9 @@ itself contains metadata about the associated argument. The size of
 the meta_args array must correspond to the number of **scalars**,
 **fields** and **operators** passed into the Kernel.
 
-.. note:: it makes no sense for a Kernel to have only **scalar** arguments (because the PSy layer will call a Kernel for each point in the spatial domain) and PSyclone will reject such Kernels.
+.. note:: It makes no sense for a Kernel to have only **scalar** arguments
+          (because the PSy layer will call a Kernel for each point in the
+          spatial domain) and PSyclone will reject such Kernels.
 
 For example, if there are a total of 2 **scalar** / **field** /
 **operator** entities being passed to the Kernel then the meta_args
@@ -610,7 +616,7 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
   synchronisation (or colouring) to run in parallel.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
-  update quantitites which do not share dofs, such as operators and
+  update quantities which do not share DoFs, such as operators and
   fields over discontinuous function spaces. If a Kernel modifies only
   discontinuous fields and/or operators there is no need for
   synchronisation or colouring when running such Kernels in parallel.
@@ -663,12 +669,13 @@ operator to a field might look like:
        /)
 
 In some cases a Kernel may be written so that it works for fields and/or
-operators from any type of ``w2`` space (see Section
+operators from any type of a vector ``W2*`` space (all ``W2*`` spaces
+except for the ``W2trace`` space, see Section
 :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
-In this case the metadata should be specified as being ``any_w2``.
+In this case the metadata should be specified as being ``ANY_W2``.
 
-.. Warning:: in the current implementation it is assumed that all
-             fields and/or operators specifying ``any_w2`` within a
+.. Warning:: In the current implementation it is assumed that all
+             fields and/or operators specifying ``ANY_W2`` within a
              kernel will use the **same** function space. It is up to
              the user to ensure this is the case as otherwise invalid
              code would be generated.
@@ -725,16 +732,16 @@ then the permitted access modes depend on the type of data it is and
 the function space it is on. Valid values are given in the table
 below.
 
-======================	============================    =========================
-Argument Type           Function Space                  Access Type
-======================	============================    =========================
-*GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
-GH_REAL                 n/a                             GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous                   GH_WRITE, GH_READWRITE
-GH_FIELD                Continuous                      GH_INC
-GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
-GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE, GH_READWRITE
-======================  ============================    =========================
+======================  ============================  =========================
+Argument Type           Function Space                Access Type
+======================  ============================  =========================
+*GH_INTEGER*            *n/a*                         *GH_SUM (Built-ins only)*
+GH_REAL                 n/a                           GH_SUM (Built-ins only)
+GH_FIELD                Discontinuous                 GH_WRITE, GH_READWRITE
+GH_FIELD                Continuous                    GH_INC
+GH_OPERATOR             Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
+GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
+======================  ============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
           scalar arguments. *Since the LFRic infrastructure does not
@@ -786,50 +793,61 @@ Supported Function Spaces
 As mentioned in the :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector.
+point is a vector. In Dynamo0.3 API the dimension of the basis function
+set for the scalar function spaces is 1 and for the vector function spaces
+is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for the
+dimensions of the basis and differential basis functions).
 
-Function spaces can share dofs between cells in the horizontal, vertical
+Function spaces can share DoFs between cells in the horizontal, vertical
 or both directions. Depending on the function space and FEM order,
-the shared dofs can lie on one or more cell entities (faces, edges
+the shared DoFs can lie on one or more cell entities (faces, edges
 and vertices) in each direction. This property is referred to as the
 **continuity** of a function space (horizontal, vertical or full).
-Alternatively, if there are no shared dofs a function space is described
+Alternatively, if there are no shared DoFs a function space is described
 as **discontinuous** (fully or in a particular direction).
 
 The mixed FEM formulation is built on a foundation set of four function
 spaces described below.
 
-* ``w0`` is the space of scalar functions with full continuity. The
-  shared dofs lie on cell vertices in the lowest order FEM and on
+* ``W0`` is the space of scalar functions with full continuity. The
+  shared DoFs lie on cell vertices in the lowest order FEM and on
   all three entities in higher order FEM.
 
-* ``w1`` is the space of vector functions with full continuity in the
-  tangential direction only. In the lowest order FEM the shared dofs
+* ``W1`` is the space of vector functions with full continuity in the
+  tangential direction only. In the lowest order FEM the shared DoFs
   lie on cell edges for each component, whereas in higher order they
   also lie on cell faces.
 
-* ``w2`` is the space of vector functions with full continuity in the
-  normal direction only. The shared dofs lie on cell faces for each
+* ``W2`` is the space of vector functions with full continuity in the
+  normal direction only. The shared DoFs lie on cell faces for each
   component.
 
-* ``w3`` is the space of scalar functions with full discontinuity.
-  All dofs lie within the cell volume and are not shared across the
+* ``W3`` is the space of scalar functions with full discontinuity.
+  All DoFs lie within the cell volume and are not shared across the
   cell boundaries.
 
 Other spaces required for representation of scalar or component-wise
 vector variables are:
 
-* ``wtheta`` is the space of scalar functions based on the vertical
-  part of ``w2``, discontinuous in the horizontal and continuous
+* ``Wtheta`` is the space of scalar functions based on the vertical
+  part of ``W2``, discontinuous in the horizontal and continuous
   in the vertical;
 
-* ``w2v`` is the space of vector functions based on the vertical
-  part of ``w2``, discontinuous in the horizontal and continuous
+* ``W2H`` is the space of vector functions based on the horizontal
+  part of ``W2``, continuous in the horizontal and discontinuous
   in the vertical;
 
-* ``w2h`` is the space of vector functions based on the horizontal
-  part of ``w2``, continuous in the horizontal and discontinuous
-  in the vertical.
+* ``W2V`` is the space of vector functions based on the vertical
+  part of ``W2``, discontinuous in the horizontal and continuous
+  in the vertical;
+
+* ``W2broken`` is the space of vector functions, locally identical
+  to the ``W2`` space. However, DoFs are topologically discontinuous in
+  all directions despite their placement on cell faces;
+
+* ``W2trace`` is the space of scalar functions defined only on cell faces,
+  resulting from taking the trace of a ``W2`` space. DoFs are shared between
+  faces, hence making this space fully continuous.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -845,8 +863,8 @@ sections above:
   is known to be discontinuous and/or for when a Kernel has been written
   so that it works with fields on any of the discontinuous spaces;
 
-* ``ANY_W2`` for any type of ``w2`` function spaces (``w2``, ``w2h``
-  or ``w2v``).
+* ``ANY_W2`` for any type of a vector ``W2*`` function space, i.e.\ ``W2``,
+  ``W2H``, ``W2V`` and ``W2broken`` but not ``W2trace``.
 
 As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
 ``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
@@ -865,21 +883,24 @@ applies to the three generic ``ANY_*_*`` function space identifiers
 above. The valid metadata values for continuous and discontinuous
 function apaces are summarised in the table below.
 
-========================= ===========================
-Function Space Continuity Function Space Metadata
-========================= ===========================
-**Continuous**            | W0, W1, W2, W2H, ANY_W2,
-                          | ANY_SPACE_n
-**Discontinuous**         | W3, WTHETA, W2V,
-                          | ANY_DISCONTINUOUS_SPACE_n
-========================= ===========================
+.. tabularcolumns:: |l|l|
+
++---------------------------+----------------------------+
+| Function Space Continuity | Function Space Name        |
++===========================+============================+
+| Continuous                | W0, W1, W2, W2H, W2trace,  |
+|                           | ANY_W2, ANY_SPACE_n        |
++---------------------------+----------------------------+
+| Discontinuous             | W2V, W2broken, W3, Wtheta, |
+|                           | ANY_DISCONTINUOUS_SPACE_n  |
++---------------------------+----------------------------+
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
 PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
 transformation (see :ref:`dynamo0.3-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
-function space ``wtheta`` is given in ``examples/dynamo/eg9``, with the
+function space ``Wtheta`` is given in ``examples/dynamo/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
@@ -1059,14 +1080,14 @@ following kernel metadata:
 ::
 
     type, extends(kernel_type) :: testkern_operator_type
-      type(arg_type), dimension(3) :: meta_args =   &
-          (/ arg_type(gh_operator,gh_write,w0,w0),  &
-             arg_type(gh_field*3,gh_read,w1),       &
-             arg_type(gh_integer,gh_read)           &
+      type(arg_type), dimension(3) :: meta_args =     &
+          (/ arg_type(gh_operator, gh_write, w0, w0), &
+             arg_type(gh_field*3,  gh_read,  w1),     &
+             arg_type(gh_integer,  gh_read)           &
           /)
-      type(func_type) :: meta_funcs(2) =            &
-          (/ func_type(w0, gh_basis, gh_diff_basis) &
-             func_type(w1, gh_basis)                &
+      type(func_type) :: meta_funcs(2) =              &
+          (/ func_type(w0, gh_basis, gh_diff_basis)   &
+             func_type(w1, gh_basis)                  &
           /)
       integer :: gh_shape = gh_quadrature_XYoZ
       integer :: iterates_over = cells
@@ -1109,24 +1130,24 @@ This metadata specifies that the ``testkern_type`` kernel requires two
 properties of the reference element. The supported properties are
 listed below:
 
-.. tabularcolumns:: |p{5.5cm}|p{8cm}|
+.. tabularcolumns:: |p{5.5cm}|p{8.5cm}|
 
-=================================== ===========================================
-Name                                Description
-=================================== ===========================================
-normals_to_horizontal_faces         Array of normals pointing in the positive
-                                    (x, y, z) axis direction for each
-                                    horizontal face indexed as (face,
-                                    component).
-normals_to_vertical_faces           Array of normals pointing in the positive
-                                    (x, y, z) axis direction for each vertical
-                                    face indexed as (face, component).
-outward_normals_to_horizontal_faces Array of outward-pointing normals for each
-                                    horizontal face indexed as (component,
-                                    face).
-outward_normals_to_vertical_faces   Array of outward-pointing normals for each
-                                    vertical face indexed as (component, face).
-=================================== ===========================================
+===================================  ===========================================
+Name                                 Description
+===================================  ===========================================
+normals_to_horizontal_faces          Array of normals pointing in the positive
+                                     (x, y, z) axis direction for each
+                                     horizontal face indexed as (face,
+                                     component).
+normals_to_vertical_faces            Array of normals pointing in the positive
+                                     (x, y, z) axis direction for each vertical
+                                     face indexed as (face, component).
+outward_normals_to_horizontal_faces  Array of outward-pointing normals for each
+                                     horizontal face indexed as (component,
+                                     face).
+outward_normals_to_vertical_faces    Array of outward-pointing normals for each
+                                     vertical face indexed as (component, face).
+===================================  ===========================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1206,69 +1227,106 @@ rules, along with PSyclone's naming conventions, are:
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
-    1) if the current entry is a scalar quantity then include the Fortran
-       variable in the argument list. The intent is determined from the
-       metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
-    2) if the current entry is a field then include the field array. The
-       field array name is currently specified as being
-       ``"field_"<argument_position>"_"<field_function_space>``. A field
-       array is a real array of type ``r_def`` and dimensioned as the
-       unique degrees of freedom for the space that the field is on.
-       This value is passed in separately. Again, the intent is determined
-       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+   1) If the current entry is a scalar quantity then include the Fortran
+      variable in the argument list. The intent is determined from the
+      metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
+   2) If the current entry is a field then include the field array. The
+      field array name is currently specified as being
+      ``"field_"<argument_position>"_"<field_function_space>``. A field
+      array is a real array of type ``r_def`` and dimensioned as the
+      unique degrees of freedom for the space that the field is on.
+      This value is passed in separately. Again, the intent is determined
+      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-       1) If the field entry has a stencil access then add an integer
-          stencil-size argument with intent ``in``. This will supply
-          the number of cells in the stencil.
-       2) If the field entry stencil access is of type ``XORY1D`` then
-          add an integer direction argument with intent ``in``.
+      1) If the field entry has a stencil access then add an integer
+         stencil-size argument with intent ``in``. This will supply
+         the number of cells in the stencil.
+      2) If the field entry stencil access is of type ``XORY1D`` then
+         add an integer direction argument with intent ``in``.
 
-    3) if the current entry is a field vector then for each dimension
-       of the vector, include a field array. The field array name is
-       specified as being using
-       ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A
-       field array in a field vector is declared in the same way as a
-       field array (described in the previous step).
-    4) if the current entry is an operator then first include a
-       dimension size. This is an integer. The name of this size is
-       ``<operator_name>"_ncell_3d"``. Next include the operator. This
-       is a real array of type ``r_def`` and is 3 dimensional. The
-       first two dimensions are the local degrees of freedom for the
-       ``to`` and ``from`` function spaces respectively. The third
-       dimension is the dimension size mentioned before. The name of
-       the operator is ``"op_"<argument_position>``. Again the intent
-       is determined from the metadata (see
-       :ref:`dynamo0.3-api-meta-args`).
+   3) If the current entry is a field vector then for each dimension
+      of the vector, include a field array. The field array name is
+      specified as being using
+      ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``.
+      A field array in a field vector is declared in the same way as a
+      field array (described in the previous step).
+   4) If the current entry is an operator then first include a
+      dimension size. This is an integer. The name of this size is
+      ``<operator_name>"_ncell_3d"``. Next include the operator. This
+      is a real array of type ``r_def`` and is 3 dimensional. The
+      first two dimensions are the local degrees of freedom for the
+      ``to`` and ``from`` function spaces respectively. The third
+      dimension is the dimension size mentioned before. The name of
+      the operator is ``"op_"<argument_position>``. Again the intent
+      is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
    ``from`` function space of the same operator as it appears first in
    lexicographic order)
 
-    1) Include the number of local degrees of freedom (i.e. number per-cell)
-       for the function space. This is an integer and has intent ``in``. The
-       name of this argument is ``"ndf_"<field_function_space>``.
-    2) If there is a field on this space
+   1) Include the number of local degrees of freedom (i.e. number per-cell)
+      for the function space. This is an integer and has intent ``in``. The
+      name of this argument is ``"ndf_"<field_function_space>``.
+   2) If there is a field on this space
 
-        1) Include the unique number of degrees of freedom for the function space. This is an integer and has intent ``in``. The name of this argument is ``"undf_"<field_function_space>``.
-        2) Include the dofmap for this function space. This is an integer array with intent ``in``. It has one dimension sized by the local degrees of freedom for the function space.
+      1) Include the unique number of degrees of freedom for the function
+         space. This is an integer and has intent ``in``. The name of this
+         argument is ``"undf_"<field_function_space>``.
+      2) Include the **dofmap** for this function space. This is an integer
+         array with intent ``in``. It has one dimension sized by the local
+         degrees of freedom for the function space.
 
-    3) For each operation on the function space (``basis``, ``diff_basis``, ``orientation``) in the order specified in the metadata
+   3) For each operation on the function space (``basis``, ``diff_basis``,
+      ``orientation``) in the order specified in the metadata
 
-        1) if it is a basis or differential basis function then we must pass real
-	   arrays of kind ``r_def`` with intent ``in``:
+      1) If it is a basis or differential basis function then we must pass
+         real arrays of kind ``r_def`` with intent ``in``:
 
-	   1) if ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
-	      rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``). The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
+         1) If ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
+            rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``,
+            ``np_z``). The name of the argument is
+            ``"basis_"<field_function_space>`` or
+            ``"diff_basis_"<field_function_space>``, as appropriate.
 
-	   2) if ``gh_shape`` is ``gh_evaluator`` then we pass one array for each
-	      target function space (e.g\. as specified by ``gh_evaluator_targets``).
-	      Each of these arrays are of rank 3 with extent (``dimension``, ``number_of_dofs``,
-	      ``ndf_<target_function_space>``). The name of the argument is ``"basis_"<field_function_space>"_on_"<target_function_space>`` or ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``, as appropriate.
+         2) If ``gh_shape`` is ``gh_evaluator`` then we pass one array for
+            each target function space (i.e. as specified by
+            ``gh_evaluator_targets``). Each of these arrays are of rank 3
+            with extent (``dimension``, ``number_of_dofs``,
+            ``ndf_<target_function_space>``). The name of the argument is
+            ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
+            ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
+            as appropriate.
 
-           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D).
+         where ``dimension`` is 1 or 3 and depends upon the function space
+         (see :ref:`dynamo0.3-function-space` above for more information) and
+         whether or not it is a basis or a differential basis function (see
+         the table below). ``number_of_dofs`` is the number of degrees of
+         freedom (DoFs) associated with the function space and ``np_*`` are
+         the number of points to be evaluated: i) ``*_xyz`` in
+         all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
+         iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
+         vertical (1D).
 
-        2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
+         .. tabularcolumns:: |l|c|l|
+
+         +---------------+-----------+------------------------------------+
+         | Function Type | Dimension | Function Space Name                |
+         +===============+===========+====================================+
+         | Basis         |    1      | W0, W2trace, W3, Wtheta            |
+         |               +-----------+------------------------------------+
+         |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
+         +---------------+-----------+------------------------------------+
+         | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
+         | Basis         +-----------+------------------------------------+
+         |               |    3      | W0, W1, W2trace, W3, Wtheta        |
+         +---------------+-----------+------------------------------------+
+
+      2) If it is an orientation array, include the associated argument.
+         The argument is an integer array with intent ``in``. There is
+         one dimension of size the local degrees of freedom for the
+         function space. The name of the array is
+         ``"orientation_"<field_function_space>``.
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
@@ -1286,14 +1344,15 @@ rules, along with PSyclone's naming conventions, are:
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
-    1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
+   1) Include integer, scalar arguments with intent ``in`` that specify
+      the extent of the basis/diff-basis arrays:
 
-       1) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
-	  and ``np_z``.
+      1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
+         and ``np_z``.
 
-    2) include weights which are real arrays of kind ``r_def``:
+   2) Include weights which are real arrays of kind ``r_def``:
 
-       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``
+      1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``.
 
 Examples
 ^^^^^^^^
@@ -1306,7 +1365,7 @@ evaluator then its metadata might be::
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
           (/ arg_type(gh_operator, gh_write, w0, w1), &
-             arg_type(gh_field*3, gh_read, w0) /)
+             arg_type(gh_field*3,  gh_read,  w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
      integer :: iterates_over = cells
@@ -1315,7 +1374,7 @@ evaluator then its metadata might be::
      procedure, nopass :: code => testkern_operator_code
   end type testkern_operator_type
 
-then we only pass the basis functions evaluated on W0 (the space of
+then we only pass the basis functions evaluated on ``W0`` (the space of
 the written kernel argument). The subroutine arguments will therefore
 be::
 
@@ -1325,14 +1384,14 @@ be::
 
 where ``local_stencil`` is the operator, ``xdata``, ``ydata``
 etc\. are the three components of the field vector and ``map_w0`` is
-the dof map for the W0 function space.
+the dofmap for the ``W0`` function space.
 
 If instead, ``gh_evaluator_targets`` is specified in the metadata::
 
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
           (/ arg_type(gh_operator, gh_write, w0, w1), &
-             arg_type(gh_field*3, gh_read, w0) /)
+             arg_type(gh_field*3,  gh_read,  w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
      integer :: iterates_over = cells
@@ -1342,8 +1401,8 @@ If instead, ``gh_evaluator_targets`` is specified in the metadata::
      procedure, nopass :: code => testkern_operator_code
   end type testkern_operator_type
 
-then we will need to pass two sets of basis functions (evaluated at W0
-and at W1)::
+then we will need to pass two sets of basis functions (evaluated at ``W0``
+and at ``W1``)::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
@@ -1382,74 +1441,84 @@ Assembly
 
 An assembly kernel requires the column-banded dofmap for both the to-
 and from-function spaces of the CMA operator being assembled as well
-as the number of dofs for each of the dofmaps. The full set of rules is:
+as the number of DoFs for each of the dofmaps. The full set of rules is:
 
-    1) Include the ``cell`` argument. ``cell`` is an integer and has
-       intent ``in``.
-    2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-       is an integer and has intent ``in``.
-    3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-       an integer with intent ``in``.
-    4) Include the total number of cells, ``ncell_3d``, which is an integer
-       with intent ``in``.
-    5) For each argument in the ``meta_args`` metadata array:
+1) Include the ``cell`` argument. ``cell`` is an integer and has
+   intent ``in``.
 
-       1) If it is a LMA operator, include a real, 3-dimensional
-          array of type ``r_def``. The first two dimensions are the local
-          degrees of freedom for the ``to`` and ``from`` spaces,
-          respectively. The third dimension is ``ncell_3d``.
+2) Include ``nlayers``, the number of layers in a column. ``nlayers``
+   is an integer and has intent ``in``.
 
-       2) If it is a CMA operator, include a real, 3-dimensional array
-          of type ``r_def``. The first dimension is is
-          ``"bandwidth_"<operator_name>``, the second is
-          ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
+3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+   an integer with intent ``in``.
 
-	  1) Include the number of rows in the banded matrix.  This is
-	     an integer with intent ``in`` and is named as
-	     ``"nrow_"<operator_name>``.
-          2) If the from-space of the operator is *not* the same as the
-	     to-space then include the number of columns in the banded
-	     matrix.  This is an integer with intent ``in`` and is named as
-	     ``"ncol_"<operator_name>``.
-	  3) Include the bandwidth of the banded matrix. This is an
-	     integer with intent ``in`` and is named as
-	     ``"bandwidth_"<operator_name>``.
-	  4) Include banded-matrix parameter ``alpha``. This is an integer
-	     with intent ``in`` and is named as ``"alpha_"<operator_name>``.
-	  5) Include banded-matrix parameter ``beta``. This is an integer
-	     with intent ``in`` and is named as ``"beta_"<operator_name>``.
-	  6) Include banded-matrix parameter ``gamma_m``. This is an integer
-	     with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
-	  7) Include banded-matrix parameter ``gamma_p``. This is an integer
-	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
+4) Include the total number of cells, ``ncell_3d``, which is an integer
+   with intent ``in``.
 
-       3) If it is a field or scalar argument then include arguments following
+5) For each argument in the ``meta_args`` metadata array:
+
+   1) If it is a LMA operator, include a real, 3-dimensional
+      array of type ``r_def``. The first two dimensions are the local
+      degrees of freedom for the ``to`` and ``from`` spaces,
+      respectively. The third dimension is ``ncell_3d``;
+
+   2) If it is a CMA operator, include a real, 3-dimensional array
+      of type ``r_def``. The first dimension is
+      ``"bandwidth_"<operator_name>``, the second is
+      ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
+
+      1) Include the number of rows in the banded matrix.  This is
+         an integer with intent ``in`` and is named as
+         ``"nrow_"<operator_name>``.
+
+      2) If the from-space of the operator is *not* the same as the
+         to-space then include the number of columns in the banded
+         matrix.  This is an integer with intent ``in`` and is named as
+         ``"ncol_"<operator_name>``.
+
+      3) Include the bandwidth of the banded matrix. This is an
+         integer with intent ``in`` and is named as
+         ``"bandwidth_"<operator_name>``.
+
+      4) Include banded-matrix parameter ``alpha``. This is an integer
+         with intent ``in`` and is named as ``"alpha_"<operator_name>``.
+
+      5) Include banded-matrix parameter ``beta``. This is an integer
+         with intent ``in`` and is named as ``"beta_"<operator_name>``.
+
+      6) Include banded-matrix parameter ``gamma_m``. This is an integer
+         with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
+
+      7) Include banded-matrix parameter ``gamma_p``. This is an integer
+         with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
+
+   3) If it is a field or scalar argument then include arguments following
           the same rules as for general-purpose kernels.
 
-    6) For each unique function space in the order they appear in the
-       metadata arguments (the ``to`` function space of an operator is
-       considered to be before the ``from`` function space of the same
-       operator as it appears first in lexicographic order):
+6) For each unique function space in the order they appear in the
+   metadata arguments (the ``to`` function space of an operator is
+   considered to be before the ``from`` function space of the same
+   operator as it appears first in lexicographic order):
 
-       1) Include the number of degrees of freedom per cell for
-	  the space. This is an integer with intent ``in``. The name of this
-	  argument is ``"ndf_"<arg_function_space>``.
+   1) Include the number of degrees of freedom per cell for the space.
+      This is an integer with intent ``in``. The name of this argument is
+      ``"ndf_"<arg_function_space>``.
 
-       2) If there is a field on this space then:
+   2) If there is a field on this space then:
 
-	  1) Include the unique number of degrees of freedom for the
- 	     function space. This is an integer and has intent ``in``.
-             The name of this argument is ``"undf_"<field_function_space>``.
+      1) Include the unique number of degrees of freedom for the
+         function space. This is an integer and has intent ``in``.
+         The name of this argument is ``"undf_"<field_function_space>``.
 
-	  2) Include the dofmap for this space. This is an integer array
-	     with intent ``in``. It has one dimension sized by the local
-	     degrees of freedom for the function space.
+      2) Include the dofmap for this space. This is an integer array
+         with intent ``in``. It has one dimension sized by the local
+         degrees of freedom for the function space.
 
-	3) If the CMA operator has this space as its to/from space then
-	   include the column-banded dofmap, the list of offsets for the
-	   to/from-space. This is an integer array of rank 2. The first
-	   dimension is ``"ndf_"<arg_function_space>```` and the second
-           is ``nlayers``.
+   3) If the CMA operator has this space as its to/from space then
+      include the column-banded dofmap, the list of offsets for the
+      to/from-space. This is an integer array of rank 2. The first
+      dimension is ``"ndf_"<arg_function_space>```` and the second
+      is ``nlayers``.
 
 
 Application/Inverse-Application
@@ -1463,44 +1532,49 @@ column-wise operator is, by definition, assembled for a whole column,
 there is no loop over levels when applying it.)
 The full set of rules is then:
 
-    1) Include the ``cell`` argument. ``cell`` is an integer and has
-       intent ``in``.
-    2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-       an integer with intent ``in``.
-    3) For each argument in the ``meta_args`` metadata array:
+1) Include the ``cell`` argument. ``cell`` is an integer and has
+   intent ``in``.
 
-       1) If it is a field, include the field array. This is a real
-          array of kind ``r_def`` and is of rank 1.  The field array name
-	  is currently specified as being
-	  ``"field_"<argument_position>"_"<field_function_space>``. The
-	  extent of the array is the number of unique degrees of freedom
-	  for the function space that the field is on.  This value is
-	  passed in separately. The intent of the argument is determined
-	  from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+   an integer with intent ``in``.
 
-       2) If it is a CMA operator, include it and its associated
-          parameters (see Rule 5 of CMA Assembly kernels).
+3) For each argument in the ``meta_args`` metadata array:
 
-    4) For each of the unique function spaces encountered in the
-       metadata arguments (the ``to`` function space of an operator
-       is considered to be before the ``from`` function space of the
-       same operator as it appears first in lexicographic order):
+   1) If it is a field, include the field array. This is a real
+      array of kind ``r_def`` and is of rank 1.  The field array name
+      is currently specified as being
+      ``"field_"<argument_position>"_"<field_function_space>``. The
+      extent of the array is the number of unique degrees of freedom
+      for the function space that the field is on.  This value is
+      passed in separately. The intent of the argument is determined
+      from the metadata (see :ref:`dynamo0.3-api-meta-args`);
 
-       1) Include the number of degrees of freedom per cell for the associated
-	  function space. This is an integer with intent ``in``. The name
-	  of this argument is ``"ndf_"<field_function_space>``.
-       2) Include the number of unique degrees of freedom for the associated
-	  function space. This is an integer with intent ``in``. The name
-	  of this argument is ``"undf_"<field_function_space>``.
-       3) Include the dofmap for this function space. This is a rank-1 integer
-	  array with extent equal to the number of degrees of freedom of
-	  the space (``"ndf_"<field_function_space>``).
+   2) If it is a CMA operator, include it and its associated
+      parameters (see Rule 5 of CMA Assembly kernels).
 
-    5) Include the indirection map for the to-space of the CMA operator.
-       This is a rank-1 integer array with extent ``nrow``.
-    6) If the from-space of the operator is *not* the same as the to-space
-       then include the indirection map for the from-space of the CMA operator.
-       This is a rank-1 integer array with extent ``ncol``.
+4) For each of the unique function spaces encountered in the
+   metadata arguments (the ``to`` function space of an operator
+   is considered to be before the ``from`` function space of the
+   same operator as it appears first in lexicographic order):
+
+   1) Include the number of degrees of freedom per cell for the associated
+      function space. This is an integer with intent ``in``. The name
+      of this argument is ``"ndf_"<field_function_space>``;
+
+   2) Include the number of unique degrees of freedom for the associated
+      function space. This is an integer with intent ``in``. The name
+      of this argument is ``"undf_"<field_function_space>``;
+
+   3) Include the dofmap for this function space. This is a rank-1 integer
+      array with extent equal to the number of degrees of freedom of
+      the space (``"ndf_"<field_function_space>``).
+
+5) Include the indirection map for the to-space of the CMA operator.
+   This is a rank-1 integer array with extent ``nrow``.
+
+6) If the from-space of the operator is *not* the same as the to-space
+   then include the indirection map for the from-space of the CMA operator.
+   This is a rank-1 integer array with extent ``ncol``.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
@@ -1508,17 +1582,19 @@ Matrix-Matrix
 Does not require any dofmaps and also does not require the ``nlayers``
 and ``ncell_3d`` scalar arguments. The full set of rules are then:
 
-    1) Include the ``cell`` argument. ``cell`` is an integer and has
-       intent ``in``.
-    2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-       an integer with intent ``in``.
-    3) For each CMA operator or scalar argument specifed in metadata:
+1) Include the ``cell`` argument. ``cell`` is an integer and has
+   intent ``in``.
 
-       1) If it is a CMA operator, include it and its associated
-	  parameters (see Rule 5 of CMA Assembly kernels).
+2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+   an integer with intent ``in``.
 
-       2) If it is a scalar argument include the corresponding Fortran
-	  variable in the argument list with intent ``in``.
+3) For each CMA operator or scalar argument specifed in metadata:
+
+   1) If it is a CMA operator, include it and its associated
+      parameters (see Rule 5 of CMA Assembly kernels);
+
+   2) If it is a scalar argument include the corresponding Fortran
+      variable in the argument list with intent ``in``.
 
 Rules for Inter-Grid Kernels
 ############################
@@ -1533,43 +1609,50 @@ Argument ordering follows the general pattern used for 'normal'
 kernels with field data being followed by dofmap data. The rules for
 arguments to inter-grid kernels are as follows:
 
-    1) Include ``nlayers``, the number of layers in a column. ``nlayers``
-       is an integer and has intent ``in``.
-    2) Include the ``cell_map`` for the current cell (column). This is
-       an integer array of rank one and intent ``in`` which provides
-       the mapping from the coarse to the fine mesh. It has extent
-       `ncell_f_per_c`.
-    3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
-       This is an integer and has intent ``in``.
-    4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
-       This is an integer and has intent ``in``.
-    5) For each argument in the ``meta_args`` metadata array (which must be
-       a field or field-vector):
+1) Include ``nlayers``, the number of layers in a column. ``nlayers``
+   is an integer and has intent ``in``.
 
-       1) Pass in field data as done for a regular kernel.
+2) Include the ``cell_map`` for the current cell (column). This is
+   an integer array of rank one and intent ``in`` which provides
+   the mapping from the coarse to the fine mesh. It has extent
+   `ncell_f_per_c`.
 
-    6) For each unique function space (of which there will currently be two)
-       in the order in which they are encountered in the ``meta_args``
-       metadata array, include dofmap information:
+3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
+   This is an integer and has intent ``in``.
 
-       If the dofmap is associated with an argument on the fine mesh:
+4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
+   This is an integer and has intent ``in``.
 
-       1) Include ``ndf_fine``, the number of DoFs per cell for the FS of
-	  the field on the fine mesh.
-       2) Include ``undf_fine``, the number of unique DoFs per cell for the FS
-	  of the field on the fine mesh.
-       3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
-	  is an integer array of rank two with intent ``in``. The extent of
-	  the first dimension is ``ndf_fine`` and that of the second is
-	  ``ncell_f``.
+5) For each argument in the ``meta_args`` metadata array (which must be
+   a field or field-vector):
 
-       else, the dofmap is associated with an argument on the coarse mesh:
+   1) Pass in field data as done for a regular kernel.
 
-       1) Include ``undf_coarse``, the number of unique DoFs
-	  for the coarse field. This is an integer with intent ``in``.
-       2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
-	  in the coarse mesh. This is an integer array of rank one and has
-	  intent ``in``.
+6) For each unique function space (of which there will currently be two)
+   in the order in which they are encountered in the ``meta_args``
+   metadata array, include dofmap information:
+
+   If the dofmap is associated with an argument on the fine mesh:
+
+   1) Include ``ndf_fine``, the number of DoFs per cell for the FS of
+      the field on the fine mesh;
+
+   2) Include ``undf_fine``, the number of unique DoFs per cell for the FS
+          of the field on the fine mesh;
+
+   3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
+      is an integer array of rank two with intent ``in``. The extent of
+      the first dimension is ``ndf_fine`` and that of the second is
+      ``ncell_f``.
+
+   else, the dofmap is associated with an argument on the coarse mesh:
+
+   1) Include ``undf_coarse``, the number of unique DoFs
+      for the coarse field. This is an integer with intent ``in``;
+
+   2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
+      in the coarse mesh. This is an integer array of rank one and has
+      intent ``in``.
 
 .. _dynamo0.3-built-ins:
 
@@ -1582,21 +1665,21 @@ Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. Dynamo0.3 Built-ins must conform to the
 following four rules:
 
- 1) Built-in kernels must have one and only one modified (i.e. written
-    to) argument.
+1) Built-in kernels must have one and only one modified (i.e. written
+   to) argument.
 
- 2) There must be at least one field in the argument list. This is so
-    that we know the number of dofs to iterate over.
+2) There must be at least one field in the argument list. This is so
+   that we know the number of DoFs to iterate over.
 
- 3) Kernel arguments must be either fields or scalars.
+3) Kernel arguments must be either fields or scalars.
 
- 4) All field arguments to a given Built-in must be on the same
-    function space. This is because all current Built-ins iterate over
-    dofs and therefore all fields should have the same number. It also
-    means that we can determine the number of dofs uniquely when a
-    scalar is written to.
+4) All field arguments to a given Built-in must be on the same
+   function space. This is because all current Built-ins iterate over
+   DoFs and therefore all fields should have the same number. It also
+   means that we can determine the number of DoFs uniquely when a
+   scalar is written to.
 
-The Built-ins supported for the Dynamo 0.3 API are listed in the related
+The Built-ins supported for the Dynamo0.3 API are listed in the related
 subsections, grouped by the mathematical operation they perform. For clarity,
 the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
@@ -1606,49 +1689,55 @@ optimised maths library).
 Naming scheme
 +++++++++++++
 
-The supported Built-ins in the Dynamo 0.3 API are named according to the
+The supported Built-ins in the Dynamo0.3 API are named according to the
 scheme presented below. Any new Built-in needs to comply with these rules.
 
-    1) Ordering of arguments in Built-ins calls follows
-       *LHS (result) <- RHS (operation on arguments)*
-       direction, except where a Built-in returns the *LHS* result to one of
-       the *RHS* arguments. In that case ordering of arguments remains as in
-       the *RHS* expression, with the returning *RHS* argument written as close
-       to the *LHS* as it can be without affecting the mathematical expression.
+1) Ordering of arguments in Built-ins calls follows
+   *LHS (result) <- RHS (operation on arguments)*
+   direction, except where a Built-in returns the *LHS* result to one of
+   the *RHS* arguments. In that case ordering of arguments remains as in
+   the *RHS* expression, with the returning *RHS* argument written as close
+   to the *LHS* as it can be without affecting the mathematical expression.
 
-    2) Field names begin with upper case in short form (e.g. **X**, **Y**,
-       **Z**) and any case in long form (e.g. **Field1**, **field**).
+2) Field names begin with upper case in short form (e.g. **X**, **Y**,
+   **Z**) and any case in long form (e.g. **Field1**, **field**).
 
-    3) Scalar names begin with lower case:  e.g. **a**, **b**, are **scalar1**,
-       **scalar2**. Special names for scalars are: **constant** (or **c**),
-       **innprod** (inner/scalar product of two fields) and **sumfld**
-       (sum of a field).
+3) Scalar names begin with lower case:  e.g. **a**, **b**, are **scalar1**,
+   **scalar2**. Special names for scalars are: **constant** (or **c**),
+   **innprod** (inner/scalar product of two fields) and **sumfld**
+   (sum of a field).
 
-    4) Arguments in Built-ins variable declarations and constructs (PSyclone
-       Fortran and Python definitions):
+4) Arguments in Built-ins variable declarations and constructs (PSyclone
+   Fortran and Python definitions):
 
-       a) Are always  written in long form and lower case (e.g. **field1**,
-	  **field2**, **scalar1**, **scalar2**);
-       b) *LHS* result arguments are always listed first;
-       c) *RHS* arguments are listed in order of appearance in the mathematical
-	  expression, except when one of them is the *LHS* result.
+   1) Are always  written in long form and lower case (e.g. **field1**,
+      **field2**, **scalar1**, **scalar2**);
 
-    5) Built-ins names in Fortran consist of:
+   2) *LHS* result arguments are always listed first;
 
-       1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
-       2) Descriptive name of mathematical operation on *RHS* arguments in the
-	  form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
-	  ``<RHSargs>_<operationname>_<RHSargs>`` for more;
-       3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
-	  arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
+   3) *RHS* arguments are listed in order of appearance in the mathematical
+      expression, except when one of them is the *LHS* result.
 
-    6) Built-ins names in Python definitions are similar to their Fortran
-       counterparts, with a few differences:
+5) Built-ins names in Fortran consist of:
 
-       1) Operators and *RHS* arguments are all in upper case (e.g. **X**,
-	  **Y**, **A**, **B**, **Plus**, **Minus**);
-       2) There are no underscores;
-       3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
+   1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
+
+   2) Descriptive name of mathematical operation on *RHS* arguments in the
+      form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
+      ``<RHSargs>_<operationname>_<RHSargs>`` for more;
+
+   3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
+      arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
+
+6) Built-ins names in Python definitions are similar to their Fortran
+   counterparts, with a few differences:
+
+   1) Operators and *RHS* arguments are all in upper case (e.g. **X**,
+      **Y**, **A**, **B**, **Plus**, **Minus**);
+
+   2) There are no underscores;
+
+   3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
 
 Addition
 ++++++++
@@ -2109,8 +2198,8 @@ boundary conditions. For example:
 
   call invoke( kernel_type(field1, field2),      &
                enforce_bc_type(field1),          &
-	       kernel_with_op_type(field1, op1), &
-	       enforce_operator_bc_type(op1)     &
+               kernel_with_op_type(field1, op1), &
+               enforce_operator_bc_type(op1)     &
              )
 
 The particular boundary conditions that are applied are not known by
@@ -2121,9 +2210,9 @@ infrastructure.
 
 Up to and including version 1.4.0 of PSyclone, boundary conditions
 were applied automatically after a call to ``matrix_vector_type`` if
-the field arguments were on a vector function space (one of ``w1``,
-``w2``, ``w2h`` or ``w2v``). With the subsequent introduction of the
-ability to apply boundary conditions to operators this functionality
+the field arguments were on a vector function space (one of ``W1``,
+``W2``, ``W2H``, ``W2V`` or ``W2broken``). With the subsequent introduction
+of the ability to apply boundary conditions to operators this functionality
 is no longer required and has been removed.
 
 Example ``eg4`` in the ``examples/dynamo`` directory includes a call
@@ -2165,26 +2254,26 @@ Configuration
 Annexed DoFs
 ++++++++++++
 
-When a kernel iterates over dofs (rather than cells) for a continuous
+When a kernel iterates over DoFs (rather than cells) for a continuous
 field using distributed memory (see the :ref:`distributed_memory`
-Section), then PSyclone need only ensure that dofs owned by a
-processor are computed. However, for continuous fields, shared dofs at
+Section), then PSyclone need only ensure that DoFs owned by a
+processor are computed. However, for continuous fields, shared DoFs at
 the boundary between processors must be replicated (as different cells
-share the same dof). Only one processor can own a dof, therefore
-processors will have continuous fields which contain dofs that the
-processor does not own. These unowned dofs are called `annexed` in the
+share the same DoF). Only one processor can own a DoF, therefore
+processors will have continuous fields which contain DoFs that the
+processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
 When a kernel that iterates over cells needs to read a continuous
-field then the annexed dofs must be up-to-date on all processors. If
+field then the annexed DoFs must be up-to-date on all processors. If
 they are not then a halo exchange must be added. Currently PSyclone
-defaults, for kernels which iterate over dofs, to iterating over only
-owned dofs. This behaviour can be changed by setting
+defaults, for kernels which iterate over DoFs, to iterating over only
+owned DoFs. This behaviour can be changed by setting
 `COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3` section of the
 configuration file (see the :ref:`configuration` section). PSyclone
-will then generate code to iterate over both owned and annexed dofs,
+will then generate code to iterate over both owned and annexed DoFs,
 thereby reducing the number of halo exchanges required (at the expense
-of redundantly computing annexed dofs). For more details please refer
+of redundantly computing annexed DoFs). For more details please refer
 to the :ref:`dynamo0.3-developers` developers section.
 
 .. _dynamo0.3-api-transformations:
@@ -2222,25 +2311,25 @@ due to a prior transformation).
 
 The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
-"Dynamo0p3" API. This is because this API is currently the only one
+Dynamo0.3 API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
 can be found in ``examples/dynamo/eg8`` and an example of asynchronous
 halo exchanges can be found in ``examples/dynamo/eg11``.
 
 The **Dynamo0p3KernelConstTrans** transformation is only valid for the
-"Dynamo0p3" API. This is because the properties that it makes constant
+Dynamo0.3 API. This is because the properties that it makes constant
 are API specific.
 
-The Dynamo-specific transformations currently available are given
+The Dynamo0.3-API-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
 that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
 all versions of the Dynamo0.3 API.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
-	  supported for loops that contain inter-grid kernels. Attempting
-	  to apply other transformation types will result in PSyclone raising
-	  an error.
+          supported for loops that contain inter-grid kernels. Attempting
+          to apply other transformation types will result in PSyclone raising
+          an error.
 
 .. autoclass:: psyclone.transformations.DynamoExtractRegionTrans
     :members:

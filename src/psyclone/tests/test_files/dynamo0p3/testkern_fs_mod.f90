@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_fs_mod
 
@@ -44,74 +44,78 @@ module testkern_fs_mod
 
   ! Description: all function spaces with one continuous (w1)
   !              and one discontinuous (wtheta) field writer
-  type, extends(kernel_type) :: testkern_fs_type
-     type(arg_type), dimension(8) :: meta_args =   &
-          (/ arg_type(gh_field, gh_write, w1),     &
-             arg_type(gh_field, gh_read,  w2),     &
-             arg_type(gh_field, gh_read,  w0),     &
-             arg_type(gh_field, gh_read,  w3),     &
-             arg_type(gh_field, gh_write, wtheta), &
-             arg_type(gh_field, gh_read,  w2h),    &
-             arg_type(gh_field, gh_read,  w2v),    &
-             arg_type(gh_field, gh_read,  any_w2)  &
+  type, public, extends(kernel_type) :: testkern_fs_type
+     private
+     type(arg_type), dimension(10) :: meta_args = (/ &
+          arg_type(gh_field, gh_inc,   w1),          &
+          arg_type(gh_field, gh_read,  w2),          &
+          arg_type(gh_field, gh_read,  w0),          &
+          arg_type(gh_field, gh_read,  w3),          &
+          arg_type(gh_field, gh_write, wtheta),      &
+          arg_type(gh_field, gh_read,  w2h),         &
+          arg_type(gh_field, gh_read,  w2v),         &
+          arg_type(gh_field, gh_read,  w2broken),    &
+          arg_type(gh_field, gh_read,  w2trace),     &
+          arg_type(gh_field, gh_read,  any_w2)       &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_fs_code
+     procedure, public, nopass :: code => testkern_fs_code
   end type testkern_fs_type
 
 contains
 
-  SUBROUTINE testkern_fs_code(nlayers,                             &
-                              field_1_w1, field_2_w2,              &
-                              field_3_w0, field_4_w3,              &
-                              field_5_wtheta, field_6_w2h,         &
-                              field_7_w2v, field_8_any_w2,         &
-                              ndf_w1, undf_w1, map_w1,             &
-                              ndf_w2, undf_w2, map_w2,             &
-                              ndf_w0, undf_w0, map_w0,             &
-                              ndf_w3, undf_w3, map_w3,             &
-                              ndf_wtheta, undf_wtheta, map_wtheta, &
-                              ndf_w2h, undf_w2h, map_w2h,          &
-                              ndf_w2v, undf_w2v, map_w2v,          &
+  subroutine testkern_fs_code(nlayers, field1, field2,                   &
+                              field3, field4, field5, field6,            &
+                              field7, field8, field9, field10,           &
+                              ndf_w1, undf_w1, map_w1,                   &
+                              ndf_w2, undf_w2, map_w2,                   &
+                              ndf_w0, undf_w0, map_w0,                   &
+                              ndf_w3, undf_w3, map_w3,                   &
+                              ndf_wtheta, undf_wtheta, map_wtheta,       &
+                              ndf_w2h, undf_w2h, map_w2h,                &
+                              ndf_w2v, undf_w2v, map_w2v,                &
+                              ndf_w2broken, undf_w2broken, map_w2broken, &
+                              ndf_w2trace, undf_w2trace, map_w2trace,    &
                               ndf_any_w2, undf_any_w2, map_any_w2)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf_w1
-    INTEGER, intent(in) :: undf_w1
-    INTEGER, intent(in) :: ndf_w2
-    INTEGER, intent(in) :: undf_w2
-    INTEGER, intent(in) :: ndf_w0
-    INTEGER, intent(in) :: undf_w0
-    INTEGER, intent(in) :: ndf_w3
-    INTEGER, intent(in) :: undf_w3
-    INTEGER, intent(in) :: ndf_wtheta
-    INTEGER, intent(in) :: undf_wtheta
-    INTEGER, intent(in) :: ndf_w2h
-    INTEGER, intent(in) :: undf_w2h
-    INTEGER, intent(in) :: ndf_w2v
-    INTEGER, intent(in) :: undf_w2v
-    INTEGER, intent(in) :: ndf_any_w2
-    INTEGER, intent(in) :: undf_any_w2
-    REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_1_w1
-    REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_2_w2
-    REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_4_w3
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_5_wtheta
-    REAL(KIND=r_def), intent(in), dimension(undf_w2h) :: field_6_w2h
-    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_7_w2v
-    REAL(KIND=r_def), intent(in), dimension(undf_any_w2) :: field_8_any_w2
-    INTEGER, intent(in), dimension(ndf_w1) :: map_w1
-    INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-    INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
-    INTEGER, intent(in), dimension(ndf_w2h) :: map_w2h
-    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
-    INTEGER, intent(in), dimension(ndf_any_w2) :: map_any_w2
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), intent(in) :: ndf_w2h
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2broken
+    integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: ndf_any_w2
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w0, undf_w3, &
+                                       undf_wtheta, undf_w2h, undf_w2v,    &
+                                       undf_w2broken, undf_w2trace, undf_any_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w1)       :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2)       :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w0)       :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w3)       :: map_w3
+    integer(kind=i_def), intent(in), dimension(ndf_wtheta)   :: map_wtheta
+    integer(kind=i_def), intent(in), dimension(ndf_w2h)      :: map_w2h
+    integer(kind=i_def), intent(in), dimension(ndf_w2v)      :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_w2trace)  :: map_w2trace
+    integer(kind=i_def), intent(in), dimension(ndf_w2broken) :: map_w2broken
+    integer(kind=i_def), intent(in), dimension(ndf_any_w2)   :: map_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_w1)       :: field1
+    real(kind=r_def), intent(in),    dimension(undf_w2)       :: field2
+    real(kind=r_def), intent(in),    dimension(undf_w0)       :: field3
+    real(kind=r_def), intent(in),    dimension(undf_w3)       :: field4
+    real(kind=r_def), intent(out),   dimension(undf_wtheta)   :: field5
+    real(kind=r_def), intent(in),    dimension(undf_w2h)      :: field6
+    real(kind=r_def), intent(in),    dimension(undf_w2v)      :: field7
+    real(kind=r_def), intent(in),    dimension(undf_w2broken) :: field8
+    real(kind=r_def), intent(in),    dimension(undf_w2trace)  :: field9
+    real(kind=r_def), intent(in),    dimension(undf_any_w2)   :: field10
 
-  END SUBROUTINE testkern_fs_code
+  end subroutine testkern_fs_code
 
 end module testkern_fs_mod
