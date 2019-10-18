@@ -1435,7 +1435,7 @@ def test_omp_par_and_halo_exchange_error():
     '''Tests that we raise an error if we try to apply an omp parallel
     transformation to a list containing halo_exchange calls. If this is
     allowed then it is likely that we will get incorrect results, or that
-    the code will fail. Fixing this problem is the subject of ticket #526. '''
+    the code will fail.'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),

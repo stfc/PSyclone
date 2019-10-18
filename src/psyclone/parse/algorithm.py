@@ -44,10 +44,9 @@ from fparser.two import pattern_tools
 from fparser.two.utils import walk_ast
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
-    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
-    Call_Stmt, Actual_Arg_Spec_List, Actual_Arg_Spec, Data_Ref, Part_Ref, \
-    Only_List, Char_Literal_Constant, Section_Subscript_List, \
-    Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant, \
+    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
+    Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
+    Section_Subscript_List, Name, Real_Literal_Constant, Int_Literal_Constant,\
     Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
 # pylint: enable=no-name-in-module
 
@@ -238,14 +237,8 @@ class Parser(object):
         argument is found.
 
         '''
-        # Extract argument list. This if construct can be removed
-        # when fparser#170 is implemented.
-        argument_list = []
-        if isinstance(statement.items[1], Actual_Arg_Spec_List):
-            argument_list = statement.items[1].items
-        else:
-            # Expecting a single entry rather than a list
-            argument_list = [statement.items[1]]
+        # Extract argument list.
+        argument_list = statement.items[1].items
 
         invoke_label = None
         kernel_calls = []
@@ -396,12 +389,11 @@ class Parser(object):
 
         use_name = str(statement.items[2])
 
-        # Extract only list. This can be removed when
-        # fparser#170 is implemented
-        if isinstance(statement.items[4], Only_List):
+        # Extract 'only' list.
+        if statement.items[4]:
             only_list = statement.items[4].items
         else:
-            only_list = [statement.items[4]]
+            only_list = []
 
         for item in only_list:
             self._arg_name_to_module_name[str(item).lower()] = use_name
@@ -561,8 +553,7 @@ def get_kernel(parse_tree, alg_filename):
 
     kernel_name = str(parse_tree.items[0])
 
-    # Extract argument list. This can be removed when
-    # fparser#170 is implemented
+    # Extract argument list. This can be removed when fparser#211 is fixed.
     argument_list = []
     if isinstance(parse_tree.items[1], Section_Subscript_List):
         argument_list = parse_tree.items[1].items
