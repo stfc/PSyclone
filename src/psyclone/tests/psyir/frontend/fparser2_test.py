@@ -37,6 +37,7 @@
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
+from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
@@ -46,11 +47,10 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
+
 # Fixtures
-
-
-@pytest.fixture(scope="module")
-def f2008_parser():
+@pytest.fixture(scope="module", name="f2008_parser")
+def fixture_f2008_parser():
     '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")

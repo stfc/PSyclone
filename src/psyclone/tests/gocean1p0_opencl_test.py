@@ -56,7 +56,6 @@ def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
     yield()
-    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -251,15 +250,15 @@ def test_set_kern_args(kernel_outputdir):
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine
     assert generated_code.count("SUBROUTINE compute_cu_code_set_args("
-                                "kernel_obj, nx, cu_fld, p_fld, u_fld)") == 1
+                                "kernel_obj, cu_fld, p_fld, u_fld)") == 1
     # Declarations
     expected = '''\
-    SUBROUTINE compute_cu_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
+    SUBROUTINE compute_cu_code_set_args(kernel_obj, cu_fld, p_fld, u_fld)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      INTEGER(KIND=c_intptr_t), intent(in), target :: cu_fld, p_fld, u_fld
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: cu_fld, p_fld, u_fld
       INTEGER(KIND=c_intptr_t), target :: kernel_obj'''
     assert expected in generated_code
     expected = '''\
@@ -273,10 +272,10 @@ def test_set_kern_args(kernel_outputdir):
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
     assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
-                                "kernel_obj, nx, u_fld, "
+                                "kernel_obj, u_fld, "
                                 "unew_fld, uold_fld)") == 1
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
-            "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
+            "cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -290,16 +289,16 @@ def test_set_kern_float_arg(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, ''' + \
+    SUBROUTINE bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, ''' + \
         '''xstop, tmask)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      INTEGER(KIND=c_intptr_t), intent(in), target :: ssh_fld, tmask
+      INTEGER, intent(in), target :: xstop
       REAL(KIND=go_wp), intent(in), target :: a_scalar
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: ssh_fld, xstop, tmask
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
-      INTEGER, target :: nx
 '''
     assert expected in generated_code
     expected = '''\
@@ -314,10 +313,7 @@ def test_set_kern_float_arg(kernel_outputdir):
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
-    # TODO #459: the usage of scalar variables in the code causes compilation
-    # errors. Once #459 is fixed this test can be re-enabled. Also note that
-    # the kernel_outputdir fixture needs to be added as parameter.
-    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -335,7 +331,6 @@ def test_set_arg_const_scalar():
 
 
 def test_opencl_kernel_code_generation(kernel_outputdir):
-    # pylint: disable=invalid-name
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
     '''
@@ -399,7 +394,6 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
 
 
 def test_symtab_implementation_for_opencl():
-    # pylint: disable=invalid-name
     ''' Tests that the GOcean specialised Symbol Table implements the
     abstract properties needed to generate OpenCL.
     '''
@@ -444,19 +438,15 @@ def test_symtab_implementation_for_opencl():
     assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
-    # pylint: disable=protected-access
     arg1._datatype = "real"
-    # pylint: enable=protected-access
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
             " but got a scalar of type 'real' for kernel 'test'.")\
         in str(err)
 
-    # pylint: disable=protected-access
     arg1._datatype = "integer"  # restore
     arg2._shape = [None]
-    # pylint: enable=protected-access
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"

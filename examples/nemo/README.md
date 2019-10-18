@@ -34,13 +34,13 @@ POSSIBILITY OF SUCH DAMAGE.
 Author A. R. Porter, STFC Daresbury Lab
 -->
 
-# PSyclone NEMO Examples #
+# PSyclone NEMO Examples
 
 This directory contains various examples of the use of PSyclone
 to transform source code from the NEMO ocean model. See the READMEs
 in the individual example directories for further details.
 
-## Code ##
+## Code
 
 Contains
 
@@ -49,20 +49,20 @@ Silvia Mocavero of CMCC and
 2. an unmodified NEMO subroutine computing the horizontal component of
 the lateral tracer mixing trend (traldf_iso).
 
-## Example 1 ##
+## Example 1
 
 OpenMP parallelisation of tra_adv over levels.
 
-## Example 2 ##
+## Example 2
 
 OpenMP parallelisation of traldf_iso over levels.
 
-## Example 3 ##
+## Example 3
 
 OpenACC parallelisation of tra_adv using the 'data' and 'kernels'
 directives.
 
-## Example 4 ##
+## Example 4
 
 SIR gemeration and transformation to CUDA using Dawn with simple
 examples.
