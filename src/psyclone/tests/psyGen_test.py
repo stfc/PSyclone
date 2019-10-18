@@ -3573,11 +3573,6 @@ def test_symbol_initialisation():
         "'invalidtype'.".format(str(DataSymbol.valid_data_types))) in str(
             error.value)
 
-    # with pytest.raises(ValueError) as error:
-    #    DataSymbol('a', 'real', constant_value=3.14)
-    # assert ("A constant value is not currently supported for datatype "
-    #        "'real'.") in str(error)
-
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'real', shape=dim)
     assert "DataSymbol shape attribute must be a list." in str(error.value)
@@ -3689,6 +3684,12 @@ def test_symbol_constant_value_setter():
     assert sym.constant_value == 3.1415
     sym.constant_value = 1.0
     assert sym.constant_value == 1.0
+
+    sym = DataSymbol('a', 'deferred')
+    with pytest.raises(ValueError) as error:
+        sym.constant_value = 1.0
+    assert ("A constant value is not supported for datatype "
+            "'deferred'.") in str(error)
 
 
 def test_symbol_is_constant():

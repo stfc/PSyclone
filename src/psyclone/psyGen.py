@@ -5880,7 +5880,7 @@ class DataSymbol(Symbol):
                 lookup = DataSymbol.mapping[self.datatype]
             except KeyError:
                 raise ValueError(
-                    "A constant value is not currently supported for "
+                    "A constant value is not supported for "
                     "datatype '{0}'.".format(self.datatype))
             if not isinstance(new_value, lookup):
                 raise ValueError(
