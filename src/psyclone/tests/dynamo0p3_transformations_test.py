@@ -1494,6 +1494,7 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_single_OpenMP_pdo(monkeypatch, annexed, dist_mem):
+    # pylint: disable=invalid-name
     '''Test that we generate correct code if an OpenMP parallel do is
     applied to a single builtin. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1540,6 +1541,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed, dist_mem):
+    # pylint: disable=invalid-name
     '''Test that we generate correct code if OpenMP parallel do's are
     applied to multiple builtins. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1678,6 +1680,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_single_OpenMP_do(monkeypatch, annexed, dist_mem):
+    # pylint: disable=invalid-name
     '''Test that we generate correct code if an OpenMP do (with an outer
     OpenMP parallel) is applied to a single builtin. Also test with
     and without annexed dofs being computed as this affects the
@@ -1735,6 +1738,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_multiple_OpenMP_do(monkeypatch, annexed, dist_mem):
+    # pylint: disable=invalid-name
     '''Test that we generate correct code if OpenMP do's are applied to
     multiple builtins. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -1948,7 +1952,7 @@ def test_reduction_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
         # Apply an OpenMP Parallel directive around the OpenMP do directive
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
@@ -2071,7 +2075,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child, {"reprod": False})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
@@ -2154,7 +2158,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=True)
+                schedule, _ = otrans.apply(child, {"reprod": True})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
@@ -2260,7 +2264,7 @@ def test_two_reductions_real_do():
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child, {"reprod": False})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
@@ -2337,7 +2341,7 @@ def test_two_reprod_reductions_real_do():
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=True)
+                schedule, _ = otrans.apply(child, {"reprod": True})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
@@ -2444,7 +2448,7 @@ def test_multi_reduction_same_name_real_do():
             # Apply an OpenMP do to the loop
             for child in schedule.children:
                 if isinstance(child, psyGen.Loop):
-                    schedule, _ = otrans.apply(child, reprod=reprod)
+                    schedule, _ = otrans.apply(child, {"reprod": reprod})
             if distmem:
                 # We have to move/delete a
                 # global sum to get to the stage where we can raise an
@@ -2661,7 +2665,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child, {"reprod": False})
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -2845,7 +2849,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+            schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -3068,7 +3072,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+            schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -3196,7 +3200,7 @@ def test_reprod_reduction_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+        schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
         # Apply an OpenMP Parallel directive around the OpenMP do directive
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
@@ -3283,7 +3287,7 @@ def test_no_global_sum_in_parallel_region():
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=True)
+                schedule, _ = otrans.apply(child, {"reprod": True})
         schedule, _ = rtrans.apply(schedule.children)
         invoke.schedule = schedule
         with pytest.raises(NotImplementedError) as excinfo:
@@ -3316,7 +3320,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
         # Apply an OpenMP do to the loop
         for child in schedule.children:
             if isinstance(child, psyGen.Loop):
-                schedule, _ = otrans.apply(child, reprod=True)
+                schedule, _ = otrans.apply(child, {"reprod": True})
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
@@ -3448,7 +3452,8 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                                        schedule.children[1])
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
-            schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+            schedule, _ = otrans.apply(schedule.children[0],
+                                       {"reprod": "True"})
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -3560,7 +3565,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+            schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             result = str(psy.gen)
@@ -3645,7 +3650,7 @@ def test_repr_3_builtins_2_reductions_do():
         otrans = Dynamo0p3OMPLoopTrans()
         for child in schedule.children:
             if isinstance(child, DynLoop):
-                schedule, _ = otrans.apply(child, reprod=True)
+                schedule, _ = otrans.apply(child, {"reprod": True})
         for child in schedule.children:
             if isinstance(child, OMPDoDirective):
                 schedule, _ = rtrans.apply(child)
@@ -3752,7 +3757,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     otrans = Dynamo0p3OMPLoopTrans()
     for child in schedule.children:
         if isinstance(child, DynLoop):
-            schedule, _ = otrans.apply(child, reprod=True)
+            schedule, _ = otrans.apply(child, {"reprod": True})
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
             schedule, _ = rtrans.apply(child)
@@ -3854,7 +3859,8 @@ def test_reductions_reprod():
             otrans = Dynamo0p3OMPLoopTrans()
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do directive to the loop
-            schedule, _ = otrans.apply(schedule.children[0], reprod=reprod)
+            schedule, _ = otrans.apply(schedule.children[0],
+                                       {"reprod": reprod})
             # Apply an OpenMP Parallel directive around the OpenMP do directive
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
@@ -3884,7 +3890,7 @@ def test_list_multiple_reductions():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
         # Apply an OpenMP Parallel directive around the OpenMP do directive
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
