@@ -300,11 +300,19 @@ class Fparser2Reader(object):
         return KernelSchedule(name)
 
     def generate_container(self, module_ast):
+        '''
+        Create a Container from the supplied fparser2 module AST.
+
+        :param module_ast: fparser2 AST of the full module.
+        :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+        :raises GenerationError: Unable to generate a Container from the \
+                                 provided fpaser2 parse tree.
+        '''
         # Assume just 1 Fortran module definition in the file
         if len(module_ast.content) > 1:
-            raise GenerationError("Unexpected AST when generating '{0}' "
-                                  "kernel schedule. Just one "
-                                  "module definition per file supported.")
+            raise GenerationError(
+                "Could not process {0}. Just one module definition per file "
+                "supported.".format(str(module_ast)))
 
         module = module_ast.content[0]
         mod_content = module.content
@@ -314,6 +322,7 @@ class Fparser2Reader(object):
         new_container = Container(mod_name)
         decl_list = mod_content[1].content
         self.process_declarations(new_container, decl_list, [])
+
         return new_container
 
     def generate_schedule(self, name, module_ast):
@@ -324,8 +333,8 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :raises GenerationError: Unable to generate a kernel schedule from the
-                                 provided fpaser2 parse tree.
+        :raises GenerationError: Unable to generate a kernel schedule from \
+                                 the provided fpaser2 parse tree.
         '''
         def first_type_match(nodelist, typekind):
             '''
@@ -356,26 +365,12 @@ class Fparser2Reader(object):
 
         new_schedule = self._create_schedule(name)
 
-        # Assume just 1 Fortran module definition in the file
-        if len(module_ast.content) > 1:
-            raise GenerationError("Unexpected AST when generating '{0}' "
-                                  "kernel schedule. Just one "
-                                  "module definition per file supported."
-                                  "".format(name))
+        # Generate the Container of the module enclosing the Kernel
+        new_container = self.generate_container(module_ast)
+        mod_content = module_ast.content[0].content
 
-        module = module_ast.content[0]
-        mod_content = module.content
-        mod_name = str(mod_content[0].items[1])
-
-        # Create a container to capture the module information and
-        # connect it to the schedule.
-        new_container = Container(mod_name)
         new_schedule.parent = new_container
         new_container.children = [new_schedule]
-
-        mod_spec = mod_content[1]
-        decl_list = mod_spec.content
-        self.process_declarations(new_container, decl_list, [])
 
         try:
             subroutines = first_type_match(mod_content,

@@ -79,8 +79,53 @@ end module dummy_mod
 
 # Class Fparser2Reader
 
-# Method generate_schedule
 
+# Method generate_container
+def test_generate_container(parser):
+    ''' '''
+    dummy_module_metadata = '''
+    module dummy_mod
+        use mod1
+        use mod2, only: var1
+        real :: modvar1
+    contains
+        subroutine dummy_code(f1, f2, f3)
+            real(wp), dimension(:,:), intent(in)  :: f1
+            real(wp), dimension(:,:), intent(out)  :: f2
+            real(wp), dimension(:,:) :: f3
+            f2 = f1 + 1
+        end subroutine dummy_code
+    end module dummy_mod
+    '''
+    reader = FortranStringReader(dummy_module_metadata)
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    container = processor.generate_container(ast)
+    assert isinstance(container, Container)
+    assert not container.children
+    assert container.symbol_table
+    assert container.symbol_table.lookup("modvar1")
+    assert container.symbol_table.lookup("var1")
+    # TODO: uncomment below
+    # assert container.symbol_table.lookup("mod1")
+    # assert container.symbol_table.lookup("mod2")
+
+
+def test_generate_container_two_modules(parser):
+    ''' Tests the fparser2Reader generate_container method raises an exception
+    when more than one fparser2 module node is provided.
+    '''
+    reader = FortranStringReader(FAKE_KERNEL_METADATA*2)
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    # Test kernel with two modules
+    with pytest.raises(GenerationError) as error:
+        _ = processor.generate_container(ast)
+    assert "Could not process" in str(error.value)
+    assert "Just one module definition per file supported." in str(error.value)
+
+
+# Method generate_schedule
 def test_generate_schedule_empty_subroutine(parser):
     ''' Tests the fp2Reader generate_schedule method with an empty
     subroutine.
@@ -133,21 +178,6 @@ def test_generate_schedule_module_decls(parser):
     assert len(symbol_table.symbols) == 2
     assert symbol_table.lookup("scalar1")
     assert symbol_table.lookup("array1")
-
-
-def test_generate_schedule_two_modules(parser):
-    ''' Tests the fparser2Reader generate_schedule method raises an exception
-    when more than one fparser2 module node is provided.
-    '''
-    reader = FortranStringReader(FAKE_KERNEL_METADATA*2)
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    # Test kernel with two modules
-    with pytest.raises(GenerationError) as error:
-        _ = processor.generate_schedule("dummy_code", ast)
-    assert ("Unexpected AST when generating 'dummy_code' kernel schedule."
-            " Just one module definition per file supported.") \
-        in str(error.value)
 
 
 def test_generate_schedule_dummy_subroutine(parser):
