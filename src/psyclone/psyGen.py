@@ -4290,22 +4290,6 @@ class CodedKern(Kern):
                 # whilst old style (direct fp2) transformations still
                 # exist - #490.
 
-                # First check that the kernel module name and
-                # subroutine name conform to the <name>_mod and
-                # <name>_code convention as this is currently assumed
-                # when recreating the kernel module name from the
-                # PSyIR in the Fortran back end. This limitation is
-                # the subject of #520.
-
-                if self.name.lower().rstrip("_code") != \
-                   self.module_name.lower().rstrip("_mod") or \
-                   not self.name.lower().endswith("_code") or \
-                   not self.module_name.lower().endswith("_mod"):
-                    raise NotImplementedError(
-                        "PSyclone back-end code generation relies on kernel "
-                        "modules conforming to the <name>_mod and <name>_code "
-                        "convention. However, found '{0}', '{1}'."
-                        "".format(self.module_name, self.name))
                 # Rename PSyIR module and kernel names.
                 self._rename_psyir(new_suffix)
             else:
@@ -4339,7 +4323,10 @@ class CodedKern(Kern):
             # exist.
             from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
-            new_kern_code = fortran_writer(self.get_kernel_schedule())
+            # Start from the root of the schedule as we want to output
+            # any module information surrounding the kernel subroutine
+            # as well as the subroutine itself.
+            new_kern_code = fortran_writer(self.get_kernel_schedule().root)
             fll = FortLineLength()
             new_kern_code = fll.process(new_kern_code)
         else:
@@ -4380,12 +4367,7 @@ class CodedKern(Kern):
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes. Currently it is only possible to set the
-        kernel subroutine name in a KernCall node. The kernel module
-        name is then inferred from the subroutine name by assuming
-        there is a naming convention (<name>_code and <name>_mod),
-        which is not always the case. This limitation is the subject
-        of #520.
+        KernelSchedule nodes.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -4403,13 +4385,9 @@ class CodedKern(Kern):
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
 
-        # Update the PSyIR with the new names. Note there is currently
-        # an assumption in the PSyIR that the module name has the same
-        # root name as the subroutine name. These names are used when
-        # generating the modified kernel code. This limitation is the
-        # subject of #520.
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
+        kern_schedule.root.name = new_mod_name[:]
 
     def _rename_ast(self, suffix):
         '''

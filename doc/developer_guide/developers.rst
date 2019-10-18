@@ -912,7 +912,7 @@ this new approach over time. The back-end visitor code is stored in
 Visitor Base code
 =================
 
-`base.py` in `psyclone/psyir/backend` provides a base class -
+`visitor.py` in `psyclone/psyir/backend` provides a base class -
 `PSyIRVisitor` - that implements the visitor pattern and is designed
 to be subclassed by each back-end.
 

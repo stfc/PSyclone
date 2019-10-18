@@ -71,10 +71,10 @@ def test_nemo_omp_parallel():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     correct = '''!$omp parallel private(a,i)
-      do i = 1, 20, 2
-        a=2 * i
-        b(i)=b(i) + a
-      enddo
+    do i = 1, 20, 2
+      a=2 * i
+      b(i)=b(i) + a
+    enddo
 !$omp end parallel'''
     assert correct in result
 
@@ -180,10 +180,10 @@ def test_nemo_omp_do():
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
     correct = '''!$omp do schedule(static)
-      do i = 1, 20, 2
-        a=2 * i
-        b(i)=b(i) + a
-      enddo
+    do i = 1, 20, 2
+      a=2 * i
+      b(i)=b(i) + a
+    enddo
 !$omp end do'''
     assert correct in result
 
