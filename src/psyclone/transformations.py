@@ -2516,7 +2516,7 @@ class OCLTrans(Transformation):
             # parameters (issue 323) we have to bypass this validation and
             # provide them manually for the OpenCL kernels to compile.
             continue
-            global_symbols = ksched.symbol_table.global_variables
+            global_variables = ksched.symbol_table.global_variables
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "

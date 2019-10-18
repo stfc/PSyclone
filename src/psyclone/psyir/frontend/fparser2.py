@@ -634,7 +634,10 @@ class Fparser2Reader(object):
                             # Convert string literal to the Symbol datatype
                             ct_value = DataSymbol.mapping[datatype](value_str)
                         else:
-                            raise NotImplementedError("")
+                            raise NotImplementedError(
+                                "Could not process {0}. Initialisations with "
+                                "static expressions are not supported."
+                                "".format(decl.items))
 
                 if char_len is not None:
                     raise NotImplementedError(

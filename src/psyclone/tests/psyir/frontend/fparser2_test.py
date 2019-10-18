@@ -334,7 +334,18 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    # assert "Could not process " in str(error.value)
+    assert "Could not process " in str(error.value)
+    assert "Initialisations with static expressions are not supported." \
+        in str(error.value)
+
+    # Static constant expresions are not supported
+    reader = FortranStringReader("real:: a = 1.1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert "Initialisations on the declaration statements are just " \
+           "supported in parameter declarations." in str(error.value)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
