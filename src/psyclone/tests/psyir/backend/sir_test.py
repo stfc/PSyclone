@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
-from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyir.backend.visitor import VisitorError
 
 
 # pylint: disable=redefined-outer-name
