@@ -49,8 +49,11 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, Assi
 import copy
 
 
+# new_assignment = Assignment.create(lhs, rhs)
+
 def make_assignment(lhs, rhs):
     ''' xxx '''
+    new_assignment = Assignment()
     new_assignment = Assignment()
     lhs.parent = new_assignment
     rhs.parent = new_assignment
@@ -221,7 +224,7 @@ def trans(psy):
 
     '''
     sir_writer = SIRWriter(skip_nodes=True)
-    #fortran_writer = FortranWriter()
+    fortran_writer = FortranWriter()
     # For each Invoke write out the SIR representation of the
     # schedule. Note, there is no algorithm layer in the NEMO API so
     # the invokes represent all of the original code.
@@ -230,8 +233,8 @@ def trans(psy):
         sched = invoke.schedule
         for kernel in sched.walk(NemoKern):
 
-            #kern = fortran_writer(sched)
-            #print(kern)
+            kern = fortran_writer(sched)
+            print(kern)
 
             kernel_schedule = kernel.get_kernel_schedule()
             for oper in kernel_schedule.walk(UnaryOperation):
