@@ -112,7 +112,7 @@ class RegionTrans(Transformation):
     # overwritten:
     # pylint: disable=abstract-method,arguments-differ
 
-    def _validate(self, node_list, options=None):
+    def validate(self, node_list, options=None):
         '''
         Checks that the nodes in node_list are valid for a region
         transformation.
@@ -717,7 +717,7 @@ class ParallelLoopTrans(Transformation):
         :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
         '''
 
-    def _validate(self, node, options=None):
+    def validate(self, node, options=None):
         '''
         Perform validation checks before applying the transformation
 
@@ -807,7 +807,7 @@ class ParallelLoopTrans(Transformation):
         '''
         if not options:
             options = {}
-        self._validate(node, options)
+        self.validate(node, options)
 
         schedule = node.root
 
@@ -1157,7 +1157,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
-    def _validate(self, node, options=None):
+    def validate(self, node, options=None):
         '''Validity checks for input arguments.
 
         :param node: The PSyIR node to validate.
@@ -1180,7 +1180,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The requested loop is over colours and "
                                       "must be computed serially.")
-        super(OMPParallelLoopTrans, self)._validate(node, options)
+        super(OMPParallelLoopTrans, self).validate(node, options)
 
     def apply(self, node, options=None):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
@@ -1206,7 +1206,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         :rtype: (:py:class:`psyclone.psyGen.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
-        self._validate(node, options)
+        self.validate(node, options)
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -1267,7 +1267,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         colouring.
 
         '''
-        self._validate(node, options)
+        self.validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -1318,7 +1318,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
             outer loop.
 
         '''
-        self._validate(node, options)
+        self.validate(node, options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1370,7 +1370,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
 
-        self._validate(node, options)
+        self.validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be
@@ -1719,7 +1719,7 @@ class ParallelRegionTrans(RegionTrans):
     def name(self):
         ''' Returns the name of this transformation as a string.'''
 
-    def _validate(self, node_list, options=None):
+    def validate(self, node_list, options=None):
         '''
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
@@ -1757,7 +1757,7 @@ class ParallelRegionTrans(RegionTrans):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
                     "children of the same parent.".format(self.name))
-        super(ParallelRegionTrans, self)._validate(node_list, options)
+        super(ParallelRegionTrans, self).validate(node_list, options)
 
     def apply(self, nodes, options=None):
         '''
@@ -1791,7 +1791,7 @@ class ParallelRegionTrans(RegionTrans):
                                       "schedule but have been passed an "
                                       "object of type: {1}".
                                       format(self.name, arg_type))
-        self._validate(node_list, options)
+        self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
@@ -1893,7 +1893,7 @@ class OMPParallelTrans(ParallelRegionTrans):
         '''
         return "OMPParallelTrans"
 
-    def _validate(self, node_list, options=None):
+    def validate(self, node_list, options=None):
         '''
         Perform OpenMP-specific validation checks.
 
@@ -1914,7 +1914,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                                       "region within another OpenMP region.")
 
         # Now call the general validation checks
-        super(OMPParallelTrans, self)._validate(node_list, options)
+        super(OMPParallelTrans, self).validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -2076,7 +2076,7 @@ class MoveTrans(Transformation):
         return "Move"
 
     # pylint: disable=no-self-use
-    def _validate(self, node, location, position):
+    def validate(self, node, location, position):
         ''' validity checks for input arguments '''
 
         # Check that the first argument is a Node
@@ -2101,7 +2101,7 @@ class MoveTrans(Transformation):
         exception is raised if the move is invalid.'''
         # pylint:disable=arguments-differ
 
-        self._validate(node, location, position)
+        self.validate(node, location, position)
 
         schedule = node.root
 
@@ -2151,7 +2151,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         ''' Returns the name of this transformation as a string.'''
         return "RedundantComputation"
 
-    def _validate(self, node, depth):
+    def validate(self, node, depth):
         '''Perform various checks to ensure that it is valid to apply the
         RedundantComputation transformation to the supplied node
 
@@ -2331,7 +2331,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :type depth: int or None
 
         '''
-        self._validate(loop, depth)
+        self.validate(loop, depth)
 
         schedule = loop.root
 
@@ -2395,7 +2395,7 @@ class GOLoopSwapTrans(Transformation):
         '''Returns the name of this transformation as a string.'''
         return "GOLoopSwap"
 
-    def _validate(self, node_outer):  # pylint: disable=no-self-use
+    def validate(self, node_outer):  # pylint: disable=no-self-use
         '''Checks if the given nodes contains a valid Fortran structure
            to allow swapping loops. This means the node must represent
            a loop, and it must have exactly one child that is also a loop.
@@ -2455,7 +2455,7 @@ class GOLoopSwapTrans(Transformation):
         :returns: A tuple consisting of the new schedule, and a Memento.
         :raises TransformationError: if the supplied node does not
                                         allow a loop swap to be done.'''
-        self._validate(outer)
+        self.validate(outer)
 
         schedule = outer.root
         inner = outer.loop_body[0]
@@ -2637,7 +2637,7 @@ class ProfileRegionTrans(RegionTrans):
         ''' Returns the name of this transformation as a string '''
         return "ProfileRegionTrans"
 
-    def _validate(self, nodes):
+    def validate(self, nodes):
         '''
         Calls the _validate method of the base class and then checks that,
         for the NEMO API, the routine that will contain the profiling
@@ -2651,7 +2651,7 @@ class ProfileRegionTrans(RegionTrans):
         from fparser.two.utils import walk_ast
         from psyclone.nemo import NemoInvoke
 
-        super(ProfileRegionTrans, self)._validate(nodes)
+        super(ProfileRegionTrans, self).validate(nodes)
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
@@ -2708,7 +2708,7 @@ class ProfileRegionTrans(RegionTrans):
         node_position = node_list[0].position
 
         # Perform validation checks
-        self._validate(node_list)
+        self.validate(node_list)
 
         # create a memento of the schedule and the proposed
         # transformation
@@ -2781,7 +2781,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(node)
+        self.validate(node)
 
         schedule = node.root
 
@@ -2808,7 +2808,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         return schedule, keep
 
-    def _validate(self, node):
+    def validate(self, node):
         '''Internal method to check whether the node is valid for this
         transformation.
 
@@ -2980,7 +2980,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 print("    Modified {0}, arg position {1}, value {2}."
                       "".format(orig_name, arg_position, value))
 
-        self._validate(node, cellshape, element_order, number_of_layers,
+        self.validate(node, cellshape, element_order, number_of_layers,
                        quadrature)
 
         schedule = node.root
@@ -3049,7 +3049,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         return schedule, keep
 
-    def _validate(self, node, cellshape, element_order, number_of_layers,
+    def validate(self, node, cellshape, element_order, number_of_layers,
                   quadrature):
         '''Internal method to check whether the input arguments are valid for
         this transformation.
@@ -3176,7 +3176,7 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.dynamo0p3 import DynInvokeSchedule
 
         # Ensure that the proposed transformation is valid
-        self._validate(sched)
+        self.validate(sched)
 
         if isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
@@ -3185,9 +3185,9 @@ class ACCEnterDataTrans(Transformation):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         else:
-            # Should not get here provided that _validate() has done its job
+            # Should not get here provided that validate() has done its job
             raise InternalError(
-                "ACCEnterDataTrans._validate() has not rejected an "
+                "ACCEnterDataTrans.validate() has not rejected an "
                 "(unsupported) schedule of type {0}".format(type(sched)))
 
         # Create a memento of the schedule and the proposed
@@ -3200,7 +3200,7 @@ class ACCEnterDataTrans(Transformation):
 
         return sched, keep
 
-    def _validate(self, sched):
+    def validate(self, sched):
         # pylint: disable=arguments-differ
         '''
         Check that we can safely apply the OpenACC enter-data transformation
@@ -3218,7 +3218,7 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
 
-        super(ACCEnterDataTrans, self)._validate(sched)
+        super(ACCEnterDataTrans, self).validate(sched)
 
         if not isinstance(sched, Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
@@ -3432,7 +3432,7 @@ class ACCKernelsTrans(RegionTrans):
                             :py:class:`psyclone.undoredo.Memento`).
 
         '''
-        self._validate(node_list)
+        self.validate(node_list)
 
         # Keep a record of this transformation
         keep = Memento(node_list[:], self)
@@ -3458,7 +3458,7 @@ class ACCKernelsTrans(RegionTrans):
         # Return the now modified kernel
         return schedule, keep
 
-    def _validate(self, node_list):
+    def validate(self, node_list):
         '''
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
@@ -3482,7 +3482,7 @@ class ACCKernelsTrans(RegionTrans):
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
-        super(ACCKernelsTrans, self)._validate(node_list)
+        super(ACCKernelsTrans, self).validate(node_list)
 
         # Check that we have at least one loop within the proposed region
         for node in node_list:
@@ -3545,7 +3545,7 @@ class ACCDataTrans(RegionTrans):
                 :py:class:`psyclone.undoredo.Memento`).
 
         '''
-        self._validate(node_list)
+        self.validate(node_list)
 
         # Keep a record of this transformation
         keep = Memento(node_list[:], self)
@@ -3569,7 +3569,7 @@ class ACCDataTrans(RegionTrans):
         # Return the now modified kernel
         return schedule, keep
 
-    def _validate(self, node_list):
+    def validate(self, node_list):
         '''
         Check that we can safely add a data region around the supplied list
         of nodes.
@@ -3584,7 +3584,7 @@ class ACCDataTrans(RegionTrans):
                                      data directives.
         '''
         from psyclone.psyGen import ACCEnterDataDirective
-        super(ACCDataTrans, self)._validate(node_list)
+        super(ACCDataTrans, self).validate(node_list)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
@@ -3854,7 +3854,7 @@ class ExtractRegionTrans(RegionTrans):
         ''' Returns the name of this transformation as a string.'''
         return "ExtractRegionTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list):
         ''' Perform validation checks before applying the transformation
 
         :param node_list: the list of Node(s) we are checking.
@@ -3873,7 +3873,7 @@ class ExtractRegionTrans(RegionTrans):
 
         # First check constraints on Nodes in the node_list common to
         # all RegionTrans transformations.
-        super(ExtractRegionTrans, self)._validate(node_list)
+        super(ExtractRegionTrans, self).validate(node_list)
 
         # Now check ExtractRegionTrans specific constraints.
 
@@ -3958,7 +3958,7 @@ class ExtractRegionTrans(RegionTrans):
                                       format(str(self.name), arg_type))
 
         # Validate transformation
-        self._validate(node_list)
+        self.validate(node_list)
 
         # Keep a reference to the parent of the Nodes that are to be
         # enclosed within an Extract region. Also keep the index of
@@ -4019,7 +4019,7 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
         ''' Returns the name of this transformation as a string.'''
         return "DynamoExtractRegionTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.
 
@@ -4033,7 +4033,7 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractRegionTrans and RegionTrans)
-        super(DynamoExtractRegionTrans, self)._validate(node_list)
+        super(DynamoExtractRegionTrans, self).validate(node_list)
 
         # Check DynamoExtractRegionTrans specific constraints
         from psyclone.dynamo0p3 import DynLoop
@@ -4076,7 +4076,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
         ''' Returns the name of this transformation as a string.'''
         return "GOceanExtractRegionTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list):
         ''' Perform GOcean1.0 API specific validation checks before applying
         the transformation.
 
@@ -4090,7 +4090,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractRegionTrans and RegionTrans)
-        super(GOceanExtractRegionTrans, self)._validate(node_list)
+        super(GOceanExtractRegionTrans, self).validate(node_list)
 
         # Check GOceanExtractRegionTrans specific constraints
         from psyclone.gocean1p0 import GOLoop

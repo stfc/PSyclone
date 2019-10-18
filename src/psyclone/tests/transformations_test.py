@@ -73,12 +73,12 @@ def test_accenterdata():
 
 def test_accenterdata_internalerr(monkeypatch):
     ''' Check that the ACCEnterDataTrans.apply() method raises an internal
-    error if the _validate method fails to throw out an invalid type of
+    error if the validate method fails to throw out an invalid type of
     Schedule. '''
     from psyclone.transformations import ACCEnterDataTrans
     from psyclone.psyGen import InternalError
     acct = ACCEnterDataTrans()
-    monkeypatch.setattr(acct, "_validate", lambda sched: None)
+    monkeypatch.setattr(acct, "validate", lambda sched: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
     assert "validate() has not rejected an (unsupported) schedule" in str(err)
@@ -120,11 +120,11 @@ def test_ifblock_children_region():
     # is an error because the first child is the conditional part of the
     # IfBlock.
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate(ifblock.children)
+        super(ACCParallelTrans, acct).validate(ifblock.children)
     assert ("transformation to the conditional expression (first child" in
             str(err))
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
+        super(ACCParallelTrans, acct).validate(ifblock.children[1:])
     assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
             in str(err))
 

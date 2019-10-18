@@ -5628,7 +5628,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
     # switch off validation
-    monkeypatch.setattr(rc_trans, "_validate",
+    monkeypatch.setattr(rc_trans, "validate",
                         lambda loop, depth: None)
 
     # apply redundant computation to the loop
@@ -7539,7 +7539,7 @@ def test_kern_const_ndofs():
 def test_kern_const_invalid():
     '''Check that we generate the expected exceptions from the validate
     method when there are errors in the input arguments. We call the
-    apply method as that calls the _validate method in turn.
+    apply method as that calls the validate method in turn.
 
     '''
     kernel = create_kernel("1_single_invoke.f90")

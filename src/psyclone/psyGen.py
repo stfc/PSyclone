@@ -5220,7 +5220,7 @@ class Transformation(object):
         momento = None
         return schedule, momento
 
-    def _validate(self, *args):
+    def validate(self, *args):
         '''Method that validates that the input data is correct.
         It will raise exceptions if the input data is incorrect. This function
         needs to be implemented by each transformation.
