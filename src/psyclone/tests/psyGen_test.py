@@ -3570,10 +3570,10 @@ def test_symbol_initialisation():
         "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
             error.value)
 
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', constant_value=3.14)
-    assert ("A constant value is not currently supported for datatype "
-            "'real'.") in str(error)
+    # with pytest.raises(ValueError) as error:
+    #    Symbol('a', 'real', constant_value=3.14)
+    # assert ("A constant value is not currently supported for datatype "
+    #        "'real'.") in str(error)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', shape=dim)
@@ -3634,11 +3634,11 @@ def test_symbol_map():
     the Symbol class.
 
     '''
-    # "real" and "deferred" are not supported in the mapping so we expect
-    # it to have 2 fewer entries than there are valid data types
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 2
+    # "deferred" is not supported in the mapping so we expect
+    # it to have 1 fewer entries than there are valid data types
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
     for data_type in Symbol.valid_data_types:
-        if data_type not in ["real", "deferred"]:
+        if data_type not in ["deferred"]:
             assert data_type in Symbol.mapping
 
 
@@ -3680,6 +3680,11 @@ def test_symbol_constant_value_setter():
     assert sym.constant_value == 7
     sym.constant_value = 9
     assert sym.constant_value == 9
+
+    sym = Symbol('a', 'real', constant_value=3.1415)
+    assert sym.constant_value == 3.1415
+    sym.constant_value = 1.0
+    assert sym.constant_value == 1.0
 
 
 def test_symbol_is_constant():

@@ -316,6 +316,25 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l5").shape == [2]
     assert fake_parent.symbol_table.lookup("l6").shape == [3]
 
+    # Initialisations of static constant values (parameters)
+    reader = FortranStringReader("integer, parameter :: i1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("i1").constant_value == 1
+
+    reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("i2").constant_value == 2.2
+    assert fake_parent.symbol_table.lookup("i3").constant_value == 3.3
+
+    # Static constant expresions are not supported
+    reader = FortranStringReader("real, parameter :: a = 1.1, b = a * 2")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    # assert "Could not process " in str(error.value)
+
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -339,14 +358,6 @@ def test_process_declarations(f2008_parser):
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
     assert "Unrecognized attribute type " in str(error.value)
-
-    # Initialisations are not supported
-    reader = FortranStringReader("integer :: l1 = 1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Initialisations on the declaration statements are not "
-            "supported.") in str(error.value)
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
