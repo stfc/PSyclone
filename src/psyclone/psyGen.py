@@ -2545,7 +2545,26 @@ class OMPParallelDirective(OMPDirective):
             # We have at least two accesses. If the first one is a write,
             # assume the variable should be private:
             if accesses[0].access_type == AccessType.WRITE:
-                result.add(var_name.lower())
+                # Check if the write access is inside the parallel loop. If
+                # the write is outside of a loop, it is an assignment to
+                # a shared variable. Example:
+                # !$omp parallel
+                # jpk = 100    ! if jpk is likely be used outside
+                # !omp do
+                # do ji = 1, jpk
+
+                # Go up the tree till we either find the InvokeSchedule,
+                # which is at the top, or a Loop statement (or no parent,
+                # which means we have reached the end of a called kernel).
+                parent = accesses[0].node
+                while parent and \
+                        not isinstance(parent, (Loop, InvokeSchedule)):
+                    parent = parent.parent
+
+                if parent and isinstance(parent, Loop):
+                    # The assignment to the variable is inside a loop, so
+                    # declare it to be private
+                    result.add(var_name.lower())
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results

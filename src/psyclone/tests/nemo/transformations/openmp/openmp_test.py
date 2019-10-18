@@ -89,7 +89,6 @@ def test_omp_explicit_gen():
     assert expected in gen_code
 
 
-@pytest.mark.xfail(reason="Loop boundary is declared private, #483")
 def test_omp_private_declaration():
     ''' Check code generation and private/shared declaration when
     an assignment is parallelised. In this case the code is like:
