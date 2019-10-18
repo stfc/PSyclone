@@ -55,6 +55,17 @@ class NemoFparser2Reader(Fparser2Reader):
     '''
     Specialisation of Fparser2Reader for the Nemo API.
     '''
+    @staticmethod
+    def _create_schedule(name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        :returns: New KernelSchedule empty object.
+        :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+        '''
+        return NemoInvokeSchedule(name)
+
     def _create_loop(self, parent, variable_name):
         '''
         Specialized method to create a NemoLoop instead of a
@@ -167,7 +178,8 @@ class NemoInvoke(Invoke):
 
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo module.
-        self._schedule = NemoInvokeSchedule(self, exe_part)
+        processor = NemoFparser2Reader()
+        self._schedule = processor.generate_schedule(name, ast) #exe_part)
 
     def update(self):
         '''
@@ -299,20 +311,24 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-    def __init__(self, invoke, ast):
+    def __init__(self, name=None): #invoke, ast):
         # pylint: disable=super-init-not-called, non-parent-init-called
-        Node.__init__(self)
+        from psyclone.psyGen import SymbolTable
+        #Node.__init__(self)
+        super(NemoInvokeSchedule, self).__init__(None, None)
         NemoFparser2Reader.__init__(self)
+        # Currently only a KernelSchedule has a SymbolTable
+        self._symbol_table = SymbolTable(self)
 
-        self._invoke = invoke
-        self._ast = ast
+        #self._invoke = invoke
+        #self._ast = ast
         # Whether or not we've already checked the associated Fortran for
         # potential name-clashes when inserting profiling code.
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
 
-        self.process_nodes(self, ast.content, ast)
+        #self.process_nodes(self, ast.content, ast)
 
     def view(self, indent=0):
         '''
