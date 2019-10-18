@@ -282,18 +282,21 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").scope == 'local'
     assert not fake_parent.symbol_table.lookup("l1").access
     assert not fake_parent.symbol_table.lookup("l1").interface
+    assert not fake_parent.symbol_table.lookup("l1").precision
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
+    assert not fake_parent.symbol_table.lookup("l2").precision
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("b").name == "b"
     assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
+    assert not fake_parent.symbol_table.lookup("b").precision
 
     # RHS array specifications
     reader = FortranStringReader("integer :: l3(l1)")
@@ -302,6 +305,7 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l3").name == 'l3'
     assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
     assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
+    assert not fake_parent.symbol_table.lookup("l3").precision
 
     reader = FortranStringReader("integer :: l4(l1, 2)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -309,6 +313,7 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l4").name == 'l4'
     assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
     assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
+    assert not fake_parent.symbol_table.lookup("l4").precision
 
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -421,6 +426,26 @@ def test_process_declarations_intent(f2008_parser):
     assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg4").access is \
         Symbol.Access.READWRITE
+
+
+def test_process_declarations_kind(f2008_parser):
+    ''' Test that process_declarations handles variables declared with
+    an explicit KIND. '''
+    # TODO how do we deal with finding the KIND parameter first? Or do we
+    # take its use as a prompt to put in a PrecisionSymbol with deferred
+    # type/value?
+    from fparser.two.Fortran2003 import Specification_Part
+    from psyclone.psyGen import PrecisionSymbol
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real(kind=wp) :: var1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert isinstance(fake_parent.symbol_table.lookup("var1").precision,
+                      PrecisionSymbol)
+    reader = FortranStringReader("real(kind=KIND(1.0d0)) :: var2")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
 
 
 def test_process_declarations_stmt_functions(f2008_parser):

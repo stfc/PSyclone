@@ -5559,6 +5559,9 @@ class Symbol(object):
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
+    :param precision: The amount of storage required by the datatype (bytes) \
+            or a reference to a PrecisionSymbol holding the type information.
+    :type precision: int or :py:class:`psyclone.psyGen.PrecisionSymbol`
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
@@ -5659,9 +5662,10 @@ class Symbol(object):
             self._module_name = value
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None):
+                 interface=None, precision=None):
 
         self._name = name
+        self.precision = precision
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
@@ -5924,6 +5928,16 @@ class Symbol(object):
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
+
+
+class PrecisionSymbol(Symbol):
+    '''
+    A special Symbol identifying a category of system/configuration-dependent 
+    precision information. e.g. whether a floating point number is 'double' or
+    'single' precision. How this category maps to the actual hardware
+    implementation (e.g. whether a 'double precision' variable uses 4 or 8
+    bytes) must be provided from an external source.
+    '''
 
 
 class SymbolTable(object):

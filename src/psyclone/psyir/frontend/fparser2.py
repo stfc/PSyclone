@@ -546,6 +546,9 @@ class Fparser2Reader(object):
                     datatype = 'character'
                 elif str(type_spec.items[0]).lower() == 'logical':
                     datatype = 'boolean'
+                # Check for a KIND specification
+                if isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+                    raise NotImplementedError("ARPDBG: WIP")
             if datatype is None:
                 raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'integer', "
