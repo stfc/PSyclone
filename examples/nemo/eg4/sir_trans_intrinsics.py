@@ -94,27 +94,30 @@ def replace_abs(oper, key):
     oper_parent = oper.parent
     assignment = oper.ancestor(Assignment)
 
+    res_var = "res_abs_{0}".format(key)
+    tmp_var = "tmp_abs_{0}".format(key)
+
     # Replace operation with a temporary (res_X).
-    oper_parent.children[oper.position] = Reference("res_{0}".format(key), parent=oper_parent)
+    oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
 
     # Assign content of operation to a temporary (tmp_X)
-    lhs = Reference("tmp_{0}".format(key))
+    lhs = Reference(tmp_var)
     rhs = oper.children[0]
     new_assignment = make_assignment(lhs, rhs)
     new_assignment.parent = assignment.parent
     assignment.parent.children.insert(assignment.position, new_assignment)
 
     # Set res_X to the absolute value of tmp_X
-    lhs = Reference("tmp_{0}".format(key))
+    lhs = Reference(tmp_var)
     rhs = Literal("0.0")
     if_condition = make_binary_op(BinaryOperation.Operator.GT, lhs, rhs)
 
-    lhs = Reference("res_{0}".format(key))
-    rhs = Reference("tmp_{0}".format(key))
+    lhs = Reference(res_var)
+    rhs = Reference(tmp_var)
     then_body = make_assignment(lhs, rhs)
 
-    lhs = Reference("res_{0}".format(key))
-    lhs_child = Reference("tmp_{0}".format(key))
+    lhs = Reference(res_var)
+    lhs_child = Reference(tmp_var)
     rhs_child = Literal("-1.0")
     rhs = make_binary_op(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
     else_body = make_assignment(lhs, rhs)
@@ -131,8 +134,8 @@ def replace_sign(oper, key):
     oper_parent = oper.parent
     assignment = oper.ancestor(Assignment)
 
-    res_var = "XXXRES_{0}".format(key)
-    tmp_var = "XXXTMP_{0}".format(key)
+    res_var = "res_sign_{0}".format(key)
+    tmp_var = "tmp_sign_{0}".format(key)
 
     # Replace operation with a temporary (res_X).
     oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
@@ -143,6 +146,9 @@ def replace_sign(oper, key):
     new_assignment = make_assignment(lhs, rhs)
     new_assignment.parent = assignment.parent
     assignment.parent.children.insert(assignment.position, new_assignment)
+
+    # Replace the ABS intrinsic
+    replace_abs(rhs, key+1)
 
     # Assign the 1st argument to a temporary in case it is a complex expression.
     lhs = Reference(tmp_var)
@@ -156,13 +162,53 @@ def replace_sign(oper, key):
     if_condition= make_binary_op(BinaryOperation.Operator.LT, lhs, rhs)
     
     lhs = Reference(res_var)
-    rhs = Reference("XXXRESTIMESMINUS1_{0}".format(key))
+    lhs_child = Reference(res_var)
+    rhs_child = Literal("-1.0")
+    rhs = make_binary_op(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
     then_body = make_assignment(lhs, rhs)
 
     if_stmt = make_if(if_condition, then_body)
     if_stmt.parent = assignment.parent
     assignment.parent.children.insert(assignment.position, if_stmt)
-    
+
+def replace_min(oper, key):
+    ''' xxx '''
+    # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
+    oper_parent = oper.parent
+    assignment = oper.ancestor(Assignment)
+
+    res_var = "res_min_{0}".format(key)
+    tmp_var = "tmp_min_{0}".format(key)
+
+    # Replace operation with a temporary (res_X).
+    oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
+
+    # Set the result to the first min value
+    lhs = Reference(res_var)
+    new_assignment = make_assignment(lhs, oper.children[0])
+    new_assignment.parent = assignment.parent
+    assignment.parent.children.insert(assignment.position, new_assignment)
+
+    # For each of the remaining min values
+    for expression in oper.children[1:]:
+        tmp_var = "tmp_min_{0}".format(key)
+        key += 1
+        lhs = Reference(tmp_var)
+        new_assignment = make_assignment(lhs, expression)
+        new_assignment.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, new_assignment)
+        
+        lhs = Reference(tmp_var)
+        rhs = Reference(res_var)
+        if_condition = make_binary_op(BinaryOperation.Operator.LT, lhs, rhs)
+        lhs = Reference(res_var)
+        rhs = Reference(tmp_var)
+        then_body = make_assignment(lhs, rhs)
+        if_stmt = make_if(if_condition, then_body)
+        if_stmt.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, if_stmt)
+
+
 def trans(psy):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
     transform to the supplied invokes. This transformation is limited
@@ -174,8 +220,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    #sir_writer = SIRWriter(skip_nodes=True)
-    fortran_writer = FortranWriter()
+    sir_writer = SIRWriter(skip_nodes=True)
+    #fortran_writer = FortranWriter()
     # For each Invoke write out the SIR representation of the
     # schedule. Note, there is no algorithm layer in the NEMO API so
     # the invokes represent all of the original code.
@@ -184,30 +230,32 @@ def trans(psy):
         sched = invoke.schedule
         for kernel in sched.walk(NemoKern):
 
-            kern = fortran_writer(sched)
-            print(kern)
+            #kern = fortran_writer(sched)
+            #print(kern)
 
             kernel_schedule = kernel.get_kernel_schedule()
             for oper in kernel_schedule.walk(UnaryOperation):
                 if oper.operator == UnaryOperation.Operator.ABS:
-                    print ("FOUND ABS")
+                    #print ("FOUND ABS")
                     replace_abs(oper, key)
                     key += 1
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.SIGN:
-                    print ("FOUND SIGN")
+                    #print ("FOUND SIGN")
                     replace_sign(oper, key)
-                    key += 1
+                    key += 2
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.MIN:
-                    print ("FOUND BINARY MIN")
-                    # R=MIN(A,B) R=A; IF B<A R=B
+                    #print ("FOUND BINARY MIN")
+                    replace_min(oper, key)
+                    key += 1
             for oper in kernel_schedule.walk(NaryOperation):
                 if oper.operator == NaryOperation.Operator.MIN:
-                    print ("FOUND NARY MIN")
-                    # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
-        # kern = sir_writer(sched)
-        kern = fortran_writer(sched)
+                    #print ("FOUND NARY MIN")
+                    replace_min(oper, key)
+                    key += len(oper.children)-1
+        kern = sir_writer(sched)
+        # kern = fortran_writer(sched)
         print(kern)
         exit(1)
     return psy
