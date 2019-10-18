@@ -38,7 +38,7 @@ OpenCL code from PSyIR nodes.
 
 '''
 
-from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 
 

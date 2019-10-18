@@ -41,7 +41,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyGen import DataSymbol, Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
