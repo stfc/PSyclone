@@ -1,7 +1,41 @@
-<!--
+# PSyclone GOCean Examples
+
+**Authors:** A. R. Porter, STFC Daresbury Lab
+
+The sub-directories present in the directory containing this README provide
+examples of the use of PSyclone with the GOcean 1.0 API.
+
+## Example 1
+
+Contains a version of the Shallow benchmark with a subset of the kernels
+called from within invoke()'s. Contains example scripts showing the use
+of PSyclone for adding OpenMP or OpenACC and for performing loop fusion.
+
+## Example 2
+
+A single-kernel example demonstrating the use of PSyclone in generating
+a compilable and executable OpenACC code. Note that compiling this
+example requires that the dl_esm_inf library ([github.com/stfc/dl_esm_inf](https://github.com/stfc/dl_esm_inf))
+be installed first.
+
+## Example 3
+
+Illustrates the use of PSyclone to generate an OpenCL driver layer for
+a four-kernel invoke and an OpenCL version of each of the kernels.
+
+## Example 4
+
+Examples of the application of kernel transforms to kernels that access
+data and/or routines from other Fortran modules. Note that this is not
+yet supported and is the subject of Issues #323 and #342.
+
+## Licence
+
+-----------------------------------------------------------------------------
+
 BSD 3-Clause License
 
-Copyright (c) 2018-2019, Science and Technology Facilities Council.
+Copyright (c) 2017-2019, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,38 +65,4 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author A. R. Porter, STFC Daresbury Lab
--->
-
-# PSyclone NEMO Examples
-
-This directory contains various examples of the use of PSyclone
-to transform source code from the NEMO ocean model. See the READMEs
-in the individual example directories for further details.
-
-## Code
-
-Contains
-
-1. the Tracer advection benchmark routine (tra_adv), as provided by
-Silvia Mocavero of CMCC and
-2. an unmodified NEMO subroutine computing the horizontal component of
-the lateral tracer mixing trend (traldf_iso).
-
-## Example 1
-
-OpenMP parallelisation of tra_adv over levels.
-
-## Example 2
-
-OpenMP parallelisation of traldf_iso over levels.
-
-## Example 3
-
-OpenACC parallelisation of tra_adv using the 'data' and 'kernels'
-directives.
-
-## Example 4
-
-SIR gemeration and transformation to CUDA using Dawn with simple
-examples.
+-----------------------------------------------------------------------------
