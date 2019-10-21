@@ -4027,3 +4027,30 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
                     "Error in {0} for GOcean1.0 API: Extraction of an "
                     "inner Loop without its ancestor outer Loop is not "
                     "allowed.".format(str(self.name)))
+
+
+class PromoteKernelGlobalsToArguments(Transformation):
+    '''Transformation that given a kernel call, it takes out of the
+    kernel the global accesses and places them in the caller. Then
+    the values/references are passe by argument into the kernel.'''
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string.'''
+        return "PromoteKernelGlobalsToArguments"
+
+    def _validate(self, node):
+        from psyclone.psyGen import CodedKern
+        if not isinstance(node, CodedKern):
+            raise TransformationError(
+                "The PromoteKernelGlobalsToArguments transformation can "
+                "only be applied to CodedKern nodes but found {0} instead."
+                "".format(type(node)))
+
+    def apply(self, node):
+        kernel = node.get_kernel_schedule()
+
+        kernel.symbol_table.evaluate_deferred_symbols()
+
+        for globalvar in kernel.symbol_table.global_symbols:
+            print(globalvar.name)
