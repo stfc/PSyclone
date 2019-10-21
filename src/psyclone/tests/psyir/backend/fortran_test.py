@@ -43,7 +43,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
-from psyclone.psyGen import DataSymbol, Node, CodeBlock, Container, SymbolTable
+from psyclone.psyGen import DataSymbol, Node, CodeBlock, Container, \
+    SymbolTable, ContainerSymbol
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -124,7 +125,8 @@ def test_fw_gen_use(fort_writer):
 
     '''
     symbol = DataSymbol("dummy1", "deferred",
-                        interface=DataSymbol.FortranGlobal("my_module"))
+                        interface=DataSymbol.FortranGlobal(
+                            ContainerSymbol("my_module")))
     result = fort_writer.gen_use(symbol)
     assert result == "use my_module, only : dummy1\n"
 
@@ -168,7 +170,8 @@ def test_fw_gen_vardecl(fort_writer):
 
     # Use statement
     symbol = DataSymbol("dummy1", "deferred",
-                        interface=DataSymbol.FortranGlobal("my_module"))
+                        interface=DataSymbol.FortranGlobal(
+                            ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("gen_vardecl requires the symbol 'dummy1' to be a local "
@@ -184,8 +187,10 @@ def test_gen_decls(fort_writer):
 
     '''
     symbol_table = SymbolTable()
+    symbol_table.add(ContainerSymbol("my_module"))
     use_statement = DataSymbol("my_use", "deferred",
-                               interface=DataSymbol.FortranGlobal("my_module"))
+                               interface=DataSymbol.FortranGlobal(
+                                   symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
     argument_variable = DataSymbol("arg", "integer",
                                    interface=DataSymbol.Argument())

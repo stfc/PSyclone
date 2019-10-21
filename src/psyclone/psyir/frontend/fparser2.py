@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    DataSymbol, KernelSchedule, Container, \
+    DataSymbol, ContainerSymbol, KernelSchedule, Container, \
     Assignment, Return, Array, InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -500,21 +500,22 @@ class Fparser2Reader(object):
                     "Expected the parse tree for a USE statement to contain "
                     "5 items but found {0} for '{1}'".format(len(decl.items),
                                                              text))
-            if not isinstance(decl.items[4], Fortran2003.Only_List):
-                # This USE doesn't have an ONLY clause so we skip it. We
-                # don't raise an error as this will only become a problem if
-                # this Schedule represents a kernel that is the target of a
-                # transformation. In that case construction of the PSyIR will
-                # fail if the Fortran code makes use of symbols from this
-                # module because they will not be present in the SymbolTable.
-                continue
+
             mod_name = str(decl.items[2])
-            for name in decl.items[4].items:
-                # Create an entry in the SymbolTable for each symbol named
-                # in the ONLY clause.
-                parent.symbol_table.add(
-                    DataSymbol(str(name), datatype='deferred',
-                               interface=DataSymbol.FortranGlobal(mod_name)))
+
+            # Add the module symbol in the symbol table
+            container = ContainerSymbol(mod_name)
+            parent.symbol_table.add(container)
+
+            if isinstance(decl.items[4], Fortran2003.Only_List):
+                # Create a 'deferred' symbol for each element in the ONLY
+                # clause.
+                for name in decl.items[4].items:
+                    parent.symbol_table.add(
+                        DataSymbol(
+                            str(name),
+                            datatype='deferred',
+                            interface=DataSymbol.FortranGlobal(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items

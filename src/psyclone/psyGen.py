@@ -5649,49 +5649,33 @@ class DataSymbol(Symbol):
         is supplied as some sort of global variable. Currently only supports
         data accessed via a module 'USE' statement.
 
-        :param str module_use: the name of the Fortran module from which the \
-                               symbol is imported.
+        :param container_symbol: symbol of the external container from which \
+                                 the symbol is imported.
+        :type container_symbol: :py:class:`psyclone.psyGen.ContainerSymbol`
         :param access: the manner in which the DataSymbol is accessed in the \
                        associated code section. If None is supplied then the \
                        access is DataSymbol.Access.UNKNOWN.
         :type access: :py:class:`psyclone.psyGen.DataSymbol.Access` or None.
-        '''
-        def __init__(self, module_use, access=None):
-            self._module_name = ""
-            super(DataSymbol.FortranGlobal, self).__init__(access=access)
-            self.module_name = module_use
 
-        def __str__(self):
-            return "FortranModule({0})".format(self.module_name)
+        :raise TypeError: if the container_symbol is not a ContainerSymbol
+        '''
+        def __init__(self, container_symbol, access=None):
+            super(DataSymbol.FortranGlobal, self).__init__(access=access)
+
+            if not isinstance(container_symbol, ContainerSymbol):
+                raise TypeError(
+                    "FortranGlobal container_symbol parameter must be of type"
+                    " ContainerSymbol, but found {0}."
+                    "".format(type(container_symbol)))
+
+            self._container_symbol = container_symbol
 
         @property
-        def module_name(self):
-            '''
-            :returns: the name of the Fortran module from which the symbol is \
-                      imported or None if it is not a module variable.
-            :rtype: str or None
-            '''
-            return self._module_name
+        def container_symbol(self):
+            return self._container_symbol
 
-        @module_name.setter
-        def module_name(self, value):
-            '''
-            Setter for the name of the Fortran module from which this symbol
-            is imported.
-
-            :param str value: the name of the Fortran module.
-
-            :raises TypeError: if the supplied value is not a str.
-            :raises ValueError: if the supplied string is not at least one \
-                                character long.
-            '''
-            if not isinstance(value, str):
-                raise TypeError("module_name must be a str but got '{0}'".
-                                format(type(value)))
-            if not value:
-                raise ValueError("module_name must be one or more characters "
-                                 "long")
-            self._module_name = value
+        def __str__(self):
+            return "FortranModule({0})".format(self.container_symbol.name)
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
                  interface=None):
@@ -6134,9 +6118,9 @@ class SymbolTable(object):
                             has a Symbol.Argument interface.
 
         '''
-        for symbol in self._symbols.values():
+        for symbol in self.variables:
             if symbol not in self._argument_list:
-                # Symbols not in the argument list must not have a
+                # DataSymbols not in the argument list must not have a
                 # Symbol.Argument interface
                 if symbol.interface and isinstance(symbol.interface,
                                                    DataSymbol.Argument):
@@ -6154,13 +6138,21 @@ class SymbolTable(object):
         return list(self._symbols.values())
 
     @property
+    def variables(self):
+        '''
+        :returns:  List of symbols representing data variables.
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        '''
+        return [sym for sym in self._symbols.values() if
+                isinstance(sym, DataSymbol)]
+
+    @property
     def local_variables(self):
         '''
         :returns:  List of symbols representing local variables.
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
         '''
-        return [sym for sym in self._symbols.values() if
-                isinstance(sym, DataSymbol) and sym.scope == "local"]
+        return [sym for sym in self.variables if sym.scope == "local"]
 
     @property
     def global_variables(self):
@@ -6171,8 +6163,7 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         '''
-        return [sym for sym in self._symbols.values() if
-                isinstance(sym, DataSymbol) and sym.scope == "global"
+        return [sym for sym in self.variables if sym.scope == "global"
                 and not isinstance(sym.interface, DataSymbol.Argument)]
 
     @property

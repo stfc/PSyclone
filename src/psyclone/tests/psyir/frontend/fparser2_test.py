@@ -43,7 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
-    DataSymbol, SymbolTable, Container, \
+    DataSymbol, ContainerSymbol, SymbolTable, Container, \
     InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -615,13 +615,23 @@ def test_use_stmt(f2008_parser):
                                  "use other_mod, only: var1, var2\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
+
+    symtab = fake_parent.symbol_table
+
+    for module_name in ["my_mod", "this_mod", "other_mod"]:
+        container = symtab.lookup(module_name)
+        assert isinstance(container, ContainerSymbol)
+        assert container.name == module_name
+        assert not container._reference  # It is not evaluated explicitly told
+
     for var in ["some_var", "var1", "var2"]:
-        assert fake_parent.symbol_table.lookup(var).name == var
-        assert fake_parent.symbol_table.lookup(var).scope == "global"
-    assert fake_parent.symbol_table.lookup("some_var").interface.module_name \
-        == "my_mod"
-    assert fake_parent.symbol_table.lookup("var2").interface.module_name == \
-        "other_mod"
+        assert symtab.lookup(var).name == var
+        assert symtab.lookup(var).scope == "global"
+
+    assert symtab.lookup("some_var").interface.container_symbol \
+        == symtab.lookup("my_mod")
+    assert symtab.lookup("var2").interface.container_symbol \
+        == symtab.lookup("other_mod")
 
 
 def test_use_stmt_error(f2008_parser, monkeypatch):

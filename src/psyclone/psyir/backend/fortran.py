@@ -161,7 +161,7 @@ class FortranWriter(PSyIRVisitor):
                 "".format(symbol.name, type(symbol.interface).__name__))
 
         return "{0}use {1}, only : {2}\n".format(
-            self._nindent, symbol.interface.module_name, symbol.name)
+            self._nindent, symbol.interface.container_symbol.name, symbol.name)
 
     def gen_vardecl(self, symbol):
         '''Create and return the Fortran variable declaration for this Symbol.
@@ -229,11 +229,11 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Use statements
-        for symbol in [sym for sym in symbol_table.symbols if
+        for symbol in [sym for sym in symbol_table.variables if
                        isinstance(sym.interface, DataSymbol.FortranGlobal)]:
             declarations += self.gen_use(symbol)
         # 2: Argument variable declarations
-        symbols = [sym for sym in symbol_table.symbols if
+        symbols = [sym for sym in symbol_table.variables if
                    isinstance(sym.interface, DataSymbol.Argument)]
         if symbols and not args_allowed:
             raise VisitorError(
@@ -243,8 +243,7 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbols:
             declarations += self.gen_vardecl(symbol)
         # 3: Local variable declarations
-        for symbol in [sym for sym in symbol_table.symbols if
-                       sym.scope == "local"]:
+        for symbol in symbol_table.local_variables:
             declarations += self.gen_vardecl(symbol)
         return declarations
 

@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     ACCEnterDataDirective, ACCKernelsDirective, Container
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.psyGen import DataSymbol, SymbolTable
+from psyclone.psyGen import DataSymbol, ContainerSymbol, SymbolTable
 from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
@@ -3555,11 +3555,11 @@ def test_symbol_initialisation():
                    interface=DataSymbol.Argument(
                        access=DataSymbol.Access.READ)),
         DataSymbol)
+    my_mod = ContainerSymbol("my_mod")
     assert isinstance(
         DataSymbol('a', 'deferred',
                    interface=DataSymbol.FortranGlobal(
-                       access=DataSymbol.Access.READ,
-                       module_use='some_mod')),
+                       my_mod, access=DataSymbol.Access.READ)),
         DataSymbol)
     dim = DataSymbol('dim', 'integer', [])
     assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
@@ -3653,8 +3653,9 @@ def test_symbol_can_be_printed():
     sym2 = DataSymbol("s2", "real", [None, 2, sym1])
     assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
 
+    my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", "real",
-                      interface=DataSymbol.FortranGlobal(module_use="my_mod"))
+                      interface=DataSymbol.FortranGlobal(my_mod))
     assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
             in str(sym3))
 
@@ -3729,17 +3730,17 @@ def test_symbol_invalid_interface():
 
 def test_symbol_interface():
     ''' Check the interface getter on a DataSymbol. '''
+    my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
-                        interface=DataSymbol.FortranGlobal(
-                            module_use="my_mod"))
-    assert symbol.interface.module_name == "my_mod"
+                        interface=DataSymbol.FortranGlobal(my_mod))
+    assert symbol.interface.container_symbol.name == "my_mod"
 
 
 def test_symbol_interface_access():
     ''' Tests for the SymbolInterface.access setter. '''
+    my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
-                        interface=DataSymbol.FortranGlobal(
-                            module_use="my_mod"))
+                        interface=DataSymbol.FortranGlobal(my_mod))
     symbol.interface.access = DataSymbol.Access.READ
     assert symbol.interface.access == DataSymbol.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
@@ -3759,18 +3760,17 @@ def test_fortranglobal_str():
     ''' Test the __str__ method of DataSymbol.FortranGlobal. '''
     # If it's not an argument then we have nothing else to say about it (since
     # other options are language specific and are implemented in sub-classes).
-    interface = DataSymbol.FortranGlobal("my_mod")
+    my_mod = ContainerSymbol("my_mod")
+    interface = DataSymbol.FortranGlobal(my_mod)
     assert str(interface) == "FortranModule(my_mod)"
 
 
 def test_fortranglobal_modname():
     ''' Test the FortranGlobal.module_name setter error conditions. '''
-    with pytest.raises(ValueError) as err:
-        _ = DataSymbol.FortranGlobal("")
-    assert "module_name must be one or more characters long" in str(err)
     with pytest.raises(TypeError) as err:
-        _ = DataSymbol.FortranGlobal(1)
-    assert "module_name must be a str but got" in str(err)
+        _ = DataSymbol.FortranGlobal(None)
+    assert ("FortranGlobal container_symbol parameter must be of type"
+            " ContainerSymbol, but found ") in str(err)
 
 
 def test_symbol_copy():
@@ -3849,16 +3849,19 @@ def test_symboltable_add():
     sym_table = SymbolTable()
 
     # Declare a symbol
+    my_mod = ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
     sym_table.add(DataSymbol("var1", "real", shape=[5, 1],
                              interface=DataSymbol.FortranGlobal(
-                                 access=DataSymbol.Access.READWRITE,
-                                 module_use="some_mod")))
+                                 my_mod,
+                                 access=DataSymbol.Access.READWRITE)))
+    assert sym_table._symbols["my_mod"].name == "my_mod"
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
     assert sym_table._symbols["var1"].scope == "global"
     assert sym_table._symbols["var1"].access is DataSymbol.Access.READWRITE
-    assert sym_table._symbols["var1"].interface.module_name == "some_mod"
+    assert sym_table._symbols["var1"].interface.container_symbol == my_mod
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
@@ -3983,15 +3986,17 @@ def test_symboltable_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
+    my_mod = ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
     sym_table.add(DataSymbol("var1", "real"))
     sym_table.add(DataSymbol("var2", "integer"))
     sym_table.add(DataSymbol("var3", "deferred",
-                             interface=DataSymbol.FortranGlobal(
-                                 module_use="my_mod")))
+                             interface=DataSymbol.FortranGlobal(my_mod)))
     sym_table_text = str(sym_table)
     assert "Symbol Table:\n" in sym_table_text
     assert "var1" in sym_table_text
     assert "var2" in sym_table_text
+    assert "\nmy_mod" in sym_table_text
     assert "FortranModule(my_mod)" in sym_table_text
 
 
@@ -4039,7 +4044,7 @@ def test_symboltable_specify_argument_list_errors():
     assert ("is listed as a kernel argument but has no associated "
             "Interface" in str(err))
     # Now add an Interface for "var1" but of the wrong type
-    sym_v1.interface = DataSymbol.FortranGlobal("some_mod")
+    sym_v1.interface = DataSymbol.FortranGlobal(ContainerSymbol("my_mod"))
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
     assert "Symbol 'var1:" in str(err)
@@ -4053,7 +4058,8 @@ def test_symboltable_argument_list_errors():
     sym_table.add(DataSymbol("var1", "real", []))
     sym_table.add(DataSymbol("var2", "real", []))
     sym_table.add(DataSymbol("var3", "real",
-                             interface=DataSymbol.FortranGlobal("some_mod")))
+                             interface=DataSymbol.FortranGlobal(
+                                 ContainerSymbol("my_mod"))))
     # Manually put a local symbol into the internal list of arguments
     sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(ValueError) as err:
@@ -4094,7 +4100,8 @@ def test_symboltable_validate_non_args():
     sym_table.add(DataSymbol("var1", "real", []))
     sym_table.add(DataSymbol("var2", "real", []))
     sym_table.add(DataSymbol("var3", "real",
-                             interface=DataSymbol.FortranGlobal("some_mod")))
+                             interface=DataSymbol.FortranGlobal(
+                                 ContainerSymbol("my_mod"))))
     # Everything should be fine so far
     sym_table._validate_non_args()
     # Add an entry with an Argument interface
@@ -4132,7 +4139,7 @@ def test_symboltable_symbols():
     assert len(sym_table.symbols) == 2
     sym_table.add(DataSymbol("var3", "real", [],
                              interface=DataSymbol.FortranGlobal(
-                                 module_use="my_mod")))
+                                 ContainerSymbol("my_mod"))))
     assert len(sym_table.symbols) == 3
 
 
@@ -4161,7 +4168,7 @@ def test_symboltable_local_variables():
 
     sym_table.add(DataSymbol("var4", "real", [],
                              interface=DataSymbol.FortranGlobal(
-                                 module_use="my_mod")))
+                                 ContainerSymbol("my_mod"))))
     assert len(sym_table.local_variables) == 2
     assert sym_table.lookup("var4") not in sym_table.local_variables
 
@@ -4179,7 +4186,7 @@ def test_symboltable_global_variables():
     # Add some global symbols
     sym_table.add(DataSymbol("gvar1", "real", [],
                              interface=DataSymbol.FortranGlobal(
-                                 module_use="my_mod")))
+                                 ContainerSymbol("my_mod"))))
     assert sym_table.lookup("gvar1") in sym_table.global_variables
     sym_table.add(
         DataSymbol("gvar2", "real", [],
