@@ -5569,6 +5569,7 @@ class ContainerSymbol(Symbol):
         return self._reference
 
     def _import_container(self):
+        # TODO: This is Fortran-specific, move to a sub-class or interface
         from os import listdir, path
         from fparser.two.parser import ParserFactory
         from fparser.common.readfortran import FortranFileReader
@@ -5592,6 +5593,14 @@ class ContainerSymbol(Symbol):
                 "Module {0} not found in any of the include_path "
                 "directories {1}."
                 "".format(filename, Config.get().include_paths))
+
+    def __str__(self):
+        string = self._name + ": <"
+        if self._reference:
+            string += "linked>"
+        else:
+            string += "not linked>"
+        return string
 
 
 class DataSymbol(Symbol):
