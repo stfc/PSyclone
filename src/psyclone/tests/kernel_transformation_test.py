@@ -136,7 +136,7 @@ def test_accroutine():
     assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
-            "    ssha (ji, jj) = 0.0_go_wp\n" in gen)
+            "    ssha(ji, jj) = 0.0_go_wp\n" in gen)
 
 
 def test_accroutine_empty_kernel():

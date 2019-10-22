@@ -1733,10 +1733,8 @@ class ParallelRegionTrans(RegionTrans):
                                      parallel region.
         '''
 
-        # temporary dynamo0.3-specific test for haloexchange calls
-        # existing within a parallel region. As we are going to
-        # support this in the future, see #526, it does not warrant
-        # making a separate dynamo-specific class.
+        # Haloexchange calls existing within a parallel region are not
+        # supported.
         from psyclone.psyGen import HaloExchange, InvokeSchedule
         for node in node_list:
             if isinstance(node, HaloExchange):
