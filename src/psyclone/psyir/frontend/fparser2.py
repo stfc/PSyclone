@@ -378,18 +378,12 @@ class Fparser2Reader(object):
             from fparser.two.Fortran2003 import Dummy_Arg_List
             if isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
                 arg_list = subroutine.content[0].items[2].items
-            elif subroutine.content[0].items[2]:
-                # Routine has a single argument
-                arg_list = [subroutine.content[0].items[2]]
             else:
                 # Routine has no arguments
                 arg_list = []
         except ValueError:
             # Subroutine without declarations, continue with empty lists.
             decl_list = []
-            arg_list = []
-        except (IndexError, AttributeError):
-            # Subroutine without argument list, continue with empty list.
             arg_list = []
         finally:
             self.process_declarations(new_schedule, decl_list, arg_list)
@@ -473,32 +467,12 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+
         :raises NotImplementedError: The provided declarations contain
                                      attributes which are not supported yet.
         :raises GenerationError: If the parse tree for a USE statement does \
                                  not have the expected structure.
         '''
-
-        def iterateitems(nodes):
-            '''
-            At the moment fparser nodes can be of type None, a single element
-            or a list of elements. This helper function provide a common
-            iteration interface. This could be improved when fpaser/#170 is
-            fixed.
-
-            :param nodes: fparser2 AST node.
-            :type nodes: None or List or :py:class:`fparser.two.utils.Base`
-
-            :returns: Returns nodes but always encapsulated in a list
-            :rtype: list
-
-            '''
-            if nodes is None:
-                return []
-            if type(nodes).__name__.endswith("_List"):
-                return nodes.items
-            return [nodes]
-
         # Look at any USE statments
         for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
 
@@ -514,8 +488,7 @@ class Fparser2Reader(object):
                     "Expected the parse tree for a USE statement to contain "
                     "5 items but found {0} for '{1}'".format(len(decl.items),
                                                              text))
-            if not isinstance(decl.items[4],
-                              (Fortran2003.Name, Fortran2003.Only_List)):
+            if not isinstance(decl.items[4], Fortran2003.Only_List):
                 # This USE doesn't have an ONLY clause so we skip it. We
                 # don't raise an error as this will only become a problem if
                 # this Schedule represents a kernel that is the target of a
@@ -524,7 +497,7 @@ class Fparser2Reader(object):
                 # module because they will not be present in the SymbolTable.
                 continue
             mod_name = str(decl.items[2])
-            for name in iterateitems(decl.items[4]):
+            for name in decl.items[4].items:
                 # Create an entry in the SymbolTable for each symbol named
                 # in the ONLY clause.
                 parent.symbol_table.add(
@@ -559,31 +532,35 @@ class Fparser2Reader(object):
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
             interface = None
-            for attr in iterateitems(attr_specs):
-                if isinstance(attr, Fortran2003.Attr_Spec):
-                    normalized_string = str(attr).lower().replace(' ', '')
-                    if "intent(in)" in normalized_string:
-                        interface = Symbol.Argument(access=Symbol.Access.READ)
-                    elif "intent(out)" in normalized_string:
-                        interface = Symbol.Argument(access=Symbol.Access.WRITE)
-                    elif "intent(inout)" in normalized_string:
-                        interface = Symbol.Argument(
-                            access=Symbol.Access.READWRITE)
+            if attr_specs:
+                for attr in attr_specs.items:
+                    if isinstance(attr, Fortran2003.Attr_Spec):
+                        normalized_string = str(attr).lower().replace(' ', '')
+                        if "intent(in)" in normalized_string:
+                            interface = Symbol.Argument(
+                                access=Symbol.Access.READ)
+                        elif "intent(out)" in normalized_string:
+                            interface = Symbol.Argument(
+                                access=Symbol.Access.WRITE)
+                        elif "intent(inout)" in normalized_string:
+                            interface = Symbol.Argument(
+                                access=Symbol.Access.READWRITE)
+                        else:
+                            raise NotImplementedError(
+                                "Could not process {0}. Unrecognized "
+                                "attribute '{1}'.".format(decl.items,
+                                                          str(attr)))
+                    elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                        attribute_shape = \
+                            self._parse_dimensions(attr, parent.symbol_table)
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
-                            "'{1}'.".format(decl.items, str(attr)))
-                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    attribute_shape = \
-                        self._parse_dimensions(attr, parent.symbol_table)
-                else:
-                    raise NotImplementedError(
-                        "Could not process {0}. Unrecognized attribute "
-                        "type {1}.".format(decl.items, str(type(attr))))
+                            "type {1}.".format(decl.items, str(type(attr))))
 
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
-            for entity in iterateitems(entities):
+            for entity in entities.items:
                 (name, array_spec, char_len, initialisation) = entity.items
 
                 # If the entity has an array-spec shape, it has priority.
@@ -644,10 +621,8 @@ class Fparser2Reader(object):
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
                     array_name = fn_name
-                    if hasattr(arg_list, 'items'):
-                        array_subscript = arg_list.items
-                    else:
-                        array_subscript = [arg_list]
+                    array_subscript = arg_list.items
+
                     assignment_rhs = scalar_expr
 
                     # Create assingment node
@@ -1059,19 +1034,10 @@ class Fparser2Reader(object):
                 ifblock.ast = node.content[start_idx + 1]
                 ifblock.ast_end = node.content[end_idx - 1]
 
-            if isinstance(case.items[0],
-                          Fortran2003.Case_Value_Range_List):
-                # We have a list of conditions in one CASE stmt which
-                # we need to combine with OR operators
-                self._process_case_value_list(selector,
-                                              case.items[0].items,
-                                              case.items[0], ifblock)
-            else:
-                # We only have a single condition
-                # TODO once fparser/#170 is done we might never take
-                # this branch...
-                self._process_case_value(selector, case.items[0],
-                                         case, ifblock)
+            # Process the logical expression
+            self._process_case_value_list(selector,
+                                          case.items[0].items,
+                                          case.items[0], ifblock)
 
             # Add If_body
             ifbody = Schedule(parent=ifblock)
@@ -1301,16 +1267,18 @@ class Fparser2Reader(object):
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
-        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List) and \
-                len(node.items[1].items) > 1:
-            # We have more than one argument and therefore this is not a
-            # unary operation!
-            raise InternalError("Operation '{0}' has more than one argument "
-                                "and is therefore not unary!".
-                                format(str(node)))
-
+        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
+            if len(node.items[1].items) > 1:
+                # We have more than one argument and therefore this is not a
+                # unary operation!
+                raise InternalError("Operation '{0}' has more than one argument "
+                                    "and is therefore not unary!".
+                                    format(str(node)))
+            node_list = node.items[1].items
+        else:
+            node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-        self.process_nodes(parent=unary_op, nodes=[node.items[1]],
+        self.process_nodes(parent=unary_op, nodes=node_list,
                            nodes_parent=node)
 
         return unary_op
@@ -1436,12 +1404,7 @@ class Fparser2Reader(object):
         # Now work out how many arguments it has
         num_args = 0
         if len(node.items) > 1:
-            # TODO Once fparser #203 is on master this check on isinstance
-            # will probably be unnecessary.
-            if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-                num_args = len(node.items[1].items)
-            else:
-                num_args = len(node.items) - 1
+            num_args = len(node.items[1].items)
 
         # We don't handle any intrinsics that don't have arguments
         if num_args == 1:
@@ -1511,18 +1474,8 @@ class Fparser2Reader(object):
 
         array = Array(reference_name, parent)
         array.check_declared()
-
-        if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
-            subscript_list = node.items[1].items
-
-            self.process_nodes(parent=array, nodes=subscript_list,
-                               nodes_parent=node.items[1])
-        else:
-            # When there is only one dimension fparser does not have
-            # a Subscript_List
-            self.process_nodes(parent=array, nodes=[node.items[1]],
-                               nodes_parent=node)
-
+        self.process_nodes(parent=array, nodes=node.items[1].items,
+                           nodes_parent=node.items[1])
         return array
 
     def _number_handler(self, node, parent):
