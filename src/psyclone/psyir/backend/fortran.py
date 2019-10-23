@@ -41,7 +41,7 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyGen import DataSymbol
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from fparser.two import Fortran2003
 

@@ -39,7 +39,8 @@
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
-from psyclone.psyGen import DataSymbol, SymbolTable, KernelSchedule, Return
+from psyclone.psyGen import KernelSchedule, Return
+from psyclone.psyir.symbols import DataSymbol, SymbolTable
 
 
 def test_oclw_initialization():

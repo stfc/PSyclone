@@ -57,9 +57,9 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
     ACCEnterDataDirective, ACCKernelsDirective, Container
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.psyGen import DataSymbol, ContainerSymbol, SymbolTable
 from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall

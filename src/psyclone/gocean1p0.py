@@ -53,8 +53,10 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, AccessType, \
+    KernelSchedule, AccessType, \
     Literal, ACCEnterDataDirective, Schedule
+
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 

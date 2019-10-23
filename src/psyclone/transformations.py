@@ -223,7 +223,8 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.psyGen import GenerationError, SymbolError, Kern
+        from psyclone.psyGen import GenerationError, Kern
+        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -2866,7 +2867,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                         argument. Defaults to None.
 
             '''
-            from psyclone.psyGen import DataSymbol
+            from psyclone.psyir.symbols import DataSymbol
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]

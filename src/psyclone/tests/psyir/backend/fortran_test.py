@@ -43,8 +43,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
-from psyclone.psyGen import DataSymbol, Node, CodeBlock, Container, \
-    SymbolTable, ContainerSymbol
+from psyclone.psyGen import Node, CodeBlock, Container
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 

@@ -43,8 +43,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
-    DataSymbol, ContainerSymbol, SymbolTable, Container, \
-    InternalError, GenerationError
+    Container, InternalError, GenerationError
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -701,7 +701,7 @@ def test_handling_name(f2008_parser):
     tree structure.
     '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import SymbolError
+    from psyclone.psyir.symbols import SymbolError
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -745,7 +745,7 @@ def test_handling_part_ref(f2008_parser):
     tree structure.
     '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import SymbolError
+    from psyclone.psyir.symbols import SymbolError
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 

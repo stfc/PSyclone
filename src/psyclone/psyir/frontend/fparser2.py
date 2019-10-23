@@ -44,8 +44,9 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    DataSymbol, ContainerSymbol, KernelSchedule, Container, \
+    KernelSchedule, Container, \
     Assignment, Return, Array, InternalError, GenerationError
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
