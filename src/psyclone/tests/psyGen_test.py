@@ -2640,7 +2640,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     else:
         index = 4
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[index], depth=2)
+    rc_trans.apply(schedule.children[index], {"depth": 2})
     del schedule.children[index]
     loop = schedule.children[index+2]
     kernel = loop.loop_body[0]
@@ -2714,7 +2714,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     else:
         index = 4
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[index], depth=2)
+    rc_trans.apply(schedule.children[index], {"depth": 2})
     loop = schedule.children[index+3]
     kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
@@ -3729,6 +3729,7 @@ def test_symbol_interface_access():
     assert symbol.interface.access == Symbol.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
+        # pylint: disable=redefined-variable-type
         symbol.interface.access = "read"
     assert "must be a 'Symbol.Access' but got " in str(err)
 
@@ -4194,7 +4195,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kernels[0], number_of_layers=100)
+    _, _ = ktrans.apply(kernels[0], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     _ = str(psy.gen)
     filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")

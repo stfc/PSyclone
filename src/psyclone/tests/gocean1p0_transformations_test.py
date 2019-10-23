@@ -111,7 +111,7 @@ def test_const_loop_bounds_toggle(tmpdir):
     assert "DO i=2,istop" in gen
 
     # Finally, test that we can turn-off constant loop bounds
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
     invoke.schedule = newsched
     # Store the generated code as a string
     gen = str(psy.gen)
@@ -132,7 +132,7 @@ def test_const_loop_bounds_invalid_offset():
                              API, idx=0)
     cbtrans = GOConstLoopBoundsTrans()
     schedule = invoke.schedule
-    newsched, _ = cbtrans.apply(schedule, const_bounds=True)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
     invoke.schedule = newsched
     with pytest.raises(GenerationError):
         _ = psy.gen
@@ -155,7 +155,7 @@ def test_loop_fuse_different_iterates_over():
 
     # Turn off constant loop bounds (which should have no effect)
     # and repeat
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
     with pytest.raises(TransformationError):
         _, _ = lftrans.apply(newsched.children[0],
                              newsched.children[1])
@@ -203,7 +203,7 @@ def test_omp_parallel_loop(tmpdir):
                 "      !$omp end parallel do")
     assert expected in gen
 
-    newsched, _ = cbtrans.apply(omp_sched, const_bounds=False)
+    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -265,7 +265,7 @@ def test_omp_region_with_single_loop(tmpdir):
     assert call_count == 1
 
     # Repeat the test after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -387,7 +387,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
     omp_schedule, _ = ompr.apply(newsched.children)
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
@@ -443,7 +443,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
     assert cu_idx < cv_idx < ts_idx
 
     # Repeat after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -685,7 +685,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -713,7 +713,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    schedule, _ = cbtrans.apply(schedule, const_bounds=False)
+    schedule, _ = cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
@@ -1215,7 +1215,7 @@ def test_module_no_inline_with_transformation(tmpdir):
     kern_call.module_inline = True
     inline_trans = KernelModuleInlineTrans()
     # use a transformation to switch inlining off again
-    schedule, _ = inline_trans.apply(kern_call, inline=False)
+    schedule, _ = inline_trans.apply(kern_call, {"inline": False})
     gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
@@ -1309,7 +1309,7 @@ def test_module_inline_warning_no_change():
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
-    _, _ = inline_trans.apply(kern_call, inline=False)
+    _, _ = inline_trans.apply(kern_call, {"inline": False})
 
 
 def test_loop_swap_correct(tmpdir):

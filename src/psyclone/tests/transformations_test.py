@@ -78,7 +78,7 @@ def test_accenterdata_internalerr(monkeypatch):
     from psyclone.transformations import ACCEnterDataTrans
     from psyclone.psyGen import InternalError
     acct = ACCEnterDataTrans()
-    monkeypatch.setattr(acct, "validate", lambda sched: None)
+    monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
     assert "validate() has not rejected an (unsupported) schedule" in str(err)
