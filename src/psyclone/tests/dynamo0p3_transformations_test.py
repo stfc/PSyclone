@@ -7399,7 +7399,7 @@ def test_kern_const_name():
     assert kct.name == "Dynamo0p3KernelConstTrans"
 
 
-def test_kern_const_apply(capsys):
+def test_kern_const_apply(capsys, monkeypatch):
     '''Check that we generate the expected output from the apply method
     with different valid combinations of the element_order,
     number_of_layers and quadrature arguments.
@@ -7449,6 +7449,16 @@ def test_kern_const_apply(capsys):
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected
+
+    # Pass in no parameter. The validate function would normally
+    # reject this, so disable the validation function to test
+    # handling of options=None in the apply function.
+    monkeypatch.setattr(kctrans, "validate",
+                        lambda loop, depth: None)
+    _, _ = kctrans.apply(kernel)
+    result, _ = capsys.readouterr()
+    # In case of no options, the transformation does not do anything
+    assert result == ""
 
 
 def test_kern_const_anyspace_anydspace_apply(capsys):
