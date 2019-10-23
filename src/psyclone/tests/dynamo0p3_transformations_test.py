@@ -3161,28 +3161,8 @@ def test_loop_fuse_error(dist_mem):
             "('ANY_SPACE') so loop fusion might be "
             "invalid") in str(excinfo.value)
 
+
 # Repeat the reduction tests for the reproducible version
-
-
-def test_reprod_reduction_real_pdo():
-    '''Test that we raise an exception if we try to use the reprod flag
-    for an OpenMP Parallel Do. '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        with pytest.raises(TypeError) as excinfo:
-            schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
-        assert "apply() got an unexpected keyword argument 'reprod'" \
-            in str(excinfo.value)
-
 
 def test_reprod_reduction_real_do():
     '''test that we generate a correct reproducible OpenMP do reduction
