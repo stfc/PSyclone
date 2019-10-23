@@ -41,7 +41,7 @@
 import six
 import abc
 from enum import Enum
-from psyclone.psyir.symbols import Symbol, ContainerSymbol
+from psyclone.psyir.symbols import Symbol
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -186,9 +186,9 @@ class DataSymbol(Symbol):
         '''
         def __init__(self, container_symbol, access=None):
             super(DataSymbol.FortranGlobal, self).__init__(access=access)
+            from psyclone.psyir.symbols import ContainerSymbol
 
-            # TODO: Fix
-            if not isinstance(container_symbol, ContainerSymbol.ContainerSymbol):
+            if not isinstance(container_symbol, ContainerSymbol):
                 raise TypeError(
                     "FortranGlobal container_symbol parameter must be of type"
                     " ContainerSymbol, but found {0}."

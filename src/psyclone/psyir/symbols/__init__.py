@@ -1,8 +1,8 @@
 
-from psyclone.psyir.symbols.Symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.DataSymbol import DataSymbol
-from psyclone.psyir.symbols.ContainerSymbol import ContainerSymbol
-from psyclone.psyir.symbols.SymbolTable import SymbolTable
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.datasymbol import DataSymbol
+from psyclone.psyir.symbols.containersymbol import ContainerSymbol
+from psyclone.psyir.symbols.symboltable import SymbolTable
 
 __all__ = ['Symbol',
            'SymbolError',

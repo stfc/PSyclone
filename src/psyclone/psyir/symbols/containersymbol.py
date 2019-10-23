@@ -38,7 +38,7 @@
 
 ''' File Description '''
 
-from . import Symbol
+from psyclone.psyir.symbols import Symbol
 
 
 class ContainerSymbol(Symbol):
