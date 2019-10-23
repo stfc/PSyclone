@@ -798,7 +798,7 @@ class ParallelLoopTrans(Transformation):
         corresponds to wrapping the generated code with directives,
         e.g. for OpenMP:
 
-        .. code-block:: fortrannumber of nested loops to collapse
+        .. code-block:: fortran
 
           !$OMP DO
           do ...
