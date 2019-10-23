@@ -61,7 +61,7 @@ def check_intergrid(node):
     computation transformations to loops containing inter-grid kernels is
     rejected (since support for those is not yet implemented).
 
-    :param node: The PSyIR node to check.
+    :param node: the PSyIR node to check.
     :type node: :py:class:`psyGen.Node`
 
     :raises TransformationError: if the supplied node has an inter-grid \
@@ -121,7 +121,7 @@ class RegionTrans(Transformation):
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param bool options["node-type-check"]: This flag controls if the \
+        :param bool options["node-type-check"]: this flag controls if the \
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
 
@@ -867,7 +867,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     reproducible) or whether a manual reproducible reproduction is
     to be used.
 
-    :param str omp_schedule: The OpenMP schedule to use.
+    :param str omp_schedule: the OpenMP schedule to use.
 
     For example:
 
@@ -962,9 +962,9 @@ class OMPLoopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param parent: The Node that will be the parent of the created \
+        :param parent: the Node that will be the parent of the created \
                        directive Node.
-        :param children: List of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of \
                          the created directive.
         :type children: list of :py:class:`psyclone.psyGen.Node`
         :param int collapse: currently un-used but required to keep \
@@ -1178,7 +1178,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def validate(self, node, options=None):
         '''Validity checks for input arguments.
 
-        :param node: The PSyIR node to validate.
+        :param node: the PSyIR node to validate.
         :type node: :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -1314,7 +1314,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
        loop). Actual transformation is done by
        :py:class:`base class <OMPParallelLoopTrans>`.
 
-       :param omp_schedule: The omp schedule to be created. Must be one of
+       :param omp_schedule: the omp schedule to be created. Must be one of
            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
        '''
 
@@ -1330,7 +1330,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
 
-        :param node: A Loop node from an AST.
+        :param node: a Loop node from an AST.
         :type node: :py:class:`psyclone.psyGen.Loop`
         :param options: a dictionary with options for transformations\
                         and validation.
@@ -1416,7 +1416,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         Loop). Actual transformation is done by
         :py:class:`base class <OMPLoopTrans>`.
 
-        :param omp_schedule: The omp schedule to be created. Must be one of
+        :param omp_schedule: the omp schedule to be created. Must be one of
             'runtime', 'static', 'dynamic', 'guided' or 'auto'.
 
         '''
@@ -1433,7 +1433,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         '''Perform GOcean specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
-        :param node: The loop to parallelise using OMP Do.
+        :param node: the loop to parallelise using OMP Do.
         :type node: :py:class:`psyclone.psyGen.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -1487,7 +1487,7 @@ class ColourTrans(Transformation):
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
 
-        :param node: The loop to transform.
+        :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyGen.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -1590,7 +1590,7 @@ class KernelModuleInlineTrans(KernelTrans):
         :type node: :py:class:`psyclone.psyGen.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param bool options["inline"]: if the kernel should be module\
+        :param bool options["inline"]: whether the kernel should be module\
                 inlined or not.
 
         :returns: 2-tuple of new schedule and memento of transform.
@@ -1628,7 +1628,7 @@ class KernelModuleInlineTrans(KernelTrans):
         :param bool inline: whether or not the kernel is to be inlined.
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param bool options["inline"]: if the kernel should be module \
+        :param bool options["inline"]: whether the kernel should be module \
                                        inlined or not.
 
         :raises TransformationError: if the supplied kernel has itself been \
@@ -1706,7 +1706,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param node: The loop to transform.
+        :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyGen.Loop`
 
         :returns: 2-tuple of new schedule and memento of transform.
@@ -1780,12 +1780,12 @@ class ParallelRegionTrans(RegionTrans):
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
 
-        :param list node_list: List of nodes to put into a parallel region
+        :param list node_list: list of nodes to put into a parallel region
         :param options: a dictionary with options for transformations.\
         :type options: dictionary of string:values or None
-        :param bool options["node-type-check"]: This flag controls if the \
-            type of the nodes enclosed in the region should be tested \
-            to avoid using unsupported nodes inside a region.
+        :param bool options["node-type-check"]: this flag controls whether \
+            or not the type of the nodes enclosed in the region should be \
+            tested to avoid using unsupported nodes inside a region.
 
         :raises TransformationError: if the nodes cannot be put into a \
                                      parallel region.
@@ -1825,7 +1825,7 @@ class ParallelRegionTrans(RegionTrans):
         :type nodes: (list of) :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param bool options["node-type-check"]: This flag controls if the \
+        :param bool options["node-type-check"]: this flag controls if the \
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
 
@@ -1950,7 +1950,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     @property
     def name(self):
         '''
-        :returns: The name of this transformation as a string.
+        :returns: the name of this transformation as a string.
         :rtype: str
         '''
         return "OMPParallelTrans"
@@ -1959,11 +1959,11 @@ class OMPParallelTrans(ParallelRegionTrans):
         '''
         Perform OpenMP-specific validation checks.
 
-        :param node_list: List of Nodes to put within parallel region.
+        :param node_list: list of Nodes to put within parallel region.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param bool options["node-type-check"]: This flag controls if the \
+        :param bool options["node-type-check"]: this flag controls if the \
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
 
@@ -2026,7 +2026,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     @property
     def name(self):
         '''
-        :returns: The name of this transformation as a string.
+        :returns: the name of this transformation as a string.
         :rtype: str
         '''
         return "ACCParallelTrans"
@@ -2160,7 +2160,7 @@ class MoveTrans(Transformation):
         :type location: :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param str options["position"]: Either 'before' or 'after'.
+        :param str options["position"]: either 'before' or 'after'.
 
         :raises TransformationError: if the given node is not an instance \
             of :py:class:`psyclone.psyGen.Node`
@@ -2197,7 +2197,7 @@ class MoveTrans(Transformation):
         :type location: :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param str options["position"]: Either 'before' or 'after'.
+        :param str options["position"]: either 'before' or 'after'.
 
         :raises TransformationError: if the given node is not an instance \
             of :py:class:`psyclone.psyGen.Node`
@@ -2527,7 +2527,7 @@ class GOLoopSwapTrans(Transformation):
         to allow swapping loops. This means the node must represent
         a loop, and it must have exactly one child that is also a loop.
 
-        :param node_outer: A node from an AST.
+        :param node_outer: a node from an AST.
         :type node_outer: py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -3100,7 +3100,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
             :param int arg_position: the argument's position in the \
                                      argument list.
-            :param value: The constant value that this argument is \
+            :param value: the constant value that this argument is \
                     going to be given. Its type depends on the type of the \
                     argument.
             :type value: int, str or bool
