@@ -38,54 +38,12 @@
 
 ''' File Description '''
 
-import six
-import abc
 from enum import Enum
 from psyclone.psyir.symbols import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class SymbolInterface(object):
-    '''
-    Abstract base class for capturing the access mechanism for symbols that
-    represent data that exists outside the section of code being represented
-    in the PSyIR.
-
-    :param access: How the symbol is accessed within the section of code or \
-                   None (if unknown).
-    :type access: :py:class:`psyclone.psyGen.DataSymbol.Access`
-    '''
-    def __init__(self, access=None):
-        self._access = None
-        # Use the setter as that has error checking
-        if not access:
-            self.access = DataSymbol.Access.UNKNOWN
-        else:
-            self.access = access
-
-    @property
-    def access(self):
-        '''
-        :returns: the access-type for this symbol.
-        :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access`
-        '''
-        return self._access
-
-    @access.setter
-    def access(self, value):
-        '''
-        Setter for the access type of this symbol.
-
-        :param value: the new access type.
-        :type value: :py:class:`psyclon.psyGen.DataSymbol.Access`
-
-        :raises TypeError: if the supplied value is not of the correct type.
-        '''
-        if not isinstance(value, DataSymbol.Access):
-            raise TypeError(
-                "SymbolInterface.access must be a 'DataSymbol.Access' "
-                "but got '{0}'.".format(type(value)))
-        self._access = value
+class DataSymbolInterface(object):
+    pass
 
 
 class DataSymbol(Symbol):
@@ -153,40 +111,28 @@ class DataSymbol(Symbol):
         # unknown
         UNKNOWN = 4
 
-    class Argument(SymbolInterface):
-        '''
-        Captures the interface to a symbol that is accessed as a routine
-        argument.
+    class Local(DataSymbolInterface):
 
-        :param access: how the symbol is accessed within the local scope.
-        :type access: :py:class:`psyclone.psyGen.DataSymbol.Access`
-        '''
-        def __init__(self, access=None):
-            super(DataSymbol.Argument, self).__init__(access=access)
-            self._pass_by_value = False
+        def __str__(str):
+            return "Local"
 
-        def __str__(self):
-            return "Argument(pass-by-value={0})".format(self._pass_by_value)
-
-    class FortranGlobal(SymbolInterface):
+    class Global(DataSymbolInterface):
         '''
-        Describes the interface to a Fortran DataSymbol representing data that
-        is supplied as some sort of global variable. Currently only supports
-        data accessed via a module 'USE' statement.
+        Describes the interface to a DataSymbol representing data that
+        is supplied as some sort of global variable, and therefore it is
+        defined in a external PSyIR container.
 
         :param container_symbol: symbol of the external container from which \
-                                 the symbol is imported.
-        :type container_symbol: :py:class:`psyclone.psyGen.ContainerSymbol`
-        :param access: the manner in which the DataSymbol is accessed in the \
-                       associated code section. If None is supplied then the \
-                       access is DataSymbol.Access.UNKNOWN.
-        :type access: :py:class:`psyclone.psyGen.DataSymbol.Access` or None.
+            the symbol is imported.
+        :type container_symbol: \
+            :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
         :raise TypeError: if the container_symbol is not a ContainerSymbol
         '''
-        def __init__(self, container_symbol, access=None):
-            super(DataSymbol.FortranGlobal, self).__init__(access=access)
+        def __init__(self, container_symbol):
             from psyclone.psyir.symbols import ContainerSymbol
+
+            super(DataSymbol.Global, self).__init__()
 
             if not isinstance(container_symbol, ContainerSymbol):
                 raise TypeError(
@@ -201,7 +147,51 @@ class DataSymbol(Symbol):
             return self._container_symbol
 
         def __str__(self):
-            return "FortranModule({0})".format(self.container_symbol.name)
+            return "Global(container='{0}')".format(self.container_symbol.name)
+
+    class Argument(DataSymbolInterface):
+        '''
+        Captures the interface to a symbol that is accessed as a routine
+        argument.
+
+        :param access: how the symbol is accessed within the local scope.
+        :type access: :py:class:`psyclone.psyGen.DataSymbol.Access`
+        '''
+        def __init__(self, access=None):
+            super(DataSymbol.Argument, self).__init__()
+            self._pass_by_value = False
+            self._access = None
+            # Use the setter as that has error checking
+            if not access:
+                self.access = DataSymbol.Access.UNKNOWN
+            else:
+                self.access = access
+
+        @property
+        def access(self):
+            '''
+            :returns: the access-type for this symbol.
+            :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access`
+            '''
+            return self._access
+
+        @access.setter
+        def access(self, value):
+            '''
+            :param value: the new access type.
+            :type value: :py:class:`psyclon.psyGen.DataSymbol.Access`
+
+            :raises TypeError: if the supplied value is not a \
+                DataSymbol.Access
+            '''
+            if not isinstance(value, DataSymbol.Access):
+                raise TypeError(
+                    "SymbolInterface.access must be a 'DataSymbol.Access' "
+                    "but got '{0}'.".format(type(value)))
+            self._access = value
+
+        def __str__(self):
+            return "Argument(pass-by-value={0})".format(self._pass_by_value)
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
                  interface=None):
@@ -230,13 +220,17 @@ class DataSymbol(Symbol):
             elif not isinstance(dimension, (type(None), int)):
                 raise TypeError("DataSymbol shape list elements can only be "
                                 "'DataSymbol', 'integer' or 'None'.")
+
+        if not interface:
+            self.interface = DataSymbol.Local()
+        else:
+            self.interface = interface
+
+        assert isinstance(self._interface, DataSymbolInterface)
+
         self._shape = shape
         # The following attributes have setter methods (with error checking)
         self._constant_value = None
-        self._interface = None
-        # If an interface is specified for this symbol then the data with
-        # which it is associated must exist outside of this kernel.
-        self.interface = interface
         self.constant_value = constant_value
 
     def resolve_deferred(self):
@@ -288,20 +282,6 @@ class DataSymbol(Symbol):
         return self._shape
 
     @property
-    def scope(self):
-        '''
-        :returns: Whether the symbol is 'local' (just exists inside the \
-                  kernel scope) or 'global' (data also lives outside the \
-                  kernel). Global-scoped symbols must have an associated \
-                  'interface' that specifies the mechanism by which the \
-                  kernel accesses the associated data.
-        :rtype: str
-        '''
-        if self._interface:
-            return "global"
-        return "local"
-
-    @property
     def interface(self):
         '''
         :returns: the an object describing the external interface to \
@@ -323,7 +303,7 @@ class DataSymbol(Symbol):
 
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
-        if value is not None and not isinstance(value, SymbolInterface):
+        if value is not None and not isinstance(value, DataSymbolInterface):
             raise TypeError("The interface to a DataSymbol must be a "
                             "SymbolInterface or None but got '{0}'".
                             format(type(value)))
@@ -392,10 +372,11 @@ class DataSymbol(Symbol):
 
         '''
         if new_value is not None:
-            if self.scope != "local":
+            if not isinstance(self.interface, DataSymbol.Local):
                 raise ValueError(
                     "DataSymbol with a constant value is currently limited to "
-                    "having local scope but found '{0}'.".format(self.scope))
+                    "having a Local interface but found '{0}'."
+                    "".format(self.interface))
             if self.is_array:
                 raise ValueError(
                     "DataSymbol with a constant value must be a scalar but the"
@@ -436,10 +417,7 @@ class DataSymbol(Symbol):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
-        if self.interface:
-            ret += ", global=" + str(self.interface)
-        else:
-            ret += ", local"
+        ret += ", " + str(self._interface)
         if self.is_constant:
             ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"

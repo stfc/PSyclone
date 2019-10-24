@@ -201,12 +201,6 @@ class SymbolTable(object):
             if not isinstance(symbol, DataSymbol):
                 raise TypeError("Expected a list of DataSymbols but found an "
                                 "object of type '{0}'.".format(type(symbol)))
-            # All symbols in the argument list must have a
-            # 'Symbol.Argument' interface
-            if symbol.scope == 'local':
-                raise ValueError(
-                    "DataSymbol '{0}' is listed as a kernel argument but has "
-                    "no associated Interface.".format(str(symbol)))
             if not isinstance(symbol.interface, DataSymbol.Argument):
                 raise ValueError(
                     "DataSymbol '{0}' is listed as a kernel argument but has "
@@ -257,7 +251,8 @@ class SymbolTable(object):
         :returns:  List of symbols representing local variables.
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
         '''
-        return [sym for sym in self.variables if sym.scope == "local"]
+        return [sym for sym in self.variables if
+                isinstance(sym.interface, DataSymbol.Local)]
 
     @property
     def global_variables(self):
@@ -268,8 +263,8 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         '''
-        return [sym for sym in self.variables if sym.scope == "global"
-                and not isinstance(sym.interface, DataSymbol.Argument)]
+        return [sym for sym in self.variables if
+                isinstance(sym.interface, DataSymbol.Global)]
 
     @property
     def iteration_indices(self):

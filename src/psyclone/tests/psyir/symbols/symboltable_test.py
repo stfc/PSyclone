@@ -54,15 +54,11 @@ def test_symboltable_add():
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
     sym_table.add(DataSymbol("var1", "real", shape=[5, 1],
-                             interface=DataSymbol.FortranGlobal(
-                                 my_mod,
-                                 access=DataSymbol.Access.READWRITE)))
+                             interface=DataSymbol.Global(my_mod)))
     assert sym_table._symbols["my_mod"].name == "my_mod"
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
-    assert sym_table._symbols["var1"].scope == "global"
-    assert sym_table._symbols["var1"].access is DataSymbol.Access.READWRITE
     assert sym_table._symbols["var1"].interface.container_symbol == my_mod
 
     # Declare a duplicate name symbol
@@ -127,16 +123,15 @@ def test_symboltable_swap_symbol_properties():
     assert symbol1.name == "var1"
     assert symbol1.datatype == "real"
     assert symbol1.shape == [symbol2, symbol3]
-    assert symbol1.scope == "global"
+    assert isinstance(symbol1.interface, DataSymbol.Argument)
     assert symbol1.constant_value is None
     assert symbol1.interface.access == DataSymbol.Access.READWRITE
 
     assert symbol4.name == "var2"
     assert symbol4.datatype == "integer"
     assert not symbol4.shape
-    assert symbol4.scope == "local"
+    assert isinstance(symbol4.interface, DataSymbol.Local)
     assert symbol4.constant_value == 7
-    assert not symbol4.interface
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)
@@ -193,13 +188,13 @@ def test_symboltable_can_be_printed():
     sym_table.add(DataSymbol("var1", "real"))
     sym_table.add(DataSymbol("var2", "integer"))
     sym_table.add(DataSymbol("var3", "deferred",
-                             interface=DataSymbol.FortranGlobal(my_mod)))
+                             interface=DataSymbol.Global(my_mod)))
     sym_table_text = str(sym_table)
     assert "Symbol Table:\n" in sym_table_text
     assert "var1" in sym_table_text
     assert "var2" in sym_table_text
     assert "\nmy_mod" in sym_table_text
-    assert "FortranModule(my_mod)" in sym_table_text
+    assert "Global(container='my_mod')" in sym_table_text
 
 
 def test_symboltable_specify_argument_list():
@@ -214,7 +209,8 @@ def test_symboltable_specify_argument_list():
     sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.argument_list) == 1
-    assert sym_table.argument_list[0].scope == 'global'
+    assert isinstance(sym_table.argument_list[0].interface,
+                      DataSymbol.Argument)
     assert sym_table.argument_list[0].access == DataSymbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
@@ -226,7 +222,8 @@ def test_symboltable_specify_argument_list():
     sym_v2 = sym_table.lookup("var2")
     sym_v2.interface = DataSymbol.Argument(access=DataSymbol.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1, sym_v2])
-    assert sym_table.argument_list[1].scope == 'global'
+    assert isinstance(sym_table.argument_list[1].interface,
+                      DataSymbol.Argument)
     assert sym_table.argument_list[1].access == DataSymbol.Access.READWRITE
 
 
@@ -243,10 +240,9 @@ def test_symboltable_specify_argument_list_errors():
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
     assert "Symbol 'var1:" in str(err)
-    assert ("is listed as a kernel argument but has no associated "
-            "Interface" in str(err))
+    assert ("has an interface of type '" in str(err))
     # Now add an Interface for "var1" but of the wrong type
-    sym_v1.interface = DataSymbol.FortranGlobal(ContainerSymbol("my_mod"))
+    sym_v1.interface = DataSymbol.Global(ContainerSymbol("my_mod"))
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
     assert "Symbol 'var1:" in str(err)
@@ -260,14 +256,15 @@ def test_symboltable_argument_list_errors():
     sym_table.add(DataSymbol("var1", "real", []))
     sym_table.add(DataSymbol("var2", "real", []))
     sym_table.add(DataSymbol("var3", "real",
-                             interface=DataSymbol.FortranGlobal(
+                             interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
     # Manually put a local symbol into the internal list of arguments
     sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(ValueError) as err:
         sym_table._validate_arg_list(sym_table._argument_list)
-    pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
-               "no associated Interface")
+    print(str(err))
+    pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has an "
+               "interface of type .* rather than DataSymbol.Argument")
     assert re.search(pattern, str(err)) is not None
     # Check that the argument_list property converts this error into an
     # InternalError
@@ -280,7 +277,7 @@ def test_symboltable_argument_list_errors():
     # Manually put that symbol into the argument list
     sym_table._argument_list = [sym_table.lookup("var3")]
     pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
-               r"interface of type \'.*\.FortranGlobal\'>")
+               r"interface of type \'.*\.Global\'>")
     assert re.search(pattern, str(err)) is not None
     # Check that the argument_list property converts this error into an
     # InternalError
@@ -302,7 +299,7 @@ def test_symboltable_validate_non_args():
     sym_table.add(DataSymbol("var1", "real", []))
     sym_table.add(DataSymbol("var2", "real", []))
     sym_table.add(DataSymbol("var3", "real",
-                             interface=DataSymbol.FortranGlobal(
+                             interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
     # Everything should be fine so far
     sym_table._validate_non_args()
@@ -340,7 +337,7 @@ def test_symboltable_symbols():
     sym_table.add(DataSymbol("var2", "real", [None]))
     assert len(sym_table.symbols) == 2
     sym_table.add(DataSymbol("var3", "real", [],
-                             interface=DataSymbol.FortranGlobal(
+                             interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
     assert len(sym_table.symbols) == 3
 
@@ -369,7 +366,7 @@ def test_symboltable_local_variables():
     assert sym_table.lookup("var3") in sym_table.local_variables
 
     sym_table.add(DataSymbol("var4", "real", [],
-                             interface=DataSymbol.FortranGlobal(
+                             interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
     assert len(sym_table.local_variables) == 2
     assert sym_table.lookup("var4") not in sym_table.local_variables
@@ -387,7 +384,7 @@ def test_symboltable_global_variables():
     assert sym_table.global_variables == []
     # Add some global symbols
     sym_table.add(DataSymbol("gvar1", "real", [],
-                             interface=DataSymbol.FortranGlobal(
+                             interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
     assert sym_table.lookup("gvar1") in sym_table.global_variables
     sym_table.add(

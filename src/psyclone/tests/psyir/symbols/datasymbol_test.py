@@ -78,9 +78,7 @@ def test_symbol_initialisation():
         DataSymbol)
     my_mod = ContainerSymbol("my_mod")
     assert isinstance(
-        DataSymbol('a', 'deferred',
-                   interface=DataSymbol.FortranGlobal(
-                       my_mod, access=DataSymbol.Access.READ)),
+        DataSymbol('a', 'deferred', interface=DataSymbol.Global(my_mod)),
         DataSymbol)
     dim = DataSymbol('dim', 'integer', [])
     assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
@@ -105,13 +103,13 @@ def test_symbol_initialisation():
 
     with pytest.raises(TypeError) as error:
         bad_dim = DataSymbol('dim', 'real', [])
-        DataSymbol('a', 'real', [bad_dim], 'local')
+        DataSymbol('a', 'real', [bad_dim])
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(TypeError) as error:
         bad_dim = DataSymbol('dim', 'integer', [3])
-        DataSymbol('a', 'real', [bad_dim], 'local')
+        DataSymbol('a', 'real', [bad_dim])
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
@@ -119,7 +117,7 @@ def test_symbol_initialisation():
         DataSymbol('a', 'integer', interface=DataSymbol.Argument(),
                    constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global'.") in str(error)
+            "a Local interface but found '") in str(error)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', shape=[None], constant_value=9)
@@ -166,18 +164,18 @@ def test_symbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
     symbol = DataSymbol("sname", "real")
-    assert "sname: <real, Scalar, local>" in str(symbol)
+    assert "sname: <real, Scalar, Local>" in str(symbol)
 
     sym1 = DataSymbol("s1", "integer")
-    assert "s1: <integer, Scalar, local>" in str(sym1)
+    assert "s1: <integer, Scalar, Local>" in str(sym1)
 
     sym2 = DataSymbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
+    assert "s2: <real, Array['Unknown bound', 2, s1], Local>" in str(sym2)
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", "real",
-                      interface=DataSymbol.FortranGlobal(my_mod))
-    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
+                      interface=DataSymbol.Global(my_mod))
+    assert ("s3: <real, Scalar, Global(container='my_mod')"
             in str(sym3))
 
     sym2._shape.append('invalid')
@@ -187,7 +185,7 @@ def test_symbol_can_be_printed():
             "'integer' or 'None', but found") in str(error.value)
 
     sym3 = DataSymbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
+    assert "s3: <integer, Scalar, Local, constant_value=12>" in str(sym3)
 
 
 def test_symbol_constant_value_setter():
@@ -253,7 +251,7 @@ def test_symbol_interface():
     ''' Check the interface getter on a DataSymbol. '''
     my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
-                        interface=DataSymbol.FortranGlobal(my_mod))
+                        interface=DataSymbol.Global(my_mod))
     assert symbol.interface.container_symbol.name == "my_mod"
 
 
@@ -261,7 +259,7 @@ def test_symbol_interface_access():
     ''' Tests for the SymbolInterface.access setter. '''
     my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
-                        interface=DataSymbol.FortranGlobal(my_mod))
+                        interface=DataSymbol.Argument())
     symbol.interface.access = DataSymbol.Access.READ
     assert symbol.interface.access == DataSymbol.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
@@ -278,19 +276,19 @@ def test_symbol_argument_str():
 
 
 def test_fortranglobal_str():
-    ''' Test the __str__ method of DataSymbol.FortranGlobal. '''
+    ''' Test the __str__ method of DataSymbol.Global. '''
     # If it's not an argument then we have nothing else to say about it (since
     # other options are language specific and are implemented in sub-classes).
     my_mod = ContainerSymbol("my_mod")
-    interface = DataSymbol.FortranGlobal(my_mod)
-    assert str(interface) == "FortranModule(my_mod)"
+    interface = DataSymbol.Global(my_mod)
+    assert str(interface) == "Global(container='my_mod')"
 
 
-def test_fortranglobal_modname():
-    ''' Test the FortranGlobal.module_name setter error conditions. '''
+def test_global_modname():
+    ''' Test the Global.module_name setter error conditions. '''
     with pytest.raises(TypeError) as err:
-        _ = DataSymbol.FortranGlobal(None)
-    assert ("FortranGlobal container_symbol parameter must be of type"
+        _ = DataSymbol.Global(None)
+    assert ("Global container_symbol parameter must be of type"
             " ContainerSymbol, but found ") in str(err)
 
 
@@ -308,7 +306,6 @@ def test_symbol_copy():
     assert symbol.name == new_symbol.name
     assert symbol.datatype == new_symbol.datatype
     assert symbol.shape == new_symbol.shape
-    assert symbol.scope == new_symbol.scope
     assert symbol.constant_value == new_symbol.constant_value
     assert symbol.interface == new_symbol.interface
 
@@ -319,12 +316,11 @@ def test_symbol_copy():
     new_symbol._datatype = "integer"
     new_symbol.shape[0] = 3
     new_symbol.shape[1] = 4
-    new_symbol._interface = None
+    new_symbol._interface = DataSymbol.Local()
 
     assert symbol.name == "myname"
     assert symbol.datatype == "real"
     assert symbol.shape == [1, 2]
-    assert symbol.scope == "global"
     assert not symbol.constant_value
 
     # Now check constant_value
@@ -342,8 +338,7 @@ def test_symbol_copy_properties():
                         interface=DataSymbol.Argument(
                             access=DataSymbol.Access.READWRITE))
 
-    # Check an exception is raised if an incorrect argument is passed
-    # in
+    # Check an exception is raised if an incorrect argument is passed in
     with pytest.raises(TypeError) as excinfo:
         symbol.copy_properties(None)
     assert ("Argument should be of type 'DataSymbol' but found 'NoneType'."
@@ -357,5 +352,5 @@ def test_symbol_copy_properties():
     assert symbol.name == "myname"
     assert symbol.datatype == "integer"
     assert symbol.shape == []
-    assert symbol.scope == "local"
+    assert isinstance(symbol.interface, DataSymbol.Local)
     assert symbol.constant_value == 7
