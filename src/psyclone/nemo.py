@@ -388,7 +388,7 @@ class NemoKern(InlinedKern):
 
     '''
     def __init__(self, psyir_nodes, parse_tree, parent=None):
-        # pylint: disable=super-init-not-called
+        super(NemoKern, self).__init__()
         from psyclone.psyGen import KernelSchedule
         self._name = ""
         self._parent = parent
@@ -435,6 +435,16 @@ class NemoKern(InlinedKern):
         # IO operations and routine calls) or loops. So if there is any
         # node in the result of the walk, this node can not be a kernel.
         return len(nodes) == 0
+
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the kernel code. The
+        kernel_schedule is created in the constructor and always exists.
+
+        :returns: the kernel schedule representing the inlined kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        '''
+        return self._kern_schedule
 
     def local_vars(self):
         '''

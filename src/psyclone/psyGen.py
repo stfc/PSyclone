@@ -4525,23 +4525,6 @@ class InlinedKern(Kern):
         :rtype: list of str
         '''
 
-    def get_kernel_schedule(self):
-        '''
-        Returns a PSyIR Schedule representing the kernel code. The Schedule
-        is just generated on first invocation, this allows us to retain
-        transformations that may subsequently be applied to the Schedule
-        (but will not adapt to transformations applied to the fparser2 AST).
-
-        :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
-        '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        if self._kern_schedule is None:
-            astp = Fparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
-            # TODO: Validate kernel with metadata (issue #288).
-        return self._kern_schedule
-
 
 class BuiltIn(Kern):
     '''
