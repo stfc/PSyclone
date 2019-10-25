@@ -52,6 +52,15 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
+def test_no_gen_code():
+    '''Test that we raise an exception if gen_code is called
+    for a NemoKern.'''
+    kern = nemo.NemoKern([], None)
+    with pytest.raises(InternalError) as err:
+        kern.gen_code(None)
+    assert "Do not call gen_code for a NEMO kernel." in str(err)
+
+
 def test_unamed_unit(parser):
     '''
     Test that we raise the expected internal error if we fail to find

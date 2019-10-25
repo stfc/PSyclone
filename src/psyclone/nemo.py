@@ -475,6 +475,17 @@ class NemoKern(InlinedKern):
         '''
         return self._ast
 
+    def gen_code(self, parent):
+        '''This method must not be called for NEMO, since the actual
+        kernels are inlied.
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+
+        :raises InternalError: if this function is called.
+        '''
+        raise InternalError("Do not call gen_code for a NEMO kernel.")
+
 
 class NemoLoop(Loop):
     '''
