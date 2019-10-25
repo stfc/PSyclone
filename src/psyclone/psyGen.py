@@ -2571,9 +2571,11 @@ class OMPParallelDirective(OMPDirective):
             if accesses[0].access_type == AccessType.WRITE:
                 # Check if the write access is inside the parallel loop. If
                 # the write is outside of a loop, it is an assignment to
-                # a shared variable. Example:
+                # a shared variable. Example where jpk is likely used
+                # outside of the parallel section later, so it must be
+                # declared as shared in order to have its value in other loops:
                 # !$omp parallel
-                # jpk = 100    ! if jpk is likely be used outside
+                # jpk = 100
                 # !omp do
                 # do ji = 1, jpk
 
@@ -4498,6 +4500,7 @@ class InlinedKern(Kern):
     '''
 
     def __init__(self):
+        # pylint: disable=super-init-not-called
         self._kern_schedule = None
 
     def __str__(self):
@@ -4514,7 +4517,24 @@ class InlinedKern(Kern):
         '''
         return colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
 
+    @abc.abstractmethod
+    def local_vars(self):
+        '''
+        :returns: list of the variable (names) that are local to this loop \
+                  (and must therefore be e.g. threadprivate if doing OpenMP)
+        :rtype: list of str
+        '''
+
     def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the kernel code. The Schedule
+        is just generated on first invocation, this allows us to retain
+        transformations that may subsequently be applied to the Schedule
+        (but will not adapt to transformations applied to the fparser2 AST).
+
+        :returns: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        '''
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         if self._kern_schedule is None:
             astp = Fparser2Reader()

@@ -359,6 +359,14 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         self._name_clashes_checked = value
 
     def coded_kernels(self):
+        '''
+        Returns a list of all of the user-supplied kernels (as opposed to
+        builtins) that are beneath this node in the PSyIR. In the NEMO API
+        this means all instances of InlinedKern.
+
+        :returns: all user-supplied kernel calls below this node.
+        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        '''
         return self.walk(InlinedKern)
 
 
@@ -386,7 +394,11 @@ class NemoKern(InlinedKern):
         self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
-        # Create a kernel schedule
+        # Create a kernel schedule. Since in NEMO all functions are
+        # inlined, set this NemoKern as parent of the KernelSchedule.
+        # This will allow the dependency analysis going up from
+        # a kernel to the loops (which is required for declaring
+        # private variables).
         self._kern_schedule = KernelSchedule(self._name, self)
         # Attach the PSyIR sub-tree to it
         self._kern_schedule.children = psyir_nodes[:]
