@@ -43,8 +43,7 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol
 from psyclone.psyGen import InternalError
 
 
-# Test DataSymbol Class
-def test_symbol_initialisation():
+def test_datasymbol_initialisation():
     '''Test that a DataSymbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 

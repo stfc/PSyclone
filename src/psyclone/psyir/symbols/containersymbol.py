@@ -38,46 +38,30 @@
 
 ''' File Description '''
 
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, SymbolError
 
 
 class ContainerSymbol(Symbol):
 
     def __init__(self, name):
         super(ContainerSymbol, self).__init__(name)
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "ContainerSymbol name attribute should be of type 'str'"
+                " but '{0}' found.".format(type(name)))
+
         self._reference = None
+        # At the moment we just have one ContainerSymbol interface, so we
+        # always assign this interface to all ContainerSymbols, we may want
+        # to pass the interface as a parameter when we have more than one.
+        self._interface = FortranModuleInterface
 
     @property
     def container(self):
         if not self._reference:
-            self._import_container()
+            self._rerefence = self._interface.import_container(self._name)
         return self._reference
-
-    def _import_container(self):
-        # TODO: This is Fortran-specific, move to a sub-class or interface
-        from os import listdir, path
-        from fparser.two.parser import ParserFactory
-        from fparser.common.readfortran import FortranFileReader
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-
-        filename = self.name + '.f90'
-        for directory in Config.get().include_paths:
-            if filename in listdir(directory):
-                # Parse the module source code
-                reader = FortranFileReader(filename,
-                                           ignore_comments=True)
-                f2008_parser = ParserFactory().create(std="f2008")
-                ast = f2008_parser(reader)
-                fp2reader = Fparser2Reader()
-                self._reference = fp2reader.generate_container(ast)
-
-                # Finish the module search
-                break
-        else:
-            raise GenerationError(
-                "Module {0} not found in any of the include_path "
-                "directories {1}."
-                "".format(filename, Config.get().include_paths))
 
     def __str__(self):
         string = self._name + ": <"
@@ -86,3 +70,41 @@ class ContainerSymbol(Symbol):
         else:
             string += "not linked>"
         return string
+
+
+# Classes below are not exposed in the psyclone.psyir.symbols
+
+class ContainerSymbolInterface(object):
+
+    @staticmethod
+    def import_container(name):
+        raise NotImplementedError("Abstract method")
+
+
+class FortranModuleInterface(ContainerSymbolInterface):
+
+    @staticmethod
+    def import_container(module_name):
+        from os import listdir, path
+        from fparser.two.parser import ParserFactory
+        from fparser.common.readfortran import FortranFileReader
+        from psyclone.configuration import Config
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
+        filename = module_name + '.f90'
+        for directory in Config.get().include_paths:
+            if filename in listdir(directory):
+                # Parse the module source code
+                reader = FortranFileReader(filename,
+                                           ignore_comments=True)
+                f2008_parser = ParserFactory().create(std="f2008")
+                ast = f2008_parser(reader)
+                fp2reader = Fparser2Reader()
+
+                # Generate and return the PSyIR container
+                return fp2reader.generate_container(ast)
+        else:
+            raise SymbolError(
+                "Module {0} not found in any of the include_path "
+                "directories {1}."
+                "".format(filename, Config.get().include_paths))
