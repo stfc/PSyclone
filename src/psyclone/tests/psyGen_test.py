@@ -550,7 +550,7 @@ end module dummy_mod
 
 def test_sched_node_str():
     ''' Check the node_str method of the Schedule class'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, Schedule
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     sched = Schedule()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in \
         sched.node_str()
@@ -596,7 +596,7 @@ def test_sched_can_be_printed():
 
 # InvokeSchedule class tests
 
-def test_invokeschedule_node_str(capsys):
+def test_invokeschedule_node_str():
     ''' Check the node_str method of the InvokeSchedule class. We need an
     Invoke object for this which we get using the dynamo0.3 API. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, InvokeSchedule
@@ -777,7 +777,6 @@ def test_incremented_arg():
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
-    from psyclone.psyGen import Schedule
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -2103,7 +2102,6 @@ def test_acckernelsdirective_init():
     arguments are set and can be set as expected.
 
     '''
-    from psyclone.psyGen import Schedule
     directive = ACCKernelsDirective()
     assert directive._default_present
     assert directive.parent is None
@@ -3157,7 +3155,7 @@ def test_ifblock_properties():
 
 # Test Assignment class
 
-def test_assignment_node_str(capsys):
+def test_assignment_node_str():
     ''' Check the node_str method of the Assignment class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
