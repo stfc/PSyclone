@@ -85,7 +85,7 @@ def test_profile_basic(capsys):
     # and indentation is correct
     expected = (
         gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    0: " + profile + "\n"
+        "    0: " + profile + "[]\n"
         "        0: " + loop + "[type='outer', field_space='go_cv', "
         "it_space='go_internal_pts']\n")
 

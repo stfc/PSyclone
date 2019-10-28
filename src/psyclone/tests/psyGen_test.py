@@ -2804,8 +2804,9 @@ def test_node_str():
     # Manually set the colour key for this node to something that will result
     # in coloured output (if requested *and* termcolor is installed).
     tnode._colour_key = "Loop"
-    assert tnode.node_str(False) == "Node"
-    assert tnode.node_str(True) == colored("Node", SCHEDULE_COLOUR_MAP["Loop"])
+    assert tnode.node_str(False) == "Node[]"
+    assert tnode.node_str(True) == colored("Node",
+                                           SCHEDULE_COLOUR_MAP["Loop"]) + "[]"
 
 
 def test_kern_ast():

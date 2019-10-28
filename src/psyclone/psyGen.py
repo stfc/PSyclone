@@ -1005,7 +1005,7 @@ class Node(object):
                   overridden by sub-class.
         :rtype: str
         '''
-        return self.coloured_name(colour)
+        return self.coloured_name(colour) + "[]"
 
     def __str__(self):
         return self.node_str(False)
@@ -1662,18 +1662,6 @@ class Schedule(Node):
         '''
         return self._text_name
 
-    def node_str(self, colour=True):
-        '''
-        Returns a text description of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
     def __getitem__(self, index):
         '''
         Overload the subscript notation ([int]) to access specific statements
@@ -1916,8 +1904,17 @@ class Directive(Node):
     '''
     Base class for all Directive statements.
 
-    All classes that generate Directive statments (e.g. OpenMP,
+    All classes that generate Directive statements (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
+
+    :param ast: the entry in the fparser2 parse tree representing the code \
+                contained within this directive or None.
+    :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
+    :param children: list of PSyIR nodes that will be children of this \
+                     Directive node or None.
+    :type children: list of :py:class:`psyclone.psyGen.Node` or NoneType
+    :param parent: PSyIR node that is the parent of this Directive or None.
+    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
 
     '''
     # The prefix to use when constructing this directive in Fortran
@@ -2134,8 +2131,7 @@ class ACCEnterDataDirective(ACCDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return super(ACCEnterDataDirective, self).node_str(colour) + \
-            "[ACC enter data]"
+        return self.coloured_name(colour) + "[ACC enter data]"
 
     @property
     def dag_name(self):
@@ -2217,8 +2213,7 @@ class ACCParallelDirective(ACCDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return super(ACCParallelDirective, self).node_str(colour) + \
-            "[ACC Parallel]"
+        return self.coloured_name(colour) + "[ACC Parallel]"
 
     @property
     def dag_name(self):
@@ -2369,8 +2364,7 @@ class ACCLoopDirective(ACCDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        text = super(ACCLoopDirective, self).node_str(colour)
-        text += "[ACC Loop"
+        text = self.coloured_name(colour) + "[ACC Loop"
         if self._sequential:
             text += ", seq"
         else:
@@ -5231,8 +5225,7 @@ class ACCKernelsDirective(ACCDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return super(ACCKernelsDirective, self).node_str(colour) + \
-            "[ACC Kernels]"
+        return self.coloured_name(colour) + "[ACC Kernels]"
 
     def gen_code(self, parent):
         '''
@@ -5288,7 +5281,7 @@ class ACCDataDirective(ACCDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return super(ACCDataDirective, self).node_str(colour) + "[ACC DATA]"
+        return self.coloured_name(colour) + "[ACC DATA]"
 
     def gen_code(self, _):
         '''
@@ -6184,18 +6177,6 @@ class Assignment(Node):
 
         return self._children[1]
 
-    def node_str(self, colour=True):
-        ''' Create a text description of this node in the schedule, optionally
-        including control codes for colour.
-
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings or None.
-
-        :return: text description of this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
     def __str__(self):
         result = "Assignment[]\n"
         for entity in self._children:
@@ -6468,7 +6449,7 @@ class Operation(Node):
         :param int indent: level to which to indent output.
         :param int index: position of this node wrt its siblings or None.
         '''
-        return super(Operation, self).node_str(colour) + \
+        return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
 
     def __str__(self):
@@ -6562,18 +6543,6 @@ class BinaryOperation(Operation):
             return self._children[0].math_equal(other.children[1]) and \
                 self._children[1].math_equal(other.children[0])
         return self.operator == other.operator
-    
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("BinaryOperation",
-                       SCHEDULE_COLOUR_MAP["Operation"])
 
 
 class NaryOperation(Operation):
@@ -6701,19 +6670,6 @@ class Return(Node):
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)
 
-    def node_str(self, colour=True):
-        '''
-        Return the name of this node type with optional control codes for
-        terminal colouring.
-
-        :param bool colour: whether or not to include control codes for \
-                            coloured output.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
     def __str__(self):
         return "Return[]\n"
 
@@ -6762,25 +6718,17 @@ class Container(Node):
         '''
         return self._symbol_table
 
-    @property
-    def coloured_text(self):
-        '''Return the name of this node type with control codes for terminal
-        colouring.
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
 
-        :return: name of node + control chars for colour.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
         :rtype: str
-
         '''
-        return colored("Container", SCHEDULE_COLOUR_MAP["Container"])
-
-    def view(self, indent=0):
-        '''Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-
-        '''
-        print(self.indent(indent) + self.coloured_text + "[{0}]"
-              "".format(self.name))
+        return self.coloured_name(colour) + "[{0}]".format(self.name)
 
     def __str__(self):
         return "Container[{0}]\n".format(self.name)
