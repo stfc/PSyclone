@@ -2897,7 +2897,6 @@ def test_codeblock_node_str():
     cblock = CodeBlock([], "dummy")
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
     output = cblock.node_str()
-    #output, _ = capsys.readouterr()
     assert coloredtext+"[" in output
     assert "]" in output
 
@@ -3158,15 +3157,13 @@ def test_ifblock_properties():
 
 # Test Assignment class
 
-def test_assignment_view(capsys):
-    ''' Check the view method of the Assignment class.'''
+def test_assignment_node_str(capsys):
+    ''' Check the node_str method of the Assignment class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     assignment = Assignment()
     coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
-    assignment.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[]" in output
+    assert coloredtext+"[]" in assignment.node_str()
 
 
 def test_assignment_can_be_printed():
@@ -3205,17 +3202,15 @@ def test_assignment_semantic_navigation():
 # Test Reference class
 
 
-def test_reference_view(capsys):
-    ''' Check the view method of the Reference class.'''
+def test_reference_node_str():
+    ''' Check the node_str method of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(Symbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
-    ref.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[name:'rname']" in output
+    assert coloredtext+"[name:'rname']" in ref.node_str()
 
 
 def test_reference_can_be_printed():
@@ -3288,17 +3283,15 @@ def test_reference_symbol(monkeypatch):
 # Test Array class
 
 
-def test_array_view(capsys):
-    ''' Check the view method of the Array class.'''
+def test_array_node_str():
+    ''' Check the node_str method of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(Symbol("aname", "integer", [None]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
-    array.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[name:'aname']" in output
+    assert coloredtext+"[name:'aname']" in array.node_str()
 
 
 def test_array_can_be_printed():
@@ -3320,14 +3313,12 @@ def test_literal_value():
     assert literal.value == "1"
 
 
-def test_literal_view(capsys):
-    ''' Check the view method of the Literal class.'''
+def test_literal_node_str():
+    ''' Check the node_str method of the Literal class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     literal = Literal("1")
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    literal.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[value:'1']" in output
+    assert coloredtext+"[value:'1']" in literal.node_str()
 
 
 def test_literal_can_be_printed():
@@ -3359,8 +3350,8 @@ def test_binaryoperation_operator():
     assert binary_operation.operator == BinaryOperation.Operator.ADD
 
 
-def test_binaryoperation_view(capsys):
-    ''' Check the view method of the Binary Operation class.'''
+def test_binaryoperation_node_str():
+    ''' Check the node_str method of the Binary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", parent=binary_operation)
@@ -3369,9 +3360,7 @@ def test_binaryoperation_view(capsys):
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation",
                           SCHEDULE_COLOUR_MAP["Operation"])
-    binary_operation.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'ADD']" in output
+    assert coloredtext+"[operator:'ADD']" in binary_operation.node_str()
 
 
 def test_binaryoperation_can_be_printed():
@@ -3410,7 +3399,7 @@ def test_unaryoperation_operator():
     assert unary_operation.operator == UnaryOperation.Operator.MINUS
 
 
-def test_unaryoperation_view(capsys):
+def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
@@ -3418,9 +3407,7 @@ def test_unaryoperation_view(capsys):
     unary_operation.addchild(ref1)
     coloredtext = colored("UnaryOperation",
                           SCHEDULE_COLOUR_MAP["Operation"])
-    unary_operation.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'MINUS']" in output
+    assert coloredtext+"[operator:'MINUS']" in unary_operation.node_str()
 
 
 def test_unaryoperation_can_be_printed():
@@ -3434,8 +3421,8 @@ def test_unaryoperation_can_be_printed():
     assert "Literal[value:'1']" in str(unary_operation)
 
 
-def test_naryoperation_view(capsys):
-    ''' Check the view method of the Nary Operation class.'''
+def test_naryoperation_node_str():
+    ''' Check the node_str method of the Nary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     nary_operation.addchild(Literal("1", parent=nary_operation))
@@ -3444,9 +3431,7 @@ def test_naryoperation_view(capsys):
 
     coloredtext = colored("NaryOperation",
                           SCHEDULE_COLOUR_MAP["Operation"])
-    nary_operation.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'MAX']" in output
+    assert coloredtext+"[operator:'MAX']" in nary_operation.node_str()
 
 
 def test_naryoperation_can_be_printed():
@@ -3465,14 +3450,12 @@ def test_naryoperation_can_be_printed():
 
 # Test Return class
 
-def test_return_view(capsys):
-    ''' Check the view method of the Return class.'''
+def test_return_node_str():
+    ''' Check the node_str method of the Return class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     return_stmt = Return()
     coloredtext = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
-    return_stmt.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[]" in output
+    assert coloredtext+"[]" in return_stmt.node_str()
 
 
 def test_return_can_be_printed():
