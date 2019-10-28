@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, S. Siso STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -39,7 +40,9 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
-from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyGen import Symbol
 from fparser.two import Fortran2003
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -60,8 +63,6 @@ def gen_intent(symbol):
     :rtype: str or NoneType
 
     '''
-    from psyclone.psyGen import Symbol
-
     mapping = {Symbol.Access.UNKNOWN: None,
                Symbol.Access.READ: "in",
                Symbol.Access.WRITE: "out",
@@ -91,7 +92,6 @@ def gen_dims(symbol):
     supported.
 
     '''
-    from psyclone.psyGen import Symbol
 
     dims = []
     for index in symbol.shape:
@@ -107,30 +107,6 @@ def gen_dims(symbol):
             raise NotImplementedError(
                 "unsupported gen_dims index '{0}'".format(str(index)))
     return dims
-
-
-def gen_kind(symbol):
-    '''Infer the expected Fortran kind value from the Symbol
-    instance. This is a temporary LFRic-specific hack which simply
-    adds a hardcoded kind value for real variables and a hardcoded
-    kind value for integer variables. To work correctly in general the
-    symbol table needs some additional information added to it, see
-    issue #375.
-
-    :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyGen.Symbol`
-
-    :returns: the Fortran kind value for the symbol instance in lower \
-    case, or None if no kind value is required.
-    :rtype: str or NoneType
-
-    '''
-    kind = None
-    if symbol.datatype == "real":
-        kind = "r_def"
-    elif symbol.datatype == "integer":
-        kind = "i_def"
-    return kind
 
 
 def _reverse_map(op_map):
@@ -164,22 +140,60 @@ class FortranWriter(PSyIRVisitor):
     generating Fortran).
 
     '''
-    def gen_declaration(self, symbol):
-        '''Create and return the Fortran declaration for this Symbol.
+    def gen_use(self, symbol):
+        '''Create and return the Fortran use statement for this Symbol.
 
         :param symbol: the symbol instance.
         :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
-        :returns: the Fortran declaration as a string.
+        :returns: the Fortran use statement as a string.
         :rtype: str
 
+        :raises VisitorError: if the symbol argument does not specify \
+        a use statement (its interface value is not a FortranGlobal \
+        instance).
+
         '''
+        if not isinstance(symbol.interface, Symbol.FortranGlobal):
+            raise VisitorError(
+                "gen_use() requires the symbol interface for symbol '{0}' to "
+                "be a FortranGlobal instance but found '{1}'."
+                "".format(symbol.name, type(symbol.interface).__name__))
+
+        return "{0}use {1}, only : {2}\n".format(
+            self._nindent, symbol.interface.module_name, symbol.name)
+
+    def gen_vardecl(self, symbol):
+        '''Create and return the Fortran variable declaration for this Symbol.
+
+        :param symbol: the symbol instance.
+        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :returns: the Fortran variable declaration as a string.
+        :rtype: str
+
+        :raises VisitorError: if the symbol does not specify a \
+        variable declaration (it is not a local declaration or an \
+        argument declaration).
+
+        '''
+        if not symbol.scope == "local" and not isinstance(symbol.interface,
+                                                          Symbol.Argument):
+            raise VisitorError(
+                "gen_vardecl requires the symbol '{0}' to be a local "
+                "declaration or an argument declaration, but found scope "
+                "'{1}' and interface '{2}'."
+                "".format(symbol.name, symbol.scope,
+                          type(symbol.interface).__name__))
+
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
-        kind = gen_kind(symbol)
         result = "{0}{1}".format(self._nindent, symbol.datatype)
-        if kind:
-            result += "({0})".format(kind)
+        # The PSyIR does not currently capture kind information, see
+        # issue #375
+        # kind = ...
+        # if kind:
+        #     result += "({0})".format(kind)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
         if intent:
@@ -190,6 +204,101 @@ class FortranWriter(PSyIRVisitor):
         if symbol.is_constant:
             result += " = {0}".format(symbol.constant_value)
         result += "\n"
+        return result
+
+    def gen_decls(self, symbol_table, args_allowed=True):
+        '''Create and return the Fortran declarations for the supplied
+        SymbolTable.
+
+        :param symbol_table: the SymbolTable instance.
+        :type symbol: :py:class:`psyclone.psyGen.SymbolTable`
+        :param bool args_allowed: if False then one or more argument
+        declarations in symbol_table will cause this method to raise
+        an exception. Defaults to True.
+
+        :returns: the Fortran declarations as a string.
+        :rtype: str
+
+        :raises VisitorError: if args_allowed is False and one or more \
+        argument declarations exist in symbol_table.
+
+        '''
+        declarations = ""
+        # Fortran requires use statements to be specified before
+        # variable declarations. As a convention, this method also
+        # declares any argument variables before local variables.
+
+        # 1: Use statements
+        for symbol in [sym for sym in symbol_table.symbols if
+                       isinstance(sym.interface, Symbol.FortranGlobal)]:
+            declarations += self.gen_use(symbol)
+        # 2: Argument variable declarations
+        symbols = [sym for sym in symbol_table.symbols if
+                   isinstance(sym.interface, Symbol.Argument)]
+        if symbols and not args_allowed:
+            raise VisitorError(
+                "Arguments are not allowed in this context but this symbol "
+                "table contains argument(s): '{0}'."
+                "".format([symbol.name for symbol in symbols]))
+        for symbol in symbols:
+            declarations += self.gen_vardecl(symbol)
+        # 3: Local variable declarations
+        for symbol in [sym for sym in symbol_table.symbols if
+                       sym.scope == "local"]:
+            declarations += self.gen_vardecl(symbol)
+        return declarations
+
+    def container_node(self, node):
+        '''This method is called when a Container instance is found in
+        the PSyIR tree.
+
+        A container node is mapped to a module in the Fortran back end.
+
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Container`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if the name attribute of the supplied \
+        node is empty or None.
+        :raises VisitorError: if any of the children of the supplied \
+        Container node are not KernelSchedules.
+
+        '''
+        if not node.name:
+            raise VisitorError("Expected Container node name to have a value.")
+
+        # All children must be KernelSchedules as modules within
+        # modules are not supported.
+        from psyclone.psyGen import KernelSchedule
+        if not all([isinstance(child, KernelSchedule)
+                    for child in node.children]):
+            raise VisitorError(
+                "The Fortran back-end requires all children of a Container "
+                "to be KernelSchedules.")
+
+        result = "{0}module {1}\n".format(self._nindent, node.name)
+
+        self._depth += 1
+
+        # Declare the Container's data and specify that Containers do
+        # not allow argument declarations.
+        declarations = self.gen_decls(node.symbol_table, args_allowed=False)
+
+        # Get the subroutine statements.
+        subroutines = ""
+        for child in node.children:
+            subroutines += self._visit(child)
+
+        result += (
+            "{1}\n"
+            "{0}contains\n"
+            "{2}\n"
+            "".format(self._nindent, declarations, subroutines))
+
+        self._depth -= 1
+        result += "{0}end module {1}\n".format(self._nindent, node.name)
         return result
 
     def kernelschedule_node(self, node):
@@ -213,25 +322,14 @@ class FortranWriter(PSyIRVisitor):
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
-        module_name = node.name.rstrip("_code") + "_mod"
-        result = (
-            "{0}module {1}\n"
-            "".format(self._nindent, module_name))
-
-        self._depth += 1
         args = [symbol.name for symbol in node.symbol_table.argument_list]
-        result += (
-            "{0}use constants_mod, only : r_def, i_def\n"
-            "{0}implicit none\n"
-            "{0}contains\n"
+        result = (
             "{0}subroutine {1}({2})\n"
             "".format(self._nindent, node.name, ",".join(args)))
 
         self._depth += 1
         # Declare the kernel data.
-        declarations = ""
-        for symbol in node.symbol_table.symbols:
-            declarations += self.gen_declaration(symbol)
+        declarations = self.gen_decls(node.symbol_table)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:
@@ -246,10 +344,6 @@ class FortranWriter(PSyIRVisitor):
             "{0}end subroutine {1}\n"
             "".format(self._nindent, node.name))
 
-        self._depth -= 1
-        result += (
-            "{0}end module {1}\n"
-            "".format(self._nindent, module_name))
         return result
 
     def assignment_node(self, node):
@@ -281,7 +375,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         # reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         mapping = _reverse_map(Fparser2Reader.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
@@ -311,7 +404,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         mapping = _reverse_map(Fparser2Reader.nary_operators)
         arg_list = []
         for child in node.children:
@@ -322,25 +414,6 @@ class FortranWriter(PSyIRVisitor):
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
-
-    def reference_node(self, node):
-        # pylint: disable=no-self-use
-        '''This method is called when a Reference instance is found in the
-        PSyIR tree.
-
-        :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        :raises VisitorError: if this node has children.
-
-        '''
-        if node.children:
-            raise VisitorError(
-                "PSyIR Reference node should not have any children.")
-        return node.name
 
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
@@ -359,8 +432,8 @@ class FortranWriter(PSyIRVisitor):
         result = "{0}({1})".format(node.name, ",".join(args))
         return result
 
+    # pylint: disable=no-self-use
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -374,6 +447,7 @@ class FortranWriter(PSyIRVisitor):
         result = node.value
         return result
 
+    # pylint: enable=no-self-use
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
@@ -414,34 +488,23 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
-    def loop_node(self, node):
-        '''This method is called when a Loop instance is found in the
-        PSyIR tree.
+    @property
+    def do_loop_format(self):
+        '''Returns the format for a do/for loop. The format variables will
+        be replaced as follows:
+        0: indentation string
+        1: loop variable
+        2: first loop iteration
+        3: last loop iteration
+        4: step size
+        5: body of the loop
 
-        :param node: a Loop PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Loop`
-
-        :returns: the Fortran code as a string.
+        :return: the format of a loop.
         :rtype: str
-
         '''
-        start = self._visit(node.start_expr)
-        stop = self._visit(node.stop_expr)
-        step = self._visit(node.step_expr)
-        variable_name = node.variable_name
-
-        self._depth += 1
-        body = ""
-        for child in node.loop_body:
-            body += self._visit(child)
-        self._depth -= 1
-
-        result = (
-            "{0}do {1} = {2}, {3}, {4}\n"
-            "{5}"
+        return "{0}do {1} = {2}, {3}, {4}\n"\
+            "{5}"\
             "{0}enddo\n"
-            "".format(self._nindent, variable_name, start, stop, step, body))
-        return result
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
@@ -458,7 +521,6 @@ class FortranWriter(PSyIRVisitor):
         '''
         # Reverse the fortran2psyir mapping to make a psyir2fortran
         # mapping.
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         mapping = _reverse_map(Fparser2Reader.unary_operators)
 
         content = self._visit(node.children[0])
@@ -572,3 +634,19 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         return "{0}{1}\n".format(self._nindent, str(node.ast))
+
+    @property
+    def directive_start(self):
+        ''':returns: "!${0}" - the start of a directive in Fortran. The string
+        {0} in the result will be replaced with the actual directive.
+        :rtype: str
+        '''
+        return "!${0}\n"
+
+    @property
+    def directive_end(self):
+        ''':returns: "!${0}" - the closing directive in Fortran. The string
+        {0} in the result will be replaced with the actual directive.
+        :rtype: str
+        '''
+        return "!${0}\n"

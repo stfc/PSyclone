@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
+
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.
 Currently limited to just a few PSyIR nodes to support the OpenCL generation,
@@ -39,7 +41,7 @@ it needs to be extended for generating pure C code.
 
 '''
 
-from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 
 class CWriter(PSyIRVisitor):
@@ -48,6 +50,7 @@ class CWriter(PSyIRVisitor):
     '''
 
     def gen_declaration(self, symbol):
+        # pylint: disable=no-self-use
         '''
         Generates string representing the C declaration of the symbol. In C
         declarations can be found inside the argument list or with the
@@ -114,25 +117,6 @@ class CWriter(PSyIRVisitor):
         result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
         return result
 
-    def reference_node(self, node):
-        '''This method is called when a Reference instance is found in the
-        PSyIR tree.
-
-        :param node: A Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
-
-        :returns: The C code as a string.
-        :rtype: str
-
-        :raises VisitorError: If this node has children.
-
-        '''
-        if node.children:
-            raise VisitorError(
-                "Expecting a Reference with no children but found: {0}"
-                "".format(str(node)))
-        return node.name
-
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR
         tree.
@@ -172,6 +156,7 @@ class CWriter(PSyIRVisitor):
         return code
 
     def literal_node(self, node):
+        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -407,15 +392,49 @@ class CWriter(PSyIRVisitor):
         '''
         return "{0}return;\n".format(self._nindent)
 
-    def codeblock_node(self, node):
+    def codeblock_node(self, _):
+        # pylint: disable=no-self-use
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
         code.
-
-        :param node: A CodeBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.CodeBlock`
 
         :raises VisitorError: The CodeBlock can not be translated to C.
 
         '''
         raise VisitorError("CodeBlocks can not be translated to C.")
+
+    @property
+    def do_loop_format(self):
+        '''Returns the format for a do/for loop. The format variables will
+        be replaced as follows:
+        0: indentation string
+        1: loop variable
+        2: first loop iteration
+        3: last loop iteration
+        4: step size
+        5: body of the loop
+
+        :return: the format of a loop.
+        :rtype: str
+        '''
+        return "{0}for({1}={2}; {1}<={3}; {1}+={4})\n"\
+            "{0}{{\n"\
+            "{5}"\
+            "{0}}}\n"
+
+    @property
+    def directive_start(self):
+        ''':return: "#pragma ...\n{" - the opening of a directive in C. The
+        string {0} in the result will be replaced with the actual directive.
+        :rtype: str
+        '''
+        # Note that {{ is replaced with a single { in the format call
+        return "#pragma {0}\n{{\n"
+
+    @property
+    def directive_end(self):
+        ''':return: "}" - the closing of a directive in C.
+        :rtype: str
+        '''
+        # Note that }} is replaced with a single } in the format call
+        return "}}\n"

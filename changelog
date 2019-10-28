@@ -277,6 +277,20 @@
 	87) PR #532 for #204. Adds support for W2broken and W2trace
 	function spaces in the dynamo0.3 (LFRic) API.
 
+	89) PR #515 for #512. Adds PSyIR backend support (Fortran and C)
+	for Directives.
+
+	90) PR #534 for #520. Adds PSyIR Fortran backend support for the
+	Container Node.
+
+	91) #547 and PR #551. Update all READMEs to use MarkDown and correct
+	paths in documentation on creating built-ins.
+
+	92) #546 for PR #553. Rename psyir.psyir.backend.base to visitor.
+
+	93) #526 for PR #527. Update fparser submodule and fix parsing of
+	intrinsics with a single argument.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

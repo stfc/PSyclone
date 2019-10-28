@@ -463,7 +463,6 @@ def test_invokes_can_always_be_printed():
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
-    # pylint: disable=protected-access
     invoke_call._name = None
     inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
@@ -706,13 +705,13 @@ def test_call_abstract_methods():
     the expected exceptions '''
     my_arguments = Arguments(None)
 
-    class KernType(object):  # pylint: disable=too-few-public-methods
+    class KernType(object):
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):  # pylint: disable=too-few-public-methods
+    class DummyClass(object):
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
@@ -764,7 +763,6 @@ def test_incremented_arg():
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
         if descriptor.access == AccessType.INC:
-            # pylint: disable=protected-access
             descriptor._access = AccessType.READ
     my_kern = DynKern()
     my_kern.load_meta(metadata)
@@ -971,7 +969,6 @@ def test_reduction_var_error():
         schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.kernels()[0]
         # args[1] is of type gh_field
-        # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
@@ -990,7 +987,6 @@ def test_reduction_sum_error():
         schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.kernels()[0]
         # args[1] is of type gh_field
-        # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)

@@ -136,7 +136,7 @@ def test_accroutine():
     assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
-            "    ssha (ji, jj) = 0.0_go_wp\n" in gen)
+            "    ssha(ji, jj) = 0.0_go_wp\n" in gen)
 
 
 def test_accroutine_empty_kernel():
@@ -242,11 +242,11 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     [("testkern_mod", "testkern"),
      ("testkern", "testkern_code"),
      ("testkern1_mod", "testkern2_code")])
-def test_kernel_conformance_error(mod_name, sub_name, kernel_outputdir,
-                                  monkeypatch):
-    '''Check that an exception is raised if a kernel does not conform to
-    the <name>_mod, <name>_code convention and is output via a PSyIR
-    back-end. This limitation is the subject of issue #520.
+def test_kernel_module_name(mod_name, sub_name, kernel_outputdir,
+                            monkeypatch):
+    '''Check that there is no limitation on kernel and module names. In
+    particular check that the names do not have to conform to the
+    <name>_mod, <name>_code convention.
 
     '''
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
@@ -258,14 +258,9 @@ def test_kernel_conformance_error(mod_name, sub_name, kernel_outputdir,
     # Modify the kernel module and subroutine names.
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
-    # Generate the code - this should raise an error as the kernel
-    # does not conform to the <name>_mod, >name>_code convention.
-    with pytest.raises(NotImplementedError) as excinfo:
-        kern.rename_and_write()
-    assert ("PSyclone back-end code generation relies on kernel modules "
-            "conforming to the <name>_mod and <name>_code convention. "
-            "However, found '{0}', '{1}'.".format(mod_name, sub_name)
-            in str(excinfo))
+    # Generate the code - no exception should be raised when the names
+    # do not conform to the <name>_mod, >name>_code convention.
+    kern.rename_and_write()
 
 
 @pytest.mark.parametrize(
