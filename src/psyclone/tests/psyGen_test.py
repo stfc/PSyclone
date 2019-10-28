@@ -548,20 +548,12 @@ end module dummy_mod
 
 # Schedule class tests
 
-def test_sched_view(capsys):
-    ''' Check the view method of the Schedule class'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-
-    # For this test use the generic class
-    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
-    psy.invokes.invoke_list[0].schedule.view()
-
-    output, _ = capsys.readouterr()
-    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+def test_sched_node_str():
+    ''' Check the node_str method of the Schedule class'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, Schedule
+    sched = Schedule()
+    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in \
+        sched.node_str()
 
 
 def test_sched_getitem():
@@ -604,18 +596,19 @@ def test_sched_can_be_printed():
 
 # InvokeSchedule class tests
 
-def test_invokeschedule_view(capsys):
-    ''' Check the view method of the InvokeSchedule class. We need an
-    InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
-    from psyclone import dynamo0p3
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+def test_invokeschedule_node_str(capsys):
+    ''' Check the node_str method of the InvokeSchedule class. We need an
+    Invoke object for this which we get using the dynamo0.3 API. '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, InvokeSchedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    super(dynamo0p3.DynInvokeSchedule,
-          psy.invokes.invoke_list[0].schedule).view()
-    output, _ = capsys.readouterr()
+    # Create a plain InvokeSchedule
+    sched = InvokeSchedule(None, None)
+    # Manually supply it with an Invoke object created with the Dynamo API.
+    sched._invoke = psy.invokes.invoke_list[0]
+    output = sched.node_str()
     assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
@@ -659,16 +652,15 @@ def test_kern_get_kernel_schedule():
     assert isinstance(schedule, KernelSchedule)
 
 
-def test_codedkern_class_view(capsys):
-    ''' Tests the view method in the CodedKern class. The simplest way to
+def test_codedkern_node_str():
+    ''' Tests the node_str method in the CodedKern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
-    my_kern.view()
-    out, _ = capsys.readouterr()
+    out = my_kern.node_str()
     expected_output = (
         colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
@@ -845,8 +837,8 @@ def test_ompdo_directive_class_node_str(dist_mem):
         assert expected_output in out
 
 
-def test_acc_dir_view(capsys):
-    ''' Test the view() method of OpenACC directives '''
+def test_acc_dir_node_str():
+    ''' Test the node_str() method of OpenACC directives '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
@@ -858,33 +850,26 @@ def test_acc_dir_view(capsys):
 
     # Enter-data
     new_sched, _ = accdt.apply(schedule)
-    # Artificially add a child to this directive so as to get full
-    # coverage of the associated view() method
-    new_sched[0].dir_body.addchild(new_sched[1])
-    new_sched[0].view()
-    out, _ = capsys.readouterr()
+    out = new_sched[0].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC enter data]")
 
     # Parallel region around outermost loop
     new_sched, _ = accpt.apply(new_sched[1])
-    new_sched[1].view()
-    out, _ = capsys.readouterr()
+    out = new_sched[1].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Parallel]")
 
     # Loop directive on outermost loop
     new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
-    new_sched[1].dir_body[0].view()
-    out, _ = capsys.readouterr()
+    out = new_sched[1].dir_body[0].node_str()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
     new_sched, _ = acclt.apply(new_sched[1].dir_body[0].dir_body[0],
                                collapse=2)
-    new_sched[1].dir_body[0].dir_body[0].view()
-    out, _ = capsys.readouterr()
+    out = new_sched[1].dir_body[0].dir_body[0].node_str()
     assert out.startswith(
         colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
 
@@ -896,31 +881,27 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth is None
 
 
-def test_globalsum_view(capsys):
-    '''test the view method in the GlobalSum class. The simplest way to do
+def test_globalsum_node_str():
+    '''test the node_str method in the GlobalSum class. The simplest way to do
     this is to use a dynamo0p3 builtin example which contains a scalar and
-    then call view() on that.'''
+    then call node_str() on that.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     from psyclone import dynamo0p3
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    psy.invokes.invoke_list[0].schedule.view()
-    output, _ = capsys.readouterr()
-    print(output)
-    expected_output = (colored("GlobalSum",
-                               SCHEDULE_COLOUR_MAP["GlobalSum"]) +
-                       "[scalar='asum']")
-    assert expected_output in output
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
         if isinstance(child, dynamo0p3.DynGlobalSum):
             gsum = child
             break
     assert gsum
-    ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_name(True)
-    assert colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"]) in ret_str
+    output = gsum.node_str()
+    expected_output = (colored("GlobalSum",
+                               SCHEDULE_COLOUR_MAP["GlobalSum"]) +
+                       "[scalar='asum']")
+    assert expected_output in output
 
 
 def test_args_filter():
@@ -1600,7 +1581,7 @@ def test_haloexchange_node_str():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # We have to manually call the correct view() method as the one we want
+    # We have to manually call the correct node_str() method as the one we want
     # to test is overidden in DynHaloExchange.
     out = HaloExchange.node_str(schedule.children[1])
     colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
@@ -2147,9 +2128,9 @@ def test_acckernelsdirective_dagname():
     assert sched.children[0].dag_name == "ACC_kernels_1"
 
 
-# (1/1) Method view
-def test_acckernelsdirective_view(capsys):
-    '''Check that the view method in the ACCKernelsDirective class behaves
+# (1/1) Method node_str
+def test_acckernelsdirective_node_str():
+    '''Check that the node_str method in the ACCKernelsDirective class behaves
     as expected.
 
     '''
@@ -2165,13 +2146,11 @@ def test_acckernelsdirective_view(capsys):
     trans = ACCKernelsTrans()
     _, _ = trans.apply(sched)
 
-    sched.children[0].view()
-    out, _ = capsys.readouterr()
-
+    out = sched[0].node_str()
     assert out.startswith(
         colored("Directive", dcolour)+"[ACC Kernels]")
-    assert "0: " + colored("Loop", lcolour) in out
-    assert "CodedKern" in out
+    assert colored("Loop", lcolour) in sched[0].dir_body[0].node_str()
+    assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
 
 
 # (1/1) Method gen_code
@@ -2242,8 +2221,8 @@ def test_acc_datadevice_virtual():
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err))
 
-# (1/1) Method view
-# Covered in test test_acc_dir_view
+# (1/1) Method node_str
+# Covered in test test_acc_dir_node_str
 
 # (1/1) Method dag_name
 # Covered in test_acc_dag_names
@@ -2912,13 +2891,13 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 # Test CodeBlock class
 
 
-def test_codeblock_view(capsys):
-    ''' Check the view and colored_text methods of the Code Block class.'''
+def test_codeblock_node_str():
+    ''' Check the node_str method of the Code Block class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     cblock = CodeBlock([], "dummy")
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
-    cblock.view()
-    output, _ = capsys.readouterr()
+    output = cblock.node_str()
+    #output, _ = capsys.readouterr()
     assert coloredtext+"[" in output
     assert "]" in output
 
@@ -3086,23 +3065,27 @@ def test_ifblock_invalid_annotation():
             "annotations are:") in str(err.value)
 
 
-def test_ifblock_view(capsys):
-    ''' Check the view and colored_text methods of the IfBlock class.'''
+def test_ifblock_node_str():
+    ''' Check the node_str method of the IfBlock class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-
     colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
-    colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
-    colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     ifblock = IfBlock()
-    ifblock.view()
-    output, _ = capsys.readouterr()
+    output = ifblock.node_str()
     assert colouredif+"[]" in output
 
     ifblock = IfBlock(annotation='was_elseif')
-    ifblock.view()
-    output, _ = capsys.readouterr()
+    output = ifblock.node_str()
     assert colouredif+"[annotations='was_elseif']" in output
+
+
+def test_ifblock_view_indices(capsys):
+    ''' Check that the view method only displays indices on the nodes
+    in the body (and else body) of an IfBlock. '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
+    colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+    colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     ifblock = IfBlock()
     ref1 = Reference('condition1', parent=ifblock)
@@ -3176,7 +3159,7 @@ def test_ifblock_properties():
 # Test Assignment class
 
 def test_assignment_view(capsys):
-    ''' Check the view and colored_text methods of the Assignment class.'''
+    ''' Check the view method of the Assignment class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     assignment = Assignment()
@@ -3223,7 +3206,7 @@ def test_assignment_semantic_navigation():
 
 
 def test_reference_view(capsys):
-    ''' Check the view and colored_text methods of the Reference class.'''
+    ''' Check the view method of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(Symbol("rname", "integer"))
@@ -3306,7 +3289,7 @@ def test_reference_symbol(monkeypatch):
 
 
 def test_array_view(capsys):
-    ''' Check the view and colored_text methods of the Array class.'''
+    ''' Check the view method of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(Symbol("aname", "integer", [None]))
@@ -3338,7 +3321,7 @@ def test_literal_value():
 
 
 def test_literal_view(capsys):
-    ''' Check the view and colored_text methods of the Literal class.'''
+    ''' Check the view method of the Literal class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     literal = Literal("1")
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
@@ -3377,8 +3360,7 @@ def test_binaryoperation_operator():
 
 
 def test_binaryoperation_view(capsys):
-    ''' Check the view and colored_text methods of the Binary Operation
-    class.'''
+    ''' Check the view method of the Binary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", parent=binary_operation)
@@ -3429,8 +3411,7 @@ def test_unaryoperation_operator():
 
 
 def test_unaryoperation_view(capsys):
-    ''' Check the view and colored_text methods of the UnaryOperation
-    class.'''
+    ''' Check the view method of the UnaryOperation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     ref1 = Reference("a", parent=unary_operation)
@@ -3454,8 +3435,7 @@ def test_unaryoperation_can_be_printed():
 
 
 def test_naryoperation_view(capsys):
-    ''' Check the view and colored_text methods of the Nary Operation
-    class.'''
+    ''' Check the view method of the Nary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     nary_operation.addchild(Literal("1", parent=nary_operation))
@@ -3486,7 +3466,7 @@ def test_naryoperation_can_be_printed():
 # Test Return class
 
 def test_return_view(capsys):
-    ''' Check the view and colored_text methods of the Return class.'''
+    ''' Check the view method of the Return class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     return_stmt = Return()
     coloredtext = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
@@ -3535,14 +3515,12 @@ def test_container_symbol_table():
     assert container.symbol_table is container._symbol_table
 
 
-def test_container_view(capsys):
-    '''Check the view and colored_text methods of the Container class.'''
+def test_container_node_str():
+    '''Check the node_str method of the Container class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     cont_stmt = Container("bin")
     coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
-    cont_stmt.view()
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[bin]" in output
+    assert coloredtext+"[bin]" in cont_stmt.node_str()
 
 
 def test_container_can_be_printed():
