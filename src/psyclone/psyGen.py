@@ -2761,16 +2761,12 @@ class OMPDoDirective(OMPDirective):
 
     def update(self):
         '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        do.
+        Updates the fparser2 AST by inserting nodes for this OpenMP do.
 
         :raises GenerationError: if the existing AST doesn't have the \
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
         if len(self._children) != 1:

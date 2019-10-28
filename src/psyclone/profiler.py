@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
+from psyclone.psyGen import GenerationError, Kern, NameSpace, \
      NameSpaceFactory, Node
 
 
