@@ -1136,8 +1136,12 @@ class Node(object):
             graph.edge(remote_name, local_name, color="blue")
         # now call any children so they can add their information to
         # the graph
-        for child in self.children:
-            child.dag_gen(graph)
+        if isinstance(self, Loop):
+            for child in self.children[3:]:
+                child.dag_gen(graph)
+        else:
+            for child in self.children:
+                child.dag_gen(graph)
 
     @property
     def dag_name(self):
@@ -1604,7 +1608,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return "schedule"
+        return "schedule" + str(self.abs_position)
 
     def view(self, indent=0):
         '''
