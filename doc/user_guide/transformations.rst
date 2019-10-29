@@ -81,7 +81,7 @@ validation process to be disabled in order to allow the HPC expert
 to apply a transformation that they know to be safe, even if the
 more general validation process might reject it. Those parameters
 are documented for each transformation, and will show up as
-parameter, e.g.: ``options["node-type-check"]``. As a simple
+a parameter, e.g.: ``options["node-type-check"]``. As a simple
 example::
 
     # The validation might reject the application, but in this
