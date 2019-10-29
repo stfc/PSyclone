@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, KernelSchedule, Container, \
+    Symbol, PrecisionSymbol, KernelSchedule, Container, \
     Assignment, Return, Array, InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -537,6 +537,7 @@ class Fparser2Reader(object):
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
             datatype = None
+            ksymbol = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                 if str(type_spec.items[0]).lower() == 'real':
                     datatype = 'real'
@@ -548,7 +549,41 @@ class Fparser2Reader(object):
                     datatype = 'boolean'
                 # Check for a KIND specification
                 if isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
-                    raise NotImplementedError("ARPDBG: WIP")
+                    intrinsics = walk_ast(
+                        type_spec.items[1].items,
+                        [Fortran2003.Intrinsic_Function_Reference])
+                    if intrinsics and \
+                       isinstance(intrinsics[0].items[0],
+                                  Fortran2003.Intrinsic_Name) and \
+                       str(intrinsics[0].items[0]).lower() == "kind":
+                        # We have kind=KIND(literal)
+                        if isinstance(intrinsics[0].items[1],
+                                      Fortran2003.Real_Literal_Constant):
+                            if "d0" in str(intrinsics[0].items[1]).lower():
+                                ksymbol = Symbol.Precision.DOUBLE
+                            else:
+                                ksymbol = Symbol.Precision.SINGLE
+                        elif isinstance(intrinsics[0].items[1],
+                                        Fortran2003.Int_Literal_Constant):
+                            ksymbol = Symbol.Precision.SINGLE
+                        else:
+                            raise NotImplementedError(
+                                "Only real and integer literals are supported "
+                                "as KIND specifiers but found: {0}".format(
+                                    str(decl)))
+                    else:
+                        kind_names = walk_ast(type_spec.items[1].items,
+                                              [Fortran2003.Name])
+                        if not kind_names:
+                            raise NotImplementedError("Huh2")
+                        # We have kind=var
+                        kind_name = str(kind_names[0])
+                        try:
+                            ksymbol = parent.symbol_table.lookup(kind_name)
+                        except KeyError:
+                            # In Fortran KIND parameters are integers
+                            ksymbol = PrecisionSymbol(kind_name, "integer")
+                            parent.symbol_table.add(ksymbol)
             if datatype is None:
                 raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'integer', "
@@ -611,7 +646,8 @@ class Fparser2Reader(object):
 
                 parent.symbol_table.add(Symbol(str(name), datatype,
                                                shape=entity_shape,
-                                               interface=interface))
+                                               interface=interface,
+                                               precision=ksymbol))
 
         try:
             arg_symbols = []

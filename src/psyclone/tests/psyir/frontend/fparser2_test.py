@@ -446,6 +446,18 @@ def test_process_declarations_kind(f2008_parser):
     reader = FortranStringReader("real(kind=KIND(1.0d0)) :: var2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
+                      PrecisionSymbol)
+    reader = FortranStringReader("integer(kind=KIND(1)) :: var3")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert isinstance(fake_parent.symbol_table.lookup("var3").precision,
+                      PrecisionSymbol)
+    reader = FortranStringReader("logical(kind=KIND(.false.)) :: var4")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert isinstance(fake_parent.symbol_table.lookup("var4").precision,
+                      PrecisionSymbol)
 
 
 def test_process_declarations_stmt_functions(f2008_parser):

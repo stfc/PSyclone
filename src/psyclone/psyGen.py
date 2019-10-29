@@ -5560,8 +5560,9 @@ class Symbol(object):
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
     :param precision: The amount of storage required by the datatype (bytes) \
-            or a reference to a PrecisionSymbol holding the type information.
-    :type precision: int or :py:class:`psyclone.psyGen.PrecisionSymbol`
+            or a reference to a PrecisionSymbol holding the type information \
+            or a label identifying a default precision.
+    :type precision: int or :py:class:`psyclone.psyGen.PrecisionSymbol` or str
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
@@ -5595,6 +5596,14 @@ class Symbol(object):
         ## The way in which the symbol is accessed in the scoping block is
         # unknown
         UNKNOWN = 4
+
+    class Precision(Enum):
+        '''
+        Enumeration for the different types of 'default' precision that may
+        be specified for a Symbol.
+        '''
+        SINGLE = 1
+        DOUBLE = 2
 
     class Argument(SymbolInterface):
         '''
@@ -5932,7 +5941,7 @@ class Symbol(object):
 
 class PrecisionSymbol(Symbol):
     '''
-    A special Symbol identifying a category of system/configuration-dependent 
+    A special Symbol identifying a category of system/configuration-dependent
     precision information. e.g. whether a floating point number is 'double' or
     'single' precision. How this category maps to the actual hardware
     implementation (e.g. whether a 'double precision' variable uses 4 or 8
