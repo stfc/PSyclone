@@ -59,7 +59,7 @@ provided to show the available transformations
 
 Standard Functionality
 ----------------------
-Each transformations must provide at least two functions for the
+Each transformation must provide at least two functions for the
 user: one for validation, i.e. to verify that a certain transformation
 can be applied, and one to actually apply the transformation. They are
 described in detail in the
@@ -76,12 +76,13 @@ The parameters for ``validate`` can change from transformation to
 transformation, but each ``validate`` function accepts a parameter
 ``options``. This parameter is either ``None``, or a dictionary of
 string keys, that will provide additional parameters to the validation
-process. For example, some validation functions allow to disable some
-part of the validation process, in order to allow the HPC expert to
-allow application of a transformation even though the more general
-validation process might reject them. Those parameters are documented
-for each transformation, and will show up as parameter, e.g.:
-``options["node-type-check"]``. As a simple example::
+process. For example, some validation functions allow part of the
+validation process to be disabled in order to allow the HPC expert
+to apply a transformation that they know to be safe, even if the
+more general validation process might reject it. Those parameters
+are documented for each transformation, and will show up as
+parameter, e.g.: ``options["node-type-check"]``. As a simple
+example::
 
     # The validation might reject the application, but in this
     # specific case it is safe to apply the transformation,

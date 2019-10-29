@@ -1493,8 +1493,7 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_builtin_single_OpenMP_pdo(monkeypatch, annexed, dist_mem):
-    # pylint: disable=invalid-name
+def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
     '''Test that we generate correct code if an OpenMP parallel do is
     applied to a single builtin. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1540,8 +1539,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do") in result
 
 
-def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed, dist_mem):
-    # pylint: disable=invalid-name
+def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
     '''Test that we generate correct code if OpenMP parallel do's are
     applied to multiple builtins. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1679,8 +1677,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do") in result
 
 
-def test_builtin_single_OpenMP_do(monkeypatch, annexed, dist_mem):
-    # pylint: disable=invalid-name
+def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
     '''Test that we generate correct code if an OpenMP do (with an outer
     OpenMP parallel) is applied to a single builtin. Also test with
     and without annexed dofs being computed as this affects the
@@ -1737,8 +1734,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel\n") in result
 
 
-def test_builtin_multiple_OpenMP_do(monkeypatch, annexed, dist_mem):
-    # pylint: disable=invalid-name
+def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
     '''Test that we generate correct code if OpenMP do's are applied to
     multiple builtins. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -5615,7 +5611,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # switch off validation
     monkeypatch.setattr(rc_trans, "validate",
-                        lambda loop, depth: None)
+                        lambda loop, options: None)
 
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
@@ -7454,7 +7450,7 @@ def test_kern_const_apply(capsys, monkeypatch):
     # reject this, so disable the validation function to test
     # handling of options=None in the apply function.
     monkeypatch.setattr(kctrans, "validate",
-                        lambda loop, depth: None)
+                        lambda loop, options: None)
     _, _ = kctrans.apply(kernel)
     result, _ = capsys.readouterr()
     # In case of no options, the transformation does not do anything

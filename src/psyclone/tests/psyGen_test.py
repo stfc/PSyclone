@@ -2155,7 +2155,7 @@ def test_acckernelsdirective_gencode(default_present):
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched, default_present=default_present)
+    _, _ = trans.apply(sched, {"default_present": default_present})
 
     code = str(psy.gen)
     string = ""
@@ -2186,7 +2186,7 @@ def test_acckernelsdirective_update(parser, default_present):
     schedule = psy.invokes.invoke_list[0].schedule
     kernels_trans = ACCKernelsTrans()
     schedule, _ = kernels_trans.apply(schedule.children[0:1],
-                                      default_present=default_present)
+                                      {"default_present": default_present})
     gen_code = str(psy.gen)
     string = ""
     if default_present:
