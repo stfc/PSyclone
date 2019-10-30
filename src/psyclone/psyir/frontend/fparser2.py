@@ -510,7 +510,6 @@ class Fparser2Reader(object):
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
             datatype = None
-            ksymbol = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                 if str(type_spec.items[0]).lower() == 'real':
                     datatype = 'real'
@@ -521,57 +520,8 @@ class Fparser2Reader(object):
                 elif str(type_spec.items[0]).lower() == 'logical':
                     datatype = 'boolean'
                 # Check for a KIND specification
-                if isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
-                    intrinsics = walk_ast(
-                        type_spec.items[1].items,
-                        [Fortran2003.Intrinsic_Function_Reference])
-                    if intrinsics and \
-                       isinstance(intrinsics[0].items[0],
-                                  Fortran2003.Intrinsic_Name) and \
-                       str(intrinsics[0].items[0]).lower() == "kind":
-                        # We have kind=KIND(literal)
-                        if isinstance(intrinsics[0].items[1],
-                                      Fortran2003.Real_Literal_Constant):
-                            if "d0" in str(intrinsics[0].items[1]).lower():
-                                ksymbol = Symbol.Precision.DOUBLE
-                            else:
-                                ksymbol = Symbol.Precision.SINGLE
-                        elif isinstance(intrinsics[0].items[1],
-                                        Fortran2003.Int_Literal_Constant):
-                            ksymbol = Symbol.Precision.SINGLE
-                        else:
-                            raise NotImplementedError(
-                                "Only names and (real and integer) literals "
-                                "are supported as KIND specifiers but found: "
-                                "{0}".format(str(decl)))
-                    else:
-                        kind_names = walk_ast(type_spec.items[1].items,
-                                              [Fortran2003.Name])
-                        if not kind_names:
-                            raise NotImplementedError(
-                                "Failed to find valid Name in Fortran Kind "
-                                "Selector: '{0}'".format(str(decl)))
-                        # We have kind=var
-                        kind_name = str(kind_names[0])
-                        try:
-                            ksymbol = parent.symbol_table.lookup(kind_name)
-                            if not isinstance(ksymbol, PrecisionSymbol):
-                                # The Symbol table contains an entry for the
-                                # kind parameter but it has not yet been
-                                # identified as such. We therefore replace the
-                                # existing entry with a PrecisionSymbol.
-                                new_symbol = PrecisionSymbol(kind_name)
-                                new_symbol.copy_properties(ksymbol)
-                                # Old symbol may have had 'deferred' type
-                                new_symbol.datatype = "integer"
-                                parent.symbol_table.remove(ksymbol)
-                                parent.symbol_table.add(new_symbol)
-                                ksymbol = new_symbol
-                        except KeyError:
-                            # The SymbolTable does not contain an entry for
-                            # this kind parameter so create one.
-                            ksymbol = PrecisionSymbol(kind_name)
-                            parent.symbol_table.add(ksymbol)
+                precision = self._process_kind_selector(parent.symbol_table,
+                                                        type_spec)
             if datatype is None:
                 raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'integer', "
@@ -639,7 +589,7 @@ class Fparser2Reader(object):
                 parent.symbol_table.add(Symbol(str(name), datatype,
                                                shape=entity_shape,
                                                interface=interface,
-                                               precision=ksymbol))
+                                               precision=precision))
 
         try:
             arg_symbols = []
@@ -703,6 +653,76 @@ class Fparser2Reader(object):
                 raise NotImplementedError(
                     "Could not process '{0}'. Statement Function declarations "
                     "are not supported.".format(str(stmtfn)))
+
+
+    @staticmethod
+    def _process_kind_selector(symbol_table, type_spec):
+        '''
+        :param symbol_table:
+        :param type_spec:
+
+        :returns:
+        :rtype: int or :py:class:`psyclone.psyGen.Symbol.Precision` or \
+                :py:class:`psyclone.psyGen.PrecisionSymbol` or NoneType
+
+        '''
+        if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+            return None
+        kind_selector = type_spec.items[1]
+
+        intrinsics = walk_ast(kind_selector.items,
+                              [Fortran2003.Intrinsic_Function_Reference])
+        if intrinsics and \
+           isinstance(intrinsics[0].items[0],
+                      Fortran2003.Intrinsic_Name) and \
+                      str(intrinsics[0].items[0]).lower() == "kind":
+            # We have kind=KIND(literal). items[1] is an
+            # Actual_Arg_Spec_List with the first entry being the
+            # literal.
+            literal = intrinsics[0].items[1].items[0]
+            if isinstance(literal,
+                          Fortran2003.Real_Literal_Constant):
+                if "d0" in str(literal).lower():
+                    kind_symbol = Symbol.Precision.DOUBLE
+                else:
+                    kind_symbol = Symbol.Precision.SINGLE
+            elif isinstance(literal,
+                            Fortran2003.Int_Literal_Constant):
+                kind_symbol = Symbol.Precision.SINGLE
+            else:
+                raise NotImplementedError(
+                    "Only names and (real and integer) literals "
+                    "are supported as KIND specifiers but found: "
+                    "{0}".format(str(kind_selector)))
+        else:
+            kind_names = walk_ast(kind_selector.items, [Fortran2003.Name])
+            if not kind_names:
+                raise NotImplementedError(
+                    "Failed to find valid Name in Fortran Kind "
+                    "Selector: '{0}'".format(str(kind_selector)))
+            # We have kind=var
+            kind_name = str(kind_names[0])
+            try:
+                kind_symbol = symbol_table.lookup(kind_name)
+                if not isinstance(kind_symbol, PrecisionSymbol):
+                    # The Symbol table contains an entry for the kind
+                    # parameter but it has not yet been identified as such. We
+                    # therefore replace the existing entry with a
+                    # PrecisionSymbol.
+                    new_symbol = PrecisionSymbol(kind_name)
+                    new_symbol.copy_properties(kind_symbol)
+                    # Old symbol may have had 'deferred' type
+                    new_symbol.datatype = "integer"
+                    symbol_table.remove(kind_symbol)
+                    symbol_table.add(new_symbol)
+                    kind_symbol = new_symbol
+            except KeyError:
+                # The SymbolTable does not contain an entry for
+                # this kind parameter so create one.
+                kind_symbol = PrecisionSymbol(kind_name)
+                symbol_table.add(kind_symbol)
+        return kind_symbol
+
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).

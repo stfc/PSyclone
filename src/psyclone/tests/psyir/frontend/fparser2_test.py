@@ -450,8 +450,8 @@ def test_process_declarations_kind_new_param(f2008_parser):
     fparser2spec.items[0].items[1].items = ("(", "blah", ")")
     with pytest.raises(NotImplementedError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Failed to find valid Name in Fortran Kind Selector: 'REAL"
-            in str(err.value))
+    assert ("Failed to find valid Name in Fortran Kind Selector: "
+            "'(KIND = blah)'" in str(err.value))
 
 
 @pytest.mark.xfail(reason="Parameter declarations not supported - #543")
@@ -459,7 +459,6 @@ def test_process_declarations_kind_param(f2008_parser):
     ''' Test that process_declarations handles the kind attribute when
     it specifies a previously-declared symbol. '''
     from fparser.two.Fortran2003 import Specification_Part
-    from psyclone.psyGen import Symbol
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
@@ -474,7 +473,6 @@ def test_process_declarations_kind_use(f2008_parser):
     ''' Test that process_declarations handles the kind attribute when
     it specifies a symbol accessed via a USE. '''
     from fparser.two.Fortran2003 import Specification_Part
-    from psyclone.psyGen import Symbol
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use kind_mod, only: r_def\n"
@@ -491,7 +489,6 @@ def test_process_declarations_kind_literals(f2008_parser):
     ''' Test that process_declarations handles variables declared with
     an explicit KIND specified using a literal constant. '''
     from fparser.two.Fortran2003 import Specification_Part
-    from psyclone.psyGen import Symbol
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real(kind=KIND(1.0d0)) :: var2")
