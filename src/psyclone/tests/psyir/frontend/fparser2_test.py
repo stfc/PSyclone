@@ -444,6 +444,14 @@ def test_process_declarations_kind_new_param(f2008_parser):
     wp_var = fake_parent.symbol_table.lookup("wp")
     assert wp_var.datatype == "integer"
     assert fake_parent.symbol_table.lookup("var1").precision is wp_var
+    # Check that we raise an error if the KIND expression has an unexpected
+    # structure
+    # Break the parse tree by changing Name('wp') into a str
+    fparser2spec.items[0].items[1].items = ("(", "blah", ")")
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Failed to find valid Name in Fortran Kind Selector: 'REAL"
+            in str(err.value))
 
 
 @pytest.mark.xfail(reason="Parameter declarations not supported - #543")

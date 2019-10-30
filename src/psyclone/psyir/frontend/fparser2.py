@@ -575,7 +575,9 @@ class Fparser2Reader(object):
                         kind_names = walk_ast(type_spec.items[1].items,
                                               [Fortran2003.Name])
                         if not kind_names:
-                            raise NotImplementedError("Huh2")
+                            raise NotImplementedError(
+                                "Failed to find valid Name in Fortran Kind "
+                                "Selector: '{0}'".format(str(decl)))
                         # We have kind=var
                         kind_name = str(kind_names[0])
                         try:
