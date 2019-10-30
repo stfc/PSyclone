@@ -1998,7 +1998,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "schedule0"
+    assert schedule.dag_name == "schedule_0"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
