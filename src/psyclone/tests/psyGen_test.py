@@ -3729,7 +3729,6 @@ def test_symbol_interface_access():
     assert symbol.interface.access == Symbol.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
-        # pylint: disable=redefined-variable-type
         symbol.interface.access = "read"
     assert "must be a 'Symbol.Access' but got " in str(err)
 
