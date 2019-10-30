@@ -43,8 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
-    Symbol, SymbolTable, Container, \
-    InternalError, GenerationError
+    Symbol, SymbolTable, Container, InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -428,36 +427,82 @@ def test_process_declarations_intent(f2008_parser):
         Symbol.Access.READWRITE
 
 
-def test_process_declarations_kind(f2008_parser):
+def test_process_declarations_kind_new_param(f2008_parser):
     ''' Test that process_declarations handles variables declared with
-    an explicit KIND. '''
-    # TODO how do we deal with finding the KIND parameter first? Or do we
-    # take its use as a prompt to put in a PrecisionSymbol with deferred
-    # type/value?
+    an explicit KIND parameter that has not already been declared. '''
     from fparser.two.Fortran2003 import Specification_Part
-    from psyclone.psyGen import PrecisionSymbol
+    from psyclone.psyGen import Symbol
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
+    # Kind parameter not previously declared
     reader = FortranStringReader("real(kind=wp) :: var1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var1").precision,
-                      PrecisionSymbol)
+                      Symbol)
+    # Check that this has resulted in the creation of a new 'wp' symbol
+    wp_var = fake_parent.symbol_table.lookup("wp")
+    assert wp_var.datatype == "integer"
+    assert fake_parent.symbol_table.lookup("var1").precision is wp_var
+
+
+@pytest.mark.xfail(reason="Parameter declarations not supported - #543")
+def test_process_declarations_kind_param(f2008_parser):
+    ''' Test that process_declarations handles the kind attribute when
+    it specifies a previously-declared symbol. '''
+    from fparser.two.Fortran2003 import Specification_Part
+    from psyclone.psyGen import Symbol
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
+                                 "real(kind=r_def) :: var2")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
+                      Symbol)
+
+
+def test_process_declarations_kind_use(f2008_parser):
+    ''' Test that process_declarations handles the kind attribute when
+    it specifies a symbol accessed via a USE. '''
+    from fparser.two.Fortran2003 import Specification_Part
+    from psyclone.psyGen import Symbol
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use kind_mod, only: r_def\n"
+                                 "real(kind=r_def) :: var2")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
+                      Symbol)
+    assert fake_parent.symbol_table.lookup("r_def") is \
+        fake_parent.symbol_table.lookup("var2").precision
+
+
+def test_process_declarations_kind_literals(f2008_parser):
+    ''' Test that process_declarations handles variables declared with
+    an explicit KIND specified using a literal constant. '''
+    from fparser.two.Fortran2003 import Specification_Part
+    from psyclone.psyGen import Symbol
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
     reader = FortranStringReader("real(kind=KIND(1.0d0)) :: var2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
-                      PrecisionSymbol)
+    assert fake_parent.symbol_table.lookup("var2").precision == \
+        Symbol.Precision.DOUBLE
     reader = FortranStringReader("integer(kind=KIND(1)) :: var3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("var3").precision,
-                      PrecisionSymbol)
+    assert fake_parent.symbol_table.lookup("var3").precision == \
+        Symbol.Precision.SINGLE
+    # Check that we raise an error for an unsupported kind specifier
     reader = FortranStringReader("logical(kind=KIND(.false.)) :: var4")
     fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("var4").precision,
-                      PrecisionSymbol)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Only names and (real and integer) literals are supported as KIND"
+            in str(err.value))
 
 
 def test_process_declarations_stmt_functions(f2008_parser):

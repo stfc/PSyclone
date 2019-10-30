@@ -5674,13 +5674,35 @@ class Symbol(object):
                  interface=None, precision=None):
 
         self._name = name
-        self.precision = precision
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
                 "Symbol can only be initialised with {0} datatypes but found "
                 "'{1}'.".format(str(Symbol.valid_data_types), datatype))
         self._datatype = datatype
+
+        # Check that the supplied 'precision' is valid
+        if precision is not None:
+            if datatype.lower() in ["character", "boolean"]:
+                raise ValueError(
+                    "A Symbol of {0} type cannot have an associated "
+                    "precision".format(datatype.lower()))
+            if not isinstance(precision, (int, Symbol.Precision, Symbol)):
+                raise TypeError(
+                    "Symbol precision must be one of integer, Symbol.Precision"
+                    " or Symbol but got '{0}'".format(
+                        type(precision).__name__))
+            if isinstance(precision, int) and precision <= 0:
+                raise ValueError("The precision of a Symbol when specified as "
+                                 "an integer number of bytes must be > 0 but "
+                                 "got {0}".format(precision))
+            if isinstance(precision, Symbol) and \
+               (precision.datatype not in ["integer", "deferred"]
+                or precision.is_array):
+                raise ValueError("A Symbol representing the precision of "
+                                 "another Symbol must be of scalar, integer "
+                                 "type but got: {0}".format(str(precision)))
+        self.precision = precision
 
         if shape is None:
             shape = []
@@ -5937,16 +5959,6 @@ class Symbol(object):
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
-
-
-class PrecisionSymbol(Symbol):
-    '''
-    A special Symbol identifying a category of system/configuration-dependent
-    precision information. e.g. whether a floating point number is 'double' or
-    'single' precision. How this category maps to the actual hardware
-    implementation (e.g. whether a 'double precision' variable uses 4 or 8
-    bytes) must be provided from an external source.
-    '''
 
 
 class SymbolTable(object):

@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, PrecisionSymbol, KernelSchedule, Container, \
+    Symbol, KernelSchedule, Container, \
     Assignment, Return, Array, InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -568,9 +568,9 @@ class Fparser2Reader(object):
                             ksymbol = Symbol.Precision.SINGLE
                         else:
                             raise NotImplementedError(
-                                "Only real and integer literals are supported "
-                                "as KIND specifiers but found: {0}".format(
-                                    str(decl)))
+                                "Only names and (real and integer) literals "
+                                "are supported as KIND specifiers but found: "
+                                "{0}".format(str(decl)))
                     else:
                         kind_names = walk_ast(type_spec.items[1].items,
                                               [Fortran2003.Name])
@@ -581,8 +581,10 @@ class Fparser2Reader(object):
                         try:
                             ksymbol = parent.symbol_table.lookup(kind_name)
                         except KeyError:
-                            # In Fortran KIND parameters are integers
-                            ksymbol = PrecisionSymbol(kind_name, "integer")
+                            # The SymbolTable does not contain an entry for
+                            # this kind parameter so create one.
+                            # (In Fortran KIND parameters are integers.)
+                            ksymbol = Symbol(kind_name, "integer")
                             parent.symbol_table.add(ksymbol)
             if datatype is None:
                 raise NotImplementedError(
