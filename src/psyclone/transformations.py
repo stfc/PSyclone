@@ -424,20 +424,20 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if invalid parameters are passed in.
 
         '''
-
-        try:
-            if node1.field_space != node2.field_space:
-                raise TransformationError(
-                    "Error in {0} transformation. Cannot "
-                    "fuse loops that are over different grid-point types: "
-                    "{1} {2}".format(self.name, node1.field_space,
-                                     node2.field_space))
-        except Exception as err:
-            raise TransformationError(
-                "Error in {0} transformation. Unexpected exception: {1}".
-                format(self.name, err))
+        from psyclone.gocean1p0 import GOLoop
+        if not isinstance(node1, GOLoop) or not isinstance(node2, GOLoop):
+            raise TransformationError("Error in {0} transformation. "
+                                      "At least one of the nodes is not "
+                                      "a GOLoop.".format(self.name))
 
         super(GOceanLoopFuseTrans, self).validate(node1, node2, options)
+
+        if node1.field_space != node2.field_space:
+            raise TransformationError(
+                "Error in {0} transformation. Cannot "
+                "fuse loops that are over different grid-point types: "
+                "{1} {2}".format(self.name, node1.field_space,
+                                 node2.field_space))
 
     def apply(self, node1, node2, options=None):
         ''' Fuses two `psyclone.gocean1p0.GOLoop` loops after performing
@@ -468,8 +468,6 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         # the transformation
         try:
             return LoopFuseTrans.apply(self, node1, node2, options)
-        except TransformationError as err:
-            raise err
         except Exception as err:
             raise TransformationError(
                 "Error in {0} transformation. Unexpected exception: {1}".

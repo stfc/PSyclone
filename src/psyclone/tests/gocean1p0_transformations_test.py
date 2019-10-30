@@ -149,24 +149,38 @@ def test_loop_fuse_different_iterates_over():
 
     # Attempt to fuse two loops that are iterating over different
     # things
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
+    assert "Loops do not have the same iteration space" in str(err)
 
     # Turn off constant loop bounds (which should have no effect)
     # and repeat
     newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(newsched.children[0],
                              newsched.children[1])
+    assert "Loops do not have the same iteration space" in str(err)
 
 
-def test_loop_fuse_unexpected_error():
-    ''' Test that we catch an unexpected error when loop fusing '''
+def test_loop_fuse_error():
+    ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0)
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
+
+    # Apply loop fuse, but the first node is not a loop:
+    with pytest.raises(TransformationError) as err:
+        _, _ = lftrans.apply(schedule.children[0].children[0],
+                             schedule.children[1])
+    assert "At least one of the nodes is not a GOLoop" in str(err)
+
+    # Also check that we catch this for the second argument:
+    with pytest.raises(TransformationError) as err:
+        _, _ = lftrans.apply(schedule.children[0],
+                             schedule.children[1].children[0])
+    assert "At least one of the nodes is not a GOLoop" in str(err)
 
     # cause an unexpected error
     schedule.children[0].loop_body.children = None
