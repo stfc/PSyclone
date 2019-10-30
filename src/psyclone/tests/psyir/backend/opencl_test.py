@@ -37,7 +37,7 @@
 '''Performs pytest tests on the psyclond.psyir.backend.opencl module'''
 
 import pytest
-from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import Symbol, SymbolTable, KernelSchedule, Return
 
