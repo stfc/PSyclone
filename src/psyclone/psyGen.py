@@ -1608,7 +1608,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return "schedule" + str(self.abs_position)
+        return "schedule_" + str(self.abs_position)
 
     def view(self, indent=0):
         '''

@@ -1116,13 +1116,13 @@ def test_writetoread_dag(tmpdir, have_graphviz):
         # write -> read means that the second loop can only begin once the
         # first loop is complete. Check that we have the correct forwards
         # dependence (green) and backwards dependence (red).
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=red]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=red]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#ff0000]' in dot)
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=green]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=green]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#00ff00]' in dot)
     old_cwd.chdir()
 
