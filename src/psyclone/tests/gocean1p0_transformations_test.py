@@ -174,13 +174,13 @@ def test_loop_fuse_error():
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0].children[0],
                              schedule.children[1])
-    assert "At least one of the nodes is not a GOLoop" in str(err)
+    assert "Both nodes must be of the same GOLoop class." in str(err)
 
     # Also check that we catch this for the second argument:
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1].children[0])
-    assert "At least one of the nodes is not a GOLoop" in str(err)
+    assert "Both nodes must be of the same GOLoop class." in str(err)
 
     # cause an unexpected error
     schedule.children[0].loop_body.children = None
