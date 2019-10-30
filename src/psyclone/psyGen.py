@@ -5674,12 +5674,7 @@ class Symbol(object):
                  interface=None, precision=None):
 
         self._name = name
-
-        if datatype not in Symbol.valid_data_types:
-            raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes but found "
-                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
-        self._datatype = datatype
+        self.datatype = datatype
 
         # Check that the supplied 'precision' is valid
         if precision is not None:
@@ -5743,6 +5738,20 @@ class Symbol(object):
         :rtype: str
         '''
         return self._datatype
+
+    @datatype.setter
+    def datatype(self, value):
+        ''' Setter for Symbol datatype.
+
+        :param str value: new value for datatype.
+
+        :raises NotImplementedError: if the specified data type is invalid.
+        '''
+        if value not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'.".format(str(Symbol.valid_data_types), value))
+        self._datatype = value
 
     @property
     def access(self):
@@ -5944,8 +5953,7 @@ class Symbol(object):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
-        :param symbol_in: The symbol from which the properties are \
-                          copied from.
+        :param symbol_in: The symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
 
         :raises TypeError: If the argument is not the expected type.
@@ -5959,6 +5967,21 @@ class Symbol(object):
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
+        self.precision = symbol_in.precision
+
+
+class PrecisionSymbol(Symbol):
+    '''
+    A special Symbol identifying a category of system/configuration-dependent
+    precision information.  How this category maps to the actual hardware
+    implementation (e.g. whether a 'double precision' variable uses 4 or 8
+    bytes) must be provided from an external source.
+
+    :param str name: the name of this Symbol.
+
+    '''
+    def __init__(self, name):
+        super(PrecisionSymbol, self).__init__(name, "integer")
 
 
 class SymbolTable(object):
@@ -5996,6 +6019,19 @@ class SymbolTable(object):
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
         self._symbols[new_symbol.name] = new_symbol
+
+    def remove(self, symbol):
+        ''' Remove the supplied Symbol from the table.
+
+        :param symbol: the Symbol to remove from the table.
+        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: if the supplied Symbol is not in the table.
+        '''
+        if symbol.name not in self._symbols:
+            raise KeyError("Symbol table does not contain a symbol with name "
+                           "'{0}'".format(symbol.name))
+        del self._symbols[symbol.name]
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
@@ -6165,7 +6201,8 @@ class SymbolTable(object):
         :returns:  List of local symbols.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
-        return [sym for sym in self._symbols.values() if sym.scope == "local"]
+        return [sym for sym in self._symbols.values() if sym.scope == "local"
+                and not isinstance(sym, PrecisionSymbol)]
 
     @property
     def global_symbols(self):
@@ -6177,7 +6214,8 @@ class SymbolTable(object):
 
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "global"
-                and not isinstance(sym.interface, Symbol.Argument)]
+                and not isinstance(sym.interface, Symbol.Argument)
+                and not isinstance(sym, PrecisionSymbol)]
 
     @property
     def iteration_indices(self):

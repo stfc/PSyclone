@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, KernelSchedule, Container, \
+    Symbol, PrecisionSymbol, KernelSchedule, Container, \
     Assignment, Return, Array, InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -580,11 +580,22 @@ class Fparser2Reader(object):
                         kind_name = str(kind_names[0])
                         try:
                             ksymbol = parent.symbol_table.lookup(kind_name)
+                            if not isinstance(ksymbol, PrecisionSymbol):
+                                # The Symbol table contains an entry for the
+                                # kind parameter but it has not yet been
+                                # identified as such. We therefore replace the
+                                # existing entry with a PrecisionSymbol.
+                                new_symbol = PrecisionSymbol(kind_name)
+                                new_symbol.copy_properties(ksymbol)
+                                # Old symbol may have had 'deferred' type
+                                new_symbol.datatype = "integer"
+                                parent.symbol_table.remove(ksymbol)
+                                parent.symbol_table.add(new_symbol)
+                                ksymbol = new_symbol
                         except KeyError:
                             # The SymbolTable does not contain an entry for
                             # this kind parameter so create one.
-                            # (In Fortran KIND parameters are integers.)
-                            ksymbol = Symbol(kind_name, "integer")
+                            ksymbol = PrecisionSymbol(kind_name)
                             parent.symbol_table.add(ksymbol)
             if datatype is None:
                 raise NotImplementedError(
