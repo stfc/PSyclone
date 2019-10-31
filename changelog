@@ -295,6 +295,9 @@
 	all Transformations to take a dict of options. Also renames any
 	_validate() methods to validate().
 
+	95) PR #558 for #557. Move code-creation out of visitor and into
+	the appropriate back-ends.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
