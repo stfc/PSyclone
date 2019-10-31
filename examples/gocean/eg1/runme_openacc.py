@@ -112,7 +112,7 @@ if __name__ == "__main__":
     LF6_SCHEDULE.view()
 
     # Apply an OpenACC loop directive to the loop
-    SCHED, _ = LTRANS.apply(LF6_SCHEDULE.children[0], collapse=2)
+    SCHED, _ = LTRANS.apply(LF6_SCHEDULE.children[0], {"collapse": 2})
 
     # Create an OpenACC parallel region around the loop
     OL_SCHEDULE, _ = PTRANS.apply(SCHED.children[0])
