@@ -61,7 +61,7 @@ def trans(psy):
     # annexed_dofs is set to True in the config file (although the
     # transformation still works).
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], depth=1)
+    rc_trans.apply(schedule.children[0], {"depth": 1})
     schedule.view()
 
     # This transformation splits the three synchronous halo exchanges
