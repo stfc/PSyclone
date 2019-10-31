@@ -254,7 +254,7 @@ def test_kernel_module_name(mod_name, sub_name, kernel_outputdir,
     kernels = sched.coded_kernels()
     kern = kernels[0]
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kern, number_of_layers=100)
+    _, _ = ktrans.apply(kern, {"number_of_layers": 100})
     # Modify the kernel module and subroutine names.
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
@@ -283,7 +283,7 @@ def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
     kernels = sched.walk(Kern)
     kern = kernels[0]
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kern, number_of_layers=100)
+    _, _ = ktrans.apply(kern, {"number_of_layers": 100})
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
     # Generate the code - this should not raise an exception.
@@ -384,8 +384,8 @@ def test_2kern_trans(kernel_outputdir):
     kernels = sched.walk(Kern)
     assert len(kernels) == 5
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kernels[1], number_of_layers=100)
-    _, _ = ktrans.apply(kernels[2], number_of_layers=100)
+    _, _ = ktrans.apply(kernels[1], {"number_of_layers": 100})
+    _, _ = ktrans.apply(kernels[2], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     code = str(psy.gen).lower()
     # Find the tags added to the kernel/module names
@@ -435,7 +435,7 @@ def test_no_inline_before_trans(kernel_outputdir, monkeypatch):
     assert "because it will be module-inlined" in str(err)
     # Monkeypatch the validate() routine so we can check that we catch
     # the error at code-generation time
-    monkeypatch.setattr(rtrans, "validate", lambda kern: None)
+    monkeypatch.setattr(rtrans, "validate", lambda kern, options: None)
     _, _ = rtrans.apply(kernels[1])
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen).lower()
