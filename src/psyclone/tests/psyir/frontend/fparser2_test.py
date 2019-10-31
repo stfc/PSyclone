@@ -496,10 +496,15 @@ def test_process_declarations_kind_literals(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("var2").precision == \
         Symbol.Precision.DOUBLE
-    reader = FortranStringReader("integer(kind=KIND(1)) :: var3")
+    reader = FortranStringReader("real(kind=KIND(1.0)) :: var3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("var3").precision == \
+        Symbol.Precision.SINGLE
+    reader = FortranStringReader("integer(kind=KIND(1)) :: ivar1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("ivar1").precision == \
         Symbol.Precision.SINGLE
     # Check that we raise an error for an unsupported kind specifier
     reader = FortranStringReader("logical(kind=KIND(.false.)) :: var4")

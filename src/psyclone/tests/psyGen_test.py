@@ -3889,6 +3889,25 @@ def test_symboltable_add():
             "'var1'.") in str(error.value)
 
 
+def test_symboltable_remove():
+    ''' Check that the remove method removes an existing entry but raise
+    an error if the entry does not exist. '''
+    sym_table = SymbolTable()
+
+    # Declare a symbol
+    v1 = Symbol("var1", "real", shape=[5, 1])
+    sym_table.add(v1)
+    v2 = Symbol("var2", "integer")
+    sym_table.add(v2)
+    sym_table.remove(v1)
+    with pytest.raises(KeyError) as err:
+        sym_table.lookup("var1")
+    assert "Could not find 'var1' in the Symbol Table." in str(err.value)
+    with pytest.raises(KeyError) as err:
+        sym_table.remove(v1)
+    assert "Symbol table does not contain" in str(err.value)
+
+
 def test_symboltable_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 

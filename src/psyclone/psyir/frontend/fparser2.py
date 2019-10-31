@@ -658,10 +658,18 @@ class Fparser2Reader(object):
     @staticmethod
     def _process_kind_selector(symbol_table, type_spec):
         '''
-        :param symbol_table:
-        :param type_spec:
+        Processes the fparser2 parse tree of the type specification of a
+        variable declaration in order to extract KIND information. This
+        information is used to determine the precision of the variable (as
+        supplied to the Symbol constructor).
 
-        :returns:
+        :param symbol_table: the SymbolTable associated with the code \
+                             being processed.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param type_spec: the fparser2 parse tree of the type specification.
+        :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
+
+        :returns: the precision associated with the type specification.
         :rtype: int or :py:class:`psyclone.psyGen.Symbol.Precision` or \
                 :py:class:`psyclone.psyGen.PrecisionSymbol` or NoneType
 
