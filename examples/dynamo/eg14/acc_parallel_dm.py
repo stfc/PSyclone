@@ -60,7 +60,8 @@ def trans(psy):
         schedule = invoke.schedule
         for loop in schedule.loops():
             _, _ = loop_trans.apply(loop)
-            _, _ = parallel_trans.apply(loop.parent)
+            # The loop is now the child of the Directive's Schedule
+            _, _ = parallel_trans.apply(loop.parent.parent)
         _, _ = enter_data_trans.apply(schedule)
 
     return psy

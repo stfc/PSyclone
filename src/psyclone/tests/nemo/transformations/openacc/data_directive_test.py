@@ -117,7 +117,7 @@ def test_add_region_invalid_data_move():
     with pytest.raises(InternalError) as err:
         datadir._add_region("DATA", "END DATA", data_movement="invalid")
     assert ("optional data_movement argument must be one of ['present', "
-            "'analyse'] but got 'invalid'" in str(err))
+            "'analyse'] but got 'invalid'" in str(err.value))
 
 
 def test_add_region(parser):
