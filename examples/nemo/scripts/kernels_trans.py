@@ -114,8 +114,11 @@ class ExcludeSettings(object):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
         self.ifs_scalars = True
-        # Whe
+        # Whether we allow IFs where the logical expression involves 1D
+        # arrays (since these are often static in NEMO and thus not
+        # handled by PGI's managed-memory option)
         self.ifs_1d_arrays = True
+        # Whether we perform checks on the PSyIR within identified Kernels
         self.inside_kernels = True
         # Override default settings if necessary
         if settings:
@@ -137,7 +140,8 @@ EXCLUDING = {"default": ExcludeSettings(),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
-             "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False}),
+             "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False,
+                                             "inside_kernels": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
 
 def valid_acc_kernel(node):
