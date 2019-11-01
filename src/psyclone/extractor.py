@@ -48,7 +48,7 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyGen import colored, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import Node
 
 
 class ExtractNode(Node):
@@ -57,6 +57,15 @@ class ExtractNode(Node):
     code extraction using the ExtractRegionTrans transformation. By \
     applying the transformation the Nodes marked for extraction become \
     children of an ExtractNode.
+
+    :param ast: reference into the fparser2 parse tree corresponding to \
+                this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
+    :param children: the PSyIR nodes that are children of this node.
+    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
     def __init__(self, ast=None, children=None, parent=None):
         super(ExtractNode, self).__init__(ast, children, parent)

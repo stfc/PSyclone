@@ -56,7 +56,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
     CodedKern, ACCEnterDataDirective
 
 # --------------------------------------------------------------------------- #

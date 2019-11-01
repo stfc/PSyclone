@@ -46,8 +46,7 @@ from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule, \
-    colored, SCHEDULE_COLOUR_MAP
+    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
