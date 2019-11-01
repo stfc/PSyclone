@@ -59,6 +59,7 @@ region.
 '''
 
 from __future__ import print_function
+import logging
 from psyclone.psyGen import TransInfo
 from psyclone.transformations import TransformationError
 
@@ -136,6 +137,7 @@ EXCLUDING = {"default": ExcludeSettings(),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
+             "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
 
 def valid_acc_kernel(node):
@@ -150,7 +152,7 @@ def valid_acc_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoKern, NemoLoop
+    from psyclone.nemo import NemoKern, NemoLoop, NemoImplicitLoop
     from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array, \
         Assignment, BinaryOperation, NaryOperation, Loop, Literal
     from fparser.two.utils import walk_ast
@@ -158,6 +160,7 @@ def valid_acc_kernel(node):
 
     # The Fortran routine which our parent Invoke represents
     routine_name = node.root.invoke.name
+
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
     # in another (with the PGI compiler).
@@ -169,7 +172,7 @@ def valid_acc_kernel(node):
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
     excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation,
-                           NemoLoop, NemoKern)
+                           NemoLoop, NemoKern, Loop)
     excluded_nodes = node.walk(excluded_node_types)
     # Ensure we check inside Kernels too (but only for IfBlocks)
     if excluding.inside_kernels:
@@ -180,6 +183,7 @@ def valid_acc_kernel(node):
 
     for enode in excluded_nodes:
         if isinstance(enode, CodeBlock):
+            logging.info("{0}: region contains CodeBlock".format(routine_name))
             return False
 
         if isinstance(enode, IfBlock):
@@ -198,6 +202,8 @@ def valid_acc_kernel(node):
                    opn.operator == BinaryOperation.Operator.EQ and \
                    isinstance(opn.children[1], Literal) and \
                    "." in opn.children[1].value:
+                    logging.info("{0}: IF performs comparison with REAL "
+                                 "scalar".format(routine_name))
                     return False
 
             # We also permit single-statement IF blocks that contain a Loop
@@ -215,21 +221,54 @@ def valid_acc_kernel(node):
             if not arrays and \
                (excluding.ifs_scalars and not isinstance(enode.children[0],
                                                          BinaryOperation)):
+                logging.info("{0}: IF references scalars".format(routine_name))
                 return False
             if excluding.ifs_1d_arrays and \
                any([len(array.children) == 1 for array in arrays]):
+                logging.info("{0}: IF references 1D arrays that may be static".
+                             format(routine_name))
                 return False
 
-        if isinstance(enode, NemoLoop):
+        if isinstance(enode, NemoImplicitLoop):
             if PGI_VERSION < 1940:
                 # Need to check for SUM inside implicit loop, e.g.:
                 #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
                 if contains_unsupported_sum(enode.ast):
+                    logging.info("{0}: Implicit loop contains unsupported SUM".
+                                 format(routine_name))
                     return False
             else:
                 # Need to check for RESHAPE inside implicit loop
                 if contains_reshape(enode.ast):
+                    logging.info("{0}: Implicit loop contains RESHAPE call".
+                                 format(routine_name))
                     return False
+        elif isinstance(enode, NemoLoop):
+            # Heuristic:
+            # We don't want to put loops around 3D loops into KERNELS regions
+            # and nor do we want to put loops over levels into KERNELS regions
+            # if they themselves contain several 2D loops.
+            # In general, this heuristic will depend upon how many levels the
+            # model configuration will contain.
+            child = enode.loop_body[0]
+            if isinstance(child, Loop) and child.loop_type == "levels":
+                # We have a loop around a loop over levels
+                logging.info("{0}: Loop is around a loop over levels".format(
+                    routine_name))
+                return False
+            if enode.loop_type == "levels" and \
+               len(enode.loop_body.children) > 1:
+                # The body of the loop contains more than one statement.
+                # How many distinct loop nests are there?
+                loop_count = 0
+                for child in enode.loop_body.children:
+                    if child.walk(Loop):
+                        loop_count += 1
+                        if loop_count > 1:
+                            logging.info(
+                                "{0}: Loop over levels contains several "
+                                "other loops".format(routine_name))
+                            return False
 
     # For now we don't support putting *just* the implicit loop assignment in
     # things like:
@@ -239,6 +278,8 @@ def valid_acc_kernel(node):
     if isinstance(node.parent, Schedule) and \
        isinstance(node.parent.parent, IfBlock) and \
        "was_single_stmt" in node.parent.parent.annotations:
+        logging.info("{0}: Would split single-line If statement".format(
+            routine_name))
         return False
     # Check that there are no derived-type references in the sub-tree.
     # We exclude NemoKern nodes from this check as calling .ast on
@@ -247,6 +288,7 @@ def valid_acc_kernel(node):
     # but this does not happen for implicit loops.
     if not isinstance(node, NemoKern):
         if walk_ast([node.ast], [Fortran2003.Data_Ref]):
+            logging.info("{0}: Contains derived type".format(routine_name))
             return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
@@ -266,9 +308,13 @@ def valid_acc_kernel(node):
             if isinstance(ref_parent, Assignment) and ref is ref_parent.lhs:
                 # We're writing to it so it's not a function call.
                 continue
+            logging.info("{0}: Loop contains function call: {1}".format(
+                routine_name, ref.name.lower()))
             return False
         if isinstance(ref, NemoLoop):
             if contains_unsupported_sum(ref.ast):
+                logging.info("{0}: Loop contains unsupport SUM".format(
+                    routine_name))
                 return False
     return True
 
@@ -380,6 +426,8 @@ def add_kernels(children):
                 success1 = add_kernels(child.if_body)
                 success2 = add_kernels(child.else_body)
                 success = success1 or success2
+            elif isinstance(child, Loop):
+                success = add_kernels(child.loop_body)
             else:
                 success = add_kernels(child.children)
             added_kernels |= success
@@ -500,9 +548,9 @@ def try_kernels_trans(nodes):
             # Special case for IfBlocks that represent else-ifs in the fparser2
             # parse tree - we can't apply transformations to them, only to
             # their body. TODO #435.
-            ACC_KERN_TRANS.apply(nodes[0].if_body, default_present=False)
+            ACC_KERN_TRANS.apply(nodes[0].if_body, {"default_present": False})
         else:
-            ACC_KERN_TRANS.apply(nodes, default_present=False)
+            ACC_KERN_TRANS.apply(nodes, {"default_present": False})
         return True
     except (TransformationError, InternalError) as err:
         print("Failed to transform nodes: {0}", nodes)
@@ -519,6 +567,9 @@ def trans(psy):
     :type psy: :py:class:`psyclone.psyGen.PSy`
 
     '''
+    logging.basicConfig(filename='psyclone.log', filemode='w',
+                        level=logging.INFO)
+
     print("Invokes found:\n{0}\n".format(
         "\n".join([str(name) for name in psy.invokes.names])))
 
