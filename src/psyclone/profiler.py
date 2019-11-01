@@ -158,7 +158,9 @@ class ProfileNode(Node):
     profiling_var = "psy_profile"
 
     def __init__(self, children=None, parent=None):
-        Node.__init__(self, children=children, parent=parent)
+        # A ProfileNode always contains a Schedule
+        sched = self._insert_schedule(children)
+        Node.__init__(self, children=[sched], parent=parent)
 
         # Store the name of the profile variable that is used for this
         # profile name. This allows to show the variable name in __str__
@@ -182,9 +184,24 @@ class ProfileNode(Node):
         ''' Returns a string representation of the subtree starting at
         this node. '''
         result = "ProfileStart[var={0}]\n".format(self._var_name)
-        for child in self.children:
+        for child in self.profile_body.children:
             result += str(child)+"\n"
         return result+"ProfileEnd"
+
+    @property
+    def profile_body(self):
+        '''
+        :returns: the Schedule associated with this Profiling region.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        '''
+        from psyclone.psyGen import Schedule, InternalError
+        if len(self.children) != 1 or not \
+           isinstance(self.children[0], Schedule):
+            raise InternalError(
+                "ProfileNode malformed or incomplete. It should have a single "
+                "Schedule as a child but found: {0}".format(
+                    [type(child).__name__ for child in self.children]))
+        return self.children[0]
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -226,7 +243,7 @@ class ProfileNode(Node):
                               self._var_name])
         parent.add(prof_start)
 
-        for child in self.children:
+        for child in self.profile_body:
             child.gen_code(parent)
 
         prof_end = CallGen(parent, "ProfileEnd",
@@ -388,12 +405,12 @@ class ProfileNode(Node):
 
         # Find the parent in the parse tree - first get a pointer to the
         # AST for the content of this region.
-        if isinstance(self.children[0], Schedule) and \
-           not self.children[0].ast:
-            # TODO #435 Schedule should really have a valid ast pointer.
-            content_ast = self.children[0][0].ast
-        else:
-            content_ast = self.children[0].ast
+        #if isinstance(self.children[0], Schedule) and \
+        #   not self.children[0].ast:
+        #    # TODO #435 Schedule should really have a valid ast pointer.
+        #    content_ast = self.children[0][0].ast
+        #else:
+        content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
         fp_parent = content_ast._parent
         # Find the location of the AST of our first child node in the
@@ -405,10 +422,10 @@ class ProfileNode(Node):
         # work back up the fparser2 parse tree until we find a node that is
         # a direct child of the parent node.
         ast_end_index = None
-        if self.children[-1].ast_end:
-            ast_end = self.children[-1].ast_end
+        if self.profile_body.children[-1].ast_end:
+            ast_end = self.profile_body.children[-1].ast_end
         else:
-            ast_end = self.children[-1].ast
+            ast_end = self.profile_body.children[-1].ast
         # Keep a copy of the pointer into the parse tree in case of errors
         ast_end_copy = ast_end
 

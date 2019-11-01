@@ -504,7 +504,8 @@ End Schedule""")
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
-    sched2, _ = prt.apply(schedule.children[0].children[1])
+    schedule.view()
+    sched2, _ = prt.apply(schedule[0].profile_body[1])
 
     correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
 Constant loop bounds=True]:
@@ -703,7 +704,7 @@ def test_omp_transform():
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
-    sched3, _ = prt.apply(sched3[0].children[0].dir_body[0])
+    sched3, _ = prt.apply(sched3[0].profile_body[0].dir_body[0])
 
     code = str(invoke.gen())
 

@@ -56,7 +56,7 @@ class ExtractNode(Node):
     This class can be inserted into a Schedule to mark Nodes for \
     code extraction using the ExtractRegionTrans transformation. By \
     applying the transformation the Nodes marked for extraction become \
-    children of an ExtractNode.
+    children of (the Schedule of) an ExtractNode.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
@@ -68,7 +68,9 @@ class ExtractNode(Node):
 
     '''
     def __init__(self, ast=None, children=None, parent=None):
-        super(ExtractNode, self).__init__(ast, children, parent)
+        # An ExtractNode always contains a Schedule
+        sched = self._insert_schedule(children, ast)
+        super(ExtractNode, self).__init__(ast, [sched], parent)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 
@@ -81,10 +83,28 @@ class ExtractNode(Node):
         :rtype: str
         '''
         result = "ExtractStart\n"
-        for child in self.children:
+        for child in self.extract_body:
             result += str(child) + "\n"
         return result + "ExtractEnd"
 
+    @property
+    def extract_body(self):
+        '''
+        :returns: the Schedule associated with this ExtractNode.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
+
+        :raises InternalError: if this node does not have a single Schedule as\
+                               its child.
+        '''
+        from psyclone.psyGen import Schedule, InternalError
+        if len(self.children) != 1 or not \
+           isinstance(self.children[0], Schedule):
+            raise InternalError(
+                "ExtractNode malformed or incomplete. It should have a single "
+                "Schedule as a child but found: {0}".format(
+                    [type(child).__name__ for child in self.children]))
+        return self.children[0]
+        
     @property
     def dag_name(self):
         '''
@@ -112,7 +132,7 @@ class ExtractNode(Node):
         parent.add(CommentGen(
             parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
-        for child in self.children:
+        for child in self.extract_body:
             child.gen_code(parent)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
