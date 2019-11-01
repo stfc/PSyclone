@@ -3378,7 +3378,6 @@ class ACCKernelsTrans(RegionTrans):
 
         for child in directive.dir_body.children:
             parent.children.remove(child)
-            #child.parent = directive
 
         parent.children.insert(start_index, directive)
 

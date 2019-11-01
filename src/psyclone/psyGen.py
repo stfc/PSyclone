@@ -984,8 +984,13 @@ class Node(object):
 
     def coloured_name(self, colour=True):
         '''
-        :returns: the name of this node, optionally with colour control codes \
-                  (requires that the termcolor package be installed).
+        Returns the display name of this Node, optionally with colour control
+        codes (requires that the termcolor package be installed).
+
+        :param bool colour: whether or not to include colour control codes \
+                            in the result.
+
+        :returns: the name of this node, optionally with colour control codes.
         :rtype: str
         '''
         if colour:
@@ -1635,8 +1640,8 @@ class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
 
-    :param sequence: the sequence of PSyIR nodes that make up the schedule.
-    :type sequence: list of :py:class:`psyclone.psyGen.Node`
+    :param children: the sequence of PSyIR nodes that make up the Schedule.
+    :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -6139,8 +6144,7 @@ class CodeBlock(Node):
         ''' Create a text description of this node in the schedule, optionally
         including control codes for colour.
 
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include control codes for colour.
 
         :return: text description of this node.
         :rtype: str
@@ -6286,8 +6290,7 @@ class Reference(Node):
         ''' Create a text description of this node in the schedule, optionally
         including control codes for colour.
 
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
 
         :return: text description of this node.
         :rtype: str
@@ -6463,11 +6466,13 @@ class Operation(Node):
 
     def node_str(self, colour=True):
         '''
-        Construct a representation of this node and pass it to the
-        base_view() method.
+        Construct a text representation of this node, optionally with control
+        codes for coloured display in a suitable terminal.
 
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this PSyIR node.
+        :rtype: str
         '''
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
@@ -6659,11 +6664,13 @@ class Literal(Node):
 
     def node_str(self, colour=True):
         '''
-        Construct a text representation of this node and then pass it to
-        the base_view() method.
+        Construct a text representation of this node, optionally containing
+        colour control codes.
 
-        :param int indent: level to which to indent output.
-        :param int index: position of this node wrt its siblings or None.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this PSyIR node.
+        :rtype: str
         '''
         return "{0}[value:'{1}']".format(self.coloured_name(colour),
                                          self._value)
