@@ -321,8 +321,11 @@ class Fparser2Reader(object):
 
         # Create a container to capture the module information
         new_container = Container(mod_name)
-        decl_list = mod_content[1].content
-        self.process_declarations(new_container, decl_list, [])
+
+        # Parse the declarations if it has any
+        if isinstance(mod_content[1], Fortran2003.Specification_Part):
+            decl_list = mod_content[1].content
+            self.process_declarations(new_container, decl_list, [])
 
         return new_container
 
@@ -516,7 +519,7 @@ class Fparser2Reader(object):
                         DataSymbol(
                             str(name),
                             datatype='deferred',
-                            interface=DataSymbol.FortranGlobal(container)))
+                            interface=DataSymbol.Global(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -627,7 +630,7 @@ class Fparser2Reader(object):
             # Ensure each associated symbol has the correct interface info.
             for arg_name in [x.string for x in arg_list]:
                 symbol = parent.symbol_table.lookup(arg_name)
-                if symbol.scope == 'local':
+                if isinstance(symbol.interface, DataSymbol.Local):
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.

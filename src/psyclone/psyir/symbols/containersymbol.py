@@ -95,7 +95,8 @@ class FortranModuleInterface(ContainerSymbolInterface):
         for directory in Config.get().include_paths:
             if filename in listdir(directory):
                 # Parse the module source code
-                reader = FortranFileReader(filename,
+                abspath = path.join(directory, filename)
+                reader = FortranFileReader(abspath,
                                            ignore_comments=True)
                 f2008_parser = ParserFactory().create(std="f2008")
                 ast = f2008_parser(reader)

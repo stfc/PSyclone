@@ -7693,5 +7693,5 @@ def test_kern_const_invalid_make_constant2():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, element_order=0)
     assert ("Expected entry to be a scalar integer argument but found "
-            "'ndf_w1: <real, Scalar, global=Argument("
+            "'ndf_w1: <real, Scalar, Argument("
             "pass-by-value=False)>'.") in str(excinfo.value)

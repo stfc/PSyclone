@@ -213,7 +213,6 @@ def test_generate_schedule_dummy_subroutine(parser):
     assert isinstance(schedule, KernelSchedule)
 
     # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').scope == 'global'
     assert schedule.symbol_table.lookup('f3').access is \
         DataSymbol.Access.READWRITE
 
@@ -310,9 +309,8 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("l1").shape == []
-    assert fake_parent.symbol_table.lookup("l1").scope == 'local'
-    assert not fake_parent.symbol_table.lookup("l1").access
-    assert not fake_parent.symbol_table.lookup("l1").interface
+    assert isinstance(fake_parent.symbol_table.lookup("l1").interface,
+                      DataSymbol.Local)
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -449,7 +447,6 @@ def test_process_declarations_intent(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     arg_list = [Name("arg1")]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg1").access == \
         DataSymbol.Access.READ
 
@@ -457,7 +454,6 @@ def test_process_declarations_intent(f2008_parser):
     arg_list.append(Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg2").access == \
         DataSymbol.Access.READ
 
@@ -465,7 +461,6 @@ def test_process_declarations_intent(f2008_parser):
     arg_list.append(Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg3").access == \
         DataSymbol.Access.WRITE
 
@@ -473,7 +468,6 @@ def test_process_declarations_intent(f2008_parser):
     arg_list.append(Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg4").access is \
         DataSymbol.Access.READWRITE
 
@@ -599,7 +593,6 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
-    assert fake_parent.symbol_table.lookup("array3").scope == "global"
     assert fake_parent.symbol_table.lookup("array3").access is \
         DataSymbol.Access.READ
 
@@ -626,7 +619,6 @@ def test_use_stmt(f2008_parser):
 
     for var in ["some_var", "var1", "var2"]:
         assert symtab.lookup(var).name == var
-        assert symtab.lookup(var).scope == "global"
 
     assert symtab.lookup("some_var").interface.container_symbol \
         == symtab.lookup("my_mod")

@@ -67,14 +67,15 @@ def gen_intent(symbol):
                DataSymbol.Access.READ: "in",
                DataSymbol.Access.WRITE: "out",
                DataSymbol.Access.READWRITE: "inout"}
-    if not symbol.interface:
-        # This is a local variable
-        return None
-    try:
-        return mapping[symbol.interface.access]
-    except KeyError as excinfo:
-        raise VisitorError("Unsupported access '{0}' found."
-                           "".format(str(excinfo)))
+
+    if isinstance(symbol.interface, DataSymbol.Argument):
+        try:
+            return mapping[symbol.interface.access]
+        except KeyError as excinfo:
+            raise VisitorError("Unsupported access '{0}' found."
+                               "".format(str(excinfo)))
+    else:
+        return None  # non-Arguments do not have intent
 
 
 def gen_dims(symbol):
@@ -150,14 +151,13 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if the symbol argument does not specify \
-        a use statement (its interface value is not a FortranGlobal \
-        instance).
+        a use statement (its interface value is not a Global instance).
 
         '''
-        if not isinstance(symbol.interface, DataSymbol.FortranGlobal):
+        if not isinstance(symbol.interface, DataSymbol.Global):
             raise VisitorError(
                 "gen_use() requires the symbol interface for symbol '{0}' to "
-                "be a FortranGlobal instance but found '{1}'."
+                "be a Global instance but found '{1}'."
                 "".format(symbol.name, type(symbol.interface).__name__))
 
         return "{0}use {1}, only : {2}\n".format(
@@ -177,14 +177,12 @@ class FortranWriter(PSyIRVisitor):
         argument declaration).
 
         '''
-        if not symbol.scope == "local" and not isinstance(symbol.interface,
-                                                          DataSymbol.Argument):
+        if not isinstance(symbol.interface, (DataSymbol.Local,
+                                             DataSymbol.Argument)):
             raise VisitorError(
                 "gen_vardecl requires the symbol '{0}' to be a local "
-                "declaration or an argument declaration, but found scope "
-                "'{1}' and interface '{2}'."
-                "".format(symbol.name, symbol.scope,
-                          type(symbol.interface).__name__))
+                "declaration or an argument declaration, but found '{1}'."
+                "".format(symbol.name, type(symbol.interface).__name__))
 
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
@@ -230,7 +228,7 @@ class FortranWriter(PSyIRVisitor):
 
         # 1: Use statements
         for symbol in [sym for sym in symbol_table.variables if
-                       isinstance(sym.interface, DataSymbol.FortranGlobal)]:
+                       isinstance(sym.interface, DataSymbol.Global)]:
             declarations += self.gen_use(symbol)
         # 2: Argument variable declarations
         symbols = [sym for sym in symbol_table.variables if

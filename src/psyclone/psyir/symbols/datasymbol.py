@@ -136,7 +136,7 @@ class DataSymbol(Symbol):
 
             if not isinstance(container_symbol, ContainerSymbol):
                 raise TypeError(
-                    "FortranGlobal container_symbol parameter must be of type"
+                    "Global container_symbol parameter must be of type"
                     " ContainerSymbol, but found {0}."
                     "".format(type(container_symbol)))
 
@@ -235,7 +235,7 @@ class DataSymbol(Symbol):
 
     def resolve_deferred(self):
         if self.datatype == "deferred":
-            if isinstance(self.interface, DataSymbol.FortranGlobal):
+            if isinstance(self.interface, DataSymbol.Global):
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
                 module = self.interface.container_symbol
