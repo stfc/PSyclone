@@ -255,17 +255,6 @@ class DataSymbol(Symbol):
         '''
         return self._datatype
 
-    @property
-    def access(self):
-        '''
-        :returns: How this symbol is accessed (read, readwrite etc.) within \
-                  the local scope.
-        :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access` or NoneType.
-        '''
-        if self._interface:
-            return self._interface.access
-        # This symbol has no interface info and therefore is local
-        return None
 
     @property
     def shape(self):

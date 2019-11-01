@@ -211,7 +211,8 @@ def test_symboltable_specify_argument_list():
     assert len(sym_table.argument_list) == 1
     assert isinstance(sym_table.argument_list[0].interface,
                       DataSymbol.Argument)
-    assert sym_table.argument_list[0].access == DataSymbol.Access.UNKNOWN
+    assert sym_table.argument_list[0].interface.access == \
+        DataSymbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
     sym_table.specify_argument_list([sym_v1])
@@ -224,7 +225,8 @@ def test_symboltable_specify_argument_list():
     sym_table.specify_argument_list([sym_v1, sym_v2])
     assert isinstance(sym_table.argument_list[1].interface,
                       DataSymbol.Argument)
-    assert sym_table.argument_list[1].access == DataSymbol.Access.READWRITE
+    assert sym_table.argument_list[1].interface.access == \
+        DataSymbol.Access.READWRITE
 
 
 def test_symboltable_specify_argument_list_errors():
