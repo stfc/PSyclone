@@ -485,23 +485,32 @@ class FortranWriter(PSyIRVisitor):
                 "".format(self._nindent, condition, if_body))
         return result
 
-    @property
-    def do_loop_format(self):
-        '''Returns the format for a do/for loop. The format variables will
-        be replaced as follows:
-        0: indentation string
-        1: loop variable
-        2: first loop iteration
-        3: last loop iteration
-        4: step size
-        5: body of the loop
+    def loop_node(self, node):
+        '''This method is called when a Loop instance is found in the
+        PSyIR tree.
 
-        :return: the format of a loop.
+        :param node: a Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+
+        :returns: the loop node converted into a (language specific) string.
         :rtype: str
+
         '''
+        start = self._visit(node.start_expr)
+        stop = self._visit(node.stop_expr)
+        step = self._visit(node.step_expr)
+        variable_name = node.variable_name
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
         return "{0}do {1} = {2}, {3}, {4}\n"\
-            "{5}"\
-            "{0}enddo\n"
+               "{5}"\
+               "{0}enddo\n".format(self._nindent, variable_name,
+                                   start, stop, step, body)
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
@@ -632,18 +641,22 @@ class FortranWriter(PSyIRVisitor):
         '''
         return "{0}{1}\n".format(self._nindent, str(node.ast))
 
-    @property
-    def directive_start(self):
-        ''':returns: "!${0}" - the start of a directive in Fortran. The string
-        {0} in the result will be replaced with the actual directive.
-        :rtype: str
-        '''
-        return "!${0}\n"
+    def ompdirective_node(self, node):
+        '''This method is called when an OMPDirective instance is found in
+        the PSyIR tree. It returns the opening and closing directives, and
+        the statements in between as a string (depending on the language).
 
-    @property
-    def directive_end(self):
-        ''':returns: "!${0}" - the closing directive in Fortran. The string
-        {0} in the result will be replaced with the actual directive.
+        :param node: a Directive PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Directive`
+
+        :returns: the Fortran code as a string.
         :rtype: str
+
         '''
-        return "!${0}\n"
+        result_list = ["!${0}\n".format(node.begin_string())]
+        self._depth += 1
+        for child in node.children:
+            result_list.append(self._visit(child))
+        self._depth -= 1
+        result_list.append("!${0}\n".format(node.end_string()))
+        return "".join(result_list)

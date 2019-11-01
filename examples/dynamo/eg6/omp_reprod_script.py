@@ -68,7 +68,7 @@ def trans(psy):
 
         # Add an OpenMP do directive to the resultant loop-fused loop,
         # specifying that we want reproducible reductions
-        schedule, _ = ltrans.apply(schedule.children[0], reprod=True)
+        schedule, _ = ltrans.apply(schedule.children[0], {"reprod": True})
 
         # Add an OpenMP parallel directive around the OpenMP do directive
         schedule, _ = otrans.apply(schedule.children[0])
