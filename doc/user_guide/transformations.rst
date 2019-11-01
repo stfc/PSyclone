@@ -57,6 +57,56 @@ provided to show the available transformations
 
 .. _sec_transformations_available:
 
+Standard Functionality
+----------------------
+Each transformation must provide at least two functions for the
+user: one for validation, i.e. to verify that a certain transformation
+can be applied, and one to actually apply the transformation. They are
+described in detail in the
+:ref:`overview of all transformations<available_trans>`,
+but the following general guidelines apply.
+
+Validation
++++++++++++
+Each transformation provides a function ``validate``. This function
+can be called by the user, and it will raise an exception if the
+transformation can not be applied (and otherwise will return nothing).
+Validation will always be called when a transformation is applied.
+The parameters for ``validate`` can change from transformation to
+transformation, but each ``validate`` function accepts a parameter
+``options``. This parameter is either ``None``, or a dictionary of
+string keys, that will provide additional parameters to the validation
+process. For example, some validation functions allow part of the
+validation process to be disabled in order to allow the HPC expert
+to apply a transformation that they know to be safe, even if the
+more general validation process might reject it. Those parameters
+are documented for each transformation, and will show up as
+a parameter, e.g.: ``options["node-type-check"]``. As a simple
+example::
+
+    # The validation might reject the application, but in this
+    # specific case it is safe to apply the transformation,
+    # so disable the node type check:
+    my_transform.validate(node, {"node-type-check": False})
+
+
+Application
++++++++++++
+Each transformation provides a function ``apply`` which will
+apply the transformation. It will first validate the transform
+by calling the ``validate`` function. Each ``apply`` function
+takes the same ``options`` parameter as the ``validate`` function
+described above. Besides potentially modifying the validation
+process, optional parameters for the transformation are also
+provided this way. A simple example::
+
+    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+
+The same ``options`` dictionary will be used when calling ``validate``.
+
+.. _available_trans:
+
 Available transformations
 -------------------------
 
@@ -108,7 +158,7 @@ can be found in the API-specific sections).
     :noindex:
 
 ####
-	       
+
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
     :noindex:
@@ -173,7 +223,7 @@ can be found in the API-specific sections).
           halo swaps or global sums will produce an error. In such
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
-          performed outside the parallel region. The 
+          performed outside the parallel region. The
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
@@ -198,7 +248,7 @@ naming of the resulting kernels. PSyclone supports two use cases:
 
 The second case is really an optimisation of the first for the case
 where the same set of transformations is applied to every instance of
-a given kernel. 
+a given kernel.
 
 Since PSyclone is run separately for each Algorithm in a given
 application, ensuring that there are no name clashes for kernels in
@@ -247,7 +297,7 @@ as follows:
 
    1) Kernel subroutines are forbidden from accessing data using COMMON
       blocks;
-   2) Kernel subroutines are forbidden from calling proceduces declared via
+   2) Kernel subroutines are forbidden from calling procedures declared via
       the EXTERN statement;
    3) Kernel subroutines must not access data or procedures made available
       via their parent (containing) module.
@@ -259,7 +309,7 @@ as follows:
 
 For instance, consider the following Fortran module containing the
 ``bc_ssh_code`` kernel:
-  
+
 .. code-block:: fortran
 
   module boundary_conditions_mod
@@ -368,7 +418,7 @@ with the new one. For example ...
     new_schedule.view()
 
     # Replace the original loop schedule of the selected invoke
-    # with the new, transformed schedule 
+    # with the new, transformed schedule
     invoke.schedule=new_schedule
 
     # Generate the Fortran code for the new PSy layer
@@ -452,9 +502,9 @@ OpenMP
 ------
 
 OpenMP is added to a code by using transformations. The three
-transformations currently supported allow the addition of an **OpenMP
-Parallel** directive, an **OpenMP Do** directive and an **OpenMP
-Parallel Do** directive, respectively, to a code.
+transformations currently supported allow the addition of an
+**OpenMP Parallel** directive, an **OpenMP Do** directive and an
+**OpenMP Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
 theoretically work for all APIs) were given in the
@@ -561,7 +611,7 @@ The current available options are:
 | local_size   | Number of work-items to compute             | 1       |
 |              | in a single kernel.                         |         |
 +--------------+---------------------------------------------+---------+
-| queue_number | The identifier of the OpenCL Command Queue  | 1       | 
+| queue_number | The identifier of the OpenCL Command Queue  | 1       |
 |              | to which the kernel should be submitted.    |         |
 +--------------+---------------------------------------------+---------+
 

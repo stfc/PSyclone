@@ -1229,7 +1229,23 @@ class Node(object):
         '''If this Node can be moved to the new_node
         (where position determines whether it is before of after the
         new_node) without breaking any data dependencies then return True,
-        otherwise return False. '''
+        otherwise return False.
+
+        :param new_node: Node to which this node should be moved.
+        :type new_node: :py:class:`psyclone.psyGen.Node`
+        :param str position: either 'before' or 'after'.
+
+        :raises GenerationError: if new_node is not an\
+                instance of :py:class:`psyclone.psyGen.Node`.
+        :raises GenerationError: if position is not 'before' or 'after'.
+        :raises GenerationError: if self and new_node do not have the same\
+                parent.
+        :raises GenerationError: self and new_node are the same Node.
+
+        :returns: whether or not the specified location is valid for this node.
+        :rtype: bool
+
+        '''
         # First perform correctness checks
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
@@ -5201,32 +5217,68 @@ class Transformation(object):
         return
 
     @abc.abstractmethod
-    def apply(self, *args):
+    def apply(self, node, options=None):
         '''Abstract method that applies the transformation. This function
-        must be implemented by each transform.
+        must be implemented by each transform. As a minimum each apply
+        function must take a node to which the transform is applied, and
+        a dictionary of additional options, which will also be passed on
+        to the validate functions. This dictionary is used to provide
+        optional parameters, and also to modify the behaviour of
+        validation of transformations: for example, if the user knows that
+        a transformation can correctly be applied in a specific case, but
+        the more generic code validation would not allow this. Validation
+        functions should check for a key in the options dictionary to
+        disable certain tests. Those keys will be documented in each
+        apply() and validate() function.
 
-        :param args: Arguments for the transformation - specific to\
-                    the actual transform used.
-        :type args: Type depends on actual transformation.
-        :returns: A tuple of the new schedule, and a momento.
-        :rtype: Tuple.
+        Note that some apply() functions might take a slightly different
+        set of parameters.
+
+        :param node: The node (or list of nodes) for the transformation \
+                - specific to the actual transform used.
+        :type node: depends on actual transformation
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
         '''
         # pylint: disable=no-self-use
         schedule = None
         momento = None
         return schedule, momento
 
-    def _validate(self, *args):
+    def validate(self, node, options=None):
         '''Method that validates that the input data is correct.
-        It will raise exceptions if the input data is incorrect. This function
-        needs to be implemented by each transformation.
+        It will raise exceptions if the input data is incorrect. This
+        function needs to be implemented by each transformation.
 
-        :param args: Arguments for the applying the transformation - specific\
-                    to the actual transform used.
-        :type args: Type depends on actual transformation.
+        The validate function can be called by the user independent of
+        the apply() function, but it will automatically be executed as
+        part of an apply() call.
+
+        As minimum each validate function must take a node to which the
+        transform is applied and a dictionary of additional options.
+        This dictionary is used to provide optional parameters and also
+        to modify the behaviour of validation: for example, if the user
+        knows that a transformation can correctly be applied in a specific
+        case but the more generic code validation would not allow this.
+        Validation functions should check for particular keys in the options
+        dict in order to disable certain tests. Those keys will be documented
+        in each apply() and validate() function as 'options["option-name"]'.
+
+        Note that some validate functions might take a slightly different
+        set of parameters.
+
+        :param node: The node (or list of nodes) for the transformation \
+                - specific to the actual transform used.
+        :type node: depends on actual transformation
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
         '''
         # pylint: disable=no-self-use, unused-argument
-        return
 
 
 class DummyTransformation(Transformation):
@@ -5234,7 +5286,7 @@ class DummyTransformation(Transformation):
     def name(self):
         return
 
-    def apply(self):
+    def apply(self, node, options=None):
         return None, None
 
 
