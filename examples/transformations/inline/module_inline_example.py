@@ -61,7 +61,7 @@ def inline():
     schedule.view()
     # unsetting module inline via a transformation
     trans = KernelModuleInlineTrans()
-    schedule, _ = trans.apply(kern, inline=False)
+    schedule, _ = trans.apply(kern, {"inline": False})
     schedule.view()
     # setting module inline via a transformation
     schedule, _ = trans.apply(kern)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -70,6 +71,7 @@ def test_profile_basic(capsys):
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     assert isinstance(invoke.schedule.children[0], ProfileNode)
 
@@ -169,6 +171,7 @@ def test_profile_invokes_gocean1p0():
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -198,6 +201,7 @@ def test_profile_invokes_gocean1p0():
 
     # Test that two kernels in one invoke get instrumented correctly.
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -231,6 +235,7 @@ def test_unique_region_names():
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
                            "gocean1.0", 0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -284,6 +289,7 @@ def test_profile_kernels_gocean1p0():
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
                            idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -332,6 +338,7 @@ def test_profile_invokes_dynamo0p3():
 
     # First test for a single invoke with a single kernel work as expected:
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -350,6 +357,7 @@ def test_profile_invokes_dynamo0p3():
 
     # Next test two kernels in one invoke:
     _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -380,6 +388,7 @@ def test_profile_kernels_dynamo0p3():
     '''
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -398,6 +407,7 @@ def test_profile_kernels_dynamo0p3():
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
