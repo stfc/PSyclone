@@ -5580,6 +5580,18 @@ class SymbolInterface(object):
         self._access = value
 
 
+class DataType(Enum):
+    '''
+    Enumeration of the different datatypes that are supported by the
+    PSyIR.
+    '''
+    INTEGER = 1
+    REAL = 2
+    BOOLEAN = 3
+    CHARACTER = 4
+    DEFERRED = 5
+
+
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
@@ -6944,25 +6956,87 @@ class Array(Reference):
 
 class Literal(Node):
     '''
-    Node representing a Literal
+    Node representing a Literal.
 
-    :param str value: String representing the literal value.
+    :param value: String representing the literal value.
+    :type value: str or bool
+    :param datatype: The datatype of this literal.
+    :type datatype: :py:class:`psyclone.psyGen.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, value, parent=None):
+    # A Literal cannot have DEFERRED type
+    VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
+                        DataType.CHARACTER, DataType.BOOLEAN]
+
+    def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
-        self._value = value
+        self.datatype = datatype
+        self.value = value
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the type of this Literal.
+        :rtype: :py:class:`psyclone.psyGen.DataType`
+        '''
+        return self._datatype
+
+    @datatype.setter
+    def datatype(self, value):
+        '''
+        Setter for the data-type of this Literal.
+
+        :param value: the data-type.
+        :type value: :py:class:`psyclone.psyGen.DataType`
+
+        :raises TypeError: if the value is not an instance of \
+                           :py:class:`psyclone.psyGen.DataType`
+        :raises ValueError: if the data-type is not one of \
+                            self.VALID_DATA_TYPES.
+        '''
+        if not isinstance(value, DataType):
+            raise TypeError("The datatype of a Literal must be an instance of"
+                            " psyGen.DataType but got '{0}'".format(
+                                type(value).__name__))
+        if value not in self.VALID_DATA_TYPES:
+            raise ValueError("The datatype of a Literal must be one of {0} "
+                             "but got '{1}'".format(self.VALID_DATA_TYPES,
+                                                    value))
+        self._datatype = value
 
     @property
     def value(self):
         '''
-        Return the value of the literal.
-
         :returns: String representing the literal value.
         :rtype: str
         '''
         return self._value
+
+    @value.setter
+    def value(self, lvalue):
+        '''
+        Setter for the value of this Literal.
+
+        :param lvalue: the value of the Literal.
+        :type lvalue: bool or str
+
+        :raises TypeError: if this Literal is of BOOLEAN type and the \
+                           supplied value is not a bool.
+        :raises TypeError: if this Literal is not of BOOLEAN type and the \
+                           supplied value is not a string.
+        '''
+        if self.datatype is DataType.BOOLEAN:
+            if not isinstance(lvalue, bool):
+                raise TypeError("A boolean Literal must be supplied with a "
+                                "value that is a bool but got: {0}".format(
+                                    type(lvalue).__name__))
+        else:
+            if not isinstance(lvalue, str):
+                raise TypeError("A non-boolean Literal must be supplied with "
+                                "a value encoded as a string but got: {0}".
+                                format(type(lvalue).__name__))
+        self._value = lvalue
 
     @property
     def coloured_text(self):

@@ -120,6 +120,8 @@ class Fparser2Reader(object):
             Fortran2003.Part_Ref: self._part_ref_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
+            Fortran2003.Char_Literal_Constant: self._char_literal_handler,
+            Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
@@ -1482,11 +1484,51 @@ class Fparser2Reader(object):
         '''
         Transforms an fparser2 NumberBase to the PSyIR representation.
 
-        :param node: node in fparser2 AST.
+        :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :returns: PSyIR representation of node
+
+        :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
-        return Literal(str(node.items[0]), parent=parent)
+        from psyclone.psyGen import DataType
+
+        if isinstance(node, Fortran2003.Int_Literal_Constant):
+            return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)
+        elif isinstance(node, Fortran2003.Real_Literal_Constant):
+            return Literal(str(node.items[0]), DataType.REAL, parent=parent)
+        else:
+            # Unrecognised datatype - will result in a CodeBlock
+            raise NotImplementedError()
+
+    def _char_literal_handler(self, node, parent):
+        '''
+        Transforms an fparser2 character literal into a PSyIR literal.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyGen.Literal`
+        '''
+        from psyclone.psyGen import DataType
+        return Literal(str(node.items[0]), DataType.CHARACTER, parent=parent)
+
+    def _bool_literal_handler(self, node, parent):
+        '''
+        Transforms an fparser2 logical literal into a PSyIR literal.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyGen.Literal`
+        '''
+        from psyclone.psyGen import DataType
+        value = str(node.items[0]).lower() == ".true."
+        return Literal(value, DataType.BOOLEAN, parent=parent)

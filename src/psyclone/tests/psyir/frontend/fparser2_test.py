@@ -42,18 +42,9 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
-    Symbol, SymbolTable, Container, \
-    InternalError, GenerationError
+    NaryOperation, IfBlock, Reference, Array, KernelSchedule, Symbol, \
+    SymbolTable, Container, InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-
-
-# Fixtures
-@pytest.fixture(scope="module", name="f2008_parser")
-def fixture_f2008_parser():
-    '''Initialise fparser2 with Fortran2008 standard'''
-    from fparser.two.parser import ParserFactory
-    return ParserFactory().create(std="f2008")
 
 
 # Tests
@@ -1273,35 +1264,6 @@ def test_handling_invalid_case_construct(f2008_parser):
     with pytest.raises(InternalError) as error:
         processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert "to be a Case_Selector but got" in str(error.value)
-
-
-def test_handling_numberbase(f2008_parser):
-    ''' Test that fparser2 NumberBase is converted to the expected PSyIR
-    tree structure.
-    '''
-    from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x=1")
-    fparser2number = Execution_Part.match(reader)[0][0].items[2]
-
-    fake_parent = Node()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2number], None)
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Literal)
-    assert new_node._value == "1"
-
-
-def test_handling_char_literal(f2008_parser):
-    ''' Check that the fparser2 frontend can handle a character literal. '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
-    reader = FortranStringReader("x='hello'")
-    astmt = Assignment_Stmt(reader)
-    fake_parent = Node()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [astmt], None)
-    assert not fake_parent.walk(CodeBlock)
 
     
 def test_handling_binaryopbase(f2008_parser):
