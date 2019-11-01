@@ -1293,6 +1293,17 @@ def test_handling_numberbase(f2008_parser):
     assert new_node._value == "1"
 
 
+def test_handling_char_literal(f2008_parser):
+    ''' Check that the fparser2 frontend can handle a character literal. '''
+    from fparser.two.Fortran2003 import Assignment_Stmt
+    reader = FortranStringReader("x='hello'")
+    astmt = Assignment_Stmt(reader)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [astmt], None)
+    assert not fake_parent.walk(CodeBlock)
+
+    
 def test_handling_binaryopbase(f2008_parser):
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
