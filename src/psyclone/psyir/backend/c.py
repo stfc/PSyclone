@@ -446,7 +446,7 @@ class CWriter(PSyIRVisitor):
         # Note that {{ is replaced with a single { in the format call
         result_list = ["#pragma {0}\n{{\n".format(node.begin_string())]
         self._depth += 1
-        for child in node.children:
+        for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
         result_list.append("}}\n")
