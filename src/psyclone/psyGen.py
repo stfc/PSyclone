@@ -5614,7 +5614,7 @@ class Symbol(object):
     :param precision: The amount of storage required by the datatype (bytes) \
             or a reference to a PrecisionSymbol holding the type information \
             or a label identifying a default precision.
-    :type precision: int or :py:class:`psyclone.psyGen.PrecisionSymbol` or str
+    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or str
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
@@ -6022,20 +6022,6 @@ class Symbol(object):
         self.precision = symbol_in.precision
 
 
-class PrecisionSymbol(Symbol):
-    '''
-    A special Symbol identifying a category of system/configuration-dependent
-    precision information.  How this category maps to the actual hardware
-    implementation (e.g. whether a 'double precision' variable uses 4 or 8
-    bytes) must be provided from an external source.
-
-    :param str name: the name of this Symbol.
-
-    '''
-    def __init__(self, name):
-        super(PrecisionSymbol, self).__init__(name, "integer")
-
-
 class SymbolTable(object):
     '''
     Encapsulates the symbol table and provides methods to add new symbols
@@ -6071,19 +6057,6 @@ class SymbolTable(object):
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
         self._symbols[new_symbol.name] = new_symbol
-
-    def remove(self, symbol):
-        ''' Remove the supplied Symbol from the table.
-
-        :param symbol: the Symbol to remove from the table.
-        :type symbol: :py:class:`psyclone.psyGen.Symbol`
-
-        :raises KeyError: if the supplied Symbol is not in the table.
-        '''
-        if symbol.name not in self._symbols:
-            raise KeyError("Symbol table does not contain a symbol with name "
-                           "'{0}'".format(symbol.name))
-        del self._symbols[symbol.name]
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
@@ -6253,8 +6226,7 @@ class SymbolTable(object):
         :returns:  List of local symbols.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
-        return [sym for sym in self._symbols.values() if sym.scope == "local"
-                and not isinstance(sym, PrecisionSymbol)]
+        return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
     @property
     def global_symbols(self):
@@ -6266,8 +6238,7 @@ class SymbolTable(object):
 
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "global"
-                and not isinstance(sym.interface, Symbol.Argument)
-                and not isinstance(sym, PrecisionSymbol)]
+                and not isinstance(sym.interface, Symbol.Argument)]
 
     @property
     def iteration_indices(self):
