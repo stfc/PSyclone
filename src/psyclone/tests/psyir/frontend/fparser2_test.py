@@ -431,7 +431,6 @@ def test_process_declarations_kind_new_param(f2008_parser):
     ''' Test that process_declarations handles variables declared with
     an explicit KIND parameter that has not already been declared. '''
     from fparser.two.Fortran2003 import Specification_Part
-    from psyclone.psyGen import Symbol
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     # Kind parameter not previously declared
@@ -485,16 +484,30 @@ def test_process_declarations_kind_use(f2008_parser):
         fake_parent.symbol_table.lookup("var2").precision
 
 
+def test_wrong_type_kind_param(f2008_parser):
+    ''' Check that we raise the expected error if a variable used as a KIND
+    specifier has already been declared with non-integer type. '''
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real :: r_def\n"
+                                 "real(kind=r_def) :: var2")
+    fparser2spec = Specification_Part(reader)
+    with pytest.raises(TypeError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "already contains an entry for variable 'r_def'" in str(err.value)
+
+
 @pytest.mark.parametrize("vartype, kind, precision",
                          [("real", "1.0d0", Symbol.Precision.DOUBLE),
                           ("real", "1.0D7", Symbol.Precision.DOUBLE),
-                          ("real", "1_r_def", Symbol("r_def", "integer")),
+                          ("real", "1_t_def", None),
                           ("real", "1.0", Symbol.Precision.SINGLE),
                           ("real", "1.0E3", Symbol.Precision.SINGLE),
                           # 32-bit integer
-                          ("integer", "1", 4),
+                          ("integer", "1", Symbol.Precision.SINGLE),
                           # 64-bit integer
-                          ("integer", str(1<<31 + 4), 8)])
+                          ("integer", str(1<<31 + 4)+"_t_def", None)])
 def test_process_declarations_kind_literals(f2008_parser,
                                             vartype, kind, precision):
     ''' Test that process_declarations handles variables declared with
@@ -502,15 +515,15 @@ def test_process_declarations_kind_literals(f2008_parser,
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
-    reader = FortranStringReader("{0}(kind=KIND({1})) :: var1".format(
+    reader = FortranStringReader("{0}(kind=KIND({1})) :: var".format(
         vartype, kind))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    if isinstance(precision, Symbol):
-        assert fake_parent.symbol_table.lookup("var1").precision is \
-            fake_parent.symbol_table.lookup("r_def")
+    if not precision:
+        assert fake_parent.symbol_table.lookup("var").precision is \
+            fake_parent.symbol_table.lookup("t_def")
     else:
-        assert fake_parent.symbol_table.lookup("var1").precision == precision
+        assert fake_parent.symbol_table.lookup("var").precision == precision
 
 
 @pytest.mark.parametrize("vartype, kind",
