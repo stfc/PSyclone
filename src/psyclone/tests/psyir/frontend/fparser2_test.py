@@ -485,33 +485,51 @@ def test_process_declarations_kind_use(f2008_parser):
         fake_parent.symbol_table.lookup("var2").precision
 
 
-def test_process_declarations_kind_literals(f2008_parser):
+@pytest.mark.parametrize("vartype, kind, precision",
+                         [("real", "1.0d0", Symbol.Precision.DOUBLE),
+                          ("real", "1.0D7", Symbol.Precision.DOUBLE),
+                          ("real", "1_r_def", Symbol("r_def", "integer")),
+                          ("real", "1.0", Symbol.Precision.SINGLE),
+                          ("real", "1.0E3", Symbol.Precision.SINGLE),
+                          # 32-bit integer
+                          ("integer", "1", 4),
+                          # 64-bit integer
+                          ("integer", str(1<<31 + 4), 8)])
+def test_process_declarations_kind_literals(f2008_parser,
+                                            vartype, kind, precision):
     ''' Test that process_declarations handles variables declared with
     an explicit KIND specified using a literal constant. '''
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
-    reader = FortranStringReader("real(kind=KIND(1.0d0)) :: var2")
+    reader = FortranStringReader("{0}(kind=KIND({1})) :: var1".format(
+        vartype, kind))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("var2").precision == \
-        Symbol.Precision.DOUBLE
-    reader = FortranStringReader("real(kind=KIND(1.0)) :: var3")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("var3").precision == \
-        Symbol.Precision.SINGLE
-    reader = FortranStringReader("integer(kind=KIND(1)) :: ivar1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("ivar1").precision == \
-        Symbol.Precision.SINGLE
-    # Check that we raise an error for an unsupported kind specifier
-    reader = FortranStringReader("logical(kind=KIND(.false.)) :: var4")
+    if isinstance(precision, Symbol):
+        assert fake_parent.symbol_table.lookup("var1").precision is \
+            fake_parent.symbol_table.lookup("r_def")
+    else:
+        assert fake_parent.symbol_table.lookup("var1").precision == precision
+
+
+@pytest.mark.parametrize("vartype, kind",
+                         [("logical", ".false."),
+                          ("real", "-1.0D7"),
+                          ("real", "kvar"),
+                          ("real", "kvar(1)")])
+def test_unsupported_kind(f2008_parser, vartype, kind):
+    ''' Check that we raise an error for an unsupported kind specifier.
+        TODO #569 - add support for some/all of these.  '''
+    from fparser.two.Fortran2003 import Specification_Part
+    processor = Fparser2Reader()
+    fake_parent = KernelSchedule("dummy_schedule")
+    reader = FortranStringReader("{0}(kind=KIND({1})) :: var".format(
+        vartype, kind))
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Only names and (real and integer) literals are supported as KIND"
+    assert ("Only real and integer literals are supported as arguments to"
             in str(err.value))
 
 
