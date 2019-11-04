@@ -708,11 +708,9 @@ class Fparser2Reader(object):
                     return Symbol.Precision.SINGLE
 
                 if isinstance(kind_arg, Fortran2003.Int_Literal_Constant):
-                    if int(str(kind_arg)) < 1<<31:
-                        # We have a 32-bit integer
-                        return 4  # TODO or Symbol.Precision.SINGLE?
-                    else:
-                        return 8  # TODO or Symbol.Precision.LONG?
+                    # An integer with no explict kind specifier must be of
+                    # default precision
+                    return Symbol.Precision.SINGLE
 
             raise NotImplementedError(
                 "Only real and integer literals are supported "
