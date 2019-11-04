@@ -56,7 +56,7 @@ def gen_intent(symbol):
     the DataSymbol should have and return the value as a string.
 
     :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyGen.DataSymbol`
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the Fortran intent of the symbol instance in lower case, \
     or None if the access is unknown or if this is a local variable.
@@ -83,7 +83,7 @@ def gen_dims(symbol):
     representing the symbol's array dimensions.
 
     :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyGen.DataSymbol`
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the Fortran representation of the symbol's dimensions as \
     a list.
@@ -145,7 +145,7 @@ class FortranWriter(PSyIRVisitor):
         '''Create and return the Fortran use statement for this DataSymbol.
 
         :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.DataSymbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: the Fortran use statement as a string.
         :rtype: str
@@ -167,7 +167,7 @@ class FortranWriter(PSyIRVisitor):
         '''Create and return the Fortran variable declaration for this Symbol.
 
         :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.DataSymbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: the Fortran variable declaration as a string.
         :rtype: str
@@ -209,7 +209,7 @@ class FortranWriter(PSyIRVisitor):
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
-        :type symbol: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param bool args_allowed: if False then one or more argument
         declarations in symbol_table will cause this method to raise
         an exception. Defaults to True.

@@ -52,30 +52,29 @@ class DataSymbol(Symbol):
     the datatype, the shape (in column-major order) and the interface
     to that symbol (i.e. Local, Global, Argument).
 
-    :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol. (One of \
-                     :py:attr:`psyclone.psyGen.DataSymbol.valid_data_types`.)
-    :param list shape: Shape of the symbol in column-major order (leftmost \
-                       index is contiguous in memory). Each entry represents \
-                       an array dimension. If it is 'None' the extent of that \
-                       dimension is unknown, otherwise it holds an integer \
-                       literal or a reference to an integer symbol with the \
-                       extent. If it is an empty list then the symbol \
-                       represents a scalar.
-    :param interface: Object describing the interface to this symbol (i.e. \
-                      whether it is passed as a routine argument or accessed \
-                      in some other way).
-    :type interface: :py:class:`psyclone.psyGen.SymbolInterface`
-    :param constant_value: Sets a fixed known value for this DataSymbol. \
-                           If the value is None (the default) \
-                           then this symbol is not a constant. The \
-                           datatype of the constant value must be \
-                           compatible with the datatype of the symbol.
+    :param str name: name of the symbol.
+    :param str datatype: data type of the symbol. (One of \
+        :py:attr:`psyclone.psyir.symbols.DataSymbol.valid_data_types`.)
+    :param list shape: shape of the symbol in column-major order (leftmost \
+        index is contiguous in memory). Each entry represents an array \
+        dimension. If it is 'None' the extent of that dimension is unknown, \
+        otherwise it holds an integer literal or a reference to an integer \
+        symbol with the extent. If it is an empty list then the symbol \
+        represents a scalar.
+    :param interface: object describing the interface to this symbol (i.e. \
+        whether it is passed as a routine argument or accessed in some other \
+        way).
+    :type interface: \
+        :py:class:`psyclone.psyir.symbols.DataSymbol.SymbolInterface`
+    :param constant_value: sets a fixed known value for this DataSymbol. If \
+        the value is None (the default) then this symbol is not a constant. \
+        The datatype of the constant value must be compatible with the \
+        datatype of the symbol.
     :type constant_value: int, str or bool
 
-    :raises NotImplementedError: Provided parameters are not supported yet.
-    :raises TypeError: Provided parameters have invalid error type.
-    :raises ValueError: Provided parameters contain invalid values.
+    :raises NotImplementedError: provided parameters are not supported yet.
+    :raises TypeError: provided parameters have invalid error type.
+    :raises ValueError: provided parameters contain invalid values.
 
     '''
     ## Tuple with the valid datatypes.
@@ -159,7 +158,7 @@ class DataSymbol(Symbol):
         argument.
 
         :param access: how the symbol is accessed within the local scope.
-        :type access: :py:class:`psyclone.psyGen.DataSymbol.Access`
+        :type access: :py:class:`psyclone.psyir.symbols.DataSymbol.Access`
         '''
         def __init__(self, access=None):
             super(DataSymbol.Argument, self).__init__()
@@ -175,7 +174,7 @@ class DataSymbol(Symbol):
         def access(self):
             '''
             :returns: the access-type for this argument.
-            :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access`
+            :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Access`
             '''
             return self._access
 
@@ -183,7 +182,7 @@ class DataSymbol(Symbol):
         def access(self, value):
             '''
             :param value: the new access type.
-            :type value: :py:class:`psyclon.psyGen.DataSymbol.Access`
+            :type value: :py:class:`psyclon.psyir.symbols.DataSymbol.Access`
 
             :raises TypeError: if the supplied value is not a \
                 DataSymbol.Access
@@ -282,7 +281,8 @@ class DataSymbol(Symbol):
     def interface(self):
         '''
         :returns: the an object describing the interface to this DataSymbol.
-        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
+        :rtype: Sub-class of \
+            :py:class:`psyclone.psyir.symbols.DataSymbol.SymbolInterface`
         '''
         return self._interface
 
@@ -293,7 +293,8 @@ class DataSymbol(Symbol):
 
         :param value: an Interface object describing how the DataSymbol is \
                       accessed by the code.
-        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
+        :type value: Sub-class of \
+            :py:class:`psyclone.psyir.symbols.DataSymbol.SymbolInterface`
 
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
@@ -423,7 +424,7 @@ class DataSymbol(Symbol):
 
         :returns: A symbol object with the same properties as this \
                   symbol object.
-        :rtype: :py:class:`psyclone.psyGen.DataSymbol`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         return DataSymbol(self.name, self.datatype, shape=self.shape[:],
@@ -436,7 +437,7 @@ class DataSymbol(Symbol):
 
         :param symbol_in: The symbol from which the properties are \
                           copied from.
-        :type symbol_in: :py:class:`psyclone.psyGen.DataSymbol`
+        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises TypeError: If the argument is not the expected type.
 

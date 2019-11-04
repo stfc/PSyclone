@@ -432,7 +432,7 @@ class Fparser2Reader(object):
         :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: Symbol table of the declaration context.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :returns: Shape of the attribute in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
@@ -563,14 +563,14 @@ class Fparser2Reader(object):
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
                         if "intent(in)" in normalized_string:
-                            interface = DataSymbol.Argument(access= \
-                                DataSymbol.Access.READ)
+                            interface = DataSymbol.Argument(
+                                access=DataSymbol.Access.READ)
                         elif "intent(out)" in normalized_string:
-                            interface = DataSymbol.Argument(access= \
-                                DataSymbol.Access.WRITE)
+                            interface = DataSymbol.Argument(
+                                access=DataSymbol.Access.WRITE)
                         elif "intent(inout)" in normalized_string:
-                            interface = DataSymbol.Argument(access= \
-                                DataSymbol.Access.READWRITE)
+                            interface = DataSymbol.Argument(
+                                access=DataSymbol.Access.READWRITE)
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True

@@ -2074,7 +2074,7 @@ class GOSymbolTable(SymbolTable):
         indices.
 
         :return: List of symbols representing the iteration indices.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         self._check_gocean_conformity()
         return self.argument_list[:2]
@@ -2085,7 +2085,7 @@ class GOSymbolTable(SymbolTable):
         the argument list.
 
         :return: List of symbols representing the data arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         self._check_gocean_conformity()
         return self.argument_list[2:]

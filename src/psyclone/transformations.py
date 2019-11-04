@@ -1276,7 +1276,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
- 
+
         # change the node's parent to be the Schedule of the loop directive
         node.parent = directive.dir_body
 
@@ -3134,7 +3134,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
             :param symbol_table: the symbol table for the kernel \
                          holding the argument that is going to be modified.
-            :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+            :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
             :param int arg_position: the argument's position in the \
                                      argument list.
             :param value: the constant value that this argument is \

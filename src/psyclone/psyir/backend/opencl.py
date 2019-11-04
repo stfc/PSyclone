@@ -88,7 +88,7 @@ class OpenCLWriter(CWriter):
         `size_t get_global_id(uint dimindx)`
 
         :param symbol: The symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param int dimension_index: Dimension which the given symbol will \
             iterate on.
 
@@ -120,7 +120,7 @@ class OpenCLWriter(CWriter):
         the global address space.
 
         :param symbol: The symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: The OpenCL declaration of the given of the symbol.
         :rtype: str
@@ -139,10 +139,10 @@ class OpenCLWriter(CWriter):
 
 
         :param symbol: The symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param symtab: The symbol table from the given symbol context to \
             check for name clashes.
-        :type symtab: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :return: OpenCL declaration and initialisation of length variables.
         :rtype: str

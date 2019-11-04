@@ -5396,7 +5396,7 @@ class KernelSchedule(Schedule):
     def symbol_table(self):
         '''
         :returns: Table containing symbol information for the kernel.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
 
@@ -5706,7 +5706,7 @@ class Reference(Node):
 
         :returns: the Symbol associated with this reference if one is \
         found or None if not.
-        :rtype: :py:class:`psyclone.psyGen.Symbol` or `None`
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` or `None`
 
         '''
         if scope_limit:
@@ -6083,7 +6083,7 @@ class Container(Node):
     def symbol_table(self):
         '''
         :returns: table containing symbol information for the container.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         return self._symbol_table
