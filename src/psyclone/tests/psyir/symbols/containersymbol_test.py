@@ -74,6 +74,20 @@ def test_containersymbol_str():
     assert str(sym) == "my_mod: <linked>"
 
 
+def test_containersymbol_resolve_external_container(monkeypatch):
+
+    sym = ContainerSymbol("my_mod")
+
+    monkeypatch.setattr(sym._interface, "import_container",
+                        lambda x: "MockContainer")
+
+    # At the beggining container is never resolved (lazy evaluation)
+    assert not sym.container
+    sym.resolve()  # Resolve just calls teh Mocked function
+    # Then container has a reference to the generated object
+    assert sym.container == "MockContainer"
+
+
 def test_containersymbol_generic_interface():
     '''Check ContainerSymbolInterface abstract methods '''
 
