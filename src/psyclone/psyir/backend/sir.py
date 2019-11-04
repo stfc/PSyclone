@@ -39,7 +39,7 @@ gen() method to generate Fortran.
 
 '''
 
-from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
     Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern

@@ -280,6 +280,33 @@
 	89) PR #515 for #512. Adds PSyIR backend support (Fortran and C)
 	for Directives.
 
+	90) PR #534 for #520. Adds PSyIR Fortran backend support for the
+	Container Node.
+
+	91) #547 and PR #551. Update all READMEs to use MarkDown and correct
+	paths in documentation on creating built-ins.
+
+	92) #546 for PR #553. Rename psyir.psyir.backend.base to visitor.
+
+	93) #526 for PR #527. Update fparser submodule and fix parsing of
+	intrinsics with a single argument.
+
+	94) PR #556 for #478. Changes the apply() and validate() methods of
+	all Transformations to take a dict of options. Also renames any
+	_validate() methods to validate().
+
+	95) PR #558 for #557. Move code-creation out of visitor and into
+	the appropriate back-ends.
+
+	96) PR #565 for #564. Alter implementation of auto-addition of
+	profiling so that it happens *after* the application of any
+	transformation script.
+
+	97) PR#505 for #303. Restructure view method to move the replicated
+	logic into the abstract class and add index numbers to the printed
+	Schedule statements. Also adds a Schedule to encapsulate Directive
+	children.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

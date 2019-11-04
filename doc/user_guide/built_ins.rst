@@ -256,7 +256,7 @@ Adding new additional Built-in operations
 -----------------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
-    dynamo0.3 it is ``src/dynamo0p3_builtins.py``.
+    dynamo0.3 it is ``src/psyclone/dynamo0p3_builtins.py``.
  2. Edit this source file to create the class for this new call. It must
     inherit from the API-specific parent class for Built-in operations
     (``DynBuiltInKern`` for dynamo0.3).
@@ -267,12 +267,12 @@ Adding new additional Built-in operations
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
     this is ``dynamo0p3_builtins_mod.f90``.
  6. Add relevant tests to the PSyclone test file for the API to be extended.
-    *e.g.* for dynamo0.3 it is ``src/tests/dynamo0p3_builtins_test.py``.
+    *e.g.* for dynamo0.3 it is ``src/psyclone/tests/dynamo0p3_builtins_test.py``.
     The tests rely on ``single_invoke`` Fortran examples in the relevant
-    ``src/tests/test_files/`` subfolder.
+    ``src/psyclone/tests/test_files/`` subfolder.
  7. Add an appropriate Fortran ``single_invoke`` example for the new
-    Built-in in the relevant ``src/tests/test_files/`` subfolder. *e.g.*
-    for dynamo0.3 it is ``src/tests/test_files/dynamo0p3/``.
+    Built-in in the relevant ``src/psyclone/tests/test_files/`` subfolder. *e.g.*
+    for dynamo0.3 it is ``src/psyclone/tests/test_files/dynamo0p3/``.
     Names of examples follow the template
     ``<category.number>.<subcategory.number>_<single_invoke_name>.f90``.
     *e.g.* for dynamo0.3 ``<category.number>`` is 15.

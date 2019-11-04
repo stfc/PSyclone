@@ -65,7 +65,7 @@ def test_explicit_loop(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     schedule, _ = acc_trans.apply(schedule.children[0])
-    schedule, _ = acc_trans.apply(schedule.children[1], independent=False)
+    schedule, _ = acc_trans.apply(schedule.children[1], {"independent": False})
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
             "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
@@ -105,7 +105,7 @@ def test_seq_loop(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0], sequential=True)
+    schedule, _ = acc_trans.apply(schedule.children[0], {"sequential": True})
     code = str(psy.gen)
     assert ("  REAL(KIND = wp) :: sto_tmp(jpj)\n"
             "  !$ACC LOOP SEQ\n"
@@ -120,7 +120,7 @@ def test_collapse(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0], collapse=2)
+    schedule, _ = acc_trans.apply(schedule.children[0], {"collapse": 2})
     code = str(psy.gen)
     assert ("  REAL(KIND = wp) :: sto_tmp(jpi, jpj)\n"
             "  !$ACC LOOP INDEPENDENT COLLAPSE(2)\n"
@@ -138,6 +138,6 @@ def test_collapse_err(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0], collapse=3)
+        _, _ = acc_trans.apply(schedule.children[0], {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
             "only 2 loops" in str(err))

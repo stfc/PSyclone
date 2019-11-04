@@ -108,7 +108,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
 
     # make 1st loop iterate over dofs to the level 1 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], depth=1)
+    rc_trans.apply(schedule.children[0], {"depth": 1})
     assert schedule.children[0].upper_bound_name == "dof_halo"
     assert schedule.children[0].upper_bound_halo_depth == 1
     check_schedule(schedule)
@@ -163,7 +163,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     # make 1st loop iterate over dofs to the level 1 halo and check
     # output. There should be no halo exchange for field "f1"
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], depth=1)
+    rc_trans.apply(schedule.children[0], {"depth": 1})
     loop1 = schedule.children[0]
     haloex = schedule.children[1]
     loop2 = schedule.children[2]
@@ -234,7 +234,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[1], depth=2)
+    rc_trans.apply(schedule.children[1], {"depth": 2})
 
     def check(schedule, f1depth, f2depth):
         '''check that the schedule is modified in the expected way. In
@@ -341,7 +341,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[2], depth=2)
+    rc_trans.apply(schedule.children[2], {"depth": 2})
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth 1 and "f2" to depth 2
     check(schedule, f1depth="1", f2depth="2")
@@ -401,11 +401,11 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     # f1 halo exchange should be depth 1 : max(1,0)
     haloex = schedule.children[haloidx]
     check(haloex, "1")
-    rc_trans.apply(schedule.children[loop2idx], depth=2)
+    rc_trans.apply(schedule.children[loop2idx], {"depth": 2})
     # f1 halo exchange should still be depth 1 : max(1,1)
     haloex = schedule.children[haloidx]
     check(haloex, "1")
-    rc_trans.apply(schedule.children[loop2idx], depth=3)
+    rc_trans.apply(schedule.children[loop2idx], {"depth": 3})
     # f1 halo exchange should be depth 2 (max(1,2)
     haloex = schedule.children[haloidx]
     check(haloex, "2")
