@@ -5612,7 +5612,7 @@ class Symbol(object):
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
     :param precision: The amount of storage required by the datatype (bytes) \
-            or a reference to a PrecisionSymbol holding the type information \
+            or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
     :type precision: int or :py:class:`psyclone.psyGen.Symbol` or str
 
