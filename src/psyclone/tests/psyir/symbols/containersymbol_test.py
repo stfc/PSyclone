@@ -79,7 +79,7 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     sym = ContainerSymbol("my_mod")
 
     monkeypatch.setattr(sym._interface, "import_container",
-                        lambda x: "MockContainer")
+                        staticmethod(lambda x: "MockContainer"))
 
     # At the beggining the reference is never resolved (lazy evaluation)
     assert not sym._reference
@@ -90,7 +90,7 @@ def test_containersymbol_resolve_external_container(monkeypatch):
 
     # Following invokations do not update the container reference
     monkeypatch.setattr(sym._interface, "import_container",
-                        lambda x: "OtherContainer")
+                        staticmethod(lambda x: "OtherContainer"))
     assert sym.container == "MockContainer"
 
 
