@@ -911,7 +911,7 @@ class DynKernMetadata(KernelType):
             for entry in line.selector:
                 if entry == "func_type":
                     func_types = self.getkerneldescriptors(
-                        line, var_name="meta_funcs")
+                        line, var_name="meta_funcs", var_type="func_type")
                     break
 
         self._func_descriptors = []
