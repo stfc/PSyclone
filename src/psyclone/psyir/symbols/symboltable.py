@@ -217,7 +217,7 @@ class SymbolTable(object):
                             has a Symbol.Argument interface.
 
         '''
-        for symbol in self.variables:
+        for symbol in self.datasymbols:
             if symbol not in self._argument_list:
                 # DataSymbols not in the argument list must not have a
                 # Symbol.Argument interface
@@ -237,7 +237,7 @@ class SymbolTable(object):
         return list(self._symbols.values())
 
     @property
-    def variables(self):
+    def datasymbols(self):
         '''
         :returns:  List of symbols representing data variables.
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
@@ -246,24 +246,33 @@ class SymbolTable(object):
                 isinstance(sym, DataSymbol)]
 
     @property
-    def local_variables(self):
+    def local_datasymbols(self):
         '''
         :returns:  List of symbols representing local variables.
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
         '''
-        return [sym for sym in self.variables if
+        return [sym for sym in self.datasymbols if
                 isinstance(sym.interface, DataSymbol.Local)]
 
     @property
-    def global_variables(self):
+    def argument_datasymbols(self):
         '''
-        :returns: list of symbols that are not routine arguments but \
-                  still have 'global' scope - i.e. are associated with \
-                  data that exists outside the current scope.
+        :returns:  List of symbols representing arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        '''
+        return [sym for sym in self.datasymbols if
+                isinstance(sym.interface, DataSymbol.Argument)]
+
+
+    @property
+    def global_datasymbols(self):
+        '''
+        :returns: list of symbols that have 'global' interface (are \
+            associated with data that exists outside the current scope.
         :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
 
         '''
-        return [sym for sym in self.variables if
+        return [sym for sym in self.datasymbols if
                 isinstance(sym.interface, DataSymbol.Global)]
 
     @property

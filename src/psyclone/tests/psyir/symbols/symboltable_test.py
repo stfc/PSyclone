@@ -344,56 +344,56 @@ def test_symboltable_symbols():
     assert len(sym_table.symbols) == 3
 
 
-def test_symboltable_local_variables():
-    '''Test that the local_variables property returns a list with the
+def test_symboltable_local_datasymbols():
+    '''Test that the local_datasymbols property returns a list with the
     symbols with local scope.'''
     sym_table = SymbolTable()
-    assert [] == sym_table.local_variables
+    assert [] == sym_table.local_datasymbols
 
     sym_table.add(DataSymbol("var1", "real", []))
     sym_table.add(DataSymbol("var2", "real", [None]))
     sym_table.add(DataSymbol("var3", "real", []))
 
-    assert len(sym_table.local_variables) == 3
-    assert sym_table.lookup("var1") in sym_table.local_variables
-    assert sym_table.lookup("var2") in sym_table.local_variables
-    assert sym_table.lookup("var3") in sym_table.local_variables
+    assert len(sym_table.local_datasymbols) == 3
+    assert sym_table.lookup("var1") in sym_table.local_datasymbols
+    assert sym_table.lookup("var2") in sym_table.local_datasymbols
+    assert sym_table.lookup("var3") in sym_table.local_datasymbols
     sym_v1 = sym_table.lookup("var1")
     sym_v1.interface = DataSymbol.Argument(access=DataSymbol.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1])
 
-    assert len(sym_table.local_variables) == 2
-    assert sym_table.lookup("var1") not in sym_table.local_variables
-    assert sym_table.lookup("var2") in sym_table.local_variables
-    assert sym_table.lookup("var3") in sym_table.local_variables
+    assert len(sym_table.local_datasymbols) == 2
+    assert sym_table.lookup("var1") not in sym_table.local_datasymbols
+    assert sym_table.lookup("var2") in sym_table.local_datasymbols
+    assert sym_table.lookup("var3") in sym_table.local_datasymbols
 
     sym_table.add(DataSymbol("var4", "real", [],
                              interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
-    assert len(sym_table.local_variables) == 2
-    assert sym_table.lookup("var4") not in sym_table.local_variables
+    assert len(sym_table.local_datasymbols) == 2
+    assert sym_table.lookup("var4") not in sym_table.local_datasymbols
 
 
-def test_symboltable_global_variables():
-    ''' Test that the global_variables property returns those DataSymbols with
+def test_symboltable_global_datasymbols():
+    ''' Test that the global_datasymbols property returns those DataSymbols with
     'global' scope (i.e. that represent data that exists outside the current
     scoping unit) but are not routine arguments. '''
     sym_table = SymbolTable()
-    assert sym_table.global_variables == []
+    assert sym_table.global_datasymbols == []
     # Add some local symbols
     sym_table.add(DataSymbol("var1", "real", []))
     sym_table.add(DataSymbol("var2", "real", [None]))
-    assert sym_table.global_variables == []
+    assert sym_table.global_datasymbols == []
     # Add some global symbols
     sym_table.add(DataSymbol("gvar1", "real", [],
                              interface=DataSymbol.Global(
                                  ContainerSymbol("my_mod"))))
-    assert sym_table.lookup("gvar1") in sym_table.global_variables
+    assert sym_table.lookup("gvar1") in sym_table.global_datasymbols
     sym_table.add(
         DataSymbol("gvar2", "real", [],
                    interface=DataSymbol.Argument(
                        access=DataSymbol.Access.READWRITE)))
-    gsymbols = sym_table.global_variables
+    gsymbols = sym_table.global_datasymbols
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
 

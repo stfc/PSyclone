@@ -227,22 +227,23 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Use statements
-        for symbol in [sym for sym in symbol_table.variables if
-                       isinstance(sym.interface, DataSymbol.Global)]:
+        for symbol in symbol_table.global_datasymbols:
             declarations += self.gen_use(symbol)
+
         # 2: Argument variable declarations
-        symbols = [sym for sym in symbol_table.variables if
-                   isinstance(sym.interface, DataSymbol.Argument)]
-        if symbols and not args_allowed:
+        if symbol_table.argument_datasymbols and not args_allowed:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
                 "table contains argument(s): '{0}'."
-                "".format([symbol.name for symbol in symbols]))
-        for symbol in symbols:
+                "".format([symbol.name for symbol in
+                           symbol_table.argument_datasymbols]))
+        for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(symbol)
+
         # 3: Local variable declarations
-        for symbol in symbol_table.local_variables:
+        for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
+
         return declarations
 
     def container_node(self, node):
