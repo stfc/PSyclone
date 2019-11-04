@@ -568,7 +568,7 @@ def test_omp_region_before_loops_trans(tmpdir):
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].children:
+    for child in omp_schedule.children[0].dir_body[:]:
         schedule, _ = ompl.apply(child)
         omp_schedule = schedule
 
@@ -675,7 +675,7 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].children:
+    for child in omp_schedule.children[0].dir_body[:]:
         schedule, _ = ompl.apply(child)
         omp_schedule = schedule
 
@@ -737,7 +737,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].children:
+    for child in omp_schedule.children[0].dir_body[:]:
         schedule, _ = ompl.apply(child)
         omp_schedule = schedule
 
@@ -966,11 +966,11 @@ def test_omp_parallel_do_around_parallel_region():
     ompr = OMPParallelTrans()
 
     # Put a parallel region around two of the loops
-    omp_schedule, _ = ompr.apply(schedule.children[0:2])
+    omp_schedule, _ = ompr.apply(schedule[0:2])
 
     # Put an OpenMP parallel do directive around one of those loops
     # (which is now a child of the region directive)
-    schedule, _ = ompl.apply(omp_schedule.children[0].children[0])
+    schedule, _ = ompl.apply(omp_schedule[0].dir_body[0])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = schedule

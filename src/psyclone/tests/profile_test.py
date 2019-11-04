@@ -79,15 +79,15 @@ def test_profile_basic(capsys):
     out, _ = capsys.readouterr()
 
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = Loop().coloured_text
-    profile = invoke.schedule.children[0].coloured_text
+    loop = Loop().coloured_name(True)
+    profile = invoke.schedule.children[0].coloured_name(True)
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
         gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    " + profile + "\n"
-        "        " + loop + "[type='outer', field_space='go_cv', "
+        "    0: " + profile + "[]\n"
+        "        0: " + loop + "[type='outer', field_space='go_cv', "
         "it_space='go_internal_pts']\n")
 
     assert expected in out
@@ -102,7 +102,8 @@ def test_profile_basic(capsys):
 
     new_sched_str = str(new_sched)
 
-    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
+Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
@@ -450,7 +451,8 @@ def test_transform(capsys):
     # Try applying it to a list
     sched1, _ = prt.apply(schedule.children)
 
-    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
+Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
@@ -504,7 +506,8 @@ End Schedule""")
     # Now only wrap a single node - the middle loop:
     sched2, _ = prt.apply(schedule.children[0].children[1])
 
-    correct = ("""GOInvokeSchedule(Constant loop bounds=True):
+    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
+Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
@@ -653,12 +656,12 @@ def test_transform_errors(capsys):
     omp_loop = GOceanOMPLoopTrans()
 
     # Parallelise the first loop:
-    sched1, _ = omp_loop.apply(schedule.children[0])
+    sched1, _ = omp_loop.apply(schedule[0])
 
     # Inserting a ProfileRegion inside a omp do loop is syntactically
     # incorrect, the inner part must be a do loop only:
     with pytest.raises(TransformationError) as excinfo:
-        prt.apply(sched1.children[0].children[0])
+        prt.apply(sched1[0].dir_body[0])
 
     assert "A ProfileNode cannot be inserted between an OpenMP/ACC directive "\
            "and the loop(s) to which it applies!" in str(excinfo)
@@ -678,9 +681,9 @@ def test_omp_transform():
     omp_par = OMPParallelTrans()
 
     # Parallelise the first loop:
-    sched1, _ = omp_loop.apply(schedule.children[0])
-    sched2, _ = omp_par.apply(sched1.children[0])
-    sched3, _ = prt.apply(sched2.children[0])
+    sched1, _ = omp_loop.apply(schedule[0])
+    sched2, _ = omp_par.apply(sched1[0])
+    sched3, _ = prt.apply(sched2[0])
 
     correct = (
         "      CALL ProfileStart(\"boundary_conditions_ne_offset_mod\", "
@@ -700,7 +703,7 @@ def test_omp_transform():
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
-    sched3, _ = prt.apply(sched3.children[0].children[0].children[0])
+    sched3, _ = prt.apply(sched3[0].children[0].dir_body[0])
 
     code = str(invoke.gen())
 

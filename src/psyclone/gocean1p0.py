@@ -347,32 +347,28 @@ class GOInvokeSchedule(InvokeSchedule):
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
+        self._text_name = "GOInvokeSchedule"
 
-    def view(self, indent=0):
-        '''Print a representation of this GOInvokeSchedule.
-        :param int indent: optional argument indicating the level of
-        indentation to add before outputting the class information.'''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "', Constant loop bounds=" +
-              str(self._const_loop_bounds) + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+    def node_str(self, colour=True):
+        ''' Creates a text description of this node with (optional) control
+        codes to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return "{0}[invoke='{1}', Constant loop bounds={2}]".format(
+            self.coloured_name(colour), self.invoke.name,
+            self._const_loop_bounds)
 
     def __str__(self):
         ''' Returns the string representation of this GOInvokeSchedule '''
-        result = "GOInvokeSchedule(Constant loop bounds=" + \
-                 str(self._const_loop_bounds) + "):\n"
+        result = self.node_str(False) + ":\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
-
-    @property
-    def coloured_text(self):
-        ''' Return the name of this object with control-codes for
-        display in terminals that support colour '''
-        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):
@@ -795,17 +791,20 @@ class GOLoop(Loop):
         # TODO 363 - update once the PSyIR supports derived types
         return Literal(start, self)
 
-    def view(self, indent=0):
-        '''
-        Write out a textual summary of this Loop node to stdout.
+    def node_str(self, colour=True):
+        ''' Creates a text description of this node with (optional) control
+        codes to generate coloured output in a terminal that supports it.
 
-        :param int indent: Depth of indent for output text
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         # Generate the upper and lower loop bounds
         self.start_expr = self._lower_bound()
         self.stop_expr = self._upper_bound()
 
-        super(GOLoop, self).view(indent)
+        return super(GOLoop, self).node_str(colour)
 
     def __str__(self):
         ''' Returns a string describing this Loop object '''

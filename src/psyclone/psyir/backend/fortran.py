@@ -655,7 +655,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         result_list = ["!${0}\n".format(node.begin_string())]
         self._depth += 1
-        for child in node.children:
+        for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
         result_list.append("!${0}\n".format(node.end_string()))
