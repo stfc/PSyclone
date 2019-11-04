@@ -353,3 +353,41 @@ def test_symbol_copy_properties():
     assert symbol.shape == []
     assert isinstance(symbol.interface, DataSymbol.Local)
     assert symbol.constant_value == 7
+
+
+def test_symbol_resolve_deferred():
+    ''' Test the datasymbol resolve_deferred method '''
+    import os
+    from psyclone.configuration import Config
+
+    # dummy_module defines integer 'a' and real 'b' and real parameter 'c'
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "test_files")
+    Config.get().include_paths = [path]
+    module = ContainerSymbol("dummy_module")
+
+    symbol = DataSymbol('a', 'deferred', interface=DataSymbol.Global(module))
+    symbol.resolve_deferred()
+    assert symbol.datatype == "integer"
+
+    symbol = DataSymbol('b', 'deferred', interface=DataSymbol.Global(module))
+    symbol.resolve_deferred()
+    assert symbol.datatype == "real"
+
+    symbol = DataSymbol('c', 'deferred', interface=DataSymbol.Global(module))
+    symbol.resolve_deferred()
+    assert symbol.datatype == "real"
+    assert symbol.constant_value == 3.14
+
+    # Test with a symbol not defined in the linked container
+    symbol = DataSymbol('d', 'deferred', interface=DataSymbol.Global(module))
+    with pytest.raises(KeyError) as err:
+        symbol.resolve_deferred()
+    assert "Could not find 'd' in the Symbol Table." in str(err.value)
+
+    # Test with a symbol which does not have a Global interface
+    symbol = DataSymbol('e', 'deferred', interface=DataSymbol.Local())
+    with pytest.raises(NotImplementedError) as err:
+        symbol.resolve_deferred()
+    assert "Lazy evalution of deferred Local is not supported." \
+        in str(err.value)

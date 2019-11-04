@@ -57,11 +57,10 @@ class ContainerSymbol(Symbol):
         # to pass the interface as a parameter when we have more than one.
         self._interface = FortranModuleInterface
 
-    def resolve(self):
-        self._reference = self._interface.import_container(self._name)
-
     @property
     def container(self):
+        if not self._reference:
+            self._reference = self._interface.import_container(self._name)
         return self._reference
 
     def __str__(self):

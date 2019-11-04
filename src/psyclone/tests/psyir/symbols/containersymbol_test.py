@@ -81,10 +81,16 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     monkeypatch.setattr(sym._interface, "import_container",
                         lambda x: "MockContainer")
 
-    # At the beggining container is never resolved (lazy evaluation)
-    assert not sym.container
-    sym.resolve()  # Resolve just calls teh Mocked function
-    # Then container has a reference to the generated object
+    # At the beggining the reference is never resolved (lazy evaluation)
+    assert not sym._reference
+
+    # When container is invoked the reference is resolved
+    assert sym.container == "MockContainer"
+    assert sym._reference == "MockContainer"
+
+    # Following invokations do not update the container reference
+    monkeypatch.setattr(sym._interface, "import_container",
+                        lambda x: "OtherContainer")
     assert sym.container == "MockContainer"
 
 

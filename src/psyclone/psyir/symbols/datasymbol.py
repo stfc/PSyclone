@@ -244,7 +244,7 @@ class DataSymbol(Symbol):
                 self.interface = tmp
             else:
                 raise NotImplementedError(
-                    "Lazy evalution of deferred {0} is not supported yet."
+                    "Lazy evalution of deferred {0} is not supported."
                     "".format(self.interface))
 
     @property
@@ -254,7 +254,6 @@ class DataSymbol(Symbol):
         :rtype: str
         '''
         return self._datatype
-
 
     @property
     def shape(self):
