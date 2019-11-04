@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' File Description '''
+''' This module contains the SymbolTable implementation. '''
 
 from collections import OrderedDict
 from psyclone.psyir.symbols import Symbol, DataSymbol
@@ -67,10 +67,10 @@ class SymbolTable(object):
     def add(self, new_symbol):
         '''Add a new symbol to the symbol table.
 
-        :param new_symbol: The symbol to add to the symbol table.
-        :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
+        :param new_symbol: the symbol to add to the symbol table.
+        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises KeyError: If the symbol name is already in use.
+        :raises KeyError: if the symbol name is already in use.
 
         '''
         if new_symbol.name in self._symbols:
@@ -82,14 +82,14 @@ class SymbolTable(object):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
         name. Argument list positions are also updated appropriately.
 
-        :param symbol1: The first symbol.
-        :type symbol1: :py:class:`psyclone.psyGen.Symbol`
-        :param symbol2: The second symbol.
-        :type symbol2: :py:class:`psyclone.psyGen.Symbol`
+        :param symbol1: the first symbol.
+        :type symbol1: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param symbol2: the second symbol.
+        :type symbol2: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises KeyError: If either of the supplied symbols are not in \
+        :raises KeyError: if either of the supplied symbols are not in \
                           the symbol table.
-        :raises TypeError: If the supplied arguments are not symbols, \
+        :raises TypeError: if the supplied arguments are not symbols, \
                  or the names of the symbols are the same in the SymbolTable \
                  instance.
 
@@ -126,11 +126,11 @@ class SymbolTable(object):
         Sets-up the internal list storing the order of the arguments to this
         kernel.
 
-        :param list argument_symbols: Ordered list of the DataSymbols \
-                                      representing the kernel arguments.
+        :param list argument_symbols: ordered list of the DataSymbols \
+            representing the kernel arguments.
 
-        :raises ValueError: If the new argument_list is not consistent with \
-                            the existing entries in the SymbolTable.
+        :raises ValueError: if the new argument_list is not consistent with \
+            the existing entries in the SymbolTable.
 
         '''
         self._validate_arg_list(argument_symbols)
@@ -142,7 +142,6 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
-
         '''
         try:
             return self._symbols[name]
@@ -154,6 +153,7 @@ class SymbolTable(object):
         '''Check if the given key is part of the Symbol Table.
 
         :param str key: key to check for existance.
+
         :returns: Whether the Symbol Table contains the given key.
         :rtype: bool
         '''
@@ -165,11 +165,11 @@ class SymbolTable(object):
         Checks that the contents of the SymbolTable are self-consistent
         and then returns the list of kernel arguments.
 
-        :returns: Ordered list of arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :returns: ordered list of arguments.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises InternalError: If the entries of the SymbolTable are not \
-                               self-consistent.
+        :raises InternalError: if the entries of the SymbolTable are not \
+            self-consistent.
 
         '''
         from psyclone.psyGen import InternalError
@@ -188,13 +188,13 @@ class SymbolTable(object):
         Checks that the supplied list of Symbols are valid kernel arguments.
 
         :param arg_list: the proposed kernel arguments.
-        :type param_list: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :type param_list: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises TypeError: if any item in the supplied list is not a \
             DataSymbol.
         :raises ValueError: if any of the symbols has no Interface.
         :raises ValueError: if any of the symbols has an Interface and is not \
-                            a :py:class:`psyclone.psyGen.DataSymbol.Argument`.
+            a :py:class:`psyclone.psyir.symbols.DataSymbol.Argument`.
 
         '''
         for symbol in arg_list:
@@ -213,8 +213,8 @@ class SymbolTable(object):
         Performs internal consistency checks on the current entries in the
         SymbolTable that do not represent kernel arguments.
 
-        :raises ValueError: If a symbol that is not in the argument list \
-                            has a Symbol.Argument interface.
+        :raises ValueError: if a symbol that is not in the argument list \
+            has a Symbol.Argument interface.
 
         '''
         for symbol in self.datasymbols:
@@ -231,16 +231,16 @@ class SymbolTable(object):
     @property
     def symbols(self):
         '''
-        :returns:  List of symbols.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :returns:  list of symbols.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return list(self._symbols.values())
 
     @property
     def datasymbols(self):
         '''
-        :returns:  List of symbols representing data variables.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :returns:  list of symbols representing data variables.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self._symbols.values() if
                 isinstance(sym, DataSymbol)]
@@ -249,7 +249,7 @@ class SymbolTable(object):
     def local_datasymbols(self):
         '''
         :returns:  List of symbols representing local variables.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self.datasymbols if
                 isinstance(sym.interface, DataSymbol.Local)]
@@ -258,7 +258,7 @@ class SymbolTable(object):
     def argument_datasymbols(self):
         '''
         :returns:  List of symbols representing arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self.datasymbols if
                 isinstance(sym.interface, DataSymbol.Argument)]
@@ -269,7 +269,7 @@ class SymbolTable(object):
         '''
         :returns: list of symbols that have 'global' interface (are \
             associated with data that exists outside the current scope.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         return [sym for sym in self.datasymbols if
@@ -279,7 +279,7 @@ class SymbolTable(object):
     def iteration_indices(self):
         '''
         :returns: List of symbols representing kernel iteration indices.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises NotImplementedError: this method is abstract.
         '''
@@ -291,7 +291,7 @@ class SymbolTable(object):
     def data_arguments(self):
         '''
         :returns: List of symbols representing kernel data arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.DataSymbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises NotImplementedError: this method is abstract.
         '''
