@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import GenerationError, Kern, NameSpace, \
+     NameSpaceFactory, Node
 
 
 class Profiler(object):
@@ -173,6 +173,10 @@ class ProfileNode(Node):
         self._region_name = None
         self._module_name = None
 
+        # Name and colour to use for this node
+        self._text_name = "Profile"
+        self._colour_key = "Profile"
+
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
@@ -182,29 +186,6 @@ class ProfileNode(Node):
             result += str(child)+"\n"
         return result+"ProfileEnd"
 
-    # -------------------------------------------------------------------------
-    @property
-    def coloured_text(self):
-        '''
-        Return text containing the (coloured) name of this node type
-
-        :return: the name of this node type, possibly with control codes
-                 for colour
-        :rtype: string
-        '''
-        return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
-
-    # -------------------------------------------------------------------------
-    def view(self, indent=0):
-        '''Class specific view function to print the tree.
-        Parameters:
-        :param int indent: Indentation to be used for this node.'''
-        # pylint: disable=arguments-differ
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children

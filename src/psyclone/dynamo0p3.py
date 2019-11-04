@@ -56,7 +56,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
     CodedKern, ACCEnterDataDirective
 
 # --------------------------------------------------------------------------- #
@@ -4431,18 +4431,18 @@ class DynInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this node.
+
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
+
         '''
-        A method implemented by all classes in a schedule which display the
-        tree in a textual form. This method overrides the default view
-        method to include distributed memory information.
-        :param int indent: the amount by which to indent the output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "', dm=" +
-              str(Config.get().distributed_memory)+"]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
+                "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
 class DynGlobalSum(GlobalSum):
@@ -4470,7 +4470,7 @@ class DynGlobalSum(GlobalSum):
                 "Error found in Kernel '{2}', argument '{3}'".
                 format(self._supported_scalars, scalar.type,
                        scalar.call.name, scalar.name))
-        GlobalSum.__init__(self, scalar, parent=parent)
+        super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -4887,19 +4887,26 @@ class DynHaloExchange(HaloExchange):
         known = False
         return required, known
 
-    def view(self, indent=0):
-        ''' Class specific view  '''
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this HaloExchange node.
+
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
+
+        '''
         _, known = self.required()
         runtime_check = not known
         field_id = self._field.name
         if self.vector_index:
             field_id += "({0})".format(self.vector_index)
-        print(self.indent(indent) + (
-            "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, field_id,
-                                      self._compute_stencil_type(),
-                                      self._compute_halo_depth(),
-                                      runtime_check)))
+        return ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(self.coloured_name(colour), field_id,
+                                          self._compute_stencil_type(),
+                                          self._compute_halo_depth(),
+                                          runtime_check))
 
     def gen_code(self, parent):
         '''Dynamo specific code generation for this class.
@@ -4972,7 +4979,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_start"
         self._text_name = "HaloExchangeStart"
         self._colour_map_name = "HaloExchangeStart"
-        self._dag_name = "haloexchangestart"
 
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
@@ -5085,7 +5091,6 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_finish"
         self._text_name = "HaloExchangeEnd"
         self._colour_map_name = "HaloExchangeEnd"
-        self._dag_name = "haloexchangeend"
 
 
 class HaloDepth(object):
@@ -5564,16 +5569,17 @@ class DynLoop(Loop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def view(self, indent=0):
-        '''Print out a textual representation of this loop. We override this
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this loop node. We override this
         method from the Loop class because, in Dynamo0.3, the function
         space is now an object and we need to call orig_name on it. We
-        also output the upper loop bound as this can now be
-        modified.
+        also include the upper loop bound as this can now be modified.
 
-        :param indent: optional argument indicating the level of
-        indentation to add before outputting the class information
-        :type indent: integer
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
 
         '''
         if self._upper_bound_halo_depth:
@@ -5581,13 +5587,12 @@ class DynLoop(Loop):
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        print(self.indent(indent) + self.coloured_text +
-              "[type='{0}', field_space='{1}', it_space='{2}', "
-              "upper_bound='{3}']".format(self._loop_type,
-                                          self._field_space.orig_name,
-                                          self.iteration_space, upper_bound))
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
+                "upper_bound='{4}']".format(
+                    self.coloured_name(colour),
+                    self._loop_type,
+                    self._field_space.orig_name,
+                    self.iteration_space, upper_bound))
 
     def load(self, kern):
         '''

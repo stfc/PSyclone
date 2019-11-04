@@ -398,14 +398,10 @@ class Invokes(object):
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
-        from psyclone.profiler import Profiler
         for idx, alg_invocation in enumerate(alg_calls):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
-            # Add profiling nodes to schedule if automatic profiling has been
-            # requested.
-            Profiler.add_profile_nodes(my_invoke.schedule, Loop)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
@@ -976,9 +972,44 @@ class Node(object):
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
+        # Name to use for this Node type. By default we use the name of
+        # the class but this can be overridden by a sub-class.
+        self._text_name = self.__class__.__name__
+        # Which colour to use from the SCHEDULE_COLOUR_MAP
+        self._colour_key = self.__class__.__name__
+
+    def coloured_name(self, colour=True):
+        '''
+        Returns the display name of this Node, optionally with colour control
+        codes (requires that the termcolor package be installed).
+
+        :param bool colour: whether or not to include colour control codes \
+                            in the result.
+
+        :returns: the name of this node, optionally with colour control codes.
+        :rtype: str
+        '''
+        if colour:
+            try:
+                return colored(self._text_name,
+                               SCHEDULE_COLOUR_MAP[self._colour_key])
+            except KeyError:
+                pass
+        return self._text_name
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node. Will typically be \
+                  overridden by sub-class.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
 
     def __str__(self):
-        raise NotImplementedError("Please implement me")
+        return self.node_str(False)
 
     def math_equal(self, other):
         '''Returns True if the self has the same results as other. The
@@ -1322,12 +1353,27 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    @abc.abstractmethod
-    def view(self, indent=0):
-        '''Abstract function to prints a text representation of the node.
+    def view(self, indent=0, index=None):
+        ''' Print out description of current node to stdout and
+        then call view() on all child nodes.
 
         :param int indent: depth of indent for output text.
+        :param int index: the position of this Node wrt its siblings or None.
+
         '''
+        # TODO #542 remove ProfileNode and ExtractNode from this check once
+        # they each have a Schedule.
+        from psyclone.profiler import ProfileNode
+        from psyclone.extractor import ExtractNode
+        if not isinstance(self.parent, (Schedule, ProfileNode, ExtractNode)) \
+           or index is None:
+            print("{0}{1}".format(self.indent(indent),
+                                  self.node_str(colour=True)))
+        else:
+            print("{0}{1}: {2}".format(self.indent(indent), index,
+                                       self.node_str(colour=True)))
+        for idx, entity in enumerate(self._children):
+            entity.view(indent=indent + 1, index=idx)
 
     @staticmethod
     def indent(count, indent=INDENTATION_STRING):
@@ -1603,16 +1649,19 @@ class Node(object):
 
 
 class Schedule(Node):
-    ''' Stores schedule information for a sequence of statements.
+    ''' Stores schedule information for a sequence of statements (supplied
+    as a list of children).
 
-    :param sequence: the sequence of PSyIR nodes that make up the schedule.
-    :type sequence: list of :py:class:`psyclone.psyGen.Node`
+    :param children: the sequence of PSyIR nodes that make up the Schedule.
+    :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
-    :type parent:  :py:class:`psyclone.psyGen.Node`
-    '''
+    :type parent: :py:class:`psyclone.psyGen.Node`
 
-    def __init__(self, sequence=None, parent=None):
-        Node.__init__(self, children=sequence, parent=parent)
+    '''
+    def __init__(self, children=None, parent=None):
+        Node.__init__(self, children=children, parent=parent)
+        self._text_name = "Schedule"
+        self._colour_key = "Schedule"
 
     @property
     def dag_name(self):
@@ -1620,29 +1669,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return "schedule"
-
-    def view(self, indent=0):
-        '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
-
-        :param int indent: Depth of indent for output text.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    @property
-    def coloured_text(self):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :returns: Text containing the name of this node, possibly coloured.
-        :rtype: str
-        '''
-        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return self._text_name
 
     def __getitem__(self, index):
         '''
@@ -1661,6 +1688,17 @@ class Schedule(Node):
             result += str(entity) + "\n"
         result += "End Schedule"
         return result
+
+    def gen_code(self, parent):
+        '''
+        A Schedule does not have any direct Fortran representation. We just
+        call gen_code() for all of its children.
+
+        :param parent: node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        for child in self.children:
+            child.gen_code(parent)
 
 
 class InvokeSchedule(Schedule):
@@ -1688,7 +1726,6 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
-
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -1702,12 +1739,13 @@ class InvokeSchedule(Schedule):
                 sequence.append(BuiltInFactory.create(call, parent=self))
             else:
                 sequence.append(KernFactory.create(call, parent=self))
-        Schedule.__init__(self, sequence=sequence, parent=None)
+        Schedule.__init__(self, children=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
         self._name_space_manager = NameSpaceFactory().create()
+        self._text_name = "InvokeSchedule"
 
     def set_opencl_options(self, options):
         '''
@@ -1744,29 +1782,18 @@ class InvokeSchedule(Schedule):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def view(self, indent=0):
-        '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
-
-        :param indent: Depth of indent for output text
-        :type indent: integer
-        '''
-        print(self.indent(indent) + self.coloured_text +
-              "[invoke='" + self.invoke.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    @property
-    def coloured_text(self):
+    def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :returns: Text containing the name of this node, possibly coloured
-        :rtype: string
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        return colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return "{0}[invoke='{1}']".format(
+            self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
         result = "InvokeSchedule:\n"
@@ -1886,59 +1913,59 @@ class Directive(Node):
     '''
     Base class for all Directive statements.
 
-    All classes that generate Directive statments (e.g. OpenMP,
+    All classes that generate Directive statements (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
 
+    :param ast: the entry in the fparser2 parse tree representing the code \
+                contained within this directive or None.
+    :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
+    :param children: list of PSyIR nodes that will be children of this \
+                     Directive node or None.
+    :type children: list of :py:class:`psyclone.psyGen.Node` or NoneType
+    :param parent: PSyIR node that is the parent of this Directive or None.
+    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
+
     '''
+    # The prefix to use when constructing this directive in Fortran
+    # (e.g. "OMP"). Must be set by sub-class.
+    _PREFIX = ""
 
-    def view(self, indent=0):
-        '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
-
-        :param indent: Depth of indent for output text
-        :type indent: integer
-        '''
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+    def __init__(self, ast=None, children=None, parent=None):
+        # A Directive always contains a Schedule
+        sched = Schedule(children=children, parent=self)
+        if children:
+            # If we have children then set the Schedule's AST pointer to
+            # point to the AST associated with them.
+            sched.ast = children[0].ast
+            for child in children:
+                child.parent = sched
+        else:
+            sched.ast = ast
+        super(Directive, self).__init__(ast, children=[sched], parent=parent)
+        self._text_name = "Directive"
+        self._colour_key = "Directive"
 
     @property
-    def coloured_text(self):
+    def dir_body(self):
         '''
-        Returns a string containing the name of this element with
-        control codes for colouring in terminals that support it.
+        :returns: the Schedule associated with this directive.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
 
-        :returns: Text containing the name of this node, possibly coloured
-        :rtype: string
+        :raises InternalError: if this node does not have a single Schedule as\
+                               its child.
         '''
-        return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+        if len(self.children) != 1 or not \
+           isinstance(self.children[0], Schedule):
+            raise InternalError(
+                "Directive malformed or incomplete. It should have a single "
+                "Schedule as a child but found: {0}".format(
+                    [type(child).__name__ for child in self.children]))
+        return self.children[0]
 
     @property
     def dag_name(self):
         ''' return the base dag name for this node '''
         return "directive_" + str(self.abs_position)
-
-
-class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statements. '''
-
-    @abc.abstractmethod
-    def view(self, indent=0):
-        '''
-        Print text representation of this node to stdout.
-
-        :param int indent: size of indent to use for output
-        '''
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
-
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        return "ACC_directive_" + str(self.abs_position)
 
     def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
@@ -1946,10 +1973,10 @@ class ACCDirective(Directive):
         of nodes within a region. (e.g. a 'kernels' or 'data' region.)
 
         :param str start_text: the directive body to insert at the \
-                               beginning of the region. "!$ACC " is \
-                               prepended to the supplied text.
+                               beginning of the region. "!$"+self._PREFIX+" " \
+                               is prepended to the supplied text.
         :param str end_text: the directive body to insert at the end of \
-                             the region (or None). "!$ACC " is \
+                             the region (or None). "!$"+self._PREFIX+" " is \
                              prepended to the supplied text.
         :param str data_movement: whether to include data-movement clauses and\
                                if so, whether to determine them by analysing \
@@ -1960,6 +1987,8 @@ class ACCDirective(Directive):
                                begin with '!'.
         :raises InternalError: if data_movement is not None and not one of \
                                "present" or "analyse".
+        :raises InternalError: if data_movement=="analyse" and this is an \
+                               OpenMP directive.
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
@@ -1983,6 +2012,12 @@ class ACCDirective(Directive):
             raise InternalError(
                 "_add_region: end_text must be a plain label without directive"
                 " or comment characters but got: '{0}'".format(end_text))
+        # We only deal with data movement if this is an OpenACC directive
+        if data_movement and data_movement == "analyse" and \
+           not isinstance(self, ACCDirective):
+            raise InternalError(
+                "_add_region: the data_movement='analyse' option is only valid"
+                " for an OpenACC directive.")
 
         # Find a reference to the fparser2 parse tree that belongs to
         # the contents of this region. Then go back up one level in the
@@ -1991,34 +2026,41 @@ class ACCDirective(Directive):
         # directive which has no associated entry in the fparser2 parse tree.)
         # TODO this should be simplified/improved once
         # the fparser2 parse tree has parent information (fparser/#102).
-        content_ast = self.children[0].ast
+        first_child = self.children[0][0]
+        last_child = self.children[0][-1]
+        content_ast = first_child.ast
         fp_parent = content_ast._parent
 
-        # Find the location of the AST of our first child node in the
-        # list of child nodes of our parent in the fparser parse tree.
-        ast_start_index = object_index(fp_parent.content,
-                                       content_ast)
-        if end_text:
-            if self.children[-1].ast_end:
-                ast_end_index = object_index(fp_parent.content,
-                                             self.children[-1].ast_end)
-            else:
-                ast_end_index = object_index(fp_parent.content,
-                                             self.children[-1].ast)
+        try:
+            # Find the location of the AST of our first child node in the
+            # list of child nodes of our parent in the fparser parse tree.
+            ast_start_index = object_index(fp_parent.content,
+                                           content_ast)
+            if end_text:
+                if last_child.ast_end:
+                    ast_end_index = object_index(fp_parent.content,
+                                                 last_child.ast_end)
+                else:
+                    ast_end_index = object_index(fp_parent.content,
+                                                 last_child.ast)
 
-            text = "!$ACC " + end_text
-            directive = Comment(FortranStringReader(text,
-                                                    ignore_comments=False))
-            fp_parent.content.insert(ast_end_index+1, directive)
-            # Retro-fit parent information. # TODO remove/modify this once
-            # fparser/#102 is done (i.e. probably supply parent info as option
-            # to the Comment() constructor).
-            directive._parent = fp_parent
-            # Ensure this end directive is included with the set of statements
-            # belonging to this PSyIR node.
-            self.ast_end = directive
+                text = "!$" + self._PREFIX + " " + end_text
+                directive = Comment(FortranStringReader(text,
+                                                        ignore_comments=False))
+                fp_parent.content.insert(ast_end_index+1, directive)
+                # Retro-fit parent information. # TODO remove/modify this once
+                # fparser/#102 is done (i.e. probably supply parent info as
+                # option to the Comment() constructor).
+                directive._parent = fp_parent
+                # Ensure this end directive is included with the set of
+                # statements belonging to this PSyIR node.
+                self.ast_end = directive
+                self.dir_body.ast_end = directive
+        except (IndexError, ValueError):
+            raise InternalError("Failed to find locations to insert "
+                                "begin/end directives.")
 
-        text = "!$ACC " + start_text
+        text = "!$" + self._PREFIX + " " + start_text
 
         if data_movement:
             if data_movement == "analyse":
@@ -2051,6 +2093,21 @@ class ACCDirective(Directive):
         directive._parent = fp_parent
 
         self.ast = directive
+        self.dir_body.ast = directive
+
+
+class ACCDirective(Directive):
+    ''' Base class for all OpenACC directive statements. '''
+    _PREFIX = "ACC"
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node.
+
+        :returns: Name of corresponding node in DAG
+        :rtype: str
+        '''
+        return "ACC_directive_" + str(self.abs_position)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2073,15 +2130,17 @@ class ACCEnterDataDirective(ACCDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Print a text representation of this Node to stdout.
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: the amount by which to indent the output.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent)+self.coloured_text+"[ACC enter data]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[ACC enter data]"
 
     @property
     def dag_name(self):
@@ -2153,15 +2212,17 @@ class ACCParallelDirective(ACCDirective):
     in the PSyIR.
 
     '''
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Print a text representation of this Node to stdout.
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: the amount by which to indent the output.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[ACC Parallel]"
 
     @property
     def dag_name(self):
@@ -2302,13 +2363,17 @@ class ACCLoopDirective(ACCDirective):
         '''
         return "ACC_loop_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Print a textual representation of this Node to stdout.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: amount to indent output by
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        text = self.indent(indent)+self.coloured_text+"[ACC Loop"
+        text = self.coloured_name(colour) + "[ACC Loop"
         if self._sequential:
             text += ", seq"
         else:
@@ -2317,9 +2382,7 @@ class ACCLoopDirective(ACCDirective):
             if self._independent:
                 text += ", independent"
         text += "]"
-        print(text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return text
 
     def gen_code(self, parent):
         '''
@@ -2380,6 +2443,8 @@ class OMPDirective(Directive):
     Base class for all OpenMP-related directives
 
     '''
+    _PREFIX = "OMP"
+
     @property
     def dag_name(self):
         '''
@@ -2388,17 +2453,17 @@ class OMPDirective(Directive):
         '''
         return "OMP_directive_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text + "[OMP]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[OMP]"
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
@@ -2424,17 +2489,17 @@ class OMPParallelDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text + "[OMP parallel]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[OMP parallel]"
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -2494,8 +2559,8 @@ class OMPParallelDirective(OMPDirective):
             parent.add(AssignGen(parent, lhs=thread_idx,
                                  rhs="omp_get_thread_num()+1"))
 
-        first_type = type(self.children[0])
-        for child in self.children:
+        first_type = type(self.dir_body[0])
+        for child in self.dir_body.children:
             if first_type != type(child):
                 raise NotImplementedError("Cannot correctly generate code"
                                           " for an OpenMP parallel region"
@@ -2619,79 +2684,12 @@ class OMPParallelDirective(OMPDirective):
         Updates the fparser2 AST by inserting nodes for this OpenMP
         parallel region.
 
-        :raises InternalError: if the existing AST doesn't have the \
-                               correct structure to permit the insertion \
-                               of the OpenMP parallel region.
         '''
         # TODO #435: Remove this function once this is fixed
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self.ast:
-            return
-
-        parent_ast = self.parent.ast
-        while parent_ast:
-            if hasattr(parent_ast, "content") and \
-                    parent_ast is not self.children[0].ast:
-                break
-            parent_ast = parent_ast._parent
-
-        if not parent_ast:
-            raise InternalError("Cannot find parent ast for omp parallel.")
-
-        # Find the locations in which we must insert the begin/end
-        # directives...
-        # Find the children of this node in the AST of our parent node
-        try:
-            start_idx = object_index(parent_ast.content,
-                                     self.children[0].ast)
-            end_idx = object_index(parent_ast.content,
-                                   self.children[-1].ast)
-        except (IndexError, ValueError):
-            raise InternalError("Failed to find locations to insert "
-                                "begin/end directives.")
-        # Create the start directive
-        text = "!$omp parallel default(shared), private({0})".format(
-            ",".join(self._get_private_list()))
-        startdir = Comment(FortranStringReader(text,
-                                               ignore_comments=False))
-        # Create the end directive and insert it after the node in
-        # the AST representing our last child
-        enddir = Comment(FortranStringReader("!$omp end parallel",
-                                             ignore_comments=False))
-        self.ast_end = enddir
-        # FIXME: In case of:
-        # omp parallel
-        #    omp do
-        #       loop
-        #    omp end do
-        # omp end parallel
-        # the "end parallel" statement will be inserted after the "omp do"
-        # statement!
-        # In order to avoid this problem when an "omp do" is present, test
-        # for this case and if so move the "omp end parallel" two statements
-        # further down, i.e. after the loop and "omp end do" statement.
-        # TODO #435
-        if isinstance(parent_ast.content[end_idx], Comment) and \
-                "omp do" in str(parent_ast.content[end_idx]) and \
-                "omp end do" in str(parent_ast.content[end_idx+2]):
-            # We need to test for instance, otherwise the string representation
-            # of a loop could somewhere contain an "omp do"
-            parent_ast.content.insert(end_idx+3, enddir)
-        else:
-            # If end_idx+1 takes us beyond the range of the list then the
-            # element is appended to the list
-            parent_ast.content.insert(end_idx + 1, enddir)
-
-        # Insert the start directive (do this second so we don't have
-        # to correct end_idx)
-        self.ast = startdir
-        parent_ast.content.insert(start_idx, self.ast)
+        self._add_region(
+            start_text="parallel default(shared), private({0})".format(
+                ",".join(self._get_private_list())),
+            end_text="end parallel")
 
 
 class OMPDoDirective(OMPDirective):
@@ -2729,23 +2727,21 @@ class OMPDoDirective(OMPDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_do_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Write out a textual summary of the OpenMP Do Directive and then
-        call the view() method of any children.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
         if self.reductions():
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        print(self.indent(indent) + self.coloured_text +
-              "[OMP do]{0}".format(reprod))
-
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return "{0}[OMP do]{1}".format(self.coloured_name(colour), reprod)
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -2828,23 +2824,12 @@ class OMPDoDirective(OMPDirective):
 
     def update(self):
         '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        do.
+        Updates the fparser2 AST by inserting nodes for this OpenMP do.
 
         :raises GenerationError: if the existing AST doesn't have the \
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self.ast:
-            return
-
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
         if len(self._children) != 1:
@@ -2853,48 +2838,8 @@ class OMPDoDirective(OMPDirective):
                 "but this Node has {0} children: {1}".
                 format(len(self._children), self._children))
 
-        # Find the locations in which we must insert the begin/end
-        # directives...
-        # Find the child of this node in the AST of our parent node
-        # TODO make this robust by using the new 'children' method to
-        # be introduced in fparser#105
-        # We have to take care to find a parent node (in the fparser2 AST)
-        # that has 'content'. This is because If-else-if blocks have their
-        # 'content' as siblings of the If-then and else-if nodes.
-        parent = self.parent
-        # This initial loop is necessary in case that the parent is e.g. an
-        # omp parallel node (which has no ast either). So we search up
-        # till we find the first tree to actually have an ast.
-        # TODO #435
-        while not parent.ast:
-            parent = parent.parent
-        parent_ast = parent.ast
-        while parent_ast:
-            if hasattr(parent_ast, "content") and \
-                    parent_ast is not self.children[0].ast:
-                break
-            parent_ast = parent_ast._parent
-        if not parent_ast:
-            raise InternalError("Failed to find parent node in which to "
-                                "insert OpenMP parallel do directive")
-        start_idx = object_index(parent_ast.content,
-                                 self.children[0].ast)
-
-        # Create the start directive
-        text = ("!$omp do schedule({0})".format(self._omp_schedule))
-        startdir = Comment(FortranStringReader(text,
-                                               ignore_comments=False))
-
-        # Create the end directive and insert it after the node in
-        # the AST representing our last child
-        enddir = Comment(FortranStringReader("!$omp end do",
-                                             ignore_comments=False))
-        parent_ast.content.insert(start_idx + 1, enddir)
-
-        # Insert the start directive (do this second so we don't have
-        # to correct the location)
-        self.ast = startdir
-        parent_ast.content.insert(start_idx, self.ast)
+        self._add_region(start_text="do schedule({0})".format(
+            self._omp_schedule), end_text="end do")
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -2914,18 +2859,17 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_do_" + str(self.abs_position)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[OMP parallel do]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[OMP parallel do]"
 
     def gen_code(self, parent):
 
@@ -2958,16 +2902,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self.ast:
-            return
-
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
         if len(self._children) != 1:
@@ -2976,48 +2910,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                 "but this Node has {0} children: {1}".
                 format(len(self._children), self._children))
 
-        # Find the locations in which we must insert the begin/end
-        # directives...
-        # Find the child of this node in the AST of our parent node
-        # TODO make this robust by using the new 'children' method to
-        # be introduced in fparser#105
-        # We have to take care to find a parent node (in the fparser2 AST)
-        # that has 'content'. This is because If-else-if blocks have their
-        # 'content' as siblings of the If-then and else-if nodes.
-        parent = self._parent.ast
-        while parent:
-            if hasattr(parent, "content") and \
-               parent is not self.children[0].ast:
-                break
-            parent = parent._parent
-        if not parent:
-            raise InternalError("Failed to find parent node in which to "
-                                "insert OpenMP parallel do directive")
-        start_idx = object_index(parent.content,
-                                 self._children[0].ast)
-
-        # Create the start directive
-        private_vars = self._get_private_list()
-        text = ("!$omp parallel do default(shared), private({0}), "
-                "schedule({1})".format(",".join(private_vars),
-                                       self._omp_schedule))
-        startdir = Comment(FortranStringReader(text,
-                                               ignore_comments=False))
-
-        # Create the end directive and insert it after the node in
-        # the AST representing our last child
-        enddir = Comment(FortranStringReader("!$omp end parallel do",
-                                             ignore_comments=False))
-        if start_idx == len(parent.content) - 1:
-            parent.content.append(enddir)
-        else:
-            parent.content.insert(start_idx+1, enddir)
-        self.ast_end = enddir
-
-        # Insert the start directive (do this second so we don't have
-        # to correct the location)
-        self.ast = startdir
-        parent.content.insert(start_idx, self.ast)
+        self._add_region(
+            start_text="parallel do default(shared), private({0}), "
+            "schedule({1})".format(",".join(self._get_private_list()),
+                                   self._omp_schedule),
+            end_text="end parallel do")
 
 
 class GlobalSum(Node):
@@ -3041,6 +2938,8 @@ class GlobalSum(Node):
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
+        self._text_name = "GlobalSum"
+        self._colour_key = "GlobalSum"
 
     @property
     def scalar(self):
@@ -3058,31 +2957,21 @@ class GlobalSum(Node):
         the base method and simply return our argument.'''
         return [self._scalar]
 
-    def view(self, indent):
+    def node_str(self, colour=True):
         '''
-        Print text describing this object to stdout and then
-        call the view() method of any children.
+        Returns a text description of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + (
-            "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name)))
+        return "{0}[scalar='{1}']".format(self.coloured_name(colour),
+                                          self._scalar.name)
 
     def __str__(self):
-        return "GlobalSum[scalar='" + self._scalar.name + "']\n"
-
-    @property
-    def coloured_text(self):
-        '''
-        Return a string containing the (coloured) name of this node
-        type
-
-        :returns: A string containing the name of this node, possibly with
-                  control codes for colour
-        :rtype: string
-        '''
-        return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
+        return self.node_str(False)
 
 
 class HaloExchange(Node):
@@ -3120,8 +3009,7 @@ class HaloExchange(Node):
         self._check_dirty = check_dirty
         self._vector_index = vector_index
         self._text_name = "HaloExchange"
-        self._colour_map_name = "HaloExchange"
-        self._dag_name = "haloexchange"
+        self._colour_key = "HaloExchange"
 
     @property
     def vector_index(self):
@@ -3146,8 +3034,11 @@ class HaloExchange(Node):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        name = ("{0}({1})_{2}".format(self._dag_name, self._field.name,
+        '''
+        :returns: the name to use in a dag for this node.
+        :rtype: str
+        '''
+        name = ("{0}({1})_{2}".format(self._text_name, self._field.name,
                                       self.position))
         if self._check_dirty:
             name = "check" + name
@@ -3221,38 +3112,24 @@ class HaloExchange(Node):
                 "exchange but both vector id's ('{0}') of field '{1}' are "
                 "the same".format(self.vector_index, self.field.name))
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + (
-            "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
-                                      self._halo_type,
-                                      self._halo_depth, self._check_dirty)))
+        return ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(
+                    self.coloured_name(colour), self._field.name,
+                    self._halo_type, self._halo_depth,
+                    self._check_dirty))
 
     def __str__(self):
-        result = "HaloExchange["
-        result += "field='" + str(self._field.name) + "', "
-        result += "type='" + str(self._halo_type) + "', "
-        result += "depth='" + str(self._halo_depth) + "', "
-        result += "check_dirty='" + str(self._check_dirty) + "']\n"
-        return result
-
-    @property
-    def coloured_text(self):
-        '''
-        Return a string containing the (coloured) name of this node type
-
-        :returns: Name of this node type, possibly with colour control codes
-        :rtype: string
-        '''
-        return colored(
-            self._text_name, SCHEDULE_COLOUR_MAP[self._colour_map_name])
+        return self.node_str(False)
 
 
 class Loop(Node):
@@ -3293,6 +3170,8 @@ class Loop(Node):
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
         self._kern = None             # Kernel associated with this loop
+        self._text_name = "Loop"
+        self._colour_key = "Loop"
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -3441,30 +3320,20 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Write out a textual summary of this Loop node to stdout
-        and then call the view() method of any children.
+        Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: Depth of indent for output text
-        '''
-        print(self.indent(indent) + self.coloured_text +
-              "[type='{0}', field_space='{1}', it_space='{2}']".
-              format(self._loop_type, self._field_space, self.iteration_space))
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        :param bool colour: whether or not to include colour control codes.
 
-    @property
-    def coloured_text(self):
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        Returns a string containing the name of this node along with
-        control characters for colouring in terminals that support it.
-
-        :returns: The name of this node, possibly with control codes for
-                  colouring
-        :rtype: string
-        '''
-        return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+        return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
+                format(colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]),
+                       self._loop_type, self._field_space,
+                       self.iteration_space))
 
     @property
     def field_space(self):
@@ -3726,18 +3595,17 @@ class Kern(Node):
         base method and simply return our arguments. '''
         return self.arguments.args
 
-    def view(self, indent=0):
-        '''
-        Write out a textual summary of this Kern node to stdout
-        and then call the view() method of any children.
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text,
-              self.name + "(" + self.arguments.names + ")")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return (self.coloured_name(colour) + " " + self.name +
+                "(" + self.arguments.names + ")")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -3751,12 +3619,6 @@ class Kern(Node):
         '''
         super(Kern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
-
-    @property
-    def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node
-        type '''
-        return colored("Kernel", SCHEDULE_COLOUR_MAP["CodedKern"])
 
     @property
     def is_reduction(self):
@@ -3991,6 +3853,8 @@ class CodedKern(Kern):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
+        self._text_name = "CodedKern"
+        self._colour_key = "CodedKern"
 
     def get_kernel_schedule(self):
         '''
@@ -4097,30 +3961,18 @@ class CodedKern(Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
 
-    def view(self, indent=0):
-        '''
-        Write out a textual summary of this Kernel-call node to stdout
-        and then call the view() method of any children.
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
-        '''
-        print(self.indent(indent) + self.coloured_text,
-              self.name + "(" + self.arguments.names + ")",
-              "[module_inline=" + str(self._module_inline) + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        :param bool colour: whether or not to include colour control codes.
 
-    @property
-    def coloured_text(self):
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        Return text containing the (coloured) name of this node type
-
-        :returns: the name of this node type, possibly with control codes
-                  for colour
-        :rtype: string
-        '''
-        return colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+        return (self.coloured_name(colour) + " " + self.name + "(" +
+                self.arguments.names + ") " + "[module_inline=" +
+                str(self._module_inline) + "]")
 
     def gen_code(self, parent):
         '''
@@ -4501,6 +4353,8 @@ class BuiltIn(Kern):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
+        self._text_name = "BuiltIn"
+        self._colour_key = "BuiltIn"
 
     @property
     def dag_name(self):
@@ -4511,22 +4365,14 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
+        self._text_name = "BuiltIn"
+        self._colour_key = "BuiltIn"
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
         made private when parallelising using OpenMP or similar. By default
         builtin's do not have any local variables so set to nothing'''
         return []
-
-    @property
-    def coloured_text(self):
-        '''
-        :returns: the name of this node type, possibly with control codes
-                  for colour.
-        :rtype: str
-
-        '''
-        return colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
 
 
 class Arguments(object):
@@ -5322,6 +5168,8 @@ class IfBlock(Node):
             raise InternalError(
                 "IfBlock with unrecognized annotation '{0}', valid annotations"
                 " are: {1}.".format(annotation, IfBlock.valid_annotations))
+        self._text_name = "If"
+        self._colour_key = "If"
 
     @property
     def condition(self):
@@ -5369,29 +5217,20 @@ class IfBlock(Node):
             return self._children[2]
         return None
 
-    @property
-    def coloured_text(self):
-        '''
-        Return text containing the (coloured) name of this node type.
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :returns: the name of this node type, possibly with control codes \
-                  for colour.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return colored("If", SCHEDULE_COLOUR_MAP["If"])
-
-    def view(self, indent=0):
-        '''
-        Print representation of this node to stdout.
-
-        :param int indent: the level to which to indent the output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[", end='')
+        text = self.coloured_name(colour) + "["
         if self.annotations:
-            print("annotations='" + ','.join(self.annotations) + "'", end='')
-        print("]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+            text += "annotations='" + ','.join(self.annotations) + "'"
+        text += "]"
+        return text
 
     def __str__(self):
         result = "If[]\n"
@@ -5450,18 +5289,16 @@ class ACCKernelsDirective(ACCDirective):
         '''
         return "ACC_kernels_" + str(self.abs_position)
 
-    def view(self, indent=0):
-        '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[ACC Kernels]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[ACC Kernels]"
 
     def gen_code(self, parent):
         '''
@@ -5508,18 +5345,16 @@ class ACCDataDirective(ACCDirective):
         '''
         return "ACC_data_" + str(self.abs_position)
 
-    def view(self, indent=0):
-        '''
-        Write out a textual summary of the OpenMP Parallel Do Directive
-        and then call the view() method of any children.
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[ACC DATA]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[ACC DATA]"
 
     def gen_code(self, _):
         '''
@@ -6282,10 +6117,10 @@ class KernelSchedule(Schedule):
     table to keep a record of the declared variables and their attributes.
 
     :param str name: Kernel subroutine name
-    '''
 
+    '''
     def __init__(self, name):
-        super(KernelSchedule, self).__init__(sequence=None, parent=None)
+        super(KernelSchedule, self).__init__(children=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
@@ -6314,20 +6149,19 @@ class KernelSchedule(Schedule):
         '''
         return self._symbol_table
 
-    def view(self, indent=0):
-        '''
-        Print a text representation of this node to stdout and then
-        call the view() method of any children.
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
 
-        :param int indent: Depth of indent for output text
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
-              + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + "[name:'" + self._name + "']"
 
     def __str__(self):
-        result = "KernelSchedule[name:'" + self._name + "']:\n"
+        result = self.node_str(False) + ":\n"
         for entity in self._children:
             result += str(entity)
         result += "End KernelSchedule\n"
@@ -6398,25 +6232,17 @@ class CodeBlock(Node):
         '''
         return self._fp2_nodes
 
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
+    def node_str(self, colour=True):
+        ''' Create a text description of this node in the schedule, optionally
+        including control codes for colour.
 
-        :returns: Name of node + control chars for colour.
+        :param bool colour: whether or not to include control codes for colour.
+
+        :return: text description of this node.
         :rtype: str
         '''
-        return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              str(list(map(type, self._fp2_nodes))) + "]")
+        return self.coloured_name(colour) + \
+            "[" + str(list(map(type, self._fp2_nodes))) + "]"
 
     def __str__(self):
         return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
@@ -6466,27 +6292,6 @@ class Assignment(Node):
                 "needs at least 2 children to have a rhs.".format(repr(self)))
 
         return self._children[1]
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
 
     def __str__(self):
         result = "Assignment[]\n"
@@ -6573,28 +6378,19 @@ class Reference(Node):
         '''
         return self._reference
 
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
+    def node_str(self, colour=True):
+        ''' Create a text description of this node in the schedule, optionally
+        including control codes for colour.
 
-        :returns: Name of node + control chars for colour.
+        :param bool colour: whether or not to include colour control codes.
+
+        :return: text description of this node.
         :rtype: str
         '''
-        return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[name:'"
-              + self._reference + "']")
+        return self.coloured_name(colour) + "[name:'" + self._reference + "']"
 
     def __str__(self):
-        return "Reference[name:'" + self._reference + "']"
+        return self.node_str(False)
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
@@ -6744,17 +6540,8 @@ class Operation(Node):
                 "{0}.Operator but found {1}.".format(type(self).__name__,
                                                      type(operator).__name__))
         self._operator = operator
-
-    @property
-    @abc.abstractmethod
-    def coloured_text(self):
-        '''
-        Abstract method to return the name of this node type with control
-        codes for terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
+        self._text_name = "Operation"
+        self._colour_key = "Operation"
 
     @property
     def operator(self):
@@ -6769,21 +6556,21 @@ class Operation(Node):
         '''
         return self._operator
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
         '''
-        Print a representation of this node in the schedule to stdout.
+        Construct a text representation of this node, optionally with control
+        codes for coloured display in a suitable terminal.
 
-        :param int indent: level to which to indent output.
+        :param bool colour: whether or not to include colour control codes.
 
+        :returns: description of this PSyIR node.
+        :rtype: str
         '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator.name + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return self.coloured_name(colour) + \
+            "[operator:'" + self._operator.name + "']"
 
     def __str__(self):
-        result = "{0}[operator:'{1}']\n".format(type(self).__name__,
-                                                self._operator.name)
+        result = self.node_str(False) + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
 
@@ -6817,18 +6604,9 @@ class UnaryOperation(Operation):
         'REAL', 'INT'
         ])
 
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-
-        '''
-        return colored("UnaryOperation",
-                       SCHEDULE_COLOUR_MAP["Operation"])
+    def __init__(self, operation, parent=None):
+        super(UnaryOperation, self).__init__(operation, parent)
+        self._text_name = "UnaryOperation"
 
 
 class BinaryOperation(Operation):
@@ -6855,10 +6633,13 @@ class BinaryOperation(Operation):
         'SIZE'
         ])
 
+    def __init__(self, operator, parent=None):
+        super(BinaryOperation, self).__init__(operator, parent)
+        self._text_name = "BinaryOperation"
+
     def math_equal(self, other):
         ''':param other: the node to compare self with.
         :type other: py:class:`psyclone.psyGen.Node`
-
         :returns: True if the self has the same results as other.
         :rtype: bool
         '''
@@ -6880,18 +6661,6 @@ class BinaryOperation(Operation):
                 self._children[1].math_equal(other.children[0])
         return self.operator == other.operator
 
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("BinaryOperation",
-                       SCHEDULE_COLOUR_MAP["Operation"])
-
 
 class NaryOperation(Operation):
     '''
@@ -6911,17 +6680,9 @@ class NaryOperation(Operation):
         'MAX', 'MIN', 'SUM'
         ])
 
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-
-        '''
-        return colored("NaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
+    def __init__(self, operator, parent=None):
+        super(NaryOperation, self).__init__(operator, parent)
+        self._text_name = "NaryOperation"
 
 
 class Array(Reference):
@@ -6937,27 +6698,8 @@ class Array(Reference):
     '''
     def __init__(self, reference_name, parent):
         super(Array, self).__init__(reference_name, parent=parent)
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        super(Array, self).view(indent)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        self._text_name = "ArrayReference"
+        self._colour_key = "Reference"
 
     def __str__(self):
         result = "Array" + super(Array, self).__str__() + "\n"
@@ -7012,28 +6754,18 @@ class Literal(Node):
         '''
         return self._value
 
-    @property
-    def coloured_text(self):
+    def node_str(self, colour=True):
         '''
-        Return the name of this node type with control codes for
-        terminal colouring.
+        Construct a text representation of this node, optionally containing
+        colour control codes.
 
-        :returns: Name of node + control chars for colour.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "["
-              + "value:'" + self._value + "']")
-
-    def __str__(self):
-        return "Literal[value:'" + self._value + "']"
+        return "{0}[value:'{1}']".format(self.coloured_name(colour),
+                                         self._value)
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
@@ -7056,25 +6788,6 @@ class Return(Node):
     '''
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :returns: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
 
     def __str__(self):
         return "Return[]\n"
@@ -7124,28 +6837,21 @@ class Container(Node):
         '''
         return self._symbol_table
 
-    @property
-    def coloured_text(self):
-        '''Return the name of this node type with control codes for terminal
-        colouring.
+    def node_str(self, colour=True):
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
 
-        :return: name of node + control chars for colour.
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
         :rtype: str
-
         '''
-        return colored("Container", SCHEDULE_COLOUR_MAP["Container"])
-
-    def view(self, indent=0):
-        '''Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-
-        '''
-        print(self.indent(indent) + self.coloured_text + "[{0}]"
-              "".format(self.name))
+        return self.coloured_name(colour) + "[{0}]".format(self.name)
 
     def __str__(self):
         return "Container[{0}]\n".format(self.name)
 
 
-__all__ = ['Literal', 'Return']
+__all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation',
+           'Literal', 'Return', 'Container']
