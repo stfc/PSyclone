@@ -36,22 +36,21 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' File Description '''
+''' This module contains the DataSymbol and its interfaces.'''
 
 from enum import Enum
 from psyclone.psyir.symbols import Symbol
 
 
 class DataSymbolInterface(object):
-    pass
+    ''' Abstract class of a DataSymbol Interface '''
 
 
 class DataSymbol(Symbol):
     '''
     Symbol identifying a data element. It contains information about:
-    the datatype, the shape (in column-major order) and, for a symbol
-    representing data that exists outside of the local scope, the interface
-    to that symbol (i.e. the mechanism by which it is accessed).
+    the datatype, the shape (in column-major order) and the interface
+    to that symbol (i.e. Local, Global, Argument).
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol. (One of \
@@ -65,8 +64,8 @@ class DataSymbol(Symbol):
                        represents a scalar.
     :param interface: Object describing the interface to this symbol (i.e. \
                       whether it is passed as a routine argument or accessed \
-                      in some other way) or None if the symbol is local.
-    :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
+                      in some other way).
+    :type interface: :py:class:`psyclone.psyGen.SymbolInterface`
     :param constant_value: Sets a fixed known value for this DataSymbol. \
                            If the value is None (the default) \
                            then this symbol is not a constant. The \
@@ -95,8 +94,8 @@ class DataSymbol(Symbol):
 
     class Access(Enum):
         '''
-        Enumeration for the different types of access that a DataSymbol is
-        permitted to have.
+        Enumeration for the different types of access that a Argument
+        DataSymbol is permitted to have.
 
         '''
         ## The symbol is only ever read within the current scoping block.
@@ -112,8 +111,9 @@ class DataSymbol(Symbol):
         UNKNOWN = 4
 
     class Local(DataSymbolInterface):
+        ''' The data just exists in the Local scope '''
 
-        def __str__(str):
+        def __str__(self):
             return "Local"
 
     class Global(DataSymbolInterface):
@@ -144,6 +144,10 @@ class DataSymbol(Symbol):
 
         @property
         def container_symbol(self):
+            '''
+            :return: symbol of the container containing this datasymbol.
+            :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+            '''
             return self._container_symbol
 
         def __str__(self):
@@ -170,7 +174,7 @@ class DataSymbol(Symbol):
         @property
         def access(self):
             '''
-            :returns: the access-type for this symbol.
+            :returns: the access-type for this argument.
             :rtype: :py:class:`psyclone.psyGen.DataSymbol.Access`
             '''
             return self._access
@@ -234,6 +238,11 @@ class DataSymbol(Symbol):
         self.constant_value = constant_value
 
     def resolve_deferred(self):
+        ''' If the symbol has a deferred datatype, find where it is defined
+        (i.e. an external container) and obtain the properties of the symbol.
+
+        :raises NotImplementedError: if the deferred symbol is not a Global.
+        '''
         if self.datatype == "deferred":
             if isinstance(self.interface, DataSymbol.Global):
                 # Copy all the symbol properties but the interface
@@ -250,7 +259,7 @@ class DataSymbol(Symbol):
     @property
     def datatype(self):
         '''
-        :returns: Datatype of the DataSymbol.
+        :returns: datatype of the DataSymbol.
         :rtype: str
         '''
         return self._datatype
@@ -258,7 +267,7 @@ class DataSymbol(Symbol):
     @property
     def shape(self):
         '''
-        :returns: Shape of the symbol in column-major order (leftmost \
+        :returns: shape of the symbol in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
                   dimension is unknown, otherwise it holds an integer \
@@ -272,10 +281,8 @@ class DataSymbol(Symbol):
     @property
     def interface(self):
         '''
-        :returns: the an object describing the external interface to \
-                  this DataSymbol or None (if it is local).
-        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` or \
-                NoneType.
+        :returns: the an object describing the interface to this DataSymbol.
+        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
         '''
         return self._interface
 
@@ -285,15 +292,14 @@ class DataSymbol(Symbol):
         Setter for the Interface associated with this DataSymbol.
 
         :param value: an Interface object describing how the DataSymbol is \
-                      accessed by the code or None if it is local.
-        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface` \
-                     or NoneType.
+                      accessed by the code.
+        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
 
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
-        if value is not None and not isinstance(value, DataSymbolInterface):
+        if not isinstance(value, DataSymbolInterface):
             raise TypeError("The interface to a DataSymbol must be a "
-                            "SymbolInterface or None but got '{0}'".
+                            "SymbolInterface but got '{0}'".
                             format(type(value)))
         self._interface = value
 

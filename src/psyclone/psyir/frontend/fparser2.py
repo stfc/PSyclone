@@ -306,6 +306,10 @@ class Fparser2Reader(object):
 
         :param module_ast: fparser2 AST of the full module.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+
+        :returns: PSyIR container representing the given module_ast
+        :rtype: :py:class:`psyclone.psyGen.Container`
+
         :raises GenerationError: Unable to generate a Container from the \
                                  provided fpaser2 parse tree.
         '''
@@ -337,6 +341,10 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+
+        :returns: PSyIR schedule representing the kernel
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+
         :raises GenerationError: Unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
         '''
@@ -440,12 +448,7 @@ class Fparser2Reader(object):
                                            Fortran2003.Explicit_Shape_Spec,
                                            Fortran2003.Assumed_Size_Spec]):
 
-            if isinstance(dim, Fortran2003.Assumed_Size_Spec):
-                raise NotImplementedError(
-                    "Could not process {0}. Assumed-size arrays"
-                    " are not supported.".format(dimensions))
-
-            elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
+            if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
@@ -464,6 +467,11 @@ class Fparser2Reader(object):
                     shape.append(sym)
                 else:
                     _unsupported_type_error(dimensions)
+
+            elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
+                raise NotImplementedError(
+                    "Could not process {0}. Assumed-size arrays"
+                    " are not supported.".format(dimensions))
 
             else:
                 raise InternalError(
@@ -484,7 +492,7 @@ class Fparser2Reader(object):
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
 
-        :raises NotImplementedError: The provided declarations contain
+        :raises NotImplementedError: The provided declarations contain \
                                      attributes which are not supported yet.
         :raises GenerationError: If the parse tree for a USE statement does \
                                  not have the expected structure.
@@ -511,9 +519,8 @@ class Fparser2Reader(object):
             container = ContainerSymbol(mod_name)
             parent.symbol_table.add(container)
 
+            # Create a 'deferred' symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
-                # Create a 'deferred' symbol for each element in the ONLY
-                # clause.
                 for name in decl.items[4].items:
                     parent.symbol_table.add(
                         DataSymbol(
@@ -556,17 +563,16 @@ class Fparser2Reader(object):
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
                         if "intent(in)" in normalized_string:
-                            interface = DataSymbol.Argument(
-                                            access=DataSymbol.Access.READ)
+                            interface = DataSymbol.Argument(access= \
+                                DataSymbol.Access.READ)
                         elif "intent(out)" in normalized_string:
-                            interface = DataSymbol.Argument(
-                                            access=DataSymbol.Access.WRITE)
+                            interface = DataSymbol.Argument(access= \
+                                DataSymbol.Access.WRITE)
                         elif "intent(inout)" in normalized_string:
-                            interface = DataSymbol.Argument(
-                                            access=DataSymbol.Access.READWRITE)
-                        elif "parameter" == normalized_string:
-                            # Mark the existance of a constant value that we
-                            # expect to find the the RHS
+                            interface = DataSymbol.Argument(access= \
+                                DataSymbol.Access.READWRITE)
+                        elif normalized_string == "parameter":
+                            # Flag the existence of a constant value in the RHS
                             has_constant_value = True
                         else:
                             raise NotImplementedError(
@@ -596,12 +602,7 @@ class Fparser2Reader(object):
                     entity_shape = attribute_shape
 
                 if initialisation:
-                    if not has_constant_value:
-                        raise NotImplementedError(
-                            "Could not process {0}. Initialisations on the"
-                            " declaration statements are just supported in "
-                            "parameter declarations.".format(decl.items))
-                    else:
+                    if has_constant_value:
                         # If it is a parameter, get the initialization value
                         expr = initialisation.items[1]
                         if isinstance(expr, Fortran2003.NumberBase):
@@ -613,6 +614,11 @@ class Fparser2Reader(object):
                                 "Could not process {0}. Initialisations with "
                                 "static expressions are not supported."
                                 "".format(decl.items))
+                    else:
+                        raise NotImplementedError(
+                            "Could not process {0}. Initialisations on the"
+                            " declaration statements are just supported in "
+                            "parameter declarations.".format(decl.items))
 
                 if char_len is not None:
                     raise NotImplementedError(

@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' File Description '''
+''' This module contains the generic Symbol and the SymbolError.'''
 
 
 class SymbolError(Exception):

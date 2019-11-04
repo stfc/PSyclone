@@ -36,13 +36,21 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' File Description '''
+''' This module contains the ContainerSymbol and its interfaces.'''
 
 from psyclone.psyir.symbols import Symbol, SymbolError
 
 
 class ContainerSymbol(Symbol):
+    ''' Symbol that represents a reference to a Container. The reference
+    is lazy evaluated, this means that the Symbol will be created without
+    parsing and importing the referenced container, but this can be imported
+    when needed.
 
+    :param str name: name of the symbol.
+
+    :raises TypeError: if the name is not a string
+    '''
     def __init__(self, name):
         super(ContainerSymbol, self).__init__(name)
 
@@ -59,6 +67,12 @@ class ContainerSymbol(Symbol):
 
     @property
     def container(self):
+        ''' Returns the referenced container. If it is not available, use
+        the interface to import the container
+
+        :returns: referenced container.
+        :rtype: :py:class:`psyclone.psyGen.Container`
+        '''
         if not self._reference:
             self._reference = self._interface.import_container(self._name)
         return self._reference
@@ -75,23 +89,41 @@ class ContainerSymbol(Symbol):
 # Classes below are not exposed in the psyclone.psyir.symbols
 
 class ContainerSymbolInterface(object):
+    ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod
     def import_container(name):
+        ''' Abstract method to import an external container, the specific
+        implementation depends on the language used.
+
+        :param str name: name of the external entity to be imported.
+
+        :raises NotImplementedError: this is an abstract method.
+        '''
         raise NotImplementedError("Abstract method")
 
 
 class FortranModuleInterface(ContainerSymbolInterface):
+    ''' Implemtation of ContainerSymbolInterfaces for Fortran modules '''
 
     @staticmethod
-    def import_container(module_name):
+    def import_container(name):
+        ''' Imports a Fortran module as a PSyIR container.
+
+        :param str module_name: name of the module to be imported.
+
+        :returns: container associated to the given name.
+        :rtype: :py:class:`psyclone.psyGen.Container`
+
+        :raises SymbolError: the given symbol is not found on the import path.
+        '''
         from os import listdir, path
         from fparser.two.parser import ParserFactory
         from fparser.common.readfortran import FortranFileReader
         from psyclone.configuration import Config
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
-        filename = module_name + '.f90'
+        filename = name + '.f90'
         for directory in Config.get().include_paths:
             if filename in listdir(directory):
                 # Parse the module source code
@@ -104,8 +136,6 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
                 # Generate and return the PSyIR container
                 return fp2reader.generate_container(ast)
-        else:
-            raise SymbolError(
-                "Module {0} not found in any of the include_path "
-                "directories {1}."
-                "".format(filename, Config.get().include_paths))
+        raise SymbolError(
+            "Module {0} not found in any of the include_path directories {1}."
+            "".format(filename, Config.get().include_paths))
