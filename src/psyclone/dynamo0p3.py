@@ -849,7 +849,18 @@ class DynArgDescriptor03(Descriptor):
 
 
 class RefElementMetaData(object):
+    '''
+    Class responsible for parsing reference-element meta-data and storing
+    the properties that a kernel requires.
 
+    :param str kernel_name: name of the Kernel that the meta-data is for.
+    :param type_declns: list of fparser1 parse tree nodes representing type \
+                        declaration statements
+    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
+
+    :raises ParseError: if an unrecognised reference-element property is found.
+
+    '''
     class Property(Enum):
         '''
         Enumeration of the various properties of the Reference Element
