@@ -57,6 +57,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Literal, ACCEnterDataDirective, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
+import six
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
@@ -1674,7 +1675,7 @@ class GOStencil(object):
             # check and that extract them
             for arg_idx in range(3):
                 arg = args[arg_idx]
-                if not isinstance(arg, str):
+                if not isinstance(arg, six.string_types):
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "

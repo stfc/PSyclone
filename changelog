@@ -310,6 +310,8 @@
 	98) #570. PSyclone now set to require fparser 0.0.9 on
 	installation.
 
+	99) PR #572 for #571. Bug fixes now that fparser uses unicode.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
