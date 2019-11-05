@@ -152,7 +152,7 @@ def test_loop_fuse_different_iterates_over():
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Turn off constant loop bounds (which should have no effect)
     # and repeat
@@ -160,7 +160,7 @@ def test_loop_fuse_different_iterates_over():
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(newsched.children[0],
                              newsched.children[1])
-    assert "Loops do not have the same iteration space" in str(err)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
 
 def test_loop_fuse_error():
@@ -174,13 +174,13 @@ def test_loop_fuse_error():
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0].children[0],
                              schedule.children[1])
-    assert "Both nodes must be of the same GOLoop class." in str(err)
+    assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # Also check that we catch this for the second argument:
     with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1].children[0])
-    assert "Both nodes must be of the same GOLoop class." in str(err)
+    assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # cause an unexpected error
     schedule.children[0].loop_body.children = None
@@ -354,13 +354,13 @@ def test_omp_region_with_slice_change_order():
     # could result in changing the order of operations:
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[2], schedule.children[1]])
-    assert "Children are not consecutive children of one parent" in str(err)
+    assert "Children are not consecutive children of one parent" in str(err.value)
 
     # Also test the case of duplicated children:
     # ------------------------------------------
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[0], schedule.children[0]])
-    assert "Children are not consecutive children of one parent" in str(err)
+    assert "Children are not consecutive children of one parent" in str(err.value)
 
 
 def test_omp_region_no_slice(tmpdir):
@@ -952,7 +952,7 @@ def test_omp_parallel_region_inside_parallel_do():
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply([schedule.children[1].children[0]])
     assert ("cannot create an OpenMP PARALLEL region within another "
-            "OpenMP region" in str(err))
+            "OpenMP region" in str(err.value))
 
 
 def test_omp_parallel_do_around_parallel_region():
@@ -994,7 +994,7 @@ def test_omp_region_invalid_node():
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply(new_sched.children)
     assert ("ACCParallelDirective'>' cannot be enclosed by a "
-            "OMPParallelTrans transformation" in str(err))
+            "OMPParallelTrans transformation" in str(err.value))
 
     # Check that the test can be disabled with the appropriate option:
     ompr.apply(new_sched.children, {"node-type-check": False})
@@ -1492,7 +1492,7 @@ def test_ocl_apply(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
     assert "the supplied node must be a (sub-class of) InvokeSchedule " \
-        in str(err)
+        in str(err.value)
 
     new_sched, _ = ocl.apply(schedule)
     assert new_sched.opencl
@@ -1536,7 +1536,7 @@ def test_acc_parallel_trans(tmpdir):
     with pytest.raises(GenerationError) as err:
         _ = str(psy.gen)
     assert ("an ACC parallel region must also contain an ACC enter data "
-            "directive but none was found for invoke_0" in str(err))
+            "directive but none was found for invoke_0" in str(err.value))
 
     accdt = ACCEnterDataTrans()
     new_sched, _ = accdt.apply(schedule)
@@ -1572,14 +1572,14 @@ def test_acc_incorrect_parallel_trans():
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply([schedule.children[1], schedule.children[0]])
 
-    assert "Children are not consecutive children" in str(err)
+    assert "Children are not consecutive children" in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply([schedule.children[0].children[0],
                            schedule.children[0]])
 
     assert ("supplied nodes are not children of the same parent"
-            in str(err))
+            in str(err.value))
 
 
 def test_acc_data_not_a_schedule():
@@ -1594,7 +1594,7 @@ def test_acc_data_not_a_schedule():
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
     assert ("Cannot apply an OpenACC enter-data directive to something that "
-            "is not a Schedule" in str(err))
+            "is not a Schedule" in str(err.value))
 
 
 def test_acc_parallel_invalid_node():
@@ -1613,7 +1613,7 @@ def test_acc_parallel_invalid_node():
     with pytest.raises(TransformationError) as err:
         _, _ = accpara.apply(new_sched.children[0])
     assert ("GOACCEnterDataDirective'>' cannot be enclosed by a "
-            "ACCParallelTrans transformation" in str(err))
+            "ACCParallelTrans transformation" in str(err.value))
 
 
 def test_acc_data_copyin(tmpdir):
@@ -1753,7 +1753,7 @@ def test_accloop(tmpdir):
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
     assert ("Cannot apply a parallel-loop directive to something that is not "
-            "a loop" in str(err))
+            "a loop" in str(err.value))
 
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
@@ -1765,7 +1765,7 @@ def test_accloop(tmpdir):
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("ACCLoopDirective must have an ACCParallelDirective as an "
-            "ancestor in the Schedule" in str(err))
+            "ancestor in the Schedule" in str(err.value))
 
     # Add an enclosing parallel region
     new_sched, _ = accpara.apply(schedule.children)
@@ -1776,7 +1776,7 @@ def test_accloop(tmpdir):
         _ = psy.gen
     assert ("A Schedule containing an ACC parallel region must also "
             "contain an ACC enter data directive but none was found for "
-            "invoke_0" in str(err))
+            "invoke_0" in str(err.value))
 
     # Add a data region
     new_sched, _ = accdata.apply(new_sched)
@@ -1809,19 +1809,19 @@ def test_acc_collapse(tmpdir):
     with pytest.raises(TransformationError) as err:
         _, _ = acclpt.apply(child, {"collapse": child})
     assert ("The 'collapse' argument must be an integer but got an object "
-            "of type" in str(err))
+            "of type" in str(err.value))
 
     # Check that we reject invalid depths
     with pytest.raises(TransformationError) as err:
         _, _ = acclpt.apply(child, {"collapse": 1})
     assert ("It only makes sense to collapse 2 or more loops but got a "
-            "value of 1" in str(err))
+            "value of 1" in str(err.value))
 
     # Check that we reject attempts to collapse more loops than we have
     with pytest.raises(TransformationError) as err:
         _, _ = acclpt.apply(child, {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err))
+            "only 2 loops" in str(err.value))
 
     # Finally, do something valid and check that we get the correct
     # generated code
@@ -1913,4 +1913,4 @@ def test_acc_kernels_error():
     with pytest.raises(NotImplementedError) as err:
         _, _ = accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
-            " and dynamo0.3 front-ends" in str(err))
+            " and dynamo0.3 front-ends" in str(err.value))

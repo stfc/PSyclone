@@ -81,7 +81,7 @@ def test_accenterdata_internalerr(monkeypatch):
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
-    assert "validate() has not rejected an (unsupported) schedule" in str(err)
+    assert "validate() has not rejected an (unsupported) schedule" in str(err.value)
 
 
 def test_omploop_no_collapse():
@@ -95,7 +95,7 @@ def test_omploop_no_collapse():
     with pytest.raises(NotImplementedError) as err:
         _ = trans._directive(pnode, cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
-            "directives" in str(err))
+            "directives" in str(err.value))
 
 
 def test_ifblock_children_region():
@@ -122,11 +122,11 @@ def test_ifblock_children_region():
     with pytest.raises(TransformationError) as err:
         super(ACCParallelTrans, acct).validate(ifblock.children)
     assert ("transformation to the conditional expression (first child" in
-            str(err))
+            str(err.value))
     with pytest.raises(TransformationError) as err:
         super(ACCParallelTrans, acct).validate(ifblock.children[1:])
     assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
-            in str(err))
+            in str(err.value))
 
 
 def test_fusetrans_error_incomplete():

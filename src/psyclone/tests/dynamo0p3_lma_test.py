@@ -96,7 +96,7 @@ def test_get_op_wrong_name():
     from psyclone.dynamo0p3 import get_fs_operator_name
     with pytest.raises(GenerationError) as err:
         get_fs_operator_name("not_an_op", FunctionSpace("w3", None))
-    assert "Unsupported name 'not_an_op' found" in str(err)
+    assert "Unsupported name 'not_an_op' found" in str(err.value)
 
 
 def test_ad_op_type_too_few_args():
@@ -242,7 +242,7 @@ def test_fsdesc_fs_not_in_argdesc():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert 'function spaces specified in meta_funcs must exist in ' + \
-        'meta_args' in str(excinfo)
+        'meta_args' in str(excinfo.value)
 
 
 def test_operator():
@@ -625,7 +625,8 @@ def test_operator_read_level1_halo():
         _ = psy.gen
     assert ("Kernel 'testkern_operator_code' reads from an operator and "
             "therefore cannot be used for cells beyond the level 1 halo. "
-            "However the containing loop goes out to level 2" in str(excinfo))
+            "However the containing loop goes out to level 2"
+            in str(excinfo.value))
 
 
 def test_operator_bc_kernel(tmpdir):
@@ -669,7 +670,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
         _ = psy.gen
     assert ("Expected a LMA operator from which to look-up boundary dofs "
             "but kernel enforce_operator_bc_code has argument gh_field") \
-        in str(excinfo)
+        in str(excinfo.value)
 
 
 def test_operator_bc_kernel_multi_args_err(dist_mem):
@@ -692,13 +693,13 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
-            "should only have 1 (an LMA operator)") in str(excinfo)
+            "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
     call.arguments.args[1]._type = "gh_field"
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
-            "should only have 1 (an LMA operator)") in str(excinfo)
+            "should only have 1 (an LMA operator)") in str(excinfo.value)
 
 
 def test_operator_bc_kernel_wrong_access_err(dist_mem):
@@ -718,7 +719,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
         _ = psy.gen
     assert ("applies boundary conditions to an operator. However its "
             "operator argument has access gh_read rather than "
-            "gh_readwrite") in str(excinfo)
+            "gh_readwrite") in str(excinfo.value)
 
 
 # operators : spaces and intent

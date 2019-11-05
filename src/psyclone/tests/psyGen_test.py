@@ -94,7 +94,7 @@ def test_object_index():
     assert object_index(my_list, two) == 1
     with pytest.raises(InternalError) as err:
         _ = object_index(my_list, None)
-    assert "Cannot search for None item in list" in str(err)
+    assert "Cannot search for None item in list" in str(err.value)
 
 # PSyFactory class unit tests
 
@@ -576,7 +576,7 @@ def test_sched_getitem():
     # Test index out-of-bounds Error
     with pytest.raises(IndexError) as err:
         _ = sched[len(sched._children)]
-    assert "list index out of range" in str(err)
+    assert "list index out of range" in str(err.value)
 
 
 def test_sched_can_be_printed():
@@ -620,7 +620,7 @@ def test_sched_ocl_setter():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
-    assert "Schedule.opencl must be a bool but got " in str(err)
+    assert "Schedule.opencl must be a bool but got " in str(err.value)
 
 
 def test_invokeschedule_can_be_printed():
@@ -697,7 +697,7 @@ def test_kern_abstract_methods():
     my_kern.load_meta(metadata)
     with pytest.raises(NotImplementedError) as err:
         super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
-    assert "gen_arg_setter_code must be implemented by sub-class" in str(err)
+    assert "gen_arg_setter_code must be implemented by sub-class" in str(err.value)
 
 
 def test_call_abstract_methods():
@@ -738,14 +738,14 @@ def test_arguments_abstract():
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args
-    assert "Arguments.acc_args must be implemented in sub-class" in str(err)
+    assert "Arguments.acc_args must be implemented in sub-class" in str(err.value)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.scalars
-    assert "Arguments.scalars must be implemented in sub-class" in str(err)
+    assert "Arguments.scalars must be implemented in sub-class" in str(err.value)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.raw_arg_list()
     assert ("Arguments.raw_arg_list must be implemented in sub-class"
-            in str(err))
+            in str(err.value))
 
 
 def test_incremented_arg():
@@ -973,7 +973,7 @@ def test_reduction_var_error():
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
         assert ("zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer']") in str(err)
+                "'gh_integer']") in str(err.value)
 
 
 def test_reduction_sum_error():
@@ -992,7 +992,7 @@ def test_reduction_sum_error():
             call.reduction_sum_loop(None)
         assert (
             "unsupported reduction access 'gh_write' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)
+            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err.value)
 
 
 def test_call_multi_reduction_error(monkeypatch):
@@ -1013,7 +1013,7 @@ def test_call_multi_reduction_error(monkeypatch):
                            distributed_memory=dist_mem).create(invoke_info)
         assert (
             "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err))
+            "or builtin" in str(err.value))
 
 
 def test_invoke_name():
@@ -1906,7 +1906,7 @@ def test_directive_get_private(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
     assert ("call 'testkern_code' has a local variable but its name is "
-            "not set" in str(err))
+            "not set" in str(err.value))
 
 
 def test_node_is_valid_location():
@@ -2213,7 +2213,7 @@ def test_acc_datadevice_virtual():
         ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
-            "methods data_on_device" in str(err))
+            "methods data_on_device" in str(err.value))
 
 # (1/1) Method node_str
 # Covered in test test_acc_dir_node_str
@@ -2750,7 +2750,7 @@ def test_node_abstract_methods():
     loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop, parent=None)
-    assert "Please implement me" in str(err)
+    assert "Please implement me" in str(err.value)
 
 
 def test_node_coloured_name():
@@ -3024,7 +3024,7 @@ def test_loop_invalid_type():
     with pytest.raises(GenerationError) as err:
         loop.loop_type = "not_a_valid_type"
     assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err))
+            "['inner', 'outer']" in str(err.value))
 
 
 def test_loop_gen_code():
@@ -3177,7 +3177,7 @@ def test_assignment_semantic_navigation():
     with pytest.raises(InternalError) as err:
         _ = assignment.lhs
     assert "' malformed or incomplete. It needs at least 1 child to have " \
-        "a lhs." in str(err)
+        "a lhs." in str(err.value)
 
     ref = Reference("a", assignment)
     assignment.addchild(ref)
@@ -3186,7 +3186,7 @@ def test_assignment_semantic_navigation():
     with pytest.raises(InternalError) as err:
         _ = assignment.rhs
     assert " malformed or incomplete. It needs at least 2 children to have " \
-        "a rhs." in str(err)
+        "a rhs." in str(err.value)
 
     lit = Literal("1", assignment)
     assignment.addchild(lit)
@@ -3331,7 +3331,7 @@ def test_binaryoperation_initialization():
     with pytest.raises(TypeError) as err:
         _ = BinaryOperation("not an operator")
     assert "BinaryOperation operator argument must be of type " \
-           "BinaryOperation.Operator but found" in str(err)
+           "BinaryOperation.Operator but found" in str(err.value)
     bop = BinaryOperation(BinaryOperation.Operator.ADD)
     assert bop._operator is BinaryOperation.Operator.ADD
 
@@ -3380,7 +3380,7 @@ def test_unaryoperation_initialization():
     with pytest.raises(TypeError) as err:
         _ = UnaryOperation("not an operator")
     assert "UnaryOperation operator argument must be of type " \
-           "UnaryOperation.Operator but found" in str(err)
+           "UnaryOperation.Operator but found" in str(err.value)
     uop = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert uop._operator is UnaryOperation.Operator.MINUS
 
@@ -3601,7 +3601,7 @@ def test_symbol_initialisation():
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
-            "'real'.") in str(error)
+            "'real'.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', shape=dim)
@@ -3627,33 +3627,33 @@ def test_symbol_initialisation():
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', interface=Symbol.Argument(), constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global'.") in str(error)
+            "local scope but found 'global'.") in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', shape=[None], constant_value=9)
     assert ("Symbol with a constant value must be a scalar but the shape "
-            "attribute is not empty.") in str(error)
+            "attribute is not empty.") in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', constant_value=9.81)
     assert ("This Symbol instance's datatype is 'integer' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'int'>' but found " in str(error)
-    assert "'float'>'." in str(error)
+            "constant value is expected to be") in str(error.value)
+    assert "'int'>' but found " in str(error.value)
+    assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'character', constant_value=42)
     assert ("This Symbol instance's datatype is 'character' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'str'>' but found " in str(error)
-    assert "'int'>'." in str(error)
+            "constant value is expected to be") in str(error.value)
+    assert "'str'>' but found " in str(error.value)
+    assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'boolean', constant_value="hello")
     assert ("This Symbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'bool'>' but found " in str(error)
-    assert "'str'>'." in str(error)
+            "constant value is expected to be") in str(error.value)
+    assert "'bool'>' but found " in str(error.value)
+    assert "'str'>'." in str(error.value)
 
 
 def test_symbol_map():
@@ -3742,7 +3742,7 @@ def test_symbol_invalid_interface():
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
     assert ("interface to a Symbol must be a SymbolInterface or None but"
-            in str(err))
+            in str(err.value))
 
 
 def test_symbol_interface():
@@ -3761,7 +3761,7 @@ def test_symbol_interface_access():
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
         symbol.interface.access = "read"
-    assert "must be a 'Symbol.Access' but got " in str(err)
+    assert "must be a 'Symbol.Access' but got " in str(err.value)
 
 
 def test_symbol_argument_str():
@@ -3783,10 +3783,10 @@ def test_fortranglobal_modname():
     ''' Test the FortranGlobal.module_name setter error conditions. '''
     with pytest.raises(ValueError) as err:
         _ = Symbol.FortranGlobal("")
-    assert "module_name must be one or more characters long" in str(err)
+    assert "module_name must be one or more characters long" in str(err.value)
     with pytest.raises(TypeError) as err:
         _ = Symbol.FortranGlobal(1)
-    assert "module_name must be a str but got" in str(err)
+    assert "module_name must be a str but got" in str(err.value)
 
 
 def test_symbol_copy():
@@ -4044,15 +4044,15 @@ def test_symboltable_specify_argument_list_errors():
     # point is just a local variable.
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
-    assert "Symbol 'var1:" in str(err)
+    assert "Symbol 'var1:" in str(err.value)
     assert ("is listed as a kernel argument but has no associated "
-            "Interface" in str(err))
+            "Interface" in str(err.value))
     # Now add an Interface for "var1" but of the wrong type
     sym_v1.interface = Symbol.FortranGlobal("some_mod")
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
-    assert "Symbol 'var1:" in str(err)
-    assert "has an interface of type '" in str(err)
+    assert "Symbol 'var1:" in str(err.value)
+    assert "has an interface of type '" in str(err.value)
 
 
 def test_symboltable_argument_list_errors():
@@ -4069,12 +4069,12 @@ def test_symboltable_argument_list_errors():
         sym_table._validate_arg_list(sym_table._argument_list)
     pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
                "no associated Interface")
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that the argument_list property converts this error into an
     # InternalError
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that we reject a symbol imported from a module
     with pytest.raises(ValueError) as err:
         sym_table._validate_arg_list([sym_table.lookup("var3")])
@@ -4082,17 +4082,17 @@ def test_symboltable_argument_list_errors():
     sym_table._argument_list = [sym_table.lookup("var3")]
     pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
                r"interface of type \'.*\.FortranGlobal\'>")
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that the argument_list property converts this error into an
     # InternalError
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that we get the expected TypeError if we provide a list containing
     # objects that are not Symbols
     with pytest.raises(TypeError) as err:
         sym_table._validate_arg_list(["Not a symbol"])
-    assert "Expected a list of Symbols but found an object of type" in str(err)
+    assert "Expected a list of Symbols but found an object of type" in str(err.value)
 
 
 def test_symboltable_validate_non_args():
@@ -4114,7 +4114,7 @@ def test_symboltable_validate_non_args():
         sym_table._validate_non_args()
     pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
                "has a Symbol.Argument interface")
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
 
 
 def test_symboltable_contains():

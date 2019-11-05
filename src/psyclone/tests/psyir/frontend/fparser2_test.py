@@ -584,7 +584,7 @@ def test_use_stmt_error(f2008_parser, monkeypatch):
     with pytest.raises(GenerationError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Expected the parse tree for a USE statement to contain 5 items "
-            "but found 3 for 'hello'" in str(err))
+            "but found 3 for 'hello'" in str(err.value))
 
 
 def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
@@ -647,7 +647,7 @@ def test_handling_name(f2008_parser):
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2name], None)
-    assert "Undeclared reference 'x' found." in str(error)
+    assert "Undeclared reference 'x' found." in str(error.value)
 
     fake_parent.symbol_table.add(Symbol('x', 'integer'))
     processor.process_nodes(fake_parent, [fparser2name], None)
@@ -691,7 +691,7 @@ def test_handling_part_ref(f2008_parser):
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    assert "Undeclared reference 'x' found." in str(error)
+    assert "Undeclared reference 'x' found." in str(error.value)
 
     fake_parent.symbol_table.add(Symbol('x', 'integer'))
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
@@ -778,7 +778,7 @@ def test_intrinsic_no_args(f2008_parser):
     fp2node.items = (fp2node.items[0],)
     with pytest.raises(NotImplementedError) as err:
         processor._intrinsic_handler(fp2node, fake_parent)
-    assert "SUM" in str(err)
+    assert "SUM" in str(err.value)
 
 
 def test_unary_op_handler_error(f2008_parser):
@@ -800,7 +800,7 @@ def test_unary_op_handler_error(f2008_parser):
     with pytest.raises(InternalError) as err:
         processor._unary_op_handler(fp2node, fake_parent)
     assert ("Operation 'EXP(a, b)' has more than one argument and is "
-            "therefore not unary" in str(err))
+            "therefore not unary" in str(err.value))
 
 
 def test_binary_op_handler_error(f2008_parser):
@@ -816,13 +816,13 @@ def test_binary_op_handler_error(f2008_parser):
     with pytest.raises(InternalError) as err:
         processor._binary_op_handler(fp2node, fake_parent)
     assert ("Binary operator should have exactly two arguments but found 1 "
-            "for 'SUM(a)'." in str(err))
+            "for 'SUM(a)'." in str(err.value))
     # Now break the 'items' tuple of this fparser node
     fp2node.items = (fp2node.items[0], Name('dummy'))
     with pytest.raises(InternalError) as err:
         processor._binary_op_handler(fp2node, fake_parent)
     assert ("binary intrinsic operation 'SUM(dummy)'. Expected second child "
-            "to be Actual_Arg_Spec_List" in str(err))
+            "to be Actual_Arg_Spec_List" in str(err.value))
 
 
 def test_nary_op_handler_error(f2008_parser):
@@ -838,13 +838,13 @@ def test_nary_op_handler_error(f2008_parser):
     with pytest.raises(InternalError) as err:
         processor._nary_op_handler(fp2node, fake_parent)
     assert ("An N-ary operation must have more than two arguments but found 1 "
-            "for 'SUM(a)'" in str(err))
+            "for 'SUM(a)'" in str(err.value))
     # Break the 'items' tuple of this fparser node
     fp2node.items = (fp2node.items[0], Name('dummy'))
     with pytest.raises(InternalError) as err:
         processor._nary_op_handler(fp2node, fake_parent)
     assert ("Expected second 'item' of N-ary intrinsic 'SUM(dummy)' in fparser"
-            " parse tree to be an Actual_Arg_Spec_List" in str(err))
+            " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
 
 
 def test_handling_nested_intrinsic(f2008_parser):
@@ -1598,4 +1598,4 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
     with pytest.raises(InternalError) as err:
         processor.process_nodes(fake_parent, [fparser2while], None)
     assert "Unrecognised form of DO loop - failed to find Loop_Control " \
-        "element in the node '<fparser2while>'." in str(err)
+        "element in the node '<fparser2while>'." in str(err.value)

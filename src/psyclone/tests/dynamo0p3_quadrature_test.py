@@ -247,7 +247,7 @@ def test_internal_qr_err(monkeypatch):
     with pytest.raises(GenerationError) as excinfo:
         _ = PSyFactory(API).create(invoke_info)
     assert ("Internal error: unsupported shape (gh_quadrature_wrong) "
-            "found" in str(excinfo))
+            "found" in str(excinfo.value))
 
 
 def test_dynbasisfunctions(monkeypatch):
@@ -265,7 +265,7 @@ def test_dynbasisfunctions(monkeypatch):
     from psyclone import dynamo0p3
     with pytest.raises(InternalError) as excinfo:
         _ = dynamo0p3.qr_basis_alloc_args("size1", basis_dict)
-    assert "Unrecognised shape (gh_wrong_shape) specified " in str(excinfo)
+    assert "Unrecognised shape (gh_wrong_shape) specified " in str(excinfo.value)
 
     # Monkey-patch it so that it doesn't have any quadrature args
     monkeypatch.setattr(evaluator, "_qr_vars", value=[])
@@ -285,7 +285,7 @@ def test_dynbasisfunctions(monkeypatch):
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
     with pytest.raises(InternalError) as err:
         _ = DynBasisFunctions(invoke)
-    assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
+    assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
 
 
 def test_dynbasisfns_setup(monkeypatch):
@@ -305,12 +305,12 @@ def test_dynbasisfns_setup(monkeypatch):
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
     with pytest.raises(InternalError) as err:
         dinf._setup_basis_fns_for_call(call)
-    assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
+    assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
     # Check that we get the expected error if the method is passed
     # something that is not a Kernel call
     with pytest.raises(InternalError) as err:
         dinf._setup_basis_fns_for_call("call")
-    assert "Expected a DynKern object but got: " in str(err)
+    assert "Expected a DynKern object but got: " in str(err.value)
 
 
 def test_dynbasisfns_initialise(monkeypatch):
@@ -328,13 +328,13 @@ def test_dynbasisfns_initialise(monkeypatch):
     with pytest.raises(InternalError) as err:
         dinf.initialise(mod)
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "
-            "one of " in str(err))
+            "one of " in str(err.value))
     # Break the internal list of basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
         dinf.initialise(mod)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
-            "either 'basis' or 'diff-basis'" in str(err))
+            "either 'basis' or 'diff-basis'" in str(err.value))
 
 
 def test_dynbasisfns_compute(monkeypatch):
@@ -354,13 +354,13 @@ def test_dynbasisfns_compute(monkeypatch):
         dinf._compute_basis_fns(mod)
     assert ("Unrecognised shape 'not-a-shape' specified for basis function. "
             "Should be one of: ['gh_quadrature_xyoz', 'gh_evaluator']"
-            in str(err))
+            in str(err.value))
     # Now supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
         dinf._compute_basis_fns(mod)
     assert ("Unrecognised type of basis function: 'not-a-type'. Expected "
-            "one of 'basis' or 'diff-basis'" in str(err))
+            "one of 'basis' or 'diff-basis'" in str(err.value))
 
 
 def test_dynbasisfns_dealloc(monkeypatch):
@@ -382,7 +382,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
     with pytest.raises(InternalError) as err:
         dinf.deallocate(mod)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
-            "one of 'basis' or 'diff-basis'" in str(err))
+            "one of 'basis' or 'diff-basis'" in str(err.value))
 
 
 def test_dynkern_setup(monkeypatch):
@@ -415,7 +415,7 @@ def test_dynkern_setup(monkeypatch):
     with pytest.raises(GenerationError) as excinfo:
         kern._setup(dkm, "my module", None, None)
     assert ("Internal error: evaluator shape 'gh_wrong_shape' is not "
-            "recognised" in str(excinfo))
+            "recognised" in str(excinfo.value))
 
 
 BASIS = '''
@@ -539,14 +539,14 @@ def test_stub_basis_wrong_shape(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
-            in str(excinfo))
+            in str(excinfo.value))
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
     assert ("Quadrature shape 'gh_quadrature_wrong' not yet supported in "
-            "dynamo0p3.qr_basis_alloc_args" in str(excinfo))
+            "dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))
 
 
 def test_stub_dbasis_wrong_shape(monkeypatch):
@@ -566,11 +566,11 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
-            in str(excinfo))
+            in str(excinfo.value))
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
     assert ("Quadrature shape 'gh_quadrature_wrong' not yet "
-            "supported in dynamo0p3.qr_basis_alloc_args" in str(excinfo))
+            "supported in dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))

@@ -92,15 +92,15 @@ def test_failures(monkeypatch, capsys):
     # Test empty API (and file not found)
     with pytest.raises(IOError) as err:
         generate("/does_not_exist", api="")
-    assert "file '/does_not_exist' not found" in str(err)
+    assert "file '/does_not_exist' not found" in str(err.value)
 
     # CHeck invalid API
     with pytest.raises(GenerationError) as err:
         generate("filename", api="invalid")
-    assert "Unsupported API 'invalid' specified." in str(err)
+    assert "Unsupported API 'invalid' specified." in str(err.value)
 
     # Trapping Fortran errors:
     with pytest.raises(ParseError) as err:
         # Use this python file to trigger invalid Fortran
         generate(__file__, api="dynamo0.3")
-    assert "Code appears to be invalid" in str(err)
+    assert "Code appears to be invalid" in str(err.value)

@@ -368,7 +368,7 @@ def test_missing_shape_both():
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
             "'gh_shape' in the kernel meta-data but this is missing "
-            "for kernel 'testkern_qr_type'" in str(excinfo))
+            "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
 def test_missing_shape_basis_only():
@@ -393,7 +393,7 @@ def test_missing_shape_basis_only():
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
             "'gh_shape' in the kernel meta-data but this is missing "
-            "for kernel 'testkern_qr_type'" in str(excinfo))
+            "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
 def test_missing_eval_shape_diff_basis_only():
@@ -418,7 +418,7 @@ def test_missing_eval_shape_diff_basis_only():
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
             "'gh_shape' in the kernel meta-data but this is missing "
-            "for kernel 'testkern_qr_type'" in str(excinfo))
+            "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
 def test_invalid_shape():
@@ -435,7 +435,7 @@ def test_invalid_shape():
         _ = DynKernMetadata(ast, name=name)
     assert ("request a valid gh_shape (one of ['gh_quadrature_xyoz', "
             "'gh_evaluator']) but got 'quadrature_wrong' for kernel "
-            "'testkern_qr_type'" in str(excinfo))
+            "'testkern_qr_type'" in str(excinfo.value))
 
 
 def test_unecessary_shape():
@@ -457,7 +457,7 @@ def test_unecessary_shape():
     assert ("Kernel 'testkern_qr_type' specifies a gh_shape "
             "(gh_quadrature_xyoz) but does not need an evaluator because no "
             "basis or differential basis functions are required"
-            in str(excinfo))
+            in str(excinfo.value))
 
 
 def test_field(tmpdir):
@@ -1865,7 +1865,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
         _ = psy.gen
     assert ("Expected a gh_field from which to look-up boundary dofs "
             "for kernel enforce_bc_code but got gh_operator"
-            in str(excinfo))
+            in str(excinfo.value))
 
 
 def test_bc_kernel_anyspace1_only():
@@ -1887,7 +1887,7 @@ def test_bc_kernel_anyspace1_only():
     with pytest.raises(GenerationError) as err:
         _ = DynBoundaryConditions(invoke)
     assert ("enforce_bc_code kernel must have an argument on ANY_SPACE_1 but "
-            "failed to find such an argument" in str(err))
+            "failed to find such an argument" in str(err.value))
 
 
 def test_bc_op_kernel_wrong_args():
@@ -1909,7 +1909,7 @@ def test_bc_op_kernel_wrong_args():
     with pytest.raises(GenerationError) as err:
         _ = DynBoundaryConditions(invoke)
     assert ("enforce_operator_bc_code kernel must have exactly one argument "
-            "but found 2" in str(err))
+            "but found 2" in str(err.value))
 
 
 def test_multikernel_invoke_1():
@@ -2156,13 +2156,13 @@ def test_kern_colourmap(monkeypatch):
     kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.colourmap
-    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
+    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err.value)
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     monkeypatch.setattr(kern, "_is_intergrid", True)
     with pytest.raises(InternalError) as err:
         _ = kern.colourmap
     assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err))
+            "been initialised" in str(err.value))
 
 
 def test_kern_ncolours(monkeypatch):
@@ -2173,13 +2173,13 @@ def test_kern_ncolours(monkeypatch):
     kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
-    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
+    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err.value)
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     monkeypatch.setattr(kern, "_is_intergrid", True)
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
     assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err))
+            "been initialised" in str(err.value))
 
 
 def test_named_psy_routine(dist_mem):
@@ -2528,7 +2528,7 @@ def test_arg_ref_name_method_error2():
     first_argument._type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
-    assert 'ref_name: Error, unsupported arg type' in str(excinfo)
+    assert 'ref_name: Error, unsupported arg type' in str(excinfo.value)
 
 
 def test_arg_intent_error():
@@ -2547,7 +2547,7 @@ def test_arg_intent_error():
         _ = first_argument.intent()
     assert ("Expecting argument access to be one of 'gh_read, gh_write, "
             "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
-            "'gh_not_an_intent'" in str(excinfo))
+            "'gh_not_an_intent'" in str(excinfo.value))
 
 
 @pytest.mark.skipif(
@@ -2571,7 +2571,7 @@ def test_no_arg_on_space(monkeypatch):
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space_name("not_a_space")
     assert ("there is no field or operator with function space not_a_space" in
-            str(excinfo))
+            str(excinfo.value))
     # Now test get_arg_on_space - we need a FunctionSpace object for this
     fspace = arg.function_space
     arg = kernel_args.get_arg_on_space(fspace)
@@ -2584,7 +2584,7 @@ def test_no_arg_on_space(monkeypatch):
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space(fspace)
     assert ("there is no field or operator with function space w2 (mangled "
-            "name = 'not_a_space_name')" in str(excinfo))
+            "name = 'not_a_space_name')" in str(excinfo.value))
 
 
 def test_arg_descriptor_func_method_error():
@@ -2804,7 +2804,7 @@ def test_dynkern_arg_for_fs():
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
-    assert "No argument found on 'waah' space" in str(err)
+    assert "No argument found on 'waah' space" in str(err.value)
 
 
 def test_dist_memory_true():
@@ -3358,7 +3358,7 @@ def test_upper_bound_fortran_2(monkeypatch):
     monkeypatch.setattr(my_loop, "walk", lambda x: [])
     with pytest.raises(InternalError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert "Failed to find a kernel within a loop over colours" in str(excinfo)
+    assert "Failed to find a kernel within a loop over colours" in str(excinfo.value)
 
 
 def test_upper_bound_inner(monkeypatch):
@@ -4375,7 +4375,7 @@ def test_stencil_extent_specified():
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "
-            "This is not coded for." in str(err))
+            "This is not coded for." in str(err.value))
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -4883,7 +4883,7 @@ def test_dynloop_load_unexpected_func_space():
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
             "one of " + str(VALID_FUNCTION_SPACES) + " but found 'broken'"
-            in str(err))
+            in str(err.value))
 
 
 def test_dynkernargs_unexpect_stencil_extent():
@@ -4907,7 +4907,7 @@ def test_dynkernargs_unexpect_stencil_extent():
     from psyclone.dynamo0p3 import DynKernelArguments
     with pytest.raises(GenerationError) as err:
         _ = DynKernelArguments(call, None)
-    assert "extent metadata not yet supported" in str(err)
+    assert "extent metadata not yet supported" in str(err.value)
 
 
 def test_unsupported_halo_read_access():
@@ -4935,7 +4935,7 @@ def test_unsupported_halo_read_access():
         _ = loop._halo_read_access(stencil_arg)
     assert ("Loop bounds other than cell_halo and ncells are currently "
             "unsupported for kernels with stencil accesses. Found "
-            "'inner'." in str(err))
+            "'inner'." in str(err.value))
 
 
 def test_dynglobalsum_unsupported_scalar():
@@ -4954,7 +4954,7 @@ def test_dynglobalsum_unsupported_scalar():
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
-    assert "DynGlobalSum currently only supports '['gh_real']'" in str(err)
+    assert "DynGlobalSum currently only supports '['gh_real']'" in str(err.value)
 
 
 def test_dynglobalsum_nodm_error():
@@ -4973,7 +4973,7 @@ def test_dynglobalsum_nodm_error():
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
     assert ("It makes no sense to create a DynGlobalSum object when "
-            "dm=False") in str(err)
+            "dm=False") in str(err.value)
 
 
 def test_no_updated_args():
@@ -4988,7 +4988,7 @@ def test_no_updated_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "testkern_qr_type" in str(excinfo))
+            "testkern_qr_type" in str(excinfo.value))
 
 
 def test_scalars_only_invalid():
@@ -5017,7 +5017,7 @@ end module testkern
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "testkern_type" in str(excinfo))
+            "testkern_type" in str(excinfo.value))
 
 
 def test_multiple_updated_field_args():
@@ -5067,7 +5067,7 @@ def test_multiple_updated_scalar_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("A user-supplied Dynamo 0.3 kernel must not write/update a scalar "
             "argument but kernel testkern_qr_type has" in
-            str(excinfo))
+            str(excinfo.value))
 
 
 def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
@@ -5270,7 +5270,7 @@ def test_kernel_args_has_op():
     dka = DynKernelArguments(call, None)
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
-    assert "op_type must be a valid operator type" in str(excinfo)
+    assert "op_type must be a valid operator type" in str(excinfo.value)
 
 
 def test_kerncallarglist_args_error(dist_mem):
@@ -6108,7 +6108,7 @@ def test_dyncollection_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert "DynCollection takes only a DynInvoke or a DynKern but" in str(err)
+    assert "DynCollection takes only a DynInvoke or a DynKern but" in str(err.value)
 
 
 def test_dyncollection_err2(monkeypatch):
@@ -6126,7 +6126,7 @@ def test_dyncollection_err2(monkeypatch):
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
-    assert "DynCollection has neither a Kernel or an Invoke" in str(err)
+    assert "DynCollection has neither a Kernel or an Invoke" in str(err.value)
 
 
 def test_dynstencils_extent_vars_err(monkeypatch):
@@ -6142,7 +6142,7 @@ def test_dynstencils_extent_vars_err(monkeypatch):
     monkeypatch.setattr(stencils, "_invoke", None)
     with pytest.raises(InternalError) as err:
         _ = stencils._unique_extent_vars
-    assert "_unique_extent_vars: have neither Invoke or Kernel" in str(err)
+    assert "_unique_extent_vars: have neither Invoke or Kernel" in str(err.value)
 
 
 def test_dynstencils_initialise_err():
@@ -6159,7 +6159,7 @@ def test_dynstencils_initialise_err():
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
     with pytest.raises(GenerationError) as err:
         stencils.initialise(ModuleGen(name="testmodule"))
-    assert "Unsupported stencil type 'not-a-type' supplied." in str(err)
+    assert "Unsupported stencil type 'not-a-type' supplied." in str(err.value)
 
 
 def test_dyncelliterators_err(monkeypatch):
@@ -6174,7 +6174,7 @@ def test_dyncelliterators_err(monkeypatch):
     with pytest.raises(GenerationError) as err:
         _ = DynCellIterators(invoke)
     assert ("Cannot create an Invoke with no field/operator arguments"
-            in str(err))
+            in str(err.value))
 
 # tests for class kerncallarglist position methods
 

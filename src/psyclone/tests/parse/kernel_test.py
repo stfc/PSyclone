@@ -143,7 +143,7 @@ def test_get_kernel_metadata_no_match():
     with pytest.raises(ParseError) as excinfo:
         get_kernel_metadata(
             kernel_type_name, module_parse_tree)
-    assert 'Kernel type no_matching_kernel does not exist' in str(excinfo)
+    assert 'Kernel type no_matching_kernel does not exist' in str(excinfo.value)
 
 
 def test_get_kernel_metadata_match():

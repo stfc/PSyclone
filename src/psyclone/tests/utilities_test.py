@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -78,7 +77,7 @@ def test_compiler_with_flags(tmpdir):
         _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")
-        assert "not-a-flag" in str(excinfo)
+        assert "not-a-flag" in str(excinfo.value)
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
         _compile._f90flags = "-g"
@@ -102,7 +101,7 @@ def test_build_invalid_fortran(tmpdir):
             _compile.compile_file("hello_world.f90")
     finally:
         old_pwd.chdir()
-    assert "Compile error" in str(excinfo)
+    assert "Compile error" in str(excinfo.value)
 
 
 def test_find_fortran_file(tmpdir):
@@ -111,7 +110,7 @@ def test_find_fortran_file(tmpdir):
     the correct name if the file does exist. '''
     with pytest.raises(IOError) as excinfo:
         Compile.find_fortran_file([str(tmpdir)], "missing_file")
-    assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo)
+    assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo.value)
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
@@ -159,10 +158,10 @@ def test_get_invoke():
     with pytest.raises(RuntimeError) as excinfo:
         _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
                           "gocean1.0", name="invalid_name")
-    assert "Cannot find an invoke named 'invalid_name'" in str(excinfo)
+    assert "Cannot find an invoke named 'invalid_name'" in str(excinfo.value)
 
     # Test that an invalid API raises the right exception:
     with pytest.raises(RuntimeError) as excinfo:
         _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
                           "invalid-api", name="invalid_name")
-    assert "The API 'invalid-api' is not supported" in str(excinfo)
+    assert "The API 'invalid-api' is not supported" in str(excinfo.value)

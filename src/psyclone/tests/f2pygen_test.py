@@ -568,7 +568,7 @@ def test_directive_wrong_type():
         _ = DirectiveGen(parent,
                          "some_dir_type", "begin", "do",
                          "schedule(static)")
-    assert "unsupported directive language" in str(err)
+    assert "unsupported directive language" in str(err.value)
 
 
 def test_ompdirective_wrong():
@@ -580,7 +580,7 @@ def test_ompdirective_wrong():
         _ = DirectiveGen(parent,
                          "omp", "begin", "dosomething",
                          "schedule(static)")
-    assert "unrecognised directive type" in str(err)
+    assert "unrecognised directive type" in str(err.value)
 
 
 def test_ompdirective_wrong_posn():
@@ -592,7 +592,7 @@ def test_ompdirective_wrong_posn():
         _ = DirectiveGen(parent,
                          "omp", "start", "do",
                          "schedule(static)")
-    assert "unrecognised position 'start'" in str(err)
+    assert "unrecognised position 'start'" in str(err.value)
 
 
 def test_ompdirective_type():
@@ -616,7 +616,7 @@ def test_basegen_add_auto():
     obj = Node()
     with pytest.raises(Exception) as err:
         bgen.add(obj, position=['auto'])
-    assert "auto option must be implemented by the sub" in str(err)
+    assert "auto option must be implemented by the sub" in str(err.value)
 
 
 def test_basegen_add_invalid_posn():
@@ -629,7 +629,7 @@ def test_basegen_add_invalid_posn():
     obj = Node()
     with pytest.raises(Exception) as err:
         bgen.add(obj, position=['wrong'])
-    assert "supported positions are ['append', 'first'" in str(err)
+    assert "supported positions are ['append', 'first'" in str(err.value)
 
 
 def test_basegen_append():
@@ -703,7 +703,7 @@ def test_basegen_before_error():
     # Try to add an object before the orphan dgen
     with pytest.raises(RuntimeError) as err:
         sub.add(CommentGen(sub, " hello"), position=["before", dgen])
-    assert "Failed to find supplied object" in str(err)
+    assert "Failed to find supplied object" in str(err.value)
 
 
 def test_basegen_last_declaration_no_vars():
@@ -716,7 +716,7 @@ def test_basegen_last_declaration_no_vars():
     # even though we haven't got any
     with pytest.raises(RuntimeError) as err:
         sub.last_declaration()
-    assert "no variable declarations found" in str(err)
+    assert "no variable declarations found" in str(err.value)
 
 
 def test_basegen_start_parent_loop_dbg(capsys):
@@ -837,7 +837,7 @@ def test_basegen_start_parent_loop_no_loop_dbg():
     sub.add(call)
     with pytest.raises(RuntimeError) as err:
         call.start_parent_loop(debug=True)
-    assert "This node has no enclosing Do loop" in str(err)
+    assert "This node has no enclosing Do loop" in str(err.value)
 
 
 def test_progunitgen_multiple_generic_use():
@@ -955,17 +955,17 @@ def test_basedecl_errors():
         sub.add(DeclGen(sub, datatype="integer", allocatable=True,
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Cannot specify initial values for variable(s) [\'my_int\'] "
-            "because they have the \'allocatable\' attribute" in str(err))
+            "because they have the \'allocatable\' attribute" in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         sub.add(DeclGen(sub, datatype="integer", dimension="10",
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Specifying initial values for array declarations is not "
-            "currently supported" in str(err))
+            "currently supported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         sub.add(DeclGen(sub, datatype="integer", intent="iN",
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Cannot assign (initial) values to variable(s) [\'my_int\'] as "
-            "they have INTENT(in)" in str(err))
+            "they have INTENT(in)" in str(err.value))
 
 
 def test_decl_logical(tmpdir):
@@ -1075,7 +1075,7 @@ def test_decl_initial_vals(tmpdir):
         sub.add(DeclGen(sub, datatype="real", entity_decls=["r1", "r2"],
                         initial_values=["1.0"]))
     assert ("number of initial values supplied (1) does not match the number "
-            "of variables to be declared (2: ['r1', 'r2'])" in str(err))
+            "of variables to be declared (2: ['r1', 'r2'])" in str(err.value))
 
     # Single variables
     sub.add(DeclGen(sub, datatype="integer", save=True,
@@ -1122,26 +1122,26 @@ def test_declgen_invalid_vals():
                     entity_decls=["ival1", "ival2", "ival3"],
                     initial_values=["good", "1", "-0.35"])
     assert ("Initial value of '-0.35' for an integer "
-            "variable is invalid or unsupported" in str(err))
+            "variable is invalid or unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="real",
                     entity_decls=["val1", "val2", "val3"],
                     initial_values=["good", "1.0", "35"])
     assert ("Initial value of '35' for a real "
-            "variable is invalid or unsupported" in str(err))
+            "variable is invalid or unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="logical",
                     entity_decls=["val1", "val2", "val3"],
                     initial_values=["good", ".fAlse.", "35"])
     assert ("Initial value of '35' for a logical variable is invalid or "
-            "unsupported" in str(err))
+            "unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _char = CharDeclGen(sub, entity_decls=["val1", "val2"],
                             initial_values=["good", ".fAlse."])
-    assert "Initial value of \'.fAlse.' for a character variable" in str(err)
+    assert "Initial value of \'.fAlse.' for a character variable" in str(err.value)
     with pytest.raises(RuntimeError) as err:
         _char = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
-    assert "Initial value of \'35\' for a character variable" in str(err)
+    assert "Initial value of \'35\' for a character variable" in str(err.value)
 
 
 def test_declgen_wrong_type(monkeypatch):
@@ -1154,14 +1154,14 @@ def test_declgen_wrong_type(monkeypatch):
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
     assert ("Only ['integer', 'real', 'logical'] types are "
-            "currently supported" in str(err))
+            "currently supported" in str(err.value))
     # Check the internal error is raised within the validation routine if
     # an unsupported type is specified
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
     with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
     assert ("internal error: unsupported type 'complex' - should be one "
-            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err))
+            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err.value))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
@@ -1170,7 +1170,7 @@ def test_declgen_wrong_type(monkeypatch):
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
     assert ("internal error: Type 'complex' is in DeclGen.SUPPORTED_TYPES "
-            "but not handled by constructor" in str(err))
+            "but not handled by constructor" in str(err.value))
 
 
 def test_declgen_missing_names():
@@ -1182,7 +1182,7 @@ def test_declgen_missing_names():
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="integer")
     assert ("Cannot create a variable declaration without specifying "
-            "the name" in str(err))
+            "the name" in str(err.value))
 
 
 def test_typedeclgen_names():
@@ -1207,7 +1207,7 @@ def test_typedeclgen_missing_names():
     with pytest.raises(RuntimeError) as err:
         _ = TypeDeclGen(sub, datatype="my_type")
     assert ("Cannot create a variable declaration without specifying"
-            in str(err))
+            in str(err.value))
 
 
 def test_typedeclgen_values_error():
@@ -1220,7 +1220,7 @@ def test_typedeclgen_values_error():
     with pytest.raises(InternalError) as err:
         decl._check_initial_values("my_type", ["1.0"])
     assert ("This method should not have been called because initial values "
-            "for derived-type declarations are not supported" in str(err))
+            "for derived-type declarations are not supported" in str(err.value))
 
 
 def test_typedeclgen_multiple_use():
@@ -1395,8 +1395,8 @@ def test_modulegen_add_wrong_parent():
     sub = SubroutineGen(module_wrong, name="testsubroutine")
     with pytest.raises(RuntimeError) as err:
         module.add(sub)
-    print(str(err))
-    assert "because it is not a descendant of it or of any of" in str(err)
+    print(str(err.value))
+    assert "because it is not a descendant of it or of any of" in str(err.value)
 
 
 def test_do_loop_with_increment():
@@ -1438,4 +1438,4 @@ def test_basegen_previous_loop_no_loop():
     # even though we haven't got one
     with pytest.raises(RuntimeError) as err:
         sub.previous_loop()
-    assert "no loop found - there is no previous loop" in str(err)
+    assert "no loop found - there is no previous loop" in str(err.value)

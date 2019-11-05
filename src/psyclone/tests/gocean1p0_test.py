@@ -1193,14 +1193,14 @@ def test_raw_arg_list_error(monkeypatch):
     with pytest.raises(GenerationError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("kernel compute_z_code requires grid property dx but does not "
-            "have any arguments that are fields" in str(err))
+            "have any arguments that are fields" in str(err.value))
     # Now monkeypatch one of the kernel arguments so that it has an
     # unrecognised type
     monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
-            "'broken'" in str(err))
+            "'broken'" in str(err.value))
 
 
 def test_invalid_access_type():
@@ -1218,7 +1218,7 @@ def test_invalid_access_type():
     # Note that the error message looks slightly different between
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
-                     str(err))
+                     str(err.value))
 
 
 # -----------------------------------

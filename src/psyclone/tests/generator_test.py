@@ -789,8 +789,8 @@ def test_invalid_kern_naming():
     with pytest.raises(GenerationError) as err:
         _, _ = generate(alg_filename, api="dynamo0.3",
                         kern_naming="not-a-scheme")
-    assert "Invalid kernel-renaming scheme supplied" in str(err)
-    assert "but got 'not-a-scheme'" in str(err)
+    assert "Invalid kernel-renaming scheme supplied" in str(err.value)
+    assert "but got 'not-a-scheme'" in str(err.value)
 
 
 def test_main_include_nemo_only(capsys):

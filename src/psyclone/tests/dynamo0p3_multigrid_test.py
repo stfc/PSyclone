@@ -104,9 +104,9 @@ def test_invalid_mesh_type():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    print(str(excinfo))
+    print(str(excinfo.value))
     assert ("mesh_arg must be one of [\\'gh_coarse\\', "
-            "\\'gh_fine\\'] but got gh_rubbish" in str(excinfo))
+            "\\'gh_fine\\'] but got gh_rubbish" in str(excinfo.value))
 
 
 def test_invalid_mesh_specifier():
@@ -118,9 +118,9 @@ def test_invalid_mesh_specifier():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    print(str(excinfo))
+    print(str(excinfo.value))
     assert ("mesh_ar=gh_coarse is not a valid mesh identifier" in
-            str(excinfo))
+            str(excinfo.value))
 
 
 def test_all_args_same_mesh_error():
@@ -136,7 +136,7 @@ def test_all_args_same_mesh_error():
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
             "one field argument on each of the mesh types (['gh_coarse', "
             "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_fine']" in str(excinfo))
+            "only on ['gh_fine']" in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -145,7 +145,7 @@ def test_all_args_same_mesh_error():
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
             "one field argument on each of the mesh types (['gh_coarse', "
             "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_coarse']" in str(excinfo))
+            "only on ['gh_coarse']" in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():
@@ -166,7 +166,7 @@ def test_all_fields_have_mesh():
     assert ("Inter-grid kernels in the Dynamo 0.3 API must specify which "
             "mesh each field argument "
             "is on but kernel restrict_kernel_type has at least one field "
-            "argument for which mesh_arg is missing." in str(excinfo))
+            "argument for which mesh_arg is missing." in str(excinfo.value))
 
 
 def test_args_same_space_error():
@@ -184,7 +184,7 @@ def test_args_same_space_error():
             "they are on different meshes. However kernel "
             "restrict_kernel_type has a field on function space(s)"
             " ['any_discontinuous_space_1'] on each of the mesh types"
-            " ['gh_coarse', 'gh_fine']." in str(excinfo))
+            " ['gh_coarse', 'gh_fine']." in str(excinfo.value))
 
 
 def test_only_field_args():
@@ -206,7 +206,7 @@ def test_only_field_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
             "have field arguments but kernel restrict_kernel_type also has "
-            "arguments of type ['gh_real']" in str(excinfo))
+            "arguments of type ['gh_real']" in str(excinfo.value))
 
 
 def test_field_vector():
@@ -240,7 +240,7 @@ def test_two_grid_types(monkeypatch):
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name=name)
-    assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err)
+    assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err.value)
 
 
 def test_field_prolong(tmpdir):
@@ -617,7 +617,7 @@ def test_prolong_with_gp_error():
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory(API).create(invoke_info)
     assert ("no other kernel types but kernels 'testkern_code_w2_only' in "
-            "invoke 'invoke_0' are not inter-grid" in str(err))
+            "invoke 'invoke_0' are not inter-grid" in str(err.value))
 
 
 def test_prolong_vector(tmpdir):
