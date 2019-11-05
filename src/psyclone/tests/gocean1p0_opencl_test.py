@@ -404,7 +404,8 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only 0 argument(s).") in str(err.value)
+            "Table for kernel 'test' has only 0 argument(s)."
+            in str(err.value))
 
     # Test symbol table with 1 kernel argument
     arg1 = Symbol("arg1", "integer", [],
@@ -415,7 +416,8 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only 1 argument(s).") in str(err.value)
+            "Table for kernel 'test' has only 1 argument(s)."
+            in str(err.value))
 
     # Test symbol table with 2 kernel argument
     arg2 = Symbol("arg2", "integer", shape=[],
@@ -466,4 +468,5 @@ def test_opencl_kernel_with_use(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. PSyclone cannot currently" in str(err.value))
+            "'global' scope: ['rdt']. PSyclone cannot currently"
+            in str(err.value))

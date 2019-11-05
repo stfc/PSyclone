@@ -246,7 +246,8 @@ def test_fw_container_1(fort_writer, monkeypatch):
     monkeypatch.setattr(container, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
-    assert "Expected Container node name to have a value." in str(excinfo.value)
+    assert ("Expected Container node name to have a value."
+            in str(excinfo.value))
 
 
 def test_fw_container_2(fort_writer):
@@ -495,7 +496,8 @@ def test_fw_reference(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = fort_writer(schedule)
-    assert "Expecting a Reference with no children but found" in str(excinfo.value)
+    assert ("Expecting a Reference with no children but found"
+            in str(excinfo.value))
 
 
 def test_fw_array(fort_writer):

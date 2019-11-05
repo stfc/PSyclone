@@ -697,7 +697,8 @@ def test_kern_abstract_methods():
     my_kern.load_meta(metadata)
     with pytest.raises(NotImplementedError) as err:
         super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
-    assert "gen_arg_setter_code must be implemented by sub-class" in str(err.value)
+    assert ("gen_arg_setter_code must be implemented by sub-class"
+            in str(err.value))
 
 
 def test_call_abstract_methods():
@@ -738,10 +739,12 @@ def test_arguments_abstract():
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args
-    assert "Arguments.acc_args must be implemented in sub-class" in str(err.value)
+    assert ("Arguments.acc_args must be implemented in sub-class"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.scalars
-    assert "Arguments.scalars must be implemented in sub-class" in str(err.value)
+    assert ("Arguments.scalars must be implemented in sub-class"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.raw_arg_list()
     assert ("Arguments.raw_arg_list must be implemented in sub-class"
@@ -992,7 +995,8 @@ def test_reduction_sum_error():
             call.reduction_sum_loop(None)
         assert (
             "unsupported reduction access 'gh_write' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err.value)
+            "reduction_sum_loop(). Expected one of '['gh_sum']"
+            in str(err.value))
 
 
 def test_call_multi_reduction_error(monkeypatch):
@@ -4092,7 +4096,8 @@ def test_symboltable_argument_list_errors():
     # objects that are not Symbols
     with pytest.raises(TypeError) as err:
         sym_table._validate_arg_list(["Not a symbol"])
-    assert "Expected a list of Symbols but found an object of type" in str(err.value)
+    assert ("Expected a list of Symbols but found an object of type"
+            in str(err.value))
 
 
 def test_symboltable_validate_non_args():

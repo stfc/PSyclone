@@ -148,7 +148,8 @@ def test_profile_errors2():
 
     with pytest.raises(GenerationError) as gen_error:
         Profiler.set_options(["invalid"])
-    assert "options must be one of 'invokes', 'kernels'" in str(gen_error.value)
+    assert ("options must be one of 'invokes', 'kernels'"
+            in str(gen_error.value))
 
 
 # -----------------------------------------------------------------------------
@@ -602,7 +603,8 @@ def test_transform_errors(capsys):
            "in a schedule but have been passed an object of type: " \
            in str(excinfo.value)
     # Python 3 reports 'class', python 2 'type' - so just check for both
-    assert "<type 'int'>" in str(excinfo.value) or "<class 'int'>" in str(excinfo.value)
+    assert ("<type 'int'>" in str(excinfo.value) or "<class 'int'>"
+            in str(excinfo.value))
 
     # Test that it will only allow correctly ordered nodes:
     with pytest.raises(TransformationError) as excinfo:

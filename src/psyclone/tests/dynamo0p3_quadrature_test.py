@@ -265,7 +265,8 @@ def test_dynbasisfunctions(monkeypatch):
     from psyclone import dynamo0p3
     with pytest.raises(InternalError) as excinfo:
         _ = dynamo0p3.qr_basis_alloc_args("size1", basis_dict)
-    assert "Unrecognised shape (gh_wrong_shape) specified " in str(excinfo.value)
+    assert ("Unrecognised shape (gh_wrong_shape) specified "
+            in str(excinfo.value))
 
     # Monkey-patch it so that it doesn't have any quadrature args
     monkeypatch.setattr(evaluator, "_qr_vars", value=[])

@@ -133,6 +133,7 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
 
 # function get_kernel_metadata
 
+
 def test_get_kernel_metadata_no_match():
     '''Test that we get a ParseError when searching for a kernel that does
     not exist in the parse tree.
@@ -143,7 +144,8 @@ def test_get_kernel_metadata_no_match():
     with pytest.raises(ParseError) as excinfo:
         get_kernel_metadata(
             kernel_type_name, module_parse_tree)
-    assert 'Kernel type no_matching_kernel does not exist' in str(excinfo.value)
+    assert ('Kernel type no_matching_kernel does not exist'
+            in str(excinfo.value))
 
 
 def test_get_kernel_metadata_match():

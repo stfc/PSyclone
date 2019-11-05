@@ -955,7 +955,8 @@ def test_basedecl_errors():
         sub.add(DeclGen(sub, datatype="integer", allocatable=True,
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Cannot specify initial values for variable(s) [\'my_int\'] "
-            "because they have the \'allocatable\' attribute" in str(err.value))
+            "because they have the \'allocatable\' attribute"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         sub.add(DeclGen(sub, datatype="integer", dimension="10",
                         entity_decls=["my_int"], initial_values=["1"]))
@@ -1138,7 +1139,8 @@ def test_declgen_invalid_vals():
     with pytest.raises(RuntimeError) as err:
         _char = CharDeclGen(sub, entity_decls=["val1", "val2"],
                             initial_values=["good", ".fAlse."])
-    assert "Initial value of \'.fAlse.' for a character variable" in str(err.value)
+    assert ("Initial value of \'.fAlse.' for a character variable"
+            in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _char = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
     assert "Initial value of \'35\' for a character variable" in str(err.value)
@@ -1220,7 +1222,8 @@ def test_typedeclgen_values_error():
     with pytest.raises(InternalError) as err:
         decl._check_initial_values("my_type", ["1.0"])
     assert ("This method should not have been called because initial values "
-            "for derived-type declarations are not supported" in str(err.value))
+            "for derived-type declarations are not supported"
+            in str(err.value))
 
 
 def test_typedeclgen_multiple_use():
@@ -1396,7 +1399,8 @@ def test_modulegen_add_wrong_parent():
     with pytest.raises(RuntimeError) as err:
         module.add(sub)
     print(str(err.value))
-    assert "because it is not a descendant of it or of any of" in str(err.value)
+    assert ("because it is not a descendant of it or of any of"
+            in str(err.value))
 
 
 def test_do_loop_with_increment():

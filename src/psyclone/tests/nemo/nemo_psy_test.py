@@ -238,8 +238,9 @@ def test_nemokern_match():
     with pytest.raises(InternalError) as err:
         nemo.NemoKern.match("invalid string type")
     # Different error message in python2 vs python3
-    assert "Expected 'Schedule' in 'match', got '<class 'str'>" in str(err.value) or\
-        "Expected 'Schedule' in 'match', got '<type 'str'>" in str(err.value)
+    assert ("Expected 'Schedule' in 'match', got '<class 'str'>"
+            in str(err.value) or "Expected 'Schedule' in 'match', "
+            "got '<type 'str'>" in str(err.value))
 
 
 def test_no_explicit_loop_in_kernel(parser):

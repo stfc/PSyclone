@@ -333,7 +333,8 @@ def test_get_int_array_err1(monkeypatch):
 
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
-    assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err.value)
+    assert ("Unsupported assignment statement: 'invalid = [1, 2]'"
+            in str(err.value))
 
 
 def test_get_int_array_not_array():
@@ -372,7 +373,8 @@ def test_get_int_array_err2(monkeypatch):
 
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
-    assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err.value)
+    assert ("Failed to parse array constructor: '[hello, goodbye]'"
+            in str(err.value))
 
 
 def test_kernel_binding_not_code():

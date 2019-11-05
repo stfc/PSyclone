@@ -2156,7 +2156,8 @@ def test_kern_colourmap(monkeypatch):
     kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.colourmap
-    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err.value)
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     monkeypatch.setattr(kern, "_is_intergrid", True)
     with pytest.raises(InternalError) as err:
@@ -2173,7 +2174,8 @@ def test_kern_ncolours(monkeypatch):
     kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
-    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err.value)
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     monkeypatch.setattr(kern, "_is_intergrid", True)
     with pytest.raises(InternalError) as err:
@@ -3358,7 +3360,8 @@ def test_upper_bound_fortran_2(monkeypatch):
     monkeypatch.setattr(my_loop, "walk", lambda x: [])
     with pytest.raises(InternalError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert "Failed to find a kernel within a loop over colours" in str(excinfo.value)
+    assert ("Failed to find a kernel within a loop over colours"
+            in str(excinfo.value))
 
 
 def test_upper_bound_inner(monkeypatch):
@@ -4954,7 +4957,8 @@ def test_dynglobalsum_unsupported_scalar():
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
-    assert "DynGlobalSum currently only supports '['gh_real']'" in str(err.value)
+    assert ("DynGlobalSum currently only supports '['gh_real']'"
+            in str(err.value))
 
 
 def test_dynglobalsum_nodm_error():
@@ -6108,7 +6112,8 @@ def test_dyncollection_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert "DynCollection takes only a DynInvoke or a DynKern but" in str(err.value)
+    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+            in str(err.value))
 
 
 def test_dyncollection_err2(monkeypatch):
@@ -6142,7 +6147,8 @@ def test_dynstencils_extent_vars_err(monkeypatch):
     monkeypatch.setattr(stencils, "_invoke", None)
     with pytest.raises(InternalError) as err:
         _ = stencils._unique_extent_vars
-    assert "_unique_extent_vars: have neither Invoke or Kernel" in str(err.value)
+    assert ("_unique_extent_vars: have neither Invoke or Kernel"
+            in str(err.value))
 
 
 def test_dynstencils_initialise_err():

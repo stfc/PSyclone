@@ -81,7 +81,8 @@ def test_accenterdata_internalerr(monkeypatch):
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
-    assert "validate() has not rejected an (unsupported) schedule" in str(err.value)
+    assert ("validate() has not rejected an (unsupported) schedule"
+            in str(err.value))
 
 
 def test_omploop_no_collapse():

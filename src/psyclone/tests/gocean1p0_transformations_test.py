@@ -354,13 +354,15 @@ def test_omp_region_with_slice_change_order():
     # could result in changing the order of operations:
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[2], schedule.children[1]])
-    assert "Children are not consecutive children of one parent" in str(err.value)
+    assert ("Children are not consecutive children of one parent"
+            in str(err.value))
 
     # Also test the case of duplicated children:
     # ------------------------------------------
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[0], schedule.children[0]])
-    assert "Children are not consecutive children of one parent" in str(err.value)
+    assert ("Children are not consecutive children of one parent"
+            in str(err.value))
 
 
 def test_omp_region_no_slice(tmpdir):
