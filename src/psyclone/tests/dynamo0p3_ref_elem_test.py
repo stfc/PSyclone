@@ -76,15 +76,15 @@ def setup():
 
 def test_mdata_parse():
     ''' Check that we get the correct list of reference-element properties. '''
-    from psyclone.dynamo0p3 import RefElemProperty
+    from psyclone.dynamo0p3 import RefElementMetaData
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = REF_ELEM_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     dkm = DynKernMetadata(ast, name=name)
-    assert dkm.reference_element_properties == \
-        [RefElemProperty.NORMALS_TO_HORIZONTAL_FACES,
-         RefElemProperty.NORMALS_TO_VERTICAL_FACES]
+    assert dkm.reference_element.properties == \
+        [RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
+         RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES]
 
 
 def test_mdata_invalid_property():

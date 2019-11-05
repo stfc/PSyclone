@@ -174,19 +174,6 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
-
-class RefElemProperty(Enum):
-    '''
-    Enumeration of the various properties of the Reference Element
-    (that a kernel can request).
-
-    '''
-    NORMALS_TO_HORIZONTAL_FACES = 1
-    NORMALS_TO_VERTICAL_FACES = 2
-    OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
-    OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
-
-
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
@@ -847,6 +834,62 @@ class DynArgDescriptor03(Descriptor):
         return res
 
 
+class RefElementMetaData(object):
+
+    class Property(Enum):
+        '''
+        Enumeration of the various properties of the Reference Element
+        (that a kernel can request).
+
+        '''
+        NORMALS_TO_HORIZONTAL_FACES = 1
+        NORMALS_TO_VERTICAL_FACES = 2
+        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
+        OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
+
+    # Mapping from meta-data text to our property enumeration.
+    reference_element_property_map = {
+        "normals_to_horizontal_faces":
+        Property.NORMALS_TO_HORIZONTAL_FACES,
+        "normals_to_vertical_faces":
+        Property.NORMALS_TO_VERTICAL_FACES,
+        "outward_normals_to_horizontal_faces":
+        Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
+        "outward_normals_to_vertical_faces":
+        Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
+    }
+
+    def __init__(self, kernel_name, type_declns):
+        from psyclone.parse.kernel import getkerneldescriptors
+
+        # The list of properties requested in the meta-data (if any)
+        self.properties = []
+
+        re_properties = []
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "reference_element_data_type":
+                    # getkerneldescriptors raises a ParseError if the named
+                    # element cannot be found.
+                    re_properties = getkerneldescriptors(
+                        kernel_name, line, var_name="meta_reference_element",
+                        var_type="reference_element_data_type")
+                    break
+            if re_properties:
+                break
+        try:
+            for re_prop in re_properties:
+                for arg in re_prop.args:
+                    self.properties.append(
+                        self.reference_element_property_map[str(arg).lower()])
+        except KeyError:
+            # Sort for consistency when testing
+            sorted_keys = sorted(self.reference_element_property_map.keys())
+            raise ParseError(
+                "Unsupported reference-element property: '{0}'. Supported "
+                "values are: {1}".format(arg, sorted_keys))
+
+
 class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
     the subroutine for the Dynamo 0.3 API.
@@ -858,20 +901,9 @@ class DynKernMetadata(KernelType):
     :raises ParseError: if the meta-data does not conform to the \
                         rules for the Dynamo 0.3 API.
     '''
-
-    # Mapping from meta-data text to our property enumeration.
-    reference_element_property_map = {
-        "normals_to_horizontal_faces":
-        RefElemProperty.NORMALS_TO_HORIZONTAL_FACES,
-        "normals_to_vertical_faces":
-        RefElemProperty.NORMALS_TO_VERTICAL_FACES,
-        "outward_normals_to_horizontal_faces":
-        RefElemProperty.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
-        "outward_normals_to_vertical_faces":
-        RefElemProperty.OUTWARD_NORMALS_TO_VERTICAL_FACES
-    }
-
     def __init__(self, ast, name=None):
+        from psyclone.parse.kernel import getkerneldescriptors
+
         KernelType.__init__(self, ast, name=name)
 
         # The type of CMA operation this kernel performs (or None if
@@ -892,10 +924,6 @@ class DynKernMetadata(KernelType):
         # set to True if all the checks in _validate_inter_grid() pass.
         self._is_intergrid = False
 
-        # The properties of the Reference Element that this kernel
-        # requires. Will be a list of RefElemProperty values.
-        self.reference_element_properties = []
-
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
@@ -910,8 +938,9 @@ class DynKernMetadata(KernelType):
         for line in type_declns:
             for entry in line.selector:
                 if entry == "func_type":
-                    func_types = self.getkerneldescriptors(
-                        line, var_name="meta_funcs", var_type="func_type")
+                    func_types = getkerneldescriptors(
+                        name, line, var_name="meta_funcs",
+                        var_type="func_type")
                     break
 
         self._func_descriptors = []
@@ -984,30 +1013,7 @@ class DynKernMetadata(KernelType):
                 self._eval_targets.append(target)
 
         # Does this kernel require any properties of the reference element?
-        re_properties = []
-        for line in type_declns:
-            for entry in line.selector:
-                if entry == "reference_element_data_type":
-                    # getkerneldescriptors raises a ParseError if the named
-                    # element cannot be found.
-                    re_properties = self.getkerneldescriptors(
-                        line, var_name="meta_reference_element",
-                        var_type="reference_element_data_type")
-                    break
-            if re_properties:
-                break
-        try:
-            for re_prop in re_properties:
-                for arg in re_prop.args:
-                    self.reference_element_properties.append(
-                        self.reference_element_property_map[str(arg).lower()])
-        except KeyError:
-            # Sort for consistency when testing
-            sorted_keys = sorted([str(key) for key in
-                                  self.reference_element_property_map.keys()])
-            raise ParseError(
-                "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_keys))
+        self.reference_element = RefElementMetaData(self.name, type_declns)
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
