@@ -1107,14 +1107,15 @@ class DynKernMetadata(KernelType):
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    VALID_MESH_TYPES, self.name, list(mesh_list)))
+                    VALID_MESH_TYPES, self.name,
+                    [str(name) for name in mesh_list]))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API are only "
                 "permitted to have field arguments but kernel {0} also "
                 "has arguments of type {1}".format(
-                    self.name, list(non_field_arg_types)))
+                    self.name, [str(name) for name in non_field_arg_types]))
         # Check that all arguments have a mesh specified
         if missing_mesh:
             raise ParseError(
@@ -1137,7 +1138,9 @@ class DynKernMetadata(KernelType):
                 "kernels must be on different function spaces if they are "
                 "on different meshes. However kernel {0} has a field on "
                 "function space(s) {1} on each of the mesh types {2}.".
-                format(self.name, list(fs_common), list(mesh_list)))
+                format(self.name,
+                       [str(name) for name in fs_common],
+                       [str(name) for name in mesh_list]))
         # Finally, record that this is a valid inter-grid kernel
         self._is_intergrid = True
 
@@ -1241,7 +1244,7 @@ class DynKernMetadata(KernelType):
                     "Kernel {0} writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
                     "allowed.".format(self.name,
-                                      [arg.type for arg in write_args]))
+                                      [str(arg.type) for arg in write_args]))
             if len(cwise_ops) == 1:
 
                 # If this is a valid assembly kernel then we need at least one
@@ -1270,7 +1273,8 @@ class DynKernMetadata(KernelType):
                         "column-wise operators and scalars as arguments but "
                         "kernel {0} has: {1}.".
                         format(self.name,
-                               [arg.type for arg in self._arg_descriptors]))
+                               [str(arg.type) for arg in
+                                self._arg_descriptors]))
                 return "matrix-matrix"
         else:
             raise ParseError(
