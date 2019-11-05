@@ -683,7 +683,7 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
             raise ParseError(
                 "The '{0}' meta-data must consist of an array of structure"
                 " constructors, all of type '{1}' but found: {2}".format(
-                    var_name, var_type, [init.name for init in inits]))
+                    var_name, var_type, [str(init.name) for init in inits]))
     return inits
 
 
