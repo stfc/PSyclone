@@ -95,14 +95,28 @@ class GOcean1p0Build(Compile):
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../../external/dl_esm_inf/finite_difference/src")
 
+        fortcl_path = \
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "../../../external/dl_esm_inf/external/FortCL/src")
+
         arg_list = ["make", "F90={0}".format(self._f90),
                     "F90FLAGS={0}".format(self._f90flags),
                     "-f", "{0}/Makefile".format(dl_esm_inf_path)]
+
+        arg_list_fortcl = ["make", "F90={0}".format(self._f90),
+                           "F90FLAGS={0}".format(self._f90flags),
+                           "-f", "{0}/Makefile".format(fortcl_path)]
         try:
             build = subprocess.Popen(arg_list,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
             (output, error) = build.communicate()
+            if Compile.TEST_COMPILE_OPENCL:
+                build = subprocess.Popen(arg_list_fortcl,
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.STDOUT)
+                (output, error) = build.communicate()
+
             GOcean1p0Build._infrastructure_built = True
 
         except OSError as err:

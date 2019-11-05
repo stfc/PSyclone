@@ -52,7 +52,6 @@ def setup():
     # At the end of all tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
-    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -79,9 +78,7 @@ def test_invalid_nemo_config_files(tmpdir):
                         ("start", "var: ji, stop: jpi"),
                         ("stop", "var: ji, start: 1")]:
         content = _CONFIG_CONTENT + "mapping-lon = " + data
-        # pylint: disable=protected-access
         Config._instance = None
-        # pylint: enable=protected-access
         config_file = tmpdir.join("config1")
         with config_file.open(mode="w") as new_cfg:
             new_cfg.write(content)

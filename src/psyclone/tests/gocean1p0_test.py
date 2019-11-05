@@ -867,33 +867,34 @@ def test_goschedule_view(capsys):
 
     expected_output = (
         isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer', field_space='go_cu', "
+        "    0: " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
         "        " + lit + "[value:'2']\n"
         "        " + lit + "[value:'jstop']\n"
         "        " + lit + "[value:'1']\n"
         "        " + sched + "[]\n"
-        "            " + loop + "[type='inner', field_space='go_cu', "
+        "            0: " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
         "                " + lit + "[value:'2']\n"
         "                " + lit + "[value:'istop+1']\n"
         "                " + lit + "[value:'1']\n"
         "                " + sched + "[]\n"
-        "                    " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
+        "                    0: " + call +
+        " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer', field_space='go_every', "
+        "    1: " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
         "        " + lit + "[value:'1']\n"
         "        " + lit + "[value:'jstop+1']\n"
         "        " + lit + "[value:'1']\n"
         "        " + sched + "[]\n"
-        "            " + loop + "[type='inner', field_space='go_every', "
+        "            0: " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
         "                " + lit + "[value:'1']\n"
         "                " + lit + "[value:'istop+1']\n"
         "                " + lit + "[value:'1']\n"
         "                " + sched + "[]\n"
-        "                    " + call + " time_smooth_code(u_fld,unew_fld,"
+        "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
         "uold_fld) [module_inline=False]")
     assert expected_output in out
 
@@ -911,7 +912,7 @@ def test_goschedule_str():
     schedule = invoke.schedule
 
     expected_sched = (
-        "GOInvokeSchedule(Constant loop bounds=True):\n"
+        "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
         "Literal[value:'2']\n"
         "Literal[value:'jstop']\n"
@@ -951,7 +952,7 @@ def test_goschedule_str():
     sched_str = str(schedule)
 
     expected_sched = (
-        "GOInvokeSchedule(Constant loop bounds=False):\n"
+        "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
         "Literal[value:'cu_fld%internal%ystart']\n"
         "Literal[value:'cu_fld%internal%ystop']\n"
@@ -1365,7 +1366,8 @@ def test05p1_kernel_add_iteration_spaces():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     expected_sched = (
-        "GOInvokeSchedule(Constant loop bounds=True):\n"
+        "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
+        "Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
         "Literal[value:'1']\n"
         "Literal[value:'2']\n"

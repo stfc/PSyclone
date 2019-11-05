@@ -36,9 +36,10 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
-from psyclone.psyir.backend.base import VisitorError
+from psyclone.psyir.backend.visitor import VisitorError
 
 
 # pylint: disable=redefined-outer-name
@@ -222,12 +223,10 @@ def test_sirwriter_init_1(sir_writer):
     initial values as expected.
 
     '''
-    # pylint: disable=protected-access
     assert sir_writer._field_names == set()
     assert not sir_writer._skip_nodes
     assert sir_writer._indent == "  "
     assert sir_writer._depth == 0
-    # pylint: enable=protected-access
 
 
 # (2/2) Method __init__
@@ -238,11 +237,9 @@ def test_sirwriter_init_2():
     '''
     sir_writer = SIRWriter(skip_nodes=True, indent_string="[ooaah]",
                            initial_indent_depth=3)
-    # pylint: disable=protected-access
     assert sir_writer._skip_nodes
     assert sir_writer._indent == "[ooaah]"
     assert sir_writer._depth == 3
-    # pylint: enable=protected-access
 
 
 # (1/1) Method node_node

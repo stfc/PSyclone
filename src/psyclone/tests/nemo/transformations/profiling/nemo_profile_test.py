@@ -344,7 +344,7 @@ def test_profiling_no_spec_part(parser, monkeypatch):
 
     # Monkeypatch the validate method so that we can check that we raise the
     # expected error at code-generation time too.
-    monkeypatch.setattr(PTRANS, "_validate", lambda nodes: None)
+    monkeypatch.setattr(PTRANS, "validate", lambda nodes, options: None)
     PTRANS.apply(sched.children)
 
     with pytest.raises(NotImplementedError) as err:

@@ -309,36 +309,6 @@ provides the following common interface:
 .. autoclass:: psyclone.psyGen.Node
     :members:
 
-Tree Navigation
-===============
-
-Each PSyIR node provides several ways to navigate the AST:
-
-The `children` and `parent` properties (available in all nodes) provide an
-homogeneous method to go up and down the tree hierarchy. This method
-is recommended when applying general operations or analysis to the tree,
-however, if one intends to navigate the tree in a way that depends on the type
-of node, the `children` and `parent` methods should be avoided. The structure
-of the tree may change in different versions of PSyclone and the encoded
-navigation won't be future-proof.
-
-To solve this issue some nodes also provide methods for semantic navigation:
-
-- `Schedule`: subscript operator for indexing the statements inside the
-  Schedule. (e.g. `sched[3]` or `sched[2:4]`)
-- `Assignment`: `rhs` and `lhs` properties.
-- `IfBlocks`: `condition`, `if_body` and `else_body` properties.
-
-These are the recommended methods to navigate the tree for analysis or
-operations that depend on the Node type.
-
-Additionally, the `walk` method (available in all nodes) is able to recurse
-through the tree and return objects of a given type. This is useful when the
-objective is to move down the tree to an specific node or list of nodes without
-information about the exact location.
-
-.. automethod:: psyclone.psyGen.Node.walk
-
 .. _container-label:
 
 Container
@@ -849,6 +819,51 @@ until we find accesses that would prevent parallelisation::
           from the kernel metadata, not from the actual kernel source 
           code.
 
+Dependency Tools
+----------------
+PSyclone contains a class that provides useful tools for dependency analaysis.
+It especially provides messages for the user to indicate why parallelisation
+was not possible.
+
+.. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
+    :members:
+
+.. note:: There is limited support for detecting index expression that are
+    identical because of the commutative law, e.g. `i+k` and `k+i` would be
+    considered equal. But this only applies if two items are switched that
+    are part of the same PSyIR node. An expression like `i+k+1` is stored as
+    `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
+    be equal, because `i+1` and `i+k` are not the same.
+
+
+An example of how to use this class is shown below. It takes a list of statements
+(i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
+can be parallelised::
+
+  parallel_loop = OMPLoopTrans()
+  # The loops in the Fortran functions that must be parallelised
+  # are over the 'grid' domain. Note that the psyclone config
+  # file specifies the mapping of loop variable to type, e.g.:
+  #
+  #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+  #
+  # This means any loop using the variable 'np' is considered a
+  # loop of type 'grid'
+  dt = DependencyTools(["grid"])
+
+  for statement in statements:
+      if isinstance(statement, NemoLoop):
+          # Check if there is a variable dependency that might 
+          # prevent this loop from being parallelised:
+          if dt.can_loop_be_parallelised(statement):
+              parallel_loop.apply(statement)
+          else:
+              # Print all messages from the dependency analysis
+              # as feedback for the user:
+              for message in dt.get_all_messages():
+                  print(message)
+
+
 PSyIR back-ends
 ###############
 
@@ -867,7 +882,7 @@ this new approach over time. The back-end visitor code is stored in
 Visitor Base code
 =================
 
-`base.py` in `psyclone/psyir/backend` provides a base class -
+`visitor.py` in `psyclone/psyir/backend` provides a base class -
 `PSyIRVisitor` - that implements the visitor pattern and is designed
 to be subclassed by each back-end.
 

@@ -85,9 +85,10 @@ def trans(psy):
         for kernel in schedule.coded_kernels():
             print("  kernel '{0}'".format(kernel.name.lower()))
             try:
-                const_trans.apply(kernel, number_of_layers=NUMBER_OF_LAYERS,
-                                  element_order=ELEMENT_ORDER,
-                                  quadrature=CONSTANT_QUADRATURE)
+                const_trans.apply(kernel,
+                                  {"number_of_layers": NUMBER_OF_LAYERS,
+                                   "element_order": ELEMENT_ORDER,
+                                   "quadrature": CONSTANT_QUADRATURE})
             except TransformationError:
                 print("    Failed to modify kernel '{0}'".format(kernel.name))
 

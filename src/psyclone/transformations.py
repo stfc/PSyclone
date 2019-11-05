@@ -61,7 +61,7 @@ def check_intergrid(node):
     computation transformations to loops containing inter-grid kernels is
     rejected (since support for those is not yet implemented).
 
-    :param node: The PSyIR node to check.
+    :param node: the PSyIR node to check.
     :type node: :py:class:`psyGen.Node`
 
     :raises TransformationError: if the supplied node has an inter-grid \
@@ -112,13 +112,18 @@ class RegionTrans(Transformation):
     # overwritten:
     # pylint: disable=abstract-method,arguments-differ
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options=None):
         '''
         Checks that the nodes in node_list are valid for a region
         transformation.
 
         :param node_list: list of PSyIR nodes.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["node-type-check"]: this flag controls if the \
+                type of the nodes enclosed in the region should be tested \
+                to avoid using unsupported nodes inside a region.
 
         :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
@@ -132,8 +137,11 @@ class RegionTrans(Transformation):
                                      a single-line if statment.
 
         '''
-        from psyclone.psyGen import IfBlock, Literal, Reference
+        # pylint: disable=too-many-branches
+        from psyclone.psyGen import IfBlock
         from psyclone.nemo import NemoInvokeSchedule
+        if not options:
+            options = {}
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -151,14 +159,15 @@ class RegionTrans(Transformation):
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
-        for child in node_list:
-            flat_list = [item for item in child.walk(object)
-                         if not isinstance(item, Schedule)]
-            for item in flat_list:
-                if not isinstance(item, self.valid_node_types):
-                    raise TransformationError(
-                        "Nodes of type '{0}' cannot be enclosed by a {1} "
-                        "transformation".format(type(item), self.name))
+        if options.get("node-type-check", True):
+            for child in node_list:
+                flat_list = [item for item in child.walk(object)
+                             if not isinstance(item, Schedule)]
+                for item in flat_list:
+                    if not isinstance(item, self.valid_node_types):
+                        raise TransformationError(
+                            "Nodes of type '{0}' cannot be enclosed by a {1} "
+                            "transformation".format(type(item), self.name))
 
         # Sanity check that we've not been passed the condition part of
         # an If statement (which is child 0)
@@ -206,13 +215,15 @@ class KernelTrans(Transformation):
 
     '''
     @staticmethod
-    def validate(kern):
+    def validate(kern, options=None):
         '''
         Checks that the supplied node is a Kernel and that it is possible to
         construct the PSyIR of its contents.
 
         :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class.
+        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the target node is not a sub-class of \
                                      psyGen.Kern.
@@ -271,7 +282,8 @@ class LoopFuseTrans(Transformation):
         ''' Returns the name of this transformation as a string.'''
         return "LoopFuse"
 
-    def validate(self, node1, node2):
+    def validate(self, node1, node2, options=None):
+        # pylint: disable=arguments-differ
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
@@ -279,6 +291,8 @@ class LoopFuseTrans(Transformation):
         :type node1: :py:class:`psyclone.psyGen.Node`
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if one or both of the Nodes is/are \
                                      not a :py:class:`psyclone.psyGen.Loop`.
@@ -286,8 +300,8 @@ class LoopFuseTrans(Transformation):
         :raises TransformationError: if the Nodes do not have the same parent.
         :raises TransformationError: if the Nodes are not next to each \
                                      other in the tree.
-        :raises TransformationError: if the :py:class:`psyclone.psyGen.Loop`s \
-                                     do not have the same iteration space.
+        :raises TransformationError: if the two Loops do not have the same \
+                                     iteration space.
         '''
 
         # Check that the supplied Node is a Loop
@@ -325,7 +339,8 @@ class LoopFuseTrans(Transformation):
                 "Error in {0} transformation. Loops do not have the "
                 "same iteration space.".format(self.name))
 
-    def apply(self, node1, node2):
+    def apply(self, node1, node2, options=None):
+        # pylint: disable=arguments-differ
         ''' Fuses two loops represented by `psyclone.psyGen.Node` objects
         after performing validity checks.
 
@@ -333,6 +348,8 @@ class LoopFuseTrans(Transformation):
         :type node1: :py:class:`psyclone.psyGen.Node`
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
@@ -341,7 +358,7 @@ class LoopFuseTrans(Transformation):
         '''
 
         # Validity checks for the supplied nodes
-        self.validate(node1, node2)
+        self.validate(node1, node2, options)
 
         schedule = node1.root
 
@@ -388,7 +405,47 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         ''' Returns the name of this transformation as a string.'''
         return "GOceanLoopFuse"
 
-    def apply(self, node1, node2):
+    def validate(self, node1, node2, options=None):
+        '''Checks if it is valid to apply the GOceanLoopFuseTrans
+        transform. It ensures that the fused loops are over
+        the same grid-point types, before calling the normal
+        LoopFuseTrans validation function.
+
+        :param node1: the first Node representing a GOLoop.
+        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
+        :param node2: the second Node representing a GOLoop.
+        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied loops are over \
+                                     different grid-point types.
+
+        :raises TransformationError: if invalid parameters are passed in.
+
+        '''
+        import psyclone.gocean1p0
+        import psyclone.gocean0p1
+        # Either both nodes are gocean1.0 loop nodes, or both
+        # nodes are gocean0.1 loop nodes, otherwise raise an exception:
+        if not ((isinstance(node1, psyclone.gocean0p1.GOLoop) and
+                 isinstance(node2, psyclone.gocean0p1.GOLoop)) or
+                (isinstance(node1, psyclone.gocean1p0.GOLoop) and
+                 isinstance(node2, psyclone.gocean1p0.GOLoop))):
+            raise TransformationError("Error in {0} transformation. "
+                                      "Both nodes must be of the same "
+                                      "GOLoop class.".format(self.name))
+
+        super(GOceanLoopFuseTrans, self).validate(node1, node2, options)
+
+        if node1.field_space != node2.field_space:
+            raise TransformationError(
+                "Error in {0} transformation. Cannot "
+                "fuse loops that are over different grid-point types: "
+                "{1} {2}".format(self.name, node1.field_space,
+                                 node2.field_space))
+
+    def apply(self, node1, node2, options=None):
         ''' Fuses two `psyclone.gocean1p0.GOLoop` loops after performing
         validity checks by calling :py:meth:`LoopFuseTrans.apply` method
         of the base class.
@@ -397,6 +454,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
         :param node2: the second Node representing a GOLoop.
         :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
@@ -408,21 +467,13 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if there is an unexpected exception.
         '''
 
-        # Call the parent class validation first
-        super(GOceanLoopFuseTrans, self).validate(node1, node2)
+        # Validate first
+        self.validate(node1, node2, options)
 
         # Now check for GOcean-specific constraints before applying
         # the transformation
         try:
-            if node1.field_space != node2.field_space:
-                raise TransformationError(
-                    "Error in {0} transformation. Cannot "
-                    "fuse loops that are over different grid-point types: "
-                    "{1} {2}".format(self.name, node1.field_space,
-                                     node2.field_space))
-            return LoopFuseTrans.apply(self, node1, node2)
-        except TransformationError as err:
-            raise err
+            return LoopFuseTrans.apply(self, node1, node2, options)
         except Exception as err:
             raise TransformationError(
                 "Error in {0} transformation. Unexpected exception: {1}".
@@ -510,7 +561,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                 "flag provided was '{1}'.".
                 format(self.name, type(value).__name__))
 
-    def validate(self, node1, node2):
+    def validate(self, node1, node2, options=None):
         ''' Performs various checks to ensure that it is valid to apply
         the DynamoLoopFuseTrans transformation to the supplied loops.
 
@@ -518,6 +569,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param node2: the second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if either of the supplied loops contains \
                                      an inter-grid kernel.
@@ -542,9 +595,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                      the second loop reads the result of \
                                      the reduction.
         '''
-
+        # pylint: disable=too-many-locals,too-many-branches
         # Call the parent class validation first
-        super(DynamoLoopFuseTrans, self).validate(node1, node2)
+        super(DynamoLoopFuseTrans, self).validate(node1, node2, options)
 
         # Now test for Dynamo-specific constraints
 
@@ -650,7 +703,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                             "and the second loop reads the result of "
                             "the reduction.".format(self.name))
 
-    def apply(self, node1, node2):
+    def apply(self, node1, node2, options=None):
         ''' Fuses two `psyclone.dynamo0p3.DynLoop` loops after performing
         validity checks by calling :py:meth:`LoopFuseTrans.apply` method
         of the base class.
@@ -659,6 +712,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param node2: the second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
@@ -666,10 +722,10 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         '''
 
         # Validity checks for the supplied nodes
-        self.validate(node1, node2)
+        self.validate(node1, node2, options)
 
         # Apply fuse method from the parent class
-        return super(DynamoLoopFuseTrans, self).apply(node1, node2)
+        return super(DynamoLoopFuseTrans, self).apply(node1, node2, options)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -700,26 +756,33 @@ class ParallelLoopTrans(Transformation):
         Must be implemented by sub-class.
 
         :param parent: the parent of this Directive in the Schedule.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyGen.Node`
         :param children: list of nodes that will be children of this Directive.
-        :type children: list of :py:class:`psyclone.psyGen.Node`.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
         :param int collapse: the number of tightly-nested loops to which \
                              this directive applies or None.
+
         :returns: the new Directive node.
         :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
         '''
 
-    def _validate(self, node, collapse=None):
+    def validate(self, node, options=None):
         '''
         Perform validation checks before applying the transformation
 
         :param node: the node we are checking.
-        :type node: :py:class:`psyclone.psyGen.Node`.
-        :param int collapse: number of nested loops to collapse or None.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.\
+                        This transform supports "collapse", which is the\
+                        number of nested loops to collapse.
+        :type options: dictionary of string:values or None
+        :param int options["collapse"]: number of nested loops to collapse \
+                                        or None.
+
         :raises TransformationError: if the node is not a \
-        :py:class:`psyclone.psyGen.Loop`
+                :py:class:`psyclone.psyGen.Loop`.
         :raises TransformationError: if the \
-        :py:class:`psyclone.psyGen.Loop` loop iterates over colours
+                :py:class:`psyclone.psyGen.Loop` loop iterates over colours.
 
         '''
         # Check that the supplied node is a Loop
@@ -734,6 +797,10 @@ class ParallelLoopTrans(Transformation):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
+        if not options:
+            options = {}
+        collapse = options.get("collapse", None)
+
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
@@ -757,7 +824,7 @@ class ParallelLoopTrans(Transformation):
                     "Cannot apply COLLAPSE({0}) clause to a loop nest "
                     "containing only {1} loops".format(collapse, loop_count))
 
-    def apply(self, node, collapse=None):
+    def apply(self, node, options=None):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -777,20 +844,27 @@ class ParallelLoopTrans(Transformation):
 
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
-        :type node: :py:class:`psyclone.psyGen.Node`.
-        :param int collapse: number of loops to collapse into single \
-                             iteration space or None.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations. \
+        :type options: dictionary of string:values or None
+        :param int options["collapse"]: the number of loops to collapse into \
+                single iteration space or None.
+
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
                    :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(node, collapse)
+        if not options:
+            options = {}
+        self.validate(node, options)
 
         schedule = node.root
 
+        collapse = options.get("collapse", None)
+
         # create a memento of the schedule and the proposed
         # transformation
-        keep = Memento(schedule, self, [node, collapse])
+        keep = Memento(schedule, self, [node, options])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -805,8 +879,8 @@ class ParallelLoopTrans(Transformation):
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
 
-        # Change the node's parent to be the loop directive.
-        node.parent = directive
+        # Change the node's parent to be the loop directive's Schedule.
+        node.parent = directive.dir_body
 
         # Remove the reference to the loop from the original parent.
         node_parent.children.remove(node)
@@ -825,7 +899,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     reproducible) or whether a manual reproducible reproduction is
     to be used.
 
-    :param str omp_schedule: The OpenMP schedule to use.
+    :param str omp_schedule: the OpenMP schedule to use.
 
     For example:
 
@@ -908,7 +982,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                 raise TransformationError("Cannot specify a chunk size "
                                           "when using an OpenMP schedule"
                                           " of 'auto'")
-            elif value_parts[1].strip() == "":
+            if value_parts[1].strip() == "":
                 raise TransformationError("Supplied OpenMP schedule '{0}'"
                                           " has missing chunk-size.".
                                           format(value))
@@ -920,9 +994,9 @@ class OMPLoopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param parent: The Node that will be the parent of the created \
+        :param parent: the Node that will be the parent of the created \
                        directive Node.
-        :param children: List of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of \
                          the created directive.
         :type children: list of :py:class:`psyclone.psyGen.Node`
         :param int collapse: currently un-used but required to keep \
@@ -943,7 +1017,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                                     reprod=self._reprod)
         return _directive
 
-    def apply(self, node, reprod=None):
+    def apply(self, node, options=None):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -960,29 +1034,33 @@ class OMPLoopTrans(ParallelLoopTrans):
         :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP PARALLEL region.
 
-        The optional reprod argument will cause a reproducible
-        reduction to be generated if it is set to True, otherwise the default
-        value (as read from the psyclone.cfg file) will be used. Note,
-        reproducible in this case means obtaining the same results
+        If the keyword "reprod" is specified in the options, it will cause a
+        reproducible reduction to be generated if it is set to True, otherwise
+        the default value (as read from the psyclone.cfg file) will be used.
+        Note, reproducible in this case means obtaining the same results
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
 
         :param node: the supplied node to which we will apply the \
-        OMPLoopTrans transformation
+                     OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: optional argument to determine whether to \
-        generate reproducible OpenMP reductions (True) or not \
-        (False). The default value is None which will cause PSyclone \
-        to look up a default value
-        :type reprod: Boolean or None
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dictionary of string:values or None
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used. \
+                By default the value from the config file will be used.
+
         :returns: (:py:class:`psyclone.psyGen.Schedule`, \
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        if reprod:
-            self._reprod = reprod
+        if not options:
+            options = {}
+        self._reprod = options.get("reprod",
+                                   Config.get().reproducible_reductions)
 
-        return super(OMPLoopTrans, self).apply(node)
+        return super(OMPLoopTrans, self).apply(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
@@ -1043,9 +1121,9 @@ class ACCLoopTrans(ParallelLoopTrans):
         transformation.
 
         :param parent: the parent Node of the new directive Node.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyGen.Node`
         :param children: list of child nodes of the new directive Node.
-        :type children: list of :py:class:`psyclone.psyGen.Node`.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
         :param int collapse: number of nested loops to collapse or None if \
                              no collapse attribute is required.
         '''
@@ -1057,7 +1135,7 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      sequential=self._sequential)
         return directive
 
-    def apply(self, node, collapse=None, independent=True, sequential=False):
+    def apply(self, node, options=None):
         '''
         Apply the ACCLoop transformation to the specified node. This node
         must be a Loop since this transformation corresponds to
@@ -1076,22 +1154,28 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
-        :type node: :py:class:`psyclone.psyGen.Loop`.
-        :param int collapse: number of loops to collapse into single \
-                             iteration space or None.
-        :param bool independent: whether to add the "independent" clause to \
-                                 the directive (not strictly necessary within \
-                                 PARALLEL regions).
-        :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
-                  :py:class:`psyclone.undoredo.Memento`)
+        :type node: :py:class:`psyclone.psyGen.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param int options["collapse"]: number of nested loops to collapse.
+        :param bool options["independent"]: whether to add the "independent" \
+                clause to the directive (not strictly necessary within \
+                PARALLEL regions).
+
+        :returns: 2-tuple of new schedule and memento of transform
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
-        self._independent = independent
-        self._sequential = sequential
+        if not options:
+            options = {}
+        self._independent = options.get("independent", True)
+        self._sequential = options.get("sequential", False)
+
         # Call the apply() method of the base class
-        return super(ACCLoopTrans, self).apply(node, collapse)
+        return super(ACCLoopTrans, self).apply(node, options)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -1122,8 +1206,18 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
-    def _validate(self, node):
-        ''' validity checks for input arguments '''
+    def validate(self, node, options=None):
+        '''Validity checks for input arguments.
+
+        :param node: the PSyIR node to validate.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the nodes is not a Loop.
+        :raises TransformationError: if the nodes is over colours.
+
+         '''
         # Check that the supplied Node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node, Loop):
@@ -1135,8 +1229,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The requested loop is over colours and "
                                       "must be computed serially.")
+        super(OMPParallelLoopTrans, self).validate(node, options)
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -1151,12 +1246,16 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         :param node: the node (loop) to which to apply the transformation.
         :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :returns: Two-tuple of transformed schedule and a record of the \
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dictionary of string:values or None
+
+        :returns: two-tuple of transformed schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
-        self._validate(node)
+        self.validate(node, options)
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -1176,9 +1275,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
-
-        # change the node's parent to be the loop directive
-        node.parent = directive
+ 
+        # change the node's parent to be the Schedule of the loop directive
+        node.parent = directive.dir_body
 
         # remove the original loop
         node_parent.children.remove(node)
@@ -1202,7 +1301,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
 
         '''Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
@@ -1210,12 +1309,18 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
-        :raise TransformationError: if the associated loop requires \
-        colouring.
+        :raises TransformationError: if the associated loop requires \
+                colouring.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        OMPParallelLoopTrans._validate(self, node)
+        self.validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -1240,7 +1345,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
        loop). Actual transformation is done by
        :py:class:`base class <OMPParallelLoopTrans>`.
 
-       :param omp_schedule: The omp schedule to be created. Must be one of
+       :param omp_schedule: the omp schedule to be created. Must be one of
            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
        '''
 
@@ -1252,18 +1357,25 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
 
-        :param node: A Loop node from an AST.
+        :param node: a Loop node from an AST.
         :type node: :py:class:`psyclone.psyGen.Loop`
-        :raises TransformationError: if the supplied node is not an inner or
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied node is not an inner or\
             outer loop.
 
-        '''
+        :returns: 2-tuple of new schedule and memento of transform
+        :rtype: (:py:class:`psyclone.dynamo0p3.GOInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
-        OMPParallelLoopTrans._validate(self, node)
+        '''
+        self.validate(node, options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1290,24 +1402,33 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def apply(self, node, reprod=None):
+    def apply(self, node, options=None):
         '''Perform Dynamo 0.3 specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: if reproducible reductions should be used.
-        :type reprod: bool or None (default, which indicates to use the \
-              default from the config file).
+        :param options: a dictionary with options for transformations \
+                        and validation.
+        :type options: dictionary of string:values or None
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used. \
+                By default the value from the config file will be used.
 
         :raise TransformationError: if an OMP loop transform would create \
                 incorrect code.
         '''
+        if not options:
+            options = {}
 
-        if reprod is None:
-            reprod = Config.get().reproducible_reductions
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy()
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
 
-        OMPLoopTrans._validate(self, node)
+        self.validate(node, options)
 
         # If the loop is not already coloured then check whether or not
         # it should be
@@ -1317,7 +1438,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 " with INC access. Colouring is required.".
                 format(self.name))
 
-        return OMPLoopTrans.apply(self, node, reprod=reprod)
+        return OMPLoopTrans.apply(self, node, options)
 
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
@@ -1327,7 +1448,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         Loop). Actual transformation is done by
         :py:class:`base class <OMPLoopTrans>`.
 
-        :param omp_schedule: The omp schedule to be created. Must be one of
+        :param omp_schedule: the omp schedule to be created. Must be one of
             'runtime', 'static', 'dynamic', 'guided' or 'auto'.
 
         '''
@@ -1340,12 +1461,14 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a GOcean loop"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         '''Perform GOcean specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
-        :param node: The loop to parallelise using OMP Do.
-        :type node: :py:class:`psyclone.psyGen.Loop`.
+        :param node: the loop to parallelise using OMP Do.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         '''
         # check node is a loop. Although this is not GOcean specific
@@ -1361,7 +1484,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
-        return OMPLoopTrans.apply(self, node)
+        return OMPLoopTrans.apply(self, node, options)
 
 
 class ColourTrans(Transformation):
@@ -1390,14 +1513,16 @@ class ColourTrans(Transformation):
         ''' Returns the name of this transformation as a string.'''
         return "LoopColourTrans"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         '''
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
 
-        :param node: The loop to transform.
+        :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyGen.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :returns: Tuple of modified schedule and record of transformation
         :rtype: (:py:class:`psyclone.psyGen.Schedule, \
@@ -1487,18 +1612,34 @@ class KernelModuleInlineTrans(KernelTrans):
         ''' Returns the name of this transformation as a string.'''
         return "KernelModuleInline"
 
-    def apply(self, node, inline=True):
+    def apply(self, node, options=None):
         '''Checks that the node is of the correct type (a Kernel) then marks
         the Kernel to be inlined, or not, depending on the value of
-        the inline argument. If the inline argument is not passed the
-        Kernel is marked to be inlined.'''
+        the inline option. If the inline option is not passed the
+        Kernel is marked to be inlined.
 
-        self.validate(node, inline)
+        :param node: the loop to transform.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["inline"]: whether the kernel should be module\
+                inlined or not.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        self.validate(node, options)
 
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [node])
+
+        if not options:
+            options = {}
+        inline = options.get("inline", True)
 
         # set kernel's inline status
         if node.module_inline == inline:
@@ -1510,18 +1651,26 @@ class KernelModuleInlineTrans(KernelTrans):
 
         return schedule, keep
 
-    def validate(self, node, inline):
+    def validate(self, node, options=None):
         '''
         Check that the supplied kernel is eligible to be module inlined.
 
         :param node: the node in the PSyIR that is to be module inlined.
         :type node: sub-class of :py:class:`psyclone.psyGen.Node`
         :param bool inline: whether or not the kernel is to be inlined.
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["inline"]: whether the kernel should be module \
+                                       inlined or not.
 
         :raises TransformationError: if the supplied kernel has itself been \
                                      transformed (Issue #229).
         '''
-        super(KernelModuleInlineTrans, self).validate(node)
+        super(KernelModuleInlineTrans, self).validate(node, options)
+
+        if not options:
+            options = {}
+        inline = options.get("inline", True)
 
         if inline and node.modified:
             raise TransformationError("Cannot inline kernel {0} because it "
@@ -1581,7 +1730,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         ''' Returns the name of this transformation as a string.'''
         return "Dynamo0p3LoopColourTrans"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         '''Performs Dynamo0.3-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
@@ -1589,8 +1738,10 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param options: a dictionary with options for transformations.\
+        :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform
+        :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
@@ -1656,20 +1807,24 @@ class ParallelRegionTrans(RegionTrans):
     def name(self):
         ''' Returns the name of this transformation as a string.'''
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options=None):
         '''
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
 
-        :param list node_list: List of nodes to put into a parallel region
+        :param list node_list: list of nodes to put into a parallel region
+        :param options: a dictionary with options for transformations.\
+        :type options: dictionary of string:values or None
+        :param bool options["node-type-check"]: this flag controls whether \
+            or not the type of the nodes enclosed in the region should be \
+            tested to avoid using unsupported nodes inside a region.
+
         :raises TransformationError: if the nodes cannot be put into a \
                                      parallel region.
         '''
 
-        # temporary dynamo0.3-specific test for haloexchange calls
-        # existing within a parallel region. As we are going to
-        # support this in the future, see #526, it does not warrant
-        # making a separate dynamo-specific class.
+        # Haloexchange calls existing within a parallel region are not
+        # supported.
         from psyclone.psyGen import HaloExchange, InvokeSchedule
         for node in node_list:
             if isinstance(node, HaloExchange):
@@ -1690,18 +1845,28 @@ class ParallelRegionTrans(RegionTrans):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
                     "children of the same parent.".format(self.name))
-        super(ParallelRegionTrans, self)._validate(node_list)
+        super(ParallelRegionTrans, self).validate(node_list, options)
 
-    def apply(self, nodes):
+    def apply(self, nodes, options=None):
         '''
         Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Loops in the
         schedule within a single parallel region.
 
         :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["node-type-check"]: this flag controls if the \
+                type of the nodes enclosed in the region should be tested \
+                to avoid using unsupported nodes inside a region.
+
         :raises TransformationError: if the nodes argument is not of the \
                                      correct type.
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
         '''
 
         # Check whether we've been passed a list of nodes or just a
@@ -1720,7 +1885,7 @@ class ParallelRegionTrans(RegionTrans):
                                       "schedule but have been passed an "
                                       "object of type: {1}".
                                       format(self.name, arg_type))
-        self._validate(node_list)
+        self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
@@ -1746,14 +1911,14 @@ class ParallelRegionTrans(RegionTrans):
                                      children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the region directive as their parent. Use a slice
+        # the region directive's Schedule as their parent. Use a slice
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
         for child in node_list[:]:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
-            child.parent = directive
+            child.parent = directive.dir_body
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
@@ -1802,7 +1967,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     # The types of node that this transformation can enclose
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.OMPDirective, psyGen.GlobalSum,
-                        psyGen.Literal, psyGen.Reference)
+                        psyGen.Literal, psyGen.Reference,
+                        psyGen.Assignment, psyGen.BinaryOperation)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
@@ -1816,17 +1982,23 @@ class OMPParallelTrans(ParallelRegionTrans):
     @property
     def name(self):
         '''
-        :returns: The name of this transformation as a string.
+        :returns: the name of this transformation as a string.
         :rtype: str
         '''
         return "OMPParallelTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options=None):
         '''
         Perform OpenMP-specific validation checks.
 
-        :param node_list: List of Nodes to put within parallel region.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :param node_list: list of Nodes to put within parallel region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["node-type-check"]: this flag controls if the \
+                type of the nodes enclosed in the region should be tested \
+                to avoid using unsupported nodes inside a region.
+
         :raises TransformationError: if the target Nodes are already within \
                                      some OMP parallel region.
         '''
@@ -1838,7 +2010,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                                       "region within another OpenMP region.")
 
         # Now call the general validation checks
-        super(OMPParallelTrans, self)._validate(node_list)
+        super(OMPParallelTrans, self).validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -1886,7 +2058,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     @property
     def name(self):
         '''
-        :returns: The name of this transformation as a string.
+        :returns: the name of this transformation as a string.
         :rtype: str
         '''
         return "ACCParallelTrans"
@@ -1944,16 +2116,23 @@ class GOConstLoopBoundsTrans(Transformation):
         ''' Return the name of the Transformation as a string.'''
         return "GOConstLoopBoundsTrans"
 
-    def apply(self, node, const_bounds=True):
+    def apply(self, node, options=None):
         '''Switches constant loop bounds on or off for all loops in a
         GOInvokeSchedule. Default is 'on'.
 
-        :param node: The GOInvokeSchedule of which all loops will get the
+        :param node: the GOInvokeSchedule of which all loops will get the
             constant loop bounds switched on or off.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
-        :param const_bounds: If the constant loop should be used (True)
-            or not (False). Default is True.
-        :type const_bounds: bool
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :param bool options["const_bounds"]: whether the constant loop should\
+            be used (True) or not (False). Default is True.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
         '''
 
         # Check node is a Schedule
@@ -1964,7 +2143,10 @@ class GOConstLoopBoundsTrans(Transformation):
 
         keep = Memento(node, self)
 
-        node.const_loop_bounds = const_bounds
+        if not options:
+            options = {}
+
+        node.const_loop_bounds = options.get("const_bounds", True)
 
         return node, keep
 
@@ -1999,9 +2181,23 @@ class MoveTrans(Transformation):
         ''' Returns the name of this transformation as a string.'''
         return "Move"
 
-    # pylint: disable=no-self-use
-    def _validate(self, node, location, position):
-        ''' validity checks for input arguments '''
+    def validate(self, node, location, options=None):
+        # pylint: disable=no-self-use
+        ''' validity checks for input arguments.
+
+        :param node: the node to be moved.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param location: node before or after which the given node\
+            should be moved.
+        :type location: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param str options["position"]: either 'before' or 'after'.
+
+        :raises TransformationError: if the given node is not an instance \
+            of :py:class:`psyclone.psyGen.Node`
+        :raises TransformationError: if the location is not valid.
+        '''
 
         # Check that the first argument is a Node
         from psyclone.psyGen import Node
@@ -2012,22 +2208,46 @@ class MoveTrans(Transformation):
 
         # Check new location conforms to any data dependencies
         # This also checks the location and position arguments
+        if not options:
+            options = {}
+        position = options.get("position", "before")
         if not node.is_valid_location(location, position=position):
             raise TransformationError(
                 "In the Move transformation apply method, data dependencies "
                 "forbid the move to the new location")
-        # pylint: enable=no-self-use
 
-    def apply(self, node, location, position="before"):
+    def apply(self, node, location, options=None):
         '''Move the node represented by :py:obj:`node` before location
         :py:obj:`location` (which is also a node) by default and after
-        if the optional `position` argument is set to 'after'. An
-        exception is raised if the move is invalid.'''
+        if the optional `position` argument is set to 'after'.
+
+        :param node: the node to be moved.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param location: node before or after which the given node\
+            should be moved.
+        :type location: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param str options["position"]: either 'before' or 'after'.
+
+        :raises TransformationError: if the given node is not an instance \
+            of :py:class:`psyclone.psyGen.Node`
+        :raises TransformationError: if the location is not valid.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
         # pylint:disable=arguments-differ
 
-        self._validate(node, location, position)
+        self.validate(node, location, options)
 
         schedule = node.root
+
+        if not options:
+            options = {}
+        position = options.get("position", "before")
 
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [node, location])
@@ -2075,55 +2295,57 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         ''' Returns the name of this transformation as a string.'''
         return "RedundantComputation"
 
-    def _validate(self, node, depth):
+    def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         RedundantComputation transformation to the supplied node
 
-        :param node: the supplied node on which we are performing
-        validity checks
+        :param node: the supplied node on which we are performing\
+                     validity checks
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param depth: the depth of the stencil if the value is
-        provided and None if not
-        :type depth: int or None
-        :raises GenerationError: if the node is not a
-        :py:class:`psyclone.psyGen.Loop`
-        :raises GenerationError: if the parent of the loop is a
-        :py:class:`psyclone.psyGen.Directive`
-        :raises GenerationError: if the parent of the loop is not a
-        :py:class:`psyclone.psyGen.Loop` or a
-        :py:class:`psyclone.psyGen.DynInvokeSchedule`
-        :raises GenerationError: if the parent of the loop is a
-        :py:class:`psyclone.psyGen.Loop` but the original loop does
-        not iterate over 'colour'
-        :raises GenerationError: if the parent of the loop is a
-        :py:class:`psyclone.psyGen.Loop` but the parent does not
-        iterate over 'colours'
-        :raises GenerationError: if the parent of the loop is a
-        :py:class:`psyclone.psyGen.Loop` but the parent's parent is
-        not a :py:class:`psyclone.psyGen.DynInvokeSchedule`
-        :raises GenerationError: if this transformation is applied
-        when distributed memory is not switched on
-        :raises GenerationError: if the loop does not iterate over
-        cells, dofs or colour
-        :raises GenerationError: if the transformation is setting the
-        loop to the maximum halo depth but the loop already computes
-        to the maximum halo depth
-        :raises GenerationError: if the transformation is setting the
-        loop to the maximum halo depth but the loop contains a stencil
-        access (as this would result in the field being accessed
-        beyond the halo depth)
-        :raises GenerationError: if the supplied depth value is not an
-        integer
-        :raises GenerationError: if the supplied depth value is less
-        than 1
-        :raises GenerationError: if the supplied depth value is not
-        greater than 1 when a continuous loop is modified as this is
-        the minimum valid value
-        :raises GenerationError: if the supplied depth value is not
-        greater than the existing depth value, as we should not need
-        to undo existing transformations
-        :raises GenerationError: if a depth value has been supplied
-        but the loop has already been set to the maximum halo depth
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param int options["depth"]: the depth of the stencil if the value \
+                     is provided and None if not.
+
+        :raises GenerationError: if the node is not a\
+            :py:class:`psyclone.psyGen.Loop`.
+        :raises GenerationError: if the parent of the loop is a\
+            :py:class:`psyclone.psyGen.Directive`.
+        :raises GenerationError: if the parent of the loop is not a\
+            :py:class:`psyclone.psyGen.Loop` or a\
+            :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+        :raises GenerationError: if the parent of the loop is a\
+            :py:class:`psyclone.psyGen.Loop` but the original loop does\
+            not iterate over 'colour'.
+        :raises GenerationError: if the parent of the loop is a\
+            :py:class:`psyclone.psyGen.Loop` but the parent does not
+            iterate over 'colours'.
+        :raises GenerationError: if the parent of the loop is a\
+            :py:class:`psyclone.psyGen.Loop` but the parent's parent is\
+            not a :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+        :raises GenerationError: if this transformation is applied\
+            when distributed memory is not switched on.
+        :raises GenerationError: if the loop does not iterate over\
+            cells, dofs or colour.
+        :raises GenerationError: if the transformation is setting the\
+            loop to the maximum halo depth but the loop already computes\
+            to the maximum halo depth.
+        :raises GenerationError: if the transformation is setting the\
+            loop to the maximum halo depth but the loop contains a stencil\
+            access (as this would result in the field being accessed\
+            beyond the halo depth).
+        :raises GenerationError: if the supplied depth value is not an\
+            integer.
+        :raises GenerationError: if the supplied depth value is less\
+            than 1.
+        :raises GenerationError: if the supplied depth value is not\
+            greater than 1 when a continuous loop is modified as this is\
+            the minimum valid value.
+        :raises GenerationError: if the supplied depth value is not\
+            greater than the existing depth value, as we should not need\
+            to undo existing transformations.
+        :raises GenerationError: if a depth value has been supplied\
+            but the loop has already been set to the maximum halo depth.
 
         '''
         # check node is a loop
@@ -2141,21 +2363,20 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
+        dir_node = node.ancestor(Directive)
+        if dir_node:
+            raise TransformationError(
+                "In the Dynamo0p3RedundantComputation transformation apply "
+                "method the supplied loop is sits beneath a directive of "
+                "type {0}. Redundant computation must be applied before "
+                "directives are added.".format(type(dir_node)))
         if not (isinstance(node.parent, DynInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
-            if isinstance(node.parent, Directive):
-                raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method the parent of the supplied loop is a "
-                    "directive of type {0}. Redundant computation must be "
-                    "applied before directives are "
-                    "added.".format(type(node.parent)))
-            else:
-                raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method the parent of the supplied loop must be "
-                    "the DynInvokeSchedule, or a Loop, but found {0}".
-                    format(type(node.parent)))
+            raise TransformationError(
+                "In the Dynamo0p3RedundantComputation transformation "
+                "apply method the parent of the supplied loop must be "
+                "the DynInvokeSchedule, or a Loop, but found {0}".
+                format(type(node.parent)))
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
@@ -2196,6 +2417,9 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # loops containing inter-grid kernels
         check_intergrid(node)
 
+        if not options:
+            options = {}
+        depth = options.get("depth")
         if depth is None:
             if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
@@ -2239,7 +2463,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
-    def apply(self, loop, depth=None):  # pylint:disable=arguments-differ
+    def apply(self, loop, options=None):
+        # pylint:disable=arguments-differ
         '''Apply the redundant computation transformation to the loop
         :py:obj:`loop`. This transformation can be applied to loops iterating
         over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
@@ -2248,14 +2473,22 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         value then redundant computation will be performed to the full depth
         of the field's halo.
 
-        :param loop: the loop that we are transforming
+        :param loop: the loop that we are transforming.
         :type loop: :py:class:`psyclone.psyGen.DynLoop`
-        :param depth: the depth of the stencil. Defaults to None if a
-                      depth is not provided.
-        :type depth: int or None
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param int options["depth"]: the depth of the stencil. Defaults \
+                to None.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(loop, depth)
+        self.validate(loop, options)
+        if not options:
+            options = {}
+        depth = options.get("depth")
 
         schedule = loop.root
 
@@ -2319,15 +2552,19 @@ class GOLoopSwapTrans(Transformation):
         '''Returns the name of this transformation as a string.'''
         return "GOLoopSwap"
 
-    def _validate(self, node_outer):  # pylint: disable=no-self-use
-        '''Checks if the given nodes contains a valid Fortran structure
-           to allow swapping loops. This means the node must represent
-           a loop, and it must have exactly one child that is also a loop.
+    def validate(self, node_outer, options=None):
+        # pylint: disable=no-self-use
+        '''Checks if the given node contains a valid Fortran structure
+        to allow swapping loops. This means the node must represent
+        a loop, and it must have exactly one child that is also a loop.
 
-           :param node_outer: A node from an AST.
-           :type node_outer: py:class:`psyclone.psyGen.Node`
-           :raises TransformationError: if the supplied node does not
-                                        allow a loop swap to be done.
+        :param node_outer: a Loop node from an AST.
+        :type node_outer: py:class:`psyclone.psyGen.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied node does not\
+                                     allow a loop swap to be done.
          '''
 
         from psyclone.psyGen import Loop
@@ -2370,16 +2607,25 @@ class GOLoopSwapTrans(Transformation):
                 "".format(node_outer, len(node_outer.loop_body.children),
                           node_outer.loop_body[0], node_outer.loop_body[1]))
 
-    def apply(self, outer):  # pylint: disable=arguments-differ
+    def apply(self, outer, options=None):
+        # pylint: disable=arguments-differ
         '''The argument :py:obj:`outer` must be a loop which has exactly
         one inner loop. This transform then swaps the outer and inner loop.
 
-        :param outer: The node representing the outer loop.
+        :param outer: the node representing the outer loop.
         :type outer: :py:class:`psyclone.psyGen.Loop`
-        :returns: A tuple consisting of the new schedule, and a Memento.
-        :raises TransformationError: if the supplied node does not
-                                        allow a loop swap to be done.'''
-        self._validate(outer)
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied node does not \
+                                     allow a loop swap to be done.
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        self.validate(outer, options)
 
         schedule = outer.root
         inner = outer.loop_body[0]
@@ -2433,7 +2679,7 @@ class OCLTrans(Transformation):
         '''
         return "OCLTrans"
 
-    def apply(self, sched, opencl=True, options=None):
+    def apply(self, sched, options=None):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -2441,24 +2687,29 @@ class OCLTrans(Transformation):
         library (https://github.com/stfc/FortCL) in order to manage the
         OpenCL device directly from Fortran.
 
-        :param sched: InvokeSchedule to transform.
+        :param sched: the InvokeSchedule to transform.
         :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
-        :param bool opencl: whether or not to enable OpenCL generation.
         :param options: set of option to tune the OpenCL generation.
         :type options: dictionary of string:values or None
+        :param bool options["opencl"]: whether or not to enable OpenCL \
+                                       generation.
 
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
         '''
+        if not options:
+            options = {}
+        opencl = options.get("opencl", True)
+
         if opencl:
-            self.validate(sched)
+            self.validate(sched, options)
 
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
-
-        if not options:
-            options = {}
 
         try:
             # Store the provided OpenCL options in the InvokeSchedule.
@@ -2470,13 +2721,15 @@ class OCLTrans(Transformation):
 
         return sched, keep
 
-    def validate(self, sched):
+    def validate(self, sched, options=None):
         '''
         Checks that the supplied InvokeSchedule is valid and that an OpenCL
         version of it can be generated.
 
-        :param sched: Schedule to check.
+        :param sched: the Schedule to check.
         :type sched: :py:class:`psyclone.psyGen.InvokeSchedule`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the InvokeSchedule is not for the \
                                      GOcean1.0 API.
@@ -2561,12 +2814,18 @@ class ProfileRegionTrans(RegionTrans):
         ''' Returns the name of this transformation as a string '''
         return "ProfileRegionTrans"
 
-    def _validate(self, nodes):
+    def validate(self, nodes, options=None):
         '''
-        Calls the _validate method of the base class and then checks that,
+        Calls the validate method of the base class and then checks that,
         for the NEMO API, the routine that will contain the profiling
         region already has a Specification_Part (because we've not yet
         implemented the necessary support if it doesn't).
+
+        :param nodes: a list of nodes to be profiled.
+        :type nodes: :py:class:`psyclone.psyGen.Loop`
+
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if we're using the NEMO API and the \
                                      target routine has no Specification_Part.
@@ -2575,7 +2834,7 @@ class ProfileRegionTrans(RegionTrans):
         from fparser.two.utils import walk_ast
         from psyclone.nemo import NemoInvoke
 
-        super(ProfileRegionTrans, self)._validate(nodes)
+        super(ProfileRegionTrans, self).validate(nodes, options)
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
@@ -2592,7 +2851,7 @@ class ProfileRegionTrans(RegionTrans):
                 "Specification Part) but '{0}' does not have any.".format(
                     invoke.name))
 
-    def apply(self, nodes):
+    def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
@@ -2600,16 +2859,27 @@ class ProfileRegionTrans(RegionTrans):
 
         :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-        :py:obj:`psyclone.psygen.Node`
+                     :py:obj:`psyclone.psygen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: Tuple of the modified schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`)
 
         '''
         # Check whether we've been passed a list of nodes or just a
-        # single node. If the latter then we create ourselves a
-        # list containing just that node.
+        # single node.
         from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
+        elif isinstance(nodes, Schedule):
+            # We've been passed a Schedule so default to enclosing its
+            # children.
+            node_list = nodes.children
         elif isinstance(nodes, Node):
+            # Single node that's not a Schedule
             node_list = [nodes]
         else:
             arg_type = str(type(nodes))
@@ -2625,14 +2895,15 @@ class ProfileRegionTrans(RegionTrans):
         # the first child to be enclosed as that will become the
         # position of the new Profile node
         node_parent = node_list[0].parent
-        if isinstance(node_parent, (OMPDoDirective, ACCLoopDirective)):
+        if isinstance(node_parent, Schedule) and \
+           isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
             raise TransformationError("A ProfileNode cannot be inserted "
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
         # Perform validation checks
-        self._validate(node_list)
+        self.validate(node_list, options)
 
         # create a memento of the schedule and the proposed
         # transformation
@@ -2692,20 +2963,23 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         '''
         return "Dynamo0p3AsyncHaloExchangeTrans"
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         '''Transforms a synchronous halo exchange, represented by a
         HaloExchange node, into an asynchronous halo exchange,
         represented by HaloExchangeStart and HaloExchangeEnd nodes.
 
-        :param node: A synchronous haloexchange node
+        :param node: a synchronous haloexchange node.
         :type node: :py:obj:`psyclone.psygen.HaloExchange`
-        :returns: Tuple of the modified schedule and a record of the \
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: tuple of the modified schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(node)
+        self.validate(node, options)
 
         schedule = node.root
 
@@ -2732,12 +3006,15 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         return schedule, keep
 
-    def _validate(self, node):
+    def validate(self, node, options):
         '''Internal method to check whether the node is valid for this
         transformation.
 
-        :param node: A synchronous Halo Exchange node
+        :param node: a synchronous Halo Exchange node
         :type node: :py:obj:`psyclone.psygen.HaloExchange`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
         :raises TransformationError: if the node argument is not a
                          HaloExchange (or subclass thereof)
 
@@ -2775,17 +3052,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     '''
 
-    # ndofs for different function spaces on a quadrilateral element
-    # for different orders. Formulas kindly provided by Tom
-    # Melvin. See the Qr table at http://femtable.org/background.html,
+    # ndofs per 3D cell for different function spaces on a quadrilateral
+    # element for different orders. Formulas kindly provided by Tom Melvin and
+    # Thomas Gibson. See the Qr table at http://femtable.org/background.html,
     # for computed values of w0, w1, w2 and w3 up to order 7.
-    space_to_dofs = {"w3":     (lambda n: (n+1)**3),
-                     "w2":     (lambda n: 3*(n+2)*(n+1)**2),
-                     "w1":     (lambda n: 3*(n+2)**2*(n+1)),
-                     "w0":     (lambda n: (n+2)**3),
-                     "wtheta": (lambda n: (n+2)*(n+1)**2),
-                     "w2h":    (lambda n: 2*(n+2)*(n+1)**2),
-                     "w2v":    (lambda n: (n+2)*(n+1)**2)}
+    space_to_dofs = {"w3":       (lambda n: (n+1)**3),
+                     "w2":       (lambda n: 3*(n+2)*(n+1)**2),
+                     "w1":       (lambda n: 3*(n+2)**2*(n+1)),
+                     "w0":       (lambda n: (n+2)**3),
+                     "wtheta":   (lambda n: (n+2)*(n+1)**2),
+                     "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
+                     "w2v":      (lambda n: (n+2)*(n+1)**2),
+                     "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
+                     "w2trace":  (lambda n: 6*(n+1)**2)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
@@ -2800,8 +3079,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         '''
         return "Dynamo0p3KernelConstTrans"
 
-    def apply(self, node, cellshape="quadrilateral", element_order=None,
-              number_of_layers=None, quadrature=False):
+    def apply(self, node, options=None):
         '''Transforms a kernel so that the values for the number of degrees of
         freedom (if a valid value for the element_order arg is
         provided), the number of quadrature points (if the quadrature
@@ -2821,48 +3099,50 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         :param node: a kernel node.
         :type node: :py:obj:`psyclone.psygen.DynKern`
-        :param str cellshape: the shape of the cells. This is provided \
-        as it helps determine the number of dofs a field has for a \
-        particular function space. Currently only "quadrilateral" is \
-        supported which is also the default value.
-        :param int element_order: the order of the cell. In \
-        combination with cellshape, this determines the number of \
-        dofs a field has for a particular function space. If it is set \
-        to None (the default) then the dofs values are not set as \
-        constants in the kernel, otherwise they are.
-        :param int number_of_layers: the number of vertical layers in \
-        the LFRic model mesh used for this particular run. If this is \
-        set to None (the default) then the nlayers value is not set as \
-        a constant in the kernel, otherwise it is.
-        :param bool quadrature: whether the number of quadrature \
-        points values are set as constants in the kernel (True) or not \
-        (False). The default is False.
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param str options["cellshape"]: the shape of the cells. This is\
+            provided as it helps determine the number of dofs a field has\
+            for a particular function space. Currently only "quadrilateral"\
+            is supported which is also the default value.
+        :param int options["element_order"]: the order of the cell. In \
+            combination with cellshape, this determines the number of \
+            dofs a field has for a particular function space. If it is set \
+            to None (the default) then the dofs values are not set as \
+            constants in the kernel, otherwise they are.
+        :param int options["number_of_layers"]: the number of vertical \
+            layers in the LFRic model mesh used for this particular run. If \
+            this is set to None (the default) then the nlayers value is not \
+            set as a constant in the kernel, otherwise it is.
+        :param bool options["quadrature"]: whether the number of quadrature \
+            points values are set as constants in the kernel (True) or not \
+            (False). The default is False.
 
-        :returns: Tuple of the modified schedule and a record of the \
+        :returns: tuple of the modified schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-
+        # --------------------------------------------------------------------
         def make_constant(symbol_table, arg_position, value,
                           function_space=None):
             '''Utility function that modifies the argument at position
             'arg_position' into a compile-time constant with value
             'value'.
 
-            :param symbol_table: The symbol table for the kernel \
+            :param symbol_table: the symbol table for the kernel \
                          holding the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
-            :param int arg_position: The argument's position in the \
+            :param int arg_position: the argument's position in the \
                                      argument list.
-            :param value: The constant value that this argument is \
-                   going to be given. Its type depends on the type of the \
-                   argument.
-            :type value: int, str or bool.
+            :param value: the constant value that this argument is \
+                    going to be given. Its type depends on the type of the \
+                    argument.
+            :type value: int, str or bool
             :type str function_space: the name of the function space \
-                        if there is a function space associated with this \
-                        argument. Defaults to None.
+                    if there is a function space associated with this \
+                    argument. Defaults to None.
 
             '''
             from psyclone.psyGen import Symbol
@@ -2901,10 +3181,15 @@ class Dynamo0p3KernelConstTrans(Transformation):
             else:
                 print("    Modified {0}, arg position {1}, value {2}."
                       "".format(orig_name, arg_position, value))
+        # --------------------------------------------------------------------
 
-        self._validate(node, cellshape, element_order, number_of_layers,
-                       quadrature)
+        self.validate(node, options)
 
+        if not options:
+            options = {}
+        number_of_layers = options.get("number_of_layers", None)
+        quadrature = options.get("quadrature", False)
+        element_order = options.get("element_order", None)
         schedule = node.root
         kernel = node
 
@@ -2944,8 +3229,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                    (VALID_ANY_SPACE_NAMES +
-                     VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
+                        (VALID_ANY_SPACE_NAMES +
+                         VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "
@@ -2971,27 +3256,29 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         return schedule, keep
 
-    def _validate(self, node, cellshape, element_order, number_of_layers,
-                  quadrature):
-        '''Internal method to check whether the input arguments are valid for
+    def validate(self, node, options=None):
+        '''This method checks whether the input arguments are valid for
         this transformation.
 
-        :param node: A dynamo 0.3 kernel node
+        :param node: a dynamo 0.3 kernel node.
         :type node: :py:obj:`psyclone.psygen.DynKern`
-        :type str cellshape: the shape of the elements/cells.
-        :type int element_order: the order of the elements/cells.
-        :type int number_of_layers: the number of layers to use.
-        :type bool quadrature: whether quadrature dimension sizes \
-        should or shouldn't be set as constants in a kernel.
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param str options["cellshape"]: the shape of the elements/cells.
+        :param int options["element_order"]: the order of the elements/cells.
+        :param int options["number_of_layers"]: the number of layers to use.
+        :param bool options["quadrature"]: whether quadrature dimension sizes \
+            should or shouldn't be set as constants in a kernel.
+
         :raises TransformationError: if the node argument is not a \
-        dynamo 0.3 kernel, the cellshape argument is not set to \
-        "quadrilateral", the element_order argument is not a 0 or a \
-        positive integer, the number of layers argument is not a \
-        positive integer, the quadrature argument is not a boolean, \
-        neither element order nor number of layers arguments are set \
-        (as the transformation would then do nothing), or the \
-        quadrature argument is True but the element order is not \
-        provided (as the former needs the latter).
+            dynamo 0.3 kernel, the cellshape argument is not set to \
+            "quadrilateral", the element_order argument is not a 0 or a \
+            positive integer, the number of layers argument is not a \
+            positive integer, the quadrature argument is not a boolean, \
+            neither element order nor number of layers arguments are set \
+            (as the transformation would then do nothing), or the \
+            quadrature argument is True but the element order is not \
+            provided (as the former needs the latter).
 
         '''
         from psyclone.dynamo0p3 import DynKern
@@ -3001,6 +3288,12 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 "node must be a dynamo kernel but found '{0}'."
                 .format(type(node)))
 
+        if not options:
+            options = {}
+        cellshape = options.get("cellshape", "quadrilateral")
+        element_order = options.get("element_order", None)
+        number_of_layers = options.get("number_of_layers", None)
+        quadrature = options.get("quadrature", False)
         if cellshape.lower() != "quadrilateral":
             # Only quadrilaterals are currently supported
             raise TransformationError(
@@ -3081,15 +3374,18 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, sched):
+    def apply(self, sched, options=None):
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
         order to ensure they remain on the target device.
 
-        :param sched: Schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
-        :returns: Tuple of the modified schedule and a record of the \
+        :param sched: schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: tuple of the modified schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
@@ -3098,7 +3394,7 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.dynamo0p3 import DynInvokeSchedule
 
         # Ensure that the proposed transformation is valid
-        self._validate(sched)
+        self.validate(sched, options)
 
         if isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
@@ -3107,9 +3403,9 @@ class ACCEnterDataTrans(Transformation):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         else:
-            # Should not get here provided that _validate() has done its job
+            # Should not get here provided that validate() has done its job
             raise InternalError(
-                "ACCEnterDataTrans._validate() has not rejected an "
+                "ACCEnterDataTrans.validate() has not rejected an "
                 "(unsupported) schedule of type {0}".format(type(sched)))
 
         # Create a memento of the schedule and the proposed
@@ -3122,14 +3418,16 @@ class ACCEnterDataTrans(Transformation):
 
         return sched, keep
 
-    def _validate(self, sched):
+    def validate(self, sched, options=None):
         # pylint: disable=arguments-differ
         '''
         Check that we can safely apply the OpenACC enter-data transformation
         to the supplied Schedule.
 
         :param sched: Schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
+        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
@@ -3140,7 +3438,7 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
 
-        super(ACCEnterDataTrans, self)._validate(sched)
+        super(ACCEnterDataTrans, self).validate(sched, options)
 
         if not isinstance(sched, Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
@@ -3191,20 +3489,22 @@ class ACCRoutineTrans(KernelTrans):
         '''
         return "ACCRoutineTrans"
 
-    def apply(self, kern):
+    def apply(self, kern, options=None):
         '''
         Modifies the AST of the supplied kernel so that it contains an
         '!$acc routine' OpenACC directive.
 
-        :param kern: The kernel object to transform.
+        :param kern: the kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Kern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
 
         :returns: (transformed kernel, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
                 :py:class:`psyclone.undoredo.Memento`).
-
-        :raises TransformationError: if we fail to find the subroutine \
-                                     corresponding to the kernel object.
 
         '''
         # pylint: disable=too-many-locals
@@ -3216,7 +3516,7 @@ class ACCRoutineTrans(KernelTrans):
         from fparser.common.readfortran import FortranStringReader
 
         # Check that we can safely apply this transformation
-        self.validate(kern)
+        self.validate(kern, options)
 
         # Get the fparser2 AST of the kernel
         ast = kern.ast
@@ -3252,12 +3552,14 @@ class ACCRoutineTrans(KernelTrans):
         # Return the now modified kernel
         return kern, keep
 
-    def validate(self, kern):
+    def validate(self, kern, options=None):
         '''
         Perform checks that the supplied kernel can be transformed.
 
         :param kern: the kernel which is the target of the transformation.
         :type kern: :py:class:`psyclone.psyGen.Kern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the target kernel is a built-in.
         :raises TransformationError: if any of the symbols in the kernel are \
@@ -3278,7 +3580,7 @@ class ACCRoutineTrans(KernelTrans):
 
         # Perform general validation checks. In particular this checks that
         # a PSyIR of the kernel body can be constructed.
-        KernelTrans.validate(kern)
+        super(ACCRoutineTrans, self).validate(kern, options)
 
         # Check that the kernel does not access any data via a module 'use'
         # statement
@@ -3338,29 +3640,36 @@ class ACCKernelsTrans(RegionTrans):
         '''
         return "ACCKernelsTrans"
 
-    def apply(self, node_list, default_present=False):
+    def apply(self, node_list, options=None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param node_list: The list of nodes in the PSyIR to enclose.
+        :param node_list: the list of nodes in the PSyIR to enclose.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
-        :param bool default_present: whether or not the kernels region \
-           should have the 'default present' attribute (indicating that data \
-           is already on the accelerator). When using managed memory this \
-           option should be False.
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param bool options["default_present"]: whether or not the kernels \
+            region should have the 'default present' attribute (indicating \
+            that data is already on the accelerator). When using managed \
+            memory this option should be False.
+
         :returns: (transformed schedule, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`,
                             :py:class:`psyclone.undoredo.Memento`).
 
         '''
-        self._validate(node_list)
+        self.validate(node_list, options)
 
         # Keep a record of this transformation
         keep = Memento(node_list[:], self)
 
         parent = node_list[0].parent
         schedule = node_list[0].root
+
+        if not options:
+            options = {}
+        default_present = options.get("default_present", False)
 
         # Create the directive and insert it. Take a copy of the list
         # as it may just be a reference to the parent.children list
@@ -3371,16 +3680,15 @@ class ACCKernelsTrans(RegionTrans):
                                         default_present=default_present)
         start_index = parent.children.index(node_list[0])
 
-        for child in directive.children:
+        for child in directive.dir_body.children:
             parent.children.remove(child)
-            child.parent = directive
 
         parent.children.insert(start_index, directive)
 
         # Return the now modified kernel
         return schedule, keep
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options):
         '''
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
@@ -3388,6 +3696,8 @@ class ACCKernelsTrans(RegionTrans):
         :param node_list: the proposed list of PSyIR nodes to enclose in the \
                           kernels region.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises NotImplementedError: if the supplied Nodes do not belong to \
                                      a NemoInvokeSchedule.
@@ -3404,7 +3714,7 @@ class ACCKernelsTrans(RegionTrans):
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
-        super(ACCKernelsTrans, self)._validate(node_list)
+        super(ACCKernelsTrans, self).validate(node_list, options)
 
         # Check that we have at least one loop within the proposed region
         for node in node_list:
@@ -3455,19 +3765,22 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, node_list):
+    def apply(self, node_list, options=None):
         '''
         Put the supplied list of nodes within an OpenACC data region.
 
-        :param node_list: The list of PSyIR nodes to enclose in the data \
+        :param node_list: the list of PSyIR nodes to enclose in the data \
                           region.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
         :returns: (transformed schedule, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`).
 
         '''
-        self._validate(node_list)
+        self.validate(node_list, options)
 
         # Keep a record of this transformation
         keep = Memento(node_list[:], self)
@@ -3482,16 +3795,16 @@ class ACCDataTrans(RegionTrans):
         directive = ACCDataDirective(parent=parent, children=node_list[:])
         start_index = parent.children.index(node_list[0])
 
-        for child in directive.children:
+        for child in directive.dir_body[:]:
             parent.children.remove(child)
-            child.parent = directive
+            child.parent = directive.dir_body
 
         parent.children.insert(start_index, directive)
 
         # Return the now modified kernel
         return schedule, keep
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options):
         '''
         Check that we can safely add a data region around the supplied list
         of nodes.
@@ -3499,6 +3812,8 @@ class ACCDataTrans(RegionTrans):
         :param node_list: the proposed list of nodes to enclose in a data \
                           region.
         :type node_list: list of subclasses of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the Schedule to which the nodes \
                                 belong already has an 'enter data' directive.
@@ -3506,7 +3821,7 @@ class ACCDataTrans(RegionTrans):
                                      data directives.
         '''
         from psyclone.psyGen import ACCEnterDataDirective
-        super(ACCDataTrans, self)._validate(node_list)
+        super(ACCDataTrans, self).validate(node_list, options)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
@@ -3572,27 +3887,31 @@ class NemoExplicitLoopTrans(Transformation):
         '''
         return "NemoExplicitLoopTrans"
 
-    def apply(self, loop):
+    def apply(self, loop, options=None):
         '''
         Transform the outermost array slice in the supplied implicit loop
         into an explicit loop.
 
         :param loop: the NemoImplicitLoop to transform.
         :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
-        :returns: a new PSyIR loop object and a memento of the transformation.
-        :rtype: (:py:class:`psyclone.nemo.NemoLoop`, \
-                 :py:class:`psyclone.undoredo.Memento`)
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises NotImplementedError: if the array slice has explicit bounds.
         :raises TransformationError: if an array slice is not in dimensions \
                                      1-3 of the array.
+
+        :returns: a new PSyIR loop object and a memento of the transformation.
+        :rtype: (:py:class:`psyclone.nemo.NemoLoop`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
         '''
         from fparser.two import Fortran2003
         from fparser.two.utils import walk_ast
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
 
-        self.validate(loop)
+        self.validate(loop, options)
 
         # Keep a record of this transformation
         keep = Memento(loop, self)
@@ -3733,12 +4052,14 @@ class NemoExplicitLoopTrans(Transformation):
         # Return the new NemoLoop object that we have created
         return psyir_parent.children[0], keep
 
-    def validate(self, loop):
+    def validate(self, loop, options=None):
         '''
         Check that the supplied loop is a valid target for this transformation.
 
         :param loop: the loop node to validate.
         :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the supplied loop is not a \
                                      NemoImplicitLoop.
@@ -3776,11 +4097,14 @@ class ExtractRegionTrans(RegionTrans):
         ''' Returns the name of this transformation as a string.'''
         return "ExtractRegionTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options=None):
         ''' Perform validation checks before applying the transformation
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
         :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
@@ -3795,7 +4119,7 @@ class ExtractRegionTrans(RegionTrans):
 
         # First check constraints on Nodes in the node_list common to
         # all RegionTrans transformations.
-        super(ExtractRegionTrans, self)._validate(node_list)
+        super(ExtractRegionTrans, self).validate(node_list, options)
 
         # Now check ExtractRegionTrans specific constraints.
 
@@ -3827,9 +4151,10 @@ class ExtractRegionTrans(RegionTrans):
 
             # Check that ExtractNode is not inserted between a Loop and its
             # parent Directive when optimisations are applied, as this may
-            # result in including the end of Directive for extraction but
+            # result in including the end Directive for extraction but
             # not the beginning.
-            if isinstance(node, Loop) and isinstance(node.parent, Directive):
+            if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
+               and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
                     "Error in {0}: Extraction of a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
@@ -3846,20 +4171,24 @@ class ExtractRegionTrans(RegionTrans):
                     "a thread parallel region is not allowed."
                     .format(str(self.name)))
 
-    def apply(self, nodes):
+    def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
         ''' Apply this transformation to a subset of the Nodes within
         a Schedule - i.e. enclose the specified Nodes in the Schedule
         within a single Extract region.
 
         :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the `nodes` argument is not of \
+                                     the correct type.
+
         :returns: tuple of the modified Schedule and a record of the \
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`).
-        :raises TransformationError: if the `nodes` argument is not of \
-                                     the correct type.
         '''
 
         # Check whether we've been passed a list of Nodes or just a
@@ -3880,7 +4209,7 @@ class ExtractRegionTrans(RegionTrans):
                                       format(str(self.name), arg_type))
 
         # Validate transformation
-        self._validate(node_list)
+        self.validate(node_list, options)
 
         # Keep a reference to the parent of the Nodes that are to be
         # enclosed within an Extract region. Also keep the index of
@@ -3941,12 +4270,14 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
         ''' Returns the name of this transformation as a string.'''
         return "DynamoExtractRegionTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options=None):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if transformation is applied to a Loop \
                                      over cells in a colour without its \
@@ -3955,7 +4286,7 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractRegionTrans and RegionTrans)
-        super(DynamoExtractRegionTrans, self)._validate(node_list)
+        super(DynamoExtractRegionTrans, self).validate(node_list, options)
 
         # Check DynamoExtractRegionTrans specific constraints
         from psyclone.dynamo0p3 import DynLoop
@@ -3998,12 +4329,14 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
         ''' Returns the name of this transformation as a string.'''
         return "GOceanExtractRegionTrans"
 
-    def _validate(self, node_list):
+    def validate(self, node_list, options=None):
         ''' Perform GOcean1.0 API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if transformation is applied to an \
                                      inner Loop without its parent outer \
@@ -4012,7 +4345,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractRegionTrans and RegionTrans)
-        super(GOceanExtractRegionTrans, self)._validate(node_list)
+        super(GOceanExtractRegionTrans, self).validate(node_list, options)
 
         # Check GOceanExtractRegionTrans specific constraints
         from psyclone.gocean1p0 import GOLoop

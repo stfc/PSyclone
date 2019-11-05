@@ -37,6 +37,7 @@
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
+from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
@@ -46,11 +47,10 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
+
 # Fixtures
-
-
-@pytest.fixture(scope="module")
-def f2008_parser():
+@pytest.fixture(scope="module", name="f2008_parser")
+def fixture_f2008_parser():
     '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
@@ -442,21 +442,6 @@ def test_process_declarations_stmt_functions(f2008_parser):
     assert "'. Statement Function declarations are not supported." \
         in str(error.value)
 
-    # The code below checks that misclassified Statment_Functions are
-    # recovered as arrays, this may become unecessary after fparser/#171
-    # is fixed.
-
-    # This Specification part is expected to contain a statment_function
-    # with the current fparser, this may change depending on how
-    # fparser/#171 is fixed.
-    reader = FortranStringReader("a(x) = 1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process '" in str(error.value)
-    assert "'. Statement Function declarations are not supported." \
-        in str(error.value)
-
     # If 'a' is declared in the symbol table as an array, it is an array
     # assignment which belongs in the execution part.
     fake_parent.symbol_table.add(Symbol('a', 'real', shape=[None]))
@@ -543,7 +528,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
         class UnrecognizedType(object):
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
-        fparser2spec.items[1].items[1].__class__ = UnrecognizedType
+        fparser2spec.items[1].items[0].items[1].__class__ = UnrecognizedType
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
@@ -874,9 +859,15 @@ def test_handling_nested_intrinsic(f2008_parser):
         "tmask_i(:,:) ) )")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     processor.process_nodes(fake_parent, [fp2node], None)
-    fake_parent.children[0].view()
     array_refs = fake_parent.walk(Reference)
     assert "sum" not in [str(ref.name) for ref in array_refs]
+    reader = FortranStringReader(
+        "zccc = SQRT(MAX(zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0.0))")
+    fp2node = Execution_Part(reader)
+    # Check that the frontend does not produce any CodeBlocks
+    processor.process_nodes(fake_parent, fp2node.content, None)
+    cblocks = fake_parent.children[1].walk(CodeBlock)
+    assert not cblocks
 
 
 @pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "

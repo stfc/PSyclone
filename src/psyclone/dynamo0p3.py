@@ -57,7 +57,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Reference, Schedule, \
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
     CodedKern, ACCEnterDataDirective
 
 # --------------------------------------------------------------------------- #
@@ -66,10 +66,14 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
 # Continuous FS
-# Space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Note, any_w2 is not a space on its own. any_w2 is used as a common term for
+# any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
+# (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
+# it needs to a) be treated as continuous and b) have vector basis and scalar
+# differential basis dimensions.
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
 # Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
@@ -90,6 +94,16 @@ VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
                              VALID_ANY_SPACE_NAMES + \
                              VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+# Lists of function spaces that have
+# a) scalar basis functions;
+SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta"]
+# b) vector basis functions;
+VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
+# c) scalar differential basis functions;
+SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
+# d) vector differential basis functions.
+VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta"]
 
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
@@ -1154,14 +1168,15 @@ class DynKernMetadata(KernelType):
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    VALID_MESH_TYPES, self.name, list(mesh_list)))
+                    VALID_MESH_TYPES, self.name,
+                    [str(name) for name in mesh_list]))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API are only "
                 "permitted to have field arguments but kernel {0} also "
                 "has arguments of type {1}".format(
-                    self.name, list(non_field_arg_types)))
+                    self.name, [str(name) for name in non_field_arg_types]))
         # Check that all arguments have a mesh specified
         if missing_mesh:
             raise ParseError(
@@ -1184,7 +1199,9 @@ class DynKernMetadata(KernelType):
                 "kernels must be on different function spaces if they are "
                 "on different meshes. However kernel {0} has a field on "
                 "function space(s) {1} on each of the mesh types {2}.".
-                format(self.name, list(fs_common), list(mesh_list)))
+                format(self.name,
+                       [str(name) for name in fs_common],
+                       [str(name) for name in mesh_list]))
         # Finally, record that this is a valid inter-grid kernel
         self._is_intergrid = True
 
@@ -1288,7 +1305,7 @@ class DynKernMetadata(KernelType):
                     "Kernel {0} writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
                     "allowed.".format(self.name,
-                                      [arg.type for arg in write_args]))
+                                      [str(arg.type) for arg in write_args]))
             if len(cwise_ops) == 1:
 
                 # If this is a valid assembly kernel then we need at least one
@@ -1317,7 +1334,8 @@ class DynKernMetadata(KernelType):
                         "column-wise operators and scalars as arguments but "
                         "kernel {0} has: {1}.".
                         format(self.name,
-                               [arg.type for arg in self._arg_descriptors]))
+                               [str(arg.type) for arg in
+                                self._arg_descriptors]))
                 return "matrix-matrix"
         else:
             raise ParseError(
@@ -3422,11 +3440,9 @@ class DynBasisFunctions(DynCollection):
         :raises GenerationError: if an unsupported function space is supplied \
                                  (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
-        if function_space.orig_name.lower() in \
-           ["w0", "w3", "wtheta"]:
+        if function_space.orig_name.lower() in SCALAR_BASIS_SPACE_NAMES:
             first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w1", "w2", "w2h", "w2v", "any_w2"]):
+        elif function_space.orig_name.lower() in VECTOR_BASIS_SPACE_NAMES:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
@@ -3472,11 +3488,9 @@ class DynBasisFunctions(DynCollection):
                                  ANY_DISCONTINUOUS_SPACE_*)
 
         '''
-        if function_space.orig_name.lower() in \
-           ["w2", "w2h", "w2v", "any_w2"]:
+        if function_space.orig_name.lower() in SCALAR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w0", "w1", "w3", "wtheta"]):
+        elif function_space.orig_name.lower() in VECTOR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first
@@ -4482,18 +4496,18 @@ class DynInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this node.
+
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
+
         '''
-        A method implemented by all classes in a schedule which display the
-        tree in a textual form. This method overrides the default view
-        method to include distributed memory information.
-        :param int indent: the amount by which to indent the output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "', dm=" +
-              str(Config.get().distributed_memory)+"]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
+                "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
 class DynGlobalSum(GlobalSum):
@@ -4521,7 +4535,7 @@ class DynGlobalSum(GlobalSum):
                 "Error found in Kernel '{2}', argument '{3}'".
                 format(self._supported_scalars, scalar.type,
                        scalar.call.name, scalar.name))
-        GlobalSum.__init__(self, scalar, parent=parent)
+        super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -4938,19 +4952,26 @@ class DynHaloExchange(HaloExchange):
         known = False
         return required, known
 
-    def view(self, indent=0):
-        ''' Class specific view  '''
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this HaloExchange node.
+
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
+
+        '''
         _, known = self.required()
         runtime_check = not known
         field_id = self._field.name
         if self.vector_index:
             field_id += "({0})".format(self.vector_index)
-        print(self.indent(indent) + (
-            "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, field_id,
-                                      self._compute_stencil_type(),
-                                      self._compute_halo_depth(),
-                                      runtime_check)))
+        return ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(self.coloured_name(colour), field_id,
+                                          self._compute_stencil_type(),
+                                          self._compute_halo_depth(),
+                                          runtime_check))
 
     def gen_code(self, parent):
         '''Dynamo specific code generation for this class.
@@ -5023,7 +5044,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_start"
         self._text_name = "HaloExchangeStart"
         self._colour_map_name = "HaloExchangeStart"
-        self._dag_name = "haloexchangestart"
 
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
@@ -5136,7 +5156,6 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_finish"
         self._text_name = "HaloExchangeEnd"
         self._colour_map_name = "HaloExchangeEnd"
-        self._dag_name = "haloexchangeend"
 
 
 class HaloDepth(object):
@@ -5615,16 +5634,17 @@ class DynLoop(Loop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def view(self, indent=0):
-        '''Print out a textual representation of this loop. We override this
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this loop node. We override this
         method from the Loop class because, in Dynamo0.3, the function
         space is now an object and we need to call orig_name on it. We
-        also output the upper loop bound as this can now be
-        modified.
+        also include the upper loop bound as this can now be modified.
 
-        :param indent: optional argument indicating the level of
-        indentation to add before outputting the class information
-        :type indent: integer
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
 
         '''
         if self._upper_bound_halo_depth:
@@ -5632,13 +5652,12 @@ class DynLoop(Loop):
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        print(self.indent(indent) + self.coloured_text +
-              "[type='{0}', field_space='{1}', it_space='{2}', "
-              "upper_bound='{3}']".format(self._loop_type,
-                                          self._field_space.orig_name,
-                                          self.iteration_space, upper_bound))
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
+                "upper_bound='{4}']".format(
+                    self.coloured_name(colour),
+                    self._loop_type,
+                    self._field_space.orig_name,
+                    self.iteration_space, upper_bound))
 
     def load(self, kern):
         '''
