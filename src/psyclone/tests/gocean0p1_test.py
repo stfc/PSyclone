@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 

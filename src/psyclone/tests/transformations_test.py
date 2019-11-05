@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''
 API-agnostic tests for various transformation classes.
@@ -72,12 +73,12 @@ def test_accenterdata():
 
 def test_accenterdata_internalerr(monkeypatch):
     ''' Check that the ACCEnterDataTrans.apply() method raises an internal
-    error if the _validate method fails to throw out an invalid type of
+    error if the validate method fails to throw out an invalid type of
     Schedule. '''
     from psyclone.transformations import ACCEnterDataTrans
     from psyclone.psyGen import InternalError
     acct = ACCEnterDataTrans()
-    monkeypatch.setattr(acct, "_validate", lambda sched: None)
+    monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
     assert "validate() has not rejected an (unsupported) schedule" in str(err)
@@ -119,10 +120,82 @@ def test_ifblock_children_region():
     # is an error because the first child is the conditional part of the
     # IfBlock.
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate(ifblock.children)
+        super(ACCParallelTrans, acct).validate(ifblock.children)
     assert ("transformation to the conditional expression (first child" in
             str(err))
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
+        super(ACCParallelTrans, acct).validate(ifblock.children[1:])
     assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
             in str(err))
+
+
+def test_fusetrans_error_incomplete():
+    ''' Check that we reject attempts to fuse loops which are incomplete. '''
+    from psyclone.psyGen import Loop, Schedule, Literal, Return
+    from psyclone.transformations import LoopFuseTrans, TransformationError
+    sch = Schedule()
+    loop1 = Loop(variable_name="i", parent=sch)
+    loop2 = Loop(variable_name="j", parent=sch)
+    sch.addchild(loop1)
+    sch.addchild(loop2)
+
+    fuse = LoopFuseTrans()
+
+    # Check first loop
+    with pytest.raises(TransformationError) as err:
+        fuse.validate(loop1, loop2)
+    assert "Error in LoopFuse transformation. The first loop does not have " \
+        "4 children." in str(err.value)
+
+    loop1.addchild(Literal("start", parent=loop1))
+    loop1.addchild(Literal("stop", parent=loop1))
+    loop1.addchild(Literal("step", parent=loop1))
+    loop1.addchild(Schedule(parent=loop1))
+    loop1.loop_body.addchild(Return(parent=loop1.loop_body))
+
+    # Check second loop
+    with pytest.raises(TransformationError) as err:
+        fuse.validate(loop1, loop2)
+    assert "Error in LoopFuse transformation. The second loop does not have " \
+        "4 children." in str(err.value)
+
+    loop2.addchild(Literal("start", parent=loop2))
+    loop2.addchild(Literal("stop", parent=loop2))
+    loop2.addchild(Literal("step", parent=loop2))
+    loop2.addchild(Schedule(parent=loop2))
+    loop2.loop_body.addchild(Return(parent=loop2.loop_body))
+
+    # Validation should now pass
+    fuse.validate(loop1, loop2)
+
+
+def test_fusetrans_error_not_same_parent():
+    ''' Check that we reject attempts to fuse loops which don't share the
+    same parent '''
+    from psyclone.psyGen import Loop, Schedule, Literal
+    from psyclone.transformations import LoopFuseTrans, TransformationError
+
+    sch1 = Schedule()
+    sch2 = Schedule()
+    loop1 = Loop(variable_name="i", parent=sch1)
+    loop2 = Loop(variable_name="j", parent=sch2)
+    sch1.addchild(loop1)
+    sch2.addchild(loop2)
+
+    loop1.addchild(Literal("1", parent=loop1))  # start
+    loop1.addchild(Literal("10", parent=loop1))  # stop
+    loop1.addchild(Literal("1", parent=loop1))  # step
+    loop1.addchild(Schedule(parent=loop1))  # loop body
+
+    loop2.addchild(Literal("1", parent=loop2))  # start
+    loop2.addchild(Literal("10", parent=loop2))  # stop
+    loop2.addchild(Literal("1", parent=loop2))  # step
+    loop2.addchild(Schedule(parent=loop2))  # loop body
+
+    fuse = LoopFuseTrans()
+
+    # Try to fuse loops with different parents
+    with pytest.raises(TransformationError) as err:
+        fuse.validate(loop1, loop2)
+    assert "Error in LoopFuse transformation. Loops do not have the " \
+        "same parent" in str(err.value)

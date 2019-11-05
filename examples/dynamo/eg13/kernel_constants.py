@@ -58,7 +58,6 @@ $ psyclone -s ./kernel_constants.py \
 from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
-from psyclone.psyir.backend.fortran import FortranWriter
 
 # The number of layers to use when modifying a kernel to make the
 # associated kernel value constant (rather than passing it in by
@@ -79,7 +78,6 @@ def trans(psy):
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()
-    fortran_writer = FortranWriter()
 
     for invoke in psy.invokes.invoke_list:
         print("invoke '{0}'".format(invoke.name))
@@ -87,14 +85,11 @@ def trans(psy):
         for kernel in schedule.coded_kernels():
             print("  kernel '{0}'".format(kernel.name.lower()))
             try:
-                const_trans.apply(kernel, number_of_layers=NUMBER_OF_LAYERS,
-                                  element_order=ELEMENT_ORDER,
-                                  quadrature=CONSTANT_QUADRATURE)
+                const_trans.apply(kernel,
+                                  {"number_of_layers": NUMBER_OF_LAYERS,
+                                   "element_order": ELEMENT_ORDER,
+                                   "quadrature": CONSTANT_QUADRATURE})
             except TransformationError:
                 print("    Failed to modify kernel '{0}'".format(kernel.name))
-
-            kernel_schedule = kernel.get_kernel_schedule()
-            kern_code = fortran_writer(kernel_schedule)
-            print(kern_code)
 
     return psy

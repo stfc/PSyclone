@@ -57,6 +57,56 @@ provided to show the available transformations
 
 .. _sec_transformations_available:
 
+Standard Functionality
+----------------------
+Each transformation must provide at least two functions for the
+user: one for validation, i.e. to verify that a certain transformation
+can be applied, and one to actually apply the transformation. They are
+described in detail in the
+:ref:`overview of all transformations<available_trans>`,
+but the following general guidelines apply.
+
+Validation
++++++++++++
+Each transformation provides a function ``validate``. This function
+can be called by the user, and it will raise an exception if the
+transformation can not be applied (and otherwise will return nothing).
+Validation will always be called when a transformation is applied.
+The parameters for ``validate`` can change from transformation to
+transformation, but each ``validate`` function accepts a parameter
+``options``. This parameter is either ``None``, or a dictionary of
+string keys, that will provide additional parameters to the validation
+process. For example, some validation functions allow part of the
+validation process to be disabled in order to allow the HPC expert
+to apply a transformation that they know to be safe, even if the
+more general validation process might reject it. Those parameters
+are documented for each transformation, and will show up as
+a parameter, e.g.: ``options["node-type-check"]``. As a simple
+example::
+
+    # The validation might reject the application, but in this
+    # specific case it is safe to apply the transformation,
+    # so disable the node type check:
+    my_transform.validate(node, {"node-type-check": False})
+
+
+Application
++++++++++++
+Each transformation provides a function ``apply`` which will
+apply the transformation. It will first validate the transform
+by calling the ``validate`` function. Each ``apply`` function
+takes the same ``options`` parameter as the ``validate`` function
+described above. Besides potentially modifying the validation
+process, optional parameters for the transformation are also
+provided this way. A simple example::
+
+    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+
+The same ``options`` dictionary will be used when calling ``validate``.
+
+.. _available_trans:
+
 Available transformations
 -------------------------
 
@@ -71,11 +121,11 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenCL transformations
-	  for the GOcean 1.0 API and OpenACC transformations for the
-	  GOcean 1.0 and NEMO APIs. Attempts to apply these
-	  transformations to (members of) schedules from other
-	  APIs will be rejected. 
+.. note:: PSyclone currently only supports OpenCL transformations for
+	  the GOcean 1.0 API, the OpenACC Data transformation is
+	  limited to the NEMO and GOcean 1.0 APIs and the OpenACC
+	  Kernels transformation is limited to the NEMO and Dynamo0.3
+	  APIs.
 
 ####
 
@@ -108,7 +158,7 @@ can be found in the API-specific sections).
     :noindex:
 
 ####
-	       
+
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
     :noindex:
@@ -173,7 +223,7 @@ can be found in the API-specific sections).
           halo swaps or global sums will produce an error. In such
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
-          performed outside the parallel region. The 
+          performed outside the parallel region. The
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
@@ -198,7 +248,7 @@ naming of the resulting kernels. PSyclone supports two use cases:
 
 The second case is really an optimisation of the first for the case
 where the same set of transformations is applied to every instance of
-a given kernel. 
+a given kernel.
 
 Since PSyclone is run separately for each Algorithm in a given
 application, ensuring that there are no name clashes for kernels in
@@ -247,7 +297,7 @@ as follows:
 
    1) Kernel subroutines are forbidden from accessing data using COMMON
       blocks;
-   2) Kernel subroutines are forbidden from calling proceduces declared via
+   2) Kernel subroutines are forbidden from calling procedures declared via
       the EXTERN statement;
    3) Kernel subroutines must not access data or procedures made available
       via their parent (containing) module.
@@ -259,7 +309,7 @@ as follows:
 
 For instance, consider the following Fortran module containing the
 ``bc_ssh_code`` kernel:
-  
+
 .. code-block:: fortran
 
   module boundary_conditions_mod
@@ -368,7 +418,7 @@ with the new one. For example ...
     new_schedule.view()
 
     # Replace the original loop schedule of the selected invoke
-    # with the new, transformed schedule 
+    # with the new, transformed schedule
     invoke.schedule=new_schedule
 
     # Generate the Fortran code for the new PSy layer
@@ -452,9 +502,9 @@ OpenMP
 ------
 
 OpenMP is added to a code by using transformations. The three
-transformations currently supported allow the addition of an **OpenMP
-Parallel** directive, an **OpenMP Do** directive and an **OpenMP
-Parallel Do** directive, respectively, to a code.
+transformations currently supported allow the addition of an
+**OpenMP Parallel** directive, an **OpenMP Do** directive and an
+**OpenMP Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
 theoretically work for all APIs) were given in the
@@ -528,15 +578,62 @@ of the FortCL library (https://github.com/stfc/FortCL) to access
 OpenCL functionality. It also relies upon the OpenCL support provided
 by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
-At the moment we don't apply additional transformations to OpenCL kernels,
-this means that all references to the same kernel will have an indentical
-OpenCL generated output (with identical names). Nevertheless, we can use
-the `--kernel-renaming` psyclone argument to just generate a single output
-file (with the `single` option) or multiple index postfixed (identical)
-versions of the kernel (with the `multi` option, which is the default one).
+
+.. note:: The generated OpenCL files follow the `--kernel-renaming` argument
+    conventions, but in addition to the modulename they also include the
+    kernelname as part of the filename in the format:
+    `modulename_kernelname_index.cl`
+
+
+
+The ``OCLTrans`` transformation accepts an `options` argument with a
+map of optional parameters to tune the OpenCL host code in the PSy layer.
+These options will be attached to the transformed InvokeSchedule.
+The current available options are:
+
++--------------+----------------------------------------------+---------+
+| Option       |  Description                                 | Default |
++==============+==============================================+=========+
+| end_barrier  | Whether a synchronization                    | True    |
+|              | barrier should be placed at the end of the   |         |
+|              | Invoke.                                      |         |
++--------------+----------------------------------------------+---------+
+
+Additionally, each individual kernel (inside the Invoke that is going to
+be transformed) also accepts a map of options which
+are provided by the `set_opencl_options()` method of the `Kern` object.
+This can affect both the driver layer and/or the OpenCL kernels.
+The current available options are:
+
++--------------+---------------------------------------------+---------+
+| Option       |  Description                                | Default |
++==============+=============================================+=========+
+| local_size   | Number of work-items to compute             | 1       |
+|              | in a single kernel.                         |         |
++--------------+---------------------------------------------+---------+
+| queue_number | The identifier of the OpenCL Command Queue  | 1       |
+|              | to which the kernel should be submitted.    |         |
++--------------+---------------------------------------------+---------+
+
+
+Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+multiple InvokeSchedule and kernel-specific optimization options.
+
+
+.. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
+    :language: python
+    :linenos:
+    :lines: 51-65
+
+
+.. note:: The OpenCL support is still in active development and the options
+    presented above should be considered at risk of changing or being implemented
+    as transformations in the near future.
+
+
 Because OpenCL kernels are linked at run-time, it will be up to the run-time
-environment to specify which of the kernels to use. For instace, one could
-merge multiple kenrels together in a single binary file and
+environment to specify which of the kernels to use. For instance, one could
+merge multiple kernels together in a single binary file and
 use the `PSYCLONE_KERNELS_FILE` provided by the FortCL library.
 
 The introduction of OpenCL code generation in PSyclone has been
@@ -579,21 +676,22 @@ device, OpenACC directives must also be added to a code in order to
 tell the compiler how it should be parallelised. PSyclone provides the
 ``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
 transformations for this purpose. The simplest of these is
-``ACCKernelsTrans`` (currently only supported for the NEMO API) which
-encloses the code represented by a sub-tree of the PSyIR within an
-OpenACC ``kernels`` region.  This essentially gives free-reign to the
-compiler to automatically parallelise any suitable loops within the
-specified region. An example of the use of ``ACCDataTrans`` and
-``ACCKernelsTrans`` may be found in PSyclone/examples/nemo/eg3.
+``ACCKernelsTrans`` (currently only supported for the NEMO and
+Dynamo0.3 APIs) which encloses the code represented by a sub-tree of
+the PSyIR within an OpenACC ``kernels`` region.  This essentially
+gives free-reign to the compiler to automatically parallelise any
+suitable loops within the specified region. An example of the use of
+``ACCDataTrans`` and ``ACCKernelsTrans`` may be found in
+PSyclone/examples/nemo/eg3 and an example of ``ACCKernelsTrans`` may
+be found in PSyclone/examples/dynamo/eg14.
 
-However, as with any "automatic" approach, a more
-performant solution can almost always be obtained by providing the
-compiler with more explicit direction on how to parallelise the code.
-The ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow
-the user to define thread-parallel regions and, within those, define
-which loops should be parallelised. (Note that these two transformations
-are currently only supported for the GOcean1.0 and NEMO APIs.) For an
-example of their use please see PSyclone/examples/gocean/eg2.
+However, as with any "automatic" approach, a more performant solution
+can almost always be obtained by providing the compiler with more
+explicit direction on how to parallelise the code.  The
+``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow the
+user to define thread-parallel regions and, within those, define which
+loops should be parallelised. For an example of their use please see
+PSyclone/examples/gocean/eg2 or PSyclone/examples/dynamo/eg14.
 
 In order for a given section of code to be executed on a GPU, any
 routines called from within that section must also have been compiled
@@ -606,4 +704,16 @@ PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
 directive added. Again, please see PSyclone/examples/gocean/eg2 for an
-example.
+example. This transformation is currently not supported for kernels in
+the Dynamo0.3 API.
+
+SIR
+---
+
+It is currently not possible for PSyclone to output SIR code without
+using a script. Examples of such scripts are given in example 4 for
+the NEMO API. Whilst there are no transformations relating to the
+generation of the SIR, a script is associated with transformations and
+it is possible that transformations could be useful in the future
+e.g. to mark which bits of code should be optimised using the dawn
+tool.

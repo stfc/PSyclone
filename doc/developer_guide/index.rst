@@ -43,6 +43,7 @@
 
    developers
    system_specific_setup
+   coding-style
    zz_bibliography
 
 ..   tutorial

@@ -38,7 +38,7 @@
 for the Dynamo0p3 API '''
 
 from __future__ import absolute_import
-from psyclone_test_utils import CompileError, Compile
+from psyclone.tests.utilities import CompileError, Compile
 
 
 class Dynamo0p3Build(Compile):

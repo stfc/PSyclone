@@ -48,7 +48,7 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyGen import colored, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import Node
 
 
 class ExtractNode(Node):
@@ -57,7 +57,21 @@ class ExtractNode(Node):
     code extraction using the ExtractRegionTrans transformation. By \
     applying the transformation the Nodes marked for extraction become \
     children of an ExtractNode.
+
+    :param ast: reference into the fparser2 parse tree corresponding to \
+                this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
+    :param children: the PSyIR nodes that are children of this node.
+    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
+    def __init__(self, ast=None, children=None, parent=None):
+        super(ExtractNode, self).__init__(ast, children, parent)
+        self._text_name = "Extract"
+        self._colour_key = "Extract"
+
     def __str__(self):
         '''
         Returns a string representation of the subtree starting at the \
@@ -68,20 +82,8 @@ class ExtractNode(Node):
         '''
         result = "ExtractStart\n"
         for child in self.children:
-            result += str(child)+"\n"
-        return result+"ExtractEnd"
-
-    @property
-    def coloured_text(self):
-        '''
-        Returns a string containing the name of this Node along with \
-        control characters for colouring in terminals that supports it.
-
-        :returns: the name of this Node, possibly with control codes for \
-                  colouring.
-        :rtype: str
-        '''
-        return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
+            result += str(child) + "\n"
+        return result + "ExtractEnd"
 
     @property
     def dag_name(self):
@@ -92,17 +94,6 @@ class ExtractNode(Node):
         :rtype: str
         '''
         return "extract_" + str(self.position)
-
-    def view(self, indent=0):
-        '''
-        Prints a text representation of the Extract tree to stdout \
-        and then calls the view() method of any children.
-
-        :param int indent: depth of indent for output text.
-        '''
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
         '''
@@ -126,14 +117,3 @@ class ExtractNode(Node):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generates a string representation of this Node using C language
-        (currently not supported).
-
-        :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: Not yet supported for code extraction.
-        '''
-        raise NotImplementedError("Generation of C code is not supported "
-                                  "for code extraction")

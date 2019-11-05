@@ -111,20 +111,14 @@ call at the end of the loop.  Two caveats:
    profiled kernel section, for example setDirty() calls
    (expensive calls like HaloExchange are excluded). 
 
-2. If loop transforms are applied using a script, the profiling
-   nodes added to the AST will very likely cause errors in the
-   script or in the generated output. As example consider a case
-   where an OMPLoop transform is applied to a loop. With profiling
-   enabled instead of the expected loop there could be a profile node
-   in the AST (with the loop as child). Since an OMP DO directive
-   can only have loops inside, and it now has a call to
-   ``ProfileStart``, the generated code is incorrect and will not
-   compile.
+2. If transformations are applied using a script, the profiling nodes
+   added to the PSyIR could be applied to the wrong location and cause
+   errors.
 
 In order to avoid the second issue, automatic profiling using
 ``--profile`` is not allowed together with a transformation
 script. On the other hand, since it is possible to write scripts
-that are more flexible in handling a modified AST, you can use the
+that are more flexible in handling a modified PSyIR, you can use the
 command line option ``--force-profile``. It takes the same
 parameters as ``--profile``, and will allow you to combine a
 transformation script together with automatic profiling. Use
@@ -193,8 +187,8 @@ Profiling in Scripts - ProfileRegionTransform
 ---------------------------------------------
 The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
-takes either a single AST Node or a list of AST Nodes as argument,
-and will insert a Profile Node into the AST, with the 
+takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
+and will insert a Profile Node into the PSyIR, with the 
 specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
 As an example::
@@ -220,7 +214,8 @@ As an example::
 Interface to Third Party Profiling Tools 
 ----------------------------------------
 PSyclone comes with wrapper libraries to support usage of
-Dr Hook, dl_timer and a simple non-thread-safe timing
+Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
+and a simple non-thread-safe timing
 library. Support for further profiling libraries will be
 added in the future. To compile the wrapper libraries,
 change into the directory ``lib/profiling`` of PSyclone

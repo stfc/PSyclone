@@ -40,7 +40,7 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import PSyFactory, TransInfo, InternalError
+from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.transformations import TransformationError
 from fparser.common.readfortran import FortranStringReader
 
@@ -56,27 +56,14 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "end program do_loop\n")
 
 
-def test_kernels_no_gen_code(parser):
-    ''' Check that the ACCKernels.gen_code() method raises the
-    expected error. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
-    with pytest.raises(InternalError) as err:
-        schedule.children[0].gen_code(schedule)
-    assert ("ACCKernelsDirective.gen_code should not have "
-            "been called" in str(err))
-
-
 def test_kernels_view(parser, capsys):
     ''' Test the ACCKernelsDirective.view() method. '''
     code = parser(FortranStringReader(EXPLICIT_LOOP))
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children[0:2],
+                                  {"default_present": True})
     schedule.view()
     output, _ = capsys.readouterr()
     assert "[ACC Kernels]" in output
@@ -89,7 +76,8 @@ def test_kernels_dag_name(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children[0:2],
+                                  {"default_present": True})
     assert schedule.children[0].dag_name == "ACC_kernels_1"
 
 
@@ -110,7 +98,8 @@ def test_no_kernels_error(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
+        _, _ = acc_trans.apply(schedule.children[0:2],
+                               {"default_present": True})
     assert "cannot be enclosed by a ACCKernelsTrans transformation" in str(err)
 
 
@@ -126,7 +115,8 @@ def test_no_loops(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
+        _, _ = acc_trans.apply(schedule.children[0:1],
+                               {"default_present": True})
     assert "must enclose at least one loop but none were found" in str(err)
 
 
@@ -141,7 +131,8 @@ def test_implicit_loop(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children[0:1],
+                                  {"default_present": True})
     gen_code = str(psy.gen)
     assert ("  !$ACC KERNELS DEFAULT(PRESENT)\n"
             "  sto_tmp(:, :) = 0.0_wp\n"
@@ -167,7 +158,8 @@ def test_multikern_if(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children[0:1],
+                                  {"default_present": True})
     gen_code = str(psy.gen).lower()
     assert ("!$acc kernels default(present)\n"
             "  if (do_this) then\n"
@@ -195,9 +187,9 @@ def test_kernels_within_if(parser):
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
 
     schedule, _ = acc_trans.apply(schedule.children[0].if_body,
-                                  default_present=True)
+                                  {"default_present": True})
     schedule, _ = acc_trans.apply(schedule.children[0].else_body,
-                                  default_present=True)
+                                  {"default_present": True})
     new_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    !$ACC KERNELS DEFAULT(PRESENT)\n"
@@ -237,6 +229,6 @@ def test_no_default_present(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    _, _ = acc_trans.apply(schedule.children, default_present=False)
+    _, _ = acc_trans.apply(schedule.children, {"default_present": False})
     gen_code = str(psy.gen)
     assert "!$ACC KERNELS\n" in gen_code

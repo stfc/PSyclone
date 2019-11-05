@@ -73,7 +73,7 @@ def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -96,7 +96,7 @@ def test_dynscalars_err(monkeypatch):
     from psyclone.dynamo0p3 import DynScalarArgs
     from psyclone import dynamo0p3
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -117,7 +117,7 @@ def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -140,7 +140,7 @@ def test_kernstubarglist_arglist_error():
     '''Check that we raise an exception if we call the arglist method in
     kernstubarglist without first calling the generate method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar.f90"),
+                                   "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -343,7 +343,7 @@ module dummy_mod
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -402,6 +402,78 @@ def test_spaces():
         "field_6_w2h\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
         "field_7_w2v\n"
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
+    assert output in generated_code
+
+
+ANY_SPACES = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(3) =                                       &
+          (/ arg_type(gh_field, gh_read,      any_discontinuous_space_1), &
+             arg_type(gh_field, gh_inc,       any_space_7),               &
+             arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure, nopass :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_any_spaces():
+    ''' Test that any_*_space metadata are handled correctly
+    for kernel stubs '''
+    ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print(generated_code)
+    output = (
+        "  MODULE dummy_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code(nlayers, "
+        "field_1_any_discontinuous_space_1_field_1, "
+        "field_2_any_space_7_field_2, "
+        "field_3_any_discontinuous_space_4_field_3, "
+        "ndf_any_discontinuous_space_1_field_1, "
+        "undf_any_discontinuous_space_1_field_1, "
+        "map_any_discontinuous_space_1_field_1, ndf_any_space_7_field_2, "
+        "undf_any_space_7_field_2, map_any_space_7_field_2, "
+        "ndf_any_discontinuous_space_4_field_3, "
+        "undf_any_discontinuous_space_4_field_3, "
+        "map_any_discontinuous_space_4_field_3)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_any_discontinuous_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension("
+        "ndf_any_discontinuous_space_1_field_1) :: "
+        "map_any_discontinuous_space_1_field_1\n"
+        "      INTEGER, intent(in) :: ndf_any_discontinuous_space_4_field_3\n"
+        "      INTEGER, intent(in), dimension("
+        "ndf_any_discontinuous_space_4_field_3) :: "
+        "map_any_discontinuous_space_4_field_3\n"
+        "      INTEGER, intent(in) :: ndf_any_space_7_field_2\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_7_field_2) :: "
+        "map_any_space_7_field_2\n"
+        "      INTEGER, intent(in) :: undf_any_discontinuous_space_1_field_1, "
+        "undf_any_space_7_field_2, undf_any_discontinuous_space_4_field_3\n"
+        "      REAL(KIND=r_def), intent(in), dimension"
+        "(undf_any_discontinuous_space_1_field_1) :: "
+        "field_1_any_discontinuous_space_1_field_1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension"
+        "(undf_any_space_7_field_2) :: field_2_any_space_7_field_2\n"
+        "      REAL(KIND=r_def), intent(inout), dimension"
+        "(undf_any_discontinuous_space_4_field_3) :: "
+        "field_3_any_discontinuous_space_4_field_3\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code

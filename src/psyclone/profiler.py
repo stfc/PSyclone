@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -39,8 +40,8 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import GenerationError, Kern, NameSpace, \
+     NameSpaceFactory, Node
 
 
 class Profiler(object):
@@ -135,18 +136,28 @@ class Profiler(object):
 
 # =============================================================================
 class ProfileNode(Node):
-    '''This class can be inserted into a schedule to create profiling code.
     '''
+    This class can be inserted into a schedule to create profiling code.
+
+    :param children: a list of children nodes for this node.
+    :type children: list of :py::class::`psyclone.psyGen.Node` \
+                    or derived classes
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: :py::class::`psyclone.psyGen.Node`
+
+    '''
+    # Profiling interface Fortran module
+    fortran_module = "profile_mod"
+    # The symbols we import from the profiling module
+    profiling_symbols = ["ProfileData", "ProfileStart", "ProfileEnd"]
+    # The use statement that we will insert. Any use of a module of the
+    # same name that doesn't match this will result in a NotImplementedError
+    # at code-generation time.
+    use_stmt = "use profile_mod, only: " + ", ".join(profiling_symbols)
+    # Root of the name to use for variables associated with profiling regions
+    profiling_var = "psy_profile"
 
     def __init__(self, children=None, parent=None):
-        '''Constructor for a ProfileNode that is inserted in a schedule.
-        Parameters:
-            :param children: A list of children nodes for this node.
-            :type children: A list of :py::class::`psyclone.psyGen.Node` \
-            or derived classes.
-            :param parent: The parent of this node.
-            :type parent: A :py::class::`psyclone.psyGen.Node`.
-        '''
         Node.__init__(self, children=children, parent=parent)
 
         # Store the name of the profile variable that is used for this
@@ -162,6 +173,10 @@ class ProfileNode(Node):
         self._region_name = None
         self._module_name = None
 
+        # Name and colour to use for this node
+        self._text_name = "Profile"
+        self._colour_key = "Profile"
+
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
@@ -171,43 +186,22 @@ class ProfileNode(Node):
             result += str(child)+"\n"
         return result+"ProfileEnd"
 
-    # -------------------------------------------------------------------------
-    @property
-    def coloured_text(self):
-        '''
-        Return text containing the (coloured) name of this node type
-
-        :return: the name of this node type, possibly with control codes
-                 for colour
-        :rtype: string
-        '''
-        return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
-
-    # -------------------------------------------------------------------------
-    def view(self, indent=0):
-        '''Class specific view function to print the tree.
-        Parameters:
-        :param int indent: Indentation to be used for this node.'''
-        # pylint: disable=arguments-differ
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children
         of this node.
-        :param parent: The parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`.'''
 
+        :param parent: the parent of this node.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        '''
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
             # Schedule there should be only one kernel, but if Profile is
             # invoked after e.g. a loop merge more kernels might be there.
             region_name = "unknown-kernel"
             module_name = "unknown-module"
-            for kernel in self.walk(self.children, Kern):
+            for kernel in self.walk(Kern):
                 region_name = kernel.name
                 module_name = kernel.module_name
                 break
@@ -218,7 +212,7 @@ class ProfileNode(Node):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        use = UseGen(parent, "profile_mod", only=True,
+        use = UseGen(parent, self.fortran_module, only=True,
                      funcnames=["ProfileData, ProfileStart, ProfileEnd"])
         parent.add(use)
         prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
@@ -250,3 +244,201 @@ class ProfileNode(Node):
         '''
         raise NotImplementedError("Generation of C code is not supported "
                                   "for profiling")
+
+    def update(self):
+        '''
+        Update the underlying fparser2 parse tree to implement the profiling
+        region represented by this Node. This involves adding the necessary
+        module use statement as well as the calls to the profiling API.
+
+        TODO #435 - remove this whole method once the NEMO API uses the
+        Fortran backend of the PSyIR.
+
+        :raises NotImplementedError: if the routine which is to have \
+                             profiling added to it does not already have a \
+                             Specification Part (i.e. some declarations).
+        :raises NotImplementedError: if there would be a name clash with \
+                             existing variable/module names in the code to \
+                             be transformed.
+        :raises InternalError: if we fail to find the node in the parse tree \
+                             corresponding to the end of the profiling region.
+
+        '''
+        from fparser.common.sourceinfo import FortranFormat
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        from psyclone.psyGen import object_index, Schedule, InternalError
+
+        # Ensure child nodes are up-to-date
+        super(ProfileNode, self).update()
+
+        # Get the parse tree of the routine containing this region
+        ptree = self.root.invoke._ast
+        # Rather than repeatedly walk the tree, we do it once for all of
+        # the node types we will be interested in...
+        node_list = walk_ast([ptree], [Fortran2003.Main_Program,
+                                       Fortran2003.Subroutine_Stmt,
+                                       Fortran2003.Function_Stmt,
+                                       Fortran2003.Specification_Part,
+                                       Fortran2003.Use_Stmt,
+                                       Fortran2003.Name])
+        for node in node_list:
+            if isinstance(node, (Fortran2003.Main_Program,
+                                 Fortran2003.Subroutine_Stmt,
+                                 Fortran2003.Function_Stmt)):
+                names = walk_ast([node], [Fortran2003.Name])
+                routine_name = str(names[0]).lower()
+                break
+
+        for node in node_list:
+            if isinstance(node, Fortran2003.Specification_Part):
+                spec_part = node
+                break
+        else:
+            # This limitation will be removed when we use the Fortran
+            # backend of the PSyIR (#435)
+            raise NotImplementedError(
+                "Addition of profiling regions to routines without any "
+                "existing declarations is not supported and '{0}' has no "
+                "Specification-Part".format(routine_name))
+
+        # Get the existing use statements
+        found = False
+        for node in node_list[:]:
+            if isinstance(node, Fortran2003.Use_Stmt) and \
+               self.fortran_module == str(node.items[2]).lower():
+                # Check that the use statement matches the one we would
+                # insert (i.e. the code doesn't already contain a module
+                # with the same name as that used by the profiling API)
+                if str(node).lower() != self.use_stmt.lower():
+                    raise NotImplementedError(
+                        "Cannot add profiling to '{0}' because it already "
+                        "'uses' a module named '{1}'".format(
+                            routine_name, self.fortran_module))
+                found = True
+                # To make our check on name clashes below easier, remove
+                # the Name nodes associated with this use from our
+                # list of nodes.
+                names = walk_ast([node], [Fortran2003.Name])
+                for name in names:
+                    node_list.remove(name)
+
+        if not found:
+            # We don't already have a use for the profiling module so
+            # add one.
+            reader = FortranStringReader(
+                "use profile_mod, only: ProfileData, ProfileStart, ProfileEnd")
+            # Tell the reader that the source is free format
+            reader.set_format(FortranFormat(True, False))
+            use = Fortran2003.Use_Stmt(reader)
+            spec_part.content.insert(0, use)
+
+        # Check that we won't have any name-clashes when we insert the
+        # symbols required for profiling. This check uses the list of symbols
+        # that we created before adding the `use profile_mod...` statement.
+        if not self.root.profiling_name_clashes_checked:
+            for node in node_list:
+                if isinstance(node, Fortran2003.Name):
+                    text = str(node).lower()
+                    # Check for the symbols we import from the profiling module
+                    for symbol in self.profiling_symbols:
+                        if text == symbol.lower():
+                            raise NotImplementedError(
+                                "Cannot add profiling to '{0}' because it "
+                                "already contains a symbol that clashes with "
+                                "one of those ('{1}') that must be imported "
+                                "from the PSyclone profiling module.".
+                                format(routine_name, symbol))
+                    # Check for the name of the profiling module itself
+                    if text == self.fortran_module:
+                        raise NotImplementedError(
+                            "Cannot add profiling to '{0}' because it already "
+                            "contains a symbol that clashes with the name of "
+                            "the PSyclone profiling module ('profile_mod')".
+                            format(routine_name))
+                    # Check for the names of profiling variables
+                    if text.startswith(self.profiling_var):
+                        raise NotImplementedError(
+                            "Cannot add profiling to '{0}' because it already"
+                            " contains symbols that potentially clash with "
+                            "the variables we will insert for each profiling "
+                            "region ('{1}*').".format(routine_name,
+                                                      self.profiling_var))
+        # Flag that we have now checked for name clashes so that if there's
+        # more than one profiling node we don't fall over on the symbols
+        # we've previous inserted.
+        self.root.profiling_name_clashes_checked = True
+
+        # Create a name for this region by finding where this profiling
+        # node is in the list of profiling nodes in this Invoke.
+        sched = self.root
+        pnodes = sched.walk(ProfileNode)
+        region_idx = pnodes.index(self)
+        region_name = "r{0}".format(region_idx)
+        var_name = "psy_profile{0}".format(region_idx)
+
+        # Create a variable for this profiling region
+        reader = FortranStringReader(
+            "type(ProfileData), save :: {0}".format(var_name))
+        # Tell the reader that the source is free format
+        reader.set_format(FortranFormat(True, False))
+        decln = Fortran2003.Type_Declaration_Stmt(reader)
+        spec_part.content.append(decln)
+
+        # Find the parent in the parse tree - first get a pointer to the
+        # AST for the content of this region.
+        if isinstance(self.children[0], Schedule) and \
+           not self.children[0].ast:
+            # TODO #435 Schedule should really have a valid ast pointer.
+            content_ast = self.children[0][0].ast
+        else:
+            content_ast = self.children[0].ast
+        # Now store the parent of this region
+        fp_parent = content_ast._parent
+        # Find the location of the AST of our first child node in the
+        # list of child nodes of our parent in the fparser parse tree.
+        ast_start_index = object_index(fp_parent.content,
+                                       content_ast)
+        # Finding the location of the end is harder as it might be the
+        # end of a clause within an If or Select block. We therefore
+        # work back up the fparser2 parse tree until we find a node that is
+        # a direct child of the parent node.
+        ast_end_index = None
+        if self.children[-1].ast_end:
+            ast_end = self.children[-1].ast_end
+        else:
+            ast_end = self.children[-1].ast
+        # Keep a copy of the pointer into the parse tree in case of errors
+        ast_end_copy = ast_end
+
+        while ast_end_index is None:
+            try:
+                ast_end_index = object_index(fp_parent.content,
+                                             ast_end)
+            except ValueError:
+                # ast_end is not a child of fp_parent so go up to its parent
+                # and try again
+                if hasattr(ast_end, "_parent") and ast_end._parent:
+                    ast_end = ast_end._parent
+                else:
+                    raise InternalError(
+                        "Failed to find the location of '{0}' in the fparser2 "
+                        "Parse Tree:\n{1}\n".format(str(ast_end_copy),
+                                                    str(fp_parent.content)))
+
+        # Add the profiling-end call
+        reader = FortranStringReader(
+            "CALL ProfileEnd({0})".format(var_name))
+        # Tell the reader that the source is free format
+        reader.set_format(FortranFormat(True, False))
+        pecall = Fortran2003.Call_Stmt(reader)
+        fp_parent.content.insert(ast_end_index+1, pecall)
+
+        # Add the profiling-start call
+        reader = FortranStringReader(
+            "CALL ProfileStart('{0}', '{1}', {2})".format(
+                routine_name, region_name, var_name))
+        reader.set_format(FortranFormat(True, False))
+        pscall = Fortran2003.Call_Stmt(reader)
+        fp_parent.content.insert(ast_start_index, pscall)

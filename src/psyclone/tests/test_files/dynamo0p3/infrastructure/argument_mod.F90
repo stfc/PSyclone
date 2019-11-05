@@ -39,7 +39,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified I. Kavcic, Met Office
- 
+
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
 module argument_mod
@@ -63,17 +63,19 @@ module argument_mod
   integer, public, parameter :: GH_MAX       = 17
 
   ! Function-space labels
-  integer, public, parameter :: W0      = 100
-  integer, public, parameter :: W1      = 101
-  integer, public, parameter :: W2      = 102
-  integer, public, parameter :: W3      = 103
-  integer, public, parameter :: Wtheta  = 104
-  integer, public, parameter :: W2V     = 105
-  integer, public, parameter :: W2H     = 106
-  integer, public, parameter :: Wchi    = 107
-  integer, public, parameter :: ANY_W2  = 108
+  integer, public, parameter :: W0        = 100
+  integer, public, parameter :: W1        = 101
+  integer, public, parameter :: W2        = 102
+  integer, public, parameter :: W2V       = 103
+  integer, public, parameter :: W2H       = 104
+  integer, public, parameter :: W2broken  = 105
+  integer, public, parameter :: W2trace   = 106
+  integer, public, parameter :: W3        = 107
+  integer, public, parameter :: Wtheta    = 108
+  integer, public, parameter :: Wchi      = 109
+  integer, public, parameter :: ANY_W2    = 110
 
-  ! Distinct any_space id's. Separate id's required as we may have
+  ! Distinct any_space IDs. Separate IDs required as we may have
   ! groups of fields that must be on the same space within a kernel
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
@@ -85,6 +87,19 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
+  ! Distinct any_discontinuous_space IDs. Separate IDs required
+  ! as we may have groups of fields that must be on the same space
+  ! within a kernel
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_2  = 252
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_3  = 253
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_4  = 254
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_5  = 255
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_6  = 256
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_7  = 257
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_8  = 258
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_9  = 259
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_10 = 260
 
   ! Function space attributes
   integer, public, parameter :: GH_BASIS                     = 301

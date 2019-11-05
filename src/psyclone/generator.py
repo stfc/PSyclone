@@ -224,6 +224,12 @@ def generate(filename, api="", kernel_path="", script_name=None,
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy)
+            
+        # Add profiling nodes to schedule if automatic profiling has
+        # been requested.
+        from psyclone.psyGen import Loop
+        for invoke in psy.invokes.invoke_list:
+            Profiler.add_profile_nodes(invoke.schedule, Loop)
 
         if api not in API_WITHOUT_ALGORITHM:
             alg_gen = Alg(ast, psy).gen

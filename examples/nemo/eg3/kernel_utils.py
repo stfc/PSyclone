@@ -59,7 +59,7 @@ def valid_kernel(node):
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
     excluded_node_types = (CodeBlock, IfBlock)
-    if node.walk([node], excluded_node_types):
+    if node.walk(excluded_node_types):
         return False
     # Check that there are no derived-type references in the sub-tree (because
     # PGI deep-copy doesn't like them).
@@ -83,7 +83,7 @@ def have_loops(nodes):
     '''
     from psyclone.nemo import NemoLoop
     for node in nodes:
-        if node.walk([node], NemoLoop):
+        if node.walk(NemoLoop):
             return True
     return False
 
@@ -133,7 +133,8 @@ def try_kernels_trans(nodes, default_present):
     from psyclone.psyGen import InternalError
     from psyclone.transformations import TransformationError, ACCKernelsTrans
     try:
-        _, _ = ACCKernelsTrans().apply(nodes, default_present=default_present)
+        _, _ = ACCKernelsTrans().apply(nodes,
+                                       {"default_present": default_present})
     except (TransformationError, InternalError) as err:
         print("Failed to transform nodes: {0}", nodes)
         print("Error was: {0}".format(str(err)))
