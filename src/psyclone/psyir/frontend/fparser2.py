@@ -1463,12 +1463,17 @@ class Fparser2Reader(object):
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
         new_parent.addchild(ifblock)
         ifblock.ast = node  # Point back to the original WHERE construct
+
         # We construct the conditional expression from the original
-        # logical-array-expression of the WHERE. Each array reference must
-        # now be indexed by the loop variables of the loops we've just
-        # created.
-        self._array_syntax_to_indexed(fake_parent[0], loop_vars)
-        ifblock.addchild(fake_parent[0])
+        # logical-array-expression of the WHERE. We process_nodes() a
+        # second time here now that we have the correct parent node in the
+        # PSyIR (and thus a SymbolTable) to refer to.
+        self.process_nodes(ifblock, logical_expr, None)
+
+        # Each array reference must now be indexed by the loop variables
+        # of the loops we've just created.
+        self._array_syntax_to_indexed(ifblock.children[0], loop_vars)
+
         # Now construct the body of the IF using the body of the WHERE
         sched = Schedule(parent=ifblock)
         ifblock.addchild(sched)
