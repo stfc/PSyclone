@@ -74,12 +74,12 @@ def test_accenterdata():
 
 def test_accenterdata_internalerr(monkeypatch):
     ''' Check that the ACCEnterDataTrans.apply() method raises an internal
-    error if the _validate method fails to throw out an invalid type of
+    error if the validate method fails to throw out an invalid type of
     Schedule. '''
     from psyclone.transformations import ACCEnterDataTrans
     from psyclone.psyGen import InternalError
     acct = ACCEnterDataTrans()
-    monkeypatch.setattr(acct, "_validate", lambda sched: None)
+    monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
     assert "validate() has not rejected an (unsupported) schedule" in str(err)
@@ -121,11 +121,11 @@ def test_ifblock_children_region():
     # is an error because the first child is the conditional part of the
     # IfBlock.
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate([ifblock.children[0]])
+        super(ACCParallelTrans, acct).validate([ifblock.children[0]])
     assert ("transformation to the immediate children of a Loop/IfBlock "
             "unless it is to a single Schedule" in str(err.value))
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct)._validate(ifblock.children[1:])
+        super(ACCParallelTrans, acct).validate(ifblock.children[1:])
     assert (" to multiple nodes when one or more is a Schedule. "
             "Either target a single Schedule or " in str(err.value))
 

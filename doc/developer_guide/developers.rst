@@ -309,36 +309,6 @@ provides the following common interface:
 .. autoclass:: psyclone.psyGen.Node
     :members:
 
-Tree Navigation
-===============
-
-Each PSyIR node provides several ways to navigate the AST:
-
-The `children` and `parent` properties (available in all nodes) provide an
-homogeneous method to go up and down the tree hierarchy. This method
-is recommended when applying general operations or analysis to the tree,
-however, if one intends to navigate the tree in a way that depends on the type
-of node, the `children` and `parent` methods should be avoided. The structure
-of the tree may change in different versions of PSyclone and the encoded
-navigation won't be future-proof.
-
-To solve this issue some nodes also provide methods for semantic navigation:
-
-- `Schedule`: subscript operator for indexing the statements inside the
-  Schedule. (e.g. `sched[3]` or `sched[2:4]`)
-- `Assignment`: `rhs` and `lhs` properties.
-- `IfBlocks`: `condition`, `if_body` and `else_body` properties.
-
-These are the recommended methods to navigate the tree for analysis or
-operations that depend on the Node type.
-
-Additionally, the `walk` method (available in all nodes) is able to recurse
-through the tree and return objects of a given type. This is useful when the
-objective is to move down the tree to an specific node or list of nodes without
-information about the exact location.
-
-.. automethod:: psyclone.psyGen.Node.walk
-
 .. _container-label:
 
 Container
@@ -943,7 +913,7 @@ this new approach over time. The back-end visitor code is stored in
 Visitor Base code
 =================
 
-`base.py` in `psyclone/psyir/backend` provides a base class -
+`visitor.py` in `psyclone/psyir/backend` provides a base class -
 `PSyIRVisitor` - that implements the visitor pattern and is designed
 to be subclassed by each back-end.
 
@@ -1171,10 +1141,6 @@ The SIR back-end is limited in a number of ways:
 - the only unary operator currently supported is '-' and the subject
   of this unary operator must be a literal.
 
-The current implementation is not able to deal with variables local to
-a region (which the SIR expects), as, in Fortran, the standard scope
-of a local variable is the whole routine, not a sub-region of code.
-
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
 run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
@@ -1203,7 +1169,17 @@ but this would require no codeblocks in the PSyIR when parsing NEMO
 (which is a difficult thing to achieve), or interface code between
 codeblocks and the rest of the PSyIR.
 
-
+As suggested by the Dawn developers, PSyIR local scalar variables are
+translated into temporary SIR fields (which are 3D arrays by
+default). The reason for doing this is that it is easy to specify
+variables in the SIR this way (whereas I did not manage to get scalar
+declarations working) and Dawn optimises a temporary field, reducing
+it to its required dimensionality (so PSyIR local scalar variables are
+output as scalars by the Dawn back end even though they are specified
+as fields). A limitation of the current translation from PSyIR to SIR
+is that all PSyIR scalars are assumed to be local and all PSyIR arrays
+are assumed to be global, which may not be the case. This limitation
+is captured in issue #521.
 
 Parsing Code
 ############

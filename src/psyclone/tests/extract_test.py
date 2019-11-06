@@ -226,8 +226,8 @@ def test_loop_no_directive_dynamo0p3():
     schedule = invoke.schedule
     # Apply DynamoOMPParallelLoopTrans to the second Loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule.children[1])
-    loop = schedule.children[1].children[0]
+    schedule, _ = otrans.apply(schedule[1])
+    loop = schedule.children[1].dir_body[0]
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)

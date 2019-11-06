@@ -1,7 +1,28 @@
-<!--
+# PSyclone GOcean Example 1
+
+**Authors:** A. R. Porter, STFC Daresbury Lab
+
+These scripts and this version of PSyclone work with version 1.0 of GOcean.
+
+In order to use PSyclone you must first install it, ideally with pip.
+See `../../../README.md` for more details.
+
+PSyclone can be run in the directory containing this file by 
+executing, e.g.
+
+```sh
+python ./runme.py
+``` 
+
+Examine the runme*.py scripts themselves for further details.
+
+## Licence
+
+-----------------------------------------------------------------------------
+
 BSD 3-Clause License
 
-Copyright (c) 2018-2019, Science and Technology Facilities Council.
+Copyright (c) 2017-2019, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,38 +52,4 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author A. R. Porter, STFC Daresbury Lab
--->
-
-# PSyclone NEMO Examples
-
-This directory contains various examples of the use of PSyclone
-to transform source code from the NEMO ocean model. See the READMEs
-in the individual example directories for further details.
-
-## Code
-
-Contains
-
-1. the Tracer advection benchmark routine (tra_adv), as provided by
-Silvia Mocavero of CMCC and
-2. an unmodified NEMO subroutine computing the horizontal component of
-the lateral tracer mixing trend (traldf_iso).
-
-## Example 1
-
-OpenMP parallelisation of tra_adv over levels.
-
-## Example 2
-
-OpenMP parallelisation of traldf_iso over levels.
-
-## Example 3
-
-OpenACC parallelisation of tra_adv using the 'data' and 'kernels'
-directives.
-
-## Example 4
-
-SIR gemeration and transformation to CUDA using Dawn with simple
-examples.
+------------------------------------------------------------------------------
