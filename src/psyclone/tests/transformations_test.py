@@ -217,6 +217,6 @@ def test_regiontrans_wrong_children():
     parent.addchild(Literal("1", parent))
     parent.addchild(Schedule(parent=parent))
     with pytest.raises(TransformationError) as err:
-        RegionTrans._validate(rtrans, parent.children)
+        RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "
             "is a Schedule" in str(err.value))

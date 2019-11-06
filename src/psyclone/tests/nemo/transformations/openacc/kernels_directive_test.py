@@ -249,7 +249,7 @@ def test_kernels_around_where_construct(parser):
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     sched, _ = acc_trans.apply(schedule)
     assert isinstance(sched[0], ACCKernelsDirective)
-    assert isinstance(sched[0].children[0], Loop)
+    assert isinstance(sched[0].dir_body[0], Loop)
     new_code = str(psy.gen)
     assert ("  !$ACC KERNELS\n"
             "  WHERE (a(:, :) < flag)" in new_code)
