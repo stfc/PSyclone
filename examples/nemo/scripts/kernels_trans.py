@@ -144,6 +144,30 @@ EXCLUDING = {"default": ExcludeSettings(),
                                              "inside_kernels": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
 
+
+def log_msg(name, msg, node):
+    '''
+    Log a message indicating why a transformation could not be performed.
+
+    :param str name: the name of the routine.
+    :param str msg: the message to log.
+    :param node: the PSyIR node that prevented the transformation.
+    :type node: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    # Create a str representation of the position of the problematic node
+    # in the PSyIR tree.
+    node_strings = []
+    parent = node
+    while parent:
+        node_strings.append(parent.node_str(colour=False))
+        parent = parent.parent
+    node_strings.reverse()
+    location = "->".join(node_strings)
+    # Log the message
+    logging.info("{0}: {1}: {2}".format(name, msg, location))
+
+
 def valid_acc_kernel(node):
     '''
     Whether the sub-tree that has `node` at its root is eligible to be
@@ -187,7 +211,7 @@ def valid_acc_kernel(node):
 
     for enode in excluded_nodes:
         if isinstance(enode, CodeBlock):
-            logging.info("{0}: region contains CodeBlock".format(routine_name))
+            log_msg(routine_name, "region contains CodeBlock", enode)
             return False
 
         if isinstance(enode, IfBlock):
@@ -206,8 +230,8 @@ def valid_acc_kernel(node):
                    opn.operator == BinaryOperation.Operator.EQ and \
                    isinstance(opn.children[1], Literal) and \
                    "." in opn.children[1].value:
-                    logging.info("{0}: IF performs comparison with REAL "
-                                 "scalar".format(routine_name))
+                    log_msg(routine_name,
+                            "IF performs comparison with REAL scalar", enode)
                     return False
 
             # We also permit single-statement IF blocks that contain a Loop
@@ -225,12 +249,12 @@ def valid_acc_kernel(node):
             if not arrays and \
                (excluding.ifs_scalars and not isinstance(enode.children[0],
                                                          BinaryOperation)):
-                logging.info("{0}: IF references scalars".format(routine_name))
+                log_msg(routine_name, "IF references scalars", enode)
                 return False
             if excluding.ifs_1d_arrays and \
                any([len(array.children) == 1 for array in arrays]):
-                logging.info("{0}: IF references 1D arrays that may be static".
-                             format(routine_name))
+                log_msg(routine_name,
+                        "IF references 1D arrays that may be static", enode)
                 return False
 
         if isinstance(enode, NemoImplicitLoop):
@@ -238,14 +262,14 @@ def valid_acc_kernel(node):
                 # Need to check for SUM inside implicit loop, e.g.:
                 #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
                 if contains_unsupported_sum(enode.ast):
-                    logging.info("{0}: Implicit loop contains unsupported SUM".
-                                 format(routine_name))
+                    log_msg(routine_name,
+                            "Implicit loop contains unsupported SUM", enode)
                     return False
             else:
                 # Need to check for RESHAPE inside implicit loop
                 if contains_reshape(enode.ast):
-                    logging.info("{0}: Implicit loop contains RESHAPE call".
-                                 format(routine_name))
+                    log_msg(routine_name,
+                            "Implicit loop contains RESHAPE call", enode)
                     return False
         elif isinstance(enode, NemoLoop):
             # Heuristic:
@@ -257,8 +281,8 @@ def valid_acc_kernel(node):
             child = enode.loop_body[0]
             if isinstance(child, Loop) and child.loop_type == "levels":
                 # We have a loop around a loop over levels
-                logging.info("{0}: Loop is around a loop over levels".format(
-                    routine_name))
+                log_msg(routine_name, "Loop is around a loop over levels",
+                        enode)
                 return False
             if enode.loop_type == "levels" and \
                len(enode.loop_body.children) > 1:
@@ -269,9 +293,9 @@ def valid_acc_kernel(node):
                     if child.walk(Loop):
                         loop_count += 1
                         if loop_count > 1:
-                            logging.info(
-                                "{0}: Loop over levels contains several "
-                                "other loops".format(routine_name))
+                            log_msg(routine_name,
+                                    "Loop over levels contains several "
+                                    "other loops", enode)
                             return False
 
     # For now we don't support putting *just* the implicit loop assignment in
@@ -282,8 +306,7 @@ def valid_acc_kernel(node):
     if isinstance(node.parent, Schedule) and \
        isinstance(node.parent.parent, IfBlock) and \
        "was_single_stmt" in node.parent.parent.annotations:
-        logging.info("{0}: Would split single-line If statement".format(
-            routine_name))
+        log_msg(routine_name, "Would split single-line If statement", node)
         return False
     # Check that there are no derived-type references in the sub-tree.
     # We exclude NemoKern nodes from this check as calling .ast on
@@ -292,7 +315,7 @@ def valid_acc_kernel(node):
     # but this does not happen for implicit loops.
     if not isinstance(node, NemoKern):
         if walk_ast([node.ast], [Fortran2003.Data_Ref]):
-            logging.info("{0}: Contains derived type".format(routine_name))
+            log_msg(routine_name, "Contains derived type", node)
             return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
@@ -312,13 +335,12 @@ def valid_acc_kernel(node):
             if isinstance(ref_parent, Assignment) and ref is ref_parent.lhs:
                 # We're writing to it so it's not a function call.
                 continue
-            logging.info("{0}: Loop contains function call: {1}".format(
-                routine_name, ref.name.lower()))
+            log_msg(routine_name,
+                    "Loop contains function call: {1}".format(ref.name), ref)
             return False
         if isinstance(ref, NemoLoop):
             if contains_unsupported_sum(ref.ast):
-                logging.info("{0}: Loop contains unsupport SUM".format(
-                    routine_name))
+                log_msg(routine_name, "Loop contains unsupport SUM", ref)
                 return False
     return True
 
