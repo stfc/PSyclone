@@ -408,12 +408,10 @@ def add_kernels(children):
 
     '''
     from psyclone.psyGen import IfBlock, Loop
+    from psyclone.nemo import NemoImplicitLoop
     added_kernels = False
     if not children:
         return added_kernels
-
-    # Are we within a Loop of some kind?
-    #parent_loop = children[0].ancestor(Loop)
 
     node_list = []
     for child in children[:]:
@@ -430,7 +428,11 @@ def add_kernels(children):
                 success1 = add_kernels(child.if_body)
                 success2 = add_kernels(child.else_body)
                 success = success1 or success2
-            elif isinstance(child, Loop):
+            elif isinstance(child, Loop) and \
+                 not isinstance(child, NemoImplicitLoop):
+                # We may have rejected an implicit loop due to something in its
+                # 'body' but we can't proceed down to its 'children' as currently
+                # it doesn't have any.
                 success = add_kernels(child.loop_body)
             else:
                 success = add_kernels(child.children)
