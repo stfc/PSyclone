@@ -378,6 +378,7 @@ class NemoKern(InlinedKern):
     :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, psyir_nodes, parse_tree, parent=None):
         super(NemoKern, self).__init__()
         from psyclone.psyGen import KernelSchedule
@@ -493,7 +494,9 @@ class NemoKern(InlinedKern):
 
         :raises InternalError: if this function is called.
         '''
-        raise InternalError("Do not call gen_code for a NEMO kernel.")
+        raise InternalError("NEMO kernels are assumed to be in-lined by "
+                            "default therefore the gen_code method should not "
+                            "have been called.")
 
 
 class NemoLoop(Loop):

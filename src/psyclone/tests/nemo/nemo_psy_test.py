@@ -58,7 +58,8 @@ def test_no_gen_code():
     kern = nemo.NemoKern([], None)
     with pytest.raises(InternalError) as err:
         kern.gen_code(None)
-    assert "Do not call gen_code for a NEMO kernel." in str(err)
+    assert "NEMO kernels are assumed to be in-lined by default therefore " \
+           "the gen_code method should not have been called." in str(err)
 
 
 def test_unamed_unit(parser):

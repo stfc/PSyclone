@@ -107,7 +107,6 @@ def test_omp_private_declaration():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('explicit_do').schedule
-    schedule.view()
     omp_parallel = TransInfo().get_trans_name('OMPParallelTrans')
 
     # Apply "omp parallel" around one assignment to a scalar variable

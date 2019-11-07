@@ -4374,21 +4374,10 @@ class InlinedKern(Kern):
     def __str__(self):
         return "inlined kern: " + self._name
 
-    @property
-    def coloured_text(self):
-        '''
-        Return text containing the (coloured) name of this node type
-
-        :returns: the name of this node type, possibly with control codes
-                  for colour
-        :rtype: string
-        '''
-        return colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
-
     @abc.abstractmethod
     def local_vars(self):
         '''
-        :returns: list of the variable (names) that are local to this loop \
+        :returns: list of the variable (names) that are local to this kernel \
                   (and must therefore be e.g. threadprivate if doing OpenMP)
         :rtype: list of str
         '''
@@ -6126,7 +6115,7 @@ class KernelSchedule(Schedule):
     A KernelSchedule inherits the functionality from Schedule and adds a symbol
     table to keep a record of the declared variables and their attributes.
 
-    :param str name: Kernel subroutine name
+    :param str name: Kernel subroutine name.
     :param parent: Parent of the KernelSchedule, defaults to None.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
