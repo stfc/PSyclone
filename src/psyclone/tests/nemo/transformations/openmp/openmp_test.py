@@ -167,13 +167,12 @@ def test_omp_parallel_multi():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
-    schedule.view()
+
     # Apply the OMP Parallel transformation so as to enclose the last two
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
     new_sched, _ = otrans.apply(schedule[0].loop_body[2:4],
                                 {"node-type-check": False})
-    new_sched.view()
     gen_code = str(psy.gen).lower()
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
@@ -257,7 +256,7 @@ def test_omp_parallel_errs():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
-    schedule.view()
+
     # Apply the OMP Parallel transformation so as to enclose the last two
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
