@@ -654,7 +654,6 @@ class Fparser2Reader(object):
                     "Could not process '{0}'. Statement Function declarations "
                     "are not supported.".format(str(stmtfn)))
 
-
     @staticmethod
     def _process_kind_selector(symbol_table, type_spec):
         '''
@@ -671,8 +670,12 @@ class Fparser2Reader(object):
 
         :returns: the precision associated with the type specification.
         :rtype: int or :py:class:`psyclone.psyGen.Symbol.Precision` or \
-                :py:class:`psyclone.psyGen.PrecisionSymbol` or NoneType
+                :py:class:`psyclone.psyGen.Symbol` or NoneType
 
+        :raises NotImplementedError: if a KIND intrinsic is found with an \
+                            argument other than a real or integer literal.
+        :raises NotImplementedError: if we have `kind=xxx` but cannot find \
+                            a valid variable name.
         '''
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             return None
@@ -682,10 +685,9 @@ class Fparser2Reader(object):
         kind_selector = type_spec.items[1]
         intrinsics = walk_ast(kind_selector.items,
                               [Fortran2003.Intrinsic_Function_Reference])
-        if intrinsics and \
-           isinstance(intrinsics[0].items[0],
-                      Fortran2003.Intrinsic_Name) and \
-                      str(intrinsics[0].items[0]).lower() == "kind":
+        if intrinsics and isinstance(intrinsics[0].items[0],
+                                     Fortran2003.Intrinsic_Name) and \
+           str(intrinsics[0].items[0]).lower() == "kind":
             # We have kind=KIND(X) where X may be of any intrinsic type. It
             # may be a scalar or an array. items[1] is an
             # Actual_Arg_Spec_List with the first entry being the argument.
@@ -739,6 +741,10 @@ class Fparser2Reader(object):
         :param str name: the name of the variable holding the KIND value.
         :param symbol_table: the Symbol Table associated with the code being\
                              processed.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+
+        :returns: the Symbol representing the KIND parameter.
+        :rtype: :py:class:`psyclone.psyGen.Symbol`
 
         :raises TypeError: if the Symbol Table already contains an entry for \
                        `name` and its datatype is not 'integer' or 'deferred'.

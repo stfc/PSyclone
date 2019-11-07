@@ -5426,30 +5426,31 @@ class Symbol(object):
     representing data that exists outside of the local scope, the interface
     to that symbol (i.e. the mechanism by which it is accessed).
 
-    :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol. (One of \
+    :param str name: name of the symbol.
+    :param str datatype: data type of the symbol. (One of \
                      :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
-    :param list shape: Shape of the symbol in column-major order (leftmost \
+    :param list shape: shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
                        literal or a reference to an integer symbol with the \
                        extent. If it is an empty list then the symbol \
                        represents a scalar.
-    :param interface: Object describing the interface to this symbol (i.e. \
+    :param interface: object describing the interface to this symbol (i.e. \
                       whether it is passed as a routine argument or accessed \
                       in some other way) or None if the symbol is local.
     :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
-    :param constant_value: Sets a fixed known value for this \
+    :param constant_value: sets a fixed known value for this \
                            Symbol. If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
-    :param precision: The amount of storage required by the datatype (bytes) \
+    :param precision: the amount of storage required by the datatype (bytes) \
             or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
-    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or str
+    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or \
+                     :py:class:`psyclone.psyGen.Symbol.Precision`
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
@@ -5578,12 +5579,13 @@ class Symbol(object):
                 raise ValueError("The precision of a Symbol when specified as "
                                  "an integer number of bytes must be > 0 but "
                                  "got {0}".format(precision))
-            if isinstance(precision, Symbol) and \
-               (precision.datatype not in ["integer", "deferred"]
-                or precision.is_array):
+            if (isinstance(precision, Symbol) and
+                (precision.datatype not in ["integer", "deferred"]
+                 or precision.is_array)):
                 raise ValueError("A Symbol representing the precision of "
-                                 "another Symbol must be of scalar, integer "
-                                 "type but got: {0}".format(str(precision)))
+                                 "another Symbol must be of either 'deferred' "
+                                 "or scalar, integer type but got: {0}".
+                                 format(str(precision)))
         self.precision = precision
 
         if shape is None:
@@ -5632,8 +5634,13 @@ class Symbol(object):
 
         :param str value: new value for datatype.
 
+        :raises TypeError: if value is not a str.
         :raises NotImplementedError: if the specified data type is invalid.
         '''
+        if not isinstance(value, str):
+            raise TypeError(
+                "The datatype of a Symbol must be specified using a str but "
+                "got: '{0}'".format(type(value).__name__))
         if value not in Symbol.valid_data_types:
             raise NotImplementedError(
                 "Symbol can only be initialised with {0} datatypes but found "

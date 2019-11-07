@@ -3608,6 +3608,11 @@ def test_symbol_init_errors():
         "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
             error.value)
 
+    with pytest.raises(TypeError) as error:
+        Symbol('a', 3, [], 'local')
+    assert ("datatype of a Symbol must be specified using a str but got:"
+            in str(error.value))
+
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
@@ -3686,12 +3691,12 @@ def test_symbol_precision_errors():
     with pytest.raises(ValueError) as err:
         Symbol('a', 'integer', precision=not_int)
     assert ("A Symbol representing the precision of another Symbol must be "
-            "of scalar, integer type but" in str(err.value))
+            "of either 'deferred' or scalar, integer type " in str(err.value))
     not_scalar = Symbol('b', 'integer', [2, 2])
     with pytest.raises(ValueError) as err:
         Symbol('a', 'integer', precision=not_scalar)
-    assert ("A Symbol representing the precision of another Symbol must be "
-            "of scalar, integer type but" in str(err.value))
+    assert ("A Symbol representing the precision of another Symbol must be of "
+            "either 'deferred' or scalar, integer type but" in str(err.value))
     with pytest.raises(TypeError) as err:
         Symbol('a', 'integer', precision="not-valid")
     assert ("Symbol precision must be one of integer, Symbol.Precision or "
