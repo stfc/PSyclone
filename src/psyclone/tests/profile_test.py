@@ -358,7 +358,6 @@ def test_profile_invokes_dynamo0p3():
     # Next test two kernels in one invoke:
     _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
-
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
@@ -378,9 +377,19 @@ def test_profile_invokes_dynamo0p3():
                   "end.*"
                   r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
+
+    # Lastly, test an invoke whose first kernel is a builtin
+    _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "dynamo0.3", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
+    print invoke.schedule.view()
+    code = str(invoke.gen())
+    assert "USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd" in code
+    assert "TYPE(ProfileData), save :: profile" in code
+    assert "CALL ProfileStart(\"unknown-module\", \"x_plus_y\", profile)" in code
+    assert "CALL ProfileEnd(profile)" in code
+
     Profiler.set_options(None)
-
-
+    
 # -----------------------------------------------------------------------------
 def test_profile_kernels_dynamo0p3():
     '''Check that all kernels are instrumented correctly in a
