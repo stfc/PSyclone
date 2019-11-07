@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective, Container
+    ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
@@ -2936,7 +2936,6 @@ def test_loop_navigation_properties():
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
     # pylint: disable=too-many-statements
-    from psyclone.psyGen import Loop
     loop = Loop()
 
     # Properties return an error if the node is incomplete
@@ -3016,7 +3015,6 @@ def test_loop_navigation_properties():
 
 def test_loop_invalid_type():
     ''' Tests assigning an invalid type to a Loop object. '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
@@ -3049,7 +3047,6 @@ def test_loop_gen_code():
 
 def test_invalid_loop_annotations():
     ''' Check that the Loop constructor validates any supplied annotations. '''
-    from psyclone.psyGen import Loop
     # Check that we can have 'was_where' on its own
     test_loop = Loop(annotations=['was_where'])
     assert test_loop.annotations == ['was_where']
