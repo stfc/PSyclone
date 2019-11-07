@@ -37,8 +37,11 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
 
+from __future__ import absolute_import
+
 import pytest
-from psyclone.psyir.backend.base import VisitorError
+
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyGen import Symbol, Node, CodeBlock, Assignment, Reference, \
     Return, Array, Literal, UnaryOperation, BinaryOperation, Schedule
@@ -310,10 +313,9 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
-        '''Dummy class'''
-    # pylint: enable=abstract-method, too-few-public-methods
+    class Unsupported(object):
+        # pylint: disable=missing-docstring
+        pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
@@ -364,15 +366,47 @@ def test_cw_binaryoperator():
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
+    class Unsupported(object):
         '''Dummy class'''
-    # pylint: enable=abstract-method, too-few-public-methods
+        def __init__(self):
+            pass
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
     assert "The C backend does not support the '" in str(err)
     assert "' operator." in str(err)
+
+
+def test_cw_loop():
+    '''Tests writing out a Loop node in C. It parses Fortran code
+    and outputs it as C. Note that this is atm a literal translation,
+    the loops are not functionally identical to Fortran, see TODO #523.
+
+    '''
+    from psyclone.tests.utilities import create_schedule
+
+    # Generate PSyIR from Fortran code.
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          integer :: i, a
+          integer, dimension(:) :: b
+          do i = 1, 20, 2
+            a = 2 * i
+          enddo
+        end subroutine tmp
+        end module test'''
+    schedule = create_schedule(code, "tmp")
+
+    cvisitor = CWriter()
+    result = cvisitor(schedule[0])
+    correct = '''for(i=1; i<=20; i+=2)
+{
+  a = (2 * i);
+}'''
+    result = cvisitor(schedule[0])
+    assert correct in result
 
 
 def test_cw_size():

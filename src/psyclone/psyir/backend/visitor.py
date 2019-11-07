@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified J. Henrichs, Bureau of Meteorology
+
 
 '''Generic PSyIR visitor code that can be specialised by different
 back ends.
 
 '''
-# pylint: disable=eval-used
 
 from psyclone.psyGen import Node
 
@@ -99,6 +100,26 @@ class PSyIRVisitor(object):
         self._indent = indent_string
         self._depth = initial_indent_depth
 
+    def reference_node(self, node):
+        # pylint: disable=no-self-use
+        '''This method is called when a Reference instance is found in the
+        PSyIR tree.
+
+        :param node: a Reference PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Reference`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        :raises VisitorError: if this node has children.
+
+        '''
+        if node.children:
+            raise VisitorError(
+                "Expecting a Reference with no children but found: {0}"
+                "".format(str(node)))
+        return node.name
+
     @property
     def _nindent(self):
         '''
@@ -156,6 +177,7 @@ class PSyIRVisitor(object):
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
+                # pylint: disable=eval-used
                 return eval("self.{0}(node)".format(method_name))
             except AttributeError as excinfo:
                 if "attribute '{0}'".format(method_name) in str(excinfo):

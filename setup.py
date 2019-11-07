@@ -45,8 +45,7 @@ SRC_PATH = os.path.join(BASE_PATH, "src")
 PACKAGES = find_packages(where=SRC_PATH,
                          exclude=["psyclone.tests",
                                   "psyclone.tests.test_files",
-                                  "psyclone.tests.psyir",
-                                  "psyclone.tests.psyir.backend"])
+                                  "psyclone.tests.*"])
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
@@ -102,7 +101,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.9', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],

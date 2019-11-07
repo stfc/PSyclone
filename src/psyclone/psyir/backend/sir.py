@@ -39,9 +39,9 @@ gen() method to generate Fortran.
 
 '''
 
-from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
-    Array, UnaryOperation, Assignment
+    Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
 
 
@@ -368,7 +368,7 @@ class SIRWriter(PSyIRVisitor):
         self._scalar_names.add(node.name)
 
         return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
-                                                         node.name)
+                                                           node.name)
 
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR

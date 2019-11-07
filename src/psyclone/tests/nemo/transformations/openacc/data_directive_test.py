@@ -117,7 +117,7 @@ def test_add_region_invalid_data_move():
     with pytest.raises(InternalError) as err:
         datadir._add_region("DATA", "END DATA", data_movement="invalid")
     assert ("optional data_movement argument must be one of ['present', "
-            "'analyse'] but got 'invalid'" in str(err))
+            "'analyse'] but got 'invalid'" in str(err.value))
 
 
 def test_add_region(parser):
@@ -181,7 +181,7 @@ def test_explicit_directive(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children, default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
@@ -405,7 +405,8 @@ def test_kernels_in_data_region(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
     acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_ktrans.apply(schedule.children[:], default_present=True)
+    schedule, _ = acc_ktrans.apply(schedule.children[:],
+                                   {"default_present": True})
     schedule, _ = acc_dtrans.apply(schedule.children[:])
     new_code = str(psy.gen)
     assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"
