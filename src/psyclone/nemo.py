@@ -417,10 +417,12 @@ class NemoKern(InlinedKern):
         # node in the result of the walk, this node can not be a kernel.
         return len(nodes) == 0
 
-    def get_kernel_schedule(self):
+    @property
+    def kernel_body(self):
         '''
         Returns a PSyIR Schedule representing the kernel code. The
-        kernel_schedule is created in the constructor and always exists.
+        kernel_schedule is created in the constructor of InlinedKernel
+        and always exists.
 
         :returns: the kernel schedule representing the inlined kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
