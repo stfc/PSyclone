@@ -5211,8 +5211,8 @@ class IfBlock(Node):
                 else:
                     raise InternalError(
                         "IfBlock with unrecognized annotation '{0}', valid "
-                        "annotations are: {1}.".format(annotation,
-                                                       IfBlock.valid_annotations))
+                        "annotations are: {1}.".format(
+                            annotation, IfBlock.valid_annotations))
         self._text_name = "If"
         self._colour_key = "If"
 
