@@ -4365,6 +4365,7 @@ class CodedKern(Kern):
 class InlinedKern(Kern):
     '''A class representing a kernel that is inlined. This is used by
     the NEMO API, since the NEMO API has no function to call or parameters.
+    It has one child which stores the Schedule for the child nodes.
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.

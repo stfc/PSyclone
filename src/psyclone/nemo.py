@@ -318,7 +318,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
         result = "NemoInvokeSchedule():\n"
-        for entity in self._children:
+        for entity in self.children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
@@ -363,8 +363,8 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
 
 class NemoKern(InlinedKern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the PSyIR. I.e. they have
-    no self._children but they do have a KernelSchedule.
+    NEMO code. As an inlined kernel it contains a Schedule as first
+    child.
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
@@ -425,7 +425,7 @@ class NemoKern(InlinedKern):
         :returns: the kernel schedule representing the inlined kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
-        return self._children[0]
+        return self.children[0]
 
     def node_str(self, colour=True):
         '''
