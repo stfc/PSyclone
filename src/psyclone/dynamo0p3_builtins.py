@@ -130,7 +130,7 @@ class DynBuiltIn(BuiltIn):
             create_name(root_name="df",
                         context="PSyVars",
                         label="dof_loop_idx")
-        BuiltIn.__init__(self)
+        super(DynBuiltIn, self).__init__()
 
     def __str__(self):
         raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
@@ -174,10 +174,11 @@ class DynBuiltIn(BuiltIn):
                              "must have at least one field as an argument but "
                              "kernel {0} has none.".format(self.name))
         if len(spaces) != 1:
+            spaces_str = [str(x) for x in sorted(spaces)]
             raise ParseError(
                 "All field arguments to a built-in in the Dynamo 0.3 API "
                 "must be on the same space. However, found spaces {0} for "
-                "arguments to {1}".format(sorted(spaces), self.name))
+                "arguments to {1}".format(spaces_str, self.name))
 
     def array_ref(self, fld_name):
         ''' Returns a string containing the array reference for a

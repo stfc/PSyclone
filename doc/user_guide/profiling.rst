@@ -111,15 +111,9 @@ call at the end of the loop.  Two caveats:
    profiled kernel section, for example setDirty() calls
    (expensive calls like HaloExchange are excluded). 
 
-2. If loop transforms are applied using a script, the profiling
-   nodes added to the PSyIR will very likely cause errors in the
-   script or in the generated output. As an example consider a case
-   where an OMPLoop transform is applied to a loop. With profiling
-   enabled instead of the expected loop there could be a profile node
-   in the PSyIR (with the loop as child). Since an OMP DO directive
-   can only have loops inside, and it now has a call to
-   ``ProfileStart``, the generated code is incorrect and will not
-   compile.
+2. If transformations are applied using a script, the profiling nodes
+   added to the PSyIR could be applied to the wrong location and cause
+   errors.
 
 In order to avoid the second issue, automatic profiling using
 ``--profile`` is not allowed together with a transformation

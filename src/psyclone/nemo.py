@@ -46,8 +46,7 @@ from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule, \
-    colored, SCHEDULE_COLOUR_MAP
+    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -313,16 +312,8 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         self._name_clashes_checked = False
 
         self.process_nodes(self, ast.content, ast)
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this NemoInvokeSchedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        self._text_name = "InvokeSchedule"
+        self._colour_key = "Schedule"
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
@@ -408,6 +399,9 @@ class NemoKern(InlinedKern):
         # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
         # We therefore don't have any children.
         self._children = []
+        # Name and colour-code to use for displaying this node
+        self._text_name = "InlinedKern"
+        self._colour_key = "InlinedKern"
         self._reduction = False
 
     @staticmethod
@@ -446,6 +440,18 @@ class NemoKern(InlinedKern):
         '''
         return self._kern_schedule
 
+    def node_str(self, colour=True):
+        '''
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
+
     def local_vars(self):
         '''
         :returns: list of the variable (names) that are local to this loop \
@@ -453,13 +459,6 @@ class NemoKern(InlinedKern):
         :rtype: list of str
         '''
         return []
-
-    def view(self, indent=0):
-        '''
-        Print representation of this node to stdout.
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[]")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. It calls the corresponding
@@ -552,18 +551,8 @@ class NemoImplicitLoop(NemoLoop):
                       valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
-
-    @property
-    def coloured_text(self):
-        '''
-        Returns a string containing the name of this node along with
-        control characters for colouring in terminals that support it.
-
-        :returns: The name of this node, possibly with control codes for
-                  colouring
-        :rtype: string
-        '''
-        return colored("NemoImplicitLoop", SCHEDULE_COLOUR_MAP["Loop"])
+        self._text_name = "NemoImplicitLoop"
+        self._colour_key = "Loop"
 
     def __str__(self):
         # Display the LHS of the assignment in the str representation
