@@ -366,6 +366,7 @@ class Fparser2Reader(object):
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
             # TODO remove once fparser/#102 is done
+            # pylint: disable=protected-access
             module_ast.content[0]._parent = module_ast
             for item in mod_content:
                 item._parent = module_ast.content[0]
@@ -379,6 +380,7 @@ class Fparser2Reader(object):
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
             # TODO remove once fparser/#102 is done
+            # pylint: disable=protected-access
             sub_spec._parent = subroutine
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
@@ -401,6 +403,7 @@ class Fparser2Reader(object):
             sub_exec = first_type_match(subroutine.content,
                                         Fortran2003.Execution_Part)
             # TODO remove once fparser/#102 is done
+            # pylint: disable=protected-access
             sub_exec._parent = subroutine
         except ValueError:
             pass
@@ -1383,10 +1386,10 @@ class Fparser2Reader(object):
         # the NEMO style where the fact that `a` is an array is made
         # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
 
-        # Use a basic Schedule as our fake parent as it doesn't have a
-        # SymbolTable (and thus won't check for variable declarations).
-        # TODO #500 Ultimately we need to be able to check for declarations
-        # and remove the need to have a 'fake parent' below.
+        # For this initial processing of the logical-array expression we
+        # use a temporary parent as we haven't yet constructed the PSyIR
+        # for the loop nest and innermost IfBlock. Once we have a valid
+        # parent for this logical expression we will repeat the processing.
         fake_parent = Schedule()
         self.process_nodes(fake_parent, logical_expr, None)
         arrays = fake_parent[0].walk(Array)
@@ -1411,11 +1414,13 @@ class Fparser2Reader(object):
         # tree so that we can find any clashes. We go as far back up the tree
         # as we can before searching for all instances of Fortran2003.Name.
         # TODO #500 - replace this by using the SymbolTable instead.
+        # pylint: disable=protected-access
         fp2_parent = node
         while hasattr(fp2_parent, "_parent") and fp2_parent._parent:
             fp2_parent = fp2_parent._parent
         name_list = walk_ast([fp2_parent], [Fortran2003.Name])
         all_names = {str(name) for name in name_list}
+        # pylint: enable=protected-access
 
         # Now create a loop nest of depth `rank`
         new_parent = parent
