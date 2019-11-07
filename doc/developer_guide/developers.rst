@@ -1110,10 +1110,6 @@ The SIR back-end is limited in a number of ways:
 - the only unary operator currently supported is '-' and the subject
   of this unary operator must be a literal.
 
-The current implementation is not able to deal with variables local to
-a region (which the SIR expects), as, in Fortran, the standard scope
-of a local variable is the whole routine, not a sub-region of code.
-
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
 run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
@@ -1142,7 +1138,17 @@ but this would require no codeblocks in the PSyIR when parsing NEMO
 (which is a difficult thing to achieve), or interface code between
 codeblocks and the rest of the PSyIR.
 
-
+As suggested by the Dawn developers, PSyIR local scalar variables are
+translated into temporary SIR fields (which are 3D arrays by
+default). The reason for doing this is that it is easy to specify
+variables in the SIR this way (whereas I did not manage to get scalar
+declarations working) and Dawn optimises a temporary field, reducing
+it to its required dimensionality (so PSyIR local scalar variables are
+output as scalars by the Dawn back end even though they are specified
+as fields). A limitation of the current translation from PSyIR to SIR
+is that all PSyIR scalars are assumed to be local and all PSyIR arrays
+are assumed to be global, which may not be the case. This limitation
+is captured in issue #521.
 
 Parsing Code
 ############
