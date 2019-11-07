@@ -40,6 +40,7 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
@@ -53,6 +54,25 @@ def fixture_f2008_parser():
     '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
+
+
+def process_declarations(code):
+    '''
+    Utility routine to create PSyIR for Fortran variable declarations.
+
+    :param str code: Fortran declaration statement(s)
+
+    :returns: a 2-tuple consisting of a KernelSchedule with populated Symbol \
+              Table and the parse tree for the specification part.
+    :rtype: (:py:class:`psyclone.psyGen.KernelSchedule`, \
+             :py:class:`fparser.two.Fortran2003.Specification_Part`)
+    '''
+    sched = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(sched, fparser2spec, [])
+    return sched, fparser2spec
 
 
 # Tests
@@ -267,7 +287,6 @@ def test_process_declarations(f2008_parser):
     converts the fparser2 declarations to symbols in the provided
     parent Kernel Schedule.
     '''
-    from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -369,7 +388,6 @@ def test_process_not_supported_declarations(f2008_parser):
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
     '''
-    from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -392,7 +410,7 @@ def test_process_declarations_intent(f2008_parser):
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
-    from fparser.two.Fortran2003 import Specification_Part, Name
+    from fparser.two.Fortran2003 import Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -429,14 +447,10 @@ def test_process_declarations_intent(f2008_parser):
 
 def test_process_declarations_kind_new_param(f2008_parser):
     ''' Test that process_declarations handles variables declared with
-    an explicit KIND parameter that has not already been declared. '''
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    # Kind parameter not previously declared
-    reader = FortranStringReader("real(kind=wp) :: var1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    an explicit KIND parameter that has not already been declared.
+
+    '''
+    fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1")
     assert isinstance(fake_parent.symbol_table.lookup("var1").precision,
                       Symbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
@@ -446,9 +460,10 @@ def test_process_declarations_kind_new_param(f2008_parser):
     # Check that we raise an error if the KIND expression has an unexpected
     # structure
     # Break the parse tree by changing Name('wp') into a str
-    fparser2spec.items[0].items[1].items = ("(", "blah", ")")
+    fp2spec[0].items[0].items[1].items = ("(", "blah", ")")
+    processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, fp2spec, [])
     assert ("Failed to find valid Name in Fortran Kind Selector: "
             "'(KIND = blah)'" in str(err.value))
 
@@ -456,8 +471,9 @@ def test_process_declarations_kind_new_param(f2008_parser):
 @pytest.mark.xfail(reason="Parameter declarations not supported - #543")
 def test_process_declarations_kind_param(f2008_parser):
     ''' Test that process_declarations handles the kind attribute when
-    it specifies a previously-declared symbol. '''
-    from fparser.two.Fortran2003 import Specification_Part
+    it specifies a previously-declared symbol.
+
+    '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
@@ -470,14 +486,11 @@ def test_process_declarations_kind_param(f2008_parser):
 
 def test_process_declarations_kind_use(f2008_parser):
     ''' Test that process_declarations handles the kind attribute when
-    it specifies a symbol accessed via a USE. '''
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("use kind_mod, only: r_def\n"
-                                 "real(kind=r_def) :: var2")
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    it specifies a symbol accessed via a USE.
+
+    '''
+    fake_parent, _ = process_declarations("use kind_mod, only: r_def\n"
+                                          "real(kind=r_def) :: var2")
     assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
                       Symbol)
     assert fake_parent.symbol_table.lookup("r_def") is \
@@ -486,15 +499,12 @@ def test_process_declarations_kind_use(f2008_parser):
 
 def test_wrong_type_kind_param(f2008_parser):
     ''' Check that we raise the expected error if a variable used as a KIND
-    specifier has already been declared with non-integer type. '''
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("real :: r_def\n"
-                                 "real(kind=r_def) :: var2")
-    fparser2spec = Specification_Part(reader)
+    specifier has already been declared with non-integer type.
+
+    '''
     with pytest.raises(TypeError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        process_declarations("real :: r_def\n"
+                             "real(kind=r_def) :: var2")
     assert "already contains an entry for variable 'r_def'" in str(err.value)
 
 
@@ -507,18 +517,15 @@ def test_wrong_type_kind_param(f2008_parser):
                           # 32-bit integer
                           ("integer", "1", Symbol.Precision.SINGLE),
                           # 64-bit integer
-                          ("integer", str(1<<31 + 4)+"_t_def", None)])
+                          ("integer", str(1 << 31 + 4)+"_t_def", None)])
 def test_process_declarations_kind_literals(f2008_parser,
                                             vartype, kind, precision):
     ''' Test that process_declarations handles variables declared with
-    an explicit KIND specified using a literal constant. '''
-    from fparser.two.Fortran2003 import Specification_Part
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("{0}(kind=KIND({1})) :: var".format(
-        vartype, kind))
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    an explicit KIND specified using a literal constant.
+
+    '''
+    fake_parent, _ = process_declarations("{0}(kind=KIND({1})) :: var".
+                                          format(vartype, kind))
     if not precision:
         assert fake_parent.symbol_table.lookup("var").precision is \
             fake_parent.symbol_table.lookup("t_def")
@@ -533,15 +540,12 @@ def test_process_declarations_kind_literals(f2008_parser,
                           ("real", "kvar(1)")])
 def test_unsupported_kind(f2008_parser, vartype, kind):
     ''' Check that we raise an error for an unsupported kind specifier.
-        TODO #569 - add support for some/all of these.  '''
-    from fparser.two.Fortran2003 import Specification_Part
-    processor = Fparser2Reader()
-    fake_parent = KernelSchedule("dummy_schedule")
-    reader = FortranStringReader("{0}(kind=KIND({1})) :: var".format(
-        vartype, kind))
-    fparser2spec = Specification_Part(reader).content[0]
+        TODO #569 - add support for some/all of these.
+
+    '''
     with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        process_declarations("{0}(kind=KIND({1})) :: var".format(vartype,
+                                                                 kind))
     assert ("Only real and integer literals are supported as arguments to"
             in str(err.value))
 
@@ -550,7 +554,6 @@ def test_process_declarations_stmt_functions(f2008_parser):
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    from fparser.two.Fortran2003 import Specification_Part
     from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -602,8 +605,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Specification_Part, Name
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
+    from fparser.two.Fortran2003 import Name, Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -675,7 +677,6 @@ def test_parse_array_dimensions_attributes(f2008_parser):
 def test_use_stmt(f2008_parser):
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
-    from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
@@ -695,7 +696,6 @@ def test_use_stmt(f2008_parser):
 def test_use_stmt_error(f2008_parser, monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
     a USE statement doesn't have the expected structure. '''
-    from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
