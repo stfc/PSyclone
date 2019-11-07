@@ -77,7 +77,7 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 _AUTO_PROFILE = True
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "ice_thd_pnd", "mpp_",
+                    "ice_thd_pnd", "macho", "mpp_",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
@@ -85,9 +85,9 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
-ACC_IGNORE = ["asm_inc_init", # Triggers "missing branch target block"
-              "turb_ncar", # Resulting code seg. faults with PGI 19.4
-              "ice_dyn_adv", # No significant compute
+ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
+              "turb_ncar",  # Resulting code seg. faults with PGI 19.4
+              "ice_dyn_adv",  # No significant compute
               "iom_open", "iom_get_123d"]
 
 # Currently fparser has no way of distinguishing array accesses from
@@ -128,6 +128,7 @@ class ExcludeSettings(object):
                 self.ifs_1d_arrays = settings["ifs_1d_arrays"]
             if "inside_kernels" in settings:
                 self.inside_kernels = settings["inside_kernels"]
+
 
 # Routines which we know contain structures that, by default, we would normally
 # exclude from OpenACC Kernels regions but are OK in these specific cases.
@@ -209,6 +210,19 @@ def valid_acc_kernel(node):
             ksched = kernel.get_kernel_schedule()
             excluded_nodes += ksched.walk(IfBlock)
 
+    # Since SELECT blocks are mapped to nested IfBlocks in the PSyIR,
+    # we have to be careful to exclude attempts to put multiple
+    # CASE branches inside a single region. (Once we are no longer
+    # reliant on the original fparser2 parse tree this restriction
+    # can be lifted.)
+    # Is the supplied node a child of an IfBlock originating from a
+    # SELECT block?
+    if isinstance(node, IfBlock) and "was_case" in node.annotations:
+        if isinstance(node.parent.parent, IfBlock) and \
+           "was_case" in node.parent.parent.annotations:
+            log_msg(routine_name, "cannot split children of a SELECT", node)
+            return False
+
     for enode in excluded_nodes:
         if isinstance(enode, CodeBlock):
             log_msg(routine_name, "region contains CodeBlock", enode)
@@ -240,8 +254,8 @@ def valid_acc_kernel(node):
             # When using CUDA managed memory, only allocated arrays are
             # automatically put onto the GPU (although
             # this includes those that are created by compiler-generated allocs
-            # e.g. for automatic arrays). We assume that all arrays of rank 2 or
-            # greater are dynamically allocated.
+            # e.g. for automatic arrays). We assume that all arrays of rank 2
+            # or greater are dynamically allocated.
             arrays = enode.children[0].walk(Array)
             # We also exclude if statements where the condition expression does
             # not refer to arrays at all as this seems to cause issues for
@@ -257,13 +271,14 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
-        if isinstance(enode, NemoImplicitLoop):
+        elif isinstance(enode, NemoImplicitLoop):
             if PGI_VERSION < 1940:
                 # Need to check for SUM inside implicit loop, e.g.:
                 #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
                 if contains_unsupported_sum(enode.ast):
                     log_msg(routine_name,
-                            "Implicit loop contains unsupported SUM", enode)
+                            "Implicit loop contains unsupported SUM",
+                            enode)
                     return False
             else:
                 # Need to check for RESHAPE inside implicit loop
@@ -271,7 +286,8 @@ def valid_acc_kernel(node):
                     log_msg(routine_name,
                             "Implicit loop contains RESHAPE call", enode)
                     return False
-        elif isinstance(enode, NemoLoop):
+        elif isinstance(enode, NemoLoop) and \
+             not isinstance(enode, NemoImplicitLoop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions
@@ -336,7 +352,7 @@ def valid_acc_kernel(node):
                 # We're writing to it so it's not a function call.
                 continue
             log_msg(routine_name,
-                    "Loop contains function call: {1}".format(ref.name), ref)
+                    "Loop contains function call: {0}".format(ref.name), ref)
             return False
         if isinstance(ref, NemoLoop):
             if contains_unsupported_sum(ref.ast):
