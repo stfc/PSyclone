@@ -4365,11 +4365,19 @@ class CodedKern(Kern):
 class InlinedKern(Kern):
     '''A class representing a kernel that is inlined. This is used by
     the NEMO API, since the NEMO API has no function to call or parameters.
+
+    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+                        of this kernel.
+    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
     '''
 
-    def __init__(self):
-        # pylint: disable=super-init-not-called
-        self._kern_schedule = None
+    def __init__(self, psyir_nodes):
+        # pylint: disable=non-parent-init-called,super-init-not-called
+        schedule = Schedule(children=psyir_nodes, parent=self)
+        Node.__init__(self, children=[schedule])
+        # Update the parent info for each node we've moved
+        for node in schedule.children:
+            node.parent = schedule
 
     def __str__(self):
         return "inlined kern: " + self._name

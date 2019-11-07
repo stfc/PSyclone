@@ -171,7 +171,8 @@ def test_omp_parallel_multi():
     # Apply the OMP Parallel transformation so as to enclose the last two
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
-    new_sched, _ = otrans.apply(schedule[0].loop_body[2:4])
+    new_sched, _ = otrans.apply(schedule[0].loop_body[2:4],
+                                {"node-type-check": False})
     new_sched.view()
     gen_code = str(psy.gen).lower()
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
@@ -260,7 +261,8 @@ def test_omp_parallel_errs():
     # Apply the OMP Parallel transformation so as to enclose the last two
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
-    new_sched, _ = otrans.apply(schedule[0].loop_body[2:4])
+    new_sched, _ = otrans.apply(schedule[0].loop_body[2:4],
+                                {"node-type-check": False})
     directive = new_sched[0].loop_body[2]
     # Break the AST by deleting some of it
     _ = new_sched[0].ast.content.remove(directive.children[0].ast)

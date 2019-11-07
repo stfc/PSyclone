@@ -380,26 +380,12 @@ class NemoKern(InlinedKern):
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, psyir_nodes, parse_tree, parent=None):
-        super(NemoKern, self).__init__()
-        from psyclone.psyGen import KernelSchedule
+        super(NemoKern, self).__init__(psyir_nodes)
         self._name = ""
         self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
-        # Create a kernel schedule. Since in NEMO all functions are
-        # inlined, set this NemoKern as parent of the KernelSchedule.
-        # This will allow the dependency analysis going up from
-        # a kernel to the loops (which is required for declaring
-        # private variables).
-        self._kern_schedule = KernelSchedule(self._name, self)
-        # Attach the PSyIR sub-tree to it
-        self._kern_schedule.children = psyir_nodes[:]
-        # Update the parent info for each node we've moved
-        for node in self._kern_schedule.children:
-            node.parent = self._kern_schedule
-        # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
-        # We therefore don't have any children.
-        self._children = []
+
         # Name and colour-code to use for displaying this node
         self._text_name = "InlinedKern"
         self._colour_key = "InlinedKern"
@@ -439,7 +425,7 @@ class NemoKern(InlinedKern):
         :returns: the kernel schedule representing the inlined kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
-        return self._kern_schedule
+        return self._children[0]
 
     def node_str(self, colour=True):
         '''
@@ -470,7 +456,8 @@ class NemoKern(InlinedKern):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        self._kern_schedule.reference_accesses(var_accesses)
+        print("RA", len(self.children))
+        self.children[0].reference_accesses(var_accesses)
 
     @property
     def ast(self):
