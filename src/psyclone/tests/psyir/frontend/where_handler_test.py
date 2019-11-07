@@ -41,21 +41,45 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyGen import Schedule, CodeBlock
+from psyclone.psyGen import Schedule, CodeBlock, Loop, Array, Assignment, \
+    Literal, Reference, BinaryOperation, IfBlock, InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
+
+def process_where(code, fparser_cls):
+    '''
+    Utility routine to process the supplied Fortran code and return the
+    PSyIR and fparser2 parse trees.
+
+    :param str code: Fortran code to process.
+    :param type fparser_cls: the fparser2 class to instantiate to \
+                             represent the supplied Fortran.
+
+    :returns: 2-tuple of a parent PSyIR Schedule and the created instance of \
+              the requested fparser2 class.
+    :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+             :py:class:`fparser.two.utils.Base`)
+    '''
+    sched = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    fparser2spec = fparser_cls(reader)
+    if fparser_cls is Fortran2003.Execution_Part:
+        processor.process_nodes(sched, fparser2spec.content, None)
+    else:
+        processor.process_nodes(sched, [fparser2spec], None)
+    return sched, fparser2spec
 
 
 def test_where_broken_tree(parser):
     ''' Check that we raise the expected exceptions if the fparser2 parse
-    tree does not have the correct structure. '''
-    from psyclone.psyGen import InternalError
-
-    fake_parent = Schedule()
+    tree does not have the correct structure.
+    '''
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(:, :, :) /= 0._wp)\n"
+        "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct)
     processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
-                                 "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
     # Break the parse tree by removing the end-where statement
     del fparser2spec.content[-1]
     with pytest.raises(InternalError) as err:
@@ -70,34 +94,27 @@ def test_where_broken_tree(parser):
 
 def test_missing_array_notation_expr(parser):
     ''' Check that we get a code block if the WHERE does not use explicit
-    array syntax in the logical expression. '''
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (ptsu /= 0._wp)\n"
-                                 "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    array syntax in the logical expression.
+    '''
+    fake_parent, _ = process_where("WHERE (ptsu /= 0._wp)\n"
+                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 def test_missing_array_notation_lhs(parser):
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax on the LHS of an assignment within the body. '''
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (ptsu(:,:,:) /= 0._wp)\n"
-                                 "  z1_st = 1._wp / ptsu(:, :, :)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
+                                   "  z1_st = 1._wp / ptsu(:, :, :)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 def test_where_array_notation_rank(parser):
     ''' Test that the _array_notation_rank() utility raises the expected
-    errors when passed an unsupported Array object. '''
-    from psyclone.psyGen import Array, Literal
+    errors when passed an unsupported Array object.
+    '''
     my_array = Array("my_array", None)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
@@ -122,22 +139,16 @@ def test_where_array_notation_rank(parser):
 def test_different_ranks_error(parser):
     ''' Check that a WHERE construct containing array references of different
     ranks results in the creation of a CodeBlock. '''
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    # Invalid Fortran
-    reader = FortranStringReader("WHERE (dry(:, :, :))\n"
-                                 "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
-    # We should end up with a CodeBlock in the PSyIR
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
+                                   "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 def test_array_notation_rank(parser):
     ''' Check that the _array_notation_rank() utility handles various examples
-    of array notation. '''
-    from psyclone.psyGen import Assignment, Loop
+    of array notation.
+    '''
     fake_parent = Schedule()
     processor = Fparser2Reader()
     reader = FortranStringReader("  z1_st(:, 2, :) = ptsu(:, :, 3)")
@@ -161,16 +172,12 @@ def test_where_symbol_clash(parser):
     ''' Check that we raise the expected error if the code we are processing
     already contains a symbol with the same name as one of the loop variables
     we want to introduce. TODO #500 - update this test once we're using the
-    SymbolTable to manage symbol names. '''
-    from psyclone.psyGen import InternalError
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (widx1(:, :, :))\n"
-                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
+    SymbolTable to manage symbol names.
+    '''
     with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2spec], None)
+        process_where("WHERE (widx1(:, :, :))\n"
+                      "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+                      "END WHERE\n", Fortran2003.Where_Construct)
     assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
     reader = FortranStringReader("module my_test\n"
                                  "contains\n"
@@ -181,6 +188,7 @@ def test_where_symbol_clash(parser):
                                  "end subroutine widx1\n"
                                  "end module my_test\n")
     fparser2spec = parser(reader)
+    processor = Fparser2Reader()
     with pytest.raises(InternalError) as err:
         processor.generate_schedule("widx1", fparser2spec)
     assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
@@ -189,14 +197,9 @@ def test_where_symbol_clash(parser):
 def test_basic_where(parser):
     ''' Check that a basic WHERE using a logical array as a mask is correctly
     translated into the PSyIR. '''
-    from psyclone.psyGen import Loop, Literal, BinaryOperation, IfBlock
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (dry(:, :, :))\n"
-                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
+                                   "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct)
     # We should have a triply-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 3
@@ -218,14 +221,9 @@ def test_basic_where(parser):
 def test_where_array_subsections(parser):
     ''' Check that we handle a WHERE construct with non-contiguous array
     subsections. '''
-    from psyclone.psyGen import Loop, Assignment, IfBlock, Reference
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (dry(1, :, :))\n"
-                                 "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    fake_parent, _ = process_where("WHERE (dry(1, :, :))\n"
+                                   "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct)
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
@@ -246,17 +244,11 @@ def test_where_array_subsections(parser):
 def test_elsewhere(parser):
     ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
     translated into a canonical form in the PSyIR. '''
-    from psyclone.psyGen import Loop, IfBlock, Assignment, Array, \
-        BinaryOperation
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader("WHERE (ptsu(:, :, :) /= 0._wp)\n"
-                                 "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                 "ELSEWHERE\n"
-                                 "  z1_st(:, :, :) = 0._wp\n"
-                                 "END WHERE\n")
-    fparser2spec = Fortran2003.Where_Construct(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    fake_parent, _ = process_where("WHERE (ptsu(:, :, :) /= 0._wp)\n"
+                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "ELSEWHERE\n"
+                                   "  z1_st(:, :, :) = 0._wp\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct)
     assert len(fake_parent.children) == 1
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
@@ -283,15 +275,13 @@ def test_elsewhere(parser):
 def test_where_stmt_validity(parser):
     ''' Check that the correct exceptions are raised when the parse tree
     for a WHERE statement has an unexpected structure. '''
-    from psyclone.psyGen import InternalError
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
+    fake_parent, fparser2spec = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
-        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)")
-    fparser2spec = Fortran2003.Where_Stmt(reader)
+        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
+        Fortran2003.Where_Stmt)
     # Break the parse tree
     fparser2spec.items = (fparser2spec.items[0], "a string")
+    processor = Fparser2Reader()
     with pytest.raises(InternalError) as err:
         processor.process_nodes(fake_parent, [fparser2spec], None)
     assert "items tuple to be an Assignment_Stmt but found" in str(err.value)
@@ -305,15 +295,10 @@ def test_where_stmt_validity(parser):
 
 def test_where_stmt(parser):
     ''' Basic check that we handle a WHERE statement correctly. '''
-    from psyclone.psyGen import Loop
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
+    fake_parent, _ = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
-        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)")
-    fparser2spec = Fortran2003.Where_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
-    fake_parent.view()
+        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
+        Fortran2003.Where_Stmt)
     assert len(fake_parent.children) == 1
     assert isinstance(fake_parent[0], Loop)
 
@@ -321,10 +306,7 @@ def test_where_stmt(parser):
 def test_where_ordering(parser):
     ''' Check that the generated schedule has the correct ordering when
     a WHERE construct is processed. '''
-    from psyclone.psyGen import Assignment, Loop, CodeBlock
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
+    fake_parent, _ = process_where(
         "      zsml = 1.e-15_wp\n"
         "      DO jj = 2, jpjm1\n"
         "         DO ji = 2, jpim1\n"
@@ -335,10 +317,7 @@ def test_where_ordering(parser):
         "      WHERE( pbef(:,:) == 0._wp .AND. paft(:,:) == 0._wp .AND. "
         "zdiv(:,:) == 0._wp )   ;   zmsk(:,:) = 0._wp\n"
         "      ELSEWHERE;   zmsk(:,:) = 1._wp * tmask(:,:,1)\n"
-        "      END WHERE\n")
-    fparser2spec = Fortran2003.Execution_Part(reader)
-    processor.process_nodes(fake_parent, fparser2spec.content, None)
-    fake_parent.view()
+        "      END WHERE\n", Fortran2003.Execution_Part)
     assert isinstance(fake_parent[0], Assignment)
     assert isinstance(fake_parent[1], Loop)
     assert isinstance(fake_parent[2], CodeBlock)
