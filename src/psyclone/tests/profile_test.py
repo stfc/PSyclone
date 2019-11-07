@@ -381,7 +381,6 @@ def test_profile_invokes_dynamo0p3():
     # Lastly, test an invoke whose first kernel is a builtin
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "dynamo0.3", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
-    print invoke.schedule.view()
     code = str(invoke.gen())
     assert "USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd" in code
     assert "TYPE(ProfileData), save :: profile" in code
