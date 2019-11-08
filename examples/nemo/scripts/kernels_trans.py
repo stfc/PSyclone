@@ -114,6 +114,8 @@ class ExcludeSettings(object):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
         self.ifs_scalars = True
+        # Whether we exclude IFs that test for equality with a REAL scalar
+        self.ifs_real_scalars = True
         # Whether we allow IFs where the logical expression involves 1D
         # arrays (since these are often static in NEMO and thus not
         # handled by PGI's managed-memory option)
@@ -128,6 +130,8 @@ class ExcludeSettings(object):
                 self.ifs_1d_arrays = settings["ifs_1d_arrays"]
             if "inside_kernels" in settings:
                 self.inside_kernels = settings["inside_kernels"]
+            if "ifs_real_scalars" in settings:
+                self.ifs_real_scalars = settings["ifs_real_scalars"]
 
 
 # Routines which we know contain structures that, by default, we would normally
@@ -137,6 +141,8 @@ EXCLUDING = {"default": ExcludeSettings(),
                                          "ifs_1d_arrays": False,
                                          "inside_kernels": False}),
              "zps_hde": ExcludeSettings({"ifs_scalars": False}),
+             "ice_alb": ExcludeSettings({"ifs_scalars": False,
+                                         "ifs_real_scalars": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
@@ -240,7 +246,8 @@ def valid_acc_kernel(node):
             # have that concept so check for a decimal point in its value.
             if PGI_VERSION <= 1940:
                 opn = enode.children[0]
-                if isinstance(opn, BinaryOperation) and \
+                if excluding.ifs_real_scalars and \
+                   isinstance(opn, BinaryOperation) and \
                    opn.operator == BinaryOperation.Operator.EQ and \
                    isinstance(opn.children[1], Literal) and \
                    "." in opn.children[1].value:
