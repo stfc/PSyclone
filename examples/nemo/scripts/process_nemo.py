@@ -61,7 +61,7 @@ EXCLUDED_FILES = ["bdyini.f90",
                   "ice.f90", # lines are too long
                   "icedyn_adv_pra.f90", # lines are too long
                   "iceforcing.f90",
-                  "iceistate.f90", "icetab.f90",
+                  "iceistate.f90",
                   "icethd_ent.f90", "icethd_zdf.f90",
                   "icethd_dh.f90", "iom.f90",
                   "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
