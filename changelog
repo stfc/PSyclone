@@ -1,4 +1,6 @@
 
+release 1.8.0 8th November 2019
+
 	1) #245 and PR #247. Extend PSyIR to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
