@@ -41,7 +41,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node
+     NameSpaceFactory, Node, BuiltIn
 
 
 class Profiler(object):
@@ -203,7 +203,9 @@ class ProfileNode(Node):
             module_name = "unknown-module"
             for kernel in self.walk(Kern):
                 region_name = kernel.name
-                module_name = kernel.module_name
+                if not isinstance(kernel, BuiltIn):
+                    # If the kernel is not a builtin then it has a module name.
+                    module_name = kernel.module_name
                 break
             if self._region_name is None:
                 self._region_name = Profiler.create_unique_region(region_name)

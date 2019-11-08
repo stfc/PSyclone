@@ -315,6 +315,9 @@
 	100) PR 524 for #472. Adds support for scalar variables to the
 	SIR backend.
 
+	101) PR #574 towards #567. Fixes bug in profiling that causes
+	crash if first kernel in an invoke is a built-in.
+
 
 release 1.7.0 20th December 2018
 
