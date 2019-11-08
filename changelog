@@ -318,6 +318,8 @@
 	101) PR #574 towards #567. Fixes bug in profiling that causes
 	crash if first kernel in an invoke is a built-in.
 
+        102) PR #576 for #530. Includes the repository examples in the
+        distribution and updates the documentation accordingly.
 
 release 1.7.0 20th December 2018
 
