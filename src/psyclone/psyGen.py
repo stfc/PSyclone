@@ -5566,7 +5566,7 @@ class Symbol(object):
 
         # Check that the supplied 'precision' is valid
         if precision is not None:
-            if datatype.lower() in ["character", "boolean"]:
+            if datatype.lower() not in ["real", "integer"]:
                 raise ValueError(
                     "A Symbol of {0} type cannot have an associated "
                     "precision".format(datatype.lower()))
