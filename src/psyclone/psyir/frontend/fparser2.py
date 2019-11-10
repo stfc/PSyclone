@@ -1388,9 +1388,9 @@ class Fparser2Reader(object):
             if len(node.items[1].items) > 1:
                 # We have more than one argument and therefore this is not a
                 # unary operation!
-                raise InternalError("Operation '{0}' has more than one argument "
-                                    "and is therefore not unary!".
-                                    format(str(node)))
+                raise InternalError(
+                    "Operation '{0}' has more than one argument and is "
+                    "therefore not unary!".format(str(node)))
             node_list = node.items[1].items
         else:
             node_list = [node.items[1]]

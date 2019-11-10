@@ -3557,7 +3557,6 @@ def test_kernelschedule_name_setter():
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
-    # pylint: disable=too-many-statements
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
     assert isinstance(Symbol('a', 'real', precision=Symbol.Precision.DOUBLE),

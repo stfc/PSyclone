@@ -5562,6 +5562,7 @@ class Symbol(object):
                  interface=None, precision=None):
 
         self._name = name
+        self._datatype = None
         self.datatype = datatype
 
         # Check that the supplied 'precision' is valid
