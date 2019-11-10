@@ -458,7 +458,6 @@ class NemoKern(InlinedKern):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        print("RA", len(self.children))
         self.children[0].reference_accesses(var_accesses)
 
     @property
