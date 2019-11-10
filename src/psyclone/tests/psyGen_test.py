@@ -3557,12 +3557,17 @@ def test_kernelschedule_name_setter():
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
-    # pylint: disable=too-many-statements
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
+    assert isinstance(Symbol('a', 'real', precision=Symbol.Precision.DOUBLE),
+                      Symbol)
+    assert isinstance(Symbol('a', 'real', precision=4), Symbol)
+    kind = Symbol('r_def', 'integer')
+    assert isinstance(Symbol('a', 'real', precision=kind), Symbol)
     # real constants are not currently supported
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
+    assert isinstance(Symbol('a', 'integer', precision=4), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
     assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
     assert isinstance(Symbol('a', 'boolean'), Symbol)
@@ -3570,7 +3575,7 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', []), Symbol)
+    assert isinstance(Symbol('a', 'real', [], precision=8), Symbol)
     assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
                       Symbol)
     assert isinstance(
@@ -3590,6 +3595,10 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [dim]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
 
+
+def test_symbol_init_errors():
+    ''' Test that the Symbol constructor raises appropriate errors if supplied
+    with invalid arguments. '''
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
@@ -3598,11 +3607,17 @@ def test_symbol_initialisation():
         "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
             error.value)
 
+    with pytest.raises(TypeError) as error:
+        Symbol('a', 3, [], 'local')
+    assert ("datatype of a Symbol must be specified using a str but got:"
+            in str(error.value))
+
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
             "'real'.") in str(error)
 
+    dim = Symbol('dim', 'integer', [])
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', shape=dim)
     assert "Symbol shape attribute must be a list." in str(error.value)
@@ -3651,9 +3666,40 @@ def test_symbol_initialisation():
     with pytest.raises(ValueError) as error:
         Symbol('a', 'boolean', constant_value="hello")
     assert ("This Symbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'bool'>' but found " in str(error)
-    assert "'str'>'." in str(error)
+            "constant value is expected to be") in str(error.value)
+    assert "'bool'>' but found " in str(error.value)
+    assert "'str'>'." in str(error.value)
+
+
+def test_symbol_precision_errors():
+    ''' Check that invalid precision settings raise the appropriate errors in
+    the Symbol constructor. '''
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=0)
+    assert ("The precision of a Symbol when specified as an integer number of "
+            "bytes must be > 0" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'character', precision=1)
+    assert ("A Symbol of character type cannot have an associated precision"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'boolean', precision=1)
+    assert ("A Symbol of boolean type cannot have an associated precision"
+            in str(err.value))
+    not_int = Symbol('b', 'real')
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=not_int)
+    assert ("A Symbol representing the precision of another Symbol must be "
+            "of either 'deferred' or scalar, integer type " in str(err.value))
+    not_scalar = Symbol('b', 'integer', [2, 2])
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=not_scalar)
+    assert ("A Symbol representing the precision of another Symbol must be of "
+            "either 'deferred' or scalar, integer type but" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Symbol('a', 'integer', precision="not-valid")
+    assert ("Symbol precision must be one of integer, Symbol.Precision or "
+            "Symbol but got" in str(err.value))
 
 
 def test_symbol_map():

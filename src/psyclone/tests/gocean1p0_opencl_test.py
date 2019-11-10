@@ -346,6 +346,7 @@ def test_opencl_kernel_code_generation(kernel_outputdir):
         "  __global double * restrict p,\n"
         "  __global double * restrict u\n"
         "  ){\n"
+        "  int go_wp;\n"
         "  int cuLEN1 = get_global_size(0);\n"
         "  int cuLEN2 = get_global_size(1);\n"
         "  int pLEN1 = get_global_size(0);\n"
