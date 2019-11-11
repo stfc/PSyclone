@@ -160,16 +160,15 @@ def gen_datatype(symbol):
         # machine specific or is specified via the compiler. Fortran
         # only distinguishes relative precision for single and double
         # precision reals.
-        if (datatype.lower() == "real" and
-            symbol.precision == Symbol.Precision.DOUBLE):
+        if datatype.lower() == "real" and \
+           symbol.precision == Symbol.Precision.DOUBLE:
             return "double precision"
-        else:
-            import logging
-            logging.warning(
-                ("Fortran does not support relative precision for the '{0}' "
-                "datatype but '{1}' was specified for variable '{2}'.".
-                 format(datatype, str(symbol.precision), symbol.name)))
-            return datatype
+        import logging
+        logging.warning(
+            ("Fortran does not support relative precision for the '%s' "
+             "datatype but '%s' was specified for variable '%s'.",
+             datatype, str(symbol.precision), symbol.name))
+        return datatype
     if isinstance(symbol.precision, Symbol):
         if datatype not in ["real", "integer", "logical"]:
             raise VisitorError("kind not support for datatype "

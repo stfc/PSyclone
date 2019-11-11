@@ -40,13 +40,13 @@
 from __future__ import absolute_import
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
 from psyclone.psyGen import Symbol, Node, CodeBlock, Container, SymbolTable
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.fixture(scope="function", name="fort_writer")
@@ -152,7 +152,7 @@ def test_gen_datatype_precision_log(caplog):
     import logging
     with caplog.at_level(logging.WARNING):
         symbol = Symbol("dummy", "integer", precision=Symbol.Precision.DOUBLE)
-        gen_datatype(symbol) == "integer"
+        _ = gen_datatype(symbol)
         assert (
             "WARNING  Fortran does not support relative precision for the "
             "'integer' datatype but 'Precision.DOUBLE' was specified for "
@@ -218,7 +218,7 @@ def test_gen_datatype_error(monkeypatch):
     monkeypatch.setattr(symbol, "precision", "unsupported")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
-    assert ("Unsupported precision type 'str' found." in str(excinfo.value))
+    assert "Unsupported precision type 'str' found." in str(excinfo.value)
 
 
 def test_fw_gen_use(fort_writer):
