@@ -1,4 +1,6 @@
 
+release 1.8.0 8th November 2019
+
 	1) #245 and PR #247. Extend PSyIR to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
@@ -302,10 +304,24 @@
 	profiling so that it happens *after* the application of any
 	transformation script.
 
-	97) PR#505 for #303. Restructure view method to move the replicated
+	97) PR #505 for #303. Restructure view method to move the replicated
 	logic into the abstract class and add index numbers to the printed
 	Schedule statements. Also adds a Schedule to encapsulate Directive
 	children.
+
+	98) #570. PSyclone now set to require fparser 0.0.9 on
+	installation.
+
+	99) PR #572 for #571. Bug fixes now that fparser uses unicode.
+
+	100) PR 524 for #472. Adds support for scalar variables to the
+	SIR backend.
+
+	101) PR #574 towards #567. Fixes bug in profiling that causes
+	crash if first kernel in an invoke is a built-in.
+
+        102) PR #576 for #530. Includes the repository examples in the
+        distribution and updates the documentation accordingly.
 
 release 1.7.0 20th December 2018
 

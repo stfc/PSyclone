@@ -92,7 +92,7 @@ fparser
 The fparser package (https://github.com/stfc/fparser) is a Fortran
 parser originally developed as a part of the f2py project.
 
-The minimum version of fparser required by PSyclone is currently 0.0.8
+The minimum version of fparser required by PSyclone is currently 0.0.9
 but we strongly recommend you install the latest version to reduce the
 chance of encountering problems when parsing existing algorithm or
 kernel code. (Note that for older versions of PSyclone up to and
@@ -227,10 +227,11 @@ a user-local install instead then supply the ``--user`` flag::
    > pip install --user .
 
 This installs the PSyclone modules in
-~/.local/lib/pythonX.Y/site-packages (where X.Y is the version of
+``~/.local/lib/pythonX.Y/site-packages`` (where X.Y is the version of
 Python that you are using) and the 'psyclone' script in
-~/.local/bin. Depending on your linux distribution, you may need to
-add the latter location to your $PATH.
+``~/.local/bin``. Depending on your linux distribution, you may need to
+add the latter location to your $PATH. The examples are installed in
+``~/.local/share/psyclone/examples``.
 
 If for some reason you'd rather not use pip then you can run the setup
 manually::
@@ -322,12 +323,21 @@ supplied then the script writes the generated/re-written Fortran to
 the terminal. For details of the other command-line arguments please
 see the :ref:`psyclone_script` Section.
 
-Examples are provided in the examples directory. There are 3
-subdirectories (dynamo, gocean and nemo) corresponding to different
-APIs that are supported by PSyclone. In this case we are going to use
-one of the dynamo examples::
+Examples are provided in the examples directory of the PSyclone git
+repository - if you have cloned the repository then ``EGS_HOME`` in
+what follows is the root ``PSyclone`` directory. Alternatively, if you
+have installed PSyclone using pip then they may be found in the
+``share/psyclone`` directory under your Python installation. In this
+case you should copy them to some convenient location (hereafter
+called ``EGS_HOME``) before attempting to carry out the following
+instructions.
 
-   > cd <PSYCLONEHOME>/examples/dynamo/eg1
+There are 3 subdirectories (``dynamo``, ``gocean`` and
+``nemo``) corresponding to different APIs that are supported by
+PSyclone. In this case we are going to use one of the dynamo
+examples::
+
+   > cd <EGS_HOME>/examples/dynamo/eg1
    > psyclone -api dynamo0.1 \
    > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
@@ -337,7 +347,7 @@ generated PSy- or middle-layer). Since this is a dynamo example the
 Fortran source code has dependencies on the dynamo system and
 therefore cannot be compiled stand-alone.
 
-You can also use the runme.py example to see the interactive
+You can also use the ``runme.py`` example to see the interactive
 API in action. This script contains::
 
    from psyclone.parse.algorithm import parse
@@ -368,20 +378,21 @@ API in action. This script contains::
 
 It can be run non-interactively as follows::
 
-   > cd <PSYCLONEHOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/dynamo/eg1
    > python runme.py
 
 However, to understand this example in more depth it is instructive to
-cut-and-paste from the runme.py file into your own, interactive python
+cut-and-paste from the ``runme.py`` file into your own, interactive python
 session::
 
-   > cd <PSYCLONEHOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/dynamo/eg1
    > python
 
-In addition to the runme.py script, there is also runme_openmp.py which
-illustrates how one applies an OpenMP transform to a loop schedule
-within the PSy layer. The initial part of this script is the same as that 
-of runme.py (above) and is therefore omitted here::
+In addition to the ``runme.py`` script, there is also
+``runme_openmp.py`` which illustrates how one applies an OpenMP
+transform to a loop schedule within the PSy layer. The initial part of
+this script is the same as that of runme.py (above) and is therefore
+omitted here::
 
    # List the various invokes that the PSy layer contains
    print(psy.invokes.names)
