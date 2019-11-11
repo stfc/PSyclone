@@ -139,7 +139,8 @@ class ProfileNode(Node):
     '''
     This class can be inserted into a schedule to create profiling code.
 
-    :param children: a list of children nodes for this node.
+    :param children: a list of child nodes for this node. These will be made \
+                     children of the child Schedule of this Profile Node.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
@@ -148,7 +149,7 @@ class ProfileNode(Node):
     '''
     # Profiling interface Fortran module
     fortran_module = "profile_mod"
-    # The symbols we import from the profiling module
+    # The symbols we import from the profiling Fortran module
     profiling_symbols = ["ProfileData", "ProfileStart", "ProfileEnd"]
     # The use statement that we will insert. Any use of a module of the
     # same name that doesn't match this will result in a NotImplementedError
