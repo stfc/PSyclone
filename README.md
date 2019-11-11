@@ -10,8 +10,13 @@ please see the [README](doc/README.md) file in the "doc" directory.
 
 # Try it on Binder #
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fjupyter%2Fpsyclone.ipynb)
+Some of the examples are available as Jupyter notebooks. These may
+be launched using Binder from the links below.
 
+ * Existing Fortran code: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb)
+
+ * Fortran conforming to PSyKAl separation of concerns: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fgocean%2Feg1%2Fopenmp.ipynb)
+ 
 # Installation #
 
 If you are reading this then you have presumably not already installed
