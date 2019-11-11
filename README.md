@@ -10,7 +10,7 @@ please see the [README](doc/README.md) file in the "doc" directory.
 
 # Try it on Binder #
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fjupyter%2Fpsyclone.ipynb)
 
 # Installation #
 
