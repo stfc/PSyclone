@@ -129,8 +129,6 @@ def test_gen_datatype():
      ("real", Symbol.Precision.DOUBLE, "double precision"),
      ("integer", Symbol("i_def", "integer"), "integer(kind=i_def)"),
      ("real", Symbol("r_def", "integer"), "real(kind=r_def)")])
-
-
 def test_gen_datatype_precision(datatype, precision, result):
     '''Check the gen_datatype function produces the expected datatypes when
     precision is specified.
@@ -142,7 +140,7 @@ def test_gen_datatype_precision(datatype, precision, result):
 
 # Note, in isolation and when only running tests from the psyir
 # directory, this test does not fail.
-@pytest.mark.xfail(reason="issue #xxx backend logging output is affected by "
+@pytest.mark.xfail(reason="issue #582 backend logging output is affected by "
                    "some other part PSyclone.")
 def test_gen_datatype_precision_log(caplog):
     '''Check the gen_datatype function produces a logging warning if
