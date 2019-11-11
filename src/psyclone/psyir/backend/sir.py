@@ -223,7 +223,7 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         result = ""
-        schedule = node.get_kernel_schedule()
+        schedule = node.kernel_body
         for child in schedule.children:
             result += self._visit(child)
         return result
