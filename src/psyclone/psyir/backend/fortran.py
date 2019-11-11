@@ -109,6 +109,80 @@ def gen_dims(symbol):
     return dims
 
 
+def gen_datatype(symbol):
+    '''Given a Symbol instance as input, return the datatype of the
+    symbol including any specific precision properties.
+
+    :param symbol: the symbol instance.
+    :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
+    :returns: the Fortran representation of the symbol's datatype \
+    including any precision properties.
+    :rtype: str
+
+    '''
+    if symbol.datatype not in ["real", "integer", "character", "boolean"]:
+        raise NotImplementedError(
+            "unsupported datatype '{0}' found in gen_datatype().".
+            format(symbol.datatype))
+
+    if symbol.datatype == "boolean":
+        # boolean is the only datatype name that does not directly
+        # match the Fortran datatype name
+        datatype = "logical"
+    else:
+        datatype = symbol.datatype
+    if not symbol.precision:
+        # This symbol has no precision information so simply return
+        # the name of the datatype.
+        return datatype
+    if isinstance(symbol.precision, int):
+        if datatype not in ['real', 'integer', 'logical']:
+            raise VisitorError("Explicit precision not support for datatype "
+                               "'{0}' in Fortran backend.".format(datatype))
+        if datatype == 'real' and symbol.precision not in [4, 8, 16]:
+            raise VisitorError(
+                "Datatype 'real' supports fixed precision of [4, 8, 16] but "
+                "found '{0}'.".format(symbol.precision))
+        if datatype in ['integer', 'logical'] and symbol.precision not in \
+           [1, 2, 4, 8, 16]:
+            raise VisitorError(
+                "Datatype '{0}' supports fixed precision of [1, 2, 4, 8, "
+                "16] but found '{1}'.".format(datatype, symbol.precision))
+        # Precision has an an explicit size. Use the "type*size" Fortran
+        # extension for simplicity. We could have used
+        # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
+        # ISO_FORTRAN_ENV; type(type64) :: MyType.
+        return "{0}*{1}".format(datatype, symbol.precision)
+
+    if isinstance(symbol.precision, Symbol.Precision):
+        # The precision information is not absolute so is either
+        # machine specific or is specified via the compiler. Fortran
+        # only distinguishes relative precision for single and double
+        # precision reals.
+        if (datatype.lower() == "real" and
+            symbol.precision == Symbol.Precision.DOUBLE):
+            return "double precision"
+        else:
+            import logging
+            logging.warning(
+                ("Fortran does not support relative precision for the '{0}' "
+                "datatype but '{1}' was specified for variable '{2}'.".
+                 format(datatype, str(symbol.precision), symbol.name)))
+            return datatype
+    if isinstance(symbol.precision, Symbol):
+        if datatype not in ["real", "integer", "logical"]:
+            raise VisitorError("kind not support for datatype "
+                               "'{0}' in Fortran backend.".format(datatype))
+        # Question: Should we check whether the value of precision is
+        # known and, if so, what should we do if not?
+        # The precision information is provided by a parameter, so use KIND.
+        return "{0}(kind={1})".format(datatype, symbol.precision.name)
+    raise VisitorError(
+        "Unsupported precision type '{0}' found.".
+        format(type(datatype).__name__))
+
+
 def _reverse_map(op_map):
     '''
     Reverses the supplied fortran2psyir mapping to make a psyir2fortran
@@ -186,16 +260,12 @@ class FortranWriter(PSyIRVisitor):
                 "".format(symbol.name, symbol.scope,
                           type(symbol.interface).__name__))
 
-        intent = gen_intent(symbol)
+        datatype = gen_datatype(symbol)
+        result = "{0}{1}".format(self._nindent, datatype)
         dims = gen_dims(symbol)
-        result = "{0}{1}".format(self._nindent, symbol.datatype)
-        # The PSyIR does not currently capture kind information, see
-        # issue #375
-        # kind = ...
-        # if kind:
-        #     result += "({0})".format(kind)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
+        intent = gen_intent(symbol)
         if intent:
             result += ", intent({0})".format(intent)
         if symbol.is_constant:
