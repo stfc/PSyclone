@@ -8,6 +8,10 @@ Please see [psyclone.pdf](psyclone.pdf) in this directory (or on
 more information. If you would prefer to build the documentation,
 please see the [README](doc/README.md) file in the "doc" directory.
 
+# Try it on Binder #
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master)
+
 # Installation #
 
 If you are reading this then you have presumably not already installed
