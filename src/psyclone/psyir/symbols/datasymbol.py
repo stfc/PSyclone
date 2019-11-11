@@ -71,6 +71,11 @@ class DataSymbol(Symbol):
         The datatype of the constant value must be compatible with the \
         datatype of the symbol.
     :type constant_value: int, str or bool
+    :param precision: the amount of storage required by the datatype (bytes) \
+            or a reference to a Symbol holding the type information \
+            or a label identifying a default precision.
+    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or \
+                     :py:class:`psyclone.psyGen.Symbol.Precision`
 
     :raises NotImplementedError: provided parameters are not supported yet.
     :raises TypeError: provided parameters have invalid error type.
@@ -90,6 +95,14 @@ class DataSymbol(Symbol):
                'character': str,
                'boolean': bool,
                'real': float}
+
+    class Precision(Enum):
+        '''
+        Enumeration for the different types of 'default' precision that may
+        be specified for a Symbol.
+        '''
+        SINGLE = 1
+        DOUBLE = 2
 
     class Access(Enum):
         '''
@@ -197,16 +210,39 @@ class DataSymbol(Symbol):
             return "Argument(pass-by-value={0})".format(self._pass_by_value)
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None):
+                 interface=None, precision=None):
 
         super(DataSymbol, self).__init__(name)
 
-        if datatype not in DataSymbol.valid_data_types:
-            raise NotImplementedError(
-                "DataSymbol can only be initialised with {0} datatypes but "
-                "found '{1}'.".format(str(DataSymbol.valid_data_types),
-                                      datatype))
-        self._datatype = datatype
+        self._name = name
+        self._datatype = None
+        self.datatype = datatype
+
+        # Check that the supplied 'precision' is valid
+        if precision is not None:
+            if datatype.lower() not in ["real", "integer"]:
+                raise ValueError(
+                    "A DataSymbol of {0} type cannot have an associated "
+                    "precision".format(datatype.lower()))
+            if not isinstance(precision,
+                              (int, DataSymbol.Precision, DataSymbol)):
+                raise TypeError(
+                    "DataSymbol precision must be one of integer, "
+                    "DataSymbol.Precision or DataSymbol but got '{0}'"
+                    "".format(type(precision).__name__))
+            if isinstance(precision, int) and precision <= 0:
+                raise ValueError(
+                    "The precision of a DataSymbol when specified as an "
+                    "integer number of bytes must be > 0 but got {0}"
+                    "".format(precision))
+            if (isinstance(precision, DataSymbol) and
+                (precision.datatype not in ["integer", "deferred"]
+                 or precision.is_array)):
+                raise ValueError(
+                    "A DataSymbol representing the precision of another "
+                    "DataSymbol must be of either 'deferred' or scalar, "
+                    "integer type but got: {0}".format(str(precision)))
+        self.precision = precision
 
         if shape is None:
             shape = []
@@ -262,6 +298,25 @@ class DataSymbol(Symbol):
         :rtype: str
         '''
         return self._datatype
+
+    @datatype.setter
+    def datatype(self, value):
+        ''' Setter for DataSymbol datatype.
+
+        :param str value: new value for datatype.
+
+        :raises TypeError: if value is not a str.
+        :raises NotImplementedError: if the specified data type is invalid.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                "The datatype of a DataSymbol must be specified using a str "
+                "but got: '{0}'".format(type(value).__name__))
+        if value not in DataSymbol.valid_data_types:
+            raise NotImplementedError(
+                "DataSymbol can only be initialised with {0} datatypes but "
+                "found '{1}'.".format(str(DataSymbol.valid_data_types), value))
+        self._datatype = value
 
     @property
     def shape(self):
@@ -435,11 +490,10 @@ class DataSymbol(Symbol):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
-        :param symbol_in: The symbol from which the properties are \
-                          copied from.
+        :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises TypeError: If the argument is not the expected type.
+        :raises TypeError: if the argument is not the expected type.
 
         '''
         if not isinstance(symbol_in, DataSymbol):
@@ -450,3 +504,4 @@ class DataSymbol(Symbol):
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
+        self.precision = symbol_in.precision

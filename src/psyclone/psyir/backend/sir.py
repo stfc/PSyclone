@@ -117,6 +117,13 @@ class SIRWriter(PSyIRVisitor):
         # found in the PSyIR. This is required as the SIR declares
         # field names after the computation.
         self._field_names = set()
+        # The _scalar_names variable stores the unique scalar names
+        # found in the PSyIR. The current assumption is that scalars
+        # are temporaries. This is not necessarily correct and this
+        # problem is captured in issue #521. Scalar temporaries can be
+        # declared as field temporaries as the Dawn backend works out
+        # what is required.
+        self._scalar_names = set()
 
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
@@ -251,6 +258,13 @@ class SIRWriter(PSyIRVisitor):
         functions = []
         for name in self._field_names:
             functions.append("make_field(\"{0}\")".format(name))
+        # The current assumption is that scalars are temporaries. This
+        # is not necessarily correct and this problem is captured in
+        # issue #521. Scalar temporaries can be declared as field
+        # temporaries as the Dawn backend works out what is required.
+        for name in self._scalar_names:
+            functions.append(
+                "make_field(\"{0}\", is_temporary=True)".format(name))
         result += ", ".join(functions)
         result += "]\n"
         result += (
@@ -345,8 +359,16 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Method reference_node in class SIRWriter: SIR Reference "
                 "node is not expected to have any children.")
-        return "{0}make_var_access_expr(\"{1}\")".format(self._nindent,
-                                                         node.name)
+        # _scalar_names is a set so duplicates will be ignored. It
+        # captures all unique scalar names as scalars are currently
+        # treated as temporaries (#521 captures this). The simplest
+        # way to declare a scalar temporary in Dawn is to treat it as
+        # a field temporary (as the Dawn backend works out if a scalar
+        # is required).
+        self._scalar_names.add(node.name)
+
+        return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
+                                                           node.name)
 
     def array_node(self, node):
         '''This method is called when an Array instance is found in the PSyIR

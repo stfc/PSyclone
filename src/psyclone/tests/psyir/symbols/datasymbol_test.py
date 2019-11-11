@@ -49,9 +49,16 @@ def test_datasymbol_initialisation():
 
     # Test with valid arguments
     assert isinstance(DataSymbol('a', 'real'), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real',
+                                 precision=DataSymbol.Precision.DOUBLE),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', precision=4), DataSymbol)
+    kind = DataSymbol('r_def', 'integer')
+    assert isinstance(DataSymbol('a', 'real', precision=kind), DataSymbol)
     # real constants are not currently supported
     assert isinstance(DataSymbol('a', 'integer'), DataSymbol)
     assert isinstance(DataSymbol('a', 'integer', constant_value=0), DataSymbol)
+    assert isinstance(DataSymbol('a', 'integer', precision=4), DataSymbol)
     assert isinstance(DataSymbol('a', 'character'), DataSymbol)
     assert isinstance(DataSymbol('a', 'character', constant_value="hello"),
                       DataSymbol)
@@ -62,6 +69,7 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', 'real', [3]), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [3, None]), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', []), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [], precision=8), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [],
                                  interface=DataSymbol.Argument()),
                       DataSymbol)
@@ -83,6 +91,10 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [3, dim, None]), DataSymbol)
 
+
+def test_symbol_init_errors():
+    ''' Test that the Symbol constructor raises appropriate errors if supplied
+    with invalid arguments. '''
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         DataSymbol('a', 'invalidtype', [], 'local')
@@ -91,6 +103,12 @@ def test_datasymbol_initialisation():
         "'invalidtype'.".format(str(DataSymbol.valid_data_types))) in str(
             error.value)
 
+    with pytest.raises(TypeError) as error:
+        DataSymbol('a', 3, [], 'local')
+    assert ("datatype of a DataSymbol must be specified using a str but got:"
+            in str(error.value))
+
+    dim = DataSymbol('dim', 'integer', [])
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'real', shape=dim)
     assert "DataSymbol shape attribute must be a list." in str(error.value)
@@ -116,26 +134,26 @@ def test_datasymbol_initialisation():
         DataSymbol('a', 'integer', interface=DataSymbol.Argument(),
                    constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
-            "a Local interface but found '") in str(error)
+            "a Local interface but found '") in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', shape=[None], constant_value=9)
     assert ("Symbol with a constant value must be a scalar but the shape "
-            "attribute is not empty.") in str(error)
+            "attribute is not empty.") in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', constant_value=9.81)
     assert ("This DataSymbol instance's datatype is 'integer' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'int'>' but found " in str(error)
-    assert "'float'>'." in str(error)
+            "constant value is expected to be") in str(error.value)
+    assert "'int'>' but found " in str(error.value)
+    assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'character', constant_value=42)
     assert ("This DataSymbol instance's datatype is 'character' which means "
-            "the constant value is expected to be") in str(error)
-    assert "'str'>' but found " in str(error)
-    assert "'int'>'." in str(error)
+            "the constant value is expected to be") in str(error.value)
+    assert "'str'>' but found " in str(error.value)
+    assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'boolean', constant_value="hello")
@@ -143,6 +161,39 @@ def test_datasymbol_initialisation():
             "constant value is expected to be") in str(error)
     assert "'bool'>' but found " in str(error)
     assert "'str'>'." in str(error)
+
+
+def test_symbol_precision_errors():
+    ''' Check that invalid precision settings raise the appropriate errors in
+    the Symbol constructor. '''
+    with pytest.raises(ValueError) as err:
+        DataSymbol('a', 'integer', precision=0)
+    assert ("The precision of a DataSymbol when specified as an integer number"
+            " of bytes must be > 0" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        DataSymbol('a', 'character', precision=1)
+    assert ("A DataSymbol of character type cannot have an associated "
+            "precision" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        DataSymbol('a', 'boolean', precision=1)
+    assert ("A DataSymbol of boolean type cannot have an associated precision"
+            in str(err.value))
+    not_int = DataSymbol('b', 'real')
+    with pytest.raises(ValueError) as err:
+        DataSymbol('a', 'integer', precision=not_int)
+    assert ("A DataSymbol representing the precision of another DataSymbol "
+            "must be of either 'deferred' or scalar, integer type "
+            in str(err.value))
+    not_scalar = DataSymbol('b', 'integer', [2, 2])
+    with pytest.raises(ValueError) as err:
+        DataSymbol('a', 'integer', precision=not_scalar)
+    assert ("A DataSymbol representing the precision of another DataSymbol "
+            "must be of either 'deferred' or scalar, integer type but"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        DataSymbol('a', 'integer', precision="not-valid")
+    assert ("DataSymbol precision must be one of integer, DataSymbol.Precision"
+            " or DataSymbol but got" in str(err.value))
 
 
 def test_symbol_map():
