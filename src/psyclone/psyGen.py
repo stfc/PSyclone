@@ -1361,12 +1361,7 @@ class Node(object):
         :param int index: the position of this Node wrt its siblings or None.
 
         '''
-        # TODO #542 remove ProfileNode and ExtractNode from this check once
-        # they each have a Schedule.
-        from psyclone.profiler import ProfileNode
-        from psyclone.extractor import ExtractNode
-        if not isinstance(self.parent, (Schedule, ProfileNode, ExtractNode)) \
-           or index is None:
+        if not isinstance(self.parent, Schedule) or index is None:
             print("{0}{1}".format(self.indent(indent),
                                   self.node_str(colour=True)))
         else:
