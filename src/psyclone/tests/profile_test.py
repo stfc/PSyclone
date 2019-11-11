@@ -73,23 +73,24 @@ def test_profile_basic(capsys):
                            "gocean1.0", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
-    assert isinstance(invoke.schedule.children[0], ProfileNode)
+    assert isinstance(invoke.schedule[0], ProfileNode)
 
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = Loop().coloured_name(True)
-    profile = invoke.schedule.children[0].coloured_name(True)
+    profile = invoke.schedule[0].coloured_name(True)
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
         gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
         "    0: " + profile + "[]\n"
-        "        0: " + loop + "[type='outer', field_space='go_cv', "
+        "        " + sched + "[]\n"
+        "            0: " + loop + "[type='outer', field_space='go_cv', "
         "it_space='go_internal_pts']\n")
-
     assert expected in out
 
     prt = ProfileRegionTrans()
@@ -97,11 +98,9 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = prt.apply(invoke.schedule.children[0]
-                             .children[0].children[0])
+    new_sched, _ = prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
 
     new_sched_str = str(new_sched)
-
     correct = ("""GOInvokeSchedule[invoke='invoke_0', \
 Constant loop bounds=True]:
 ProfileStart[var=profile]
@@ -110,6 +109,7 @@ Literal[value:'2']
 Literal[value:'jstop-1']
 Literal[value:'1']
 Schedule:
+ProfileStart[var=profile_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
 Literal[value:'2']
 Literal[value:'istop']
@@ -118,6 +118,7 @@ Schedule:
 kern call: compute_cv_code
 End Schedule
 End GOLoop
+ProfileEnd
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
@@ -561,22 +562,33 @@ ProfileEnd
 End Schedule""")
     assert correct in str(sched2)
 
-    # Check that an sublist created from individual elements
+    # Check that a sublist created from individual elements
     # can be wrapped
-    sched3, _ = prt.apply([sched2.children[0].children[0],
-                           sched2.children[0].children[1]])
+    sched3, _ = prt.apply([sched2[0].profile_body[0],
+                           sched2[0].profile_body[1]])
     sched3.view()
-    out, _ = capsys.readouterr()  # .replace("\n", "")
-    # out is unicode, and has no replace function, so convert to string first
-    out = str(out).replace("\n", "")
-    correct_re = (".*GOInvokeSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Profile.*"
-                  r"            .*Loop.*\[type='outer'.*"
-                  r"            .*Profile.*"
-                  r"                .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
-    assert re.search(correct_re, out)
+    out, _ = capsys.readouterr()
+
+    from psyclone.psyGen import SCHEDULE_COLOUR_MAP, colored
+    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+
+    indent = 4*" "
+    correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
+               indent + "0: " + prof + "[]\n" +
+               2*indent + sched +"[]\n" +
+               3*indent + "0: " + prof + "[]\n" +
+               4*indent + sched +"[]\n" +
+               5*indent + "0: " + loop + "[type='outer', field_space='go_ct',"
+               " it_space='go_internal_pts']\n")
+    assert correct in out
+    correct2 = (5*indent + "1: " + prof + "[]\n" +
+                6*indent + sched + "[]\n" +
+                7*indent + "0: " + loop + "[type='outer', field_space='go_cu',"
+                " it_space='go_all_pts']\n")
+    assert correct2 in out
 
 
 # -----------------------------------------------------------------------------
