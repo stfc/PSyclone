@@ -484,26 +484,6 @@ Schedule. As the structure of Directives is under discussion, it was
 decided to raise an exception if the parent node of a CodeBlock is a
 Directive (for the time being).
 
-.. _symbol-label:
-
-Symbol Table and Symbol
-=======================
-
-The Container (see :ref:`container-label` and KernelSchedule (see
-:ref:`kernel_schedule-label`) nodes contain a SymbolTable
-(`psyclone.psyGen.SymbolTable`) which keeps a record of the Symbols
-(`psyclone.psyGen.Symbol`) specified and used within them.  A `Symbol`
-is defined as:
-
-.. autoclass:: psyclone.psyGen.Symbol
-    :members:
-
-The SymbolTable has the following interface:
-
-.. autoclass:: psyclone.psyGen.SymbolTable
-    :members:
-
-
 Dependence Analysis
 ===================
 
