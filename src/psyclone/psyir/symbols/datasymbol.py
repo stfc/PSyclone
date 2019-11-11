@@ -74,8 +74,8 @@ class DataSymbol(Symbol):
     :param precision: the amount of storage required by the datatype (bytes) \
             or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
-    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or \
-                     :py:class:`psyclone.psyGen.Symbol.Precision`
+    :type precision: int or :py:class:`psyclone.psyir.symbol.DataSymbol` or \
+                     :py:class:`psyclone.psyir.symbols.DataSymbol.Precision`
 
     :raises NotImplementedError: provided parameters are not supported yet.
     :raises TypeError: provided parameters have invalid error type.

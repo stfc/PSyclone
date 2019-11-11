@@ -708,7 +708,7 @@ class Fparser2Reader(object):
 
         :param symbol_table: the SymbolTable associated with the code \
             being processed.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
 
@@ -785,7 +785,7 @@ class Fparser2Reader(object):
         :param str name: the name of the variable holding the KIND value.
         :param symbol_table: the Symbol Table associated with the code being\
                              processed.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: the Symbol representing the KIND parameter.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
