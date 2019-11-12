@@ -788,6 +788,7 @@ def test_ompdo_constructor():
     # Break the directive
     ompdo.children[0] = "not-a-schedule"
     with pytest.raises(InternalError) as err:
+        # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
             "child but found: ['str']" in str(err.value))
@@ -2943,7 +2944,6 @@ def test_loop_navigation_properties():
     # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
-    # pylint: disable=too-many-statements
     from psyclone.psyGen import Loop
     loop = Loop()
 
@@ -3563,7 +3563,6 @@ def test_kernelschedule_name_setter():
 
 # Test Symbol Class
 def test_symbol_initialisation():
-    # pylint: disable=too-many-statements
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
     # Test with valid arguments
