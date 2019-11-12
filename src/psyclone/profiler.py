@@ -194,6 +194,9 @@ class ProfileNode(Node):
         '''
         :returns: the Schedule associated with this Profiling region.
         :rtype: :py:class:`psyclone.psyGen.Schedule`
+
+        :raises InternalError: if this Profile node does not have a Schedule \
+                               as its one and only child.
         '''
         from psyclone.psyGen import Schedule, InternalError
         if len(self.children) != 1 or not \
@@ -408,11 +411,6 @@ class ProfileNode(Node):
 
         # Find the parent in the parse tree - first get a pointer to the
         # AST for the content of this region.
-        #if isinstance(self.children[0], Schedule) and \
-        #   not self.children[0].ast:
-        #    # TODO #435 Schedule should really have a valid ast pointer.
-        #    content_ast = self.children[0][0].ast
-        #else:
         content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
         fp_parent = content_ast._parent
@@ -425,10 +423,10 @@ class ProfileNode(Node):
         # work back up the fparser2 parse tree until we find a node that is
         # a direct child of the parent node.
         ast_end_index = None
-        if self.profile_body.children[-1].ast_end:
-            ast_end = self.profile_body.children[-1].ast_end
+        if self.profile_body[-1].ast_end:
+            ast_end = self.profile_body[-1].ast_end
         else:
-            ast_end = self.profile_body.children[-1].ast
+            ast_end = self.profile_body[-1].ast
         # Keep a copy of the pointer into the parse tree in case of errors
         ast_end_copy = ast_end
 

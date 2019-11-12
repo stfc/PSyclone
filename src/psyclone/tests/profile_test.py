@@ -531,7 +531,6 @@ End Schedule""")
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
-    schedule.view()
     sched2, _ = prt.apply(schedule[0].profile_body[1])
 
     correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
