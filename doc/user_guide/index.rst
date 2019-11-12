@@ -35,7 +35,7 @@
 
 .. only:: html
 
-    .. image:: psyclone_v1.0.png
+    .. image:: ../logo/psyclone_v1.0.png
         :width: 75%
         :align: center
         :alt: PSyclone
