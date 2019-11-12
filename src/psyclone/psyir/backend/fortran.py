@@ -144,10 +144,12 @@ def gen_datatype(symbol):
         datatype = "logical"
     else:
         datatype = symbol.datatype
+
     if not symbol.precision:
         # This symbol has no precision information so simply return
         # the name of the datatype.
         return datatype
+
     if isinstance(symbol.precision, int):
         if datatype not in ['real', 'integer', 'logical']:
             raise VisitorError("Explicit precision not supported for datatype "
@@ -186,6 +188,7 @@ def gen_datatype(symbol):
         #      "datatype but '%s' was specified for variable '%s'.",
         #      datatype, str(symbol.precision), symbol.name)
         return datatype
+
     if isinstance(symbol.precision, Symbol):
         if datatype not in ["real", "integer", "logical"]:
             raise VisitorError(
@@ -193,6 +196,7 @@ def gen_datatype(symbol):
                 "Fortran backend.".format(datatype, symbol.name))
         # The precision information is provided by a parameter, so use KIND.
         return "{0}(kind={1})".format(datatype, symbol.precision.name)
+
     raise VisitorError(
         "Unsupported precision type '{0}' found for symbol '{1}' in Fortran "
         "backend.".format(type(datatype).__name__, symbol.name))
