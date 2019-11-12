@@ -1168,10 +1168,9 @@ class Node(object):
         # now call any children so they can add their information to
         # the graph
         if isinstance(self, Loop):
-            # Ignore the children that represents the start, stop
-            # and step value of the loop:
-            for child in self.children[3:]:
-                child.dag_gen(graph)
+            # In case of a loop only loop at the body (the other part
+            # of the tree contain start, stop, step values):
+            self.loop_body.dag_gen(graph)
         else:
             for child in self.children:
                 child.dag_gen(graph)
