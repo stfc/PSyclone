@@ -46,13 +46,14 @@ PSyclone User's Guide
 
 .. only:: html
 
-    PSyclone is a code generation system developed to produce domain-specific
+    PSyclone is a code generation system developed to support domain-specific
     languages (DSLs) for finite element, finite volume and finite difference
     codes. Notably, it is used in the
-    `LFRic Project <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`_,
-    but it is also being extended to support the
-    `GOcean <https://puma.nerc.ac.uk/trac/GOcean>`_ and
-    `NEMO <https://www.nemo-ocean.eu/>`_ ocean models. 
+    `LFRic Project <https://www.metoffice.gov.uk/research/modelling-systems/
+    lfric/>`_, and it also supports the `GOcean <https://puma.nerc.ac.uk/trac
+    /GOcean>`_ (2D, finite difference) DSL. In addition it is being extended
+    to support the processing of existing finite difference codes such as the 
+    `NEMO <https://www.nemo-ocean.eu/>`_ ocean model. 
     Find more information in the
     `Developer's Guide <https://psyclone-dev.readthedocs.io/>`_
     and the
