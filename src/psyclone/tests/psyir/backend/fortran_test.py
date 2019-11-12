@@ -44,7 +44,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
 from psyclone.psyGen import Node, CodeBlock, Container
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
+    GlobalInterface, ArgumentInterface
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -61,18 +62,20 @@ def test_gen_intent():
 
     '''
     symbol = DataSymbol("dummy", "integer",
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     assert gen_intent(symbol) is None
     symbol = DataSymbol("dummy", "integer",
-                        interface=DataSymbol.Argument(DataSymbol.Access.READ))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     assert gen_intent(symbol) == "in"
     symbol = DataSymbol("dummy", "integer",
-                        interface=DataSymbol.Argument(DataSymbol.Access.WRITE))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.WRITE))
     assert gen_intent(symbol) == "out"
     symbol = DataSymbol("dummy", "integer",
-                        interface=DataSymbol.Argument(
-                            DataSymbol.Access.READWRITE))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
 
 
@@ -82,8 +85,8 @@ def test_gen_intent_error(monkeypatch):
 
     '''
     symbol = DataSymbol("dummy", "integer",
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_intent(symbol)
@@ -96,11 +99,11 @@ def test_gen_dims():
 
     '''
     arg = DataSymbol("arg", "integer",
-                     interface=DataSymbol.Argument(
-                         access=DataSymbol.Access.UNKNOWN))
+                     interface=ArgumentInterface(
+                         ArgumentInterface.Access.UNKNOWN))
     symbol = DataSymbol("dummy", "integer", shape=[arg, 2, None],
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     assert gen_dims(symbol) == ["arg", "2", ":"]
 
 
@@ -110,8 +113,8 @@ def test_gen_dims_error(monkeypatch):
 
     '''
     symbol = DataSymbol("dummy", "integer",
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_dims(symbol)
@@ -125,7 +128,7 @@ def test_fw_gen_use(fort_writer):
 
     '''
     symbol = DataSymbol("dummy1", "deferred",
-                        interface=DataSymbol.Global(
+                        interface=GlobalInterface(
                             ContainerSymbol("my_module")))
     result = fort_writer.gen_use(symbol)
     assert result == "use my_module, only : dummy1\n"
@@ -134,7 +137,7 @@ def test_fw_gen_use(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_use(symbol)
     assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
-            "be a Global instance but found 'Local'."
+            "be a Global instance but found 'LocalInterface'."
             in str(excinfo.value))
 
 
@@ -151,15 +154,15 @@ def test_fw_gen_vardecl(fort_writer):
 
     # Array with intent
     symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.READ))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
     symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2) :: dummy2\n"
 
@@ -170,13 +173,13 @@ def test_fw_gen_vardecl(fort_writer):
 
     # Use statement
     symbol = DataSymbol("dummy1", "deferred",
-                        interface=DataSymbol.Global(
+                        interface=GlobalInterface(
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("gen_vardecl requires the symbol 'dummy1' to be a local "
-            "declaration or an argument declaration, but found 'Global'."
-            in str(excinfo.value))
+            "declaration or an argument declaration, but found "
+            "'GlobalInterface'." in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):
@@ -189,11 +192,11 @@ def test_gen_decls(fort_writer):
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
     use_statement = DataSymbol("my_use", "deferred",
-                               interface=DataSymbol.Global(
+                               interface=GlobalInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
     argument_variable = DataSymbol("arg", "integer",
-                                   interface=DataSymbol.Argument())
+                                   interface=ArgumentInterface())
     symbol_table.add(argument_variable)
     local_variable = DataSymbol("local", "integer")
     symbol_table.add(local_variable)
@@ -321,7 +324,7 @@ def test_fw_container_3(fort_writer, monkeypatch):
     container = schedule.root
     symbol = container.symbol_table.symbols[0]
     assert symbol.name == "a"
-    monkeypatch.setattr(symbol, "_interface", DataSymbol.Argument())
+    monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)

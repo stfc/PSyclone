@@ -40,7 +40,7 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import KernelSchedule, Return
-from psyclone.psyir.symbols import DataSymbol, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArgumentInterface
 
 
 def test_oclw_initialization():
@@ -102,8 +102,8 @@ def test_oclw_gen_declaration():
 
     # Array with unknown intent
     symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
@@ -179,7 +179,7 @@ def test_oclw_kernelschedule():
     kschedule.symbol_table.__class__ = MockSymbolTable
 
     # Create a sample symbol table and kernel schedule
-    interface = DataSymbol.Argument(access=DataSymbol.Access.UNKNOWN)
+    interface = ArgumentInterface(ArgumentInterface.Access.UNKNOWN)
     i = DataSymbol('i', 'integer', interface=interface)
     j = DataSymbol('j', 'integer', interface=interface)
     data1 = DataSymbol('data1', 'real', [10, 10], interface=interface)

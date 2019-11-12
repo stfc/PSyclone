@@ -45,7 +45,8 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
     Container, InternalError, GenerationError
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
+    ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -234,7 +235,7 @@ def test_generate_schedule_dummy_subroutine(parser):
 
     # Test argument intent is inferred when not available in the declaration
     assert schedule.symbol_table.lookup('f3').interface.access is \
-        DataSymbol.Access.READWRITE
+        ArgumentInterface.Access.READWRITE
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
@@ -328,8 +329,7 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("l1").shape == []
-    assert isinstance(fake_parent.symbol_table.lookup("l1").interface,
-                      DataSymbol.Local)
+    assert fake_parent.symbol_table.lookup("l1").is_local
     assert not fake_parent.symbol_table.lookup("l1").precision
 
     reader = FortranStringReader("Real      ::      l2")
@@ -471,28 +471,28 @@ def test_process_declarations_intent(f2008_parser):
     arg_list = [Name("arg1")]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg1").interface.access == \
-        DataSymbol.Access.READ
+        ArgumentInterface.Access.READ
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     arg_list.append(Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg2").interface.access == \
-        DataSymbol.Access.READ
+        ArgumentInterface.Access.READ
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
     arg_list.append(Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg3").interface.access == \
-        DataSymbol.Access.WRITE
+        ArgumentInterface.Access.WRITE
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
     arg_list.append(Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg4").interface.access is \
-        DataSymbol.Access.READWRITE
+        ArgumentInterface.Access.READWRITE
 
 
 def test_process_declarations_kind_new_param(f2008_parser):
@@ -720,7 +720,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
     assert fake_parent.symbol_table.lookup("array3").interface.access is \
-        DataSymbol.Access.READ
+        ArgumentInterface.Access.READ
 
 
 def test_use_stmt(f2008_parser):

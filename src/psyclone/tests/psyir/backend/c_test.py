@@ -46,7 +46,7 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyGen import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 
 def test_cw_gen_declaration():
@@ -71,15 +71,15 @@ def test_cw_gen_declaration():
 
     # Array argument
     symbol = DataSymbol("dummy2", "real", shape=[2, None, 2],
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.READ))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
     # Array with unknown intent
     symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.UNKNOWN))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)
     assert result == "int * restrict dummy2"
 

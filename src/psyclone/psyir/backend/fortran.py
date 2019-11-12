@@ -41,7 +41,7 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from fparser.two import Fortran2003
 
@@ -63,12 +63,12 @@ def gen_intent(symbol):
     :rtype: str or NoneType
 
     '''
-    mapping = {DataSymbol.Access.UNKNOWN: None,
-               DataSymbol.Access.READ: "in",
-               DataSymbol.Access.WRITE: "out",
-               DataSymbol.Access.READWRITE: "inout"}
+    mapping = {ArgumentInterface.Access.UNKNOWN: None,
+               ArgumentInterface.Access.READ: "in",
+               ArgumentInterface.Access.WRITE: "out",
+               ArgumentInterface.Access.READWRITE: "inout"}
 
-    if isinstance(symbol.interface, DataSymbol.Argument):
+    if symbol.is_argument:
         try:
             return mapping[symbol.interface.access]
         except KeyError as excinfo:
@@ -154,7 +154,7 @@ class FortranWriter(PSyIRVisitor):
         a use statement (its interface value is not a Global instance).
 
         '''
-        if not isinstance(symbol.interface, DataSymbol.Global):
+        if not symbol.is_global:
             raise VisitorError(
                 "gen_use() requires the symbol interface for symbol '{0}' to "
                 "be a Global instance but found '{1}'."
@@ -177,8 +177,7 @@ class FortranWriter(PSyIRVisitor):
         argument declaration).
 
         '''
-        if not isinstance(symbol.interface, (DataSymbol.Local,
-                                             DataSymbol.Argument)):
+        if not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
                 "gen_vardecl requires the symbol '{0}' to be a local "
                 "declaration or an argument declaration, but found '{1}'."

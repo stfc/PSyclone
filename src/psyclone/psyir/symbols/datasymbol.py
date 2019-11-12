@@ -42,10 +42,6 @@ from enum import Enum
 from psyclone.psyir.symbols import Symbol
 
 
-class DataSymbolInterface(object):
-    ''' Abstract class of a DataSymbol Interface '''
-
-
 class DataSymbol(Symbol):
     '''
     Symbol identifying a data element. It contains information about:
@@ -65,7 +61,7 @@ class DataSymbol(Symbol):
         whether it is passed as a routine argument or accessed in some other \
         way).
     :type interface: \
-        :py:class:`psyclone.psyir.symbols.DataSymbol.SymbolInterface`
+        :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
     :param constant_value: sets a fixed known value for this DataSymbol. If \
         the value is None (the default) then this symbol is not a constant. \
         The datatype of the constant value must be compatible with the \
@@ -103,111 +99,6 @@ class DataSymbol(Symbol):
         '''
         SINGLE = 1
         DOUBLE = 2
-
-    class Access(Enum):
-        '''
-        Enumeration for the different types of access that a Argument
-        DataSymbol is permitted to have.
-
-        '''
-        ## The symbol is only ever read within the current scoping block.
-        READ = 1
-        ## The first access of the symbol in the scoping block is a write and
-        # therefore any value that it may have had upon entry is discarded.
-        WRITE = 2
-        ## The first access of the symbol in the scoping block is a read but
-        # it is subsequently written to.
-        READWRITE = 3
-        ## The way in which the symbol is accessed in the scoping block is
-        # unknown
-        UNKNOWN = 4
-
-    class Local(DataSymbolInterface):
-        ''' The data just exists in the Local scope '''
-
-        def __str__(self):
-            return "Local"
-
-    class Global(DataSymbolInterface):
-        '''
-        Describes the interface to a DataSymbol representing data that
-        is supplied as some sort of global variable, and therefore it is
-        defined in a external PSyIR container.
-
-        :param container_symbol: symbol of the external container from which \
-            the symbol is imported.
-        :type container_symbol: \
-            :py:class:`psyclone.psyir.symbols.ContainerSymbol`
-
-        :raise TypeError: if the container_symbol is not a ContainerSymbol
-        '''
-        def __init__(self, container_symbol):
-            from psyclone.psyir.symbols import ContainerSymbol
-
-            super(DataSymbol.Global, self).__init__()
-
-            if not isinstance(container_symbol, ContainerSymbol):
-                raise TypeError(
-                    "Global container_symbol parameter must be of type"
-                    " ContainerSymbol, but found {0}."
-                    "".format(type(container_symbol)))
-
-            self._container_symbol = container_symbol
-
-        @property
-        def container_symbol(self):
-            '''
-            :return: symbol of the container containing this datasymbol.
-            :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
-            '''
-            return self._container_symbol
-
-        def __str__(self):
-            return "Global(container='{0}')".format(self.container_symbol.name)
-
-    class Argument(DataSymbolInterface):
-        '''
-        Captures the interface to a symbol that is accessed as a routine
-        argument.
-
-        :param access: how the symbol is accessed within the local scope.
-        :type access: :py:class:`psyclone.psyir.symbols.DataSymbol.Access`
-        '''
-        def __init__(self, access=None):
-            super(DataSymbol.Argument, self).__init__()
-            self._pass_by_value = False
-            self._access = None
-            # Use the setter as that has error checking
-            if not access:
-                self.access = DataSymbol.Access.UNKNOWN
-            else:
-                self.access = access
-
-        @property
-        def access(self):
-            '''
-            :returns: the access-type for this argument.
-            :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Access`
-            '''
-            return self._access
-
-        @access.setter
-        def access(self, value):
-            '''
-            :param value: the new access type.
-            :type value: :py:class:`psyclon.psyir.symbols.DataSymbol.Access`
-
-            :raises TypeError: if the supplied value is not a \
-                DataSymbol.Access
-            '''
-            if not isinstance(value, DataSymbol.Access):
-                raise TypeError(
-                    "SymbolInterface.access must be a 'DataSymbol.Access' "
-                    "but got '{0}'.".format(type(value)))
-            self._access = value
-
-        def __str__(self):
-            return "Argument(pass-by-value={0})".format(self._pass_by_value)
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
                  interface=None, precision=None):
@@ -261,11 +152,9 @@ class DataSymbol(Symbol):
                                 "'DataSymbol', 'integer' or 'None'.")
 
         if not interface:
-            self.interface = DataSymbol.Local()
+            self.interface = LocalInterface()
         else:
             self.interface = interface
-
-        assert isinstance(self._interface, DataSymbolInterface)
 
         self._shape = shape
         # The following attributes have setter methods (with error checking)
@@ -279,7 +168,7 @@ class DataSymbol(Symbol):
         :raises NotImplementedError: if the deferred symbol is not a Global.
         '''
         if self.datatype == "deferred":
-            if isinstance(self.interface, DataSymbol.Global):
+            if self.is_global:
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
                 module = self.interface.container_symbol
@@ -337,7 +226,7 @@ class DataSymbol(Symbol):
         '''
         :returns: the an object describing the interface to this DataSymbol.
         :rtype: Sub-class of \
-            :py:class:`psyclone.psyir.symbols.DataSymbol.SymbolInterface`
+            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbolInterface`
         '''
         return self._interface
 
@@ -349,7 +238,7 @@ class DataSymbol(Symbol):
         :param value: an Interface object describing how the DataSymbol is \
                       accessed by the code.
         :type value: Sub-class of \
-            :py:class:`psyclone.psyir.symbols.DataSymbol.SymbolInterface`
+            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbolInterface`
 
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
@@ -403,6 +292,33 @@ class DataSymbol(Symbol):
         '''
         return self._constant_value
 
+    @property
+    def is_local(self):
+        '''
+        :returns: wether the DataSymbol has a Local interface
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, LocalInterface)
+
+    @property
+    def is_global(self):
+        '''
+        :returns: wether the DataSymbol has a Global interface
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, GlobalInterface)
+
+    @property
+    def is_argument(self):
+        '''
+        :returns: wether the DataSymbol has an Argument interface
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, ArgumentInterface)
+
     @constant_value.setter
     def constant_value(self, new_value):
         '''
@@ -422,7 +338,7 @@ class DataSymbol(Symbol):
 
         '''
         if new_value is not None:
-            if not isinstance(self.interface, DataSymbol.Local):
+            if not self.is_local:
                 raise ValueError(
                     "DataSymbol with a constant value is currently limited to "
                     "having a Local interface but found '{0}'."
@@ -489,7 +405,7 @@ class DataSymbol(Symbol):
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
-
+<M-C-F3>
         :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
@@ -505,3 +421,116 @@ class DataSymbol(Symbol):
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
         self.precision = symbol_in.precision
+
+
+class DataSymbolInterface(object):
+    ''' Abstract class of a DataSymbol Interface '''
+
+
+class LocalInterface(DataSymbolInterface):
+    ''' The data just exists in the Local context '''
+
+    def __str__(self):
+        return "Local"
+
+
+class GlobalInterface(DataSymbolInterface):
+    '''
+    Describes the interface to a DataSymbol representing data that
+    is supplied as some sort of global variable, and therefore it is
+    defined in a external PSyIR container.
+
+    :param container_symbol: symbol of the external container from which \
+        the symbol is imported.
+    :type container_symbol: \
+        :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+    :raise TypeError: if the container_symbol is not a ContainerSymbol
+    '''
+    def __init__(self, container_symbol):
+        from psyclone.psyir.symbols import ContainerSymbol
+
+        super(GlobalInterface, self).__init__()
+
+        if not isinstance(container_symbol, ContainerSymbol):
+            raise TypeError(
+                "Global container_symbol parameter must be of type"
+                " ContainerSymbol, but found {0}."
+                "".format(type(container_symbol)))
+
+        self._container_symbol = container_symbol
+
+    @property
+    def container_symbol(self):
+        '''
+        :return: symbol of the container containing this datasymbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        '''
+        return self._container_symbol
+
+    def __str__(self):
+        return "Global(container='{0}')".format(self.container_symbol.name)
+
+
+class ArgumentInterface(DataSymbolInterface):
+    '''
+    Captures the interface to a DataSymbol that is accessed as a routine
+    argument.
+
+    :param access: specifies how the argument is used in the Schedule
+    :type access: :py:class:`psyclone.psyir.symbols.ArgumentInterface.Access`
+    '''
+
+    class Access(Enum):
+        '''
+        Enumeration for the different types of access that a Argument
+        DataSymbol is permitted to have.
+
+        '''
+        ## The symbol is only ever read within the current scoping block.
+        READ = 1
+        ## The first access of the symbol in the scoping block is a write and
+        # therefore any value that it may have had upon entry is discarded.
+        WRITE = 2
+        ## The first access of the symbol in the scoping block is a read but
+        # it is subsequently written to.
+        READWRITE = 3
+        ## The way in which the symbol is accessed in the scoping block is
+        # unknown
+        UNKNOWN = 4
+
+    def __init__(self, access=None):
+        super(ArgumentInterface, self).__init__()
+        self._pass_by_value = False
+        self._access = None
+        # Use the setter as that has error checking
+        if not access:
+            self.access = ArgumentInterface.Access.UNKNOWN
+        else:
+            self.access = access
+
+    @property
+    def access(self):
+        '''
+        :returns: the access-type for this argument.
+        :rtype: :py:class:`psyclone.psyir.symbols.ArgumentInterface.Access`
+        '''
+        return self._access
+
+    @access.setter
+    def access(self, value):
+        '''
+        :param value: the new access type.
+        :type value: :py:class:`psyclon.psyir.symbols.ArgumentInterface.Access`
+
+        :raises TypeError: if the supplied value is not a \
+            ArgumentInterface.Access
+        '''
+        if not isinstance(value, ArgumentInterface.Access):
+            raise TypeError(
+                "SymbolInterface.access must be a 'ArgumentInterface.Access' "
+                "but got '{0}'.".format(type(value)))
+        self._access = value
+
+    def __str__(self):
+        return "Argument(pass-by-value={0})".format(self._pass_by_value)

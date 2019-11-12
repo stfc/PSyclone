@@ -39,7 +39,8 @@
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
 import pytest
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
+    LocalInterface, GlobalInterface, ArgumentInterface
 from psyclone.psyGen import InternalError
 
 
@@ -71,21 +72,21 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', 'real', []), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [], precision=8), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [],
-                                 interface=DataSymbol.Argument()),
+                                 interface=ArgumentInterface()),
                       DataSymbol)
     assert isinstance(
         DataSymbol('a', 'real', [],
-                   interface=DataSymbol.Argument(
-                       access=DataSymbol.Access.READWRITE)),
+                   interface=ArgumentInterface(
+                       ArgumentInterface.Access.READWRITE)),
         DataSymbol)
     assert isinstance(
         DataSymbol('a', 'real', [],
-                   interface=DataSymbol.Argument(
-                       access=DataSymbol.Access.READ)),
+                   interface=ArgumentInterface(
+                       ArgumentInterface.Access.READ)),
         DataSymbol)
     my_mod = ContainerSymbol("my_mod")
     assert isinstance(
-        DataSymbol('a', 'deferred', interface=DataSymbol.Global(my_mod)),
+        DataSymbol('a', 'deferred', interface=GlobalInterface(my_mod)),
         DataSymbol)
     dim = DataSymbol('dim', 'integer', [])
     assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
@@ -131,7 +132,7 @@ def test_symbol_init_errors():
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'integer', interface=DataSymbol.Argument(),
+        DataSymbol('a', 'integer', interface=ArgumentInterface(),
                    constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
             "a Local interface but found '") in str(error.value)
@@ -223,8 +224,7 @@ def test_symbol_can_be_printed():
     assert "s2: <real, Array['Unknown bound', 2, s1], Local>" in str(sym2)
 
     my_mod = ContainerSymbol("my_mod")
-    sym3 = DataSymbol("s3", "real",
-                      interface=DataSymbol.Global(my_mod))
+    sym3 = DataSymbol("s3", "real", interface=GlobalInterface(my_mod))
     assert ("s3: <real, Scalar, Global(container='my_mod')"
             in str(sym3))
 
@@ -301,7 +301,7 @@ def test_symbol_interface():
     ''' Check the interface getter on a DataSymbol. '''
     my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
-                        interface=DataSymbol.Global(my_mod))
+                        interface=GlobalInterface(my_mod))
     assert symbol.interface.container_symbol.name == "my_mod"
 
 
@@ -309,35 +309,35 @@ def test_symbol_interface_access():
     ''' Tests for the SymbolInterface.access setter. '''
     my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
-                        interface=DataSymbol.Argument())
-    symbol.interface.access = DataSymbol.Access.READ
-    assert symbol.interface.access == DataSymbol.Access.READ
+                        interface=ArgumentInterface())
+    symbol.interface.access = ArgumentInterface.Access.READ
+    assert symbol.interface.access == ArgumentInterface.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
         symbol.interface.access = "read"
-    assert "must be a 'DataSymbol.Access' but got " in str(err)
+    assert "must be a 'ArgumentInterface.Access' but got " in str(err)
 
 
 def test_symbol_argument_str():
-    ''' Check the __str__ method of the DataSymbol.Argument class. '''
-    # A DataSymbol.Argument represents a routine argument by default.
-    interface = DataSymbol.Argument()
+    ''' Check the __str__ method of the ArgumentInterface class. '''
+    # A ArgumentInterface represents a routine argument by default.
+    interface = ArgumentInterface()
     assert str(interface) == "Argument(pass-by-value=False)"
 
 
 def test_fortranglobal_str():
-    ''' Test the __str__ method of DataSymbol.Global. '''
+    ''' Test the __str__ method of GlobalInterface. '''
     # If it's not an argument then we have nothing else to say about it (since
     # other options are language specific and are implemented in sub-classes).
     my_mod = ContainerSymbol("my_mod")
-    interface = DataSymbol.Global(my_mod)
+    interface = GlobalInterface(my_mod)
     assert str(interface) == "Global(container='my_mod')"
 
 
 def test_global_modname():
     ''' Test the Global.module_name setter error conditions. '''
     with pytest.raises(TypeError) as err:
-        _ = DataSymbol.Global(None)
+        _ = GlobalInterface(None)
     assert ("Global container_symbol parameter must be of type"
             " ContainerSymbol, but found ") in str(err)
 
@@ -348,8 +348,8 @@ def test_symbol_copy():
 
     '''
     symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.READWRITE))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
     new_symbol = symbol.copy()
 
     # Check the new symbol has the same properties as the original
@@ -366,7 +366,7 @@ def test_symbol_copy():
     new_symbol._datatype = "integer"
     new_symbol.shape[0] = 3
     new_symbol.shape[1] = 4
-    new_symbol._interface = DataSymbol.Local()
+    new_symbol._interface = LocalInterface()
 
     assert symbol.name == "myname"
     assert symbol.datatype == "real"
@@ -385,8 +385,8 @@ def test_symbol_copy_properties():
     '''Test that the DataSymbol copy_properties method works as expected.'''
 
     symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
-                        interface=DataSymbol.Argument(
-                            access=DataSymbol.Access.READWRITE))
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
 
     # Check an exception is raised if an incorrect argument is passed in
     with pytest.raises(TypeError) as excinfo:
@@ -402,7 +402,7 @@ def test_symbol_copy_properties():
     assert symbol.name == "myname"
     assert symbol.datatype == "integer"
     assert symbol.shape == []
-    assert isinstance(symbol.interface, DataSymbol.Local)
+    assert symbol.is_local
     assert symbol.constant_value == 7
 
 
@@ -417,27 +417,27 @@ def test_symbol_resolve_deferred():
     Config.get().include_paths = [path]
     module = ContainerSymbol("dummy_module")
 
-    symbol = DataSymbol('a', 'deferred', interface=DataSymbol.Global(module))
+    symbol = DataSymbol('a', 'deferred', interface=GlobalInterface(module))
     symbol.resolve_deferred()
     assert symbol.datatype == "integer"
 
-    symbol = DataSymbol('b', 'deferred', interface=DataSymbol.Global(module))
+    symbol = DataSymbol('b', 'deferred', interface=GlobalInterface(module))
     symbol.resolve_deferred()
     assert symbol.datatype == "real"
 
-    symbol = DataSymbol('c', 'deferred', interface=DataSymbol.Global(module))
+    symbol = DataSymbol('c', 'deferred', interface=GlobalInterface(module))
     symbol.resolve_deferred()
     assert symbol.datatype == "real"
     assert symbol.constant_value == 3.14
 
     # Test with a symbol not defined in the linked container
-    symbol = DataSymbol('d', 'deferred', interface=DataSymbol.Global(module))
+    symbol = DataSymbol('d', 'deferred', interface=GlobalInterface(module))
     with pytest.raises(KeyError) as err:
         symbol.resolve_deferred()
     assert "Could not find 'd' in the Symbol Table." in str(err.value)
 
     # Test with a symbol which does not have a Global interface
-    symbol = DataSymbol('e', 'deferred', interface=DataSymbol.Local())
+    symbol = DataSymbol('e', 'deferred', interface=LocalInterface())
     with pytest.raises(NotImplementedError) as err:
         symbol.resolve_deferred()
     assert "Lazy evalution of deferred Local is not supported." \

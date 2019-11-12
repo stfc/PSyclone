@@ -192,20 +192,19 @@ class SymbolTable(object):
 
         :raises TypeError: if any item in the supplied list is not a \
             DataSymbol.
-        :raises ValueError: if any of the symbols has no Interface.
-        :raises ValueError: if any of the symbols has an Interface and is not \
-            a :py:class:`psyclone.psyir.symbols.DataSymbol.Argument`.
+        :raises ValueError: if any of the symbols does not have an argument \
+            interface.
 
         '''
         for symbol in arg_list:
             if not isinstance(symbol, DataSymbol):
                 raise TypeError("Expected a list of DataSymbols but found an "
                                 "object of type '{0}'.".format(type(symbol)))
-            if not isinstance(symbol.interface, DataSymbol.Argument):
+            if not symbol.is_argument:
                 raise ValueError(
                     "DataSymbol '{0}' is listed as a kernel argument but has "
                     "an interface of type '{1}' rather than "
-                    "DataSymbol.Argument"
+                    "ArgumentInterface"
                     "".format(str(symbol), type(symbol.interface)))
 
     def _validate_non_args(self):
@@ -214,19 +213,18 @@ class SymbolTable(object):
         SymbolTable that do not represent kernel arguments.
 
         :raises ValueError: if a symbol that is not in the argument list \
-            has a Symbol.Argument interface.
+            has an argument interface.
 
         '''
         for symbol in self.datasymbols:
             if symbol not in self._argument_list:
                 # DataSymbols not in the argument list must not have a
                 # Symbol.Argument interface
-                if symbol.interface and isinstance(symbol.interface,
-                                                   DataSymbol.Argument):
+                if symbol.is_argument:
                     raise ValueError(
                         "Symbol '{0}' is not listed as a kernel argument and "
-                        "yet has a DataSymbol.Argument interface.".format(
-                            str(symbol)))
+                        "yet has an ArgumentInterface interface."
+                        "".format(str(symbol)))
 
     @property
     def symbols(self):
@@ -251,8 +249,7 @@ class SymbolTable(object):
         :returns:  List of symbols representing local variables.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return [sym for sym in self.datasymbols if
-                isinstance(sym.interface, DataSymbol.Local)]
+        return [sym for sym in self.datasymbols if sym.is_local]
 
     @property
     def argument_datasymbols(self):
@@ -260,9 +257,7 @@ class SymbolTable(object):
         :returns:  List of symbols representing arguments.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return [sym for sym in self.datasymbols if
-                isinstance(sym.interface, DataSymbol.Argument)]
-
+        return [sym for sym in self.datasymbols if sym.is_argument]
 
     @property
     def global_datasymbols(self):
@@ -272,8 +267,7 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return [sym for sym in self.datasymbols if
-                isinstance(sym.interface, DataSymbol.Global)]
+        return [sym for sym in self.datasymbols if sym.is_global]
 
     @property
     def iteration_indices(self):

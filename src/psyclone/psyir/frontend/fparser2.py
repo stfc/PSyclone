@@ -46,7 +46,8 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
+    GlobalInterface, ArgumentInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -524,7 +525,7 @@ class Fparser2Reader(object):
                 for name in decl.items[4].items:
                     parent.symbol_table.add(
                         DataSymbol(str(name), datatype='deferred',
-                                   interface=DataSymbol.Global(container)))
+                                   interface=GlobalInterface(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -564,14 +565,14 @@ class Fparser2Reader(object):
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
                         if "intent(in)" in normalized_string:
-                            interface = DataSymbol.Argument(
-                                access=DataSymbol.Access.READ)
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
                         elif "intent(out)" in normalized_string:
-                            interface = DataSymbol.Argument(
-                                access=DataSymbol.Access.WRITE)
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
                         elif "intent(inout)" in normalized_string:
-                            interface = DataSymbol.Argument(
-                                access=DataSymbol.Access.READWRITE)
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READWRITE)
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
@@ -638,13 +639,13 @@ class Fparser2Reader(object):
             # Ensure each associated symbol has the correct interface info.
             for arg_name in [x.string for x in arg_list]:
                 symbol = parent.symbol_table.lookup(arg_name)
-                if isinstance(symbol.interface, DataSymbol.Local):
+                if symbol.is_local:
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
                     # A Fortran argument has intent(inout) by default
-                    symbol.interface = DataSymbol.Argument(
-                        access=DataSymbol.Access.READWRITE)
+                    symbol.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READWRITE)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the
             # argument list
