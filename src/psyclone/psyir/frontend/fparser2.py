@@ -805,8 +805,8 @@ class Fparser2Reader(object):
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one.
-            # TODO: Wouldn't this create a double defenition when generating
-            # back the source code because it is already defined in the module?
+            # TODO: Issue #584, the statment below can cause double
+            # declarations.
             kind_symbol = DataSymbol(name, "integer")
             symbol_table.add(kind_symbol)
         return kind_symbol
