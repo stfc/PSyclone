@@ -107,13 +107,32 @@ class ExtractNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
         from psyclone.f2pygen import CommentGen
+        from psyclone.core.access_type import AccessType
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
-        parent.add(CommentGen(
-            parent, " CALL write_extract_arguments(argument_list)"))
+        from psyclone.core.access_info import VariablesAccessInfo
+        vai = VariablesAccessInfo()
+        for child in self.children:
+            child.reference_accesses(vai)
+        for var_name in vai.all_vars:
+            # Take the first access (index 0) of this variable
+            first_access = vai[var_name][0]
+            # If the first access is a write, the variable is not an input
+            # parameters and does not need to be saved.
+            if first_access.access_type == AccessType.WRITE:
+                continue
+
+            parent.add(CommentGen(
+                parent, " CALL write_extract_arguments({0})".format(var_name)))
         parent.add(CommentGen(parent, ""))
         for child in self.children:
             child.gen_code(parent)
         parent.add(CommentGen(parent, ""))
+        for var_name in vai.all_vars:
+            if not vai.is_written(var_name):
+                continue
+            parent.add(CommentGen(
+                parent, " CALL write_extract_arguments({0})".format(var_name)))
+
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
