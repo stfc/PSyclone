@@ -65,6 +65,21 @@ GOCEAN_API = "gocean1.0"
 # --------------------------------------------------------------------------- #
 
 
+def test_malformed_extract_node(monkeypatch):
+    ''' Check that we raise the expected error if an ExtractNode does not have
+    a single Schedule node as its child. '''
+    from psyclone.psyGen import Node, InternalError
+    enode = ExtractNode()
+    monkeypatch.setattr(enode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+
+
 def test_node_list_error(tmpdir):
     ''' Test that applying Extract Transformation on objects which are not
     Nodes or a list of Nodes raises a TransformationError. Also raise

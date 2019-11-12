@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace
+from psyclone.psyGen import Loop, NameSpace, InternalError
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
     ProfileRegionTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
@@ -61,6 +61,21 @@ def teardown_function():
     '''
     Profiler.set_options([])
     Profiler._namespace = NameSpace()
+
+
+def test_malformed_profile_node(monkeypatch):
+    ''' Check that we raise the expected error if a ProfileNode does not have
+    a single Schedule node as its child. '''
+    from psyclone.psyGen import Node
+    pnode = ProfileNode()
+    monkeypatch.setattr(pnode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        pnode.profile_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        pnode.profile_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -589,9 +604,9 @@ End Schedule""")
     indent = 4*" "
     correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
                indent + "0: " + prof + "[]\n" +
-               2*indent + sched +"[]\n" +
+               2*indent + sched + "[]\n" +
                3*indent + "0: " + prof + "[]\n" +
-               4*indent + sched +"[]\n" +
+               4*indent + sched + "[]\n" +
                5*indent + "0: " + loop + "[type='outer', field_space='go_ct',"
                " it_space='go_internal_pts']\n")
     assert correct in out
