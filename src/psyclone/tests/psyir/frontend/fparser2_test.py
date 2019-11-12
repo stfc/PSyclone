@@ -518,7 +518,7 @@ def test_process_declarations_kind_new_param(f2008_parser):
             "'(KIND = blah)'" in str(err.value))
 
 
-@pytest.mark.xfail(reason="Resolve in this PR")
+@pytest.mark.xfail(reason="Parameter declarations not supported - #543")
 def test_process_declarations_kind_param(f2008_parser):
     ''' Test that process_declarations handles the kind attribute when
     it specifies a previously-declared symbol.

@@ -310,7 +310,7 @@ class Fparser2Reader(object):
         :returns: PSyIR container representing the given module_ast
         :rtype: :py:class:`psyclone.psyGen.Container`
 
-        :raises GenerationError: Unable to generate a Container from the \
+        :raises GenerationError: unable to generate a Container from the \
                                  provided fpaser2 parse tree.
         '''
         # Assume just 1 Fortran module definition in the file
@@ -337,7 +337,7 @@ class Fparser2Reader(object):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param str name: Name of the subroutine represented by the kernel.
+        :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
@@ -345,7 +345,7 @@ class Fparser2Reader(object):
         :returns: PSyIR schedule representing the kernel
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :raises GenerationError: Unable to generate a kernel schedule from \
+        :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
         '''
         def first_type_match(nodelist, typekind):
@@ -492,9 +492,9 @@ class Fparser2Reader(object):
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
 
-        :raises NotImplementedError: The provided declarations contain \
+        :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
-        :raises GenerationError: If the parse tree for a USE statement does \
+        :raises GenerationError: if the parse tree for a USE statement does \
                                  not have the expected structure.
         '''
         # Look at any USE statments
@@ -523,10 +523,8 @@ class Fparser2Reader(object):
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 for name in decl.items[4].items:
                     parent.symbol_table.add(
-                        DataSymbol(
-                            str(name),
-                            datatype='deferred',
-                            interface=DataSymbol.Global(container)))
+                        DataSymbol(str(name), datatype='deferred',
+                                   interface=DataSymbol.Global(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -646,7 +644,7 @@ class Fparser2Reader(object):
                     # that it is an argument by specifying its interface.
                     # A Fortran argument has intent(inout) by default
                     symbol.interface = DataSymbol.Argument(
-                                           access=DataSymbol.Access.READWRITE)
+                        access=DataSymbol.Access.READWRITE)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the
             # argument list
@@ -803,14 +801,12 @@ class Fparser2Reader(object):
                         "type ('{1}') is not 'deferred' or 'integer'.".
                         format(name, kind_symbol.datatype))
                 # Existing symbol had 'deferred' type
-                # TODO: Should we try to resolve the deferred looking at the
-                # 'use' containers first?
                 kind_symbol.datatype = "integer"
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one.
-            # TODO: Again, should we scan the containers for the definition?
-            # copy the containers symboltables?
+            # TODO: Wouldn't this create a double defenition when generating
+            # back the source code because it is already defined in the module?
             kind_symbol = DataSymbol(name, "integer")
             symbol_table.add(kind_symbol)
         return kind_symbol
