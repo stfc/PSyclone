@@ -48,21 +48,21 @@ class SymbolTable(object):
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
 
-    :param kernel: Reference to the KernelSchedule to which this symbol table \
+    :param schedule: reference to the Schedule to which this symbol table \
         belongs.
-    :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
+    :type schedule: :py:class:`psyclone.psyGen.Schedule` or NoneType
     '''
     # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
     # NameSpace class functionality.
-    def __init__(self, kernel=None):
+    def __init__(self, schedule=None):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
         self._symbols = OrderedDict()
         # Ordered list of the arguments.
         self._argument_list = []
-        # Reference to KernelSchedule to which this symbol table belongs.
-        self._kernel = kernel
+        # Reference to Schedule to which this symbol table belongs.
+        self._schedule = schedule
 
     def add(self, new_symbol):
         '''Add a new symbol to the symbol table.
@@ -140,8 +140,12 @@ class SymbolTable(object):
         '''
         Look up a symbol in the symbol table.
 
-        :param str name: Name of the symbol
-        :raises KeyError: If the given name is not in the Symbol Table.
+        :param str name: name of the symbol
+
+        :returns: symbol with the given name.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises KeyError: if the given name is not in the Symbol Table.
         '''
         try:
             return self._symbols[name]
@@ -263,7 +267,7 @@ class SymbolTable(object):
     def global_datasymbols(self):
         '''
         :returns: list of symbols that have 'global' interface (are \
-            associated with data that exists outside the current scope.
+            associated with data that exists outside the current scope).
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''

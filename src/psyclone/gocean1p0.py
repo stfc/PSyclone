@@ -2042,8 +2042,8 @@ class GOSymbolTable(SymbolTable):
         '''
         # Get the kernel name if available for better error messages
         kname_str = ""
-        if self._kernel:
-            kname_str = " for kernel '{0}'".format(self._kernel.name)
+        if self._schedule and isinstance(self._schedule, KernelSchedule):
+            kname_str = " for kernel '{0}'".format(self._schedule.name)
 
         # Check that there are at least 2 arguments
         if len(self.argument_list) < 2:
