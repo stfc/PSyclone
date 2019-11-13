@@ -131,7 +131,7 @@ def test_gocean_omp_parallel():
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
     # TODO: #440 tracks this
-    replace_child_with_assignment(omp_sched[0])
+    replace_child_with_assignment(omp_sched[0].dir_body)
 
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
     # So only convert starting from the OMPParallelDirective
@@ -220,7 +220,7 @@ def test_gocean_omp_do():
     # are not supported yet, and it is sufficient to test that the
     # visitor pattern creates correct OMP DO directives.
     # TODO #440 fixes this.
-    replace_child_with_assignment(omp_sched[0])
+    replace_child_with_assignment(omp_sched[0].dir_body)
     fvisitor = FortranWriter()
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:

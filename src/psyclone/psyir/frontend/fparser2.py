@@ -44,8 +44,8 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, KernelSchedule, Container, \
-    Assignment, Return, Array, InternalError, GenerationError
+    Symbol, KernelSchedule, Container, Assignment, Return, Array, \
+    InternalError, GenerationError
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -519,6 +519,9 @@ class Fparser2Reader(object):
                     datatype = 'character'
                 elif str(type_spec.items[0]).lower() == 'logical':
                     datatype = 'boolean'
+                # Check for a KIND specification
+                precision = self._process_kind_selector(parent.symbol_table,
+                                                        type_spec)
             if datatype is None:
                 raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'integer', "
@@ -585,7 +588,8 @@ class Fparser2Reader(object):
 
                 parent.symbol_table.add(Symbol(str(name), datatype,
                                                shape=entity_shape,
-                                               interface=interface))
+                                               interface=interface,
+                                               precision=precision))
 
         try:
             arg_symbols = []
@@ -649,6 +653,119 @@ class Fparser2Reader(object):
                 raise NotImplementedError(
                     "Could not process '{0}'. Statement Function declarations "
                     "are not supported.".format(str(stmtfn)))
+
+    @staticmethod
+    def _process_kind_selector(symbol_table, type_spec):
+        '''
+        Processes the fparser2 parse tree of the type specification of a
+        variable declaration in order to extract KIND information. This
+        information is used to determine the precision of the variable (as
+        supplied to the Symbol constructor).
+
+        :param symbol_table: the SymbolTable associated with the code \
+                             being processed.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param type_spec: the fparser2 parse tree of the type specification.
+        :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
+
+        :returns: the precision associated with the type specification.
+        :rtype: int or :py:class:`psyclone.psyGen.Symbol.Precision` or \
+                :py:class:`psyclone.psyGen.Symbol` or NoneType
+
+        :raises NotImplementedError: if a KIND intrinsic is found with an \
+                            argument other than a real or integer literal.
+        :raises NotImplementedError: if we have `kind=xxx` but cannot find \
+                            a valid variable name.
+        '''
+        if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+            return None
+        # The KIND() intrinsic itself is Fortran specific and has no direct
+        # representation in the PSyIR. We therefore can't use
+        # self.process_nodes() here.
+        kind_selector = type_spec.items[1]
+        intrinsics = walk_ast(kind_selector.items,
+                              [Fortran2003.Intrinsic_Function_Reference])
+        if intrinsics and isinstance(intrinsics[0].items[0],
+                                     Fortran2003.Intrinsic_Name) and \
+           str(intrinsics[0].items[0]).lower() == "kind":
+            # We have kind=KIND(X) where X may be of any intrinsic type. It
+            # may be a scalar or an array. items[1] is an
+            # Actual_Arg_Spec_List with the first entry being the argument.
+            kind_arg = intrinsics[0].items[1].items[0]
+
+            # We currently only support literals as arguments to KIND
+            if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
+                                     Fortran2003.Real_Literal_Constant)):
+
+                if len(kind_arg.items) > 1 and kind_arg.items[1]:
+                    # The literal has an explicit kind specifier (e.g. 1.0_wp)
+                    # so return a Symbol representing it (e.g.'wp').
+                    return Fparser2Reader._kind_symbol_from_name(
+                        str(kind_arg.items[1]), symbol_table)
+
+                if isinstance(kind_arg, Fortran2003.Real_Literal_Constant):
+                    import re
+                    if re.search("d[0-9]", str(kind_arg).lower()):
+                        return Symbol.Precision.DOUBLE
+                    return Symbol.Precision.SINGLE
+
+                if isinstance(kind_arg, Fortran2003.Int_Literal_Constant):
+                    # An integer with no explict kind specifier must be of
+                    # default precision
+                    return Symbol.Precision.SINGLE
+
+            raise NotImplementedError(
+                "Only real and integer literals are supported "
+                "as arguments to the KIND intrinsic but found '{0}' in: "
+                "{1}".format(type(kind_arg).__name__, str(kind_selector)))
+
+        # We have kind=kind-param
+        kind_names = walk_ast(kind_selector.items, [Fortran2003.Name])
+        if not kind_names:
+            raise NotImplementedError(
+                "Failed to find valid Name in Fortran Kind "
+                "Selector: '{0}'".format(str(kind_selector)))
+        return Fparser2Reader._kind_symbol_from_name(str(kind_names[0]),
+                                                     symbol_table)
+
+    @staticmethod
+    def _kind_symbol_from_name(name, symbol_table):
+        '''
+        Utility method that returns a Symbol representing the named KIND
+        parameter. If the supplied Symbol Table does not contain an appropriate
+        entry then one is created. If it does contain a matching entry then
+        its datatype must be 'integer' or 'deferred'. If the latter then the
+        fact that we now know that this Symbol represents a KIND parameter
+        means that we can change the datatype to be 'integer'.
+
+        :param str name: the name of the variable holding the KIND value.
+        :param symbol_table: the Symbol Table associated with the code being\
+                             processed.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+
+        :returns: the Symbol representing the KIND parameter.
+        :rtype: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: if the Symbol Table already contains an entry for \
+                       `name` and its datatype is not 'integer' or 'deferred'.
+        '''
+        try:
+            kind_symbol = symbol_table.lookup(name)
+            if kind_symbol.datatype != "integer":
+                if kind_symbol.datatype != "deferred":
+                    raise TypeError(
+                        "SymbolTable already contains an entry for "
+                        "variable '{0}' used as a kind parameter but its "
+                        "type ('{1}') is not 'deferred' or 'integer'.".
+                        format(name, kind_symbol.datatype))
+                # Existing symbol had 'deferred' type
+                kind_symbol.datatype = "integer"
+        except KeyError:
+            # The SymbolTable does not contain an entry for
+            # this kind parameter so create one.
+            kind_symbol = Symbol(name, "integer")
+            symbol_table.add(kind_symbol)
+        return kind_symbol
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
@@ -1271,9 +1388,9 @@ class Fparser2Reader(object):
             if len(node.items[1].items) > 1:
                 # We have more than one argument and therefore this is not a
                 # unary operation!
-                raise InternalError("Operation '{0}' has more than one argument "
-                                    "and is therefore not unary!".
-                                    format(str(node)))
+                raise InternalError(
+                    "Operation '{0}' has more than one argument and is "
+                    "therefore not unary!".format(str(node)))
             node_list = node.items[1].items
         else:
             node_list = [node.items[1]]

@@ -57,7 +57,7 @@ def trans(psy):
     from psyclone.psyGen import Loop
     for child in schedule.children:
         if isinstance(child, Loop):
-            newschedule, _ = ltrans.apply(child, collapse=2)
+            newschedule, _ = ltrans.apply(child, {"collapse": 2})
             schedule = newschedule
 
     # Put all of the loops in a single parallel region
