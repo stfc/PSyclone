@@ -2062,6 +2062,12 @@ class Directive(Node):
             if data_movement == "analyse":
                 # Identify the inputs and outputs to the region (variables that
                 # are read and written).
+                var_info = VariablesAccessInfo()
+                self.reference_accesses(var_info)
+                for var in var_info.all_vars:
+                    print(var)
+                # TODO replace/reimplement get_inputs_outputs with
+                # VariablesAccessInfo
                 processor = Fparser2Reader()
                 readers, writers, readwrites = processor.get_inputs_outputs(
                     fp_parent.content[ast_start_index:ast_end_index+1])
