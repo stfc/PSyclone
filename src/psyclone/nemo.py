@@ -45,7 +45,7 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, InternalError, NameSpaceFactory, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -210,6 +210,10 @@ class NemoInvokes(Invokes):
         # Keep a pointer to the whole fparser2 AST
         self._ast = ast
 
+        # Use the fparser2 frontend to construct the PSyIR from the parse tree
+        processor = NemoFparser2Reader()
+        self._container = processor.generate_container(ast)
+
         # Find all the subroutines contained in the file
         routines = walk_ast(ast.content, [Subroutine_Subprogram,
                                           Function_Subprogram])
@@ -265,7 +269,6 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-
         self._invokes = NemoInvokes(ast)
         self._ast = ast
 
