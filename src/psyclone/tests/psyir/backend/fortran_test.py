@@ -115,9 +115,9 @@ def test_gen_dims_error(monkeypatch):
 @pytest.mark.parametrize(
     "datatype,result",
     [("real", "real"),
-    ("integer", "integer"),
-    ("character", "character"),
-    ("boolean", "logical")])
+     ("integer", "integer"),
+     ("character", "character"),
+     ("boolean", "logical")])
 def test_gen_datatype(datatype, result):
     '''Check the gen_datatype function produces the expected datatypes.'''
     symbol = Symbol("dummy", datatype)
@@ -149,11 +149,11 @@ def test_gen_datatype_precision(datatype, precision, result):
 #     relative precision is specified for a Fortran datatype that does
 #     not support relative precision (only real/double precision
 #     supports it)
-# 
+#
 #     '''
 #     import logging
 #     with caplog.at_level(logging.WARNING):
-#         symbol = Symbol("dummy", "integer", precision=Symbol.Precision.DOUBLE)
+#         symbol = Symbol("dummy", "integer",precision=Symbol.Precision.DOUBLE)
 #         _ = gen_datatype(symbol)
 #         assert (
 #             "WARNING  Fortran does not support relative precision for the "
