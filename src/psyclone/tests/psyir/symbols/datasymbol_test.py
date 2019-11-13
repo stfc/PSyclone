@@ -134,32 +134,37 @@ def test_symbol_init_errors():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', interface=ArgumentInterface(),
                    constant_value=9)
-    assert ("Symbol with a constant value is currently limited to having "
-            "a Local interface but found '") in str(error.value)
+    assert ("Error setting 'a' constant value. A DataSymbol with a constant "
+            "value is currently limited to Local interfaces but found"
+            " 'Argument(pass-by-value=False)'." in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', shape=[None], constant_value=9)
-    assert ("Symbol with a constant value must be a scalar but the shape "
-            "attribute is not empty.") in str(error.value)
+    assert ("Error setting 'a' constant value. A DataSymbol with a constant "
+            "value must be a scalar but a shape was found."
+            in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', constant_value=9.81)
-    assert ("This DataSymbol instance's datatype is 'integer' which means the "
-            "constant value is expected to be") in str(error.value)
+    assert ("Error setting 'a' constant value. This DataSymbol instance "
+            "datatype is 'integer' which means the constant value is "
+            "expected to be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'character', constant_value=42)
-    assert ("This DataSymbol instance's datatype is 'character' which means "
-            "the constant value is expected to be") in str(error.value)
+    assert ("Error setting 'a' constant value. This DataSymbol instance "
+            "datatype is 'character' which means the constant value is "
+            "expected to be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'boolean', constant_value="hello")
-    assert ("This DataSymbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be") in str(error)
+    assert ("Error setting 'a' constant value. This DataSymbol instance "
+            "datatype is 'boolean' which means the constant value is "
+            "expected to be") in str(error)
     assert "'bool'>' but found " in str(error)
     assert "'str'>'." in str(error)
 
@@ -258,8 +263,8 @@ def test_symbol_constant_value_setter():
     sym = DataSymbol('a', 'deferred')
     with pytest.raises(ValueError) as error:
         sym.constant_value = 1.0
-    assert ("A constant value is not supported for datatype "
-            "'deferred'.") in str(error)
+    assert ("Error setting 'a' constant value. Constant values are not "
+            "supported for 'deferred' datatypes." in str(error))
 
 
 def test_symbol_is_constant():
@@ -289,11 +294,11 @@ def test_symbol_scalar_array():
 
 def test_symbol_invalid_interface():
     ''' Check that the DataSymbol.interface setter rejects the supplied value
-    if it is not a SymbolInterface. '''
+    if it is not a DataSymbolInterface. '''
     sym = DataSymbol("some_var", "real")
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
-    assert "interface to a DataSymbol must be a SymbolInterface but" \
+    assert "interface to a DataSymbol must be a DataSymbolInterface but" \
         in str(err)
 
 
@@ -306,7 +311,7 @@ def test_symbol_interface():
 
 
 def test_symbol_interface_access():
-    ''' Tests for the SymbolInterface.access setter. '''
+    ''' Tests for the DataSymbolInterface.access setter. '''
     my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
                         interface=ArgumentInterface())
@@ -440,5 +445,6 @@ def test_symbol_resolve_deferred():
     symbol = DataSymbol('e', 'deferred', interface=LocalInterface())
     with pytest.raises(NotImplementedError) as err:
         symbol.resolve_deferred()
-    assert "Lazy evalution of deferred Local is not supported." \
-        in str(err.value)
+    assert ("Error trying to resolve symbol 'e' properties, the lazy "
+            "evaluation of 'Local' interfaces is not supported."
+            in str(err.value))
