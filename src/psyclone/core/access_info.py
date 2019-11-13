@@ -262,14 +262,37 @@ class VariablesAccessInfo(dict):
     which is an integer number that is increased for each new statement. It
     can be used to easily determine if one access is before another.
 
+    :param node_list: optional, a single PSyIR node or list of nodes from \
+                      which to initialise this object.
+    :type nodes: None, :py:class:`psyclone.node` or a list of \
+                 :py:class:`psyclone.node`s.
+
     '''
-    def __init__(self):
+    def __init__(self, nodes=None):
         # This dictionary stores the mapping of variable names to the
         # corresponding VariableAccessInfo instance.
         dict.__init__(self)
 
         # Stores the current location information
         self._location = 0
+        if nodes:
+            # Import here to avoid circular dependency
+            from psyclone.psyGen import Node
+            if isinstance(nodes, list) and isinstance(nodes[0], Node):
+                for node in nodes:
+                    node.reference_accesses(self)
+            elif isinstance(nodes, Node):
+                nodes.reference_accesses(self)
+            else:
+                # Import here to avoid circular imports
+                from psyclone.psyGen import InternalError
+                arg_type = str(type(nodes))
+                raise InternalError("Error in VariablesAccessInfo. "
+                                    "Argument must be a single Node in a "
+                                    "schedule or a list of Nodes in a "
+                                    "schedule but have been passed an "
+                                    "object of type: {0}".
+                                    format(arg_type))
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables

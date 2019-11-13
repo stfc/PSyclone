@@ -70,8 +70,7 @@ def test_assignment(parser):
     # Simple scalar assignment:  a = b
     scalar_assignment = schedule.children[0]
     assert isinstance(scalar_assignment, Assignment)
-    var_accesses = VariablesAccessInfo()
-    scalar_assignment.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(scalar_assignment)
     # Test some test functions explicitly:
     assert var_accesses.is_written("a")
     assert not var_accesses.is_read("a")
@@ -81,23 +80,20 @@ def test_assignment(parser):
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
-    var_accesses = VariablesAccessInfo()
-    array_assignment.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(array_assignment)
     assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
                                 "i: READ, j: READ, x: READ, y: READ"
 
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
-    var_accesses = VariablesAccessInfo()
-    increment_access.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(increment_access)
     assert str(var_accesses) == "c: READ+WRITE, i: READ"
 
     # Using an intrinsic:
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
-    var_accesses = VariablesAccessInfo()
-    sqrt_access.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(sqrt_access)
     assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
 
 
@@ -113,8 +109,7 @@ def test_indirect_addressing(parser):
 
     indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
-    var_accesses = VariablesAccessInfo()
-    indirect_addressing.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(indirect_addressing)
     assert str(var_accesses) == "a: READ, g: WRITE, h: READ, i: READ"
 
 
@@ -156,8 +151,7 @@ def test_if_statement(parser):
 
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
-    var_accesses = VariablesAccessInfo()
-    if_stmt.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(if_stmt)
     assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
                                 "q: READ+WRITE, r: READ"
     # Test that the two accesses to 'q' indeed show up as
@@ -180,8 +174,7 @@ def test_call(parser):
 
     code_block = schedule.children[0]
     call_stmt = code_block.statements[0]
-    var_accesses = VariablesAccessInfo()
-    call_stmt.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(call_stmt)
     assert str(var_accesses) == "a: UNKNOWN, b: UNKNOWN"
 
 
@@ -201,8 +194,7 @@ def test_do_loop(parser):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
-    var_accesses = VariablesAccessInfo()
-    do_loop.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(do_loop)
     assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "\
                                 "s: WRITE, t: READ"
 
@@ -222,8 +214,7 @@ def test_nemo_implicit_loop(parser):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
-    var_accesses = VariablesAccessInfo()
-    do_loop.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(do_loop)
     assert str(var_accesses) == "jj: READ+WRITE, n: READ, a: READ"
 
 
@@ -245,8 +236,7 @@ def test_nemo_implicit_loop_partial(parser):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
-    var_accesses = VariablesAccessInfo()
-    do_loop.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(do_loop)
     assert str(var_accesses) == "jj: READ+WRITE, n: READ"  # a is missing
 
 
@@ -262,8 +252,7 @@ def test_goloop():
                            "gocean1.0", name="invoke_0")
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo()
-    do_loop.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(do_loop)
     assert str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "\
                                 "j: READ+WRITE, " "ssh_fld: READ+WRITE, "\
                                 "tmask: READ"
@@ -288,8 +277,7 @@ def test_goloop_partially():
     # The fourth argument is GO_GRID_MASK_T, which is an array
     assert not do_loop.args[3].is_scalar()
 
-    var_accesses = VariablesAccessInfo()
-    do_loop.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(do_loop)
     assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
            "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "\
            "ssh_fld%grid%tmask: READ" in str(var_accesses)
@@ -311,8 +299,7 @@ def test_dynamo():
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
 
-    var_accesses = VariablesAccessInfo()
-    schedule.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(schedule)
     assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: WRITE, "\
         "f2: READ, m1: READ, m2: READ"
 
@@ -343,8 +330,7 @@ def test_location(parser):
     psy = PSyFactory(API).create(ast)
     schedule = psy.invokes.get("test_prog").schedule
 
-    var_accesses = VariablesAccessInfo()
-    schedule.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(schedule)
     # Test accesses for a:
     a_accesses = var_accesses["a"].all_accesses
     assert a_accesses[0].location == 0
@@ -396,8 +382,7 @@ def test_user_defined_variables(parser):
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test_prog").schedule
 
-    var_accesses = VariablesAccessInfo()
-    loops.reference_accesses(var_accesses)
+    var_accesses = VariablesAccessInfo(loops)
     assert var_accesses["a % b % c"].is_array()
     assert not var_accesses["e % f"].is_array()
 
