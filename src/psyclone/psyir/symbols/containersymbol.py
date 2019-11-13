@@ -108,7 +108,11 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
     @staticmethod
     def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container.
+        ''' Imports a Fortran module as a PSyIR container. The module is
+        expected to be found in a Fortran source file with the same name
+        as the module plus the '.[f|F]90' extension. The search
+        locations are provided in-order by the Config include_path
+        attribute ('-I' in the psyclone script).
 
         :param str name: name of the module to be imported.
 
@@ -124,28 +128,29 @@ class FortranModuleInterface(ContainerSymbolInterface):
         from psyclone.configuration import Config
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
-        filename = name + '.f90'
         for directory in Config.get().include_paths:
-            if filename in listdir(directory):
-                # Parse the module source code
-                abspath = path.join(directory, filename)
-                reader = FortranFileReader(abspath,
-                                           ignore_comments=True)
-                f2008_parser = ParserFactory().create(std="f2008")
-                ast = f2008_parser(reader)
-                fp2reader = Fparser2Reader()
+            for filename in [name+'.f90', name+'.F90']:
+                if filename in listdir(directory):
+                    # Parse the module source code
+                    abspath = path.join(directory, filename)
+                    reader = FortranFileReader(abspath,
+                                               ignore_comments=True)
+                    f2008_parser = ParserFactory().create(std="f2008")
+                    ast = f2008_parser(reader)
+                    fp2reader = Fparser2Reader()
 
-                # Generate the PSyIR container
-                container = fp2reader.generate_container(ast)
+                    # Generate the PSyIR container
+                    container = fp2reader.generate_container(ast)
 
-                # Sanity check
-                if not container.name == name:
-                    raise ValueError(
-                        "Error importing the Fortran module '{0}' into a PSyIR"
-                        " container. The imported module has the unexpected "
-                        "name: '{1}'.".format(name, container.name))
+                    # Check the imported container is the expected one
+                    if not container.name == name:
+                        raise ValueError(
+                            "Error importing the Fortran module '{0}' into a "
+                            "PSyIR container. The imported module has the "
+                            "unexpected name: '{1}'."
+                            "".format(name, container.name))
 
-                return container
+                    return container
 
         raise SymbolError(
             "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
