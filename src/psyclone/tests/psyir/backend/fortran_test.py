@@ -40,14 +40,15 @@
 from __future__ import absolute_import
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, gen_dims, FortranWriter
+from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
+    FortranWriter, gen_datatype
 from psyclone.psyGen import Node, CodeBlock, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.fixture(scope="function", name="fort_writer")
@@ -119,6 +120,119 @@ def test_gen_dims_error(monkeypatch):
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_dims(symbol)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo)
+
+
+@pytest.mark.parametrize(
+    "datatype,result",
+    [("real", "real"),
+     ("integer", "integer"),
+     ("character", "character"),
+     ("boolean", "logical")])
+def test_gen_datatype(datatype, result):
+    '''Check the gen_datatype function produces the expected datatypes.'''
+    symbol = DataSymbol("dummy", datatype)
+    assert gen_datatype(symbol) == result
+
+
+@pytest.mark.parametrize(
+    "datatype,precision,result",
+    [("real", None, "real"),
+     ("integer", 8, "integer*8"),
+     ("real", 16, "real*16"),
+     ("real", DataSymbol.Precision.DOUBLE, "double precision"),
+     ("integer", DataSymbol("i_def", "integer"), "integer(kind=i_def)"),
+     ("real", DataSymbol("r_def", "integer"), "real(kind=r_def)")])
+def test_gen_datatype_precision(datatype, precision, result):
+    '''Check the gen_datatype function produces the expected datatypes when
+    precision is specified.
+
+    '''
+    symbol = DataSymbol("dummy", datatype, precision=precision)
+    assert gen_datatype(symbol) == result
+
+
+# Commented this test out until #11 is addressed.
+# @pytest.mark.xfail(reason="issue #11 backend logging output is affected by "
+#                    "some other part PSyclone.")
+# def test_gen_datatype_precision_log(caplog):
+#     '''Check the gen_datatype function produces a logging warning if
+#     relative precision is specified for a Fortran datatype that does
+#     not support relative precision (only real/double precision
+#     supports it)
+#
+#     '''
+#     import logging
+#     with caplog.at_level(logging.WARNING):
+#         symbol = Symbol("dummy", "integer",precision=Symbol.Precision.DOUBLE)
+#         _ = gen_datatype(symbol)
+#         assert (
+#             "WARNING  Fortran does not support relative precision for the "
+#             "'integer' datatype but 'Precision.DOUBLE' was specified for "
+#             "variable 'dummy'." in caplog.text)
+
+
+def test_gen_datatype_error(monkeypatch):
+    '''Check the gen_datatype function raises an exception if the datatype
+    information provided is not supported.
+
+    '''
+    # unsupported datatype found
+    symbol = DataSymbol("dummy", "deferred")
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("unsupported datatype 'deferred' for symbol 'dummy' found in "
+            "gen_datatype()." in str(excinfo.value))
+
+    # Fixed precision not supported for character
+    symbol = DataSymbol("dummy", "integer", precision=4)
+    monkeypatch.setattr(symbol, "_datatype", "character")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Explicit precision not supported for datatype 'character' in "
+            "symbol 'dummy' in Fortran backend." in str(excinfo.value))
+
+    # Fixed precision value not supported for real
+    symbol = DataSymbol("dummy", "real", precision=2)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Datatype 'real' in symbol 'dummy' supports fixed precision of "
+            "[4, 8, 16] but found '2'." in str(excinfo.value))
+
+    # Fixed precision value not supported for integer
+    symbol = DataSymbol("dummy", "integer", precision=32)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Datatype 'integer' in symbol 'dummy' supports fixed precision "
+            "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
+
+    # Fixed precision value not supported for logical
+    symbol = DataSymbol("dummy", "boolean")
+    # This needs to be monkeypatched as the Fortran front end will not
+    # create logicals with a precision
+    monkeypatch.setattr(symbol, "precision", 32)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Datatype 'logical' in symbol 'dummy' supports fixed precision "
+            "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
+
+    # Kind not supported for character
+    symbol = DataSymbol("dummy", "real",
+                        precision=DataSymbol("c_def", "integer"))
+    # This needs to be monkeypatched as the Symbol constructor can not
+    # create characters with a size dependent on another variable.
+    monkeypatch.setattr(symbol, "_datatype", "character")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("kind not supported for datatype 'character' in symbol 'dummy' in "
+            "Fortran backend." in str(excinfo.value))
+
+    # Unsupported precision type found
+    symbol = DataSymbol("dummy", "real")
+    monkeypatch.setattr(symbol, "precision", "unsupported")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Unsupported precision type 'str' found for symbol 'dummy' in "
+            "Fortran backend." in str(excinfo.value))
 
 
 def test_fw_gen_use(fort_writer):
