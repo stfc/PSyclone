@@ -212,8 +212,12 @@ class NemoInvokes(Invokes):
 
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
         processor = NemoFparser2Reader()
+        # First attempt to create a Container representing any Fortran module
+        # contained in the parse tree.
+        # TODO what about PROGRAM and bare SUBROUTINE/FUNCTIONs? Presumably
+        # these are handled as Invokes without a parent Container?
         self._container = processor.generate_container(ast)
-
+        import pdb; pdb.set_trace()
         # Find all the subroutines contained in the file
         routines = walk_ast(ast.content, [Subroutine_Subprogram,
                                           Function_Subprogram])
