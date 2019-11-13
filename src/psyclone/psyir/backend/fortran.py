@@ -41,8 +41,8 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyGen import Symbol
 from fparser.two import Fortran2003
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -52,37 +52,38 @@ FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 
 def gen_intent(symbol):
-    '''Given a Symbol instance as input, determine the Fortran intent that
-    the Symbol should have and return the value as a string.
+    '''Given a DataSymbol instance as input, determine the Fortran intent that
+    the DataSymbol should have and return the value as a string.
 
     :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyGen.Symbol`
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the Fortran intent of the symbol instance in lower case, \
     or None if the access is unknown or if this is a local variable.
     :rtype: str or NoneType
 
     '''
-    mapping = {Symbol.Access.UNKNOWN: None,
-               Symbol.Access.READ: "in",
-               Symbol.Access.WRITE: "out",
-               Symbol.Access.READWRITE: "inout"}
-    if not symbol.interface:
-        # This is a local variable
-        return None
-    try:
-        return mapping[symbol.interface.access]
-    except KeyError as excinfo:
-        raise VisitorError("Unsupported access '{0}' found."
-                           "".format(str(excinfo)))
+    mapping = {ArgumentInterface.Access.UNKNOWN: None,
+               ArgumentInterface.Access.READ: "in",
+               ArgumentInterface.Access.WRITE: "out",
+               ArgumentInterface.Access.READWRITE: "inout"}
+
+    if symbol.is_argument:
+        try:
+            return mapping[symbol.interface.access]
+        except KeyError as excinfo:
+            raise VisitorError("Unsupported access '{0}' found."
+                               "".format(str(excinfo)))
+    else:
+        return None  # non-Arguments do not have intent
 
 
 def gen_dims(symbol):
-    '''Given a Symbol instance as input, return a list of strings
+    '''Given a DataSymbol instance as input, return a list of strings
     representing the symbol's array dimensions.
 
     :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyGen.Symbol`
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the Fortran representation of the symbol's dimensions as \
     a list.
@@ -95,7 +96,7 @@ def gen_dims(symbol):
 
     dims = []
     for index in symbol.shape:
-        if isinstance(index, Symbol):
+        if isinstance(index, DataSymbol):
             # references another symbol
             dims.append(index.name)
         elif isinstance(index, int):
@@ -141,33 +142,32 @@ class FortranWriter(PSyIRVisitor):
 
     '''
     def gen_use(self, symbol):
-        '''Create and return the Fortran use statement for this Symbol.
+        '''Create and return the Fortran use statement for this DataSymbol.
 
         :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: the Fortran use statement as a string.
         :rtype: str
 
         :raises VisitorError: if the symbol argument does not specify \
-        a use statement (its interface value is not a FortranGlobal \
-        instance).
+        a use statement (its interface value is not a Global instance).
 
         '''
-        if not isinstance(symbol.interface, Symbol.FortranGlobal):
+        if not symbol.is_global:
             raise VisitorError(
                 "gen_use() requires the symbol interface for symbol '{0}' to "
-                "be a FortranGlobal instance but found '{1}'."
+                "be a Global instance but found '{1}'."
                 "".format(symbol.name, type(symbol.interface).__name__))
 
         return "{0}use {1}, only : {2}\n".format(
-            self._nindent, symbol.interface.module_name, symbol.name)
+            self._nindent, symbol.interface.container_symbol.name, symbol.name)
 
     def gen_vardecl(self, symbol):
         '''Create and return the Fortran variable declaration for this Symbol.
 
         :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: the Fortran variable declaration as a string.
         :rtype: str
@@ -177,14 +177,11 @@ class FortranWriter(PSyIRVisitor):
         argument declaration).
 
         '''
-        if not symbol.scope == "local" and not isinstance(symbol.interface,
-                                                          Symbol.Argument):
+        if not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
                 "gen_vardecl requires the symbol '{0}' to be a local "
-                "declaration or an argument declaration, but found scope "
-                "'{1}' and interface '{2}'."
-                "".format(symbol.name, symbol.scope,
-                          type(symbol.interface).__name__))
+                "declaration or an argument declaration, but found '{1}'."
+                "".format(symbol.name, type(symbol.interface).__name__))
 
         intent = gen_intent(symbol)
         dims = gen_dims(symbol)
@@ -211,7 +208,7 @@ class FortranWriter(PSyIRVisitor):
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
-        :type symbol: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param bool args_allowed: if False then one or more argument
         declarations in symbol_table will cause this method to raise
         an exception. Defaults to True.
@@ -229,23 +226,23 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Use statements
-        for symbol in [sym for sym in symbol_table.symbols if
-                       isinstance(sym.interface, Symbol.FortranGlobal)]:
+        for symbol in symbol_table.global_datasymbols:
             declarations += self.gen_use(symbol)
+
         # 2: Argument variable declarations
-        symbols = [sym for sym in symbol_table.symbols if
-                   isinstance(sym.interface, Symbol.Argument)]
-        if symbols and not args_allowed:
+        if symbol_table.argument_datasymbols and not args_allowed:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
                 "table contains argument(s): '{0}'."
-                "".format([symbol.name for symbol in symbols]))
-        for symbol in symbols:
+                "".format([symbol.name for symbol in
+                           symbol_table.argument_datasymbols]))
+        for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(symbol)
+
         # 3: Local variable declarations
-        for symbol in [sym for sym in symbol_table.symbols if
-                       sym.scope == "local"]:
+        for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
+
         return declarations
 
     def container_node(self, node):

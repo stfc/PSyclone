@@ -44,8 +44,10 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Symbol, KernelSchedule, Container, Assignment, Return, Array, \
-    InternalError, GenerationError
+    KernelSchedule, Container, Assignment, Return, Array, InternalError, \
+    GenerationError
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
+    GlobalInterface, ArgumentInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -299,16 +301,53 @@ class Fparser2Reader(object):
         '''
         return KernelSchedule(name)
 
+    def generate_container(self, module_ast):
+        '''
+        Create a Container from the supplied fparser2 module AST.
+
+        :param module_ast: fparser2 AST of the full module.
+        :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+
+        :returns: PSyIR container representing the given module_ast
+        :rtype: :py:class:`psyclone.psyGen.Container`
+
+        :raises GenerationError: unable to generate a Container from the \
+                                 provided fpaser2 parse tree.
+        '''
+        # Assume just 1 Fortran module definition in the file
+        if len(module_ast.content) > 1:
+            raise GenerationError(
+                "Could not process {0}. Just one module definition per file "
+                "supported.".format(str(module_ast)))
+
+        module = module_ast.content[0]
+        mod_content = module.content
+        mod_name = str(mod_content[0].items[1])
+
+        # Create a container to capture the module information
+        new_container = Container(mod_name)
+
+        # Parse the declarations if it has any
+        if isinstance(mod_content[1], Fortran2003.Specification_Part):
+            decl_list = mod_content[1].content
+            self.process_declarations(new_container, decl_list, [])
+
+        return new_container
+
     def generate_schedule(self, name, module_ast):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param str name: Name of the subroutine represented by the kernel.
+        :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :raises GenerationError: Unable to generate a kernel schedule from the
-                                 provided fpaser2 parse tree.
+
+        :returns: PSyIR schedule representing the kernel
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+
+        :raises GenerationError: unable to generate a kernel schedule from \
+                                 the provided fpaser2 parse tree.
         '''
         def first_type_match(nodelist, typekind):
             '''
@@ -339,26 +378,12 @@ class Fparser2Reader(object):
 
         new_schedule = self._create_schedule(name)
 
-        # Assume just 1 Fortran module definition in the file
-        if len(module_ast.content) > 1:
-            raise GenerationError("Unexpected AST when generating '{0}' "
-                                  "kernel schedule. Just one "
-                                  "module definition per file supported."
-                                  "".format(name))
+        # Generate the Container of the module enclosing the Kernel
+        new_container = self.generate_container(module_ast)
+        mod_content = module_ast.content[0].content
 
-        module = module_ast.content[0]
-        mod_content = module.content
-        mod_name = str(mod_content[0].items[1])
-
-        # Create a container to capture the module information and
-        # connect it to the schedule.
-        new_container = Container(mod_name)
         new_schedule.parent = new_container
         new_container.children = [new_schedule]
-
-        mod_spec = mod_content[1]
-        decl_list = mod_spec.content
-        self.process_declarations(new_container, decl_list, [])
 
         try:
             subroutines = first_type_match(mod_content,
@@ -408,7 +433,7 @@ class Fparser2Reader(object):
         :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: Symbol table of the declaration context.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :returns: Shape of the attribute in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
@@ -424,12 +449,7 @@ class Fparser2Reader(object):
                                            Fortran2003.Explicit_Shape_Spec,
                                            Fortran2003.Assumed_Size_Spec]):
 
-            if isinstance(dim, Fortran2003.Assumed_Size_Spec):
-                raise NotImplementedError(
-                    "Could not process {0}. Assumed-size arrays"
-                    " are not supported.".format(dimensions))
-
-            elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
+            if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
@@ -448,6 +468,11 @@ class Fparser2Reader(object):
                     shape.append(sym)
                 else:
                     _unsupported_type_error(dimensions)
+
+            elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
+                raise NotImplementedError(
+                    "Could not process {0}. Assumed-size arrays"
+                    " are not supported.".format(dimensions))
 
             else:
                 raise InternalError(
@@ -468,9 +493,9 @@ class Fparser2Reader(object):
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
 
-        :raises NotImplementedError: The provided declarations contain
+        :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
-        :raises GenerationError: If the parse tree for a USE statement does \
+        :raises GenerationError: if the parse tree for a USE statement does \
                                  not have the expected structure.
         '''
         # Look at any USE statments
@@ -488,21 +513,19 @@ class Fparser2Reader(object):
                     "Expected the parse tree for a USE statement to contain "
                     "5 items but found {0} for '{1}'".format(len(decl.items),
                                                              text))
-            if not isinstance(decl.items[4], Fortran2003.Only_List):
-                # This USE doesn't have an ONLY clause so we skip it. We
-                # don't raise an error as this will only become a problem if
-                # this Schedule represents a kernel that is the target of a
-                # transformation. In that case construction of the PSyIR will
-                # fail if the Fortran code makes use of symbols from this
-                # module because they will not be present in the SymbolTable.
-                continue
+
             mod_name = str(decl.items[2])
-            for name in decl.items[4].items:
-                # Create an entry in the SymbolTable for each symbol named
-                # in the ONLY clause.
-                parent.symbol_table.add(
-                    Symbol(str(name), datatype='deferred',
-                           interface=Symbol.FortranGlobal(mod_name)))
+
+            # Add the module symbol in the symbol table
+            container = ContainerSymbol(mod_name)
+            parent.symbol_table.add(container)
+
+            # Create a 'deferred' symbol for each element in the ONLY clause.
+            if isinstance(decl.items[4], Fortran2003.Only_List):
+                for name in decl.items[4].items:
+                    parent.symbol_table.add(
+                        DataSymbol(str(name), datatype='deferred',
+                                   interface=GlobalInterface(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -535,19 +558,24 @@ class Fparser2Reader(object):
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
             interface = None
+            # 3) Record initialized constant values
+            has_constant_value = False
             if attr_specs:
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
                         if "intent(in)" in normalized_string:
-                            interface = Symbol.Argument(
-                                access=Symbol.Access.READ)
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
                         elif "intent(out)" in normalized_string:
-                            interface = Symbol.Argument(
-                                access=Symbol.Access.WRITE)
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
                         elif "intent(inout)" in normalized_string:
-                            interface = Symbol.Argument(
-                                access=Symbol.Access.READWRITE)
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READWRITE)
+                        elif normalized_string == "parameter":
+                            # Flag the existence of a constant value in the RHS
+                            has_constant_value = True
                         else:
                             raise NotImplementedError(
                                 "Could not process {0}. Unrecognized "
@@ -565,6 +593,7 @@ class Fparser2Reader(object):
             # parent symbol table for each entity found.
             for entity in entities.items:
                 (name, array_spec, char_len, initialisation) = entity.items
+                ct_value = None
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
@@ -574,11 +603,24 @@ class Fparser2Reader(object):
                 else:
                     entity_shape = attribute_shape
 
-                if initialisation is not None:
-                    raise NotImplementedError(
-                        "Could not process {0}. Initialisations on the"
-                        " declaration statements are not supported."
-                        "".format(decl.items))
+                if initialisation:
+                    if has_constant_value:
+                        # If it is a parameter, get the initialization value
+                        expr = initialisation.items[1]
+                        if isinstance(expr, Fortran2003.NumberBase):
+                            value_str = expr.items[0]
+                            # Convert string literal to the Symbol datatype
+                            ct_value = DataSymbol.mapping[datatype](value_str)
+                        else:
+                            raise NotImplementedError(
+                                "Could not process {0}. Initialisations with "
+                                "static expressions are not supported."
+                                "".format(decl.items))
+                    else:
+                        raise NotImplementedError(
+                            "Could not process {0}. Initialisations on the"
+                            " declaration statements are just supported in "
+                            "parameter declarations.".format(decl.items))
 
                 if char_len is not None:
                     raise NotImplementedError(
@@ -586,23 +628,24 @@ class Fparser2Reader(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                parent.symbol_table.add(Symbol(str(name), datatype,
-                                               shape=entity_shape,
-                                               interface=interface,
-                                               precision=precision))
+                parent.symbol_table.add(DataSymbol(str(name), datatype,
+                                                   shape=entity_shape,
+                                                   constant_value=ct_value,
+                                                   interface=interface,
+                                                   precision=precision))
 
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
             for arg_name in [x.string for x in arg_list]:
                 symbol = parent.symbol_table.lookup(arg_name)
-                if symbol.scope == 'local':
+                if symbol.is_local:
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
                     # A Fortran argument has intent(inout) by default
-                    symbol.interface = Symbol.Argument(
-                        access=Symbol.Access.READWRITE)
+                    symbol.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READWRITE)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the
             # argument list
@@ -660,22 +703,22 @@ class Fparser2Reader(object):
         Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract KIND information. This
         information is used to determine the precision of the variable (as
-        supplied to the Symbol constructor).
+        supplied to the DataSymbol constructor).
 
         :param symbol_table: the SymbolTable associated with the code \
-                             being processed.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+            being processed.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
 
         :returns: the precision associated with the type specification.
-        :rtype: int or :py:class:`psyclone.psyGen.Symbol.Precision` or \
-                :py:class:`psyclone.psyGen.Symbol` or NoneType
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
+            :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
 
         :raises NotImplementedError: if a KIND intrinsic is found with an \
-                            argument other than a real or integer literal.
+            argument other than a real or integer literal.
         :raises NotImplementedError: if we have `kind=xxx` but cannot find \
-                            a valid variable name.
+            a valid variable name.
         '''
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             return None
@@ -706,13 +749,13 @@ class Fparser2Reader(object):
                 if isinstance(kind_arg, Fortran2003.Real_Literal_Constant):
                     import re
                     if re.search("d[0-9]", str(kind_arg).lower()):
-                        return Symbol.Precision.DOUBLE
-                    return Symbol.Precision.SINGLE
+                        return DataSymbol.Precision.DOUBLE
+                    return DataSymbol.Precision.SINGLE
 
                 if isinstance(kind_arg, Fortran2003.Int_Literal_Constant):
                     # An integer with no explict kind specifier must be of
                     # default precision
-                    return Symbol.Precision.SINGLE
+                    return DataSymbol.Precision.SINGLE
 
             raise NotImplementedError(
                 "Only real and integer literals are supported "
@@ -741,10 +784,10 @@ class Fparser2Reader(object):
         :param str name: the name of the variable holding the KIND value.
         :param symbol_table: the Symbol Table associated with the code being\
                              processed.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: the Symbol representing the KIND parameter.
-        :rtype: :py:class:`psyclone.psyGen.Symbol`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises TypeError: if the Symbol Table already contains an entry for \
                        `name` and its datatype is not 'integer' or 'deferred'.
@@ -761,9 +804,11 @@ class Fparser2Reader(object):
                 # Existing symbol had 'deferred' type
                 kind_symbol.datatype = "integer"
         except KeyError:
-            # The SymbolTable does not contain an entry for
-            # this kind parameter so create one.
-            kind_symbol = Symbol(name, "integer")
+            # The SymbolTable does not contain an entry for this kind parameter
+            # so create one.
+            # TODO: Issue #584, the statment below can cause double
+            # declarations.
+            kind_symbol = DataSymbol(name, "integer")
             symbol_table.add(kind_symbol)
         return kind_symbol
 

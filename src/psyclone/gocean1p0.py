@@ -53,8 +53,8 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, AccessType, \
-    Literal, ACCEnterDataDirective, Schedule
+    KernelSchedule, AccessType, Literal, ACCEnterDataDirective, Schedule
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 import six
@@ -2075,7 +2075,7 @@ class GOSymbolTable(SymbolTable):
         indices.
 
         :return: List of symbols representing the iteration indices.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         self._check_gocean_conformity()
         return self.argument_list[:2]
@@ -2086,7 +2086,7 @@ class GOSymbolTable(SymbolTable):
         the argument list.
 
         :return: List of symbols representing the data arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         self._check_gocean_conformity()
         return self.argument_list[2:]

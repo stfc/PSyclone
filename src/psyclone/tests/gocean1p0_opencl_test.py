@@ -43,7 +43,8 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyGen import GenerationError, Symbol
+from psyclone.psyGen import GenerationError
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 from psyclone.tests.utilities import Compile, get_invoke
 
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
@@ -408,8 +409,9 @@ def test_symtab_implementation_for_opencl():
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
     # Test symbol table with 1 kernel argument
-    arg1 = Symbol("arg1", "integer", [],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg1 = DataSymbol("arg1", "integer", [],
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
@@ -419,8 +421,9 @@ def test_symtab_implementation_for_opencl():
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
     # Test symbol table with 2 kernel argument
-    arg2 = Symbol("arg2", "integer", shape=[],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg2 = DataSymbol("arg2", "integer", shape=[],
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
     kschedule.symbol_table.specify_argument_list([arg1, arg2])
     iteration_indices = kschedule.symbol_table.iteration_indices
@@ -428,8 +431,9 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    arg3 = Symbol("buffer1", "real", shape=[10, 10],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg3 = DataSymbol("buffer1", "real", shape=[10, 10],
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg3)
     kschedule.symbol_table.specify_argument_list([arg1, arg2, arg3])
     iteration_indices = kschedule.symbol_table.iteration_indices
