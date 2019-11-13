@@ -42,6 +42,8 @@ from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
 
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
 __all__ = ['Symbol',
            'SymbolError',
            'SymbolTable',

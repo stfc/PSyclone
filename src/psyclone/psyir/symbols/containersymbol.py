@@ -104,18 +104,19 @@ class ContainerSymbolInterface(object):
 
 
 class FortranModuleInterface(ContainerSymbolInterface):
-    ''' Implemtation of ContainerSymbolInterfaces for Fortran modules '''
+    ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
     def import_container(name):
         ''' Imports a Fortran module as a PSyIR container.
 
-        :param str module_name: name of the module to be imported.
+        :param str name: name of the module to be imported.
 
-        :returns: container associated to the given name.
+        :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyGen.Container`
 
-        :raises SymbolError: the given symbol is not found on the import path.
+        :raises SymbolError: the given Fortran module is not found on the \
+            import path.
         '''
         from os import listdir, path
         from fparser.two.parser import ParserFactory
@@ -134,8 +135,19 @@ class FortranModuleInterface(ContainerSymbolInterface):
                 ast = f2008_parser(reader)
                 fp2reader = Fparser2Reader()
 
-                # Generate and return the PSyIR container
-                return fp2reader.generate_container(ast)
+                # Generate the PSyIR container
+                container = fp2reader.generate_container(ast)
+
+                # Sanity check
+                if not container.name == name:
+                    raise ValueError(
+                        "Error importing the Fortran module '{0}' into a PSyIR"
+                        " container. The imported module has the unexpected "
+                        "name: '{1}'.".format(name, container.name))
+
+                return container
+
         raise SymbolError(
-            "Module {0} not found in any of the include_path directories {1}."
-            "".format(filename, Config.get().include_paths))
+            "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
+            " any of the include_path directories {1}."
+            "".format(name, Config.get().include_paths))

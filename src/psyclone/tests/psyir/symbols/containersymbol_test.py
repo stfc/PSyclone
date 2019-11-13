@@ -115,7 +115,8 @@ def test_containersymbol_fortranmodule_interface():
     Config.get().include_paths = []
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
-    assert ("Module fake_module.f90 not found in any of the include_path "
+    assert ("Module 'fake_module' (expected to be found in "
+            "'fake_module.[f|F]90') not found in any of the include_path "
             "directories []." in str(error))
 
     # Try with an unexistant module and a directory in the include path
@@ -124,10 +125,18 @@ def test_containersymbol_fortranmodule_interface():
     Config.get().include_paths = [path]
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
-    assert ("Module fake_module.f90 not found in any of the include_path "
+    assert ("Module 'fake_module' (expected to be found in "
+            "'fake_module.[f|F]90') not found in any of the include_path "
             "directories ['" in str(error))
 
     # Try importing and existant Fortran module
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
     assert container.name == "dummy_module"
+
+    # Import the wrong module
+    with pytest.raises(ValueError) as error:
+        container = fminterface.import_container("different_name_module")
+    assert ("Error importing the Fortran module 'different_name_module' into "
+            "a PSyIR container. The imported module has the unexpected name: "
+            "'dummy_module'." in str(error.value))
