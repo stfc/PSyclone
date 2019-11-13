@@ -40,7 +40,7 @@
         :align: center
         :alt: PSyclone
 
-PSyclone User's Guide
+PSyclone User Guide
 =====================
 
 
@@ -59,6 +59,9 @@ PSyclone User's Guide
     and the
     `Reference Guide <https://psyclone-ref.readthedocs.io/>`_.
 
+.. toctree::
+    :hidden:
+    :caption: Table of Contents
 
 .. toctree::
     :maxdepth: 2
