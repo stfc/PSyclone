@@ -179,8 +179,8 @@ class FortranWriter(PSyIRVisitor):
         '''
         if not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
-                "gen_vardecl requires the symbol '{0}' to be a local "
-                "declaration or an argument declaration, but found '{1}'."
+                "gen_vardecl requires the symbol '{0}' to have a Local or "
+                "an Argument interface but found a '{1}' interface."
                 "".format(symbol.name, type(symbol.interface).__name__))
 
         intent = gen_intent(symbol)

@@ -396,8 +396,8 @@ def test_process_declarations(f2008_parser):
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert "Initialisations on the declaration statements are just " \
-           "supported in parameter declarations." in str(error.value)
+    assert "Initialisations on the declaration statements are only " \
+           "supported for parameter declarations." in str(error.value)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
@@ -790,7 +790,8 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
         _ = Fparser2Reader._parse_dimensions(fparser2spec, None)
-    assert "Reached end of loop body and" in str(error.value)
+    assert "Reached end of loop body and array-shape specification" \
+        in str(error.value)
     assert " has not been handled." in str(error.value)
 
 

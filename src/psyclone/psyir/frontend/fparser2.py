@@ -308,7 +308,7 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: PSyIR container representing the given module_ast
+        :returns: PSyIR container representing the given module_ast.
         :rtype: :py:class:`psyclone.psyGen.Container`
 
         :raises GenerationError: unable to generate a Container from the \
@@ -343,7 +343,7 @@ class Fparser2Reader(object):
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: PSyIR schedule representing the kernel
+        :returns: PSyIR schedule representing the kernel.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
         :raises GenerationError: unable to generate a kernel schedule from \
@@ -476,8 +476,8 @@ class Fparser2Reader(object):
 
             else:
                 raise InternalError(
-                    "Reached end of loop body and {0} has"
-                    " not been handled.".format(type(dim)))
+                    "Reached end of loop body and array-shape specification "
+                    "{0} has not been handled.".format(type(dim)))
 
         return shape
 
@@ -619,7 +619,7 @@ class Fparser2Reader(object):
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Initialisations on the"
-                            " declaration statements are just supported in "
+                            " declaration statements are only supported for "
                             "parameter declarations.".format(decl.items))
 
                 if char_len is not None:

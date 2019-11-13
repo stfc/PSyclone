@@ -177,9 +177,9 @@ def test_fw_gen_vardecl(fort_writer):
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to be a local "
-            "declaration or an argument declaration, but found "
-            "'GlobalInterface'." in str(excinfo.value))
+    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
+            "an Argument interface but found a 'GlobalInterface' interface."
+            in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):
