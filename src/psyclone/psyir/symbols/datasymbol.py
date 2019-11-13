@@ -441,14 +441,14 @@ class GlobalInterface(DataSymbolInterface):
     '''
     Describes the interface to a DataSymbol representing data that
     is supplied as some sort of global variable, and therefore it is
-    defined in a external PSyIR container.
+    defined in an external PSyIR container.
 
-    :param container_symbol: symbol of the external container from which \
-        the symbol is imported.
+    :param container_symbol: symbol representing the external container \
+        from which the symbol is imported.
     :type container_symbol: \
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-    :raise TypeError: if the container_symbol is not a ContainerSymbol
+    :raise TypeError: if the container_symbol is not a ContainerSymbol.
     '''
     def __init__(self, container_symbol):
         from psyclone.psyir.symbols import ContainerSymbol
@@ -466,7 +466,7 @@ class GlobalInterface(DataSymbolInterface):
     @property
     def container_symbol(self):
         '''
-        :return: symbol of the container containing this datasymbol.
+        :return: symbol representing the container containing this DataSymbol.
         :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
         '''
         return self._container_symbol
@@ -526,7 +526,7 @@ class ArgumentInterface(DataSymbolInterface):
         :param value: the new access type.
         :type value: :py:class:`psyclon.psyir.symbols.ArgumentInterface.Access`
 
-        :raises TypeError: if the supplied value is not a \
+        :raises TypeError: if the supplied value is not an \
             ArgumentInterface.Access
         '''
         if not isinstance(value, ArgumentInterface.Access):
