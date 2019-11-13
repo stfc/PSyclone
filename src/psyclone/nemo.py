@@ -312,10 +312,7 @@ class NemoInvokeSchedule(InvokeSchedule):
 
     '''
     def __init__(self, name, invoke, ast):
-        from psyclone.psyGen import SymbolTable
         super(NemoInvokeSchedule, self).__init__(None, None)
-        # Currently only a KernelSchedule has a SymbolTable
-        self._symbol_table = SymbolTable(self)
 
         self._invoke = invoke
         self._ast = ast

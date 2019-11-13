@@ -1650,16 +1650,18 @@ class Node(object):
 
 class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
-    as a list of children).
+    as a list of children). Also contains a SymbolTable that holds
+    information on the symbols defined within the Schedule scope.
 
     :param children: the sequence of PSyIR nodes that make up the Schedule.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
-    :param parent: that parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyGen.Node` or NoneType
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
 
     '''
     def __init__(self, children=None, parent=None):
         Node.__init__(self, children=children, parent=parent)
+        self._symbol_table = SymbolTable(self)
         self._text_name = "Schedule"
         self._colour_key = "Schedule"
 
@@ -1670,6 +1672,14 @@ class Schedule(Node):
         :rtype: str
         '''
         return self._text_name
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the Schedule.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
+        return self._symbol_table
 
     def __getitem__(self, index):
         '''
@@ -6121,8 +6131,7 @@ class SymbolTable(object):
 
 class KernelSchedule(Schedule):
     '''
-    A kernelSchedule inherits the functionality from Schedule and adds a symbol
-    table to keep a record of the declared variables and their attributes.
+    A kernelSchedule is the parent node of the PSyIR for Kernel source code.
 
     :param str name: Kernel subroutine name
 
@@ -6130,7 +6139,6 @@ class KernelSchedule(Schedule):
     def __init__(self, name):
         super(KernelSchedule, self).__init__(children=None, parent=None)
         self._name = name
-        self._symbol_table = SymbolTable(self)
 
     @property
     def name(self):
@@ -6148,14 +6156,6 @@ class KernelSchedule(Schedule):
         :param str new_name: New name for the kernel.
         '''
         self._name = new_name
-
-    @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the kernel.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
-        '''
-        return self._symbol_table
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
