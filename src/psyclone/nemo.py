@@ -150,8 +150,11 @@ class NemoInvoke(Invoke):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Module`
     :param str name: the name of this Invoke (program unit).
+    :param container: reference to the parent Container of this Invoke \
+                      (if any).
+    :type container: :py:class:`psyclone.psyGen.Container` or NoneType
     '''
-    def __init__(self, ast, name):
+    def __init__(self, ast, name, container=None):
         # pylint: disable=super-init-not-called
         self._schedule = None
         self._name = name
@@ -178,8 +181,9 @@ class NemoInvoke(Invoke):
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo module.
         processor = NemoFparser2Reader()
-        self._schedule = NemoInvokeSchedule(name, self, exe_part)
-        processor.process_nodes(self._schedule, exe_part.content, exe_part)
+        self._schedule = processor.generate_schedule(name, ast, container)
+        #NemoInvokeSchedule(name, self, exe_part)
+        #processor.process_nodes(self._schedule, exe_part.content, exe_part)
 
     def update(self):
         '''
@@ -214,10 +218,8 @@ class NemoInvokes(Invokes):
         processor = NemoFparser2Reader()
         # First attempt to create a Container representing any Fortran module
         # contained in the parse tree.
-        # TODO what about PROGRAM and bare SUBROUTINE/FUNCTIONs? Presumably
-        # these are handled as Invokes without a parent Container?
         self._container = processor.generate_container(ast)
-        import pdb; pdb.set_trace()
+
         # Find all the subroutines contained in the file
         routines = walk_ast(ast.content, [Subroutine_Subprogram,
                                           Function_Subprogram])
@@ -240,7 +242,8 @@ class NemoInvokes(Invokes):
             else:
                 sub_name = str(substmt.get_name())
 
-            my_invoke = NemoInvoke(subroutine, name=sub_name)
+            my_invoke = NemoInvoke(subroutine, name=sub_name,
+                                   container=self._container)
             self.invoke_map[sub_name] = my_invoke
             self.invoke_list.append(my_invoke)
 
@@ -318,7 +321,8 @@ class NemoInvokeSchedule(InvokeSchedule):
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-    def __init__(self, name, invoke, ast):
+    def __init__(self, name, invoke=None, ast=None):
+        # TODO rm this constructor altogether?
         super(NemoInvokeSchedule, self).__init__(None, None)
 
         self._invoke = invoke
@@ -330,8 +334,8 @@ class NemoInvokeSchedule(InvokeSchedule):
         self._name_clashes_checked = False
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
-
-        self.process_nodes(self, ast.content, ast)
+        # We no longer call process_nodes directly
+        #self.process_nodes(self, ast.content, ast)
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''

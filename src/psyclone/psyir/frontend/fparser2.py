@@ -334,7 +334,7 @@ class Fparser2Reader(object):
 
         return new_container
 
-    def generate_schedule(self, name, module_ast):
+    def generate_schedule(self, name, module_ast, container):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
@@ -378,17 +378,31 @@ class Fparser2Reader(object):
 
         new_schedule = self._create_schedule(name)
 
-        # Generate the Container of the module enclosing the Kernel
-        new_container = self.generate_container(module_ast)
-        mod_content = module_ast.content[0].content
+        # Generate the Container of the module enclosing the Kernel if
+        # we haven't been supplied with one.
+        if container:
+            new_container = container
+        else:
+            new_container = self.generate_container(module_ast)
 
         new_schedule.parent = new_container
-        new_container.children = [new_schedule]
+        new_container.children.append(new_schedule)
 
         try:
-            subroutines = first_type_match(mod_content,
-                                           Fortran2003.Module_Subprogram_Part)
-            subroutine = search_subroutine(subroutines.content, name)
+            if isinstance(module_ast, Fortran2003.Module):
+                mod_content = module_ast.content[0].content
+                subroutines = first_type_match(
+                    mod_content, Fortran2003.Module_Subprogram_Part)
+                subroutine = search_subroutine(subroutines.content, name)
+            elif isinstance(module_ast, Fortran2003.Subroutine_Subprogram):
+                if str(module_ast.content[0].get_name()) != name:
+                    raise ValueError()
+                subroutine = module_ast
+            else:
+                raise NotImplementedError(
+                    "Expected either Fortran2003.Module or "
+                    "Subroutine_Subprogram but got: {0}".format(
+                        type(module_ast).__name__))
         except (ValueError, IndexError):
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
