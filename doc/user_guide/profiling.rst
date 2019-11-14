@@ -132,55 +132,120 @@ PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created
 when instrumenting invokes - all children of a Profile-Node will
 be part of the profiling region, including all loops created by
-PSyclone and all kernel calls::
+PSyclone and all kernel calls (note that for brevity, the nodes
+holding the loop bounds have been omitted for all but the first loop)::
 
     GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
-        [Profile]
-            Loop[type='outer',field_space='cu',it_space='internal_pts']
-                Loop[type='inner',field_space='cu',it_space='internal_pts']
-                    CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
-            Loop[type='outer',field_space='cv',it_space='internal_pts']
-                Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
-            Loop[type='outer',field_space='ct',it_space='internal_pts']
-                Loop[type='inner',field_space='ct',it_space='internal_pts']
-                    CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+        0: [Profile]
+	    Schedule[]
+                0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
+                    Literal[value:'2']
+                    Literal[value:'jstop']
+                    Literal[value:'1']
+		    Schedule[]
+                        0: Loop[type='inner',field_space='go_cu',
+			        it_space='go_internal_pts']
+                            ...
+			    Schedule[]
+                                0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
+				           cv_fld,h_fld,tdt,dy) [module_inline=False]
+                1: Loop[type='outer',field_space='cv',it_space='internal_pts']
+		    ...
+		    Schedule[]
+                        0: Loop[type='inner',field_space='cv',it_space='internal_pts']
+			    ...
+			    Schedule[]
+                                0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
+				           cu_fld,h_fld,tdt,dy) [module_inline=False]
+                2: Loop[type='outer',field_space='ct',it_space='internal_pts']
+		    ...
+		    Schedule[]
+                        0: Loop[type='inner',field_space='ct',it_space='internal_pts']
+			    ...
+			    Schedule[]
+                                0: CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,
+				           cv_fld,tdt,dx,dy) [module_inline=False]
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
 region::
 
     GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
-        [Profile]
-            Loop[type='outer',field_space='cu',it_space='internal_pts']
-                Loop[type='inner',field_space='cu',it_space='internal_pts']
-                    CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
-        [Profile]
-            Loop[type='outer',field_space='cv',it_space='internal_pts']
-                Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
-        [Profile]
-            Loop[type='outer',field_space='ct',it_space='internal_pts']
-                Loop[type='inner',field_space='ct',it_space='internal_pts']
-                    CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+        0: [Profile]
+	    Schedule[]
+                0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
+		    ...
+		    Schedule[]
+                        0: Loop[type='inner',field_space='go_cu',
+			        it_space='go_internal_pts']
+			    ...
+			    Schedule[]
+                                0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
+				        cv_fld,h_fld,tdt,dy) [module_inline=False]
+        1: [Profile]
+	    Schedule[]
+                0: Loop[type='outer',field_space='go_cv',it_space='go_internal_pts']
+		    ...
+		    Schedule[]
+                    	0: Loop[type='inner',field_space='go_cv',
+			        it_space='go_internal_pts']
+		    	    ...
+		    	    Schedule[]
+                    	        0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
+				        cu_fld,h_fld,tdt,dy) [module_inline=False]
+        2: [Profile]
+	    Schedule[]
+                0: Loop[type='outer',field_space='go_ct',it_space='go_internal_pts']
+		    ...
+		    Schedule[]
+                        0: Loop[type='inner',field_space='go_ct',
+			        it_space='go_internal_pts']
+			    ...
+			    Schedule[]
+                                0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
+				        cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 Both options can be specified at the same time::
 
     GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
-        [Profile]
-            [Profile]
-                Loop[type='outer',field_space='cu',it_space='internal_pts']
-                    Loop[type='inner',field_space='cu',it_space='internal_pts']
-                        CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
-            [Profile]
-                Loop[type='outer',field_space='cv',it_space='internal_pts']
-                    Loop[type='inner',field_space='cv',it_space='internal_pts']
-                        CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
-            [Profile]
-                Loop[type='outer',field_space='ct',it_space='internal_pts']
-                    Loop[type='inner',field_space='ct',it_space='internal_pts']
-                        CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
-
+        0: [Profile]
+	    Schedule[]
+	        0: [Profile]
+	            Schedule[]
+	                0: Loop[type='outer',field_space='go_cu',
+			        it_space='go_internal_pts']
+			    ...
+			    Schedule[]
+	                        0: Loop[type='inner',field_space='go_cu',
+				        it_space='go_internal_pts']
+				    ...
+				    Schedule[]
+	                                0: CodedKern compute_unew_code(unew_fld,uold_fld,
+					        ...) [module_inline=False]
+	        1: [Profile]
+		    Schedule[]
+	                0: Loop[type='outer',field_space='go_cv',
+			        it_space='go_internal_pts']
+			    ...
+			    Schedule[]
+	                    	0: Loop[type='inner',field_space='go_cv',
+				        it_space='go_internal_pts']
+			    	    ...
+			    	    Schedule[]
+	                    	        0: CodedKern compute_vnew_code(vnew_fld,vold_fld,
+					        ...) [module_inline=False]
+	        2: [Profile]
+		    Schedule[]
+	                0: Loop[type='outer',field_space='go_ct',
+			        it_space='go_internal_pts']
+			    ...
+			    Schedule[]
+	                        0: Loop[type='inner',field_space='go_ct',
+				        it_space='go_internal_pts']
+				    ...
+				    Schedule[]
+	                                0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
+	                                        ...) [module_inline=False]
 
 
 Profiling in Scripts - ProfileRegionTransform
