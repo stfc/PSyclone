@@ -112,24 +112,22 @@ InvokeSchedule visualisation
 ++++++++++++++++++++++++++++
 
 PSyclone supports visualising an InvokeSchedule (or any other PSyIR node)
-in two ways. Firstly the `view()` method outputs textual information about
+in two ways. First the `view()` method outputs textual information about
 the contents of a PSyIR node. If we were to look at the dynamo eg6 example
 we would see the following output:
 ::
 
    >>> schedule.view()
    InvokeSchedule[invoke='invoke_0', dm=True]
-       0: Directive[OMP parallel]
+       0: Directive[OMP parallel do]
            Schedule[]
-               0: Directive[OMP do][reprod=True]
-	           Schedule[]
-                       0: Loop[type='dofs',field_space='any_space_1',it_space='dofs']
-                           Literal[value:'NOT_INITIALISED']
-                           Literal[value:'NOT_INITIALISED']
-                           Literal[value:'1']
-                           Schedule[]
-                               0: BuiltIn setval_X_code(p,z)
-                               1: BuiltIn X_innerproduct_Y_code(rs_old,res,z)
+               0: Loop[type='dofs',field_space='any_space_1',it_space='dofs','upper_bound='ndofs']
+                   Literal[value:'NOT_INITIALISED']
+                   Literal[value:'NOT_INITIALISED']
+                   Literal[value:'1']
+                   Schedule[]
+                       0: BuiltIn setval_X_code(p,z)
+                       1: BuiltIn X_innerproduct_Y_code(rs_old,res,z)
        1: GlobalSum[scalar='rs_old']
 
 The above output tells us that the invoke name for the InvokeSchedule we are
@@ -140,7 +138,7 @@ latter of the two builtin calls requires a reduction and distributed
 memory is switched on, PSyclone has added a GlobalSum call for the
 appropriate scalar.
 
-Secondly, the `dag()` method (standing for directed acyclic graph),
+Second, the `dag()` method (standing for directed acyclic graph),
 outputs the PSyIR nodes and its data dependencies. By default a file in
 dot format is output with the name ``dag`` and a file in svg format is
 output with the name ``dag.svg``. The file name can be changed using
