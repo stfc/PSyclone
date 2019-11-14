@@ -34,7 +34,7 @@
 module testkern_any_space_2_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
+  use constants_mod, only : r_def
 ! test for any_space producing correct code where there are a) multi declarations of the same any_space
 ! space, 2) no other spaces in the arguments, 3) no functions (e.g. basis, diff_basis) declared,
 ! 4) any_space used with an operator
