@@ -294,3 +294,35 @@ def test_derived_type(parser):
         can_loop_be_parallelised(loops[1], "jj",
                                  variables_to_ignore=["a % b", "b % b"])
     assert parallel
+
+
+# -----------------------------------------------------------------------------
+def test_inout_parameters_nemo(parser):
+    '''Test detection of input and output parameters in NEMO.
+    '''
+    reader = FortranStringReader('''program test
+                         do jj = 1, jpj   ! loop 0
+                            do ji = 1, jpi
+                               a(ji, jj) = b+c(ji, jj)
+                             end do
+                         end do
+                         end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test").schedule
+
+    dep_tools = DependencyTools()
+    input_list = dep_tools.get_input_parameters(loops)
+    # Use set to be order independent
+    input_set = set(input_list)
+    assert input_set == set(["b", "c", "jpi", "jpj"])
+
+    output_list = dep_tools.get_output_parameters(loops)
+    # Use set to be order independent
+    output_set = set(output_list)
+    assert output_set == set(["jj", "ji", "a"])
+
+    in_list1, out_list1 = dep_tools.get_in_out_parameters(loops)
+
+    assert in_list1 == input_list
+    assert out_list1 == output_list
