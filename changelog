@@ -7,6 +7,10 @@
 	currently only works if kind-parameters are declared or
 	explicitly imported in the local scope - see #587 and #586.
 
+        3) PR #562 for #473. Fixes the DAG generation to allow for
+	Loops having Schedules and children (e.g. loop limits) that
+	we want to ignore.
+
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel
