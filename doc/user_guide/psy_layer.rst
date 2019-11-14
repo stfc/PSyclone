@@ -119,11 +119,18 @@ we would see the following output:
 
    >>> schedule.view()
    InvokeSchedule[invoke='invoke_0', dm=True]
-       Directive[OMP parallel do]
-           Loop[type='dofs',field_space='any_space_1',it_space='dofs']
-               BuiltIn setval_X_code(p,z)
-               BuiltIn X_innerproduct_Y_code(rs_old,res,z)
-       GlobalSum[scalar='rs_old']
+       0: Directive[OMP parallel]
+           Schedule[]
+               0: Directive[OMP do][reprod=True]
+	           Schedule[]
+                       0: Loop[type='dofs',field_space='any_space_1',it_space='dofs']
+                           Literal[value:'NOT_INITIALISED']
+                           Literal[value:'NOT_INITIALISED']
+                           Literal[value:'1']
+                           Schedule[]
+                               0: BuiltIn setval_X_code(p,z)
+                               1: BuiltIn X_innerproduct_Y_code(rs_old,res,z)
+       1: GlobalSum[scalar='rs_old']
 
 The above output tells us that the invoke name for the InvokeSchedule we are
 looking at is `invoke_0` and that the distributed_memory option has
