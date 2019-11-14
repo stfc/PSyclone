@@ -140,7 +140,7 @@ class SymbolTable(object):
         '''
         Look up a symbol in the symbol table.
 
-        :param str name: name of the symbol
+        :param str name: name of the symbol.
 
         :returns: symbol with the given name.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`

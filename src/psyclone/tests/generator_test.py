@@ -829,3 +829,6 @@ def test_main_include_path(capsys):
           '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
+    # Check that the Config object contains the provided include paths
+    assert str(inc_path1) in Config.get().include_paths
+    assert str(inc_path2) in Config.get().include_paths

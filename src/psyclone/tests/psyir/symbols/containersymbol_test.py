@@ -38,6 +38,7 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.containersymbols file '''
 
+import os
 import pytest
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError
 from psyclone.psyir.symbols.containersymbol import ContainerSymbolInterface, \
@@ -61,7 +62,7 @@ def test_containersymbol_initialisation():
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
     assert "ContainerSymbol name attribute should be of type 'str'" \
-        in str(error)
+        in str(error.value)
 
 
 def test_containersymbol_str():
@@ -75,6 +76,8 @@ def test_containersymbol_str():
 
 
 def test_containersymbol_resolve_external_container(monkeypatch):
+    '''Test that a ContainerSymbol uses its interface import_container method
+    the first time its associated container reference is needed'''
 
     sym = ContainerSymbol("my_mod")
 
@@ -88,7 +91,7 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     assert sym.container == "MockContainer"
     assert sym._reference == "MockContainer"
 
-    # Following invokations do not update the container reference
+    # Check that subsequent invocations do not update the container reference
     monkeypatch.setattr(sym._interface, "import_container",
                         staticmethod(lambda x: "OtherContainer"))
     assert sym.container == "MockContainer"
@@ -101,33 +104,32 @@ def test_containersymbol_generic_interface():
 
     with pytest.raises(NotImplementedError) as error:
         abstractinterface.import_container("name")
-    assert "Abstract method" in str(error)
+    assert "Abstract method" in str(error.value)
 
 
-def test_containersymbol_fortranmodule_interface():
+def test_containersymbol_fortranmodule_interface(monkeypatch):
     '''Check that the FortranModuleInterface imports Fortran modules
     as containers or produces the appropriate errors'''
-    import os
 
     fminterface = FortranModuleInterface
 
-    # Try with an unexistant module and no include path
-    Config.get().include_paths = []
+    # Try with a non-existant module and no include path
+    monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
     assert ("Module 'fake_module' (expected to be found in "
-            "'fake_module.[f|F]90') not found in any of the include_path "
-            "directories []." in str(error))
+            "'fake_module.[f|F]90') not found in any of the include_paths "
+            "directories []." in str(error.value))
 
-    # Try with an unexistant module and a directory in the include path
+    # Try with a non-existant module and an existing directory
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files")
     Config.get().include_paths = [path]
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
     assert ("Module 'fake_module' (expected to be found in "
-            "'fake_module.[f|F]90') not found in any of the include_path "
-            "directories ['" in str(error))
+            "'fake_module.[f|F]90') not found in any of the include_paths "
+            "directories ['" in str(error.value))
 
     # Try importing and existant Fortran module
     container = fminterface.import_container("dummy_module")
