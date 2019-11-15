@@ -109,6 +109,99 @@ def gen_dims(symbol):
     return dims
 
 
+def gen_datatype(symbol):
+    '''Given a Symbol instance as input, return the datatype of the
+    symbol including any specific precision properties.
+
+    :param symbol: the symbol instance.
+    :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
+    :returns: the Fortran representation of the symbol's datatype \
+    including any precision properties.
+    :rtype: str
+
+    :raises NotImplementedError: if the symbol has an unsupported \
+    datatype.
+    :raises VisitorError: if the symbol specifies explicit precision \
+    and this is not supported for the datatype.
+    :raises VisitorError: if the size of the explicit precision is not \
+    supported for the datatype.
+    :raises VisitorError: if the size of the symbol is specified by \
+    another variable and the datatype is not one that supports the \
+    Fortran KIND option.
+    :raises NotImplementedError: if the type of the precision object \
+    is an unsupported type.
+
+    '''
+    if symbol.datatype not in ["real", "integer", "character", "boolean"]:
+        raise NotImplementedError(
+            "unsupported datatype '{0}' for symbol '{1}' found in "
+            "gen_datatype().".format(symbol.datatype, symbol.name))
+
+    if symbol.datatype == "boolean":
+        # boolean is the only datatype name that does not directly
+        # match the Fortran datatype name
+        datatype = "logical"
+    else:
+        datatype = symbol.datatype
+
+    if not symbol.precision:
+        # This symbol has no precision information so simply return
+        # the name of the datatype.
+        return datatype
+
+    if isinstance(symbol.precision, int):
+        if datatype not in ['real', 'integer', 'logical']:
+            raise VisitorError("Explicit precision not supported for datatype "
+                               "'{0}' in symbol '{1}' in Fortran backend."
+                               "".format(datatype, symbol.name))
+        if datatype == 'real' and symbol.precision not in [4, 8, 16]:
+            raise VisitorError(
+                "Datatype 'real' in symbol '{0}' supports fixed precision of "
+                "[4, 8, 16] but found '{1}'.".format(symbol.name,
+                                                     symbol.precision))
+        if datatype in ['integer', 'logical'] and symbol.precision not in \
+           [1, 2, 4, 8, 16]:
+            raise VisitorError(
+                "Datatype '{0}' in symbol '{1}' supports fixed precision of "
+                "[1, 2, 4, 8, 16] but found '{2}'."
+                "".format(datatype, symbol.name, symbol.precision))
+        # Precision has an an explicit size. Use the "type*size" Fortran
+        # extension for simplicity. We could have used
+        # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
+        # ISO_FORTRAN_ENV; type(type64) :: MyType.
+        return "{0}*{1}".format(datatype, symbol.precision)
+
+    if isinstance(symbol.precision, Symbol.Precision):
+        # The precision information is not absolute so is either
+        # machine specific or is specified via the compiler. Fortran
+        # only distinguishes relative precision for single and double
+        # precision reals.
+        if datatype.lower() == "real" and \
+           symbol.precision == Symbol.Precision.DOUBLE:
+            return "double precision"
+        # This logging warning can be added when issue #11 is
+        # addressed.
+        # import logging
+        # logging.warning(
+        #      "Fortran does not support relative precision for the '%s' "
+        #      "datatype but '%s' was specified for variable '%s'.",
+        #      datatype, str(symbol.precision), symbol.name)
+        return datatype
+
+    if isinstance(symbol.precision, Symbol):
+        if datatype not in ["real", "integer", "logical"]:
+            raise VisitorError(
+                "kind not supported for datatype '{0}' in symbol '{1}' in "
+                "Fortran backend.".format(datatype, symbol.name))
+        # The precision information is provided by a parameter, so use KIND.
+        return "{0}(kind={1})".format(datatype, symbol.precision.name)
+
+    raise VisitorError(
+        "Unsupported precision type '{0}' found for symbol '{1}' in Fortran "
+        "backend.".format(type(datatype).__name__, symbol.name))
+
+
 def _reverse_map(op_map):
     '''
     Reverses the supplied fortran2psyir mapping to make a psyir2fortran
@@ -186,16 +279,12 @@ class FortranWriter(PSyIRVisitor):
                 "".format(symbol.name, symbol.scope,
                           type(symbol.interface).__name__))
 
-        intent = gen_intent(symbol)
+        datatype = gen_datatype(symbol)
+        result = "{0}{1}".format(self._nindent, datatype)
         dims = gen_dims(symbol)
-        result = "{0}{1}".format(self._nindent, symbol.datatype)
-        # The PSyIR does not currently capture kind information, see
-        # issue #375
-        # kind = ...
-        # if kind:
-        #     result += "({0})".format(kind)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
+        intent = gen_intent(symbol)
         if intent:
             result += ", intent({0})".format(intent)
         if symbol.is_constant:

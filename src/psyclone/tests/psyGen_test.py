@@ -788,6 +788,7 @@ def test_ompdo_constructor():
     # Break the directive
     ompdo.children[0] = "not-a-schedule"
     with pytest.raises(InternalError) as err:
+        # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
             "child but found: ['str']" in str(err.value))
@@ -2001,7 +2002,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "InvokeSchedule"
+    assert schedule.dag_name == "schedule_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
@@ -2334,22 +2335,30 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*InvokeSchedule_start\n"
-    r"\s*InvokeSchedule_end\n"
+    r"\s*schedule_0_start\n"
+    r"\s*schedule_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    r"\s*InvokeSchedule_start -> loop_1_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_2\n"
-    r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
-    r"\s*loop_3_start\n"
-    r"\s*loop_3_end\n"
-    r"\s*loop_3_end -> schedule_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_3_start \[color=red\]\n"
-    r"\s*kernel_testkern_qr_code_4\n"
-    r"\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
-    r"\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
+    r"\s*schedule_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*schedule_5_start\n"
+    r"\s*schedule_5_end\n"
+    r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> schedule_5_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_6\n"
+    r"\s*kernel_testkern_qr_code_6 -> schedule_5_end \[color=blue\]\n"
+    r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
+    r"\s*loop_7_start\n"
+    r"\s*loop_7_end\n"
+    r"\s*loop_7_end -> schedule_0_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
+    r"\s*schedule_11_start\n"
+    r"\s*schedule_11_end\n"
+    r"\s*schedule_11_end -> loop_7_end \[color=blue\]\n"
+    r"\s*loop_7_start -> schedule_11_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_12\n"
+    r"\s*kernel_testkern_qr_code_12 -> schedule_11_end \[color=blue\]\n"
+    r"\s*schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -2369,16 +2378,15 @@ def test_node_dag(tmpdir, have_graphviz):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
-    for name in ["<title>schedule_start</title>",
-                 "<title>schedule_end</title>",
+    for name in ["<title>schedule_0_start</title>",
+                 "<title>schedule_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_2</title>",
-                 "<title>kernel_testkern_qr_code_4</title>",
+                 "<title>kernel_testkern_qr_code_6</title>",
+                 "<title>kernel_testkern_qr_code_12</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),
@@ -2933,9 +2941,9 @@ def test_codeblock_structure(structure):
 
 
 def test_loop_navigation_properties():
+    # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
-    # pylint: disable=too-many-statements
     from psyclone.psyGen import Loop
     loop = Loop()
 
@@ -3557,12 +3565,17 @@ def test_kernelschedule_name_setter():
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
-    # pylint: disable=too-many-statements
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
+    assert isinstance(Symbol('a', 'real', precision=Symbol.Precision.DOUBLE),
+                      Symbol)
+    assert isinstance(Symbol('a', 'real', precision=4), Symbol)
+    kind = Symbol('r_def', 'integer')
+    assert isinstance(Symbol('a', 'real', precision=kind), Symbol)
     # real constants are not currently supported
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
+    assert isinstance(Symbol('a', 'integer', precision=4), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
     assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
     assert isinstance(Symbol('a', 'boolean'), Symbol)
@@ -3570,7 +3583,7 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', []), Symbol)
+    assert isinstance(Symbol('a', 'real', [], precision=8), Symbol)
     assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
                       Symbol)
     assert isinstance(
@@ -3590,6 +3603,10 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [dim]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
 
+
+def test_symbol_init_errors():
+    ''' Test that the Symbol constructor raises appropriate errors if supplied
+    with invalid arguments. '''
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
@@ -3598,11 +3615,17 @@ def test_symbol_initialisation():
         "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
             error.value)
 
+    with pytest.raises(TypeError) as error:
+        Symbol('a', 3, [], 'local')
+    assert ("datatype of a Symbol must be specified using a str but got:"
+            in str(error.value))
+
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
             "'real'.") in str(error)
 
+    dim = Symbol('dim', 'integer', [])
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', shape=dim)
     assert "Symbol shape attribute must be a list." in str(error.value)
@@ -3651,9 +3674,40 @@ def test_symbol_initialisation():
     with pytest.raises(ValueError) as error:
         Symbol('a', 'boolean', constant_value="hello")
     assert ("This Symbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'bool'>' but found " in str(error)
-    assert "'str'>'." in str(error)
+            "constant value is expected to be") in str(error.value)
+    assert "'bool'>' but found " in str(error.value)
+    assert "'str'>'." in str(error.value)
+
+
+def test_symbol_precision_errors():
+    ''' Check that invalid precision settings raise the appropriate errors in
+    the Symbol constructor. '''
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=0)
+    assert ("The precision of a Symbol when specified as an integer number of "
+            "bytes must be > 0" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'character', precision=1)
+    assert ("A Symbol of character type cannot have an associated precision"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'boolean', precision=1)
+    assert ("A Symbol of boolean type cannot have an associated precision"
+            in str(err.value))
+    not_int = Symbol('b', 'real')
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=not_int)
+    assert ("A Symbol representing the precision of another Symbol must be "
+            "of either 'deferred' or scalar, integer type " in str(err.value))
+    not_scalar = Symbol('b', 'integer', [2, 2])
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=not_scalar)
+    assert ("A Symbol representing the precision of another Symbol must be of "
+            "either 'deferred' or scalar, integer type but" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Symbol('a', 'integer', precision="not-valid")
+    assert ("Symbol precision must be one of integer, Symbol.Precision or "
+            "Symbol but got" in str(err.value))
 
 
 def test_symbol_map():
