@@ -17,6 +17,8 @@ be launched using Binder from the links below.
 
  * Fortran conforming to PSyKAl separation of concerns: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fgocean%2Feg1%2Fopenmp.ipynb)
  
+ * DAG generation for the above example: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb)
+
 # Installation #
 
 If you are reading this then you have presumably not already installed
