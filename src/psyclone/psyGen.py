@@ -6093,14 +6093,41 @@ class SymbolTable(object):
     @property
     def global_symbols(self):
         '''
-        :returns: list of symbols that are not routine arguments but \
-                  still have 'global' scope - i.e. are associated with \
-                  data that exists outside the current scope.
+        :returns: list of symbols that are not routine arguments (or variables\
+                  with a 'deferred' interface that define precision) but \
+                  still have 'global' scope - i.e. are associated with data \
+                  that exists outside the current scope.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
 
         '''
-        return [sym for sym in self._symbols.values() if sym.scope == "global"
+        # Take care to exclude those symbols used to define the precision of
+        # other symbols and have a deferred interface. (Since, in Fortran,
+        # this corresponds to kind parameters imported from a module that
+        # we have yet to identify.)
+        # TODO 584 handle this situation properly, i.e. refuse to allow
+        # any symbol to have deferred properties when it comes to code
+        # generation.
+        excluded_vars = set()
+        for sym in self.precision_symbols:
+            if isinstance(sym.interface, Symbol.DeferredInterface):
+                excluded_vars.add(sym)
+        all_symbols = set(self._symbols.values())
+        var_symbols = list(all_symbols - excluded_vars)
+        return [sym for sym in var_symbols if sym.scope == "global"
                 and not isinstance(sym.interface, Symbol.Argument)]
+
+    @property
+    def precision_symbols(self):
+        '''
+        :returns: those symbols that are used in defining the
+                  precision of other symbols.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        symbol_list = set()
+        for sym in self._symbols.values():
+            if isinstance(sym.precision, Symbol):
+                symbol_list.add(sym.precision)
+        return list(symbol_list)
 
     @property
     def iteration_indices(self):
