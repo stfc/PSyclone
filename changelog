@@ -11,6 +11,9 @@
 	Loops having Schedules and children (e.g. loop limits) that
 	we want to ignore.
 
+	4) PR #535 for part of #150. Implements support for parsing
+	of reference element metadata in the Dynamo0.3 (LFRic) API.
+
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel
