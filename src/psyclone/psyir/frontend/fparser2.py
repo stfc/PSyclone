@@ -762,8 +762,11 @@ class Fparser2Reader(object):
                 kind_symbol.datatype = "integer"
         except KeyError:
             # The SymbolTable does not contain an entry for
-            # this kind parameter so create one.
-            kind_symbol = Symbol(name, "integer")
+            # this kind parameter so create one. It has a deferred interface
+            # because we don't yet know the mechanism by which it is accessed
+            # in the current scoping unit.
+            kind_symbol = Symbol(name, "integer",
+                                 interface=Symbol.DeferredInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
 
