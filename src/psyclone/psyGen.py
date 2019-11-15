@@ -1083,13 +1083,22 @@ class Node(object):
         return self._annotations
 
     def dag(self, file_name='dag', file_format='svg'):
-        '''Create a dag of this node and its children.'''
+        '''
+        Create a dag of this node and its children, write it to file and
+        return the graph object.
+
+        :param str file_name: name of the file to create.
+        :param str file_format: format of the file to create. (Must be one \
+                                recognised by Graphvz.)
+        :raises GenerationError: if the specified file format is not \
+                                 recognised by Graphviz.
+        '''
         try:
             import graphviz as gv
         except ImportError:
             # todo: add a warning to a log file here
             # silently return if graphviz bindings are not installed
-            return
+            return None
         try:
             graph = gv.Digraph(format=file_format)
         except ValueError:
@@ -1098,6 +1107,7 @@ class Node(object):
                 format(file_format))
         self.dag_gen(graph)
         graph.render(filename=file_name)
+        return graph
 
     def dag_gen(self, graph):
         '''Output my node's graph (dag) information and call any
