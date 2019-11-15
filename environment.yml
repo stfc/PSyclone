@@ -1,0 +1,8 @@
+name: graphviz-environment
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - pip
+  - pip:
+    - graphviz
