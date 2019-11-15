@@ -312,6 +312,19 @@ class FortranWriter(PSyIRVisitor):
         argument declarations exist in symbol_table.
 
         '''
+        # Check that all symbols have an interface that this method
+        # supports.
+        supported_interfaces = (Symbol.FortranGlobal, Symbol.Argument,
+                                Symbol.DeferredInterface)
+        for sym in symbol_table.symbols:
+            if sym.interface and not isinstance(sym.interface,
+                                                supported_interfaces):
+                raise NotImplementedError(
+                    "gen_decls only supports interfaces of type '{0}' but "
+                    "Symbol '{1}' has interface of type '{2}'".format(
+                        supported_interfaces, sym.name,
+                        type(sym.interface).__name__))
+
         declarations = ""
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
