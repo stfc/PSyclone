@@ -5695,9 +5695,17 @@ class Symbol(object):
                   kernel accesses the associated data.
         :rtype: str
         '''
-        if self._interface:
+        if not self._interface:
+            return "local"
+        if isinstance(self._interface, (Symbol.FortranGlobal,
+                                        Symbol.Argument,
+                                        Symbol.DeferredInterface)):
             return "global"
-        return "local"
+        raise NotImplementedError(
+            "Unsupported interface type ('{0}') found for symbol '{1}'. "
+            "Expected either None or one of Symbol.FortranGlobal/"
+            "Argument/DeferredInterface.".format(
+                type(self._interface).__name__, self.name))
 
     @property
     def interface(self):

@@ -283,9 +283,10 @@ def test_fw_gen_vardecl(fort_writer):
 
 def test_gen_decls(fort_writer):
     '''Check the FortranWriter class gen_decls method produces the
-    expected declarations. Also check that an exception is raised if
-    an 'argument' symbol exists in the supplied symbol table and the
-    optional argument 'args_allowed' is set to False.
+    expected declarations. Also check that an exception is raised if a
+    symbol has an unsupported interface of if an 'argument' symbol exists in
+    the supplied symbol table and the optional argument 'args_allowed' is
+    set to False.
 
     '''
     symbol_table = SymbolTable()
@@ -296,15 +297,29 @@ def test_gen_decls(fort_writer):
     symbol_table.add(argument_variable)
     local_variable = Symbol("local", "integer")
     symbol_table.add(local_variable)
+    # Create a symbol for the kind parameter and give it a deferred interface
+    # (to show that we don't know where it comes from)
+    kind_var = Symbol("r_def", "integer", interface=Symbol.DeferredInterface())
+    symbol_table.add(kind_var)
+    symbol_table.add(Symbol("rvar", "real", precision=kind_var))
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
             "use my_module, only : my_use\n"
             "integer :: arg\n"
-            "integer :: local\n")
+            "integer :: local\n"
+            "real(kind=r_def) :: rvar\n")
+    # Check that the kind parameter has not been declared
+    assert "integer :: r_def" not in result
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['arg']'." in str(excinfo.value))
+    # Modify one of the symbols so that it has an unrecognised interface
+    local_variable._interface = "not an interface"
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = fort_writer.gen_decls(symbol_table)
+    assert ("but Symbol 'local' has interface of type 'str'"
+            in str(excinfo.value))
 
 
 def test_fw_exception(fort_writer):

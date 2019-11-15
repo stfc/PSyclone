@@ -455,7 +455,11 @@ def test_process_declarations_kind_new_param(f2008_parser):
                       Symbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
+    # It should be an integer
     assert wp_var.datatype == "integer"
+    # It should have a deferred interface (because we don't know where it
+    # comes from)
+    assert isinstance(wp_var.interface, Symbol.DeferredInterface)
     assert fake_parent.symbol_table.lookup("var1").precision is wp_var
     # Check that we raise an error if the KIND expression has an unexpected
     # structure

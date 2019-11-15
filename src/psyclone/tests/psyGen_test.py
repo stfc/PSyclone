@@ -3283,7 +3283,18 @@ def test_reference_symbol(monkeypatch):
     monkeypatch.setattr(alpha, "_reference", "not_defined")
     assert not alpha.symbol()
 
-# Test Array class
+
+def test_scope_invalid_interface():
+    ''' Check that the scope method raises the expected error if a symbol
+    has an unrecognised interface. '''
+    sym = Symbol("avar", "real")
+    sym._interface = "not_an_interface"
+    with pytest.raises(NotImplementedError) as err:
+        _ = sym.scope
+    assert ("interface type ('str') found for symbol 'avar'. Expected "
+            "either" in str(err.value))
+
+    # Test Array class
 
 
 def test_array_node_str():
@@ -3740,6 +3751,8 @@ def test_symbol_can_be_printed():
                   interface=Symbol.FortranGlobal(module_use="my_mod"))
     assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
             in str(sym3))
+    sym4 = Symbol("s4", "real", interface=Symbol.DeferredInterface())
+    assert "s4: <real, Scalar, global=Deferred>" in str(sym4)
 
     sym2._shape.append('invalid')
     with pytest.raises(InternalError) as error:
