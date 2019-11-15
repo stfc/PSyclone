@@ -39,13 +39,20 @@ of the Dynamo0.3 API.
 '''
 
 from __future__ import absolute_import, print_function
+import os
 import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
 # Constants
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
+TEST_API = "dynamo0.3"
 
 REF_ELEM_MDATA = '''
 module testkern_refelem_mod
@@ -66,6 +73,8 @@ contains
   end subroutine testkern_refelem_code
 end module testkern_refelem_mod
 '''
+
+# Tests for parsing the metadata
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -142,3 +151,19 @@ def test_mdata_wrong_type_var():
     assert ("'meta_reference_element' metadata must consist of an array of "
             "structure constructors, all of type 'reference_element_data_type'"
             " but found: ['ref_element_data_type'," in str(err.value))
+
+
+# Tests for generating the PSy-layer code
+
+
+def test_refelem_gen(tmpdir):
+    ''' Basic test for code-generation for an invoke containing a single
+    kernel requiring reference-element properties. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "23.1_ref_elem_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    gen_code = str(psy.gen)
+    print(gen_code)
+    assert 0
