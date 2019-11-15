@@ -5498,6 +5498,12 @@ class Symbol(object):
         SINGLE = 1
         DOUBLE = 2
 
+    class DeferredInterface(SymbolInterface):
+        ''' For a symbol that does not (yet) have interface information. '''
+
+        def __str__(self):
+            return "Deferred"
+
     class Argument(SymbolInterface):
         '''
         Captures the interface to a symbol that is accessed as a routine
