@@ -788,6 +788,7 @@ def test_ompdo_constructor():
     # Break the directive
     ompdo.children[0] = "not-a-schedule"
     with pytest.raises(InternalError) as err:
+        # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
             "child but found: ['str']" in str(err.value))
@@ -2001,7 +2002,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "InvokeSchedule"
+    assert schedule.dag_name == "schedule_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
@@ -2334,22 +2335,30 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*InvokeSchedule_start\n"
-    r"\s*InvokeSchedule_end\n"
+    r"\s*schedule_0_start\n"
+    r"\s*schedule_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    r"\s*InvokeSchedule_start -> loop_1_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_2\n"
-    r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
-    r"\s*loop_3_start\n"
-    r"\s*loop_3_end\n"
-    r"\s*loop_3_end -> schedule_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_3_start \[color=red\]\n"
-    r"\s*kernel_testkern_qr_code_4\n"
-    r"\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
-    r"\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
+    r"\s*schedule_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*schedule_5_start\n"
+    r"\s*schedule_5_end\n"
+    r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> schedule_5_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_6\n"
+    r"\s*kernel_testkern_qr_code_6 -> schedule_5_end \[color=blue\]\n"
+    r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
+    r"\s*loop_7_start\n"
+    r"\s*loop_7_end\n"
+    r"\s*loop_7_end -> schedule_0_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
+    r"\s*schedule_11_start\n"
+    r"\s*schedule_11_end\n"
+    r"\s*schedule_11_end -> loop_7_end \[color=blue\]\n"
+    r"\s*loop_7_start -> schedule_11_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_12\n"
+    r"\s*kernel_testkern_qr_code_12 -> schedule_11_end \[color=blue\]\n"
+    r"\s*schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -2369,16 +2378,15 @@ def test_node_dag(tmpdir, have_graphviz):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
-    for name in ["<title>schedule_start</title>",
-                 "<title>schedule_end</title>",
+    for name in ["<title>schedule_0_start</title>",
+                 "<title>schedule_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_2</title>",
-                 "<title>kernel_testkern_qr_code_4</title>",
+                 "<title>kernel_testkern_qr_code_6</title>",
+                 "<title>kernel_testkern_qr_code_12</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),
@@ -2933,9 +2941,9 @@ def test_codeblock_structure(structure):
 
 
 def test_loop_navigation_properties():
+    # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
-    # pylint: disable=too-many-statements
     from psyclone.psyGen import Loop
     loop = Loop()
 
