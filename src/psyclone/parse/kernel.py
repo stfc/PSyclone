@@ -624,7 +624,7 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     :param str var_type: the type of the structure constructor used to \
                          define the meta-data or None.
 
-    :returns: Argument metadata parsed using the expression parser \
+    :returns: argument metadata parsed using the expression parser \
               (as fparser1 will not parse expressions and arguments).
     :rtype: :py:class:`psyclone.expression.LiteralArray`
 
@@ -633,56 +633,51 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     :raises ParseError: if 'var_name' is not a 1D array.
     :raises ParseError: if the structure constructor uses '[...]' \
                         as only '(/.../)' is supported.
-    :raises ParseError: if the argument metadata can't be parsed.
-    :raises ParseError: if the dimensions specified does not tally \
-                        with the number of metadata arguments.
+    :raises ParseError: if the argument metadata is invalid and cannot \
+                        be parsed.
+    :raises ParseError: if the dimensions specified do not tally with \
+                        the number of metadata arguments.
     :raises ParseError: if var_type is specified and a structure \
                         constructor for a different type is found.
     '''
     descs = ast.get_variable(var_name)
     if "INTEGER" in str(descs):
-        # INTEGER in above if test is an fparser1 hack as
-        # get_variable() returns an integer if it can't find the
-        # variable.
+        # INTEGER in above 'if' test is an fparser1 hack as get_variable()
+        # returns an integer if the variable is not found.
         raise ParseError(
-            "kernel.py:getkerneldescriptors: No kernel "
-            "metadata with type name '{0}' found.".format(var_name))
+            "No kernel metadata with type name '{0}' found.".format(var_name))
     try:
         nargs = int(descs.shape[0])
     except AttributeError:
         raise ParseError(
-            "kernel.py:getkerneldescriptors: In kernel "
-            "metadata '{0}': '{1}' variable must be an array.".
+            "In kernel metadata '{0}': '{1}' variable must be an array.".
             format(name, var_name))
     if len(descs.shape) != 1:
         raise ParseError(
-            "kernel.py:getkerneldescriptors: In kernel "
-            "metadata '{0}': '{1}' variable must be a 1 dimensional "
-            "array".format(name, var_name))
+            "In kernel metadata '{0}': '{1}' variable must be a 1 dimensional "
+            "array.".format(name, var_name))
     if descs.init.find("[") != -1 and descs.init.find("]") != -1:
         # there is a bug in fparser1
         raise ParseError(
-            "kernel.py:getkerneldescriptors: Parser does "
-            "not currently support [...] initialisation for "
-            "'{0}', please use (/.../) instead.".format(var_name))
+            "Parser does not currently support '[...]' initialisation for "
+            "'{0}', please use '(/.../)' instead.".format(var_name))
     try:
         inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
     except ParseException:
-        raise ParseError("kernel metadata has an invalid format {0}".
+        raise ParseError("Kernel metadata has an invalid format {0}.".
                          format(descs.init))
     nargs = int(descs.shape[0])
     if len(inits) != nargs:
         raise ParseError(
-            "kernel.py:getkerneldescriptors: In the '{0}' "
-            "metadata, the number of args '{1}' and extent of the "
-            "dimension '{2}' do not match.".format(var_name, nargs,
-                                                   len(inits)))
+            "In the '{0}' metadata, the number of args '{1}' and extent of the"
+            " dimension '{2}' do not match.".format(var_name, nargs,
+                                                    len(inits)))
     if var_type:
         # Check that each element in the list is of the correct type
         if not all([init.name == var_type for init in inits]):
             raise ParseError(
-                "The '{0}' meta-data must consist of an array of structure"
-                " constructors, all of type '{1}' but found: {2}".format(
+                "The '{0}' metadata must consist of an array of structure"
+                " constructors, all of type '{1}' but found: {2}.".format(
                     var_name, var_type, [str(init.name) for init in inits]))
     return inits
 

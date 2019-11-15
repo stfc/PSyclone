@@ -891,6 +891,8 @@ class RefElementMetaData(object):
         self.properties = []
 
         re_properties = []
+        # Search the supplied list of type declarations for the one
+        # describing the reference-element properties required by the kernel.
         for line in type_declns:
             for entry in line.selector:
                 if entry == "reference_element_data_type":
@@ -901,13 +903,20 @@ class RefElementMetaData(object):
                         var_type="reference_element_data_type")
                     break
             if re_properties:
+                # Optimisation - stop searching if we've found a type
+                # declaration for the reference-element data
                 break
         try:
+            # The meta-data entry is a declaration of a Fortran array of type
+            # reference_element_data_type. The initialisation of each member
+            # of this array is done as a structure constructor, the argument
+            # to which gives a property of the reference element.
             for re_prop in re_properties:
                 for arg in re_prop.args:
                     self.properties.append(
                         self.reference_element_property_map[str(arg).lower()])
         except KeyError:
+            # We found a reference-element property that we don't recognise.
             # Sort for consistency when testing
             sorted_keys = sorted(self.reference_element_property_map.keys())
             raise ParseError(
