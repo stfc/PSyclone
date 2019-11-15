@@ -46,8 +46,8 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolError, \
+    GlobalInterface, ArgumentInterface, DeferredInterface, LocalInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -462,9 +462,22 @@ class Fparser2Reader(object):
                               Fortran2003.Int_Literal_Constant):
                     shape.append(int(dim.items[1].items[0]))
                 elif isinstance(dim.items[1], Fortran2003.Name):
-                    sym = symbol_table.lookup(dim.items[1].string)
-                    if sym.datatype != 'integer' or sym.shape:
-                        _unsupported_type_error(dimensions)
+                    # Fortran does not regulate the order in which variables
+                    # may be declared so it's possible for the shape
+                    # specification of an array to reference variables that
+                    # come later in the list of declarations.
+                    dim_name = dim.items[1].string
+                    try:
+                        sym = symbol_table.lookup(dim.items[1].string)
+                        if sym.datatype != 'integer' or sym.shape:
+                            _unsupported_type_error(dimensions)
+                    except KeyError:
+                        # We haven't see this symbol before so create a new one
+                        # with a deferred interface (since we don't currently
+                        # know where it is declared).
+                        sym = DataSymbol(dim_name, "integer",
+                                         interface=DeferredInterface())
+                        symbol_table.add(sym)
                     shape.append(sym)
                 else:
                     _unsupported_type_error(dimensions)
@@ -557,7 +570,7 @@ class Fparser2Reader(object):
             # 2) If no intent attribute is provided, it is provisionally
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
-            interface = None
+            interface = LocalInterface()
             # 3) Record initialized constant values
             has_constant_value = False
             if attr_specs:
@@ -628,11 +641,22 @@ class Fparser2Reader(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                parent.symbol_table.add(DataSymbol(str(name), datatype,
-                                                   shape=entity_shape,
-                                                   constant_value=ct_value,
-                                                   interface=interface,
-                                                   precision=precision))
+                if str(name) not in parent.symbol_table:
+                    parent.symbol_table.add(DataSymbol(str(name), datatype,
+                                                       shape=entity_shape,
+                                                       constant_value=ct_value,
+                                                       interface=interface,
+                                                       precision=precision))
+                else:
+                    # The symbol table already contains an entry with this name
+                    # so update its interface information.
+                    sym = parent.symbol_table.lookup(str(name))
+                    if not sym.interface_unknown:
+                        raise SymbolError(
+                            "Symbol '{0}' already present in SymbolTable with "
+                            "a defined interface ({1}).".format(
+                                str(name), str(sym.interface)))
+                    sym.interface = interface
 
         try:
             arg_symbols = []

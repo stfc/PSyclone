@@ -723,6 +723,36 @@ def test_parse_array_dimensions_attributes(f2008_parser):
         ArgumentInterface.Access.READ
 
 
+def test_deferred_array_size(f2008_parser):
+    ''' Check that we handle the case of an array being declared with an
+    extent specified by a variable that is declared after it. '''
+    from fparser.two.Fortran2003 import Name
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real, intent(in), dimension(n) :: array3\n"
+                                 "integer, intent(in) :: n")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(fake_parent, fparser2spec,
+                                   [Name("array3"), Name("n")])
+    dim_sym = fake_parent.symbol_table.lookup("n")
+    assert isinstance(dim_sym.interface, ArgumentInterface)
+    assert dim_sym.datatype == "integer"
+
+
+def test_unresolved_array_size(f2008_parser):
+    ''' Check that we handle the case where we do not find an explicit
+    declaration of a symbol used in the definition of an array extent. '''
+    from psyclone.psyir.symbols import DeferredInterface
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real, dimension(n) :: array3")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(fake_parent, fparser2spec, [])
+    dim_sym = fake_parent.symbol_table.lookup("n")
+    assert isinstance(dim_sym.interface, DeferredInterface)
+    assert dim_sym.datatype == "integer"
+
+
 def test_use_stmt(f2008_parser):
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''

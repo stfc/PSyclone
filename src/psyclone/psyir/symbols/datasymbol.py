@@ -319,6 +319,14 @@ class DataSymbol(Symbol):
         '''
         return isinstance(self._interface, ArgumentInterface)
 
+    def interface_unknown(self):
+        '''
+        :returns: whether the DataSymbol has a Deferred (unknown) interface
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, DeferredInterface)
+
     @constant_value.setter
     def constant_value(self, new_value):
         '''
@@ -435,6 +443,13 @@ class LocalInterface(DataSymbolInterface):
 
     def __str__(self):
         return "Local"
+
+
+class DeferredInterface(DataSymbolInterface):
+    ''' We know we have a symbol but we don't know where it is declared. '''
+
+    def __str__(self):
+        return "Deferred"
 
 
 class GlobalInterface(DataSymbolInterface):
