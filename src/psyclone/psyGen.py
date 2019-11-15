@@ -1186,8 +1186,13 @@ class Node(object):
             graph.edge(remote_name, local_name, color="blue")
         # now call any children so they can add their information to
         # the graph
-        for child in self.children:
-            child.dag_gen(graph)
+        if isinstance(self, Loop):
+            # In case of a loop only loop at the body (the other part
+            # of the tree contain start, stop, step values):
+            self.loop_body.dag_gen(graph)
+        else:
+            for child in self.children:
+                child.dag_gen(graph)
 
     @property
     def dag_name(self):
@@ -1688,7 +1693,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return self._text_name
+        return "schedule_" + str(self.abs_position)
 
     def __getitem__(self, index):
         '''
@@ -5471,26 +5476,31 @@ class Symbol(object):
     representing data that exists outside of the local scope, the interface
     to that symbol (i.e. the mechanism by which it is accessed).
 
-    :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol. (One of \
+    :param str name: name of the symbol.
+    :param str datatype: data type of the symbol. (One of \
                      :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
-    :param list shape: Shape of the symbol in column-major order (leftmost \
+    :param list shape: shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
                        literal or a reference to an integer symbol with the \
                        extent. If it is an empty list then the symbol \
                        represents a scalar.
-    :param interface: Object describing the interface to this symbol (i.e. \
+    :param interface: object describing the interface to this symbol (i.e. \
                       whether it is passed as a routine argument or accessed \
                       in some other way) or None if the symbol is local.
     :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
-    :param constant_value: Sets a fixed known value for this \
+    :param constant_value: sets a fixed known value for this \
                            Symbol. If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
+    :param precision: the amount of storage required by the datatype (bytes) \
+            or a reference to a Symbol holding the type information \
+            or a label identifying a default precision.
+    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or \
+                     :py:class:`psyclone.psyGen.Symbol.Precision`
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
@@ -5524,6 +5534,14 @@ class Symbol(object):
         ## The way in which the symbol is accessed in the scoping block is
         # unknown
         UNKNOWN = 4
+
+    class Precision(Enum):
+        '''
+        Enumeration for the different types of 'default' precision that may
+        be specified for a Symbol.
+        '''
+        SINGLE = 1
+        DOUBLE = 2
 
     class Argument(SymbolInterface):
         '''
@@ -5591,15 +5609,35 @@ class Symbol(object):
             self._module_name = value
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None):
+                 interface=None, precision=None):
 
         self._name = name
+        self._datatype = None
+        self.datatype = datatype
 
-        if datatype not in Symbol.valid_data_types:
-            raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes but found "
-                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
-        self._datatype = datatype
+        # Check that the supplied 'precision' is valid
+        if precision is not None:
+            if datatype.lower() not in ["real", "integer"]:
+                raise ValueError(
+                    "A Symbol of {0} type cannot have an associated "
+                    "precision".format(datatype.lower()))
+            if not isinstance(precision, (int, Symbol.Precision, Symbol)):
+                raise TypeError(
+                    "Symbol precision must be one of integer, Symbol.Precision"
+                    " or Symbol but got '{0}'".format(
+                        type(precision).__name__))
+            if isinstance(precision, int) and precision <= 0:
+                raise ValueError("The precision of a Symbol when specified as "
+                                 "an integer number of bytes must be > 0 but "
+                                 "got {0}".format(precision))
+            if (isinstance(precision, Symbol) and
+                (precision.datatype not in ["integer", "deferred"]
+                 or precision.is_array)):
+                raise ValueError("A Symbol representing the precision of "
+                                 "another Symbol must be of either 'deferred' "
+                                 "or scalar, integer type but got: {0}".
+                                 format(str(precision)))
+        self.precision = precision
 
         if shape is None:
             shape = []
@@ -5640,6 +5678,25 @@ class Symbol(object):
         :rtype: str
         '''
         return self._datatype
+
+    @datatype.setter
+    def datatype(self, value):
+        ''' Setter for Symbol datatype.
+
+        :param str value: new value for datatype.
+
+        :raises TypeError: if value is not a str.
+        :raises NotImplementedError: if the specified data type is invalid.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                "The datatype of a Symbol must be specified using a str but "
+                "got: '{0}'".format(type(value).__name__))
+        if value not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'.".format(str(Symbol.valid_data_types), value))
+        self._datatype = value
 
     @property
     def access(self):
@@ -5841,8 +5898,7 @@ class Symbol(object):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
-        :param symbol_in: The symbol from which the properties are \
-                          copied from.
+        :param symbol_in: The symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
 
         :raises TypeError: If the argument is not the expected type.
@@ -5856,6 +5912,7 @@ class Symbol(object):
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
+        self.precision = symbol_in.precision
 
 
 class SymbolTable(object):
