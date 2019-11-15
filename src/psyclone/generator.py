@@ -224,7 +224,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy)
-            
+
         # Add profiling nodes to schedule if automatic profiling has
         # been requested.
         from psyclone.psyGen import Loop
@@ -369,15 +369,6 @@ def main(args):
         # as API in the config object as well.
         api = args.api
         Config.get().api = api
-
-    # Store the search path(s) for include files
-    if args.include and api != 'nemo':
-        # We only support passing include paths to fparser2 and it's
-        # only the NEMO API that uses fparser2 currently.
-        print("Setting the search path for Fortran include files "
-              "(-I/--include) is only supported for the 'nemo' API.",
-              file=sys.stderr)
-        exit(1)
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try
