@@ -1,4 +1,18 @@
 
+        1) #579 for #509. Improves the structuring of the html version
+	of the User Guide.
+
+        2) PR #581 for #578. Extends the PSyIR Fortran backend so
+	that variable declarations include kind information. This
+	currently only works if kind-parameters are declared or
+	explicitly imported in the local scope - see #587 and #586.
+
+        3) PR #562 for #473. Fixes the DAG generation to allow for
+	Loops having Schedules and children (e.g. loop limits) that
+	we want to ignore.
+
+release 1.8.0 8th November 2019
+
 	1) #245 and PR #247. Extend PSyIR to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
@@ -318,6 +332,8 @@
 	101) PR #574 towards #567. Fixes bug in profiling that causes
 	crash if first kernel in an invoke is a built-in.
 
+        102) PR #576 for #530. Includes the repository examples in the
+        distribution and updates the documentation accordingly.
 
 release 1.7.0 20th December 2018
 
