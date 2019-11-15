@@ -139,6 +139,6 @@ def test_mdata_wrong_type_var():
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("'meta_reference_element' meta-data must consist of an array of "
+    assert ("'meta_reference_element' metadata must consist of an array of "
             "structure constructors, all of type 'reference_element_data_type'"
             " but found: ['ref_element_data_type'," in str(err.value))
