@@ -1490,6 +1490,20 @@ def test_node_root():
     assert isinstance(ru_kern.root, Schedule)
 
 
+def test_node_annotations():
+    '''Test that an instance of the Node class raises an exception if an
+    annotation is invalid. Note, any annotation will be invalid here
+    as Node does not set a list of valid annotations (this is the job
+    of the subclass).
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = Node(annotations=["invalid"])
+    assert (
+        "Node with unrecognized annotation 'invalid', valid annotations are: "
+        "()." in str(excinfo.value))
+
+
 def test_node_args():
     '''Test that the Node class args method returns the correct arguments
     for Nodes that do not have arguments themselves'''
