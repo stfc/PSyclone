@@ -38,11 +38,10 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
-import os
 import pytest
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, SymbolError
-from psyclone.psyGen import InternalError
+from psyclone.psyGen import InternalError, Container
 
 
 def test_datasymbol_initialisation():
@@ -411,15 +410,15 @@ def test_datasymbol_copy_properties():
     assert symbol.constant_value == 7
 
 
-def test_datasymbol_resolve_deferred(monkeypatch):
+def test_datasymbol_resolve_deferred():
     ''' Test the datasymbol resolve_deferred method '''
-    from psyclone.configuration import Config
 
-    # dummy_module defines integer 'a' and real 'b' and real parameter 'c'
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "test_files")
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+    container = Container("dummy_module")
+    container.symbol_table.add(DataSymbol('a', 'integer'))
+    container.symbol_table.add(DataSymbol('b', 'real'))
+    container.symbol_table.add(DataSymbol('c', 'real', constant_value=3.14))
     module = ContainerSymbol("dummy_module")
+    module._reference = container  # Manually linking the container
 
     symbol = DataSymbol('a', 'deferred', interface=GlobalInterface(module))
     symbol.resolve_deferred()

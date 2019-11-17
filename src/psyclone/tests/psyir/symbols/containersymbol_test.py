@@ -47,6 +47,25 @@ from psyclone.psyGen import Container
 from psyclone.configuration import Config
 
 
+
+def create_dummy_module(path, filename="dummy_module.f90"):
+    '''Utility to generate a simple Fortran module file with the given path
+    and filename. The filename must be 'dummy_module.[f|F]90' (default) to
+    match the module name, but other names can also be given for testing
+    purposes'''
+
+    source = '''
+    module dummy_module
+
+        integer :: a
+        real :: b
+        real, parameter :: c = 3.14
+
+    end module dummy_module
+    '''
+    with open(os.path.join(path, filename), "w") as mfile:
+        mfile.write(source)
+
 def test_containersymbol_initialisation():
     '''Test that a ContainerSymbol instance can be created when valid
     arguments are given, otherwise raise relevant exceptions.'''
@@ -107,7 +126,7 @@ def test_containersymbol_generic_interface():
     assert "Abstract method" in str(error.value)
 
 
-def test_containersymbol_fortranmodule_interface(monkeypatch):
+def test_containersymbol_fortranmodule_interface(monkeypatch, tmp_path):
     '''Check that the FortranModuleInterface imports Fortran modules
     as containers or produces the appropriate errors'''
 
@@ -122,21 +141,23 @@ def test_containersymbol_fortranmodule_interface(monkeypatch):
             "directories []." in str(error.value))
 
     # Try with a non-existant module and an existing directory
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "test_files")
-    Config.get().include_paths = [path]
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
     assert ("Module 'fake_module' (expected to be found in "
             "'fake_module.[f|F]90') not found in any of the include_paths "
-            "directories ['" in str(error.value))
+            "directories " in str(error.value))
 
-    # Try importing and existant Fortran module
+    # Try importing and existing Fortran module
+    create_dummy_module(tmp_path)
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
     assert container.name == "dummy_module"
 
-    # Import the wrong module
+    # Import the wrong module, additionally it tests that the uppercase
+    # F90 extension is also being imported as it does not produce a file
+    # not found error.
+    create_dummy_module(tmp_path, "different_name_module.F90")
     with pytest.raises(ValueError) as error:
         container = fminterface.import_container("different_name_module")
     assert ("Error importing the Fortran module 'different_name_module' into "
