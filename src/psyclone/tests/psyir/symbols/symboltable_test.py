@@ -38,8 +38,8 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.symboltable file '''
 
-import pytest
 import re
+import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
 from psyclone.psyGen import InternalError
@@ -241,7 +241,7 @@ def test_symboltable_specify_argument_list_errors():
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
     assert "Symbol 'var1:" in str(err.value)
-    assert ("has an interface of type '" in str(err.value))
+    assert "has an interface of type '" in str(err.value)
     # Now add an Interface for "var1" but of the wrong type
     sym_v1.interface = GlobalInterface(ContainerSymbol("my_mod"))
     with pytest.raises(ValueError) as err:

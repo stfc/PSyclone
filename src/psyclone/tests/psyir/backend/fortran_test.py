@@ -40,6 +40,7 @@
 from __future__ import absolute_import
 
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
@@ -48,7 +49,6 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.fixture(scope="function", name="fort_writer")
