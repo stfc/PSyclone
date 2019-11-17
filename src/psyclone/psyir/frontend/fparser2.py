@@ -132,6 +132,8 @@ class Fparser2Reader(object):
             Fortran2003.Block_Nonlabel_Do_Construct:
                 self._do_construct_handler,
             Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
+            Fortran2003.Where_Construct: self._where_construct_handler,
+            Fortran2003.Where_Stmt: self._where_construct_handler,
         }
 
     @staticmethod
@@ -388,6 +390,12 @@ class Fparser2Reader(object):
         try:
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
+            # TODO remove once fparser/#102 is done
+            # pylint: disable=protected-access
+            module_ast.content[0]._parent = module_ast
+            for item in mod_content:
+                item._parent = module_ast.content[0]
+            subroutines._parent = mod_content
             subroutine = search_subroutine(subroutines.content, name)
         except (ValueError, IndexError):
             raise GenerationError("Unexpected kernel AST. Could not find "
@@ -396,6 +404,9 @@ class Fparser2Reader(object):
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
+            # TODO remove once fparser/#102 is done
+            # pylint: disable=protected-access
+            sub_spec._parent = subroutine
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -416,6 +427,9 @@ class Fparser2Reader(object):
         try:
             sub_exec = first_type_match(subroutine.content,
                                         Fortran2003.Execution_Part)
+            # TODO remove once fparser/#102 is done
+            # pylint: disable=protected-access
+            sub_exec._parent = subroutine
         except ValueError:
             pass
         else:
@@ -1050,7 +1064,7 @@ class Fparser2Reader(object):
                     elsebody = Schedule(parent=currentparent)
                     currentparent.addchild(elsebody)
                     newifblock = IfBlock(parent=elsebody,
-                                         annotation='was_elseif')
+                                         annotations=['was_elseif'])
                     elsebody.addchild(newifblock)
 
                     # Keep pointer to fpaser2 AST
@@ -1103,7 +1117,7 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
-        ifblock = IfBlock(parent=parent, annotation='was_single_stmt')
+        ifblock = IfBlock(parent=parent, annotations=['was_single_stmt'])
         ifblock.ast = node
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
@@ -1184,7 +1198,7 @@ class Fparser2Reader(object):
             case = clause.items[0]
 
             ifblock = IfBlock(parent=currentparent,
-                              annotation='was_case')
+                              annotations=['was_case'])
             if idx == 0:
                 # If this is the first IfBlock then have it point to
                 # the original SELECT CASE in the parse tree
@@ -1364,6 +1378,295 @@ class Fparser2Reader(object):
             self.process_nodes(parent=bop,
                                nodes=[node],
                                nodes_parent=node_parent)
+
+    @staticmethod
+    def _array_notation_rank(array):
+        '''
+        Check that the supplied candidate array reference uses supported
+        array notation syntax and return the rank of the sub-section of the
+        array that is specified. e.g. for a reference "a(:, 2, :)" the rank
+        of the sub-section is 2.
+
+        :param array: the array reference to check.
+        :type array: :py:class:`psyclone.psyGen.Array`
+
+        :returns: rank of the sub-section of the array.
+        :rtype: int
+
+        :raises NotImplementedError: if the array node does not have any \
+                                     children.
+        :raises NotImplementedError: if the Array does not have at least one \
+                                     CodeBlock as a child.
+        :raises NotImplementedError: if each CodeBlock child does not \
+                                     consist entirely of Subscript_Triplets.
+        :raises NotImplementedError: if any of the array slices have bounds \
+                                     (as this is not yet supported).
+        '''
+        if not array.children:
+            raise NotImplementedError("An Array reference in the PSyIR must "
+                                      "have at least one child but '{0}' has "
+                                      "none".format(array.name))
+        # TODO #412. This code will need re-writing once array notation is
+        # supported in the PSyIR (becaues then we won't have any CodeBlocks).
+        cblocks = array.walk(CodeBlock)
+        if not cblocks:
+            raise NotImplementedError(
+                "A PSyIR Array node representing an array access that uses "
+                "Fortran array notation is assumed to have at least one "
+                "CodeBlock as its child but '{0}' has none.".
+                format(array.name))
+        # We only currently support array refs using the colon syntax,
+        # e.g. array(:, :). Each colon is represented in the fparser2
+        # parse tree by a Subscript_Triplet.
+        num_colons = 0
+        for cblock in cblocks:
+            for stmt in cblock.get_ast_nodes:
+                if not isinstance(stmt, Fortran2003.Subscript_Triplet):
+                    raise NotImplementedError(
+                        "Only array notation of the form my_array(:, :, ...) "
+                        "is supported but got: {0}".format(str(array)))
+                if any(stmt.items):
+                    raise NotImplementedError(
+                        "Bounds on array slices are not supported but found: "
+                        "'{0}'".format(str(array)))
+                num_colons += 1
+        return num_colons
+
+    def _array_syntax_to_indexed(self, parent, loop_vars):
+        '''
+        Utility function that modifies each Array object in the supplied PSyIR
+        fragment so that they are indexed using the supplied loop variables
+        rather than having colon array notation.
+
+        :param parent: root of PSyIR sub-tree to search for Array \
+                       references to modify.
+        :type parent:  :py:class:`psyclone.psyGen.Node`
+        :param loop_vars: the variable names for the array indices.
+        :type loop_vars: list of str
+
+        :raises NotImplementedError: if array sections of differing ranks are \
+                                     found.
+        '''
+        assigns = parent.walk(Assignment)
+        # Check that the LHS of any assignment uses recognised array
+        # notation.
+        for assign in assigns:
+            _ = self._array_notation_rank(assign.lhs)
+        # TODO #500 if the supplied code accidentally omits array
+        # notation for an array reference on the RHS then we will
+        # identify it as a scalar and the code produced from the
+        # PSyIR (using e.g. the Fortran backend) will not
+        # compile. In practise most scalars are likely to be local
+        # and so we can check for their declarations. However,
+        # those imported from a module will still be missed.
+        arrays = parent.walk(Array)
+        first_rank = None
+        for array in arrays:
+            # Check that this is a supported array reference and that
+            # all arrays are of the same rank
+            rank = self._array_notation_rank(array)
+            if first_rank:
+                if rank != first_rank:
+                    raise NotImplementedError(
+                        "Found array sections of differing ranks within a "
+                        "WHERE construct: array section of {0} has rank {1}".
+                        format(array.name, rank))
+            else:
+                first_rank = rank
+            # Replace the CodeBlocks containing the Subscript_Triplets with
+            # the index expressions
+            cblocks = array.walk(CodeBlock)
+            for idx, cblock in enumerate(cblocks):
+                posn = array.children.index(cblock)
+                array.children[posn] = Reference(loop_vars[idx], parent=array)
+
+    def _where_construct_handler(self, node, parent):
+        '''
+        Construct the canonical PSyIR representation of a WHERE construct or
+        statement. A construct has the form:
+
+            WHERE(logical-mask)
+              statements
+            [ELSE WHERE(logical-mask)
+              statements]
+            [ELSE
+              statements]
+            END WHERE
+
+        while a statement is just:
+
+            WHERE(logical-mask) statement
+
+        :param node: node in the fparser2 parse tree representing the WHERE.
+        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
+                    :py:class:`fparser.two.Fortran2003.Where_Stmt`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :returns: the top-level Loop object in the created loop nest.
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        :raises InternalError: if the parse tree does not have the expected \
+                               structure.
+
+        '''
+        if isinstance(node, Fortran2003.Where_Stmt):
+            # We have a Where statement. Check that the parse tree has the
+            # expected structure.
+            if not len(node.items) == 2:
+                raise InternalError(
+                    "Expected a Fortran2003.Where_Stmt to have exactly two "
+                    "entries in 'items' but found {0}: {1}".format(
+                        len(node.items), str(node.items)))
+            if not isinstance(node.items[1], Fortran2003.Assignment_Stmt):
+                raise InternalError(
+                    "Expected the second entry of a Fortran2003.Where_Stmt "
+                    "items tuple to be an Assignment_Stmt but found: {0}".
+                    format(type(node.items[1]).__name__))
+            was_single_stmt = True
+            annotations = ["was_where", "was_single_stmt"]
+            logical_expr = [node.items[0]]
+        else:
+            # We have a Where construct. Check that the first and last
+            # children are what we expect.
+            if not isinstance(node.content[0],
+                              Fortran2003.Where_Construct_Stmt):
+                raise InternalError("Failed to find opening where construct "
+                                    "statement in: {0}".format(str(node)))
+            if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
+                raise InternalError("Failed to find closing end where "
+                                    "statement in: {0}".format(str(node)))
+            was_single_stmt = False
+            annotations = ["was_where"]
+            logical_expr = node.content[0].items
+
+        # Examine the logical-array expression (the mask) in order to
+        # determine the number of nested loops required. The Fortran
+        # standard allows bare array notation here (e.g. `a < 0.0` where
+        # `a` is an array) and thus we would need to examine our SymbolTable
+        # to find out the rank of `a`. For the moment we limit support to
+        # the NEMO style where the fact that `a` is an array is made
+        # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
+
+        # For this initial processing of the logical-array expression we
+        # use a temporary parent as we haven't yet constructed the PSyIR
+        # for the loop nest and innermost IfBlock. Once we have a valid
+        # parent for this logical expression we will repeat the processing.
+        fake_parent = Schedule()
+        self.process_nodes(fake_parent, logical_expr, None)
+        arrays = fake_parent[0].walk(Array)
+        if not arrays:
+            # If the PSyIR doesn't contain any Arrays then that must be
+            # because the code doesn't use explicit array syntax. At least one
+            # variable in the logical-array expression must be an array for
+            # this to be a valid WHERE().
+            # TODO #500 remove this check once the SymbolTable is working for
+            # the NEMO API.
+            raise NotImplementedError("Only WHERE constructs using explicit "
+                                      "array notation (e.g. my_array(:, :)) "
+                                      "are supported.")
+        # All array sections in a Fortran WHERE must have the same rank so
+        # just look at the first array.
+        rank = self._array_notation_rank(arrays[0])
+        # Create a list to hold the names of the loop variables as we'll
+        # need them to index into the arrays.
+        loop_vars = rank*[""]
+
+        # Create a set of all of the symbol names in the fparser2 parse
+        # tree so that we can find any clashes. We go as far back up the tree
+        # as we can before searching for all instances of Fortran2003.Name.
+        # TODO #500 - replace this by using the SymbolTable instead.
+        # pylint: disable=protected-access
+        fp2_parent = node
+        while hasattr(fp2_parent, "_parent") and fp2_parent._parent:
+            fp2_parent = fp2_parent._parent
+        name_list = walk_ast([fp2_parent], [Fortran2003.Name])
+        all_names = {str(name) for name in name_list}
+        # pylint: enable=protected-access
+
+        # Now create a loop nest of depth `rank`
+        new_parent = parent
+        for idx in range(rank, 0, -1):
+            # TODO #500 we should be using the SymbolTable for the new loop
+            # variable but that doesn't currently work for NEMO. As part of
+            # #500 we should handle clashes gracefully rather than
+            # simply aborting.
+            loop_vars[idx-1] = "widx{0}".format(idx)
+            if loop_vars[idx-1] in all_names:
+                raise InternalError(
+                    "Cannot create Loop with variable '{0}' because code "
+                    "already contains a symbol with that name.".format(
+                        loop_vars[idx-1]))
+            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
+                        annotations=annotations)
+            # Point to the original WHERE statement in the parse tree.
+            loop.ast = node
+            # Add loop lower bound
+            loop.addchild(Literal("1", parent=loop))
+            # Add loop upper bound - we use the SIZE operator to query the
+            # extent of the current array dimension
+            size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                        parent=loop)
+            loop.addchild(size_node)
+            size_node.addchild(Reference(arrays[0].name, parent=size_node))
+            size_node.addchild(Literal(str(idx), parent=size_node))
+            # Add loop increment
+            loop.addchild(Literal("1", parent=loop))
+            # Fourth child of a Loop must be a Schedule
+            sched = Schedule(parent=loop)
+            loop.addchild(sched)
+            # Finally, add the Loop we've constructed to its parent (but
+            # not into the existing PSyIR tree - that's done in
+            # process_nodes()).
+            if new_parent is not parent:
+                new_parent.addchild(loop)
+            else:
+                # Keep a reference to the first loop as that's what this
+                # handler returns
+                root_loop = loop
+            new_parent = sched
+        # Now we have the loop nest, add an IF block to the innermost
+        # schedule
+        ifblock = IfBlock(parent=new_parent, annotations=annotations)
+        new_parent.addchild(ifblock)
+        ifblock.ast = node  # Point back to the original WHERE construct
+
+        # We construct the conditional expression from the original
+        # logical-array-expression of the WHERE. We process_nodes() a
+        # second time here now that we have the correct parent node in the
+        # PSyIR (and thus a SymbolTable) to refer to.
+        self.process_nodes(ifblock, logical_expr, None)
+
+        # Each array reference must now be indexed by the loop variables
+        # of the loops we've just created.
+        self._array_syntax_to_indexed(ifblock.children[0], loop_vars)
+
+        # Now construct the body of the IF using the body of the WHERE
+        sched = Schedule(parent=ifblock)
+        ifblock.addchild(sched)
+
+        if not was_single_stmt:
+            # Do we have an ELSE WHERE?
+            for idx, child in enumerate(node.content):
+                if isinstance(child, Fortran2003.Elsewhere_Stmt):
+                    self.process_nodes(sched, node.content[1:idx], node)
+                    self._array_syntax_to_indexed(sched, loop_vars)
+                    # Add an else clause to the IF block for the ELSEWHERE
+                    # clause
+                    sched = Schedule(parent=ifblock)
+                    ifblock.addchild(sched)
+                    self.process_nodes(sched, node.content[idx+1:-1], node)
+                    break
+            else:
+                # No elsewhere clause was found
+                self.process_nodes(sched, node.content[1:-1], node)
+        else:
+            # We only had a single-statement WHERE
+            self.process_nodes(sched, node.items[1:], node)
+        # Convert all uses of array syntax to indexed accesses
+        self._array_syntax_to_indexed(sched, loop_vars)
+        # Return the top-level loop generated by this handler
+        return root_loop
 
     def _return_handler(self, node, parent):
         '''

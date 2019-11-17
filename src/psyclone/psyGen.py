@@ -935,6 +935,12 @@ class Node(object):
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param annotations: Tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags.
+    :type annotations: list of str
+
+    :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
     # Define two class constants: START_DEPTH and START_POSITION
@@ -944,8 +950,10 @@ class Node(object):
     # START_POSITION is used to to calculate position of all Nodes in
     # the tree (absolute or relative to a parent).
     START_POSITION = 0
+    # The list of valid annotations for this Node. Populated by sub-class.
+    valid_annotations = tuple()
 
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None, annotations=None):
         if not children:
             self._children = []
         else:
@@ -958,6 +966,16 @@ class Node(object):
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
+        if annotations:
+            for annotation in annotations:
+                if annotation in self.valid_annotations:
+                    self._annotations.append(annotation)
+                else:
+                    raise InternalError(
+                        "{0} with unrecognized annotation '{1}', valid "
+                        "annotations are: {2}.".format(
+                            self.__class__.__name__, annotation,
+                            self.valid_annotations))
         # Name to use for this Node type. By default we use the name of
         # the class but this can be overridden by a sub-class.
         self._text_name = self.__class__.__name__
@@ -994,6 +1012,7 @@ class Node(object):
         '''
         return self.coloured_name(colour) + "[]"
 
+    @abc.abstractmethod
     def __str__(self):
         return self.node_str(False)
 
@@ -1153,8 +1172,13 @@ class Node(object):
             graph.edge(remote_name, local_name, color="blue")
         # now call any children so they can add their information to
         # the graph
-        for child in self.children:
-            child.dag_gen(graph)
+        if isinstance(self, Loop):
+            # In case of a loop only loop at the body (the other part
+            # of the tree contain start, stop, step values):
+            self.loop_body.dag_gen(graph)
+        else:
+            for child in self.children:
+                child.dag_gen(graph)
 
     @property
     def dag_name(self):
@@ -1655,7 +1679,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return self._text_name
+        return "schedule_" + str(self.abs_position)
 
     def __getitem__(self, index):
         '''
@@ -3137,11 +3161,30 @@ class Loop(Node):
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
+    :param annotations: One or more labels that provide additional information\
+          about the node (primarily relating to the input code that it was \
+          created from).
+    :type annotations: list of str
+
+    :raises InternalError: if the 'was_single_stmt' annotation is supplied \
+                           without the 'was_where' annotation.
 
     '''
+    valid_annotations = ('was_where', 'was_single_stmt')
 
-    def __init__(self, parent=None, variable_name="", valid_loop_types=None):
-        Node.__init__(self, parent=parent)
+    def __init__(self, parent=None, variable_name="", valid_loop_types=None,
+                 annotations=None):
+        Node.__init__(self, parent=parent, annotations=annotations)
+
+        # Although the base class checks on the annotations individually, we
+        # need to do further checks here
+        if annotations:
+            if 'was_single_stmt' in annotations and \
+               'was_where' not in annotations:
+                raise InternalError(
+                    "A Loop with the 'was_single_stmt' annotation "
+                    "must also have the 'was_where' annotation but"
+                    " got: {0}".format(annotations))
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -3171,15 +3214,20 @@ class Loop(Node):
         :raises InternalError: If the loop does not have 4 children or the
             4th one is not a Schedule
         '''
+        # We cannot just do str(self) in this routine we can end up being
+        # called as a result of str(self) higher up the call stack
+        # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
                 "Loop malformed or incomplete. It should have exactly 4 "
-                "children, but found loop with '{0}'.".format(str(self)))
+                "children, but found loop with '{0}'.".format(
+                    ", ".join([str(child) for child in self.children])))
 
         if not isinstance(self.children[3], Schedule):
             raise InternalError(
                 "Loop malformed or incomplete. Fourth child should be a "
-                "Schedule node, but found loop with '{0}'.".format(str(self)))
+                "Schedule node, but found loop with '{0}'.".format(
+                    ", ".join([str(child) for child in self.children])))
 
     @property
     def start_expr(self):
@@ -5132,28 +5180,30 @@ class IfBlock(Node):
     children: the first one represents the if-condition and the second one
     the if-body; and an optional third child representing the else-body.
 
-    :param parent: the parent of this node within the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    :param str annotation: Tags that provide additional information about \
-        the node. The node should still be functionally correct when \
-        ignoring these tags. Currently, it includes: 'was_elseif' to tag
-        nested ifs originally written with the 'else if' languague syntactic \
-        constructs, 'was_single_stmt' to tag ifs with a 1-statement body \
-        which were originally written in a single line, and 'was_case' to \
-        tag an conditional structure which was originally written with the \
-        Fortran 'case' or C 'switch' syntactic constructs.
-    :raises InternalError: when initialised with invalid parameters.
     '''
-    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
+    # The valid annotations for this If node:
+    # 'was_elseif' to tag nested ifs originally written with the 'else if'
+    # languague syntactic construct;
+    # 'was_single_stmt' to tag ifs with a 1-statement body which were
+    # originally written in a single line;
+    # 'was_case' to tag a conditional structure which was originally written
+    # with the Fortran 'case' or C 'switch' syntactic constructs;
+    # 'was_where' - a conditional structure originally implied by a Fortran
+    # WHERE construct.
+    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
+                         'was_where')
 
-    def __init__(self, parent=None, annotation=None):
+    def __init__(self, parent=None, annotations=None):
         super(IfBlock, self).__init__(parent=parent)
-        if annotation in IfBlock.valid_annotations:
-            self._annotations.append(annotation)
-        elif annotation:
-            raise InternalError(
-                "IfBlock with unrecognized annotation '{0}', valid annotations"
-                " are: {1}.".format(annotation, IfBlock.valid_annotations))
+        if annotations:
+            for annotation in annotations:
+                if annotation in IfBlock.valid_annotations:
+                    self._annotations.append(annotation)
+                else:
+                    raise InternalError(
+                        "IfBlock with unrecognized annotation '{0}', valid "
+                        "annotations are: {1}.".format(
+                            annotation, IfBlock.valid_annotations))
         self._text_name = "If"
         self._colour_key = "If"
 
@@ -5611,8 +5661,7 @@ class Reference(Node):
     '''
     Node representing a Reference Expression.
 
-    :param ast: node in the fparser2 AST representing the reference.
-    :type ast: :py:class:`fparser.two.Fortran2003.Name.
+    :param str reference_name: the name of the symbol being referenced.
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -5941,8 +5990,7 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param reference_name: node in the fparser2 parse tree representing array.
-    :type reference_name: :py:class:`fparser.two.Fortran2003.Part_Ref.
+    :param str reference_name: name of the array symbol.
     :param parent: the parent node of this Array in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
