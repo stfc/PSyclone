@@ -131,6 +131,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     as containers or produces the appropriate errors'''
 
     fminterface = FortranModuleInterface
+    path = str(tmpdir)
 
     # Try with a non-existant module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
@@ -141,7 +142,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
             "directories []." in str(error.value))
 
     # Try with a non-existant module and an existing directory
-    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
     assert ("Module 'fake_module' (expected to be found in "
@@ -149,7 +150,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
             "directories " in str(error.value))
 
     # Try importing and existing Fortran module
-    create_dummy_module(tmpdir)
+    create_dummy_module(path)
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
     assert container.name == "dummy_module"
@@ -157,7 +158,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # Import the wrong module, additionally it tests that the uppercase
     # F90 extension is also being imported as it does not produce a file
     # not found error.
-    create_dummy_module(tmpdir, "different_name_module.F90")
+    create_dummy_module(path, "different_name_module.F90")
     with pytest.raises(ValueError) as error:
         container = fminterface.import_container("different_name_module")
     assert ("Error importing the Fortran module 'different_name_module' into "
