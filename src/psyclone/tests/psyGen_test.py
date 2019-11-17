@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective, Container
+    ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
@@ -1488,6 +1488,20 @@ def test_node_root():
     ru_kern = ru_loop.children[0]
     # Assert that the absolute root is a Schedule
     assert isinstance(ru_kern.root, Schedule)
+
+
+def test_node_annotations():
+    '''Test that an instance of the Node class raises an exception if an
+    annotation is invalid. Note, any annotation will be invalid here
+    as Node does not set a list of valid annotations (this is the job
+    of the subclass).
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = Node(annotations=["invalid"])
+    assert (
+        "Node with unrecognized annotation 'invalid', valid annotations are: "
+        "()." in str(excinfo.value))
 
 
 def test_node_args():
@@ -2944,7 +2958,7 @@ def test_loop_navigation_properties():
     # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
-    from psyclone.psyGen import Loop
+    # pylint: disable=too-many-statements
     loop = Loop()
 
     # Properties return an error if the node is incomplete
@@ -3024,7 +3038,6 @@ def test_loop_navigation_properties():
 
 def test_loop_invalid_type():
     ''' Tests assigning an invalid type to a Loop object. '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
@@ -3055,6 +3068,21 @@ def test_loop_gen_code():
     assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
 
+def test_invalid_loop_annotations():
+    ''' Check that the Loop constructor validates any supplied annotations. '''
+    # Check that we can have 'was_where' on its own
+    test_loop = Loop(annotations=['was_where'])
+    assert test_loop.annotations == ['was_where']
+    # Check that 'was_single_stmt' on its own raises an error
+    with pytest.raises(InternalError) as err:
+        Loop(annotations=['was_single_stmt'])
+    assert ("Loop with the 'was_single_stmt' annotation must also have the "
+            "'was_where'" in str(err.value))
+    # Check that it's accepted in combination with 'was_where'
+    test_loop = Loop(annotations=['was_single_stmt', 'was_where'])
+    assert test_loop.annotations == ['was_single_stmt', 'was_where']
+
+
 # Test IfBlock class
 
 def test_ifblock_invalid_annotation():
@@ -3062,7 +3090,7 @@ def test_ifblock_invalid_annotation():
     expected error.'''
 
     with pytest.raises(InternalError) as err:
-        _ = IfBlock(annotation="invalid")
+        _ = IfBlock(annotations=["invalid"])
     assert ("IfBlock with unrecognized annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
@@ -3076,7 +3104,7 @@ def test_ifblock_node_str():
     output = ifblock.node_str()
     assert colouredif+"[]" in output
 
-    ifblock = IfBlock(annotation='was_elseif')
+    ifblock = IfBlock(annotations=['was_elseif'])
     output = ifblock.node_str()
     assert colouredif+"[annotations='was_elseif']" in output
 
