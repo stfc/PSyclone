@@ -38,9 +38,10 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
+import os
 import pytest
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface
+    LocalInterface, GlobalInterface, ArgumentInterface, SymbolError
 from psyclone.psyGen import InternalError
 
 
@@ -312,7 +313,6 @@ def test_datasymbol_interface():
 
 def test_datasymbol_interface_access():
     ''' Tests for the DataSymbolInterface.access setter. '''
-    my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
                         interface=ArgumentInterface())
     symbol.interface.access = ArgumentInterface.Access.READ
@@ -325,7 +325,7 @@ def test_datasymbol_interface_access():
 
 def test_datasymbol_argument_str():
     ''' Check the __str__ method of the ArgumentInterface class. '''
-    # A ArgumentInterface represents a routine argument by default.
+    # An ArgumentInterface represents a routine argument by default.
     interface = ArgumentInterface()
     assert str(interface) == "Argument(pass-by-value=False)"
 
@@ -340,7 +340,7 @@ def test_fortranglobal_str():
 
 
 def test_global_modname():
-    ''' Test the Global.module_name setter error conditions. '''
+    ''' Test the GlobalInterface.module_name setter error conditions. '''
     with pytest.raises(TypeError) as err:
         _ = GlobalInterface(None)
     assert ("Global container_symbol parameter must be of type"
@@ -411,15 +411,14 @@ def test_datasymbol_copy_properties():
     assert symbol.constant_value == 7
 
 
-def test_datasymbol_resolve_deferred():
+def test_datasymbol_resolve_deferred(monkeypatch):
     ''' Test the datasymbol resolve_deferred method '''
-    import os
     from psyclone.configuration import Config
 
     # dummy_module defines integer 'a' and real 'b' and real parameter 'c'
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files")
-    Config.get().include_paths = [path]
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
     module = ContainerSymbol("dummy_module")
 
     symbol = DataSymbol('a', 'deferred', interface=GlobalInterface(module))
@@ -437,9 +436,11 @@ def test_datasymbol_resolve_deferred():
 
     # Test with a symbol not defined in the linked container
     symbol = DataSymbol('d', 'deferred', interface=GlobalInterface(module))
-    with pytest.raises(KeyError) as err:
+    with pytest.raises(SymbolError) as err:
         symbol.resolve_deferred()
-    assert "Could not find 'd' in the Symbol Table." in str(err.value)
+    assert ("Error trying to resolve symbol 'd' properties. The interface "
+            "points to module 'dummy_module' but could not find the definition"
+            " of 'd' in that module." in str(err.value))
 
     # Test with a symbol which does not have a Global interface
     symbol = DataSymbol('e', 'deferred', interface=LocalInterface())

@@ -39,7 +39,7 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from enum import Enum
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, SymbolError
 
 
 class DataSymbol(Symbol):
@@ -171,7 +171,15 @@ class DataSymbol(Symbol):
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
                 module = self.interface.container_symbol
-                extern_symbol = module.container.symbol_table.lookup(self.name)
+                try:
+                    extern_symbol = module.container.symbol_table.lookup(
+                        self.name)
+                except KeyError:
+                    raise SymbolError(
+                        "Error trying to resolve symbol '{0}' properties. The "
+                        "interface points to module '{1}' but could not find "
+                        "the definition of '{0}' in that module."
+                        "".format(self.name, module.name))
                 self.copy_properties(extern_symbol)
                 self.interface = tmp
             else:

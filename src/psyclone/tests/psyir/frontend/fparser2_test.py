@@ -103,8 +103,9 @@ end module dummy_mod
 
 # Method generate_container
 def test_generate_container(parser):
-    ''' '''
-    dummy_module_metadata = '''
+    ''' Test that generate_container creates a PSyIR container with the
+    contents of the given fparser2 fortran module.'''
+    dummy_module = '''
     module dummy_mod
         use mod1
         use mod2, only: var1
@@ -118,7 +119,7 @@ def test_generate_container(parser):
         end subroutine dummy_code
     end module dummy_mod
     '''
-    reader = FortranStringReader(dummy_module_metadata)
+    reader = FortranStringReader(dummy_module)
     ast = parser(reader)
     processor = Fparser2Reader()
     container = processor.generate_container(ast)
@@ -127,9 +128,8 @@ def test_generate_container(parser):
     assert container.symbol_table
     assert container.symbol_table.lookup("modvar1")
     assert container.symbol_table.lookup("var1")
-    # TODO: uncomment below
-    # assert container.symbol_table.lookup("mod1")
-    # assert container.symbol_table.lookup("mod2")
+    assert container.symbol_table.lookup("mod1")
+    assert container.symbol_table.lookup("mod2")
 
 
 def test_generate_container_two_modules(parser):
