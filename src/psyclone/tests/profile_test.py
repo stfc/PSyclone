@@ -97,8 +97,7 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = prt.apply(invoke.schedule.children[0]
-                             .children[0].children[0])
+    new_sched, _ = prt.apply(invoke.schedule[0].children[0].loop_body)
 
     new_sched_str = str(new_sched)
 
@@ -110,6 +109,7 @@ Literal[value:'2']
 Literal[value:'jstop-1']
 Literal[value:'1']
 Schedule:
+ProfileStart[var=profile_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
 Literal[value:'2']
 Literal[value:'istop']
@@ -118,6 +118,7 @@ Schedule:
 kern call: compute_cv_code
 End Schedule
 End GOLoop
+ProfileEnd
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
@@ -359,7 +360,6 @@ def test_profile_invokes_dynamo0p3():
     # Next test two kernels in one invoke:
     _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
-
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
@@ -379,6 +379,18 @@ def test_profile_invokes_dynamo0p3():
                   "end.*"
                   r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
+
+    # Lastly, test an invoke whose first kernel is a builtin
+    _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "dynamo0.3", idx=0)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
+    code = str(invoke.gen())
+    assert "USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd" \
+        in code
+    assert "TYPE(ProfileData), save :: profile" in code
+    assert "CALL ProfileStart(\"unknown-module\", \"x_plus_y\", profile)" \
+        in code
+    assert "CALL ProfileEnd(profile)" in code
+
     Profiler.set_options(None)
 
 
@@ -505,7 +517,7 @@ End Schedule""")
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
-    sched2, _ = prt.apply(schedule.children[0].children[1])
+    sched2, _ = prt.apply(schedule[0].children[1])
 
     correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
 Constant loop bounds=True]:

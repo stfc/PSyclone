@@ -369,17 +369,48 @@ of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
 Control Flow Nodes
 ==================
 
-The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These nodes represent
-the canonical structure with which conditional branching constructs and
-iteration constructs are built. Additional language-specific syntax for branching
-and iteration will be normalized to use these same constructs.
-For example, Fortran has the additional branching constructs `ELSE IF`
-and `CASE`: when a Fortran code is translated into the PSyIR, PSyclone will
-build a semantically equivalent implementation using `IfBlocks`.
-However, the necessary nodes in the new tree structure will be annotated
-with information to enable the original language-specific syntax to be
-recreated if required.
+The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These
+nodes represent the canonical structure with which conditional
+branching constructs and iteration constructs are built. Additional
+language-specific syntax for branching and iteration will be
+normalized to use these same constructs.  For example, Fortran has the
+additional branching constructs `ELSE IF` and `CASE`: when a Fortran
+code is translated into the PSyIR, PSyclone will build a semantically
+equivalent implementation using `IfBlocks`.  Similarly, Fortran also
+has the `WHERE` construct and statement which are represented in the
+PSyIR with a combination of `Loop` and `IfBlock` nodes. Such nodes in
+the new tree structure are annotated with information to enable the
+original language-specific syntax to be recreated if required (see
+below).
 
+Node annotation
+---------------
+
+If the PSyIR is constructed from existing code (using e.g. the
+fparser2 frontend) then it is possible that information about that
+code may be lost.  This is because the PSyIR is only semantically
+equivalent to certain code constructs. In order that information is
+not lost (making it possible to e.g. recover the original code
+structure if desired) Nodes may have `annotations` associated with
+them. The annotations, the Node types to which they may be applied and
+their meanings are summarised in the table below:
+
+=================  =================  =================================
+Annotation         Node types         Origin
+=================  =================  =================================
+`was_elseif`       `IfBlock`          `else if`
+`was_single_stmt`  `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
+                                      `where(array-mask)array-expr`
+`was_case`         `IfBlock`          Fortran `select case`
+`was_where`        `Loop`, `IfBlock`  Fortran `where` construct
+=================  =================  =================================
+
+.. note:: a `Loop` may currently only be given the `was_single_stmt` annotation
+	  if it also has the `was_where` annotation. (Thus indicating that
+	  this `Loop` originated from a WHERE *statement* in the original
+	  Fortran code.) Representing single-statement loops in Fortran is
+	  the subject of GitHub Issue
+	  `#412 <https://github.com/stfc/PSyclone/issues/412>`_.
 
 Branching construct
 -------------------
@@ -1110,10 +1141,6 @@ The SIR back-end is limited in a number of ways:
 - the only unary operator currently supported is '-' and the subject
   of this unary operator must be a literal.
 
-The current implementation is not able to deal with variables local to
-a region (which the SIR expects), as, in Fortran, the standard scope
-of a local variable is the whole routine, not a sub-region of code.
-
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
 run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
@@ -1142,7 +1169,17 @@ but this would require no codeblocks in the PSyIR when parsing NEMO
 (which is a difficult thing to achieve), or interface code between
 codeblocks and the rest of the PSyIR.
 
-
+As suggested by the Dawn developers, PSyIR local scalar variables are
+translated into temporary SIR fields (which are 3D arrays by
+default). The reason for doing this is that it is easy to specify
+variables in the SIR this way (whereas I did not manage to get scalar
+declarations working) and Dawn optimises a temporary field, reducing
+it to its required dimensionality (so PSyIR local scalar variables are
+output as scalars by the Dawn back end even though they are specified
+as fields). A limitation of the current translation from PSyIR to SIR
+is that all PSyIR scalars are assumed to be local and all PSyIR arrays
+are assumed to be global, which may not be the case. This limitation
+is captured in issue #521.
 
 Parsing Code
 ############

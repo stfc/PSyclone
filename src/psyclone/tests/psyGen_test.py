@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective, Container
+    ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Symbol, SymbolTable
@@ -791,6 +791,7 @@ def test_ompdo_constructor():
     # Break the directive
     ompdo.children[0] = "not-a-schedule"
     with pytest.raises(InternalError) as err:
+        # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
             "child but found: ['str']" in str(err.value))
@@ -1493,6 +1494,20 @@ def test_node_root():
     assert isinstance(ru_kern.root, Schedule)
 
 
+def test_node_annotations():
+    '''Test that an instance of the Node class raises an exception if an
+    annotation is invalid. Note, any annotation will be invalid here
+    as Node does not set a list of valid annotations (this is the job
+    of the subclass).
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = Node(annotations=["invalid"])
+    assert (
+        "Node with unrecognized annotation 'invalid', valid annotations are: "
+        "()." in str(excinfo.value))
+
+
 def test_node_args():
     '''Test that the Node class args method returns the correct arguments
     for Nodes that do not have arguments themselves'''
@@ -2005,7 +2020,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "InvokeSchedule"
+    assert schedule.dag_name == "schedule_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
@@ -2338,22 +2353,30 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*InvokeSchedule_start\n"
-    r"\s*InvokeSchedule_end\n"
+    r"\s*schedule_0_start\n"
+    r"\s*schedule_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    r"\s*InvokeSchedule_start -> loop_1_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_2\n"
-    r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
-    r"\s*loop_3_start\n"
-    r"\s*loop_3_end\n"
-    r"\s*loop_3_end -> schedule_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_3_start \[color=red\]\n"
-    r"\s*kernel_testkern_qr_code_4\n"
-    r"\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
-    r"\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
+    r"\s*schedule_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*schedule_5_start\n"
+    r"\s*schedule_5_end\n"
+    r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> schedule_5_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_6\n"
+    r"\s*kernel_testkern_qr_code_6 -> schedule_5_end \[color=blue\]\n"
+    r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
+    r"\s*loop_7_start\n"
+    r"\s*loop_7_end\n"
+    r"\s*loop_7_end -> schedule_0_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
+    r"\s*schedule_11_start\n"
+    r"\s*schedule_11_end\n"
+    r"\s*schedule_11_end -> loop_7_end \[color=blue\]\n"
+    r"\s*loop_7_start -> schedule_11_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_12\n"
+    r"\s*kernel_testkern_qr_code_12 -> schedule_11_end \[color=blue\]\n"
+    r"\s*schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -2373,16 +2396,15 @@ def test_node_dag(tmpdir, have_graphviz):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
-    for name in ["<title>schedule_start</title>",
-                 "<title>schedule_end</title>",
+    for name in ["<title>schedule_0_start</title>",
+                 "<title>schedule_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_2</title>",
-                 "<title>kernel_testkern_qr_code_4</title>",
+                 "<title>kernel_testkern_qr_code_6</title>",
+                 "<title>kernel_testkern_qr_code_12</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),
@@ -2937,10 +2959,10 @@ def test_codeblock_structure(structure):
 
 
 def test_loop_navigation_properties():
+    # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties'''
     # pylint: disable=too-many-statements
-    from psyclone.psyGen import Loop
     loop = Loop()
 
     # Properties return an error if the node is incomplete
@@ -3020,7 +3042,6 @@ def test_loop_navigation_properties():
 
 def test_loop_invalid_type():
     ''' Tests assigning an invalid type to a Loop object. '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
@@ -3051,6 +3072,21 @@ def test_loop_gen_code():
     assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
 
+def test_invalid_loop_annotations():
+    ''' Check that the Loop constructor validates any supplied annotations. '''
+    # Check that we can have 'was_where' on its own
+    test_loop = Loop(annotations=['was_where'])
+    assert test_loop.annotations == ['was_where']
+    # Check that 'was_single_stmt' on its own raises an error
+    with pytest.raises(InternalError) as err:
+        Loop(annotations=['was_single_stmt'])
+    assert ("Loop with the 'was_single_stmt' annotation must also have the "
+            "'was_where'" in str(err.value))
+    # Check that it's accepted in combination with 'was_where'
+    test_loop = Loop(annotations=['was_single_stmt', 'was_where'])
+    assert test_loop.annotations == ['was_single_stmt', 'was_where']
+
+
 # Test IfBlock class
 
 def test_ifblock_invalid_annotation():
@@ -3058,7 +3094,7 @@ def test_ifblock_invalid_annotation():
     expected error.'''
 
     with pytest.raises(InternalError) as err:
-        _ = IfBlock(annotation="invalid")
+        _ = IfBlock(annotations=["invalid"])
     assert ("IfBlock with unrecognized annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
@@ -3072,7 +3108,7 @@ def test_ifblock_node_str():
     output = ifblock.node_str()
     assert colouredif+"[]" in output
 
-    ifblock = IfBlock(annotation='was_elseif')
+    ifblock = IfBlock(annotations=['was_elseif'])
     output = ifblock.node_str()
     assert colouredif+"[annotations='was_elseif']" in output
 
@@ -3561,12 +3597,17 @@ def test_kernelschedule_name_setter():
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
-    # pylint: disable=too-many-statements
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
+    assert isinstance(Symbol('a', 'real', precision=Symbol.Precision.DOUBLE),
+                      Symbol)
+    assert isinstance(Symbol('a', 'real', precision=4), Symbol)
+    kind = Symbol('r_def', 'integer')
+    assert isinstance(Symbol('a', 'real', precision=kind), Symbol)
     # real constants are not currently supported
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
+    assert isinstance(Symbol('a', 'integer', precision=4), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
     assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
     assert isinstance(Symbol('a', 'boolean'), Symbol)
@@ -3574,7 +3615,7 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', []), Symbol)
+    assert isinstance(Symbol('a', 'real', [], precision=8), Symbol)
     assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
                       Symbol)
     assert isinstance(
@@ -3594,6 +3635,10 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [dim]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
 
+
+def test_symbol_init_errors():
+    ''' Test that the Symbol constructor raises appropriate errors if supplied
+    with invalid arguments. '''
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
@@ -3602,11 +3647,17 @@ def test_symbol_initialisation():
         "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
             error.value)
 
+    with pytest.raises(TypeError) as error:
+        Symbol('a', 3, [], 'local')
+    assert ("datatype of a Symbol must be specified using a str but got:"
+            in str(error.value))
+
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
             "'real'.") in str(error.value)
 
+    dim = Symbol('dim', 'integer', [])
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', shape=dim)
     assert "Symbol shape attribute must be a list." in str(error.value)
@@ -3658,6 +3709,37 @@ def test_symbol_initialisation():
             "constant value is expected to be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
+
+
+def test_symbol_precision_errors():
+    ''' Check that invalid precision settings raise the appropriate errors in
+    the Symbol constructor. '''
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=0)
+    assert ("The precision of a Symbol when specified as an integer number of "
+            "bytes must be > 0" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'character', precision=1)
+    assert ("A Symbol of character type cannot have an associated precision"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'boolean', precision=1)
+    assert ("A Symbol of boolean type cannot have an associated precision"
+            in str(err.value))
+    not_int = Symbol('b', 'real')
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=not_int)
+    assert ("A Symbol representing the precision of another Symbol must be "
+            "of either 'deferred' or scalar, integer type " in str(err.value))
+    not_scalar = Symbol('b', 'integer', [2, 2])
+    with pytest.raises(ValueError) as err:
+        Symbol('a', 'integer', precision=not_scalar)
+    assert ("A Symbol representing the precision of another Symbol must be of "
+            "either 'deferred' or scalar, integer type but" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Symbol('a', 'integer', precision="not-valid")
+    assert ("Symbol precision must be one of integer, Symbol.Precision or "
+            "Symbol but got" in str(err.value))
 
 
 def test_symbol_map():

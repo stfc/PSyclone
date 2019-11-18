@@ -45,6 +45,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import os
+from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
 from psyclone.parse.kernel import Descriptor, KernelType
@@ -847,6 +848,82 @@ class DynArgDescriptor03(Descriptor):
         return res
 
 
+class RefElementMetaData(object):
+    '''
+    Class responsible for parsing reference-element meta-data and storing
+    the properties that a kernel requires.
+
+    :param str kernel_name: name of the Kernel that the meta-data is for.
+    :param type_declns: list of fparser1 parse tree nodes representing type \
+                        declaration statements
+    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
+
+    :raises ParseError: if an unrecognised reference-element property is found.
+
+    '''
+    class Property(Enum):
+        '''
+        Enumeration of the various properties of the Reference Element
+        (that a kernel can request).
+
+        '''
+        NORMALS_TO_HORIZONTAL_FACES = 1
+        NORMALS_TO_VERTICAL_FACES = 2
+        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
+        OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
+
+    # Mapping from meta-data text to our property enumeration.
+    reference_element_property_map = {
+        "normals_to_horizontal_faces":
+        Property.NORMALS_TO_HORIZONTAL_FACES,
+        "normals_to_vertical_faces":
+        Property.NORMALS_TO_VERTICAL_FACES,
+        "outward_normals_to_horizontal_faces":
+        Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
+        "outward_normals_to_vertical_faces":
+        Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
+    }
+
+    def __init__(self, kernel_name, type_declns):
+        from psyclone.parse.kernel import getkerneldescriptors
+
+        # The list of properties requested in the meta-data (if any)
+        self.properties = []
+
+        re_properties = []
+        # Search the supplied list of type declarations for the one
+        # describing the reference-element properties required by the kernel.
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "reference_element_data_type":
+                    # getkerneldescriptors raises a ParseError if the named
+                    # element cannot be found.
+                    re_properties = getkerneldescriptors(
+                        kernel_name, line, var_name="meta_reference_element",
+                        var_type="reference_element_data_type")
+                    break
+            if re_properties:
+                # Optimisation - stop searching if we've found a type
+                # declaration for the reference-element data
+                break
+        try:
+            # The meta-data entry is a declaration of a Fortran array of type
+            # reference_element_data_type. The initialisation of each member
+            # of this array is done as a structure constructor, the argument
+            # to which gives a property of the reference element.
+            for re_prop in re_properties:
+                for arg in re_prop.args:
+                    self.properties.append(
+                        self.reference_element_property_map[str(arg).lower()])
+        except KeyError:
+            # We found a reference-element property that we don't recognise.
+            # Sort for consistency when testing
+            sorted_keys = sorted(self.reference_element_property_map.keys())
+            raise ParseError(
+                "Unsupported reference-element property: '{0}'. Supported "
+                "values are: {1}".format(arg, sorted_keys))
+
+
 class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
     the subroutine for the Dynamo 0.3 API.
@@ -859,6 +936,8 @@ class DynKernMetadata(KernelType):
                         rules for the Dynamo 0.3 API.
     '''
     def __init__(self, ast, name=None):
+        from psyclone.parse.kernel import getkerneldescriptors
+
         KernelType.__init__(self, ast, name=name)
 
         # The type of CMA operation this kernel performs (or None if
@@ -883,22 +962,21 @@ class DynKernMetadata(KernelType):
         self._arg_descriptors = []
         for arg_type in self._inits:
             self._arg_descriptors.append(DynArgDescriptor03(arg_type))
-        # parse the func_type metadata if it exists
-        found = False
-        for line in self._ktype.content:
-            if isinstance(line, fparser.one.typedecl_statements.Type):
-                for entry in line.selector:
-                    if entry == "func_type":
-                        if line.entity_decls[0].split()[0].split("(")[0] == \
-                                "meta_funcs":
-                            found = True
-                            break
-        if not found:
-            func_types = []
-        else:
-            # use the base class method to extract the information
-            func_types = self.getkerneldescriptors(self._ktype,
-                                                   var_name="meta_funcs")
+
+        # Get a list of the Type declarations in the metadata
+        type_declns = [cline for cline in self._ktype.content if
+                       isinstance(cline, fparser.one.typedecl_statements.Type)]
+
+        # Parse the func_type metadata if it exists
+        func_types = []
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "func_type":
+                    func_types = getkerneldescriptors(
+                        name, line, var_name="meta_funcs",
+                        var_type="func_type")
+                    break
+
         self._func_descriptors = []
         # populate a list of function descriptor objects which we
         # return via the func_descriptors method.
@@ -967,6 +1045,9 @@ class DynKernMetadata(KernelType):
         for target in _targets:
             if target not in self._eval_targets:
                 self._eval_targets.append(target)
+
+        # Does this kernel require any properties of the reference element?
+        self.reference_element = RefElementMetaData(self.name, type_declns)
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API

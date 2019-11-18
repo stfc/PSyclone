@@ -1,4 +1,24 @@
 
+        1) #579 for #509. Improves the structuring of the html version
+	of the User Guide.
+
+        2) PR #581 for #578. Extends the PSyIR Fortran backend so
+	that variable declarations include kind information. This
+	currently only works if kind-parameters are declared or
+	explicitly imported in the local scope - see #587 and #586.
+
+        3) PR #562 for #473. Fixes the DAG generation to allow for
+	Loops having Schedules and children (e.g. loop limits) that
+	we want to ignore.
+
+	4) PR #535 for part of #150. Implements support for parsing
+	of reference element metadata in the Dynamo0.3 (LFRic) API.
+
+	5) PR #516 for #497. Adds support for translating the fortran
+	where construct into the PSyIR.
+
+release 1.8.0 8th November 2019
+
 	1) #245 and PR #247. Extend PSyIR to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
@@ -311,6 +331,15 @@
 	installation.
 
 	99) PR #572 for #571. Bug fixes now that fparser uses unicode.
+
+	100) PR 524 for #472. Adds support for scalar variables to the
+	SIR backend.
+
+	101) PR #574 towards #567. Fixes bug in profiling that causes
+	crash if first kernel in an invoke is a built-in.
+
+        102) PR #576 for #530. Includes the repository examples in the
+        distribution and updates the documentation accordingly.
 
 release 1.7.0 20th December 2018
 

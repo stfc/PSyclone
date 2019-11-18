@@ -949,6 +949,12 @@ class Node(object):
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param annotations: Tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags.
+    :type annotations: list of str
+
+    :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
     # Define two class constants: START_DEPTH and START_POSITION
@@ -958,8 +964,10 @@ class Node(object):
     # START_POSITION is used to to calculate position of all Nodes in
     # the tree (absolute or relative to a parent).
     START_POSITION = 0
+    # The list of valid annotations for this Node. Populated by sub-class.
+    valid_annotations = tuple()
 
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None, annotations=None):
         if not children:
             self._children = []
         else:
@@ -972,6 +980,16 @@ class Node(object):
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
+        if annotations:
+            for annotation in annotations:
+                if annotation in self.valid_annotations:
+                    self._annotations.append(annotation)
+                else:
+                    raise InternalError(
+                        "{0} with unrecognized annotation '{1}', valid "
+                        "annotations are: {2}.".format(
+                            self.__class__.__name__, annotation,
+                            self.valid_annotations))
         # Name to use for this Node type. By default we use the name of
         # the class but this can be overridden by a sub-class.
         self._text_name = self.__class__.__name__
@@ -1008,6 +1026,7 @@ class Node(object):
         '''
         return self.coloured_name(colour) + "[]"
 
+    @abc.abstractmethod
     def __str__(self):
         return self.node_str(False)
 
@@ -1167,8 +1186,13 @@ class Node(object):
             graph.edge(remote_name, local_name, color="blue")
         # now call any children so they can add their information to
         # the graph
-        for child in self.children:
-            child.dag_gen(graph)
+        if isinstance(self, Loop):
+            # In case of a loop only loop at the body (the other part
+            # of the tree contain start, stop, step values):
+            self.loop_body.dag_gen(graph)
+        else:
+            for child in self.children:
+                child.dag_gen(graph)
 
     @property
     def dag_name(self):
@@ -1669,7 +1693,7 @@ class Schedule(Node):
         :returns: The name of this node in the dag.
         :rtype: str
         '''
-        return self._text_name
+        return "schedule_" + str(self.abs_position)
 
     def __getitem__(self, index):
         '''
@@ -3151,11 +3175,30 @@ class Loop(Node):
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
+    :param annotations: One or more labels that provide additional information\
+          about the node (primarily relating to the input code that it was \
+          created from).
+    :type annotations: list of str
+
+    :raises InternalError: if the 'was_single_stmt' annotation is supplied \
+                           without the 'was_where' annotation.
 
     '''
+    valid_annotations = ('was_where', 'was_single_stmt')
 
-    def __init__(self, parent=None, variable_name="", valid_loop_types=None):
-        Node.__init__(self, parent=parent)
+    def __init__(self, parent=None, variable_name="", valid_loop_types=None,
+                 annotations=None):
+        Node.__init__(self, parent=parent, annotations=annotations)
+
+        # Although the base class checks on the annotations individually, we
+        # need to do further checks here
+        if annotations:
+            if 'was_single_stmt' in annotations and \
+               'was_where' not in annotations:
+                raise InternalError(
+                    "A Loop with the 'was_single_stmt' annotation "
+                    "must also have the 'was_where' annotation but"
+                    " got: {0}".format(annotations))
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -3185,15 +3228,20 @@ class Loop(Node):
         :raises InternalError: If the loop does not have 4 children or the
             4th one is not a Schedule
         '''
+        # We cannot just do str(self) in this routine we can end up being
+        # called as a result of str(self) higher up the call stack
+        # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
                 "Loop malformed or incomplete. It should have exactly 4 "
-                "children, but found loop with '{0}'.".format(str(self)))
+                "children, but found loop with '{0}'.".format(
+                    ", ".join([str(child) for child in self.children])))
 
         if not isinstance(self.children[3], Schedule):
             raise InternalError(
                 "Loop malformed or incomplete. Fourth child should be a "
-                "Schedule node, but found loop with '{0}'.".format(str(self)))
+                "Schedule node, but found loop with '{0}'.".format(
+                    ", ".join([str(child) for child in self.children])))
 
     @property
     def start_expr(self):
@@ -5146,28 +5194,30 @@ class IfBlock(Node):
     children: the first one represents the if-condition and the second one
     the if-body; and an optional third child representing the else-body.
 
-    :param parent: the parent of this node within the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    :param str annotation: Tags that provide additional information about \
-        the node. The node should still be functionally correct when \
-        ignoring these tags. Currently, it includes: 'was_elseif' to tag
-        nested ifs originally written with the 'else if' languague syntactic \
-        constructs, 'was_single_stmt' to tag ifs with a 1-statement body \
-        which were originally written in a single line, and 'was_case' to \
-        tag an conditional structure which was originally written with the \
-        Fortran 'case' or C 'switch' syntactic constructs.
-    :raises InternalError: when initialised with invalid parameters.
     '''
-    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
+    # The valid annotations for this If node:
+    # 'was_elseif' to tag nested ifs originally written with the 'else if'
+    # languague syntactic construct;
+    # 'was_single_stmt' to tag ifs with a 1-statement body which were
+    # originally written in a single line;
+    # 'was_case' to tag a conditional structure which was originally written
+    # with the Fortran 'case' or C 'switch' syntactic constructs;
+    # 'was_where' - a conditional structure originally implied by a Fortran
+    # WHERE construct.
+    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
+                         'was_where')
 
-    def __init__(self, parent=None, annotation=None):
+    def __init__(self, parent=None, annotations=None):
         super(IfBlock, self).__init__(parent=parent)
-        if annotation in IfBlock.valid_annotations:
-            self._annotations.append(annotation)
-        elif annotation:
-            raise InternalError(
-                "IfBlock with unrecognized annotation '{0}', valid annotations"
-                " are: {1}.".format(annotation, IfBlock.valid_annotations))
+        if annotations:
+            for annotation in annotations:
+                if annotation in IfBlock.valid_annotations:
+                    self._annotations.append(annotation)
+                else:
+                    raise InternalError(
+                        "IfBlock with unrecognized annotation '{0}', valid "
+                        "annotations are: {1}.".format(
+                            annotation, IfBlock.valid_annotations))
         self._text_name = "If"
         self._colour_key = "If"
 
@@ -5426,26 +5476,31 @@ class Symbol(object):
     representing data that exists outside of the local scope, the interface
     to that symbol (i.e. the mechanism by which it is accessed).
 
-    :param str name: Name of the symbol.
-    :param str datatype: Data type of the symbol. (One of \
+    :param str name: name of the symbol.
+    :param str datatype: data type of the symbol. (One of \
                      :py:attr:`psyclone.psyGen.Symbol.valid_data_types`.)
-    :param list shape: Shape of the symbol in column-major order (leftmost \
+    :param list shape: shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
                        literal or a reference to an integer symbol with the \
                        extent. If it is an empty list then the symbol \
                        represents a scalar.
-    :param interface: Object describing the interface to this symbol (i.e. \
+    :param interface: object describing the interface to this symbol (i.e. \
                       whether it is passed as a routine argument or accessed \
                       in some other way) or None if the symbol is local.
     :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
-    :param constant_value: Sets a fixed known value for this \
+    :param constant_value: sets a fixed known value for this \
                            Symbol. If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
     :type constant_value: int, str or bool
+    :param precision: the amount of storage required by the datatype (bytes) \
+            or a reference to a Symbol holding the type information \
+            or a label identifying a default precision.
+    :type precision: int or :py:class:`psyclone.psyGen.Symbol` or \
+                     :py:class:`psyclone.psyGen.Symbol.Precision`
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
@@ -5479,6 +5534,14 @@ class Symbol(object):
         ## The way in which the symbol is accessed in the scoping block is
         # unknown
         UNKNOWN = 4
+
+    class Precision(Enum):
+        '''
+        Enumeration for the different types of 'default' precision that may
+        be specified for a Symbol.
+        '''
+        SINGLE = 1
+        DOUBLE = 2
 
     class Argument(SymbolInterface):
         '''
@@ -5546,15 +5609,35 @@ class Symbol(object):
             self._module_name = value
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None):
+                 interface=None, precision=None):
 
         self._name = name
+        self._datatype = None
+        self.datatype = datatype
 
-        if datatype not in Symbol.valid_data_types:
-            raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes but found "
-                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
-        self._datatype = datatype
+        # Check that the supplied 'precision' is valid
+        if precision is not None:
+            if datatype.lower() not in ["real", "integer"]:
+                raise ValueError(
+                    "A Symbol of {0} type cannot have an associated "
+                    "precision".format(datatype.lower()))
+            if not isinstance(precision, (int, Symbol.Precision, Symbol)):
+                raise TypeError(
+                    "Symbol precision must be one of integer, Symbol.Precision"
+                    " or Symbol but got '{0}'".format(
+                        type(precision).__name__))
+            if isinstance(precision, int) and precision <= 0:
+                raise ValueError("The precision of a Symbol when specified as "
+                                 "an integer number of bytes must be > 0 but "
+                                 "got {0}".format(precision))
+            if (isinstance(precision, Symbol) and
+                (precision.datatype not in ["integer", "deferred"]
+                 or precision.is_array)):
+                raise ValueError("A Symbol representing the precision of "
+                                 "another Symbol must be of either 'deferred' "
+                                 "or scalar, integer type but got: {0}".
+                                 format(str(precision)))
+        self.precision = precision
 
         if shape is None:
             shape = []
@@ -5595,6 +5678,25 @@ class Symbol(object):
         :rtype: str
         '''
         return self._datatype
+
+    @datatype.setter
+    def datatype(self, value):
+        ''' Setter for Symbol datatype.
+
+        :param str value: new value for datatype.
+
+        :raises TypeError: if value is not a str.
+        :raises NotImplementedError: if the specified data type is invalid.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                "The datatype of a Symbol must be specified using a str but "
+                "got: '{0}'".format(type(value).__name__))
+        if value not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'.".format(str(Symbol.valid_data_types), value))
+        self._datatype = value
 
     @property
     def access(self):
@@ -5796,8 +5898,7 @@ class Symbol(object):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
-        :param symbol_in: The symbol from which the properties are \
-                          copied from.
+        :param symbol_in: The symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
 
         :raises TypeError: If the argument is not the expected type.
@@ -5811,6 +5912,7 @@ class Symbol(object):
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
+        self.precision = symbol_in.precision
 
 
 class SymbolTable(object):
@@ -6316,8 +6418,7 @@ class Reference(Node):
     '''
     Node representing a Reference Expression.
 
-    :param ast: node in the fparser2 AST representing the reference.
-    :type ast: :py:class:`fparser.two.Fortran2003.Name.
+    :param str reference_name: the name of the symbol being referenced.
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -6646,8 +6747,7 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param reference_name: node in the fparser2 parse tree representing array.
-    :type reference_name: :py:class:`fparser.two.Fortran2003.Part_Ref.
+    :param str reference_name: name of the array symbol.
     :param parent: the parent node of this Array in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
 

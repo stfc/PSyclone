@@ -2368,7 +2368,7 @@ def test_invalid_stencil_form_5():
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert "kernel metadata has an invalid format" \
+    assert "Kernel metadata has an invalid format" \
         in str(excinfo.value)
 
 

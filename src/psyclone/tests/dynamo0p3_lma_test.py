@@ -169,8 +169,19 @@ def test_fs_descriptor_wrong_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert "each meta_func entry must be of type 'func_type'" in \
-        str(excinfo.value)
+    assert ("'meta_funcs' metadata must consist of an array of structure "
+            "constructors, all of type 'func_type'" in str(excinfo.value))
+    # Check that the DynFuncDescriptor03 rejects it too
+    from psyclone.dynamo0p3 import DynFuncDescriptor03
+
+    class FakeCls(object):
+        ''' Class that just has a name property (which is not "func_type") '''
+        name = "not-func-type"
+
+    with pytest.raises(ParseError) as excinfo:
+        DynFuncDescriptor03(FakeCls())
+    assert ("each meta_func entry must be of type 'func_type' but found "
+            in str(excinfo.value))
 
 
 def test_fs_descriptor_too_few_args():

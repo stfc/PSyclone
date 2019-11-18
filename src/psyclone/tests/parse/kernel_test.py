@@ -319,8 +319,8 @@ def test_kerneltype_brackets():
 
     with pytest.raises(ParseError) as excinfo:
         _ = KernelType(parse_tree)
-    assert ("Parser does not currently support [...] initialisation for "
-            "'meta_args', please use (/.../) instead.") in str(excinfo.value)
+    assert ("Parser does not currently support '[...]' initialisation for "
+            "'meta_args', please use '(/.../)' instead.") in str(excinfo.value)
 
 
 def test_kerneltype_nargs():
