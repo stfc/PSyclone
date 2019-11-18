@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 module testkern_any_space_1_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
+  use constants_mod, only : r_def
 
 ! test for any_space producing correct code where there are a) more than one any_space declarations, 
 ! 2) an existing space as another argument (W0 in this case), 3) func_type basis functions on any_space.
