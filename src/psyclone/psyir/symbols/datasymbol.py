@@ -330,6 +330,7 @@ class DataSymbol(Symbol):
         '''
         return isinstance(self._interface, ArgumentInterface)
 
+    @property
     def interface_unknown(self):
         '''
         :returns: whether the DataSymbol has a Deferred (unknown) interface

@@ -274,6 +274,27 @@ class SymbolTable(object):
         return [sym for sym in self.datasymbols if sym.is_global]
 
     @property
+    def unresolved_datasymbols(self):
+        '''
+        :returns: list of symbols that have an unknown interface (i.e. we \
+                  don't know how they are brought into scope).
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        return [sym for sym in self.datasymbols if sym.interface_unknown]
+
+    @property
+    def precision_datasymbols(self):
+        '''
+        :returns: list of all symbols used to define the precision of \
+                  other symbols within the table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        return [sym.precision for sym in self.datasymbols
+                if isinstance(sym.precision, DataSymbol)]
+
+    @property
     def iteration_indices(self):
         '''
         :returns: List of symbols representing kernel iteration indices.
