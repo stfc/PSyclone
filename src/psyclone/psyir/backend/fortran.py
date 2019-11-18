@@ -310,6 +310,17 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         declarations = ""
+
+        # Does the symbol table contain any symbols with a deferred
+        # interface? (i.e. we don't know how they are brought into scope)
+        unlinked_symbols = set(symbol_table.unresolved_datasymbols)
+        precision_symbols = set(symbol_table.precision_datasymbols)
+        unlinked_datasymbols = list(unlinked_symbols - precision_symbols)
+        if unlinked_datasymbols:
+            raise VisitorError(
+                "The following symbols have unresolved interfaces and are "
+                "not KIND parameters: '{0}'".format(unlinked_datasymbols))
+
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.
