@@ -291,8 +291,12 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return [sym.precision for sym in self.datasymbols
-                if isinstance(sym.precision, DataSymbol)]
+        # Accumulate into a set so as to remove any duplicates
+        precision_symbols = set()
+        for sym in self.datasymbols:
+            if isinstance(sym.precision, DataSymbol):
+                precision_symbols.add(sym.precision)
+        return list(precision_symbols)
 
     @property
     def iteration_indices(self):

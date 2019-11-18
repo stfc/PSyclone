@@ -266,8 +266,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if the symbol does not specify a \
-        variable declaration (it is not a local declaration or an \
-        argument declaration).
+            variable declaration (it is not a local declaration or an \
+            argument declaration).
 
         '''
         if not (symbol.is_local or symbol.is_argument):
@@ -312,14 +312,18 @@ class FortranWriter(PSyIRVisitor):
         declarations = ""
 
         # Does the symbol table contain any symbols with a deferred
-        # interface? (i.e. we don't know how they are brought into scope)
+        # interface (i.e. we don't know how they are brought into scope) that
+        # are not KIND parameters?
         unlinked_symbols = set(symbol_table.unresolved_datasymbols)
         precision_symbols = set(symbol_table.precision_datasymbols)
         unlinked_datasymbols = list(unlinked_symbols - precision_symbols)
         if unlinked_datasymbols:
+            symbols_txt = ", ".join(
+                ["'" + sym.name + "'" for sym in unlinked_datasymbols])
             raise VisitorError(
-                "The following symbols have unresolved interfaces and are "
-                "not KIND parameters: '{0}'".format(unlinked_datasymbols))
+                "The following symbols are not explicitly declared or imported"
+                " from a module and are not KIND parameters: {0}".format(
+                    symbols_txt))
 
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
