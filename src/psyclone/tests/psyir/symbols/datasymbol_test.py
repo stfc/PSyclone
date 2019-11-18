@@ -40,7 +40,8 @@
 
 import pytest
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface, SymbolError
+    LocalInterface, GlobalInterface, ArgumentInterface, DeferredInterface, \
+    SymbolError
 from psyclone.psyGen import InternalError, Container
 
 
@@ -241,6 +242,9 @@ def test_datasymbol_can_be_printed():
 
     sym3 = DataSymbol("s3", "integer", constant_value=12)
     assert "s3: <integer, Scalar, Local, constant_value=12>" in str(sym3)
+
+    sym4 = DataSymbol("s4", "integer", interface=DeferredInterface())
+    assert "s4: <integer, Scalar, Deferred>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():

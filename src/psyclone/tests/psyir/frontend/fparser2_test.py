@@ -46,7 +46,7 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
     Container, InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface
+    ArgumentInterface, SymbolError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -390,7 +390,7 @@ def test_process_declarations(f2008_parser):
     assert "Initialisations with static expressions are not supported." \
         in str(error.value)
 
-    # Static constant expresions are not supported
+    # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
@@ -405,6 +405,12 @@ def test_process_declarations(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l7").name == 'l7'
     assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+
+    # Check we catch duplicated symbols
+    with pytest.raises(SymbolError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Symbol 'l7' already present in SymbolTable with a defined "
+            "interface" in str(error.value))
 
     # Test with unsupported data type
     reader = FortranStringReader("doubleprecision     ::      c2")

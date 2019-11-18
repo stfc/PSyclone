@@ -511,7 +511,7 @@ class Fparser2Reader(object):
     def process_declarations(self, parent, nodes, arg_list):
         '''
         Transform the variable declarations in the fparser2 parse tree into
-        symbols in the PSyIR parent node symbol table.
+        symbols in the symbol table of the PSyIR parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -524,6 +524,8 @@ class Fparser2Reader(object):
                                      attributes which are not supported yet.
         :raises GenerationError: if the parse tree for a USE statement does \
                                  not have the expected structure.
+        :raises SymbolError: if a declaration is found for a Symbol that is \
+                    already in the symbol table with a defined interface.
         '''
         # Look at any USE statments
         for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
