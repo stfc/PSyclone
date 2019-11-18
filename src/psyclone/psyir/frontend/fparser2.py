@@ -843,10 +843,10 @@ class Fparser2Reader(object):
                 kind_symbol.datatype = "integer"
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
-            # so create one.
-            # TODO: Issue #584, the statment below can cause double
-            # declarations.
-            kind_symbol = DataSymbol(name, "integer")
+            # so create one. We specify a DeferredInterface as we don't
+            # currently know how this symbol is brought into scope.
+            kind_symbol = DataSymbol(name, "integer",
+                                     interface=DeferredInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
 
