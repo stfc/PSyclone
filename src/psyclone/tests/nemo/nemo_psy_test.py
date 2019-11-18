@@ -376,7 +376,7 @@ def test_kern_sched_parents(parser):
     kernels = schedule.walk(nemo.NemoKern)
     assert len(kernels) == 1
     # Get its schedule
-    sched = kernels[0].kernel_body
+    sched = kernels[0].get_kernel_schedule()
     # Check that the children of the schedule have it as their parent
     for child in sched.children:
         assert child.parent is sched
