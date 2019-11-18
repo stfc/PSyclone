@@ -149,7 +149,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
             "'fake_module.[f|F]90') not found in any of the include_paths "
             "directories " in str(error.value))
 
-    # Try importing and existing Fortran module
+    # Try importing an existing Fortran module
     create_dummy_module(path)
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
