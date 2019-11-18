@@ -486,9 +486,9 @@ class Fparser2Reader(object):
                         if sym.datatype != 'integer' or sym.shape:
                             _unsupported_type_error(dimensions)
                     except KeyError:
-                        # We haven't see this symbol before so create a new one
-                        # with a deferred interface (since we don't currently
-                        # know where it is declared).
+                        # We haven't seen this symbol before so create a new
+                        # one with a deferred interface (since we don't
+                        # currently know where it is declared).
                         sym = DataSymbol(dim_name, "integer",
                                          interface=DeferredInterface())
                         symbol_table.add(sym)
