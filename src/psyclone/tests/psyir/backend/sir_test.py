@@ -124,7 +124,7 @@ def get_assignment(parser, code):
     '''
     from psyclone.psyGen import Assignment
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     assignment = kernel_schedule.children[0]
     assert isinstance(assignment, Assignment)
     return assignment
@@ -553,7 +553,7 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
         "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if"
         "".format(foper))
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     if_statement = kernel_schedule.children[0]
     if_condition = if_statement.condition
     result = sir_writer.binaryoperation_node(if_condition)
@@ -740,7 +740,7 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
     code = CODE.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     if_statement = kernel_schedule.children[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
@@ -764,7 +764,7 @@ def test_sirwriter_ifblock_node_2(parser, sir_writer):
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nelse\n"
         "a(i,j,k) = 0.0\nend if")
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     if_statement = kernel_schedule.children[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
@@ -791,7 +791,7 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if\n"
         "if (c .ge. 0.5) then\na(i,j,k) = -1.0\nend if\n")
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     if_statement_0 = kernel_schedule.children[0]
     result_0 = sir_writer.ifblock_node(if_statement_0)
     if_statement_1 = kernel_schedule.children[1]
@@ -836,7 +836,7 @@ def test_sirwriter_ifblock_node_4(parser, sir_writer):
         "  end if\n"
         "end if")
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     if_statement = kernel_schedule.children[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
@@ -876,7 +876,7 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
     code = CODE.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
     kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.kernel_body
+    kernel_schedule = kernel.get_kernel_schedule()
     if_statement = kernel_schedule.children[0]
     schedule = if_statement.if_body
     assert isinstance(schedule, Schedule)
