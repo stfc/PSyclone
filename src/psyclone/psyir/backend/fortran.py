@@ -314,16 +314,14 @@ class FortranWriter(PSyIRVisitor):
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
         # are not KIND parameters?
-        unlinked_symbols = set(symbol_table.unresolved_datasymbols)
-        precision_symbols = set(symbol_table.precision_datasymbols)
-        unlinked_datasymbols = list(unlinked_symbols - precision_symbols)
+        unlinked_datasymbols = symbol_table.get_unlinked_datasymbols()
         if unlinked_datasymbols:
             symbols_txt = ", ".join(
-                ["'" + sym.name + "'" for sym in unlinked_datasymbols])
+                ["'" + sym + "'" for sym in unlinked_datasymbols])
             raise VisitorError(
                 "The following symbols are not explicitly declared or imported"
-                " from a module and are not KIND parameters: {0}".format(
-                    symbols_txt))
+                " from a module (in the local scope) and are not KIND "
+                "parameters: {0}".format(symbols_txt))
 
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also

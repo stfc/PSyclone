@@ -230,6 +230,29 @@ class SymbolTable(object):
                         "yet has an ArgumentInterface interface."
                         "".format(str(symbol)))
 
+    def get_unlinked_datasymbols(self, ignore_precision=True):
+        '''
+        Create a list of the names of all of the Symbols in the table that
+        do not have a resolved interface. If ignore_precision is True then
+        those Symbols that are used to define the precision of other Symbols
+        are ignored. If no un-resolved Symbols are found then an empty list
+        is returned.
+
+        :param bool ignore_precision: whether or not to ignore Symbols that \
+                            are used to define the precision of other Symbols.
+
+        :returns: the names of those Symbols with deferred interfaces.
+        :rtype: list of str
+
+        '''
+        unlinked_symbols = set(self.unresolved_datasymbols)
+        if ignore_precision:
+            precision_symbols = set(self.precision_datasymbols)
+            unlinked_datasymbols = list(unlinked_symbols - precision_symbols)
+        else:
+            unlinked_datasymbols = list(unlinked_symbols)
+        return [sym.name for sym in unlinked_datasymbols]
+
     @property
     def symbols(self):
         '''

@@ -339,8 +339,8 @@ def test_gen_decls(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module and are not KIND parameters: 'unknown'"
-            in str(excinfo.value))
+            "from a module (in the local scope) and are not KIND parameters: "
+            "'unknown'" in str(excinfo.value))
 
 
 def test_fw_exception(fort_writer):
