@@ -279,7 +279,7 @@ def main(args):
     # user has supplied a value(s) later
     parser.add_argument(
         '-I', '--include', default=[], action="append",
-        help='path to Fortran INCLUDE files (nemo API only)')
+        help='path to Fortran INCLUDE or module files')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')

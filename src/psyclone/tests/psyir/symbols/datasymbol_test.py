@@ -40,8 +40,8 @@
 
 import pytest
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface
-from psyclone.psyGen import InternalError
+    LocalInterface, GlobalInterface, ArgumentInterface, SymbolError
+from psyclone.psyGen import InternalError, Container
 
 
 def test_datasymbol_initialisation():
@@ -93,7 +93,7 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', 'real', [3, dim, None]), DataSymbol)
 
 
-def test_symbol_init_errors():
+def test_datasymbol_init_errors():
     ''' Test that the Symbol constructor raises appropriate errors if supplied
     with invalid arguments. '''
     # Test with invalid arguments
@@ -164,14 +164,14 @@ def test_symbol_init_errors():
         DataSymbol('a', 'boolean', constant_value="hello")
     assert ("Error setting 'a' constant value. This DataSymbol instance "
             "datatype is 'boolean' which means the constant value is "
-            "expected to be") in str(error)
-    assert "'bool'>' but found " in str(error)
-    assert "'str'>'." in str(error)
+            "expected to be") in str(error.value)
+    assert "'bool'>' but found " in str(error.value)
+    assert "'str'>'." in str(error.value)
 
 
-def test_symbol_precision_errors():
+def test_datasymbol_precision_errors():
     ''' Check that invalid precision settings raise the appropriate errors in
-    the Symbol constructor. '''
+    the DataSymbol constructor. '''
     with pytest.raises(ValueError) as err:
         DataSymbol('a', 'integer', precision=0)
     assert ("The precision of a DataSymbol when specified as an integer number"
@@ -202,7 +202,7 @@ def test_symbol_precision_errors():
             " or DataSymbol but got" in str(err.value))
 
 
-def test_symbol_map():
+def test_datasymbol_map():
     '''Test the mapping variable in the DataSymbol class does not raise any
     exceptions when it is used with the valid_data_types variable in
     the DataSymbol class.
@@ -216,7 +216,7 @@ def test_symbol_map():
             assert data_type in DataSymbol.mapping
 
 
-def test_symbol_can_be_printed():
+def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
     symbol = DataSymbol("sname", "real")
@@ -243,7 +243,7 @@ def test_symbol_can_be_printed():
     assert "s3: <integer, Scalar, Local, constant_value=12>" in str(sym3)
 
 
-def test_symbol_constant_value_setter():
+def test_datasymbol_constant_value_setter():
     '''Test that a DataSymbol constant value can be set if given a new valid
     constant value. Also test that is_constant returns True
 
@@ -264,10 +264,10 @@ def test_symbol_constant_value_setter():
     with pytest.raises(ValueError) as error:
         sym.constant_value = 1.0
     assert ("Error setting 'a' constant value. Constant values are not "
-            "supported for 'deferred' datatypes." in str(error))
+            "supported for 'deferred' datatypes." in str(error.value))
 
 
-def test_symbol_is_constant():
+def test_datasymbol_is_constant():
     '''Test that the DataSymbol is_constant property returns True if a
     constant value is set and False if it is not.
 
@@ -278,7 +278,7 @@ def test_symbol_is_constant():
     assert sym.is_constant
 
 
-def test_symbol_scalar_array():
+def test_datasymbol_scalar_array():
     '''Test that the DataSymbol property is_scalar returns True if the
     DataSymbol is a scalar and False if not and that the DataSymbol property
     is_array returns True if the DataSymbol is an array and False if not.
@@ -292,17 +292,17 @@ def test_symbol_scalar_array():
     assert sym2.is_array
 
 
-def test_symbol_invalid_interface():
+def test_datasymbol_invalid_interface():
     ''' Check that the DataSymbol.interface setter rejects the supplied value
     if it is not a DataSymbolInterface. '''
     sym = DataSymbol("some_var", "real")
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
     assert "interface to a DataSymbol must be a DataSymbolInterface but" \
-        in str(err)
+        in str(err.value)
 
 
-def test_symbol_interface():
+def test_datasymbol_interface():
     ''' Check the interface getter on a DataSymbol. '''
     my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
@@ -310,9 +310,8 @@ def test_symbol_interface():
     assert symbol.interface.container_symbol.name == "my_mod"
 
 
-def test_symbol_interface_access():
+def test_datasymbol_interface_access():
     ''' Tests for the DataSymbolInterface.access setter. '''
-    my_mod = ContainerSymbol("my_mod")
     symbol = DataSymbol("some_var", "real",
                         interface=ArgumentInterface())
     symbol.interface.access = ArgumentInterface.Access.READ
@@ -320,12 +319,12 @@ def test_symbol_interface_access():
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
         symbol.interface.access = "read"
-    assert "must be a 'ArgumentInterface.Access' but got " in str(err)
+    assert "must be a 'ArgumentInterface.Access' but got " in str(err.value)
 
 
-def test_symbol_argument_str():
+def test_datasymbol_argument_str():
     ''' Check the __str__ method of the ArgumentInterface class. '''
-    # A ArgumentInterface represents a routine argument by default.
+    # An ArgumentInterface represents a routine argument by default.
     interface = ArgumentInterface()
     assert str(interface) == "Argument(pass-by-value=False)"
 
@@ -340,14 +339,14 @@ def test_fortranglobal_str():
 
 
 def test_global_modname():
-    ''' Test the Global.module_name setter error conditions. '''
+    ''' Test the GlobalInterface.module_name setter error conditions. '''
     with pytest.raises(TypeError) as err:
         _ = GlobalInterface(None)
     assert ("Global container_symbol parameter must be of type"
-            " ContainerSymbol, but found ") in str(err)
+            " ContainerSymbol, but found ") in str(err.value)
 
 
-def test_symbol_copy():
+def test_datasymbol_copy():
     '''Test that the DataSymbol copy method produces a faithful separate copy
     of the original symbol.
 
@@ -386,7 +385,7 @@ def test_symbol_copy():
     assert not symbol.constant_value
 
 
-def test_symbol_copy_properties():
+def test_datasymbol_copy_properties():
     '''Test that the DataSymbol copy_properties method works as expected.'''
 
     symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
@@ -411,16 +410,15 @@ def test_symbol_copy_properties():
     assert symbol.constant_value == 7
 
 
-def test_symbol_resolve_deferred():
+def test_datasymbol_resolve_deferred():
     ''' Test the datasymbol resolve_deferred method '''
-    import os
-    from psyclone.configuration import Config
 
-    # dummy_module defines integer 'a' and real 'b' and real parameter 'c'
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "test_files")
-    Config.get().include_paths = [path]
+    container = Container("dummy_module")
+    container.symbol_table.add(DataSymbol('a', 'integer'))
+    container.symbol_table.add(DataSymbol('b', 'real'))
+    container.symbol_table.add(DataSymbol('c', 'real', constant_value=3.14))
     module = ContainerSymbol("dummy_module")
+    module._reference = container  # Manually linking the container
 
     symbol = DataSymbol('a', 'deferred', interface=GlobalInterface(module))
     symbol.resolve_deferred()
@@ -437,9 +435,11 @@ def test_symbol_resolve_deferred():
 
     # Test with a symbol not defined in the linked container
     symbol = DataSymbol('d', 'deferred', interface=GlobalInterface(module))
-    with pytest.raises(KeyError) as err:
+    with pytest.raises(SymbolError) as err:
         symbol.resolve_deferred()
-    assert "Could not find 'd' in the Symbol Table." in str(err.value)
+    assert ("Error trying to resolve symbol 'd' properties. The interface "
+            "points to module 'dummy_module' but could not find the definition"
+            " of 'd' in that module." in str(err.value))
 
     # Test with a symbol which does not have a Global interface
     symbol = DataSymbol('e', 'deferred', interface=LocalInterface())

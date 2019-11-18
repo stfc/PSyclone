@@ -40,10 +40,10 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from fparser.two import Fortran2003
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from

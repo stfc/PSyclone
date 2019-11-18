@@ -38,8 +38,8 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.symboltable file '''
 
-import pytest
 import re
+import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
 from psyclone.psyGen import InternalError
@@ -240,14 +240,14 @@ def test_symboltable_specify_argument_list_errors():
     # point is just a local variable.
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
-    assert "Symbol 'var1:" in str(err)
-    assert ("has an interface of type '" in str(err))
+    assert "Symbol 'var1:" in str(err.value)
+    assert "has an interface of type '" in str(err.value)
     # Now add an Interface for "var1" but of the wrong type
     sym_v1.interface = GlobalInterface(ContainerSymbol("my_mod"))
     with pytest.raises(ValueError) as err:
         sym_table.specify_argument_list([sym_v1])
-    assert "Symbol 'var1:" in str(err)
-    assert "has an interface of type '" in str(err)
+    assert "Symbol 'var1:" in str(err.value)
+    assert "has an interface of type '" in str(err.value)
 
 
 def test_symboltable_argument_list_errors():
@@ -263,15 +263,14 @@ def test_symboltable_argument_list_errors():
     sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(ValueError) as err:
         sym_table._validate_arg_list(sym_table._argument_list)
-    print(str(err))
     pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has an "
                "interface of type .* rather than ArgumentInterface")
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that the argument_list property converts this error into an
     # InternalError
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that we reject a symbol imported from a module
     with pytest.raises(ValueError) as err:
         sym_table._validate_arg_list([sym_table.lookup("var3")])
@@ -279,18 +278,18 @@ def test_symboltable_argument_list_errors():
     sym_table._argument_list = [sym_table.lookup("var3")]
     pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
                r"interface of type")
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that the argument_list property converts this error into an
     # InternalError
     with pytest.raises(InternalError) as err:
         _ = sym_table.argument_list
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
     # Check that we get the expected TypeError if we provide a list containing
     # objects that are not Symbols
     with pytest.raises(TypeError) as err:
         sym_table._validate_arg_list(["Not a symbol"])
     assert "Expected a list of DataSymbols but found an object of type" \
-        in str(err)
+        in str(err.value)
 
 
 def test_symboltable_validate_non_args():
@@ -313,7 +312,7 @@ def test_symboltable_validate_non_args():
         sym_table._validate_non_args()
     pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
                "has an ArgumentInterface interface")
-    assert re.search(pattern, str(err)) is not None
+    assert re.search(pattern, str(err.value)) is not None
 
 
 def test_symboltable_contains():

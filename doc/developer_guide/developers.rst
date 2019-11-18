@@ -317,9 +317,9 @@ Container
 The Container node contains one or more Containers and/or
 KernelSchedules (see :ref:`kernel_schedule-label`). Similarly to
 KernelSchedule it contains a SymbolTable
-(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
-(`psyclone.psyGen.Symbol`) specified in the Container scope (see
-:ref:`symbol-label`).
+(`psyclone.psyGen.psyir.symbols.SymbolTable`) that keeps a record of
+the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`) specified in the
+Container scope (see :ref:`user_guide:symbol-label`).
 
 A Container can be used to capture a hierarchical grouping of
 KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
@@ -361,25 +361,56 @@ KernelSchedule
 
 The `KernelSchedule` is a PSyIR node that represents a kernel
 subroutine. It extends the `psyclone.psyGen.Schedule` functionality
-with a SymbolTable (`psyclone.psyGen.SymbolTable`) that keeps a record
-of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
-(see :ref:`symbol-label`).
+with a SymbolTable (`psyclone.psyGen.psyir.symbols.SymbolTable`) that
+keeps a record of the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`)
+used in the kernel scope (see :ref:`user_guide:symbol-label`).
 
 
 Control Flow Nodes
 ==================
 
-The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These nodes represent
-the canonical structure with which conditional branching constructs and
-iteration constructs are built. Additional language-specific syntax for branching
-and iteration will be normalized to use these same constructs.
-For example, Fortran has the additional branching constructs `ELSE IF`
-and `CASE`: when a Fortran code is translated into the PSyIR, PSyclone will
-build a semantically equivalent implementation using `IfBlocks`.
-However, the necessary nodes in the new tree structure will be annotated
-with information to enable the original language-specific syntax to be
-recreated if required.
+The PSyIR has two control flow nodes: `IfBlock` and `Loop`. These
+nodes represent the canonical structure with which conditional
+branching constructs and iteration constructs are built. Additional
+language-specific syntax for branching and iteration will be
+normalized to use these same constructs.  For example, Fortran has the
+additional branching constructs `ELSE IF` and `CASE`: when a Fortran
+code is translated into the PSyIR, PSyclone will build a semantically
+equivalent implementation using `IfBlocks`.  Similarly, Fortran also
+has the `WHERE` construct and statement which are represented in the
+PSyIR with a combination of `Loop` and `IfBlock` nodes. Such nodes in
+the new tree structure are annotated with information to enable the
+original language-specific syntax to be recreated if required (see
+below).
 
+Node annotation
+---------------
+
+If the PSyIR is constructed from existing code (using e.g. the
+fparser2 frontend) then it is possible that information about that
+code may be lost.  This is because the PSyIR is only semantically
+equivalent to certain code constructs. In order that information is
+not lost (making it possible to e.g. recover the original code
+structure if desired) Nodes may have `annotations` associated with
+them. The annotations, the Node types to which they may be applied and
+their meanings are summarised in the table below:
+
+=================  =================  =================================
+Annotation         Node types         Origin
+=================  =================  =================================
+`was_elseif`       `IfBlock`          `else if`
+`was_single_stmt`  `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
+                                      `where(array-mask)array-expr`
+`was_case`         `IfBlock`          Fortran `select case`
+`was_where`        `Loop`, `IfBlock`  Fortran `where` construct
+=================  =================  =================================
+
+.. note:: a `Loop` may currently only be given the `was_single_stmt` annotation
+	  if it also has the `was_where` annotation. (Thus indicating that
+	  this `Loop` originated from a WHERE *statement* in the original
+	  Fortran code.) Representing single-statement loops in Fortran is
+	  the subject of GitHub Issue
+	  `#412 <https://github.com/stfc/PSyclone/issues/412>`_.
 
 Branching construct
 -------------------

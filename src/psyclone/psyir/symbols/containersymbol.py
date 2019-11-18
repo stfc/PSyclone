@@ -111,7 +111,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
         ''' Imports a Fortran module as a PSyIR container. The module is
         expected to be found in a Fortran source file with the same name
         as the module plus the '.[f|F]90' extension. The search
-        locations are provided in-order by the Config include_path
+        locations are provided in-order by the Config include_paths
         attribute ('-I' in the psyclone script).
 
         :param str name: name of the module to be imported.
@@ -143,7 +143,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
                     container = fp2reader.generate_container(ast)
 
                     # Check the imported container is the expected one
-                    if not container.name == name:
+                    if container.name != name:
                         raise ValueError(
                             "Error importing the Fortran module '{0}' into a "
                             "PSyIR container. The imported module has the "
@@ -154,5 +154,5 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         raise SymbolError(
             "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
-            " any of the include_path directories {1}."
+            " any of the include_paths directories {1}."
             "".format(name, Config.get().include_paths))
