@@ -1397,7 +1397,6 @@ def test_modulegen_add_wrong_parent():
     sub = SubroutineGen(module_wrong, name="testsubroutine")
     with pytest.raises(RuntimeError) as err:
         module.add(sub)
-    print(str(err.value))
     assert ("because it is not a descendant of it or of any of"
             in str(err.value))
 
