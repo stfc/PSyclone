@@ -241,7 +241,8 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.psyGen import GenerationError, SymbolError, Kern
+        from psyclone.psyGen import GenerationError, Kern
+        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -1282,7 +1283,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
- 
+
         # change the node's parent to be the Schedule of the loop directive
         node.parent = directive.dir_body
 
@@ -2775,13 +2776,13 @@ class OCLTrans(Transformation):
             # parameters (issue 323) we have to bypass this validation and
             # provide them manually for the OpenCL kernels to compile.
             continue
-            global_symbols = ksched.symbol_table.global_symbols
-            if global_symbols:
+            global_variables = ksched.symbol_table.global_datasymbols
+            if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
                     "symbols with 'global' scope: {1}. PSyclone cannot "
                     "currently transform such a kernel into OpenCL.".
-                    format(kern.name, [sym.name for sym in global_symbols]))
+                    format(kern.name, [sym.name for sym in global_variables]))
 
 
 class ProfileRegionTrans(RegionTrans):
@@ -3140,7 +3141,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
             :param symbol_table: the symbol table for the kernel \
                          holding the argument that is going to be modified.
-            :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+            :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
             :param int arg_position: the argument's position in the \
                                      argument list.
             :param value: the constant value that this argument is \
@@ -3152,7 +3153,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyGen import Symbol
+            from psyclone.psyir.symbols import DataSymbol
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -3176,8 +3177,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = Symbol(orig_name+"_dummy", "integer",
-                                  constant_value=value)
+            local_symbol = DataSymbol(orig_name+"_dummy", "integer",
+                                      constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
@@ -3592,14 +3593,14 @@ class ACCRoutineTrans(KernelTrans):
         # Check that the kernel does not access any data via a module 'use'
         # statement
         sched = kern.get_kernel_schedule()
-        global_symbols = sched.symbol_table.global_symbols
-        if global_symbols:
+        global_variables = sched.symbol_table.global_datasymbols
+        if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
                 "symbols with 'global' scope: {1}. PSyclone cannot currently "
                 "transform kernels for execution on an OpenACC device if "
                 "they access data not passed by argument.".
-                format(kern.name, [sym.name for sym in global_symbols]))
+                format(kern.name, [sym.name for sym in global_variables]))
         # Prevent unwanted side effects by removing the kernel schedule that
         # we have just constructed. This is necessary while
         # psyGen.Kern.rename_and_write still supports kernels that have been
