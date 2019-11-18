@@ -166,4 +166,6 @@ def test_refelem_gen(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen)
     print(gen_code)
-    assert 0
+    assert "nfaces_re_h = xxx" in gen_code
+    assert "nfaces_re_v = yyy" in gen_code
+    

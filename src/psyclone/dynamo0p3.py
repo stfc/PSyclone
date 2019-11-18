@@ -2012,6 +2012,24 @@ class DynStencils(DynCollection):
                 entity_decls=[self.dofmap_name(arg)]))
 
 
+class DynReferenceElement(DynCollection):
+    '''
+    Holds all information on the properties of the Reference Element
+    required by an Invoke.
+
+    :param node: Kernel or Invoke for which to manage Reference-Element \
+                 properties.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    '''
+    def __init__(self, node):
+        super(DynReferenceElement, self).__init__(node)
+
+        for call in self._calls:
+            print(call.reference_element)  #TODO
+
+
 class DynDofmaps(DynCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
@@ -4301,6 +4319,9 @@ class DynInvoke(Invoke):
         # Information on any orientation arrays required by this invoke
         self.orientation = DynOrientations(self)
 
+        # Information on the required properties of the reference element
+        self.reference_element_properties = DynReferenceElement(self)
+
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -6312,6 +6333,7 @@ class DynKern(CodedKern):
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+        self._reference_element = None
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -6516,6 +6538,9 @@ class DynKern(CodedKern):
                 "Internal error: evaluator shape '{0}' is not recognised. "
                 "Must be one of {1}.".format(self._eval_shape,
                                              VALID_EVALUATOR_SHAPES))
+
+        # Properties of the reference element required by this kernel
+        self._reference_element = ktype.reference_element
 
     @property
     def cma_operation(self):
