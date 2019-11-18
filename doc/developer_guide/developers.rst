@@ -317,9 +317,9 @@ Container
 The Container node contains one or more Containers and/or
 KernelSchedules (see :ref:`kernel_schedule-label`). Similarly to
 KernelSchedule it contains a SymbolTable
-(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
-(`psyclone.psyGen.Symbol`) specified in the Container scope (see
-:ref:`symbol-label`).
+(`psyclone.psyGen.psyir.symbols.SymbolTable`) that keeps a record of
+the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`) specified in the
+Container scope (see :ref:`user_guide:symbol-label`).
 
 A Container can be used to capture a hierarchical grouping of
 KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
@@ -361,9 +361,9 @@ KernelSchedule
 
 The `KernelSchedule` is a PSyIR node that represents a kernel
 subroutine. It extends the `psyclone.psyGen.Schedule` functionality
-with a SymbolTable (`psyclone.psyGen.SymbolTable`) that keeps a record
-of the Symbols (`psyclone.psyGen.Symbol`) used in the kernel scope
-(see :ref:`symbol-label`).
+with a SymbolTable (`psyclone.psyGen.psyir.symbols.SymbolTable`) that
+keeps a record of the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`)
+used in the kernel scope (see :ref:`user_guide:symbol-label`).
 
 
 Control Flow Nodes
