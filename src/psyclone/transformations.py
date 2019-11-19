@@ -43,7 +43,7 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, InternalError, Schedule
+from psyclone.psyGen import Transformation, InternalError, Kern, Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
@@ -162,7 +162,9 @@ class RegionTrans(Transformation):
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
             for child in node_list:
-                flat_list = [item for item in child.walk(object)
+                # Stop at any instance of Kern to avoid going into the
+                # actual kernels, e.g. in Nemo inlined kernels
+                flat_list = [item for item in child.walk(object, Kern)
                              if not isinstance(item, Schedule)]
                 for item in flat_list:
                     if not isinstance(item, self.valid_node_types):
@@ -241,7 +243,7 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.psyGen import GenerationError, Kern
+        from psyclone.psyGen import GenerationError
         from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
@@ -4143,7 +4145,7 @@ class ExtractRegionTrans(RegionTrans):
 
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
+        from psyclone.psyGen import Loop, BuiltIn, Directive, \
             OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
