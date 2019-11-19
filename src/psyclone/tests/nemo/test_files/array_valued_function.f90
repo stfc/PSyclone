@@ -33,7 +33,8 @@
 
 program implicit_do
   implicit none
-  integer :: jpi=10, jpj=10, jpk=10, jpn=2
+  use some_mod, only: ptr_sjk
+  integer, parameter :: jpi=10, jpj=10, jpk=10, jpn=2
   integer :: ji, jk, jn
   real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
   real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: z3d

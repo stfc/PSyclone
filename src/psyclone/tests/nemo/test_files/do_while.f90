@@ -38,10 +38,10 @@ program do_while_test
   real, dimension(jpi,jpj,jpk) :: gdepw_0
   real, dimension(jpi,jpj) :: rzisf_tbl
   integer, dimension(jpi,jpj) :: mbkt
-  logical :: my_flag = .true.
+  logical :: my_flag
   
   ! Test code with DO while loops
-
+  my_flag = .true.
   do while(my_flag)
      mbkt(:,:) = 0.0
      my_flag = .false.
