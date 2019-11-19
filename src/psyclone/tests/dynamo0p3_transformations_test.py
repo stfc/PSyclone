@@ -43,7 +43,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
-from psyclone.psyir.symbols import DataSymbol, LocalInterface
+from psyclone.psyir.symbols import LocalInterface
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
@@ -7666,8 +7666,8 @@ def test_kern_const_invalid_make_constant1():
 
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
-    # Make the symbol table's argument list empty. We have to make sure
-    # that the interface of any existing argument Symbols is set to None
+    # Make the symbol table's argument list empty. We have to make sure that
+    # the interface of any existing argument Symbols is set to LocalInterface
     # first otherwise we fall foul of our internal-consistency checks.
     for symbol in symbol_table.argument_list:
         symbol.interface = LocalInterface()

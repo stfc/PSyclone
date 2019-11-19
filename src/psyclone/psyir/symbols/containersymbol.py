@@ -104,18 +104,23 @@ class ContainerSymbolInterface(object):
 
 
 class FortranModuleInterface(ContainerSymbolInterface):
-    ''' Implemtation of ContainerSymbolInterfaces for Fortran modules '''
+    ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
     def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container.
+        ''' Imports a Fortran module as a PSyIR container. The module is
+        expected to be found in a Fortran source file with the same name
+        as the module plus the '.[f|F]90' extension. The search
+        locations are provided in-order by the Config include_paths
+        attribute ('-I' in the psyclone script).
 
-        :param str module_name: name of the module to be imported.
+        :param str name: name of the module to be imported.
 
-        :returns: container associated to the given name.
+        :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyGen.Container`
 
-        :raises SymbolError: the given symbol is not found on the import path.
+        :raises SymbolError: the given Fortran module is not found on the \
+            import path.
         '''
         from os import listdir, path
         from fparser.two.parser import ParserFactory
@@ -123,19 +128,31 @@ class FortranModuleInterface(ContainerSymbolInterface):
         from psyclone.configuration import Config
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
-        filename = name + '.f90'
         for directory in Config.get().include_paths:
-            if filename in listdir(directory):
-                # Parse the module source code
-                abspath = path.join(directory, filename)
-                reader = FortranFileReader(abspath,
-                                           ignore_comments=True)
-                f2008_parser = ParserFactory().create(std="f2008")
-                ast = f2008_parser(reader)
-                fp2reader = Fparser2Reader()
+            for filename in [name+'.f90', name+'.F90']:
+                if filename in listdir(directory):
+                    # Parse the module source code
+                    abspath = path.join(directory, filename)
+                    reader = FortranFileReader(abspath,
+                                               ignore_comments=True)
+                    f2008_parser = ParserFactory().create(std="f2008")
+                    ast = f2008_parser(reader)
+                    fp2reader = Fparser2Reader()
 
-                # Generate and return the PSyIR container
-                return fp2reader.generate_container(ast)
+                    # Generate the PSyIR container
+                    container = fp2reader.generate_container(ast)
+
+                    # Check the imported container is the expected one
+                    if container.name != name:
+                        raise ValueError(
+                            "Error importing the Fortran module '{0}' into a "
+                            "PSyIR container. The imported module has the "
+                            "unexpected name: '{1}'."
+                            "".format(name, container.name))
+
+                    return container
+
         raise SymbolError(
-            "Module {0} not found in any of the include_path directories {1}."
-            "".format(filename, Config.get().include_paths))
+            "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
+            " any of the include_paths directories {1}."
+            "".format(name, Config.get().include_paths))

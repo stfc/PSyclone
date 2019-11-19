@@ -57,9 +57,9 @@ class SymbolError(Exception):
 class Symbol(object):
     '''
     Generic Symbol item for the Symbol Table. It always has a fixed name label
-    that matches with the key on the SymbolTables that conatin the symbol.
+    that matches with the key on the SymbolTables that contain the symbol.
 
-    :param str name: Name of the symbol.
+    :param str name: name of the symbol.
     '''
 
     def __init__(self, name):
@@ -68,7 +68,7 @@ class Symbol(object):
     @property
     def name(self):
         '''
-        :returns: Name of the Symbol.
+        :returns: name of the Symbol.
         :rtype: str
         '''
         return self._name

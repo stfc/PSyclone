@@ -39,7 +39,7 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from enum import Enum
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, SymbolError
 
 
 class DataSymbol(Symbol):
@@ -105,7 +105,6 @@ class DataSymbol(Symbol):
 
         super(DataSymbol, self).__init__(name)
 
-        self._name = name
         self._datatype = None
         self.datatype = datatype
 
@@ -127,8 +126,8 @@ class DataSymbol(Symbol):
                     "integer number of bytes must be > 0 but got {0}"
                     "".format(precision))
             if (isinstance(precision, DataSymbol) and
-                (precision.datatype not in ["integer", "deferred"]
-                 or precision.is_array)):
+                    (precision.datatype not in ["integer", "deferred"]
+                     or precision.is_array)):
                 raise ValueError(
                     "A DataSymbol representing the precision of another "
                     "DataSymbol must be of either 'deferred' or scalar, "
@@ -150,15 +149,18 @@ class DataSymbol(Symbol):
             elif not isinstance(dimension, (type(None), int)):
                 raise TypeError("DataSymbol shape list elements can only be "
                                 "'DataSymbol', 'integer' or 'None'.")
+        self._shape = shape
 
+        # The following attributes have setter methods (with error checking)
+        self._interface = None
+        self._constant_value = None
+
+        # If an interface is not provided, use LocalInterface by default
         if not interface:
             self.interface = LocalInterface()
         else:
             self.interface = interface
 
-        self._shape = shape
-        # The following attributes have setter methods (with error checking)
-        self._constant_value = None
         self.constant_value = constant_value
 
     def resolve_deferred(self):
@@ -172,13 +174,22 @@ class DataSymbol(Symbol):
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
                 module = self.interface.container_symbol
-                extern_symbol = module.container.symbol_table.lookup(self.name)
+                try:
+                    extern_symbol = module.container.symbol_table.lookup(
+                        self.name)
+                except KeyError:
+                    raise SymbolError(
+                        "Error trying to resolve symbol '{0}' properties. The "
+                        "interface points to module '{1}' but could not find "
+                        "the definition of '{0}' in that module."
+                        "".format(self.name, module.name))
                 self.copy_properties(extern_symbol)
                 self.interface = tmp
             else:
                 raise NotImplementedError(
-                    "Lazy evalution of deferred {0} is not supported."
-                    "".format(self.interface))
+                    "Error trying to resolve symbol '{0}' properties, the lazy"
+                    " evaluation of '{1}' interfaces is not supported."
+                    "".format(self.name, self.interface))
 
     @property
     def datatype(self):
@@ -244,7 +255,7 @@ class DataSymbol(Symbol):
         '''
         if not isinstance(value, DataSymbolInterface):
             raise TypeError("The interface to a DataSymbol must be a "
-                            "SymbolInterface but got '{0}'".
+                            "DataSymbolInterface but got '{0}'".
                             format(type(value)))
         self._interface = value
 
@@ -340,26 +351,29 @@ class DataSymbol(Symbol):
         if new_value is not None:
             if not self.is_local:
                 raise ValueError(
-                    "DataSymbol with a constant value is currently limited to "
-                    "having a Local interface but found '{0}'."
-                    "".format(self.interface))
+                    "Error setting '{0}' constant value. A DataSymbol with a "
+                    "constant value is currently limited to Local interfaces "
+                    "but found '{1}'.".format(self.name, self.interface))
             if self.is_array:
                 raise ValueError(
-                    "DataSymbol with a constant value must be a scalar but the"
-                    " shape attribute is not empty.")
+                    "Error setting '{0}' constant value. A DataSymbol with a "
+                    "constant value must be a scalar but a shape was found."
+                    "".format(self.name))
             try:
                 lookup = DataSymbol.mapping[self.datatype]
             except KeyError:
                 raise ValueError(
-                    "A constant value is not supported for "
-                    "datatype '{0}'.".format(self.datatype))
+                    "Error setting '{0}' constant value. Constant values are "
+                    "not supported for '{1}' datatypes."
+                    "".format(self.name, self.datatype))
             if not isinstance(new_value, lookup):
                 raise ValueError(
-                    "This DataSymbol instance's datatype is '{0}' which means "
-                    "the constant value is expected to be '{1}' but found "
-                    "'{2}'.".format(self.datatype,
-                                    DataSymbol.mapping[self.datatype],
-                                    type(new_value)))
+                    "Error setting '{0}' constant value. This DataSymbol "
+                    "instance datatype is '{1}' which means the constant "
+                    "value is expected to be '{2}' but found '{3}'."
+                    "".format(self.name, self.datatype,
+                              DataSymbol.mapping[self.datatype],
+                              type(new_value)))
         self._constant_value = new_value
 
     def __str__(self):
@@ -405,7 +419,7 @@ class DataSymbol(Symbol):
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
-<M-C-F3>
+
         :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
@@ -438,14 +452,14 @@ class GlobalInterface(DataSymbolInterface):
     '''
     Describes the interface to a DataSymbol representing data that
     is supplied as some sort of global variable, and therefore it is
-    defined in a external PSyIR container.
+    defined in an external PSyIR container.
 
-    :param container_symbol: symbol of the external container from which \
-        the symbol is imported.
+    :param container_symbol: symbol representing the external container \
+        from which the symbol is imported.
     :type container_symbol: \
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-    :raise TypeError: if the container_symbol is not a ContainerSymbol
+    :raise TypeError: if the container_symbol is not a ContainerSymbol.
     '''
     def __init__(self, container_symbol):
         from psyclone.psyir.symbols import ContainerSymbol
@@ -463,7 +477,7 @@ class GlobalInterface(DataSymbolInterface):
     @property
     def container_symbol(self):
         '''
-        :return: symbol of the container containing this datasymbol.
+        :return: symbol representing the container containing this DataSymbol.
         :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
         '''
         return self._container_symbol
@@ -523,7 +537,7 @@ class ArgumentInterface(DataSymbolInterface):
         :param value: the new access type.
         :type value: :py:class:`psyclon.psyir.symbols.ArgumentInterface.Access`
 
-        :raises TypeError: if the supplied value is not a \
+        :raises TypeError: if the supplied value is not an \
             ArgumentInterface.Access
         '''
         if not isinstance(value, ArgumentInterface.Access):

@@ -612,6 +612,76 @@ def get_kernel_metadata(name, ast):
     return ktype
 
 
+def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
+    '''Get the required argument metadata information for a kernel.
+
+    :param str name: the name of the kernel (for error messages).
+    :param ast: metadata describing kernel arguments.
+    :type ast: :py:class:`fparser.one.block_statements.Type`
+    :param str var_name: the name of the variable storing the \
+           argument metadata. this argument is optional and defaults to \
+           'meta_args'.
+    :param str var_type: the type of the structure constructor used to \
+                         define the meta-data or None.
+
+    :returns: argument metadata parsed using the expression parser \
+              (as fparser1 will not parse expressions and arguments).
+    :rtype: :py:class:`psyclone.expression.LiteralArray`
+
+    :raises ParseError: if 'var_name' is not found in the metadata.
+    :raises ParseError: if 'var_name' is not an array.
+    :raises ParseError: if 'var_name' is not a 1D array.
+    :raises ParseError: if the structure constructor uses '[...]' \
+                        as only '(/.../)' is supported.
+    :raises ParseError: if the argument metadata is invalid and cannot \
+                        be parsed.
+    :raises ParseError: if the dimensions specified do not tally with \
+                        the number of metadata arguments.
+    :raises ParseError: if var_type is specified and a structure \
+                        constructor for a different type is found.
+    '''
+    descs = ast.get_variable(var_name)
+    if "INTEGER" in str(descs):
+        # INTEGER in above 'if' test is an fparser1 hack as get_variable()
+        # returns an integer if the variable is not found.
+        raise ParseError(
+            "No kernel metadata with type name '{0}' found.".format(var_name))
+    try:
+        nargs = int(descs.shape[0])
+    except AttributeError:
+        raise ParseError(
+            "In kernel metadata '{0}': '{1}' variable must be an array.".
+            format(name, var_name))
+    if len(descs.shape) != 1:
+        raise ParseError(
+            "In kernel metadata '{0}': '{1}' variable must be a 1 dimensional "
+            "array.".format(name, var_name))
+    if descs.init.find("[") != -1 and descs.init.find("]") != -1:
+        # there is a bug in fparser1
+        raise ParseError(
+            "Parser does not currently support '[...]' initialisation for "
+            "'{0}', please use '(/.../)' instead.".format(var_name))
+    try:
+        inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
+    except ParseException:
+        raise ParseError("Kernel metadata has an invalid format {0}.".
+                         format(descs.init))
+    nargs = int(descs.shape[0])
+    if len(inits) != nargs:
+        raise ParseError(
+            "In the '{0}' metadata, the number of args '{1}' and extent of the"
+            " dimension '{2}' do not match.".format(var_name, nargs,
+                                                    len(inits)))
+    if var_type:
+        # Check that each element in the list is of the correct type
+        if not all([init.name == var_type for init in inits]):
+            raise ParseError(
+                "The '{0}' metadata must consist of an array of structure"
+                " constructors, all of type '{1}' but found: {2}.".format(
+                    var_name, var_type, [str(init.name) for init in inits]))
+    return inits
+
+
 class KernelType(object):
     '''Base class for describing Kernel Metadata.
 
@@ -667,72 +737,8 @@ class KernelType(object):
         self._ktype = get_kernel_metadata(name, ast)
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
-        self._inits = self.getkerneldescriptors(self._ktype)
+        self._inits = getkerneldescriptors(name, self._ktype)
         self._arg_descriptors = []  # this is set up by the subclasses
-
-    def getkerneldescriptors(self, ast, var_name='meta_args'):
-        '''Get the required argument metadata information for a
-        kernel.
-
-        :param ast: metadata describing kernel arguments
-        :type ast: :py:class:`fparser.one.block_statements.Type`
-        :param str var_name: the name of the variable storing the \
-        argument metadata. This argument is optional and defaults to \
-        'meta_args'.
-
-        :returns: Argument metadata parsed using the expression parser
-        (as fparser1 will not parse expressions and arguments).
-        :rtype: :py:class:`psyclone.expression.LiteralArray`
-
-        :raises ParseError: if 'var_name' is not found in the metadata
-        :raises ParseError: if 'var_name' is not an array
-        :raises ParseError: if 'var_name' is not a 1D array
-        :raises ParseError: if the structure constructor uses '[...]' \
-        as only '(/.../)' is supported.
-        :raises ParseError: if the argument metadata can't be parsed.
-        :raises ParseError: if the dimensions specified does not tally \
-        with the number of metadata arguments.
-
-        '''
-        descs = ast.get_variable(var_name)
-        if "INTEGER" in str(descs):
-            # INTEGER in above if test is an fparser1 hack as
-            # get_variable() returns an integer if it can't find the
-            # variable.
-            raise ParseError(
-                "kernel.py:KernelType():getkerneldescriptors: No kernel "
-                "metadata with type name '{0}' found.".format(var_name))
-        try:
-            nargs = int(descs.shape[0])
-        except AttributeError:
-            raise ParseError(
-                "kernel.py:KernelType():getkerneldescriptors: In kernel "
-                "metadata '{0}': '{1}' variable must be an array.".
-                format(self._name, var_name))
-        if len(descs.shape) != 1:
-            raise ParseError(
-                "kernel.py:KernelType():getkerneldescriptors: In kernel "
-                "metadata '{0}': '{1}' variable must be a 1 dimensional "
-                "array".format(self._name, var_name))
-        if descs.init.find("[") != -1 and descs.init.find("]") != -1:
-            # there is a bug in fparser1
-            raise ParseError(
-                "kernel.py:KernelType():getkerneldescriptors: Parser does "
-                "not currently support [...] initialisation for "
-                "'{0}', please use (/.../) instead.".format(var_name))
-        try:
-            inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
-        except ParseException:
-            raise ParseError("kernel metadata has an invalid format {0}".
-                             format(descs.init))
-        nargs = int(descs.shape[0])
-        if len(inits) != nargs:
-            raise ParseError(
-                "kernel.py:KernelType():getkerneldescriptors: In the '{0}' "
-                "metadata, the number of args '{1}' and extent of the "
-                "dimension '{2}' do not match.".format(var_name, nargs,
-                                                       len(inits)))
-        return inits
 
     @property
     def name(self):

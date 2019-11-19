@@ -139,7 +139,7 @@ class OpenCLWriter(CWriter):
 
 
         :param symbol: The symbol instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param symtab: The symbol table from the given symbol context to \
             check for name clashes.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`

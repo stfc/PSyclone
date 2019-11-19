@@ -103,8 +103,9 @@ end module dummy_mod
 
 # Method generate_container
 def test_generate_container(parser):
-    ''' '''
-    dummy_module_metadata = '''
+    ''' Test that generate_container creates a PSyIR container with the
+    contents of the given fparser2 fortran module.'''
+    dummy_module = '''
     module dummy_mod
         use mod1
         use mod2, only: var1
@@ -118,7 +119,7 @@ def test_generate_container(parser):
         end subroutine dummy_code
     end module dummy_mod
     '''
-    reader = FortranStringReader(dummy_module_metadata)
+    reader = FortranStringReader(dummy_module)
     ast = parser(reader)
     processor = Fparser2Reader()
     container = processor.generate_container(ast)
@@ -127,9 +128,8 @@ def test_generate_container(parser):
     assert container.symbol_table
     assert container.symbol_table.lookup("modvar1")
     assert container.symbol_table.lookup("var1")
-    # TODO: uncomment below
-    # assert container.symbol_table.lookup("mod1")
-    # assert container.symbol_table.lookup("mod2")
+    assert container.symbol_table.lookup("mod1")
+    assert container.symbol_table.lookup("mod2")
 
 
 def test_generate_container_two_modules(parser):
@@ -396,8 +396,8 @@ def test_process_declarations(f2008_parser):
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert "Initialisations on the declaration statements are just " \
-           "supported in parameter declarations." in str(error.value)
+    assert "Initialisations on the declaration statements are only " \
+           "supported for parameter declarations." in str(error.value)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
@@ -790,7 +790,8 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
         _ = Fparser2Reader._parse_dimensions(fparser2spec, None)
-    assert "Reached end of loop body and" in str(error.value)
+    assert "Reached end of loop body and array-shape specification" \
+        in str(error.value)
     assert " has not been handled." in str(error.value)
 
 
