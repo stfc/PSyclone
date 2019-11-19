@@ -1503,15 +1503,19 @@ class Node(object):
             return True
         return False
 
-    def walk(self, my_type):
+    def walk(self, my_type, stop_type=None):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
         instances of any classes in the tuple.
 
         :param my_type: the class(es) for which the instances are collected.
-        :type my_type: either a single :py:class:`psyclone.Node` class\
+        :type my_type: either a single :py:class:`psyclone.Node` class \
             or a tuple of such classes.
+        :param stop_type: the class(es) that will not be recursed into \
+            further (optional).
+        :type stop_type: None or a single :py:class:`psyclone.Node` \
+            class or a tuple of such classes.
 
         :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
@@ -1520,8 +1524,13 @@ class Node(object):
         local_list = []
         if isinstance(self, my_type):
             local_list.append(self)
+
+        # Stop recursion further into the tree if an instance of a class
+        # listed in stop_type is found.
+        if stop_type and isinstance(self, stop_type):
+            return local_list
         for child in self.children:
-            local_list += child.walk(my_type)
+            local_list += child.walk(my_type, stop_type)
         return local_list
 
     def ancestor(self, my_type, excluding=None):
