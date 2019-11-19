@@ -41,7 +41,7 @@
 import re
 import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface
+    GlobalInterface, ArgumentInterface, DeferredInterface
 from psyclone.psyGen import InternalError
 
 
@@ -410,3 +410,22 @@ def test_symboltable_abstract_properties():
         _ = sym_table.iteration_indices
     assert "Abstract property. Which symbols are iteration indices is " \
         "API-specific." in str(error.value)
+
+
+def test_symboltable_unlinked():
+    ''' Tests for the get_unlinked_datasymbols method. '''
+    sym_table = SymbolTable()
+    sym_table.add(DataSymbol("s1", "integer", []))
+    # Check that we get an empty list if everything is defined
+    assert sym_table.get_unlinked_datasymbols() == []
+    # Add a symbol with a deferred interface
+    rdef = DataSymbol("r_def", "integer", interface=DeferredInterface())
+    sym_table.add(rdef)
+    assert sym_table.get_unlinked_datasymbols() == ["r_def"]
+    # Add a symbol that uses r_def for its precision
+    sym_table.add(DataSymbol("s2", "real", [], precision=rdef))
+    # By default the fact that r_def is unlinked should now be ignored
+    assert sym_table.get_unlinked_datasymbols() == []
+    # But we should get it if we ask for everything
+    assert sym_table.get_unlinked_datasymbols(ignore_precision=False) \
+        == ["r_def"]
