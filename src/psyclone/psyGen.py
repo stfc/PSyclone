@@ -1511,11 +1511,11 @@ class Node(object):
 
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class \
-            or a tuple of such classes.
+            or a tuple of such classes
         :param stop_type: the class(es) that will not be recursed into \
             further (optional).
         :type stop_type: None or a single :py:class:`psyclone.Node` \
-            class or a tuple of such classes.
+            class or a tuple of such classes
 
         :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
