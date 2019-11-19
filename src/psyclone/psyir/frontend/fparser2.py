@@ -402,13 +402,14 @@ class Fparser2Reader(object):
                     mod_content, Fortran2003.Module_Subprogram_Part)
                 subroutines._parent = mod_content
                 subroutine = search_subroutine(subroutines.content, name)
-            elif isinstance(module_ast, Fortran2003.Subroutine_Subprogram):
+            elif isinstance(module_ast, (Fortran2003.Subroutine_Subprogram,
+                                         Fortran2003.Main_Program)):
                 if str(module_ast.content[0].get_name()) != name:
                     raise ValueError()
                 subroutine = module_ast
             else:
                 raise NotImplementedError(
-                    "Expected either Fortran2003.Module or "
+                    "Expected either Fortran2003.Module, Main_Program or "
                     "Subroutine_Subprogram but got: {0}".format(
                         type(module_ast).__name__))
         except (ValueError, IndexError):
@@ -426,7 +427,8 @@ class Fparser2Reader(object):
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
             from fparser.two.Fortran2003 import Dummy_Arg_List
-            if isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
+            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
+               isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
                 arg_list = subroutine.content[0].items[2].items
             else:
                 # Routine has no arguments
