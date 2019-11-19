@@ -104,7 +104,7 @@ class NemoFparser2Reader(Fparser2Reader):
         '''
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
-        fakeparent = Schedule()
+        fakeparent = Schedule(parent=loop_body)
         self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
                            nodes_parent=node)
 
