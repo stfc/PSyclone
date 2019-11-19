@@ -2026,8 +2026,155 @@ class DynReferenceElement(DynCollection):
     def __init__(self, node):
         super(DynReferenceElement, self).__init__(node)
 
+        # Create a union of the reference-element properties required by
+        # all kernels in this invoke.
+        self._properties = set()
         for call in self._calls:
-            print(call.reference_element)  #TODO
+            for prop in call.reference_element.properties:
+                self._properties.add(prop)
+
+        if not self._properties:
+            return
+
+        # Create and store a name for the reference element object
+        self._ref_elem_name = self._name_space_manager.create_name(
+            root_name="reference_element", context="PSyVars",
+            label="reference_element")
+
+        # Create and store names for the number of horizontal/vertical faces
+        # as required.
+        self._nfaces_h_name = ""
+        self._nfaces_v_name = ""
+        self._horiz_face_normals_name = ""
+        self._horiz_face_out_normals_name = ""
+        self._vert_face_normals_name = ""
+        self._vert_face_out_normals_name = ""
+
+        if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
+                in self._properties):
+            self._nfaces_h_name = self._name_space_manager.create_name(
+                root_name="nfaces_h", context="PSyVars", label="nfaces_h")
+            if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
+               in self._properties:
+                self._horiz_face_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="horiz_face_normals", context="PSyVars",
+                        label="horiz_face_normals")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
+               in self._properties:
+                self._horiz_face_out_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="horiz_face_out_normals", context="PSyVars",
+                        label="horiz_face_out_normals")
+
+        if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
+                in self._properties):
+            self._nfaces_v_name = self._name_space_manager.create_name(
+                root_name="nfaces_v", context="PSyVars", label="nfaces_v")
+            if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
+               in self._properties:
+                self._vert_face_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="vert_face_normals", context="PSyVars",
+                        label="vert_face_normals")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
+               in self._properties:
+                self._vert_face_out_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="vert_face_out_normals", context="PSyVars",
+                        label="vert_face_out_normals")
+
+    def _invoke_declarations(self, parent):
+        '''
+
+        :param parent:
+        :type parent:
+
+        '''
+        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+
+        if not self._properties:
+            return
+
+        parent.add(UseGen(parent, name="reference_element_mod", only=True,
+                          funcnames=["reference_element_type"]))
+
+        parent.add(
+            TypeDeclGen(parent, pointer=True, is_class=True,
+                        datatype="reference_element_type",
+                        entity_decls=[self._ref_elem_name + " => null()"]))
+
+        # Declare the necessary scalars
+        nface_vars = []
+        if self._nfaces_h_name:
+            nface_vars.append(self._nfaces_h_name)
+        if self._nfaces_v_name:
+            nface_vars.append(self._nfaces_v_name)
+
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=nface_vars))
+
+        # Declare the necessary arrays
+        ref_element_arrays = []
+        if self._horiz_face_normals_name:
+            ref_element_arrays.append(self._horiz_face_normals_name+"(:,:)")
+        if self._horiz_face_out_normals_name:
+            ref_element_arrays.append(
+                self._horiz_face_out_normals_name+"(:,:)")
+        if self._vert_face_normals_name:
+            ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
+        if self._vert_face_out_normals_name:
+            ref_element_arrays.append(self._vert_face_out_normals+"(:,:)")
+
+        parent.add(DeclGen(parent, datatype="integer", allocatable=True,
+                           entity_decls=ref_element_arrays))
+
+    def initialise(self, parent):
+        '''
+        Creates the f2pygen nodes representing the necessary initialisation
+        code for properties of the reference element.
+
+        :param parent: node in the f2pygen tree to which to add statements.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
+
+        if not self._properties:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(
+            CommentGen(parent,
+                       " Get the reference element and query its properties"))
+        parent.add(CommentGen(parent, ""))
+
+        mesh_obj_name = self._name_space_manager.create_name(
+            root_name="mesh", context="PSyVars", label="mesh")
+        parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
+                             rhs=mesh_obj_name+"%get_reference_element()"))
+
+        if self._nfaces_h_name:
+            parent.add(
+                AssignGen(parent, lhs=self._nfaces_h_name,
+                          rhs=self._ref_elem_name +
+                          "%get_number_horizontal_faces()"))
+        if self._nfaces_v_name:
+            parent.add(
+                AssignGen(
+                    parent, lhs=self._nfaces_v_name,
+                    rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
+
+        if self._horiz_face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_horizontal_faces({1})".format(
+                            self._ref_elem_name,
+                            self._horiz_face_normals_name)))
 
 
 class DynDofmaps(DynCollection):
@@ -2981,9 +3128,10 @@ class DynMeshes(object):
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
-    one mesh object required (when colouring or doing distributed memory).
-    However, kernels performing inter-grid operations require multiple mesh
-    objects as well as mesh maps and other quantities.
+    one mesh object required (when colouring, doing distributed memory or
+    querying the reference element). However, kernels performing inter-grid
+    operations require multiple mesh objects as well as mesh maps and other
+    quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
@@ -3028,7 +3176,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
+        requires_ref_element = False
         for call in self._schedule.coded_kernels():
+
+            if call.reference_element.properties:
+                requires_ref_element = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3070,12 +3222,15 @@ class DynMeshes(object):
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
-        # more kernels that iterate over cells. (Colourmaps also
-        # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set and (Config.get().distributed_memory and
-                              not invoke.iterate_over_dofs_only):
-            _name_set.add(self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh"))
+        # more kernels that iterate over cells. We also require a mesh object
+        # if any of the kernels require properties of the reference element.
+        # (Colourmaps also require a mesh object but that is handled in
+        # _colourmap_init().)
+        if not _name_set:
+            if (requires_ref_element or (Config.get().distributed_memory and
+                                         not invoke.iterate_over_dofs_only)):
+                _name_set.add(self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -4476,7 +4631,8 @@ class DynInvoke(Invoke):
                          self.stencil, self.orientation, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators]:
+                         self.proxies, self.cell_iterators,
+                         self.reference_element_properties]:
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
@@ -4502,7 +4658,8 @@ class DynInvoke(Invoke):
         for entities in [self.proxies, self.cell_iterators, self.meshes,
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators]:
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised, we can call our kernels
@@ -6647,6 +6804,14 @@ class DynKern(CodedKern):
                 the names of the target function spaces.
         '''
         return self._eval_targets
+
+    @property
+    def reference_element(self):
+        '''
+        :returns: the reference-element properties required by this kernel.
+        :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
+        '''
+        return self._reference_element
 
     @property
     def qr_text(self):
