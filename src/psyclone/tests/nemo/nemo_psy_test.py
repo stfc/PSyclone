@@ -59,7 +59,7 @@ def test_no_gen_code():
     with pytest.raises(InternalError) as err:
         kern.gen_code(None)
     assert "NEMO kernels are assumed to be in-lined by default therefore " \
-           "the gen_code method should not have been called." in str(err)
+           "the gen_code method should not have been called." in str(err.value)
 
 
 def test_unamed_unit(parser):

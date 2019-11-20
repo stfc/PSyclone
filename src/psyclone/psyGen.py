@@ -1507,13 +1507,17 @@ class Node(object):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
-        instances of any classes in the tuple.
+        instances of any classes in the tuple. The recursion into the tree
+        is stopped if an instance of 'stop_type' (which is either a single
+        class or a tuple of classes) is found. This can be used to avoid
+        analysing e.g. inlined kernels, or as performance optimisation to
+        reduce the number of recursive calls.
 
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class \
             or a tuple of such classes
-        :param stop_type: the class(es) that will not be recursed into \
-            further (optional).
+        :param stop_type: class(es) at which recursion is halted (optional)."
+
         :type stop_type: None or a single :py:class:`psyclone.Node` \
             class or a tuple of such classes
 

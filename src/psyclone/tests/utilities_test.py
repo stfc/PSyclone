@@ -79,7 +79,7 @@ def test_compiler_with_flags(tmpdir):
         _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")
-        assert "not-a-flag" in str(excinfo)
+        assert "not-a-flag" in str(excinfo.value)
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
         _compile._f90flags = "-g"
