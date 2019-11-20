@@ -50,7 +50,6 @@ program imperfect_nest
   REAL(wp), DIMENSION(jpi,jpj)     ::   zdkt, zdk1t
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
   REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3   ! local scalars
-!#  include "vectopt_loop_substitute.h90"
 
   ! Test code with imperfectly nested loops
   DO jk = 1, jpkm1

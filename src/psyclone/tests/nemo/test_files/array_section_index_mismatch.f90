@@ -33,8 +33,8 @@
 
 program implicit_do
   implicit none
-  integer :: jpi=10, jpj=10, jpk=10, jpn=2
-  integer :: ji, jk, jn
+  integer, parameter :: jpi=10, jpj=10, jpk=10, jpn=2
+  integer :: ji, jk, jn, jp_tem
   real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk,jpn) :: zab
   real(kind=kind(1.0d0)), dimension(jpk, jpn) :: zvab
 

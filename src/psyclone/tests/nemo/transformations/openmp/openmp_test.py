@@ -66,11 +66,13 @@ def test_omp_explicit_gen():
         if kernel and loop.loop_type == "levels":
             schedule, _ = omp_trans.apply(loop)
     gen_code = str(psy.gen).lower()
+
     expected = (
         "program explicit_do\n"
         "  implicit none\n"
         "  integer :: ji, jj, jk\n"
         "  integer :: jpi, jpj, jpk\n"
+        "  real :: r\n"
         "  real, dimension(jpi, jpj, jpk) :: umask\n"
         "  !$omp parallel do default(shared), private(ji,jj,jk), "
         "schedule(static)\n"
