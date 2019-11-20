@@ -35,6 +35,7 @@ program explicit_do
   implicit none
   integer :: ji, jj, jk
   integer :: jpi, jpj, jpk
+  real, parameter :: r = 1.0
   real, dimension(jpi,jpj,jpk) :: umask
 
   ! Test code with two explicit NEMO-style do loops

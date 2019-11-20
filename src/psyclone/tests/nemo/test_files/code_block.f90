@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council.
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 program code_block
   implicit none
   integer :: ji, jj, jk, iloop
-  integer :: jpi=10, jpj=10, jpk=10
+  integer, parameter :: jpi=10, jpj=10, jpk=10
   real, allocatable, dimension(:,:,:) :: umask
 
   ! Test code with explicit NEMO-style do loop as well as some general,
