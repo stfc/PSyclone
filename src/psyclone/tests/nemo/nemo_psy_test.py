@@ -192,6 +192,7 @@ def test_fn_call_no_kernel(parser):
     function call. '''
     from psyclone.psyGen import Assignment
     reader = FortranStringReader("program fn_call\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = my_func()\n"
@@ -211,6 +212,7 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     CodeBlock. '''
     from psyclone.psyGen import CodeBlock
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = 1.0\n"
@@ -246,6 +248,7 @@ def test_no_explicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an explicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "  do idx = 1, 5\n"
@@ -267,6 +270,7 @@ def test_no_implicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an implicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(:,:) = 1.0\n"
@@ -348,6 +352,7 @@ def test_kern_sched_parents(parser):
     ''' Check that the children of a Kernel schedule have that schedule
     as their parent. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jj, jpi, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpi\n"
                                  "  do jj = 1,jpj\n"

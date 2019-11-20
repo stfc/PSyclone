@@ -35,13 +35,16 @@ program code_block
   implicit none
   integer :: ji, jj, jk, iloop
   integer, parameter :: jpi=10, jpj=10, jpk=10
-  real, allocatable, dimension(:,:,:) :: umask
+  real :: r
+  ! #594 fparser2 frontend does not support "allocatable"
+  !real, allocatable, dimension(:,:,:) :: umask
+  real, dimension(jpi,jpj,jpk) :: umask
 
   ! Test code with explicit NEMO-style do loop as well as some general,
   ! executable statements
 
   write (*,*) "Hello world"
-  allocate(umask(jpi,jpj,jpk))
+  !allocate(umask(jpi,jpj,jpk)) #594
   umask(1,1,:) = 0.0d0
   umask(1,1,1) = -10.0d0
 
@@ -58,6 +61,6 @@ program code_block
   end do
   
   write (*,*) "Goodbye world"
-  deallocate(umask)
+  !deallocate(umask) #594
 
 end program code_block

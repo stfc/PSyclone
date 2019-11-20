@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council.
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@ program io_in_loop
   implicit none
   integer :: ji, jj, jk
   integer :: jpi, jpj, jpk
+  real :: r
   real, dimension(jpi,jpj,jpk) :: umask, vmask
 
   ! Test code with valid NEMO kernels as well as some that must be
