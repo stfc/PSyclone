@@ -1567,7 +1567,7 @@ class Fparser2Reader(object):
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
-        fake_parent = Schedule()
+        fake_parent = Schedule(parent=parent)
         self.process_nodes(fake_parent, logical_expr, None)
         arrays = fake_parent[0].walk(Array)
         if not arrays:
