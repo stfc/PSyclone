@@ -119,9 +119,9 @@ def test_do_while():
     sched = psy.invokes.invoke_list[0].schedule
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
-    assert isinstance(sched.children[0], CodeBlock)
-    assert isinstance(sched.children[1], nemo.NemoLoop)
-    assert isinstance(sched.children[3], CodeBlock)
+    assert isinstance(sched[1], CodeBlock)
+    assert isinstance(sched[2], nemo.NemoLoop)
+    assert isinstance(sched[4], CodeBlock)
 
 
 def test_multi_kern():
