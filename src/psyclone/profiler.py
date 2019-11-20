@@ -270,13 +270,16 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, Schedule, InternalError
+        from psyclone.psyGen import object_index, Schedule, InternalError, \
+            InvokeSchedule
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()
 
         # Get the parse tree of the routine containing this region
-        ptree = self.root.invoke._ast
+        routine_schedule = self.ancestor(InvokeSchedule)
+        ptree = routine_schedule.ast
+
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
         node_list = walk_ast([ptree], [Fortran2003.Main_Program,
@@ -339,7 +342,7 @@ class ProfileNode(Node):
         # Check that we won't have any name-clashes when we insert the
         # symbols required for profiling. This check uses the list of symbols
         # that we created before adding the `use profile_mod...` statement.
-        if not self.root.profiling_name_clashes_checked:
+        if not routine_schedule.profiling_name_clashes_checked:
             for node in node_list:
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
@@ -370,7 +373,7 @@ class ProfileNode(Node):
         # Flag that we have now checked for name clashes so that if there's
         # more than one profiling node we don't fall over on the symbols
         # we've previous inserted.
-        self.root.profiling_name_clashes_checked = True
+        routine_schedule.profiling_name_clashes_checked = True
 
         # Create a name for this region by finding where this profiling
         # node is in the list of profiling nodes in this Invoke.
