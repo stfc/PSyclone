@@ -165,14 +165,20 @@ class NemoFparser2Reader(Fparser2Reader):
         try:
             if isinstance(module_ast, (Fortran2003.Subroutine_Subprogram,
                                        Fortran2003.Main_Program)):
-                if str(module_ast.content[0].get_name()) != name:
-                    raise ValueError()
-                subroutine = module_ast
+                routine_name = module_ast.content[0].get_name()
+            elif isinstance(module_ast, Fortran2003.Function_Subprogram):
+                # TODO fparser/#225 Function_Stmt does not have a get_name()
+                # method. Once it does we can remove this branch and handle
+                # it in the one above.
+                routine_name = module_ast.content[0].items[1]
             else:
                 raise NotImplementedError(
-                    "Expected either Fortran2003.Main_Program or "
-                    "Subroutine_Subprogram but got: {0}".format(
-                        type(module_ast).__name__))
+                    "Expected either Fortran2003.Main_Program, "
+                    "Subroutine_Subprogram or Function_Subprogram but "
+                    "got: {0}".format(type(module_ast).__name__))
+            if str(routine_name) != name:
+                raise ValueError()
+            subroutine = module_ast
         except (ValueError, IndexError):
             raise GenerationError("Unexpected parse tree. Could not find "
                                   "subroutine: {0}".format(name))
