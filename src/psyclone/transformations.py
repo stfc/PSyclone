@@ -201,7 +201,7 @@ class RegionTrans(Transformation):
         # The checks below this point only apply to the NEMO API and can be
         # removed once #435 is done.
         node = node_list[0]
-        if not isinstance(node.root, NemoInvokeSchedule):
+        if not node.ancestor(NemoInvokeSchedule):
             return
 
         if_or_loop = node.ancestor((IfBlock, Loop))
@@ -2840,24 +2840,24 @@ class ProfileRegionTrans(RegionTrans):
         '''
         from fparser.two import Fortran2003
         from fparser.two.utils import walk_ast
-        from psyclone.nemo import NemoInvoke
+        from psyclone.nemo import NemoInvokeSchedule
 
         super(ProfileRegionTrans, self).validate(nodes, options)
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
-        invoke = nodes[0].root.invoke
-        if not isinstance(invoke, NemoInvoke):
+        invoke_sched = nodes[0].ancestor(NemoInvokeSchedule)
+        if not invoke_sched:
             return
         # Get the parse tree of the routine containing this region
-        ptree = invoke._ast
+        ptree = invoke_sched._ast
         # Search for the Specification_Part
         if not walk_ast([ptree], [Fortran2003.Specification_Part]):
             raise TransformationError(
                 "For the NEMO API, profiling can only be added to routines "
                 "which contain existing variable declarations (i.e. a "
                 "Specification Part) but '{0}' does not have any.".format(
-                    invoke.name))
+                    invoke_sched.invoke.name))
 
     def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
