@@ -54,6 +54,8 @@ BASE_PATH = os.path.join(os.path.dirname(
                          "test_files")
 
 
+@pytest.mark.xfail(reason="New loop Symbols not added to SymbolTable. To "
+                   "be replaced as part of #412.")
 def test_implicit_loop_trans():
     ''' Check that we get the correct schedule when we apply the explicit
     loop transformation to an implicit loop. '''
@@ -151,6 +153,8 @@ def test_exp_loop_unrecognised_implicit(parser):
             "'umask(:, :, :, :) = 0.0D0'" in str(err))
 
 
+@pytest.mark.xfail(reason="New loop Symbols not added to SymbolTable. To "
+                   "be replaced as part of #412.")
 def test_exp_loop_missing_spec(parser):
     '''Test that the ExplicitLoop transformation still works when the
     fparser2 AST is missing a Specification_Part for the routine.
