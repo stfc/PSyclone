@@ -117,8 +117,9 @@ class RegionTrans(Transformation):
         Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param node_list: list of PSyIR nodes.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param node_list: list of PSyIR nodes or a single Schedule.
+        :type node_list: :py:class:`psyclone.psyGen.Schedule` or a \
+                         list of :py:class:`psyclone.psyGen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -130,15 +131,15 @@ class RegionTrans(Transformation):
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
-        :raises TransformationError: if the condition part of an IfBlock \
-                                     is erroneously included in the region.
+        :raises TransformationError: if the parent of the supplied Nodes is \
+                                     not a Schedule or a Directive.
         :raises TransformationError: if the nodes are in a NEMO Schedule and \
                                      the transformation acts on the child of \
-                                     a single-line if statment.
+                                     a single-line If or Where statment.
 
         '''
         # pylint: disable=too-many-branches
-        from psyclone.psyGen import IfBlock
+        from psyclone.psyGen import IfBlock, Loop
         from psyclone.nemo import NemoInvokeSchedule
         if not options:
             options = {}
@@ -169,24 +170,33 @@ class RegionTrans(Transformation):
                             "Nodes of type '{0}' cannot be enclosed by a {1} "
                             "transformation".format(type(item), self.name))
 
-        # Sanity check that we've not been passed the condition part of
-        # an If statement (which is child 0)
-        if isinstance(node_parent, IfBlock):
-            if node_parent.children[0] in node_list:
-                raise TransformationError(
-                    "Cannot apply transformation to the conditional expression"
-                    " (first child) of an If/Case statement. Error in "
-                    "transformation script.")
+        # If we've been passed a list that contains one or more Schedules
+        # then something is wrong. e.g. two Schedules that are both children
+        # of an IfBlock would imply that the transformation is being applied
+        # around both the if-body and the else-body and that doesn't make
+        # sense.
+        if isinstance(node_list, list) and len(node_list) > 1 and \
+           any([isinstance(node, Schedule) for node in node_list]):
+            raise TransformationError(
+                "Cannot apply a transformation to multiple nodes when one or "
+                "more is a Schedule. Either target a single Schedule or the"
+                " children of a Schedule.")
 
-            # Check that we've not been supplied with both the if and
-            # else clauses of an IfBlock as we can't put them both in
-            # a region without their parent.
-            if len(node_list) > 1:
-                raise TransformationError(
-                    "Cannot enclose both the if- and else- clauses of an "
-                    "IfBlock by a {0} transformation. Apply the "
-                    "transformation to the IfBlock node instead.".
-                    format(self.name))
+        # Sanity check that we've not been passed the condition part of
+        # an If statement or the bounds of a Loop. If the parent node is
+        # a Loop of IfBlock then we can only accept a single Schedule.
+        # TODO #542 Once everything has a Schedule we can tidy this up
+        # a little by requiring that either the parent be a Schedule or
+        # that the node-list consists of a single Schedule.
+        if isinstance(node_parent, (Loop, IfBlock)) and \
+           not isinstance(node_list[0], Schedule):
+            # We've already checked for lists with len > 1 that contain a
+            # Schedule above so if the first item is a Schedule then that's
+            # all the list contains.
+            raise TransformationError(
+                "Cannot apply transformation to the immediate children of a "
+                "Loop/IfBlock unless it is to a single Schedule representing"
+                " the Loop/If/Else body.")
 
         # The checks below this point only apply to the NEMO API and can be
         # removed once #435 is done.
@@ -194,19 +204,16 @@ class RegionTrans(Transformation):
         if not isinstance(node.root, NemoInvokeSchedule):
             return
 
-        ifblock = None
-        if isinstance(node.parent, IfBlock):
-            ifblock = node.parent
-        if isinstance(node.parent, Schedule) and isinstance(node.parent.parent,
-                                                            IfBlock):
-            ifblock = node.parent.parent
-        if ifblock and "was_single_stmt" in ifblock.annotations:
+        if_or_loop = node.ancestor((IfBlock, Loop))
+        if if_or_loop and ("was_single_stmt" in if_or_loop.annotations
+                           or "was_where" in if_or_loop.annotations):
             # This limitation is because the NEMO API currently relies on
             # manipulation of the fparser2 parse tree
             # TODO #435.
             raise TransformationError(
-                "Cannot apply a transformation to the child of a single-line "
-                "if statement in the NEMO API.")
+                "In the NEMO API a transformation cannot be applied to the "
+                "children of either a single-line if statement or a PSyIR loop"
+                " representing a WHERE construct.")
 
 
 class KernelTrans(Transformation):
@@ -234,7 +241,8 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.psyGen import GenerationError, SymbolError, Kern
+        from psyclone.psyGen import GenerationError, Kern
+        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -1275,7 +1283,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
- 
+
         # change the node's parent to be the Schedule of the loop directive
         node.parent = directive.dir_body
 
@@ -2768,13 +2776,13 @@ class OCLTrans(Transformation):
             # parameters (issue 323) we have to bypass this validation and
             # provide them manually for the OpenCL kernels to compile.
             continue
-            global_symbols = ksched.symbol_table.global_symbols
-            if global_symbols:
+            global_variables = ksched.symbol_table.global_datasymbols
+            if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
                     "symbols with 'global' scope: {1}. PSyclone cannot "
                     "currently transform such a kernel into OpenCL.".
-                    format(kern.name, [sym.name for sym in global_symbols]))
+                    format(kern.name, [sym.name for sym in global_variables]))
 
 
 class ProfileRegionTrans(RegionTrans):
@@ -3132,7 +3140,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
             :param symbol_table: the symbol table for the kernel \
                          holding the argument that is going to be modified.
-            :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+            :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
             :param int arg_position: the argument's position in the \
                                      argument list.
             :param value: the constant value that this argument is \
@@ -3144,7 +3152,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyGen import Symbol
+            from psyclone.psyir.symbols import DataSymbol
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -3168,8 +3176,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = Symbol(orig_name+"_dummy", "integer",
-                                  constant_value=value)
+            local_symbol = DataSymbol(orig_name+"_dummy", "integer",
+                                      constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
@@ -3584,14 +3592,14 @@ class ACCRoutineTrans(KernelTrans):
         # Check that the kernel does not access any data via a module 'use'
         # statement
         sched = kern.get_kernel_schedule()
-        global_symbols = sched.symbol_table.global_symbols
-        if global_symbols:
+        global_variables = sched.symbol_table.global_datasymbols
+        if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
                 "symbols with 'global' scope: {1}. PSyclone cannot currently "
                 "transform kernels for execution on an OpenACC device if "
                 "they access data not passed by argument.".
-                format(kern.name, [sym.name for sym in global_symbols]))
+                format(kern.name, [sym.name for sym in global_variables]))
         # Prevent unwanted side effects by removing the kernel schedule that
         # we have just constructed. This is necessary while
         # psyGen.Kern.rename_and_write still supports kernels that have been
@@ -3626,7 +3634,7 @@ class ACCKernelsTrans(RegionTrans):
 
     '''
     from psyclone import nemo, psyGen, dynamo0p3
-    valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
+    valid_node_types = (psyGen.Loop, nemo.NemoKern, psyGen.IfBlock,
                         psyGen.Operation, psyGen.Literal,
                         psyGen.Assignment, psyGen.Reference,
                         dynamo0p3.DynLoop, dynamo0p3.DynKern, psyGen.BuiltIn)
@@ -4196,6 +4204,8 @@ class ExtractRegionTrans(RegionTrans):
         from psyclone.psyGen import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
+        elif isinstance(nodes, Schedule):
+            node_list = nodes.children
         elif isinstance(nodes, Node):
             node_list = [nodes]
         else:
