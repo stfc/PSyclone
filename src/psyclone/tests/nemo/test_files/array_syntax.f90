@@ -33,9 +33,9 @@
 
 SUBROUTINE tra_ldf_iso()
   INTEGER :: jpi, jpj, jpk
+  LOGICAL :: l_ptr
   INTEGER, DIMENSION(jpi,jpj) :: tmask
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
-  LOGICAL :: l_ptr
   zftv(:,:,:) = 0.0d0
   IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
   CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )

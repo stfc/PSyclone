@@ -52,6 +52,7 @@ API = "nemo"
 def test_explicit_loop(parser):
     ''' Check that we can apply the transformation to an explicit loop. '''
     reader = FortranStringReader("program do_loop\n"
+                                 "integer :: ji, jpj\n"
                                  "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(ji) = 1.0d0\n"
@@ -68,6 +69,7 @@ def test_explicit_loop(parser):
     schedule, _ = acc_trans.apply(schedule.children[1], {"independent": False})
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
+            "  INTEGER :: ji, jpj\n"
             "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
             "  !$ACC LOOP INDEPENDENT\n"
             "  DO ji = 1, jpj\n"
@@ -81,6 +83,7 @@ def test_explicit_loop(parser):
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "integer :: ji, jpj\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
                "do ji = 1,jpj\n"
                "  sto_tmp(ji) = 1.0d0\n"
@@ -88,6 +91,7 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "integer :: ji, jj, jpi, jpj\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
                "do jj = 1,jpj\n"
                "  do ji = 1,jpi\n"

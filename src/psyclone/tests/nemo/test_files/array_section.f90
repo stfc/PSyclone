@@ -32,7 +32,8 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 subroutine array_section()
-  INTEGER :: dummy
+  integer :: ji, dummy, n
+  real, dimension(:,:) :: a, b, c
 
   a(:,:) = b(:,:) * c(:,:)
 
