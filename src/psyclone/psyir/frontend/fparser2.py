@@ -293,11 +293,13 @@ class Fparser2Reader(object):
         return (rlist, wlist, rwlist)
 
     @staticmethod
-    def _create_schedule(name):
+    def _create_schedule(name, _):
         '''
         Create an empty KernelSchedule.
 
         :param str name: Name of the subroutine represented by the kernel.
+        :param invoke: TODO
+
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
         '''
@@ -336,7 +338,21 @@ class Fparser2Reader(object):
 
         return new_container
 
-    def generate_schedule(self, name, module_ast, container):
+    @staticmethod
+    def _first_type_match(nodelist, typekind):
+        '''
+        Returns the first instance of the specified type in the given
+        node list.
+
+        :param list nodelist: List of fparser2 nodes.
+        :param type typekind: The fparse2 Type we are searching for.
+        '''
+        for node in nodelist:
+            if isinstance(node, typekind):
+                return node
+        raise ValueError  # Type not found
+
+    def generate_schedule(self, name, module_ast):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
@@ -351,18 +367,6 @@ class Fparser2Reader(object):
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
         '''
-        def first_type_match(nodelist, typekind):
-            '''
-            Returns the first instance of the specified type in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param type typekind: The fparse2 Type we are searching for.
-            '''
-            for node in nodelist:
-                if isinstance(node, typekind):
-                    return node
-            raise ValueError  # Type not found
 
         def search_subroutine(nodelist, searchname):
             '''
@@ -378,15 +382,10 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Subroutine not found
 
-        new_schedule = self._create_schedule(name)
+        new_schedule = self._create_schedule(name, None)
 
-        # Generate the Container of the module enclosing the Kernel if
-        # we haven't been supplied with one.
-        if container:
-            new_container = container
-        else:
-            new_container = self.generate_container(module_ast)
-
+        # Generate the Container of the module enclosing the Kernel
+        new_container = self.generate_container(module_ast)
         new_schedule.parent = new_container
         new_container.children.append(new_schedule)
 
@@ -398,7 +397,7 @@ class Fparser2Reader(object):
                 module_ast.content[0]._parent = module_ast
                 for item in mod_content:
                     item._parent = module_ast.content[0]
-                subroutines = first_type_match(
+                subroutines = self._first_type_match(
                     mod_content, Fortran2003.Module_Subprogram_Part)
                 subroutines._parent = mod_content
                 subroutine = search_subroutine(subroutines.content, name)
@@ -417,8 +416,8 @@ class Fparser2Reader(object):
                                   "subroutine: {0}".format(name))
 
         try:
-            sub_spec = first_type_match(subroutine.content,
-                                        Fortran2003.Specification_Part)
+            sub_spec = self._first_type_match(subroutine.content,
+                                              Fortran2003.Specification_Part)
             # TODO remove once fparser/#102 is done
             # pylint: disable=protected-access
             sub_spec._parent = subroutine
@@ -441,8 +440,8 @@ class Fparser2Reader(object):
             self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
-            sub_exec = first_type_match(subroutine.content,
-                                        Fortran2003.Execution_Part)
+            sub_exec = self._first_type_match(subroutine.content,
+                                              Fortran2003.Execution_Part)
             # TODO remove once fparser/#102 is done
             # pylint: disable=protected-access
             sub_exec._parent = subroutine
