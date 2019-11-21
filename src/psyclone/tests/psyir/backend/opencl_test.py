@@ -232,6 +232,6 @@ def test_oclw_kernelschedule():
                                           interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as err:
         _ = oclwriter(kschedule)
-    assert ("symbol table contains unresolved entries (i.e. that have no "
+    assert ("symbol table contains unresolved data entries (i.e. that have no "
             "defined Interface) which are not used purely to define the "
             "precision of other symbols: 'broken'" in str(err.value))

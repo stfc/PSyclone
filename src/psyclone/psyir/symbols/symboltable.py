@@ -232,27 +232,26 @@ class SymbolTable(object):
 
     def get_unresolved_datasymbols(self, ignore_precision=False):
         '''
-        Create a list of the names of all of the Symbols in the table that
+        Create a list of the names of all of the DataSymbols in the table that
         do not have a resolved interface. If ignore_precision is True then
-        those Symbols that are used to define the precision of other Symbols
-        are ignored. If no unresolved Symbols are found then an empty list
-        is returned.
+        those DataSymbols that are used to define the precision of other
+        DataSymbols are ignored. If no unresolved DataSymbols are found then an
+        empty list is returned.
 
-        :param bool ignore_precision: whether or not to ignore Symbols that \
-                            are used to define the precision of other Symbols.
+        :param bool ignore_precision: whether or not to ignore DataSymbols \
+                    that are used to define the precision of other DataSymbols.
 
-        :returns: the names of those Symbols with unresolved interfaces.
+        :returns: the names of those DataSymbols with unresolved interfaces.
         :rtype: list of str
 
         '''
-        unresolved_symbols = set([sym for sym in self.datasymbols
-                                if sym.unresolved_interface])
+        unresolved_symbols = [sym for sym in self.datasymbols
+                              if sym.unresolved_interface]
         if ignore_precision:
-            precision_symbols = set(self.precision_datasymbols)
-            unresolved_datasymbols = list(unresolved_symbols -
-                                          precision_symbols)
+            unresolved_datasymbols = list(set(unresolved_symbols) -
+                                          set(self.precision_datasymbols))
         else:
-            unresolved_datasymbols = list(unresolved_symbols)
+            unresolved_datasymbols = unresolved_symbols
         return [sym.name for sym in unresolved_datasymbols]
 
     @property
