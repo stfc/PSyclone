@@ -2683,9 +2683,13 @@ class OMPParallelDirective(OMPDirective):
                 # !omp do
                 # do ji = 1, jpk
 
+                # TODO #598: improve the handling of scalar variables.
+
                 # Go up the tree till we either find the InvokeSchedule,
                 # which is at the top, or a Loop statement (or no parent,
                 # which means we have reached the end of a called kernel).
+                # TODO #597: see if a modified Node.ancestor() method can be
+                # used (that would be able to return 'self' if appropriate).
                 parent = accesses[0].node
                 while parent and \
                         not isinstance(parent, (Loop, InvokeSchedule)):
