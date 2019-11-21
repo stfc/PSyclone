@@ -11,6 +11,22 @@
 	Loops having Schedules and children (e.g. loop limits) that
 	we want to ignore.
 
+	4) PR #535 for part of #150. Implements support for parsing
+	of reference element metadata in the Dynamo0.3 (LFRic) API.
+
+	5) PR #516 for #497. Adds support for translating the Fortran
+	where construct into the PSyIR.
+
+        6) PR #545 for #544 and #543. Moves the Symbol support into
+	a separate sub-module and adds support for parameter declarations
+	and the functionality to resolve deferred datatypes.
+
+        7) PR #559 for #483. Introduces new InlinedKernel class and
+	uses this as the base class for all NEMO kernels.
+
+	8) PR #580 for #542. Adds a Schedule as a child of ExtractNode and
+	ProfileNode.
+
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel

@@ -793,23 +793,6 @@ def test_invalid_kern_naming():
     assert "but got 'not-a-scheme'" in str(err)
 
 
-def test_main_include_nemo_only(capsys):
-    ''' Check that the main function rejects attempts to specify INCLUDE
-    paths for all except the nemo API. (Since that is the only one which
-    uses fparser2 at the moment.) '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"))
-    for api in Config.get().supported_apis:
-        if api != "nemo":
-            with pytest.raises(SystemExit) as err:
-                main([alg_filename, '-api', api, '-I', './'])
-            assert str(err.value) == "1"
-            captured = capsys.readouterr()
-            assert captured.err.count("is only supported for the 'nemo' API")\
-                == 1
-
-
 def test_main_include_invalid(capsys, tmpdir):
     ''' Check that the main function complains if a non-existant location
     is specified as a search path for INCLUDE files. '''
@@ -846,6 +829,9 @@ def test_main_include_path(capsys):
           '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
+    # Check that the Config object contains the provided include paths
+    assert str(inc_path1) in Config.get().include_paths
+    assert str(inc_path2) in Config.get().include_paths
 
 
 def test_write_utf_file(tmpdir, monkeypatch):
