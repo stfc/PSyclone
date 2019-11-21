@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/parse/dynamo0p3_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
+
+''' This module contains the generic Symbol and the SymbolError.'''
+
+
+class SymbolError(Exception):
+    '''
+    PSyclone-specific exception for use with errors relating to the Symbol and
+    SymbolTable in the PSyIR.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone SymbolTable error: "+value
+
+    def __str__(self):
+        return str(self.value)
+
+
+class Symbol(object):
+    '''
+    Generic Symbol item for the Symbol Table. It always has a fixed name label
+    that matches with the key on the SymbolTables that contain the symbol.
+
+    :param str name: name of the symbol.
+    '''
+
+    def __init__(self, name):
+        self._name = name
+
+    @property
+    def name(self):
+        '''
+        :returns: name of the Symbol.
+        :rtype: str
+        '''
+        return self._name

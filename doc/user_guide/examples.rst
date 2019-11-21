@@ -39,12 +39,17 @@
 Examples
 ========
 
-Various examples of the use of PSyclone are provided under the ``examples``
-directory. All of these examples require that PSyclone be installed on the
-host system, see :ref:`getting-going`. This document is intended to provide
-an overview of the various examples so that a user can find one that is
-appropriate to them. For details of how to run each example please see the
-README files in the associated directories.
+Various examples of the use of PSyclone are provided under the
+``examples`` directory in the git repository. If you have installed
+PSyclone using pip then the examples may be found in
+``share/psyclone/examples`` under your Python installation
+(e.g. ``~/.local`` for a user-local installation).
+
+Running any of these examples requires that PSyclone be installed on
+the host system, see :ref:`getting-going`. This section is intended
+to provide an overview of the various examples so that a user can find
+one that is appropriate to them. For details of how to run each
+example please see the ``README.md`` files in the associated directories.
 
 GOcean
 ------
@@ -88,7 +93,7 @@ Example 4: Kernels containing use statements
 
 Transforming kernels for use with either OpenACC or OpenCL requires
 that we handle those that access data and/or routines via module
-`use` statements. This example shows the various forms for which
+``use`` statements. This example shows the various forms for which
 support is planned (Issues #323 and #342).
 
 Dynamo
@@ -219,18 +224,18 @@ work in progress so the generated code may not work as
 expected. However it is never-the-less useful as a starting
 point. Three scripts are provided.
 
-The first script (`acc_kernels.py`) shows how to add OpenACC Kernels
+The first script (``acc_kernels.py``) shows how to add OpenACC Kernels
 directives to the PSy-layer. This example only works with distributed
 memory switched off as the OpenACC Kernels transformation does not yet
 support halo exchanges within an OpenACC Kernels region.
 
-The second script (`acc_parallel.py`)shows how to add OpenACC Loop,
+The second script (``acc_parallel.py``)shows how to add OpenACC Loop,
 Parallel and Enter Data directives to the PSy-layer. Again this
 example only works with distributed memory switched off as the OpenACC
 Parallel transformation does not support halo exchanges within an
 OpenACC Parallel region.
 
-The third script (`acc_parallel_dm.py`) is the same as the second
+The third script (``acc_parallel_dm.py``) is the same as the second
 except that it does support distributed memory being switched on by
 placing an OpenACC Parallel directive around each OpenACC Loop
 directive, rather than having one for the whole invoke. This approach
@@ -248,7 +253,7 @@ i.e. support for colouring or locking is not yet implemented.
 NEMO
 ----
 
-These examples may all be found in the ``PSyclone/examples/nemo`` directory.
+These examples may all be found in the ``examples/nemo`` directory.
 
 Example 1: OpenMP parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

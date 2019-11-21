@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,24 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/parse/dynamo0p3_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile
+# Authors S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+
+''' Symbols package module '''
+
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
+    GlobalInterface, ArgumentInterface
+from psyclone.psyir.symbols.containersymbol import ContainerSymbol
+from psyclone.psyir.symbols.symboltable import SymbolTable
+
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
+__all__ = ['Symbol',
+           'SymbolError',
+           'SymbolTable',
+           'DataSymbol',
+           'LocalInterface',
+           'GlobalInterface',
+           'ArgumentInterface',
+           'ContainerSymbol']

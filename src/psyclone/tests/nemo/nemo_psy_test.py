@@ -40,8 +40,8 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
-from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
+from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 
@@ -50,6 +50,16 @@ API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+
+
+def test_no_gen_code():
+    '''Test that we raise an exception if gen_code is called
+    for a NemoKern.'''
+    kern = nemo.NemoKern([], None)
+    with pytest.raises(InternalError) as err:
+        kern.gen_code(None)
+    assert "NEMO kernels are assumed to be in-lined by default therefore " \
+           "the gen_code method should not have been called." in str(err.value)
 
 
 def test_unamed_unit(parser):
@@ -79,9 +89,7 @@ def test_unamed_unit(parser):
 def test_explicit_do_sched():
     ''' Check that we generate a correct schedule for a triply-nested,
     explicit do loop '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("explicit_do.f90", api=API, idx=0)
     assert isinstance(psy, nemo.NemoPSy)
     assert psy._name == "explicit_do_psy"
     invoke = psy.invokes.invoke_list[0]
@@ -97,11 +105,8 @@ def test_explicit_do_sched():
 def test_array_valued_function():
     ''' Check that we handle array notation used when there is no implicit
     loop. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "array_valued_function.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("array_valued_function.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     assert len(sched.children) == 2
     # We should just have two assignments and no Kernels
     kernels = sched.walk(nemo.NemoKern)
@@ -113,10 +118,8 @@ def test_do_while():
     will need to recognise them as Nodes in the Schedule in their
     own right. '''
     from psyclone.psyGen import CodeBlock
-    _, invoke_info = parse(os.path.join(BASE_PATH, "do_while.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
     assert isinstance(sched.children[0], CodeBlock)
@@ -127,10 +130,8 @@ def test_do_while():
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "two_explicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("two_explicit_do.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
     kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
@@ -144,10 +145,8 @@ def test_multi_kern():
 def test_implicit_loop_assign():
     ''' Check that we only identify an implicit loop when array syntax
     is used as part of an assignment statement. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
     # We should have three implicit loops
     assert len(loops) == 3
@@ -163,10 +162,8 @@ def test_implicit_loop_assign():
 def test_complex_code():
     ''' Check that we get the right schedule when the code contains
     multiple statements of different types '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("code_block.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 5
     kerns = sched.coded_kernels()
@@ -178,10 +175,8 @@ def test_complex_code():
 def test_io_not_kernel():
     ''' Check that we reject a kernel candidate if a loop body contains
     a write/read statement '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     # We should have only 1 actual kernel
     kerns = sched.coded_kernels()
     assert len(kerns) == 1
@@ -200,7 +195,6 @@ def test_fn_call_no_kernel(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
     # Child of loop should be an Assignment, not a Kernel.
@@ -286,10 +280,8 @@ def test_no_implicit_loop_in_kernel(parser):
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    _, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     sched_str = str(sched)
     assert "NemoLoop[id:'', variable:'ji', loop_type:'lon']" in sched_str
     assert "NemoLoop[id:'', variable:'jj', loop_type:'lat']" in sched_str
@@ -299,43 +291,41 @@ def test_schedule_view(capsys):
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    kern_str = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+    kern_str = colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
     isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
 
     expected_sched = (
-        isched_str + "[]\n"
-        "    " + loop_str + "[type='levels', field_space='None', "
+        isched_str + "[invoke='io_in_loop']\n"
+        "    0: " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n"
         "        " + lit_str + "[value:'1']\n"
         "        " + ref_str + "[name:'jpk']\n"
         "        " + lit_str + "[value:'1']\n"
         "        " + sched_str + "[]\n"
-        "            " + loop_str + "[type='lat', field_space='None', "
+        "            0: " + loop_str + "[type='lat', field_space='None', "
         "it_space='None']\n"
         "                " + lit_str + "[value:'1']\n"
         "                " + ref_str + "[name:'jpj']\n"
         "                " + lit_str + "[value:'1']\n"
         "                " + sched_str + "[]\n"
-        "                    " + loop_str + "[type='lon', field_space='None', "
-        "it_space='None']\n"
+        "                    0: " + loop_str + "[type='lon', "
+        "field_space='None', it_space='None']\n"
         "                        " + lit_str + "[value:'1']\n"
         "                        " + ref_str + "[name:'jpi']\n"
         "                        " + lit_str + "[value:'1']\n"
         "                        " + sched_str + "[]\n"
-        "                            " + kern_str + "[]\n")
+        "                            0: " + kern_str + "[]\n")
     assert expected_sched in output
 
 
 def test_kern_inside_if():
     ''' Check that we identify kernels when they are within an if block. '''
     from psyclone.psyGen import IfBlock
-    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
+    sched = invoke_info.schedule
     kerns = sched.coded_kernels()
     assert len(kerns) == 4
     ifblock = sched.children[0].loop_body[1]
@@ -376,9 +366,7 @@ def test_kern_sched_parents(parser):
 def test_no_inline():
     ''' Check that calling the NemoPSy.inline() method raises the expected
     error (since we haven't implemented it yet). '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("imperfect_nest.f90", api=API, idx=0)
     with pytest.raises(NotImplementedError) as err:
         psy.inline(None)
     assert ("The NemoPSy.inline method has not yet been implemented!"
@@ -388,9 +376,7 @@ def test_no_inline():
 def test_empty_routine():
     ''' Check that we handle the case where a program unit does not
     contain any executable statements. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "empty_routine.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("empty_routine.f90", api=API, idx=0)
     assert len(psy.invokes.invoke_list) == 1
     assert psy.invokes.invoke_list[0].schedule is None
     # Calling update() on this Invoke should do nothing
@@ -400,9 +386,7 @@ def test_empty_routine():
 def test_invoke_function():
     ''' Check that we successfully construct an Invoke if the program
     unit is a function. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "afunction.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("afunction.f90", api=API, idx=0)
     assert len(psy.invokes.invoke_list) == 1
     invoke = psy.invokes.invoke_list[0]
     assert invoke.name == "afunction"

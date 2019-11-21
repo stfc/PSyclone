@@ -34,8 +34,7 @@ PSyclone has been tested with Dawn master commit hash
 568375f8bf3bdb064d006d958323b1b8e31b726e on Monday 9th September 2019.
 
 This version contains a bug which causes the `if_example.f90` example to
-fail. There is an easy fix (see [#513](https://github.com/stfc/PSyclone/issues/513)) which has been reported to the
-Dawn developers.
+fail. This is fixed in the latest version of Dawn master.
 
 To build Dawn with Python support:
 
@@ -83,9 +82,6 @@ To build Dawn with Python support:
 7. Loops must be triply nested.
 8. Loops must be perfectly nested (no computation between different
    loop levels).
-9. The PSyclone generated code for the tridiagonal_solve example
-   currently fails when run with Dawn as PSyclone can not yet create
-   variables scoped within a vertical region.
 
 ## Licence
 

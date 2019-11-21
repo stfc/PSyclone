@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone DynamoExtractRegionTrans and
@@ -63,6 +64,21 @@ GOCEAN_API = "gocean1.0"
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
+
+
+def test_malformed_extract_node(monkeypatch):
+    ''' Check that we raise the expected error if an ExtractNode does not have
+    a single Schedule node as its child. '''
+    from psyclone.psyGen import Node, InternalError
+    enode = ExtractNode()
+    monkeypatch.setattr(enode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
 
 
 def test_node_list_error(tmpdir):
@@ -226,8 +242,8 @@ def test_loop_no_directive_dynamo0p3():
     schedule = invoke.schedule
     # Apply DynamoOMPParallelLoopTrans to the second Loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule.children[1])
-    loop = schedule.children[1].children[0]
+    schedule, _ = otrans.apply(schedule[1])
+    loop = schedule.children[1].dir_body[0]
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)
@@ -294,7 +310,7 @@ def test_no_colours_loop_dynamo0p3():
     colour_loop = schedule.children[0].loop_body[0]
     # Apply OMP Parallel DO Directive to the colour Loop
     schedule, _ = otrans.apply(colour_loop)
-    directive = schedule.children[0].children[0]
+    directive = schedule[0].loop_body
     # Try to extract the region between the Loop over cells in a colour
     # and the exterior Loop over colours
     with pytest.raises(TransformationError) as excinfo:
@@ -317,7 +333,7 @@ def test_no_outer_loop_gocean1p0():
     schedule = invoke.schedule
 
     # Try to extract the region between the outer and the inner Loop
-    inner_loop = schedule.children[0].children[0]
+    inner_loop = schedule[0].loop_body
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(inner_loop)
     assert ("GOcean1.0 API: Extraction of an inner Loop without its "

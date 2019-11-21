@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -48,7 +49,7 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyGen import colored, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import Node
 
 
 class ExtractNode(Node):
@@ -56,8 +57,24 @@ class ExtractNode(Node):
     This class can be inserted into a Schedule to mark Nodes for \
     code extraction using the ExtractRegionTrans transformation. By \
     applying the transformation the Nodes marked for extraction become \
-    children of an ExtractNode.
+    children of (the Schedule of) an ExtractNode.
+
+    :param ast: reference into the fparser2 parse tree corresponding to \
+                this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
+    :param children: the PSyIR nodes that are children of this node.
+    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
     '''
+    def __init__(self, ast=None, children=None, parent=None):
+        # An ExtractNode always contains a Schedule
+        sched = self._insert_schedule(children, ast)
+        super(ExtractNode, self).__init__(ast, [sched], parent)
+        self._text_name = "Extract"
+        self._colour_key = "Extract"
+
     def __str__(self):
         '''
         Returns a string representation of the subtree starting at the \
@@ -67,21 +84,27 @@ class ExtractNode(Node):
         :rtype: str
         '''
         result = "ExtractStart\n"
-        for child in self.children:
+        for child in self.extract_body:
             result += str(child) + "\n"
         return result + "ExtractEnd"
 
     @property
-    def coloured_text(self):
+    def extract_body(self):
         '''
-        Returns a string containing the name of this Node along with \
-        control characters for colouring in terminals that supports it.
+        :returns: the Schedule associated with this ExtractNode.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
 
-        :returns: the name of this Node, possibly with control codes for \
-                  colouring.
-        :rtype: str
+        :raises InternalError: if this node does not have a single Schedule as\
+                               its child.
         '''
-        return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
+        from psyclone.psyGen import Schedule, InternalError
+        if len(self.children) != 1 or not \
+           isinstance(self.children[0], Schedule):
+            raise InternalError(
+                "ExtractNode malformed or incomplete. It should have a single "
+                "Schedule as a child but found: {0}".format(
+                    [type(child).__name__ for child in self.children]))
+        return self.children[0]
 
     @property
     def dag_name(self):
@@ -92,17 +115,6 @@ class ExtractNode(Node):
         :rtype: str
         '''
         return "extract_" + str(self.position)
-
-    def view(self, indent=0):
-        '''
-        Prints a text representation of the Extract tree to stdout \
-        and then calls the view() method of any children.
-
-        :param int indent: depth of indent for output text.
-        '''
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
         '''
@@ -121,7 +133,7 @@ class ExtractNode(Node):
         parent.add(CommentGen(
             parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
-        for child in self.children:
+        for child in self.extract_body:
             child.gen_code(parent)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
