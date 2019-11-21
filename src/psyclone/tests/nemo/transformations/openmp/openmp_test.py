@@ -99,8 +99,10 @@ def test_omp_private_declaration():
     omp_parallel = TransInfo().get_trans_name('OMPParallelTrans')
 
     # Apply "omp parallel" around one assignment to a scalar variable
-    # and a loop using this variable as loop boundary.
-    omp_parallel.apply(schedule.children[0:2])
+    # and a loop using this variable as loop boundary. Parallelising an
+    # assignment statement is not allowed by default, so we need to disable
+    # the node type check in order to apply the omp parallel transform.
+    omp_parallel.apply(schedule.children[0:2], {'node-type-check': False})
     expected = "!$omp parallel default(shared), private(ji,jj,jk)"
 
     gen_code = str(psy.gen).lower()
