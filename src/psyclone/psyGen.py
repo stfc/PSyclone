@@ -6193,7 +6193,7 @@ class Literal(Node):
                                 "value that is a bool but got: {0}".format(
                                     type(lvalue).__name__))
         else:
-            if not isinstance(lvalue, str):
+            if not isinstance(lvalue, six.string_types):
                 raise TypeError("A non-boolean Literal must be supplied with "
                                 "a value encoded as a string but got: {0}".
                                 format(type(lvalue).__name__))
@@ -6209,8 +6209,9 @@ class Literal(Node):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return "{0}[value:'{1}']".format(self.coloured_name(colour),
-                                         self._value)
+        return "{0}[value:'{1}', '{2}']".format(
+            self.coloured_name(colour),
+            self._value, str(self.datatype))
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.

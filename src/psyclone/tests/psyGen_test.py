@@ -3351,14 +3351,14 @@ def test_literal_node_str():
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     literal = Literal("1", DataType.INTEGER)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert coloredtext+"[value:'1']" in literal.node_str()
+    assert coloredtext+"[value:'1', 'DataType.INTEGER']" in literal.node_str()
 
 
 def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1", DataType.INTEGER)
-    assert "Literal[value:'1']" in str(literal)
+    assert "Literal[value:'1', 'DataType.INTEGER']" in str(literal)
 
 
 # Test BinaryOperation class
@@ -3406,8 +3406,8 @@ def test_binaryoperation_can_be_printed():
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(binary_operation)
-    assert "Literal[value:'2']" in str(binary_operation)
+    assert "Literal[value:'1', 'DataType.INTEGER']\n" in str(binary_operation)
+    assert "Literal[value:'2', 'DataType.INTEGER']" in str(binary_operation)
 
 
 # Test UnaryOperation class
@@ -3451,7 +3451,7 @@ def test_unaryoperation_can_be_printed():
     op1 = Literal("1", DataType.INTEGER, parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert "Literal[value:'1']" in str(unary_operation)
+    assert "Literal[value:'1', 'DataType.INTEGER']" in str(unary_operation)
 
 
 def test_naryoperation_node_str():
@@ -3482,9 +3482,9 @@ def test_naryoperation_can_be_printed():
     nary_operation.addchild(Literal("3", DataType.INTEGER,
                                     parent=nary_operation))
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(nary_operation)
-    assert "Literal[value:'2']\n" in str(nary_operation)
-    assert "Literal[value:'3']" in str(nary_operation)
+    assert "Literal[value:'1', 'DataType.INTEGER']\n" in str(nary_operation)
+    assert "Literal[value:'2', 'DataType.INTEGER']\n" in str(nary_operation)
+    assert "Literal[value:'3', 'DataType.INTEGER']" in str(nary_operation)
 
 
 # Test Return class
