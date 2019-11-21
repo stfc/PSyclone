@@ -503,16 +503,21 @@ def test_process_declarations_intent(f2008_parser):
 
 def test_process_declarations_kind_new_param(f2008_parser):
     ''' Test that process_declarations handles variables declared with
-    an explicit KIND parameter that has not already been declared.
+    an explicit KIND parameter that has not already been declared. Also
+    check that the matching on the variable name is not case sensitive.
 
     '''
-    fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1")
+    fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1\n"
+                                                "real(kind=Wp) :: var2\n")
     assert isinstance(fake_parent.symbol_table.lookup("var1").precision,
                       DataSymbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
     assert wp_var.datatype == "integer"
     assert fake_parent.symbol_table.lookup("var1").precision is wp_var
+    # Check that, despite the difference in case, the second variable
+    # references the same 'wp' symbol.
+    assert fake_parent.symbol_table.lookup("var2").precision is wp_var
     # Check that we raise an error if the KIND expression has an unexpected
     # structure
     # Break the parse tree by changing Name('wp') into a str
@@ -757,6 +762,11 @@ def test_unresolved_array_size(f2008_parser):
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, UnresolvedInterface)
     assert dim_sym.datatype == "integer"
+    # Check that the lookup of the dimensioning symbol is not case sensitive
+    reader = FortranStringReader("real, dimension(N) :: array4")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(fake_parent, fparser2spec, [])
+    assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
 
 
 def test_use_stmt(f2008_parser):

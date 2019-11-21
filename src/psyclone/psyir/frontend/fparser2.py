@@ -479,8 +479,11 @@ class Fparser2Reader(object):
                     # Fortran does not regulate the order in which variables
                     # may be declared so it's possible for the shape
                     # specification of an array to reference variables that
-                    # come later in the list of declarations.
-                    dim_name = dim.items[1].string
+                    # come later in the list of declarations. The reference
+                    # may also be to a symbol present in a parent symbol table
+                    # (e.g. if the variable is declared in an outer, module
+                    # scope).
+                    dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
                         if sym.datatype != 'integer' or sym.shape:
@@ -553,7 +556,7 @@ class Fparser2Reader(object):
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 for name in decl.items[4].items:
                     parent.symbol_table.add(
-                        DataSymbol(str(name), datatype='deferred',
+                        DataSymbol(str(name).lower(), datatype='deferred',
                                    interface=GlobalInterface(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
@@ -657,8 +660,10 @@ class Fparser2Reader(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                if str(name) not in parent.symbol_table:
-                    parent.symbol_table.add(DataSymbol(str(name), datatype,
+                sym_name = str(name).lower()
+
+                if sym_name not in parent.symbol_table:
+                    parent.symbol_table.add(DataSymbol(sym_name, datatype,
                                                        shape=entity_shape,
                                                        constant_value=ct_value,
                                                        interface=interface,
@@ -666,18 +671,18 @@ class Fparser2Reader(object):
                 else:
                     # The symbol table already contains an entry with this name
                     # so update its interface information.
-                    sym = parent.symbol_table.lookup(str(name))
+                    sym = parent.symbol_table.lookup(sym_name)
                     if not sym.unresolved_interface:
                         raise SymbolError(
                             "Symbol '{0}' already present in SymbolTable with "
                             "a defined interface ({1}).".format(
-                                str(name), str(sym.interface)))
+                                sym_name, str(sym.interface)))
                     sym.interface = interface
 
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
-            for arg_name in [x.string for x in arg_list]:
+            for arg_name in [x.string.lower() for x in arg_list]:
                 symbol = parent.symbol_table.lookup(arg_name)
                 if symbol.is_local:
                     # We didn't previously know that this Symbol was an
@@ -703,7 +708,7 @@ class Fparser2Reader(object):
         for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
-                symbol = parent.symbol_table.lookup(fn_name.string)
+                symbol = parent.symbol_table.lookup(fn_name.string.lower())
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
@@ -717,7 +722,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(array_name.string, parent=assignment)
+                    lhs = Array(array_name.string.lower(), parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript,
                                        nodes_parent=arg_list)
                     assignment.addchild(lhs)
@@ -832,22 +837,23 @@ class Fparser2Reader(object):
         :raises TypeError: if the Symbol Table already contains an entry for \
                        `name` and its datatype is not 'integer' or 'deferred'.
         '''
+        lower_name = name.lower()
         try:
-            kind_symbol = symbol_table.lookup(name)
-            if kind_symbol.datatype != "integer":
-                if kind_symbol.datatype != "deferred":
-                    raise TypeError(
-                        "SymbolTable already contains an entry for "
-                        "variable '{0}' used as a kind parameter but its "
-                        "type ('{1}') is not 'deferred' or 'integer'.".
-                        format(name, kind_symbol.datatype))
-                # Existing symbol had 'deferred' type
-                kind_symbol.datatype = "integer"
+            kind_symbol = symbol_table.lookup(lower_name)
+            if kind_symbol.datatype not in ["integer", "deferred"]:
+                raise TypeError(
+                    "SymbolTable already contains an entry for "
+                    "variable '{0}' used as a kind parameter but its "
+                    "type ('{1}') is not 'deferred' or 'integer'.".
+                    format(lower_name, kind_symbol.datatype))
+            # A KIND parameter must be of type integer so set it here (in case
+            # it was previously 'deferred')
+            kind_symbol.datatype = "integer"
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(name, "integer",
+            kind_symbol = DataSymbol(lower_name, "integer",
                                      interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
