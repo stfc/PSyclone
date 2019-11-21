@@ -59,6 +59,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
     CodedKern, ACCEnterDataDirective
+from psyclone.psyir.nodes import DataType
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -5643,9 +5644,11 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # stop
+        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         # At this stage we don't know what our loop bounds are
@@ -6168,8 +6171,10 @@ class DynLoop(Loop):
 
         # Generate the upper and lower loop bounds
         # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
-        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
-        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+        self.start_expr = Literal(self._lower_bound_fortran(),
+                                  DataType.INTEGER, parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(),
+                                 DataType.INTEGER, parent=self)
 
         Loop.gen_code(self, parent)
 

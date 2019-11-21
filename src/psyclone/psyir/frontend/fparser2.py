@@ -46,6 +46,7 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
+from psyclone.psyir.nodes import DataType
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
 
@@ -998,7 +999,7 @@ class Fparser2Reader(object):
                                nodes_parent=ctrl)
         else:
             # Default loop increment is 1
-            default_step = Literal("1", parent=loop)
+            default_step = Literal("1", DataType.INTEGER, parent=loop)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -1604,16 +1605,17 @@ class Fparser2Reader(object):
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
             # Add loop lower bound
-            loop.addchild(Literal("1", parent=loop))
+            loop.addchild(Literal("1", DataType.INTEGER, parent=loop))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
             size_node.addchild(Reference(arrays[0].name, parent=size_node))
-            size_node.addchild(Literal(str(idx), parent=size_node))
+            size_node.addchild(Literal(str(idx), DataType.INTEGER,
+                                       parent=size_node))
             # Add loop increment
-            loop.addchild(Literal("1", parent=loop))
+            loop.addchild(Literal("1", DataType.INTEGER, parent=loop))
             # Fourth child of a Loop must be a Schedule
             sched = Schedule(parent=loop)
             loop.addchild(sched)
@@ -1956,9 +1958,8 @@ class Fparser2Reader(object):
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
-        '''
-        from psyclone.psyGen import DataType
 
+        '''
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)
         elif isinstance(node, Fortran2003.Real_Literal_Constant):
@@ -1978,8 +1979,8 @@ class Fparser2Reader(object):
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
+
         '''
-        from psyclone.psyGen import DataType
         return Literal(str(node.items[0]), DataType.CHARACTER, parent=parent)
 
     def _bool_literal_handler(self, node, parent):
@@ -1993,7 +1994,7 @@ class Fparser2Reader(object):
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
+
         '''
-        from psyclone.psyGen import DataType
         value = str(node.items[0]).lower() == ".true."
         return Literal(value, DataType.BOOLEAN, parent=parent)

@@ -42,7 +42,8 @@ from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
-    Schedule
+    Schedule, Array
+from psyclone.psyir.nodes import DataType
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -241,9 +242,11 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # stop
+        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def load(self, kern):
@@ -257,11 +260,11 @@ class DynLoop(Loop):
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and then call the base
             class to generate the code '''
-        self.start_expr = Literal("1", parent=self)
+        self.start_expr = Literal("1", DataType.INTEGER, parent=self)
         if self._loop_type == "colours":
             self.stop_expr = Reference("ncolour", parent=self)
         elif self._loop_type == "colour":
-            self.stop_expr = ArrayReference("ncp_ncolour", parent=self)
+            self.stop_expr = Array("ncp_ncolour", parent=self)
             self.stop_expr.addchild(Reference("colour"), parent=self.stop_expr)
         else:
             self.stop_expr = Reference(self.field_name+"%get_ncell()",

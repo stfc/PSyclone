@@ -47,6 +47,7 @@ from psyclone.psyGen import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
+from psyclone.psyir.nodes import DataType
 
 
 def test_cw_gen_declaration():
@@ -135,17 +136,17 @@ def test_cw_literal():
 
     cwriter = CWriter()
 
-    lit = Literal('1')
+    lit = Literal('1', DataType.INTEGER)
     assert cwriter(lit) == '1'
 
     # Test that D scientific notation is replaced by 'e'
-    lit = Literal("3e5", None)
+    lit = Literal("3e5", DataType.REAL, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3d5", None)
+    lit = Literal("3d5", DataType.REAL, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3D5", None)
+    lit = Literal("3D5", DataType.REAL, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3D+5", None)
+    lit = Literal("3D+5", DataType.REAL, None)
     assert cwriter(lit) == '3e+5'
 
 
@@ -184,7 +185,7 @@ def test_cw_array():
 
     assignment = Assignment()
     arr = Array('a', parent=assignment)
-    lit = Literal('0.0', parent=assignment)
+    lit = Literal('0.0', DataType.REAL, parent=assignment)
     assignment.addchild(arr)
     assignment.addchild(lit)
 
@@ -196,9 +197,9 @@ def test_cw_array():
 
     # Dimensions can be references, literals or operations
     arr.addchild(Reference('b', parent=arr))
-    arr.addchild(Literal('1', parent=arr))
+    arr.addchild(Literal('1', DataType.INTEGER, parent=arr))
     uop = UnaryOperation(UnaryOperation.Operator.MINUS, parent=arr)
-    uop.addchild(Literal('2', parent=uop))
+    uop.addchild(Literal('2', DataType.INTEGER, parent=uop))
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -294,7 +295,7 @@ def test_cw_unaryoperator():
            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
-    ref1 = Literal("a", unary_operation)
+    ref1 = Literal("a", DataType.CHARACTER, unary_operation)
     unary_operation.addchild(ref1)
     assert cwriter(unary_operation) == '(-a)'
 
@@ -424,7 +425,7 @@ def test_cw_size():
     assignment.addchild(lhs)
     assignment.addchild(size)
     arr = Array('a', parent=size)
-    lit = Literal('1', parent=size)
+    lit = Literal('1', DataType.INTEGER, parent=size)
     size.addchild(arr)
     size.addchild(lit)
 

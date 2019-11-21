@@ -42,7 +42,6 @@
 from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
-from collections import OrderedDict
 import re
 import six
 from fparser.two import Fortran2003
@@ -50,6 +49,7 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import SymbolTable, SymbolError
+from psyclone.psyir.nodes import DataType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -6199,7 +6199,6 @@ class Literal(Node):
                                 format(type(lvalue).__name__))
         self._value = lvalue
 
-    @property
     def node_str(self, colour=True):
         '''
         Construct a text representation of this node, optionally containing

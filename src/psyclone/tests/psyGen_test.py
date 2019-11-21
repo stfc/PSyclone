@@ -58,6 +58,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
     ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
 from psyclone.psyir.symbols import DataSymbol, SymbolTable
+from psyclone.psyir.nodes import DataType
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Kern, Arguments, CodedKern
@@ -2983,9 +2984,9 @@ def test_loop_navigation_properties():
     assert "Only PSyIR nodes can be assigned as the Loop step expression" \
         ", but found '" in str(err.value)
 
-    loop.addchild(Literal("start", parent=loop))
-    loop.addchild(Literal("stop", parent=loop))
-    loop.addchild(Literal("step", parent=loop))
+    loop.addchild(Literal("start", DataType.INTEGER, parent=loop))
+    loop.addchild(Literal("stop", DataType.INTEGER, parent=loop))
+    loop.addchild(Literal("step", DataType.INTEGER, parent=loop))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -3001,17 +3002,17 @@ def test_loop_navigation_properties():
         _ = loop.loop_body
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("invalid", parent=loop)
+        loop.start_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("invalid", parent=loop)
+        loop.stop_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("invalid", parent=loop)
+        loop.step_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
 
     # The fourth child has to be a Schedule
-    loop.addchild(Literal("loop_body", parent=loop))
+    loop.addchild(Literal("loop_body", DataType.INTEGER, parent=loop))
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
     assert "Loop malformed or incomplete. Fourth child should be a " \
@@ -3028,9 +3029,9 @@ def test_loop_navigation_properties():
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("newstart", parent=loop)
-    loop.stop_expr = Literal("newstop", parent=loop)
-    loop.step_expr = Literal("newstep", parent=loop)
+    loop.start_expr = Literal("newstart", DataType.INTEGER, parent=loop)
+    loop.stop_expr = Literal("newstop", DataType.INTEGER, parent=loop)
+    loop.step_expr = Literal("newstep", DataType.INTEGER, parent=loop)
 
     assert loop.start_expr.value == "newstart"
     assert loop.stop_expr.value == "newstop"
@@ -3062,7 +3063,7 @@ def test_loop_gen_code():
 
     # Change step to 2
     loop = psy.invokes.get('invoke_important_invoke').schedule[3]
-    loop.step_expr = Literal("2", parent=loop)
+    loop.step_expr = Literal("2", DataType.INTEGER, parent=loop)
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end
     gen = str(psy.gen)
@@ -3225,7 +3226,7 @@ def test_assignment_semantic_navigation():
     assert " malformed or incomplete. It needs at least 2 children to have " \
         "a rhs." in str(err)
 
-    lit = Literal("1", assignment)
+    lit = Literal("1", DataType.INTEGER, assignment)
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]
@@ -3341,14 +3342,14 @@ def test_literal_value():
     '''Test the value property returns the value of the Literal object.
 
     '''
-    literal = Literal("1")
+    literal = Literal("1", DataType.INTEGER)
     assert literal.value == "1"
 
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    literal = Literal("1")
+    literal = Literal("1", DataType.INTEGER)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert coloredtext+"[value:'1']" in literal.node_str()
 
@@ -3356,7 +3357,7 @@ def test_literal_node_str():
 def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
-    literal = Literal("1")
+    literal = Literal("1", DataType.INTEGER)
     assert "Literal[value:'1']" in str(literal)
 
 
@@ -3386,8 +3387,8 @@ def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    op1 = Literal("1", parent=binary_operation)
-    op2 = Literal("1", parent=binary_operation)
+    op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
+    op2 = Literal("1", DataType.INTEGER, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation",
@@ -3400,8 +3401,8 @@ def test_binaryoperation_can_be_printed():
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
-    op1 = Literal("1", parent=binary_operation)
-    op2 = Literal("2", parent=binary_operation)
+    op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
+    op2 = Literal("2", DataType.INTEGER, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
@@ -3447,7 +3448,7 @@ def test_unaryoperation_can_be_printed():
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
-    op1 = Literal("1", parent=unary_operation)
+    op1 = Literal("1", DataType.INTEGER, parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
     assert "Literal[value:'1']" in str(unary_operation)
@@ -3457,9 +3458,12 @@ def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    nary_operation.addchild(Literal("1", parent=nary_operation))
-    nary_operation.addchild(Literal("1", parent=nary_operation))
-    nary_operation.addchild(Literal("1", parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
 
     coloredtext = colored("NaryOperation",
                           SCHEDULE_COLOUR_MAP["Operation"])
@@ -3471,9 +3475,12 @@ def test_naryoperation_can_be_printed():
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     assert "NaryOperation[operator:'MAX']" in str(nary_operation)
-    nary_operation.addchild(Literal("1", parent=nary_operation))
-    nary_operation.addchild(Literal("2", parent=nary_operation))
-    nary_operation.addchild(Literal("3", parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("2", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("3", DataType.INTEGER,
+                                    parent=nary_operation))
     # Check the node children are also printed
     assert "Literal[value:'1']\n" in str(nary_operation)
     assert "Literal[value:'2']\n" in str(nary_operation)
@@ -3555,7 +3562,7 @@ def test_kernelschedule_view(capsys):
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", parent=assignment)
+    rhs = Literal("1", DataType.INTEGER, parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
     kschedule.view()
@@ -3574,7 +3581,7 @@ def test_kernelschedule_can_be_printed():
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", parent=assignment)
+    rhs = Literal("1", DataType.INTEGER, parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
     assert "Schedule[name:'kname']:\n" in str(kschedule)

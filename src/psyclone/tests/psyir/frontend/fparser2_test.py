@@ -43,7 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
+    NaryOperation, IfBlock, Reference, Array, KernelSchedule, \
     Container, InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface
@@ -1708,17 +1708,17 @@ def test_nodes_to_code_block_3(f2008_parser):
     structure property set to expression.
 
     '''
-    # The string "HELLO" is currently a code block in the PSyIR
+    # The derived-type reference is currently a code block in the PSyIR
     reader = FortranStringReader('''
         program test
-        if (a == "HELLO") then
+        if (a%text == "HELLO") then
         end if
         end program test
         ''')
     prog = f2008_parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
     schedule = psy.invokes.invoke_list[0].schedule
-    code_block = schedule[0].condition.children[1]
+    code_block = schedule[0].condition.children[0]
     assert isinstance(code_block, CodeBlock)
     assert code_block.structure == CodeBlock.Structure.EXPRESSION
 

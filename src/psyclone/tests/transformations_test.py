@@ -41,6 +41,7 @@ API-agnostic tests for various transformation classes.
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.transformations import TransformationError
+from psyclone.psyir.nodes import DataType
 
 
 def test_accloop():
@@ -148,9 +149,9 @@ def test_fusetrans_error_incomplete():
     assert "Error in LoopFuse transformation. The first loop does not have " \
         "4 children." in str(err.value)
 
-    loop1.addchild(Literal("start", parent=loop1))
-    loop1.addchild(Literal("stop", parent=loop1))
-    loop1.addchild(Literal("step", parent=loop1))
+    loop1.addchild(Literal("start", DataType.INTEGER, parent=loop1))
+    loop1.addchild(Literal("stop", DataType.INTEGER, parent=loop1))
+    loop1.addchild(Literal("step", DataType.INTEGER, parent=loop1))
     loop1.addchild(Schedule(parent=loop1))
     loop1.loop_body.addchild(Return(parent=loop1.loop_body))
 
@@ -160,9 +161,9 @@ def test_fusetrans_error_incomplete():
     assert "Error in LoopFuse transformation. The second loop does not have " \
         "4 children." in str(err.value)
 
-    loop2.addchild(Literal("start", parent=loop2))
-    loop2.addchild(Literal("stop", parent=loop2))
-    loop2.addchild(Literal("step", parent=loop2))
+    loop2.addchild(Literal("start", DataType.INTEGER, parent=loop2))
+    loop2.addchild(Literal("stop", DataType.INTEGER, parent=loop2))
+    loop2.addchild(Literal("step", DataType.INTEGER, parent=loop2))
     loop2.addchild(Schedule(parent=loop2))
     loop2.loop_body.addchild(Return(parent=loop2.loop_body))
 
@@ -183,14 +184,14 @@ def test_fusetrans_error_not_same_parent():
     sch1.addchild(loop1)
     sch2.addchild(loop2)
 
-    loop1.addchild(Literal("1", parent=loop1))  # start
-    loop1.addchild(Literal("10", parent=loop1))  # stop
-    loop1.addchild(Literal("1", parent=loop1))  # step
+    loop1.addchild(Literal("1", DataType.INTEGER, parent=loop1))  # start
+    loop1.addchild(Literal("10", DataType.INTEGER, parent=loop1))  # stop
+    loop1.addchild(Literal("1", DataType.INTEGER, parent=loop1))  # step
     loop1.addchild(Schedule(parent=loop1))  # loop body
 
-    loop2.addchild(Literal("1", parent=loop2))  # start
-    loop2.addchild(Literal("10", parent=loop2))  # stop
-    loop2.addchild(Literal("1", parent=loop2))  # step
+    loop2.addchild(Literal("1", DataType.INTEGER, parent=loop2))  # start
+    loop2.addchild(Literal("10", DataType.INTEGER, parent=loop2))  # stop
+    loop2.addchild(Literal("1", DataType.INTEGER, parent=loop2))  # step
     loop2.addchild(Schedule(parent=loop2))  # loop body
 
     fuse = LoopFuseTrans()
@@ -212,9 +213,9 @@ def test_regiontrans_wrong_children():
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
     parent = Loop(parent=None)
-    parent.addchild(Literal("1", parent))
-    parent.addchild(Literal("10", parent))
-    parent.addchild(Literal("1", parent))
+    parent.addchild(Literal("1", DataType.INTEGER, parent))
+    parent.addchild(Literal("10", DataType.INTEGER, parent))
+    parent.addchild(Literal("1", DataType.INTEGER, parent))
     parent.addchild(Schedule(parent=parent))
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)

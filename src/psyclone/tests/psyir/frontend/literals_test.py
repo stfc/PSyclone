@@ -41,7 +41,8 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyGen import Node, Literal, CodeBlock, DataType
+from psyclone.psyir.nodes import DataType
+from psyclone.psyGen import Node, Literal, CodeBlock
 
 
 @pytest.mark.parametrize("code, dtype", [("'hello'", DataType.CHARACTER),
