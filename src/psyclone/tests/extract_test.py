@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone DynamoExtractRegionTrans and
@@ -63,6 +64,21 @@ GOCEAN_API = "gocean1.0"
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
+
+
+def test_malformed_extract_node(monkeypatch):
+    ''' Check that we raise the expected error if an ExtractNode does not have
+    a single Schedule node as its child. '''
+    from psyclone.psyGen import Node, InternalError
+    enode = ExtractNode()
+    monkeypatch.setattr(enode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
 
 
 def test_node_list_error(tmpdir):

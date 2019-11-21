@@ -1372,12 +1372,7 @@ class Node(object):
         :param int index: the position of this Node wrt its siblings or None.
 
         '''
-        # TODO #542 remove ProfileNode and ExtractNode from this check once
-        # they each have a Schedule.
-        from psyclone.profiler import ProfileNode
-        from psyclone.extractor import ExtractNode
-        if not isinstance(self.parent, (Schedule, ProfileNode, ExtractNode)) \
-           or index is None:
+        if not isinstance(self.parent, Schedule) or index is None:
             print("{0}{1}".format(self.indent(indent),
                                   self.node_str(colour=True)))
         else:
@@ -1671,6 +1666,32 @@ class Node(object):
         for child in self._children:
             child.reference_accesses(var_accesses)
 
+    def _insert_schedule(self, children=None, ast=None):
+        '''
+        Utility method to insert a Schedule between this Node and the
+        supplied list of children.
+
+        :param children: nodes which will become children of the \
+                         new Schedule.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param ast: reference to fparser2 parse tree for associated \
+                    Fortran code.
+        :type ast: :py:class:`fparser.two.utils.Base`
+
+        :returns: the new Schedule node.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        '''
+        sched = Schedule(children=children, parent=self)
+        if children:
+            # If we have children then set the Schedule's AST pointer to
+            # point to the AST associated with them.
+            sched.ast = children[0].ast
+            for child in children:
+                child.parent = sched
+        else:
+            sched.ast = ast
+        return sched
+
 
 class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
@@ -1956,15 +1977,7 @@ class Directive(Node):
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
-        sched = Schedule(children=children, parent=self)
-        if children:
-            # If we have children then set the Schedule's AST pointer to
-            # point to the AST associated with them.
-            sched.ast = children[0].ast
-            for child in children:
-                child.parent = sched
-        else:
-            sched.ast = ast
+        sched = self._insert_schedule(children, ast)
         super(Directive, self).__init__(ast, children=[sched], parent=parent)
         self._text_name = "Directive"
         self._colour_key = "Directive"
