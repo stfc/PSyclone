@@ -2920,18 +2920,17 @@ class ProfileRegionTrans(RegionTrans):
 
         keep = Memento(schedule, self)
 
+        # Create the ProfileNode. All of the supplied child nodes will have
+        # the Profile's Schedule as their parent.
         from psyclone.profiler import ProfileNode
         profile_node = ProfileNode(parent=node_parent, children=node_list[:])
 
-        # Change all of the affected children so that they have
-        # the ProfileNode as their parent. Use a slice
-        # of the list of nodes so that we're looping over a local
-        # copy of the list. Otherwise things get confused when
-        # we remove children from the list.
+        # Correct the parent's list of children. Use a slice of the list of
+        # nodes so that we're looping over a local copy of the list. Otherwise
+        # things get confused when we remove children from the list.
         for child in node_list[:]:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
-            child.parent = profile_node
 
         # Add the Profile node as a child of the parent
         # of the nodes being enclosed and at the original location
