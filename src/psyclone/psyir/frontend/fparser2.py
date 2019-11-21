@@ -47,7 +47,7 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolError, \
-    GlobalInterface, ArgumentInterface, DeferredInterface, LocalInterface
+    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -482,7 +482,7 @@ class Fparser2Reader(object):
                     # come later in the list of declarations.
                     dim_name = dim.items[1].string
                     try:
-                        sym = symbol_table.lookup(dim.items[1].string)
+                        sym = symbol_table.lookup(dim_name)
                         if sym.datatype != 'integer' or sym.shape:
                             _unsupported_type_error(dimensions)
                     except KeyError:
@@ -490,7 +490,7 @@ class Fparser2Reader(object):
                         # one with a deferred interface (since we don't
                         # currently know where it is declared).
                         sym = DataSymbol(dim_name, "integer",
-                                         interface=DeferredInterface())
+                                         interface=UnresolvedInterface())
                         symbol_table.add(sym)
                     shape.append(sym)
                 else:
@@ -667,7 +667,7 @@ class Fparser2Reader(object):
                     # The symbol table already contains an entry with this name
                     # so update its interface information.
                     sym = parent.symbol_table.lookup(str(name))
-                    if not sym.interface_unknown:
+                    if not sym.unresolved_interface:
                         raise SymbolError(
                             "Symbol '{0}' already present in SymbolTable with "
                             "a defined interface ({1}).".format(
@@ -845,10 +845,10 @@ class Fparser2Reader(object):
                 kind_symbol.datatype = "integer"
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
-            # so create one. We specify a DeferredInterface as we don't
+            # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
             kind_symbol = DataSymbol(name, "integer",
-                                     interface=DeferredInterface())
+                                     interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
 

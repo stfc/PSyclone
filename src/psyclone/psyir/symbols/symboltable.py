@@ -230,28 +230,30 @@ class SymbolTable(object):
                         "yet has an ArgumentInterface interface."
                         "".format(str(symbol)))
 
-    def get_unlinked_datasymbols(self, ignore_precision=True):
+    def get_unresolved_datasymbols(self, ignore_precision=False):
         '''
         Create a list of the names of all of the Symbols in the table that
         do not have a resolved interface. If ignore_precision is True then
         those Symbols that are used to define the precision of other Symbols
-        are ignored. If no un-resolved Symbols are found then an empty list
+        are ignored. If no unresolved Symbols are found then an empty list
         is returned.
 
         :param bool ignore_precision: whether or not to ignore Symbols that \
                             are used to define the precision of other Symbols.
 
-        :returns: the names of those Symbols with deferred interfaces.
+        :returns: the names of those Symbols with unresolved interfaces.
         :rtype: list of str
 
         '''
-        unlinked_symbols = set(self.unresolved_datasymbols)
+        unresolved_symbols = set([sym for sym in self.datasymbols
+                                if sym.unresolved_interface])
         if ignore_precision:
             precision_symbols = set(self.precision_datasymbols)
-            unlinked_datasymbols = list(unlinked_symbols - precision_symbols)
+            unresolved_datasymbols = list(unresolved_symbols -
+                                          precision_symbols)
         else:
-            unlinked_datasymbols = list(unlinked_symbols)
-        return [sym.name for sym in unlinked_datasymbols]
+            unresolved_datasymbols = list(unresolved_symbols)
+        return [sym.name for sym in unresolved_datasymbols]
 
     @property
     def symbols(self):
@@ -295,16 +297,6 @@ class SymbolTable(object):
 
         '''
         return [sym for sym in self.datasymbols if sym.is_global]
-
-    @property
-    def unresolved_datasymbols(self):
-        '''
-        :returns: list of symbols that have an unknown interface (i.e. we \
-                  don't know how they are brought into scope).
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        '''
-        return [sym for sym in self.datasymbols if sym.interface_unknown]
 
     @property
     def precision_datasymbols(self):

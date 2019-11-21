@@ -200,16 +200,16 @@ class OpenCLWriter(CWriter):
         # comes from.  TODO #592 ultimately precision symbols should
         # be included in this check too as we will need to be able to
         # map from them to the equivalent OpenCL type.
-        unlinked_datasymbols = symtab.get_unlinked_datasymbols(
+        unresolved_datasymbols = symtab.get_unresolved_datasymbols(
             ignore_precision=True)
-        if unlinked_datasymbols:
+        if unresolved_datasymbols:
             symbols_txt = ", ".join(
-                ["'" + sym + "'" for sym in unlinked_datasymbols])
+                ["'" + sym + "'" for sym in unresolved_datasymbols])
             raise VisitorError(
                 "Cannot generate OpenCL because the symbol table contains "
-                "entries with no defined Interface and which are not "
-                "used purely to define the precision of other symbols: {0}".
-                format(symbols_txt))
+                "unresolved entries (i.e. that have no defined Interface) "
+                "which are not used purely to define the precision of other "
+                "symbols: {0}".format(symbols_txt))
 
         # Start OpenCL kernel definition
         code = self._nindent

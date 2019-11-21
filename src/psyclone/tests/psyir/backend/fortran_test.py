@@ -46,7 +46,7 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
 from psyclone.psyGen import Node, CodeBlock, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, DeferredInterface
+    GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -297,12 +297,12 @@ def test_fw_gen_vardecl(fort_writer):
 
     # An unresolved symbol
     symbol = DataSymbol("dummy1", "deferred",
-                        interface=DeferredInterface())
+                        interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'DeferredInterface' interface."
-            in str(excinfo.value))
+            "an Argument interface but found a 'UnresolvedInterface' "
+            "interface." in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):
@@ -335,7 +335,7 @@ def test_gen_decls(fort_writer):
 
     # Add a symbol with a deferred (unknown) interface
     symbol_table.add(DataSymbol("unknown", "integer",
-                                interface=DeferredInterface()))
+                                interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "

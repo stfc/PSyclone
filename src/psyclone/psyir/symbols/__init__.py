@@ -38,7 +38,7 @@
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
-    GlobalInterface, ArgumentInterface, DeferredInterface
+    GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
 
@@ -51,5 +51,5 @@ __all__ = ['Symbol',
            'LocalInterface',
            'GlobalInterface',
            'ArgumentInterface',
-           'DeferredInterface',
+           'UnresolvedInterface',
            'ContainerSymbol']

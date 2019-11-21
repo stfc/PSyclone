@@ -748,14 +748,14 @@ def test_deferred_array_size(f2008_parser):
 def test_unresolved_array_size(f2008_parser):
     ''' Check that we handle the case where we do not find an explicit
     declaration of a symbol used in the definition of an array extent. '''
-    from psyclone.psyir.symbols import DeferredInterface
+    from psyclone.psyir.symbols import UnresolvedInterface
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, dimension(n) :: array3")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
     dim_sym = fake_parent.symbol_table.lookup("n")
-    assert isinstance(dim_sym.interface, DeferredInterface)
+    assert isinstance(dim_sym.interface, UnresolvedInterface)
     assert dim_sym.datatype == "integer"
 
 

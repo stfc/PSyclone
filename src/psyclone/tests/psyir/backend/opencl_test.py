@@ -41,7 +41,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import KernelSchedule, Return
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    ArgumentInterface, DeferredInterface
+    ArgumentInterface, UnresolvedInterface
 
 
 def test_oclw_initialization():
@@ -229,8 +229,9 @@ def test_oclw_kernelschedule():
     # Add a symbol with a deferred interface and check that this raises the
     # expected error
     kschedule.symbol_table.add(DataSymbol('broken', 'real', [10, 10],
-                                          interface=DeferredInterface()))
+                                          interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as err:
         _ = oclwriter(kschedule)
-    assert ("symbol table contains entries with no defined Interface"
-            in str(err.value))
+    assert ("symbol table contains unresolved entries (i.e. that have no "
+            "defined Interface) which are not used purely to define the "
+            "precision of other symbols: 'broken'" in str(err.value))

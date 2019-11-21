@@ -306,7 +306,10 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if args_allowed is False and one or more \
-        argument declarations exist in symbol_table.
+                              argument declarations exist in symbol_table.
+        :raises VisitorError: if any symbols representing variables (i.e. \
+            not kind parameters) without an explicit declaration or 'use' \
+            are encountered.
 
         '''
         declarations = ""
@@ -314,10 +317,11 @@ class FortranWriter(PSyIRVisitor):
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
         # are not KIND parameters?
-        unlinked_datasymbols = symbol_table.get_unlinked_datasymbols()
-        if unlinked_datasymbols:
+        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols(
+            ignore_precision=True)
+        if unresolved_datasymbols:
             symbols_txt = ", ".join(
-                ["'" + sym + "'" for sym in unlinked_datasymbols])
+                ["'" + sym + "'" for sym in unresolved_datasymbols])
             raise VisitorError(
                 "The following symbols are not explicitly declared or imported"
                 " from a module (in the local scope) and are not KIND "
