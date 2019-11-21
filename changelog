@@ -21,6 +21,9 @@
 	a separate sub-module and adds support for parameter declarations
 	and the functionality to resolve deferred datatypes.
 
+        7) PR #559 for #483. Introduces new InlinedKernel class and
+	uses this as the base class for all NEMO kernels.
+
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel
