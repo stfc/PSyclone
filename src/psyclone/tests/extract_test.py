@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone DynamoExtractRegionTrans and

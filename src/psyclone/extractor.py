@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -104,7 +105,7 @@ class ExtractNode(Node):
                 "Schedule as a child but found: {0}".format(
                     [type(child).__name__ for child in self.children]))
         return self.children[0]
-        
+
     @property
     def dag_name(self):
         '''

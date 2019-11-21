@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -70,11 +71,11 @@ def test_malformed_profile_node(monkeypatch):
     pnode = ProfileNode()
     monkeypatch.setattr(pnode, "_children", [])
     with pytest.raises(InternalError) as err:
-        pnode.profile_body
+        _ = pnode.profile_body
     assert "malformed or incomplete. It should have a " in str(err.value)
     monkeypatch.setattr(pnode, "_children", [Node(), Node()])
     with pytest.raises(InternalError) as err:
-        pnode.profile_body
+        _ = pnode.profile_body
     assert "malformed or incomplete. It should have a " in str(err.value)
 
 
