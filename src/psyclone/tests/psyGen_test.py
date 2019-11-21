@@ -2957,8 +2957,9 @@ def test_codeblock_structure(structure):
 def test_loop_navigation_properties():
     # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
-    setter and getter properties'''
-    # pylint: disable=too-many-statements
+    setter and getter properties.
+
+    '''
     loop = Loop()
 
     # Properties return an error if the node is incomplete
@@ -3612,3 +3613,26 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
     assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
+
+
+def test_walk():
+    '''Tests the walk functionality.'''
+
+    # This function contains only umask(ji,jj,jk) = ji*jj*jk/r
+    _, invoke = get_invoke("explicit_do.f90", "nemo", 0)
+
+    # Test without stop type: one assignment
+    assignment_list = invoke.schedule.walk(Assignment)
+    assert len(assignment_list) == 1
+
+    # Three binary operators: *, *, /
+    binary_op_list = invoke.schedule.walk(BinaryOperation)
+    assert len(binary_op_list) == 3
+
+    # Now the same tests, but stop at any Kern --> no assignment
+    # or binary operation should be found"
+    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assert not assignment_list
+
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    assert not binary_op_list

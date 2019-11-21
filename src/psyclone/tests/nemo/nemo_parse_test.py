@@ -36,7 +36,6 @@
 ''' Module containing py.test tests for the parsing of NEMO code. '''
 
 from __future__ import print_function, absolute_import
-import os
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.utils import walk_ast
@@ -44,9 +43,6 @@ from fparser.two import Fortran2003
 
 # Constants
 API = "nemo"
-# Location of the Fortran files associated with these tests
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files")
 
 
 def test_identify_implicit_loop(parser):

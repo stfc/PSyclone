@@ -106,6 +106,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "HaloExchangeEnd": "yellow",
                        "BuiltIn": "magenta",
                        "CodedKern": "magenta",
+                       "InlinedKern": "magenta",
                        "Profile": "green",
                        "Extract": "green",
                        "If": "red",
@@ -1502,15 +1503,23 @@ class Node(object):
             return True
         return False
 
-    def walk(self, my_type):
+    def walk(self, my_type, stop_type=None):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
-        instances of any classes in the tuple.
+        instances of any classes in the tuple. The recursion into the tree
+        is stopped if an instance of 'stop_type' (which is either a single
+        class or a tuple of classes) is found. This can be used to avoid
+        analysing e.g. inlined kernels, or as performance optimisation to
+        reduce the number of recursive calls.
 
         :param my_type: the class(es) for which the instances are collected.
-        :type my_type: either a single :py:class:`psyclone.Node` class\
-            or a tuple of such classes.
+        :type my_type: either a single :py:class:`psyclone.Node` class \
+            or a tuple of such classes
+        :param stop_type: class(es) at which recursion is halted (optional)."
+
+        :type stop_type: None or a single :py:class:`psyclone.Node` \
+            class or a tuple of such classes
 
         :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
@@ -1519,8 +1528,13 @@ class Node(object):
         local_list = []
         if isinstance(self, my_type):
             local_list.append(self)
+
+        # Stop recursion further into the tree if an instance of a class
+        # listed in stop_type is found.
+        if stop_type and isinstance(self, stop_type):
+            return local_list
         for child in self.children:
-            local_list += child.walk(my_type)
+            local_list += child.walk(my_type, stop_type)
         return local_list
 
     def ancestor(self, my_type, excluding=None):
@@ -1590,8 +1604,8 @@ class Node(object):
 
     def coded_kernels(self):
         '''
-        Returns a list of all of the user-supplied kernels that are beneath
-        this node in the PSyIR.
+        Returns a list of all of the user-supplied kernels (as opposed to
+        builtins) that are beneath this node in the PSyIR.
 
         :returns: all user-supplied kernel calls below this node.
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
@@ -2659,7 +2673,32 @@ class OMPParallelDirective(OMPDirective):
             # We have at least two accesses. If the first one is a write,
             # assume the variable should be private:
             if accesses[0].access_type == AccessType.WRITE:
-                result.add(var_name.lower())
+                # Check if the write access is inside the parallel loop. If
+                # the write is outside of a loop, it is an assignment to
+                # a shared variable. Example where jpk is likely used
+                # outside of the parallel section later, so it must be
+                # declared as shared in order to have its value in other loops:
+                # !$omp parallel
+                # jpk = 100
+                # !omp do
+                # do ji = 1, jpk
+
+                # TODO #598: improve the handling of scalar variables.
+
+                # Go up the tree till we either find the InvokeSchedule,
+                # which is at the top, or a Loop statement (or no parent,
+                # which means we have reached the end of a called kernel).
+                # TODO #597: see if a modified Node.ancestor() method can be
+                # used (that would be able to return 'self' if appropriate).
+                parent = accesses[0].node
+                while parent and \
+                        not isinstance(parent, (Loop, InvokeSchedule)):
+                    parent = parent.parent
+
+                if parent and isinstance(parent, Loop):
+                    # The assignment to the variable is inside a loop, so
+                    # declare it to be private
+                    result.add(var_name.lower())
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results
@@ -4374,6 +4413,36 @@ class CodedKern(Kern):
         self._modified = value
 
 
+class InlinedKern(Kern):
+    '''A class representing a kernel that is inlined. This is used by
+    the NEMO API, since the NEMO API has no function to call or parameters.
+    It has one child which stores the Schedule for the child nodes.
+
+    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+                        of this kernel.
+    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    '''
+
+    def __init__(self, psyir_nodes):
+        # pylint: disable=non-parent-init-called,super-init-not-called
+        schedule = Schedule(children=psyir_nodes, parent=self)
+        Node.__init__(self, children=[schedule])
+        # Update the parent info for each node we've moved
+        for node in schedule.children:
+            node.parent = schedule
+
+    def __str__(self):
+        return "inlined kern: " + self._name
+
+    @abc.abstractmethod
+    def local_vars(self):
+        '''
+        :returns: list of the variable (names) that are local to this kernel \
+                  (and must therefore be e.g. threadprivate if doing OpenMP)
+        :rtype: list of str
+        '''
+
+
 class BuiltIn(Kern):
     '''
     Parent class for all built-ins (field operations for which the user
@@ -5414,14 +5483,16 @@ class ACCDataDirective(ACCDirective):
 
 class KernelSchedule(Schedule):
     '''
-    A kernelSchedule inherits the functionality from Schedule and adds a symbol
+    A KernelSchedule inherits the functionality from Schedule and adds a symbol
     table to keep a record of the declared variables and their attributes.
 
-    :param str name: Kernel subroutine name
+    :param str name: Kernel subroutine name.
+    :param parent: Parent of the KernelSchedule, defaults to None.
+    :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-    def __init__(self, name):
-        super(KernelSchedule, self).__init__(children=None, parent=None)
+    def __init__(self, name, parent=None):
+        super(KernelSchedule, self).__init__(children=None, parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
