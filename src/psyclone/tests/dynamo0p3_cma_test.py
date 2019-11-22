@@ -122,7 +122,7 @@ def test_cma_mdata_assembly_missing_op():
     assert ("Kernel testkern_cma_type has a single column-wise operator "
             "argument but does not conform to the rules for an Assembly "
             "kernel because it does not have any read-only LMA operator "
-            "arguments") in str(excinfo)
+            "arguments") in str(excinfo.value)
 
 
 def test_cma_mdata_multi_writes():
@@ -142,7 +142,7 @@ def test_cma_mdata_multi_writes():
             _ = DynKernMetadata(ast, name=name)
         assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel testkern_cma_type "
-                "updates 2") in str(excinfo)
+                "updates 2") in str(excinfo.value)
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field,gh_read, any_space_1)",
             cmaopstring + ",&\n" +
@@ -153,7 +153,7 @@ def test_cma_mdata_multi_writes():
             _ = DynKernMetadata(ast, name=name)
         assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel testkern_cma_type "
-                "updates 3") in str(excinfo)
+                "updates 3") in str(excinfo.value)
 
 
 def test_cma_mdata_mutable_op():
@@ -174,7 +174,7 @@ def test_cma_mdata_mutable_op():
             _ = DynKernMetadata(ast, name=name)
         assert ("Kernel testkern_cma_type writes to a column-wise operator "
                 "but also writes to ['gh_operator'] argument(s). This is "
-                "not allowed.") in str(excinfo)
+                "not allowed.") in str(excinfo.value)
 
 
 def test_cma_mdata_writes_lma_op():
@@ -197,7 +197,7 @@ def test_cma_mdata_writes_lma_op():
             _ = DynKernMetadata(ast, name=name)
         assert ("Kernel testkern_cma_type writes to a column-wise operator "
                 "but also writes to ['gh_operator'] argument(s). This is "
-                "not allowed.") in str(excinfo)
+                "not allowed.") in str(excinfo.value)
 
 
 def test_cma_mdata_assembly_diff_spaces():
@@ -236,7 +236,8 @@ def test_cma_mdata_asm_vector_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
-            "vector argument (gh_field*3). This is forbidden.") in str(excinfo)
+            "vector argument (gh_field*3). This is forbidden."
+            in str(excinfo.value))
     code = CMA_ASSEMBLE.replace(
         "gh_columnwise_operator,", "gh_columnwise_operator*2,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -244,7 +245,7 @@ def test_cma_mdata_asm_vector_error():
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
             "vector argument (gh_columnwise_operator*2). This is forbidden") \
-        in str(excinfo)
+        in str(excinfo.value)
 
 
 def test_cma_mdata_asm_stencil_error():
@@ -261,7 +262,7 @@ def test_cma_mdata_asm_stencil_error():
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has an "
             "argument with a stencil access (x1d). This is forbidden.") \
-        in str(excinfo)
+        in str(excinfo.value)
 
 
 CMA_APPLY = '''
@@ -326,7 +327,8 @@ def test_cma_mdata_apply_too_many_ops():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("a kernel that applies a CMA operator must only have one such "
-            "operator in its list of arguments but found 2") in str(excinfo)
+            "operator in its list of arguments but found 2"
+            in str(excinfo.value))
 
 
 def test_cma_mdata_apply_too_many_flds():
@@ -345,7 +347,7 @@ def test_cma_mdata_apply_too_many_flds():
         _ = DynKernMetadata(ast, name=name)
     assert ("a kernel that applies a CMA operator must have 3 arguments "
             "(the operator and two fields) but kernel testkern_cma_type "
-            "has 4") in str(excinfo)
+            "has 4") in str(excinfo.value)
 
 
 def test_cma_mdata_apply_no_read_fld():
@@ -361,7 +363,7 @@ def test_cma_mdata_apply_no_read_fld():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("has a read-only CMA operator. In order to apply it the kernel "
-            "must have one read-only field argument") in str(excinfo)
+            "must have one read-only field argument") in str(excinfo.value)
 
 
 def test_cma_mdata_apply_no_write_fld():
@@ -377,7 +379,7 @@ def test_cma_mdata_apply_no_write_fld():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("has a read-only CMA operator. In order to apply it the kernel "
-            "must write to one field argument") in str(excinfo)
+            "must write to one field argument") in str(excinfo.value)
 
 
 def test_cma_mdata_apply_wrong_spaces():
@@ -394,7 +396,7 @@ def test_cma_mdata_apply_wrong_spaces():
         _ = DynKernMetadata(ast, name=name)
     assert ("applies a CMA operator but the function space of the field "
             "argument it writes to (any_space_3) does not match the 'to' "
-            "space of the operator (any_space_1)") in str(excinfo)
+            "space of the operator (any_space_1)") in str(excinfo.value)
     # Change the space of the field that is read
     code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2)",
                              "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_3)", 1)
@@ -404,7 +406,7 @@ def test_cma_mdata_apply_wrong_spaces():
         _ = DynKernMetadata(ast, name=name)
     assert ("applies a CMA operator but the function space of the field "
             "argument it reads from (any_space_3) does not match the 'from' "
-            "space of the operator (any_space_2)") in str(excinfo)
+            "space of the operator (any_space_2)") in str(excinfo.value)
 
 
 def test_cma_mdata_apply_vector_error():
@@ -418,7 +420,8 @@ def test_cma_mdata_apply_vector_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
-            "vector argument (gh_field*3). This is forbidden.") in str(excinfo)
+            "vector argument (gh_field*3). This is forbidden."
+            in str(excinfo.value))
     code = CMA_APPLY.replace("GH_COLUMNWISE_OPERATOR,",
                              "GH_COLUMNWISE_OPERATOR*4,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -426,7 +429,7 @@ def test_cma_mdata_apply_vector_error():
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
             "vector argument (gh_columnwise_operator*4). This is "
-            "forbidden.") in str(excinfo)
+            "forbidden.") in str(excinfo.value)
 
 
 def test_cma_mdata_apply_fld_stencil_error():
@@ -443,7 +446,7 @@ def test_cma_mdata_apply_fld_stencil_error():
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has an "
             "argument with a stencil access (x1d). This is "
-            "forbidden.") in str(excinfo)
+            "forbidden.") in str(excinfo.value)
 
 
 CMA_MATRIX = '''
@@ -500,7 +503,7 @@ def test_cma_mdata_matrix_too_few_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("has a single column-wise operator argument but does not conform "
             "to the rules for an Assembly kernel because it does not have "
-            "any read-only LMA operator arguments") in str(excinfo)
+            "any read-only LMA operator arguments") in str(excinfo.value)
 
 
 def test_cma_mdata_matrix_field_arg():
@@ -518,7 +521,7 @@ def test_cma_mdata_matrix_field_arg():
         _ = DynKernMetadata(ast, name=name)
     assert ("A column-wise matrix-matrix kernel must have only column-wise "
             "operators and scalars as arguments but kernel testkern_cma_type "
-            "has: ['gh_field', ") in str(excinfo)
+            "has: ['gh_field', ") in str(excinfo.value)
 
 
 def test_cma_mdata_matrix_no_scalar_arg():
@@ -570,7 +573,7 @@ def test_cma_mdata_matrix_2_writes():
             _ = DynKernMetadata(ast, name=name)
         assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel testkern_cma_type "
-                "updates 2") in str(excinfo)
+                "updates 2") in str(excinfo.value)
 
 
 def test_cma_mdata_stencil_invalid():
@@ -586,7 +589,7 @@ def test_cma_mdata_stencil_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("the 4th argument of a meta_arg entry must be a valid function "
-            "space") in str(excinfo)
+            "space") in str(excinfo.value)
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2)",
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2, "
@@ -596,7 +599,7 @@ def test_cma_mdata_stencil_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("each meta_arg entry must have 4 arguments if its first argument "
-            "is gh_operator or gh_columnwise_operator") in str(excinfo)
+            "is gh_operator or gh_columnwise_operator") in str(excinfo.value)
 
 
 def test_cma_mdata_matrix_vector_error():
@@ -612,7 +615,7 @@ def test_cma_mdata_matrix_vector_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a vector "
-            "argument (gh_columnwise_operator*3)") in str(excinfo)
+            "argument (gh_columnwise_operator*3)") in str(excinfo.value)
 
 
 def test_cma_asm_cbanded_dofmap_error():
@@ -634,7 +637,7 @@ def test_cma_asm_cbanded_dofmap_error():
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
-            "for a CMA assembly kernel but found 2") in str(excinfo)
+            "for a CMA assembly kernel but found 2") in str(excinfo.value)
 
 
 def test_cma_asm(tmpdir, dist_mem):
@@ -821,7 +824,7 @@ def test_cma_apply_indirection_dofmap_error():
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA "
             "operator argument for a kernel that applies a "
-            "CMA operator but found 3") in str(excinfo)
+            "CMA operator but found 3") in str(excinfo.value)
 
 
 def test_cma_apply(tmpdir, dist_mem):
@@ -1159,13 +1162,13 @@ def test_dyndofmap_stubdecln_err():
     with pytest.raises(InternalError) as err:
         dofmaps._stub_declarations(mod)
     assert ("Invalid direction ('not-a-direction') found for CMA operator "
-            "when collecting indirection dofmaps" in str(err))
+            "when collecting indirection dofmaps" in str(err.value))
     for cma in dofmaps._unique_cbanded_maps.values():
         cma["direction"] = "not-a-direction"
     with pytest.raises(InternalError) as err:
         dofmaps._stub_declarations(mod)
     assert ("Invalid direction ('not-a-direction') found for CMA operator "
-            "when collecting column-banded dofmaps" in str(err))
+            "when collecting column-banded dofmaps" in str(err.value))
 
 
 def test_cma_asm_stub_gen():
