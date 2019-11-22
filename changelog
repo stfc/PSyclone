@@ -27,6 +27,9 @@
 	8) PR #580 for #542. Adds a Schedule as a child of ExtractNode and
 	ProfileNode.
 
+        9) PR #573 for #438. Fixes all tests to use the value property of
+	exceptions rather than str(err).
+
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel

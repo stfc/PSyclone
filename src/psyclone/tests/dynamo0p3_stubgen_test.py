@@ -110,7 +110,7 @@ def test_dynscalars_err(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
     assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
-            "but not handled" in str(err))
+            "but not handled" in str(err.value))
 
 
 def test_kernel_stub_ind_dofmap_errors():
@@ -127,13 +127,13 @@ def test_kernel_stub_ind_dofmap_errors():
     # First call it without an argument object
     with pytest.raises(GenerationError) as excinfo:
         create_arg_list.indirection_dofmap("w3")
-    assert "no CMA operator supplied" in str(excinfo)
+    assert "no CMA operator supplied" in str(excinfo.value)
     # Second, call it with an argument object but one that is not
     # an operator
     with pytest.raises(GenerationError) as excinfo:
         create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
     assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo)
+            "got") in str(excinfo.value)
 
 
 def test_kernstubarglist_arglist_error():
@@ -261,7 +261,7 @@ def test_stub_generate_with_scalar_sums():
     assert (
         "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
         "argument but kernel simple_with_reduction_type has gh_real with "
-        "gh_sum access" in str(err))
+        "gh_sum access" in str(err.value))
 
 
 # fields : intent

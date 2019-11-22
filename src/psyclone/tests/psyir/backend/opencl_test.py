@@ -54,12 +54,12 @@ def test_oclw_initialization():
     with pytest.raises(TypeError) as error:
         oclwriter = OpenCLWriter(kernels_local_size='invalid')
     assert "kernel_local_size should be an integer but found 'str'." \
-        in str(error)
+        in str(error.value)
 
     with pytest.raises(ValueError) as error:
         oclwriter = OpenCLWriter(kernels_local_size=-4)
     assert "kernel_local_size should be a positive integer but found -4." \
-        in str(error)
+        in str(error.value)
 
     oclwriter = OpenCLWriter(kernels_local_size=4)
     assert oclwriter._kernels_local_size == 4
@@ -79,7 +79,7 @@ def test_oclw_gen_id_variable():
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
     assert "OpenCL work-item identifiers must be scalar integer symbols " \
-        "but found" in str(excinfo)
+        "but found" in str(excinfo.value)
 
 
 def test_oclw_gen_declaration():
@@ -146,7 +146,7 @@ def test_oclw_gen_array_length_variables():
         _ = oclwriter.gen_array_length_variables(symbol3, symtab)
     assert "Unable to declare the variable 'dummy2LEN1' to store the length " \
         "of 'dummy2' because the Symbol Table already contains a symbol with" \
-        " the same name." in str(excinfo)
+        " the same name." in str(excinfo.value)
 
 
 def test_oclw_kernelschedule():
@@ -163,7 +163,7 @@ def test_oclw_kernelschedule():
     with pytest.raises(NotImplementedError) as error:
         _ = oclwriter(kschedule)
     assert "Abstract property. Which symbols are data arguments is " \
-        "API-specific." in str(error)
+        "API-specific." in str(error.value)
 
     # Mock abstract properties. (pytest monkeypatch does not work
     # with properties, used sub-class instead)
