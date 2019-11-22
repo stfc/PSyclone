@@ -43,12 +43,19 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
+from psyclone.psyir.nodes import DataType
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
+
+# Mapping from PSyIR types to Fortran data types
+TYPE_MAP_TO_FORTRAN = {DataType.INTEGER: "integer",
+                       DataType.CHARACTER: "character",
+                       DataType.BOOLEAN: "logical",
+                       DataType.REAL: "real"}
 
 
 def gen_intent(symbol):
@@ -118,7 +125,7 @@ def gen_datatype(symbol):
     :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the Fortran representation of the symbol's datatype \
-    including any precision properties.
+              including any precision properties.
     :rtype: str
 
     :raises NotImplementedError: if the symbol has an unsupported \
@@ -134,17 +141,12 @@ def gen_datatype(symbol):
     is an unsupported type.
 
     '''
-    if symbol.datatype not in ["real", "integer", "character", "boolean"]:
+    try:
+        datatype = TYPE_MAP_TO_FORTRAN[symbol.datatype]
+    except KeyError:
         raise NotImplementedError(
             "unsupported datatype '{0}' for symbol '{1}' found in "
             "gen_datatype().".format(symbol.datatype, symbol.name))
-
-    if symbol.datatype == "boolean":
-        # boolean is the only datatype name that does not directly
-        # match the Fortran datatype name
-        datatype = "logical"
-    else:
-        datatype = symbol.datatype
 
     if not symbol.precision:
         # This symbol has no precision information so simply return

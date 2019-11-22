@@ -46,7 +46,7 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
-from psyclone.psyir.nodes import DataType
+from psyclone.psyir.nodes import DataType, TYPE_MAP_TO_PYTHON
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
 
@@ -54,6 +54,12 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
+
+# Mapping from Fortran data types to PSyIR types
+TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
+                         "character": DataType.CHARACTER,
+                         "logical": DataType.BOOLEAN,
+                         "real": DataType.REAL}
 
 
 class Fparser2Reader(object):
@@ -480,7 +486,7 @@ class Fparser2Reader(object):
                     shape.append(int(dim.items[1].items[0]))
                 elif isinstance(dim.items[1], Fortran2003.Name):
                     sym = symbol_table.lookup(dim.items[1].string)
-                    if sym.datatype != 'integer' or sym.shape:
+                    if sym.datatype != DataType.INTEGER or sym.shape:
                         _unsupported_type_error(dimensions)
                     shape.append(sym)
                 else:
@@ -541,7 +547,7 @@ class Fparser2Reader(object):
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 for name in decl.items[4].items:
                     parent.symbol_table.add(
-                        DataSymbol(str(name), datatype='deferred',
+                        DataSymbol(str(name), datatype=DataType.DEFERRED,
                                    interface=GlobalInterface(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
@@ -551,22 +557,20 @@ class Fparser2Reader(object):
             # 'character' intrinsic types are supported.
             datatype = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
-                if str(type_spec.items[0]).lower() == 'real':
-                    datatype = 'real'
-                elif str(type_spec.items[0]).lower() == 'integer':
-                    datatype = 'integer'
-                elif str(type_spec.items[0]).lower() == 'character':
-                    datatype = 'character'
-                elif str(type_spec.items[0]).lower() == 'logical':
-                    datatype = 'boolean'
+                try:
+                    fort_type = str(type_spec.items[0]).lower()
+                    datatype = TYPE_MAP_FROM_FORTRAN[fort_type]
+                except KeyError:
+                    pass
+
                 # Check for a KIND specification
                 precision = self._process_kind_selector(parent.symbol_table,
                                                         type_spec)
             if datatype is None:
                 raise NotImplementedError(
-                    "Could not process {0}. Only 'real', 'integer', "
-                    "'logical' and 'character' intrinsic types are "
-                    "supported.".format(str(decl.items)))
+                        "Could not process {0}. Only 'real', 'integer', "
+                        "'logical' and 'character' intrinsic types are "
+                        "supported.".format(str(decl.items)))
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -627,7 +631,7 @@ class Fparser2Reader(object):
                         if isinstance(expr, Fortran2003.NumberBase):
                             value_str = expr.items[0]
                             # Convert string literal to the Symbol datatype
-                            ct_value = DataSymbol.mapping[datatype](value_str)
+                            ct_value = TYPE_MAP_TO_PYTHON[datatype](value_str)
                         else:
                             raise NotImplementedError(
                                 "Could not process {0}. Initialisations with "
@@ -811,21 +815,21 @@ class Fparser2Reader(object):
         '''
         try:
             kind_symbol = symbol_table.lookup(name)
-            if kind_symbol.datatype != "integer":
-                if kind_symbol.datatype != "deferred":
+            if kind_symbol.datatype != DataType.INTEGER:
+                if kind_symbol.datatype != DataType.DEFERRED:
                     raise TypeError(
                         "SymbolTable already contains an entry for "
                         "variable '{0}' used as a kind parameter but its "
                         "type ('{1}') is not 'deferred' or 'integer'.".
                         format(name, kind_symbol.datatype))
                 # Existing symbol had 'deferred' type
-                kind_symbol.datatype = "integer"
+                kind_symbol.datatype = DataType.INTEGER
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one.
             # TODO: Issue #584, the statment below can cause double
             # declarations.
-            kind_symbol = DataSymbol(name, "integer")
+            kind_symbol = DataSymbol(name, DataType.INTEGER)
             symbol_table.add(kind_symbol)
         return kind_symbol
 

@@ -41,6 +41,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import KernelSchedule, Return
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArgumentInterface
+from psyclone.psyir.nodes import DataType
 
 
 def test_oclw_initialization():
@@ -71,11 +72,11 @@ def test_oclw_gen_id_variable():
 
     '''
     oclwriter = OpenCLWriter()
-    symbol = DataSymbol("id1", "integer")
+    symbol = DataSymbol("id1", DataType.INTEGER)
     result = oclwriter.gen_id_variable(symbol, 3)
     assert result == "int id1 = get_global_id(3);\n"
 
-    symbol = DataSymbol("array", "integer", shape=[2, None, 2])
+    symbol = DataSymbol("array", DataType.INTEGER, shape=[2, None, 2])
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
     assert "OpenCL work-item identifiers must be scalar integer symbols " \
@@ -91,17 +92,17 @@ def test_oclw_gen_declaration():
 
     # Basic entry - Scalar are passed by value and don't have additional
     # qualifiers.
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     result = oclwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
     # Array argument has a memory qualifier (only __global for now)
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2])
+    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2])
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
     # Array with unknown intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = oclwriter.gen_declaration(symbol)
@@ -116,17 +117,17 @@ def test_oclw_gen_array_length_variables():
     oclwriter = OpenCLWriter()
 
     # A scalar should not return any LEN variables
-    symbol1 = DataSymbol("dummy2LEN1", "integer")
+    symbol1 = DataSymbol("dummy2LEN1", DataType.INTEGER)
     result = oclwriter.gen_array_length_variables(symbol1)
     assert result == ""
 
     # Array with 1 dimension generates 1 length variable
-    symbol2 = DataSymbol("dummy1", "integer", shape=[2])
+    symbol2 = DataSymbol("dummy1", DataType.INTEGER, shape=[2])
     result = oclwriter.gen_array_length_variables(symbol2)
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
     # Array with multiple dimension generates one variable per dimension
-    symbol3 = DataSymbol("dummy2", "integer", shape=[2, None, 2])
+    symbol3 = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2])
     result = oclwriter.gen_array_length_variables(symbol3)
     assert result == "int dummy2LEN1 = get_global_size(0);\n" \
         "int dummy2LEN2 = get_global_size(1);\n" \
@@ -180,10 +181,10 @@ def test_oclw_kernelschedule():
 
     # Create a sample symbol table and kernel schedule
     interface = ArgumentInterface(ArgumentInterface.Access.UNKNOWN)
-    i = DataSymbol('i', 'integer', interface=interface)
-    j = DataSymbol('j', 'integer', interface=interface)
-    data1 = DataSymbol('data1', 'real', [10, 10], interface=interface)
-    data2 = DataSymbol('data2', 'real', [10, 10], interface=interface)
+    i = DataSymbol('i', DataType.INTEGER, interface=interface)
+    j = DataSymbol('j', DataType.INTEGER, interface=interface)
+    data1 = DataSymbol('data1', DataType.REAL, [10, 10], interface=interface)
+    data2 = DataSymbol('data2', DataType.REAL, [10, 10], interface=interface)
     kschedule.symbol_table.add(i)
     kschedule.symbol_table.add(j)
     kschedule.symbol_table.add(data1)

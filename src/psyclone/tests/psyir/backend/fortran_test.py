@@ -47,6 +47,7 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
 from psyclone.psyGen import Node, CodeBlock, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface
+from psyclone.psyir.nodes import DataType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -62,19 +63,19 @@ def test_gen_intent():
     strings.
 
     '''
-    symbol = DataSymbol("dummy", "integer",
+    symbol = DataSymbol("dummy", DataType.INTEGER,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     assert gen_intent(symbol) is None
-    symbol = DataSymbol("dummy", "integer",
+    symbol = DataSymbol("dummy", DataType.INTEGER,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     assert gen_intent(symbol) == "in"
-    symbol = DataSymbol("dummy", "integer",
+    symbol = DataSymbol("dummy", DataType.INTEGER,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.WRITE))
     assert gen_intent(symbol) == "out"
-    symbol = DataSymbol("dummy", "integer",
+    symbol = DataSymbol("dummy", DataType.INTEGER,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
@@ -85,7 +86,7 @@ def test_gen_intent_error(monkeypatch):
     access type is found.
 
     '''
-    symbol = DataSymbol("dummy", "integer",
+    symbol = DataSymbol("dummy", DataType.INTEGER,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
@@ -99,10 +100,10 @@ def test_gen_dims():
     strings.
 
     '''
-    arg = DataSymbol("arg", "integer",
+    arg = DataSymbol("arg", DataType.INTEGER,
                      interface=ArgumentInterface(
                          ArgumentInterface.Access.UNKNOWN))
-    symbol = DataSymbol("dummy", "integer", shape=[arg, 2, None],
+    symbol = DataSymbol("dummy", DataType.INTEGER, shape=[arg, 2, None],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     assert gen_dims(symbol) == ["arg", "2", ":"]
@@ -113,7 +114,7 @@ def test_gen_dims_error(monkeypatch):
     entry is not supported.
 
     '''
-    symbol = DataSymbol("dummy", "integer",
+    symbol = DataSymbol("dummy", DataType.INTEGER,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol, "_shape", ["invalid"])
@@ -124,10 +125,10 @@ def test_gen_dims_error(monkeypatch):
 
 @pytest.mark.parametrize(
     "datatype,result",
-    [("real", "real"),
-     ("integer", "integer"),
-     ("character", "character"),
-     ("boolean", "logical")])
+    [(DataType.REAL, "real"),
+     (DataType.INTEGER, "integer"),
+     (DataType.CHARACTER, "character"),
+     (DataType.BOOLEAN, "logical")])
 def test_gen_datatype(datatype, result):
     '''Check the gen_datatype function produces the expected datatypes.'''
     symbol = DataSymbol("dummy", datatype)
@@ -136,12 +137,12 @@ def test_gen_datatype(datatype, result):
 
 @pytest.mark.parametrize(
     "datatype,precision,result",
-    [("real", None, "real"),
-     ("integer", 8, "integer*8"),
-     ("real", 16, "real*16"),
-     ("real", DataSymbol.Precision.DOUBLE, "double precision"),
-     ("integer", DataSymbol("i_def", "integer"), "integer(kind=i_def)"),
-     ("real", DataSymbol("r_def", "integer"), "real(kind=r_def)")])
+    [(DataType.REAL, None, "real"),
+     (DataType.INTEGER, 8, "integer*8"),
+     (DataType.REAL, 16, "real*16"),
+     (DataType.REAL, DataSymbol.Precision.DOUBLE, "double precision"),
+     (DataType.INTEGER, DataSymbol("i_def", DataType.INTEGER), "integer(kind=i_def)"),
+     (DataType.REAL, DataSymbol("r_def", DataType.INTEGER), "real(kind=r_def)")])
 def test_gen_datatype_precision(datatype, precision, result):
     '''Check the gen_datatype function produces the expected datatypes when
     precision is specified.
@@ -163,7 +164,7 @@ def test_gen_datatype_precision(datatype, precision, result):
 #     '''
 #     import logging
 #     with caplog.at_level(logging.WARNING):
-#         symbol = Symbol("dummy", "integer",precision=Symbol.Precision.DOUBLE)
+#         symbol = Symbol("dummy", DataType.INTEGER,precision=Symbol.Precision.DOUBLE)
 #         _ = gen_datatype(symbol)
 #         assert (
 #             "WARNING  Fortran does not support relative precision for the "
@@ -177,29 +178,29 @@ def test_gen_datatype_error(monkeypatch):
 
     '''
     # unsupported datatype found
-    symbol = DataSymbol("dummy", "deferred")
+    symbol = DataSymbol("dummy", DataType.DEFERRED)
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("unsupported datatype 'deferred' for symbol 'dummy' found in "
             "gen_datatype()." in str(excinfo.value))
 
     # Fixed precision not supported for character
-    symbol = DataSymbol("dummy", "integer", precision=4)
-    monkeypatch.setattr(symbol, "_datatype", "character")
+    symbol = DataSymbol("dummy", DataType.INTEGER, precision=4)
+    monkeypatch.setattr(symbol, "_datatype", DataType.CHARACTER)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Explicit precision not supported for datatype 'character' in "
             "symbol 'dummy' in Fortran backend." in str(excinfo.value))
 
     # Fixed precision value not supported for real
-    symbol = DataSymbol("dummy", "real", precision=2)
+    symbol = DataSymbol("dummy", DataType.REAL, precision=2)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Datatype 'real' in symbol 'dummy' supports fixed precision of "
             "[4, 8, 16] but found '2'." in str(excinfo.value))
 
     # Fixed precision value not supported for integer
-    symbol = DataSymbol("dummy", "integer", precision=32)
+    symbol = DataSymbol("dummy", DataType.INTEGER, precision=32)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Datatype 'integer' in symbol 'dummy' supports fixed precision "
@@ -216,18 +217,18 @@ def test_gen_datatype_error(monkeypatch):
             "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
 
     # Kind not supported for character
-    symbol = DataSymbol("dummy", "real",
-                        precision=DataSymbol("c_def", "integer"))
+    symbol = DataSymbol("dummy", DataType.REAL,
+                        precision=DataSymbol("c_def", DataType.INTEGER))
     # This needs to be monkeypatched as the Symbol constructor can not
     # create characters with a size dependent on another variable.
-    monkeypatch.setattr(symbol, "_datatype", "character")
+    monkeypatch.setattr(symbol, "_datatype", DataType.CHARACTER)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("kind not supported for datatype 'character' in symbol 'dummy' in "
             "Fortran backend." in str(excinfo.value))
 
     # Unsupported precision type found
-    symbol = DataSymbol("dummy", "real")
+    symbol = DataSymbol("dummy", DataType.REAL)
     monkeypatch.setattr(symbol, "precision", "unsupported")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
@@ -241,13 +242,13 @@ def test_fw_gen_use(fort_writer):
     does not describe a use statement.
 
     '''
-    symbol = DataSymbol("dummy1", "deferred",
+    symbol = DataSymbol("dummy1", DataType.DEFERRED,
                         interface=GlobalInterface(
                             ContainerSymbol("my_module")))
     result = fort_writer.gen_use(symbol)
     assert result == "use my_module, only : dummy1\n"
 
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_use(symbol)
     assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
@@ -262,31 +263,31 @@ def test_fw_gen_vardecl(fort_writer):
 
     '''
     # Basic entry
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer :: dummy1\n"
 
     # Array with intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2) :: dummy2\n"
 
     # Constant
-    symbol = DataSymbol("dummy3", "integer", constant_value=10)
+    symbol = DataSymbol("dummy3", DataType.INTEGER, constant_value=10)
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
     # Use statement
-    symbol = DataSymbol("dummy1", "deferred",
+    symbol = DataSymbol("dummy1", DataType.DEFERRED,
                         interface=GlobalInterface(
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
@@ -305,14 +306,14 @@ def test_gen_decls(fort_writer):
     '''
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
-    use_statement = DataSymbol("my_use", "deferred",
+    use_statement = DataSymbol("my_use", DataType.DEFERRED,
                                interface=GlobalInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
-    argument_variable = DataSymbol("arg", "integer",
+    argument_variable = DataSymbol("arg", DataType.INTEGER,
                                    interface=ArgumentInterface())
     symbol_table.add(argument_variable)
-    local_variable = DataSymbol("local", "integer")
+    local_variable = DataSymbol("local", DataType.INTEGER)
     symbol_table.add(local_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==

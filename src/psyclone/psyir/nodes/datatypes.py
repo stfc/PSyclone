@@ -49,3 +49,10 @@ class DataType(Enum):
     BOOLEAN = 3
     CHARACTER = 4
     DEFERRED = 5
+
+
+# Mapping from PSyIR data types to internal Python types
+TYPE_MAP_TO_PYTHON = {DataType.INTEGER: int,
+                      DataType.CHARACTER: str,
+                      DataType.BOOLEAN: bool,
+                      DataType.REAL: float}

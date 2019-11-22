@@ -58,27 +58,27 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = DataSymbol("dummy1", "character")
+    symbol = DataSymbol("dummy1", DataType.CHARACTER)
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = DataSymbol("dummy1", "boolean")
+    symbol = DataSymbol("dummy1", DataType.BOOLEAN)
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = DataSymbol("dummy2", "real", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", DataType.REAL, shape=[2, None, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
     # Array with unknown intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)
@@ -103,7 +103,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"

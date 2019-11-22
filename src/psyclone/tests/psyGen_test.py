@@ -3238,7 +3238,7 @@ def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3249,7 +3249,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']" in str(ref)
@@ -3320,7 +3320,7 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", "integer", [None]))
+    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER, [None]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3331,7 +3331,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
@@ -3558,7 +3558,7 @@ def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3577,7 +3577,7 @@ def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)

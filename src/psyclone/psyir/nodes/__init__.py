@@ -36,8 +36,9 @@
 
 ''' Nodes package module '''
 
-from psyclone.psyir.nodes.datatypes import DataType
+from psyclone.psyir.nodes.datatypes import DataType, TYPE_MAP_TO_PYTHON
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import DataType'
-__all__ = ['DataType']
+__all__ = ['DataType',
+           TYPE_MAP_TO_PYTHON]

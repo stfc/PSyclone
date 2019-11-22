@@ -2063,7 +2063,7 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if (dtype != "integer" or shape_len != 0):
+            if (dtype != DataType.INTEGER or shape_len != 0):
                 if shape_len == 0:
                     shape_str = "a scalar"
                 else:

@@ -3154,6 +3154,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
             '''
             from psyclone.psyir.symbols import DataSymbol
+            from psyclone.psyir.nodes import DataType
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -3164,7 +3165,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                               len(symbol_table.argument_list)))
             # Perform some basic checks on the argument to make sure
             # it is the expected type
-            if symbol.datatype != "integer" or \
+            if symbol.datatype != DataType.INTEGER or \
                symbol.shape or symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
@@ -3177,7 +3178,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", "integer",
+            local_symbol = DataSymbol(orig_name+"_dummy", DataType.INTEGER,
                                       constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
