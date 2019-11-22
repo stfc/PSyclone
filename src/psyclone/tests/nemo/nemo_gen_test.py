@@ -57,7 +57,7 @@ def test_api_no_alg():
     assert isinstance(psy, fparser.two.Fortran2003.Program)
 
 
-def test_utf_char(parser, tmpdir):
+def test_utf_char(tmpdir):
     ''' Check that we generate the PSy layer OK when the original Fortran
     code contains UTF characters with no representation in the ASCII
     character set. '''
