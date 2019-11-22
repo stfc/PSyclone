@@ -140,4 +140,4 @@ def test_collapse_err(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0], {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err))
+            "only 2 loops" in str(err.value))

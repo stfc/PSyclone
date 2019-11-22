@@ -138,7 +138,7 @@ def test_exp_loop_unrecognised_implicit(parser):
     with pytest.raises(TransformationError) as err:
         exp_trans.apply(sched.children[0])
     assert ("Array section in unsupported dimension (4) for code "
-            "'umask(:, :, :, :) = 0.0D0'" in str(err))
+            "'umask(:, :, :, :) = 0.0D0'" in str(err.value))
 
 
 def test_exp_loop_missing_spec(parser):
@@ -181,7 +181,7 @@ def test_implicit_range_err(parser):
     with pytest.raises(NotImplementedError) as err:
         exp_trans.apply(sched.children[0])
     assert ("Support for implicit loops with specified bounds is not yet "
-            "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
+            "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err.value))
 
 
 def test_implicit_loop_different_rank():
@@ -197,12 +197,12 @@ def test_implicit_loop_different_rank():
     with pytest.raises(TransformationError) as err:
         _ = trans.apply(loop)
     assert ("implicit loops are restricted to cases where all array "
-            "range specifications occur" in str(err))
+            "range specifications occur" in str(err.value))
     loop = sched.children[2]
     with pytest.raises(InternalError) as err:
         _ = trans.apply(loop)
     assert ("Expecting a colon for index 3 but array only has 2 "
-            "dimensions: zab(" in str(err))
+            "dimensions: zab(" in str(err.value))
 
 
 def test_explicit_loop_validate():
@@ -214,4 +214,4 @@ def test_explicit_loop_validate():
     with pytest.raises(TransformationError) as err:
         _ = exp_trans.apply(sched.children[0])
     assert ("Cannot apply NemoExplicitLoopTrans to something that is "
-            "not a NemoImplicitLoop (got " in str(err))
+            "not a NemoImplicitLoop (got " in str(err.value))
