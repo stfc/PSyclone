@@ -33,7 +33,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''
@@ -425,9 +425,7 @@ def main(args):
         psy_str = str(psy)
         alg_str = str(alg)
     if args.oalg is not None:
-        my_file = open(args.oalg, "w")
-        my_file.write(alg_str)
-        my_file.close()
+        write_unicode_file(alg_str, args.oalg)
     else:
         print("Transformed algorithm code:\n%s" % alg_str)
 
@@ -435,11 +433,41 @@ def main(args):
         # empty file so do not output anything
         pass
     elif args.opsy is not None:
-        my_file = open(args.opsy, "w")
-        my_file.write(psy_str)
-        my_file.close()
+        write_unicode_file(psy_str, args.opsy)
     else:
         print("Generated psy layer code:\n", psy_str)
+
+
+def write_unicode_file(contents, filename):
+    '''Wrapper routine that ensures that a string is encoded as unicode before
+    writing to file in both Python 2 and 3.
+
+    :param str contents: string to write to file.
+    :param str filename: the name of the file to create.
+
+    :raises InternalError: if an unrecognised Python version is found.
+
+    '''
+    import six
+    import io
+
+    if six.PY2:
+        # In Python 2 a plain string must be encoded as unicode for the call
+        # to write() below. unicode() does not exist in Python 3 since all
+        # strings are unicode.
+        # pylint: disable=undefined-variable
+        if not isinstance(contents, unicode):
+            contents = unicode(contents, 'utf-8')
+        # pylint: enable=undefined-variable
+        encoding = {}
+    elif six.PY3:
+        encoding = {'encoding': 'utf-8'}
+    else:
+        from psyclone.psyGen import InternalError
+        raise InternalError("Unrecognised Python version!")
+
+    with io.open(filename, mode='w', **encoding) as file_object:
+        file_object.write(contents)
 
 
 if __name__ == "__main__":

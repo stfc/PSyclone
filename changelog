@@ -30,6 +30,9 @@
         9) PR #573 for #438. Fixes all tests to use the value property of
 	exceptions rather than str(err).
 
+	10) PR #416 for #408. Adds support for non-ascii chars in Fortran
+	strings.
+
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel

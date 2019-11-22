@@ -48,7 +48,7 @@ before_install:
   # Specify "fparser_submodule" (without quotes) as an argument to
   # install_optional.sh in order to run the tests with the version of
   # fparser pointed to by the git submodule.
-  - ./bin/install_optional.sh
+  - ./bin/install_optional.sh fparser_submodule
   - pip install codecov
 install:
   - "pip install ."
