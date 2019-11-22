@@ -505,7 +505,7 @@ def test_kernel_trans_validate(monkeypatch):
 
     def dummy_func():
         '''Simple Dummy function that raises SymbolError.'''
-        from psyclone.psyGen import SymbolError
+        from psyclone.psyir.symbols import SymbolError
         raise SymbolError("error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", dummy_func)
     with pytest.raises(TransformationError) as err:

@@ -43,6 +43,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyir.symbols import LocalInterface
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
@@ -7665,11 +7666,11 @@ def test_kern_const_invalid_make_constant1():
 
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
-    # Make the symbol table's argument list empty. We have to make sure
-    # that the interface of any existing argument Symbols is set to None
+    # Make the symbol table's argument list empty. We have to make sure that
+    # the interface of any existing argument Symbols is set to LocalInterface
     # first otherwise we fall foul of our internal-consistency checks.
     for symbol in symbol_table.argument_list:
-        symbol.interface = None
+        symbol.interface = LocalInterface()
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -7696,5 +7697,5 @@ def test_kern_const_invalid_make_constant2():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
-            "'ndf_w1: <real, Scalar, global=Argument("
+            "'ndf_w1: <real, Scalar, Argument("
             "pass-by-value=False)>'.") in str(excinfo.value)
