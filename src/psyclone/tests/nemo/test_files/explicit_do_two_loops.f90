@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,38 +29,33 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab
+!        J. Henrichs, Bureau of Meteorology
 
-module testkern_any_space_2_mod
-  use argument_mod
-  use kernel_mod
-  use constants_mod, only : r_def
-! test for any_space producing correct code where there are a) multi declarations of the same any_space
-! space, 2) no other spaces in the arguments, 3) no functions (e.g. basis, diff_basis) declared,
-! 4) any_space used with an operator
+program explicit_do
+  implicit none
+  integer :: ji, jj, jk
+  integer :: jpi, jpj, jpk
+  real, dimension(jpi,jpj,jpk) :: umask
 
-type, public, extends(kernel_type) ::testkern_any_space_2_type
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1),       &
-       arg_type(GH_INTEGER,  GH_READ)                                  &
-       /)
-  integer :: iterates_over = CELLS
-contains
-  procedure, public, nopass :: testkern_any_space_2_code
-end type testkern_any_space_2_type
-!
-contains
-  subroutine testkern_any_space_2_code(cell, nlayers, f2_data, f1_data, &
-       ncell_3d, local_stencil, istep, ndf_any_space_1_f2,              &
-       undf_any_space_1_f2, map_any_space_1_f2)
-    implicit none
-    integer, intent(in) :: cell, nlayers, ncell_3d, istep, &
-         ndf_any_space_1_f2, undf_any_space_1_f2
-    integer, intent(in), dimension(:) :: map_any_space_1_f2
-    real(kind=r_def), intent(inout), dimension(:) :: f2_data, f1_data
-    real(kind=r_def), intent(in), dimension(:,:,:) :: local_stencil
-  end subroutine testkern_any_space_2_code
-!
-end module testkern_any_space_2_mod
+  ! Test code with explicit NEMO-style do loop
+  ! This makes sure that the assignment to jpk
+  ! becomes shared when all of the body is included
+  ! in one OMP parallel section
+  jpk = 100
+  DO jk = 1, jpk
+     DO jj = 1, jpj
+        DO ji = 1, jpi
+           umask(ji,jj,jk) = ji*jj*jk/r
+        END DO
+     END DO
+  END DO
+  DO jk = 1, jpk
+     DO jj = 1, jpj
+        DO ji = 1, jpi
+           umask(ji,jj,jk) = ji*jj*jk/r
+        END DO
+     END DO
+  END DO
+
+end program explicit_do

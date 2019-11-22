@@ -43,8 +43,10 @@ import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyGen import Symbol, Node, CodeBlock, Assignment, Reference, \
-    Return, Array, Literal, UnaryOperation, BinaryOperation, Schedule
+from psyclone.psyGen import Node, CodeBlock, Assignment, \
+    Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
+    Schedule
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 
 def test_cw_gen_declaration():
@@ -55,27 +57,29 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = Symbol("dummy1", "character")
+    symbol = DataSymbol("dummy1", "character")
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = Symbol("dummy1", "boolean")
+    symbol = DataSymbol("dummy1", "boolean")
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = Symbol("dummy2", "real", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.READ))
+    symbol = DataSymbol("dummy2", "real", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
     # Array with unknown intent
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)
     assert result == "int * restrict dummy2"
 
@@ -98,7 +102,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
