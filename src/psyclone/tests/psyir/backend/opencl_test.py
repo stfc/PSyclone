@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclond.psyir.backend.opencl module'''
@@ -40,7 +41,8 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import KernelSchedule, Return
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
+    ArgumentInterface, UnresolvedInterface
 
 
 def test_oclw_initialization():
@@ -192,7 +194,6 @@ def test_oclw_kernelschedule():
     kschedule.addchild(Return(parent=kschedule))
 
     result = oclwriter(kschedule)
-    print(result)
     assert result == "" \
         "__kernel void kname(\n" \
         "  __global double * restrict data1,\n" \
@@ -225,3 +226,13 @@ def test_oclw_kernelschedule():
         "  int j = get_global_id(1);\n" \
         "  return;\n" \
         "}\n\n"
+
+    # Add a symbol with a deferred interface and check that this raises the
+    # expected error
+    kschedule.symbol_table.add(DataSymbol('broken', 'real', [10, 10],
+                                          interface=UnresolvedInterface()))
+    with pytest.raises(VisitorError) as err:
+        _ = oclwriter(kschedule)
+    assert ("symbol table contains unresolved data entries (i.e. that have no "
+            "defined Interface) which are not used purely to define the "
+            "precision of other symbols: 'broken'" in str(err.value))

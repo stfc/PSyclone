@@ -46,7 +46,7 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     NaryOperation, Literal, IfBlock, Reference, Array, KernelSchedule, \
     Container, InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface
+    ArgumentInterface, SymbolError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -390,7 +390,7 @@ def test_process_declarations(f2008_parser):
     assert "Initialisations with static expressions are not supported." \
         in str(error.value)
 
-    # Static constant expresions are not supported
+    # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
@@ -405,6 +405,12 @@ def test_process_declarations(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l7").name == 'l7'
     assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+
+    # Check we catch duplicated symbols
+    with pytest.raises(SymbolError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Symbol 'l7' already present in SymbolTable with a defined "
+            "interface" in str(error.value))
 
     # Test with unsupported data type
     reader = FortranStringReader("doubleprecision     ::      c2")
@@ -497,16 +503,21 @@ def test_process_declarations_intent(f2008_parser):
 
 def test_process_declarations_kind_new_param(f2008_parser):
     ''' Test that process_declarations handles variables declared with
-    an explicit KIND parameter that has not already been declared.
+    an explicit KIND parameter that has not already been declared. Also
+    check that the matching on the variable name is not case sensitive.
 
     '''
-    fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1")
+    fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1\n"
+                                                "real(kind=Wp) :: var2\n")
     assert isinstance(fake_parent.symbol_table.lookup("var1").precision,
                       DataSymbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
     assert wp_var.datatype == "integer"
     assert fake_parent.symbol_table.lookup("var1").precision is wp_var
+    # Check that, despite the difference in case, the second variable
+    # references the same 'wp' symbol.
+    assert fake_parent.symbol_table.lookup("var2").precision is wp_var
     # Check that we raise an error if the KIND expression has an unexpected
     # structure
     # Break the parse tree by changing Name('wp') into a str
@@ -723,6 +734,41 @@ def test_parse_array_dimensions_attributes(f2008_parser):
         ArgumentInterface.Access.READ
 
 
+def test_deferred_array_size(f2008_parser):
+    ''' Check that we handle the case of an array being declared with an
+    extent specified by a variable that is declared after it. '''
+    from fparser.two.Fortran2003 import Name
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real, intent(in), dimension(n) :: array3\n"
+                                 "integer, intent(in) :: n")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(fake_parent, fparser2spec,
+                                   [Name("array3"), Name("n")])
+    dim_sym = fake_parent.symbol_table.lookup("n")
+    assert isinstance(dim_sym.interface, ArgumentInterface)
+    assert dim_sym.datatype == "integer"
+
+
+def test_unresolved_array_size(f2008_parser):
+    ''' Check that we handle the case where we do not find an explicit
+    declaration of a symbol used in the definition of an array extent. '''
+    from psyclone.psyir.symbols import UnresolvedInterface
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real, dimension(n) :: array3")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(fake_parent, fparser2spec, [])
+    dim_sym = fake_parent.symbol_table.lookup("n")
+    assert isinstance(dim_sym.interface, UnresolvedInterface)
+    assert dim_sym.datatype == "integer"
+    # Check that the lookup of the dimensioning symbol is not case sensitive
+    reader = FortranStringReader("real, dimension(N) :: array4")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(fake_parent, fparser2spec, [])
+    assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
+
+
 def test_use_stmt(f2008_parser):
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
@@ -818,7 +864,6 @@ def test_handling_name(f2008_parser):
     tree structure.
     '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.symbols import SymbolError
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -862,7 +907,6 @@ def test_handling_part_ref(f2008_parser):
     tree structure.
     '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.symbols import SymbolError
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
