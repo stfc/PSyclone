@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Author S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Symbols package module '''

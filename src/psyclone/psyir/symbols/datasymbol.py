@@ -458,8 +458,7 @@ class LocalInterface(DataSymbolInterface):
 
 
 class UnresolvedInterface(DataSymbolInterface):
-    ''' We know we have a data symbol but we don't know where it is
-    declared. '''
+    '''We have a data symbol but we don't know where it is declared.'''
 
     def __str__(self):
         return "Unresolved"

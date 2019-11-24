@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
+# Modified A. R. Porter, STFC Daresbury Lab.
 
 '''OpenCL PSyIR backend. Extends the C PSyIR back-end to generate
 OpenCL code from PSyIR nodes.

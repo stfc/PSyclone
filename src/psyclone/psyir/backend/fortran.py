@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, S. Siso STFC Daresbury Lab.
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. R. Porter, STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
