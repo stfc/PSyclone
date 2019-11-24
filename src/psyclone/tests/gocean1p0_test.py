@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -1117,13 +1116,13 @@ def test_writetoread_dag(tmpdir, have_graphviz):
         # write -> read means that the second loop can only begin once the
         # first loop is complete. Check that we have the correct forwards
         # dependence (green) and backwards dependence (red).
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=red]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=red]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#ff0000]' in dot)
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=green]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=green]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#00ff00]' in dot)
     old_cwd.chdir()
 
@@ -1193,14 +1192,14 @@ def test_raw_arg_list_error(monkeypatch):
     with pytest.raises(GenerationError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("kernel compute_z_code requires grid property dx but does not "
-            "have any arguments that are fields" in str(err))
+            "have any arguments that are fields" in str(err.value))
     # Now monkeypatch one of the kernel arguments so that it has an
     # unrecognised type
     monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
-            "'broken'" in str(err))
+            "'broken'" in str(err.value))
 
 
 def test_invalid_access_type():
@@ -1218,7 +1217,7 @@ def test_invalid_access_type():
     # Note that the error message looks slightly different between
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
-                     str(err))
+                     str(err.value))
 
 
 # -----------------------------------

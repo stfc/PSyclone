@@ -43,6 +43,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyir.symbols import LocalInterface
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
@@ -376,7 +377,7 @@ def test_omp_not_a_loop(dist_mem):
         _, _ = otrans.apply(schedule)
 
     assert ("Cannot apply a parallel-loop directive to something "
-            "that is not a loop" in str(excinfo))
+            "that is not a loop" in str(excinfo.value))
 
 
 def test_omp_parallel_not_a_loop(dist_mem):
@@ -3917,7 +3918,7 @@ def test_move_valid_node():
     with pytest.raises(TransformationError) as excinfo:
         move_trans.apply(None, schedule.children[0])
     assert ("In the Move transformation apply method the "
-            "first argument is not a Node") in str(excinfo)
+            "first argument is not a Node") in str(excinfo.value)
 
 
 def test_move_back():
@@ -4067,7 +4068,7 @@ def test_rc_node_not_loop():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the first argument is not a Loop") in str(excinfo)
+            "the first argument is not a Loop") in str(excinfo.value)
 
 
 def test_rc_invalid_loop(monkeypatch):
@@ -4087,7 +4088,7 @@ def test_rc_invalid_loop(monkeypatch):
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply "
             "method the loop must iterate over cells, dofs or cells of a "
-            "given colour, but found 'colours'") in str(excinfo)
+            "given colour, but found 'colours'") in str(excinfo.value)
 
 
 def test_rc_nodm():
@@ -4104,7 +4105,7 @@ def test_rc_nodm():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "distributed memory must be switched on") in str(excinfo)
+            "distributed memory must be switched on") in str(excinfo.value)
 
 
 def test_rc_invalid_depth():
@@ -4121,7 +4122,7 @@ def test_rc_invalid_depth():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 0})
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the supplied depth is less than 1") in str(excinfo)
+            "the supplied depth is less than 1") in str(excinfo.value)
 
 
 def test_rc_invalid_depth_continuous():
@@ -4139,7 +4140,7 @@ def test_rc_invalid_depth_continuous():
         rc_trans.apply(loop, {"depth": 1})
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
             "the supplied depth (1) must be greater than the existing halo "
-            "depth (1)") in str(excinfo)
+            "depth (1)") in str(excinfo.value)
 
 
 def test_rc_continuous_depth():
@@ -4922,7 +4923,7 @@ def test_rc_no_loop_decrease():
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 1})
     assert ("supplied depth (1) must be greater than the existing halo depth "
-            "(2)") in str(excinfo)
+            "(2)") in str(excinfo.value)
     # second set our loop to redundantly compute to the maximum halo depth
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4930,13 +4931,13 @@ def test_rc_no_loop_decrease():
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 2})
     assert ("loop is already set to the maximum halo depth so can't be "
-            "set to a fixed value") in str(excinfo)
+            "set to a fixed value") in str(excinfo.value)
     # now try to set the redundant computation to the same (max) value
     # it is now
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop)
     assert ("loop is already set to the maximum halo depth so this "
-            "transformation does nothing") in str(excinfo)
+            "transformation does nothing") in str(excinfo.value)
 
 
 def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
@@ -5660,7 +5661,7 @@ def test_rc_colour_no_loop_decrease():
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 1})
     assert ("supplied depth (1) must be greater than the existing halo depth "
-            "(2)") in str(excinfo)
+            "(2)") in str(excinfo.value)
     # second set our loop to redundantly compute to the maximum halo depth
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -5668,13 +5669,13 @@ def test_rc_colour_no_loop_decrease():
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 2})
     assert ("loop is already set to the maximum halo depth so can't be "
-            "set to a fixed value") in str(excinfo)
+            "set to a fixed value") in str(excinfo.value)
     # now try to set the redundant computation to the same (max) value
     # it is now
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop)
     assert ("loop is already set to the maximum halo depth so this "
-            "transformation does nothing") in str(excinfo)
+            "transformation does nothing") in str(excinfo.value)
 
 
 def test_rc_colour(tmpdir):
@@ -5794,7 +5795,7 @@ def test_colour_discontinuous():
             # Colour the loop
             _, _ = ctrans.apply(schedule.children[0])
         assert ("Loops iterating over a discontinuous function space are "
-                "not currently supported") in str(excinfo)
+                "not currently supported") in str(excinfo.value)
 
 
 def test_rc_then_colour(tmpdir):
@@ -6491,7 +6492,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_test_kernel_code' has not" in str(err))
+            "but kernel 'prolong_test_kernel_code' has not" in str(err.value))
     # Set-up the colourmaps
     psy.invokes.invoke_list[0].meshes._colourmap_init()
     # Check that the upper bound is now correct
@@ -6504,7 +6505,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'restrict_test_kernel_code' has not" in str(err))
+            "but kernel 'restrict_test_kernel_code' has not" in str(err.value))
 
 
 def test_intergrid_omp_parado(dist_mem, tmpdir):
@@ -6626,12 +6627,12 @@ def test_intergrid_err(dist_mem):
         rc_trans = Dynamo0p3RedundantComputationTrans()
         with pytest.raises(TransformationError) as excinfo:
             rc_trans.apply(loops[2], {"depth": 2})
-            assert expected_err in str(excinfo)
+            assert expected_err in str(excinfo.value)
 
     lftrans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         lftrans.apply(loops[0], loops[1])
-    assert expected_err in str(excinfo)
+    assert expected_err in str(excinfo.value)
 
 # Start OpenACC section
 
@@ -6766,7 +6767,7 @@ def test_no_ocl():
     with pytest.raises(TransformationError) as err:
         _ = trans.apply(sched)
     assert ("OpenCL generation is currently only supported for the GOcean "
-            "API but got an InvokeSchedule of type:" in str(err))
+            "API but got an InvokeSchedule of type:" in str(err.value))
 
 
 def test_async_hex_wrong_node():
@@ -7665,11 +7666,11 @@ def test_kern_const_invalid_make_constant1():
 
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
-    # Make the symbol table's argument list empty. We have to make sure
-    # that the interface of any existing argument Symbols is set to None
+    # Make the symbol table's argument list empty. We have to make sure that
+    # the interface of any existing argument Symbols is set to LocalInterface
     # first otherwise we fall foul of our internal-consistency checks.
     for symbol in symbol_table.argument_list:
-        symbol.interface = None
+        symbol.interface = LocalInterface()
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -7696,5 +7697,5 @@ def test_kern_const_invalid_make_constant2():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
-            "'ndf_w1: <real, Scalar, global=Argument("
+            "'ndf_w1: <real, Scalar, Argument("
             "pass-by-value=False)>'.") in str(excinfo.value)

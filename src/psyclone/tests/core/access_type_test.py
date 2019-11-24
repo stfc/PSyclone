@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -78,4 +77,4 @@ def test_from_string():
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
     assert "Unknown access type 'invalid'. Valid values are ['inc', 'read',"\
-        " 'readwrite', 'sum', 'unknown', 'write']" in str(err)
+        " 'readwrite', 'sum', 'unknown', 'write']" in str(err.value)

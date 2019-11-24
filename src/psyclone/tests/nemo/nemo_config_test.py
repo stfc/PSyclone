@@ -87,7 +87,7 @@ def test_invalid_nemo_config_files(tmpdir):
             config = Config()
             with pytest.raises(ConfigurationError) as err:
                 config.load(str(config_file))
-            assert "does not contain key '{0}".format(key) in str(err)
+            assert "does not contain key '{0}".format(key) in str(err.value)
 
     # Add an invalid index-order
     content = _CONFIG_CONTENT + \
@@ -102,7 +102,7 @@ def test_invalid_nemo_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid loop type \"invalid\" found " in str(err)
+        assert "Invalid loop type \"invalid\" found " in str(err.value)
         assert "Must be one of [\\'lon\\', \\'lat\\']"
 
     # Add an invalid key:
@@ -117,7 +117,7 @@ def test_invalid_nemo_config_files(tmpdir):
             config.load(str(config_file))
         assert "Invalid key \"invalid-key\" found in the \"nemo\" section " \
                "of the configuration file \"{0}\".". format(str(config_file)) \
-               in str(err)
+               in str(err.value)
 
     # Use a variable name more than once:
     content = _CONFIG_CONTENT + \
@@ -134,6 +134,6 @@ def test_invalid_nemo_config_files(tmpdir):
             config.load(str(config_file))
         assert "mapping-lat defines variable \"i\" again in the \"nemo\" "\
                "section of the file \"{0}\".".format(str(config_file)) \
-               in str(err)
+               in str(err.value)
 
 # =============================================================================

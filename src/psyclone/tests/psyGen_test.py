@@ -56,10 +56,10 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective, Container
+    ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
+from psyclone.psyir.symbols import DataSymbol, SymbolTable
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.psyGen import Symbol, SymbolTable
 from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
@@ -94,7 +94,7 @@ def test_object_index():
     assert object_index(my_list, two) == 1
     with pytest.raises(InternalError) as err:
         _ = object_index(my_list, None)
-    assert "Cannot search for None item in list" in str(err)
+    assert "Cannot search for None item in list" in str(err.value)
 
 # PSyFactory class unit tests
 
@@ -576,7 +576,7 @@ def test_sched_getitem():
     # Test index out-of-bounds Error
     with pytest.raises(IndexError) as err:
         _ = sched[len(sched._children)]
-    assert "list index out of range" in str(err)
+    assert "list index out of range" in str(err.value)
 
 
 def test_sched_can_be_printed():
@@ -620,7 +620,7 @@ def test_sched_ocl_setter():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
-    assert "Schedule.opencl must be a bool but got " in str(err)
+    assert "Schedule.opencl must be a bool but got " in str(err.value)
 
 
 def test_invokeschedule_can_be_printed():
@@ -697,7 +697,8 @@ def test_kern_abstract_methods():
     my_kern.load_meta(metadata)
     with pytest.raises(NotImplementedError) as err:
         super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
-    assert "gen_arg_setter_code must be implemented by sub-class" in str(err)
+    assert ("gen_arg_setter_code must be implemented by sub-class"
+            in str(err.value))
 
 
 def test_call_abstract_methods():
@@ -738,14 +739,16 @@ def test_arguments_abstract():
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args
-    assert "Arguments.acc_args must be implemented in sub-class" in str(err)
+    assert ("Arguments.acc_args must be implemented in sub-class"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.scalars
-    assert "Arguments.scalars must be implemented in sub-class" in str(err)
+    assert ("Arguments.scalars must be implemented in sub-class"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.raw_arg_list()
     assert ("Arguments.raw_arg_list must be implemented in sub-class"
-            in str(err))
+            in str(err.value))
 
 
 def test_incremented_arg():
@@ -788,6 +791,7 @@ def test_ompdo_constructor():
     # Break the directive
     ompdo.children[0] = "not-a-schedule"
     with pytest.raises(InternalError) as err:
+        # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
             "child but found: ['str']" in str(err.value))
@@ -973,7 +977,7 @@ def test_reduction_var_error():
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
         assert ("zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer']") in str(err)
+                "'gh_integer']") in str(err.value)
 
 
 def test_reduction_sum_error():
@@ -992,7 +996,8 @@ def test_reduction_sum_error():
             call.reduction_sum_loop(None)
         assert (
             "unsupported reduction access 'gh_write' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)
+            "reduction_sum_loop(). Expected one of '['gh_sum']"
+            in str(err.value))
 
 
 def test_call_multi_reduction_error(monkeypatch):
@@ -1013,7 +1018,7 @@ def test_call_multi_reduction_error(monkeypatch):
                            distributed_memory=dist_mem).create(invoke_info)
         assert (
             "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err))
+            "or builtin" in str(err.value))
 
 
 def test_invoke_name():
@@ -1489,6 +1494,20 @@ def test_node_root():
     assert isinstance(ru_kern.root, Schedule)
 
 
+def test_node_annotations():
+    '''Test that an instance of the Node class raises an exception if an
+    annotation is invalid. Note, any annotation will be invalid here
+    as Node does not set a list of valid annotations (this is the job
+    of the subclass).
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = Node(annotations=["invalid"])
+    assert (
+        "Node with unrecognized annotation 'invalid', valid annotations are: "
+        "()." in str(excinfo.value))
+
+
 def test_node_args():
     '''Test that the Node class args method returns the correct arguments
     for Nodes that do not have arguments themselves'''
@@ -1906,7 +1925,7 @@ def test_directive_get_private(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
     assert ("call 'testkern_code' has a local variable but its name is "
-            "not set" in str(err))
+            "not set" in str(err.value))
 
 
 def test_node_is_valid_location():
@@ -2001,7 +2020,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "InvokeSchedule"
+    assert schedule.dag_name == "schedule_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
@@ -2213,7 +2232,7 @@ def test_acc_datadevice_virtual():
         ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
-            "methods data_on_device" in str(err))
+            "methods data_on_device" in str(err.value))
 
 # (1/1) Method node_str
 # Covered in test test_acc_dir_node_str
@@ -2334,22 +2353,30 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*InvokeSchedule_start\n"
-    r"\s*InvokeSchedule_end\n"
+    r"\s*schedule_0_start\n"
+    r"\s*schedule_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    r"\s*InvokeSchedule_start -> loop_1_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_2\n"
-    r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
-    r"\s*loop_3_start\n"
-    r"\s*loop_3_end\n"
-    r"\s*loop_3_end -> schedule_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_3_start \[color=red\]\n"
-    r"\s*kernel_testkern_qr_code_4\n"
-    r"\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
-    r"\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
+    r"\s*schedule_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*schedule_5_start\n"
+    r"\s*schedule_5_end\n"
+    r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> schedule_5_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_6\n"
+    r"\s*kernel_testkern_qr_code_6 -> schedule_5_end \[color=blue\]\n"
+    r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
+    r"\s*loop_7_start\n"
+    r"\s*loop_7_end\n"
+    r"\s*loop_7_end -> schedule_0_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
+    r"\s*schedule_11_start\n"
+    r"\s*schedule_11_end\n"
+    r"\s*schedule_11_end -> loop_7_end \[color=blue\]\n"
+    r"\s*loop_7_start -> schedule_11_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_12\n"
+    r"\s*kernel_testkern_qr_code_12 -> schedule_11_end \[color=blue\]\n"
+    r"\s*schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -2369,16 +2396,15 @@ def test_node_dag(tmpdir, have_graphviz):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
-    for name in ["<title>schedule_start</title>",
-                 "<title>schedule_end</title>",
+    for name in ["<title>schedule_0_start</title>",
+                 "<title>schedule_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_2</title>",
-                 "<title>kernel_testkern_qr_code_4</title>",
+                 "<title>kernel_testkern_qr_code_6</title>",
+                 "<title>kernel_testkern_qr_code_12</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),
@@ -2750,7 +2776,7 @@ def test_node_abstract_methods():
     loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop, parent=None)
-    assert "Please implement me" in str(err)
+    assert "Please implement me" in str(err.value)
 
 
 def test_node_coloured_name():
@@ -2933,10 +2959,11 @@ def test_codeblock_structure(structure):
 
 
 def test_loop_navigation_properties():
-    ''' Tests the start_expr, stop_expr, step_expr and loop_body
-    setter and getter properties'''
     # pylint: disable=too-many-statements
-    from psyclone.psyGen import Loop
+    ''' Tests the start_expr, stop_expr, step_expr and loop_body
+    setter and getter properties.
+
+    '''
     loop = Loop()
 
     # Properties return an error if the node is incomplete
@@ -3016,7 +3043,6 @@ def test_loop_navigation_properties():
 
 def test_loop_invalid_type():
     ''' Tests assigning an invalid type to a Loop object. '''
-    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
@@ -3024,7 +3050,7 @@ def test_loop_invalid_type():
     with pytest.raises(GenerationError) as err:
         loop.loop_type = "not_a_valid_type"
     assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err))
+            "['inner', 'outer']" in str(err.value))
 
 
 def test_loop_gen_code():
@@ -3047,6 +3073,21 @@ def test_loop_gen_code():
     assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
 
+def test_invalid_loop_annotations():
+    ''' Check that the Loop constructor validates any supplied annotations. '''
+    # Check that we can have 'was_where' on its own
+    test_loop = Loop(annotations=['was_where'])
+    assert test_loop.annotations == ['was_where']
+    # Check that 'was_single_stmt' on its own raises an error
+    with pytest.raises(InternalError) as err:
+        Loop(annotations=['was_single_stmt'])
+    assert ("Loop with the 'was_single_stmt' annotation must also have the "
+            "'was_where'" in str(err.value))
+    # Check that it's accepted in combination with 'was_where'
+    test_loop = Loop(annotations=['was_single_stmt', 'was_where'])
+    assert test_loop.annotations == ['was_single_stmt', 'was_where']
+
+
 # Test IfBlock class
 
 def test_ifblock_invalid_annotation():
@@ -3054,7 +3095,7 @@ def test_ifblock_invalid_annotation():
     expected error.'''
 
     with pytest.raises(InternalError) as err:
-        _ = IfBlock(annotation="invalid")
+        _ = IfBlock(annotations=["invalid"])
     assert ("IfBlock with unrecognized annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
@@ -3068,7 +3109,7 @@ def test_ifblock_node_str():
     output = ifblock.node_str()
     assert colouredif+"[]" in output
 
-    ifblock = IfBlock(annotation='was_elseif')
+    ifblock = IfBlock(annotations=['was_elseif'])
     output = ifblock.node_str()
     assert colouredif+"[annotations='was_elseif']" in output
 
@@ -3177,7 +3218,7 @@ def test_assignment_semantic_navigation():
     with pytest.raises(InternalError) as err:
         _ = assignment.lhs
     assert "' malformed or incomplete. It needs at least 1 child to have " \
-        "a lhs." in str(err)
+        "a lhs." in str(err.value)
 
     ref = Reference("a", assignment)
     assignment.addchild(ref)
@@ -3186,7 +3227,7 @@ def test_assignment_semantic_navigation():
     with pytest.raises(InternalError) as err:
         _ = assignment.rhs
     assert " malformed or incomplete. It needs at least 2 children to have " \
-        "a rhs." in str(err)
+        "a rhs." in str(err.value)
 
     lit = Literal("1", assignment)
     assignment.addchild(lit)
@@ -3196,12 +3237,11 @@ def test_assignment_semantic_navigation():
 
 # Test Reference class
 
-
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3212,7 +3252,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']" in str(ref)
@@ -3234,11 +3274,12 @@ def test_reference_symbol(monkeypatch):
     # Symbol in KernelSchedule SymbolTable
     field_old = references[0]
     assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol(), Symbol)
+    assert isinstance(field_old.symbol(), DataSymbol)
     assert field_old.symbol().name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.symbol(scope_limit=kernel_schedule), Symbol)
+    assert isinstance(field_old.symbol(scope_limit=kernel_schedule),
+                      DataSymbol)
     assert field_old.symbol().name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope
@@ -3247,7 +3288,7 @@ def test_reference_symbol(monkeypatch):
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    assert isinstance(alpha.symbol(), Symbol)
+    assert isinstance(alpha.symbol(), DataSymbol)
     assert alpha.symbol().name == alpha.name
 
     # Symbol in Container SymbolTable with KernelSchedule scope
@@ -3282,7 +3323,7 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("aname", "integer", [None]))
+    kschedule.symbol_table.add(DataSymbol("aname", "integer", [None]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3293,7 +3334,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("aname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("aname", "integer"))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
@@ -3331,7 +3372,7 @@ def test_binaryoperation_initialization():
     with pytest.raises(TypeError) as err:
         _ = BinaryOperation("not an operator")
     assert "BinaryOperation operator argument must be of type " \
-           "BinaryOperation.Operator but found" in str(err)
+           "BinaryOperation.Operator but found" in str(err.value)
     bop = BinaryOperation(BinaryOperation.Operator.ADD)
     assert bop._operator is BinaryOperation.Operator.ADD
 
@@ -3380,7 +3421,7 @@ def test_unaryoperation_initialization():
     with pytest.raises(TypeError) as err:
         _ = UnaryOperation("not an operator")
     assert "UnaryOperation operator argument must be of type " \
-           "UnaryOperation.Operator but found" in str(err)
+           "UnaryOperation.Operator but found" in str(err.value)
     uop = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert uop._operator is UnaryOperation.Operator.MINUS
 
@@ -3514,7 +3555,7 @@ def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", "integer"))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3533,7 +3574,7 @@ def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(Symbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", "integer"))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3551,663 +3592,6 @@ def test_kernelschedule_name_setter():
     assert kschedule.name == "kname"
     kschedule.name = "newname"
     assert kschedule.name == "newname"
-
-
-# Test Symbol Class
-def test_symbol_initialisation():
-    '''Test that a Symbol instance can be created when valid arguments are
-    given, otherwise raise relevant exceptions.'''
-    # pylint: disable=too-many-statements
-    # Test with valid arguments
-    assert isinstance(Symbol('a', 'real'), Symbol)
-    # real constants are not currently supported
-    assert isinstance(Symbol('a', 'integer'), Symbol)
-    assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
-    assert isinstance(Symbol('a', 'character'), Symbol)
-    assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
-    assert isinstance(Symbol('a', 'boolean'), Symbol)
-    assert isinstance(Symbol('a', 'boolean', constant_value=False), Symbol)
-    assert isinstance(Symbol('a', 'real', [None]), Symbol)
-    assert isinstance(Symbol('a', 'real', [3]), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
-    assert isinstance(Symbol('a', 'real', []), Symbol)
-    assert isinstance(Symbol('a', 'real', [], interface=Symbol.Argument()),
-                      Symbol)
-    assert isinstance(
-        Symbol('a', 'real', [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
-        Symbol)
-    assert isinstance(
-        Symbol('a', 'real', [],
-               interface=Symbol.Argument(access=Symbol.Access.READ)),
-        Symbol)
-    assert isinstance(
-        Symbol('a', 'deferred',
-               interface=Symbol.FortranGlobal(access=Symbol.Access.READ,
-                                              module_use='some_mod')),
-        Symbol)
-    dim = Symbol('dim', 'integer', [])
-    assert isinstance(Symbol('a', 'real', [dim]), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, dim, None]), Symbol)
-
-    # Test with invalid arguments
-    with pytest.raises(NotImplementedError) as error:
-        Symbol('a', 'invalidtype', [], 'local')
-    assert (
-        "Symbol can only be initialised with {0} datatypes but found "
-        "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
-            error.value)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', constant_value=3.14)
-    assert ("A constant value is not currently supported for datatype "
-            "'real'.") in str(error)
-
-    with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', shape=dim)
-    assert "Symbol shape attribute must be a list." in str(error.value)
-
-    with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', ['invalidshape'])
-    assert ("Symbol shape list elements can only be 'Symbol', "
-            "'integer' or 'None'.") in str(error.value)
-
-    with pytest.raises(TypeError) as error:
-        bad_dim = Symbol('dim', 'real', [])
-        Symbol('a', 'real', [bad_dim], 'local')
-    assert ("Symbols that are part of another symbol shape can "
-            "only be scalar integers, but found") in str(error.value)
-
-    with pytest.raises(TypeError) as error:
-        bad_dim = Symbol('dim', 'integer', [3])
-        Symbol('a', 'real', [bad_dim], 'local')
-    assert ("Symbols that are part of another symbol shape can "
-            "only be scalar integers, but found") in str(error.value)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', interface=Symbol.Argument(), constant_value=9)
-    assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global'.") in str(error)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', shape=[None], constant_value=9)
-    assert ("Symbol with a constant value must be a scalar but the shape "
-            "attribute is not empty.") in str(error)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'integer', constant_value=9.81)
-    assert ("This Symbol instance's datatype is 'integer' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'int'>' but found " in str(error)
-    assert "'float'>'." in str(error)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'character', constant_value=42)
-    assert ("This Symbol instance's datatype is 'character' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'str'>' but found " in str(error)
-    assert "'int'>'." in str(error)
-
-    with pytest.raises(ValueError) as error:
-        Symbol('a', 'boolean', constant_value="hello")
-    assert ("This Symbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be") in str(error)
-    assert "'bool'>' but found " in str(error)
-    assert "'str'>'." in str(error)
-
-
-def test_symbol_map():
-    '''Test the mapping variable in the Symbol class does not raise any
-    exceptions when it is used with the valid_data_types variable in
-    the Symbol class.
-
-    '''
-    # "real" and "deferred" are not supported in the mapping so we expect
-    # it to have 2 fewer entries than there are valid data types
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 2
-    for data_type in Symbol.valid_data_types:
-        if data_type not in ["real", "deferred"]:
-            assert data_type in Symbol.mapping
-
-
-def test_symbol_can_be_printed():
-    '''Test that a Symbol instance can always be printed. (i.e. is
-    initialised fully.)'''
-    symbol = Symbol("sname", "real")
-    assert "sname: <real, Scalar, local>" in str(symbol)
-
-    sym1 = Symbol("s1", "integer")
-    assert "s1: <integer, Scalar, local>" in str(sym1)
-
-    sym2 = Symbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
-
-    sym3 = Symbol("s3", "real",
-                  interface=Symbol.FortranGlobal(module_use="my_mod"))
-    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
-            in str(sym3))
-
-    sym2._shape.append('invalid')
-    with pytest.raises(InternalError) as error:
-        _ = str(sym2)
-    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
-            "'None', but found") in str(error.value)
-
-    sym3 = Symbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, Scalar, local, constant_value=12>" in str(sym3)
-
-
-def test_symbol_constant_value_setter():
-    '''Test that a Symbol constant value can be set if given a new valid
-    constant value. Also test that is_constant returns True
-
-    '''
-
-    # Test with valid constant value
-    sym = Symbol('a', 'integer', constant_value=7)
-    assert sym.constant_value == 7
-    sym.constant_value = 9
-    assert sym.constant_value == 9
-
-
-def test_symbol_is_constant():
-    '''Test that the Symbol is_constant property returns True if a
-    constant value is set and False if it is not.
-
-    '''
-    sym = Symbol('a', 'integer')
-    assert not sym.is_constant
-    sym.constant_value = 9
-    assert sym.is_constant
-
-
-def test_symbol_scalar_array():
-    '''Test that the Symbol property is_scalar returns True if the Symbol
-    is a scalar and False if not and that the Symbol property is_array
-    returns True if the Symbol is an array and False if not.
-
-    '''
-    sym1 = Symbol("s1", "integer")
-    sym2 = Symbol("s2", "real", [None, 2, sym1])
-    assert sym1.is_scalar
-    assert not sym1.is_array
-    assert not sym2.is_scalar
-    assert sym2.is_array
-
-
-def test_symbol_invalid_interface():
-    ''' Check that the Symbol.interface setter rejects the supplied value if
-    it is not a SymbolInterface. '''
-    sym = Symbol("some_var", "real")
-    with pytest.raises(TypeError) as err:
-        sym.interface = "invalid interface spec"
-    assert ("interface to a Symbol must be a SymbolInterface or None but"
-            in str(err))
-
-
-def test_symbol_interface():
-    ''' Check the interface getter on a Symbol. '''
-    symbol = Symbol("some_var", "real",
-                    interface=Symbol.FortranGlobal(module_use="my_mod"))
-    assert symbol.interface.module_name == "my_mod"
-
-
-def test_symbol_interface_access():
-    ''' Tests for the SymbolInterface.access setter. '''
-    symbol = Symbol("some_var", "real",
-                    interface=Symbol.FortranGlobal(module_use="my_mod"))
-    symbol.interface.access = Symbol.Access.READ
-    assert symbol.interface.access == Symbol.Access.READ
-    # Force the error by supplying a string instead of a SymbolAccess type.
-    with pytest.raises(TypeError) as err:
-        symbol.interface.access = "read"
-    assert "must be a 'Symbol.Access' but got " in str(err)
-
-
-def test_symbol_argument_str():
-    ''' Check the __str__ method of the Symbol.Argument class. '''
-    # A Symbol.Argument represents a routine argument by default.
-    interface = Symbol.Argument()
-    assert str(interface) == "Argument(pass-by-value=False)"
-
-
-def test_fortranglobal_str():
-    ''' Test the __str__ method of Symbol.FortranGlobal. '''
-    # If it's not an argument then we have nothing else to say about it (since
-    # other options are language specific and are implemented in sub-classes).
-    interface = Symbol.FortranGlobal("my_mod")
-    assert str(interface) == "FortranModule(my_mod)"
-
-
-def test_fortranglobal_modname():
-    ''' Test the FortranGlobal.module_name setter error conditions. '''
-    with pytest.raises(ValueError) as err:
-        _ = Symbol.FortranGlobal("")
-    assert "module_name must be one or more characters long" in str(err)
-    with pytest.raises(TypeError) as err:
-        _ = Symbol.FortranGlobal(1)
-    assert "module_name must be a str but got" in str(err)
-
-
-def test_symbol_copy():
-    '''Test that the Symbol copy method produces a faithful separate copy
-    of the original symbol.
-
-    '''
-    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
-                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    new_symbol = symbol.copy()
-
-    # Check the new symbol has the same properties as the original
-    assert symbol.name == new_symbol.name
-    assert symbol.datatype == new_symbol.datatype
-    assert symbol.shape == new_symbol.shape
-    assert symbol.scope == new_symbol.scope
-    assert symbol.constant_value == new_symbol.constant_value
-    assert symbol.interface == new_symbol.interface
-
-    # Change the properties of the new symbol and check the original
-    # is not affected. Can't check constant_value yet as we have a
-    # shape value
-    new_symbol._name = "new"
-    new_symbol._datatype = "integer"
-    new_symbol.shape[0] = 3
-    new_symbol.shape[1] = 4
-    new_symbol._interface = None
-
-    assert symbol.name == "myname"
-    assert symbol.datatype == "real"
-    assert symbol.shape == [1, 2]
-    assert symbol.scope == "global"
-    assert not symbol.constant_value
-
-    # Now check constant_value
-    new_symbol._shape = []
-    new_symbol.constant_value = True
-
-    assert symbol.shape == [1, 2]
-    assert not symbol.constant_value
-
-
-def test_symbol_copy_properties():
-    '''Test that the Symbol copy_properties method works as expected.'''
-
-    symbol = Symbol("myname", "real", shape=[1, 2], constant_value=None,
-                    interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-
-    # Check an exception is raised if an incorrect argument is passed
-    # in
-    with pytest.raises(TypeError) as excinfo:
-        symbol.copy_properties(None)
-    assert ("Argument should be of type 'Symbol' but found 'NoneType'."
-            "") in str(excinfo.value)
-
-    new_symbol = Symbol("other_name", "integer", shape=[], constant_value=7)
-
-    symbol.copy_properties(new_symbol)
-
-    assert symbol.name == "myname"
-    assert symbol.datatype == "integer"
-    assert symbol.shape == []
-    assert symbol.scope == "local"
-    assert symbol.constant_value == 7
-
-
-# Test SymbolTable Class
-
-def test_symboltable_add():
-    '''Test that the add method inserts new symbols in the symbol
-    table, but raises appropiate errors when provided with wrong parameters
-    or duplicate declarations.'''
-    sym_table = SymbolTable()
-
-    # Declare a symbol
-    sym_table.add(Symbol("var1", "real", shape=[5, 1],
-                         interface=Symbol.FortranGlobal(
-                             access=Symbol.Access.READWRITE,
-                             module_use="some_mod")))
-    assert sym_table._symbols["var1"].name == "var1"
-    assert sym_table._symbols["var1"].datatype == "real"
-    assert sym_table._symbols["var1"].shape == [5, 1]
-    assert sym_table._symbols["var1"].scope == "global"
-    assert sym_table._symbols["var1"].access is Symbol.Access.READWRITE
-    assert sym_table._symbols["var1"].interface.module_name == "some_mod"
-
-    # Declare a duplicate name symbol
-    with pytest.raises(KeyError) as error:
-        sym_table.add(Symbol("var1", "real"))
-    assert ("Symbol table already contains a symbol with name "
-            "'var1'.") in str(error.value)
-
-
-def test_symboltable_swap_symbol_properties():
-    ''' Test the symboltable swap_properties method '''
-
-    symbol1 = Symbol("var1", "integer", shape=[], constant_value=7)
-    symbol2 = Symbol("dim1", "integer",
-                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    symbol3 = Symbol("dim2", "integer",
-                     interface=Symbol.Argument(access=Symbol.Access.READ))
-    symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    sym_table = SymbolTable()
-    sym_table.add(symbol1)
-
-    # Raise exception if the first argument is not a symbol
-    with pytest.raises(TypeError) as excinfo:
-        sym_table.swap_symbol_properties(None, symbol1)
-    assert ("Arguments should be of type 'Symbol' but found 'NoneType'."
-            "") in str(excinfo.value)
-
-    # Raise exception if the second argument is not a symbol
-    with pytest.raises(TypeError) as excinfo:
-        sym_table.swap_symbol_properties(symbol1, "symbol")
-    assert ("Arguments should be of type 'Symbol' but found 'str'."
-            "") in str(excinfo.value)
-
-    # Raise exception if the first symbol does not exist in the symbol table
-    with pytest.raises(KeyError) as excinfo:
-        sym_table.swap_symbol_properties(symbol4, symbol1)
-    assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
-
-    # Raise exception if the second symbol does not exist in the symbol table
-    with pytest.raises(KeyError) as excinfo:
-        sym_table.swap_symbol_properties(symbol1, symbol4)
-    assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
-
-    # Raise exception if both symbols have the same name
-    with pytest.raises(ValueError) as excinfo:
-        sym_table.swap_symbol_properties(symbol1, symbol1)
-    assert("The symbols should have different names, but found 'var1' for "
-           "both.") in str(excinfo.value)
-
-    sym_table.add(symbol2)
-    sym_table.add(symbol3)
-    sym_table.add(symbol4)
-    sym_table.specify_argument_list([symbol2, symbol3, symbol4])
-
-    # Check that properties are swapped
-    sym_table.swap_symbol_properties(symbol1, symbol4)
-
-    assert symbol1.name == "var1"
-    assert symbol1.datatype == "real"
-    assert symbol1.shape == [symbol2, symbol3]
-    assert symbol1.scope == "global"
-    assert symbol1.constant_value is None
-    assert symbol1.interface.access == Symbol.Access.READWRITE
-
-    assert symbol4.name == "var2"
-    assert symbol4.datatype == "integer"
-    assert not symbol4.shape
-    assert symbol4.scope == "local"
-    assert symbol4.constant_value == 7
-    assert not symbol4.interface
-
-    # Check symbol references are unaffected
-    sym_table.swap_symbol_properties(symbol2, symbol3)
-    assert symbol1.shape[0].name == "dim1"
-    assert symbol1.shape[1].name == "dim2"
-
-    # Check argument positions are updated. The original positions
-    # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
-    assert sym_table.argument_list[0].name == "dim2"
-    assert sym_table.argument_list[1].name == "dim1"
-    assert sym_table.argument_list[2].name == "var1"
-
-
-def test_symboltable_lookup():
-    '''Test that the lookup method retrieves symbols from the symbol table
-    if the name exists, otherwise it raises an error.'''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", shape=[None, None]))
-    sym_table.add(Symbol("var2", "integer", shape=[]))
-    sym_table.add(Symbol("var3", "real", shape=[]))
-
-    assert isinstance(sym_table.lookup("var1"), Symbol)
-    assert sym_table.lookup("var1").name == "var1"
-    assert isinstance(sym_table.lookup("var2"), Symbol)
-    assert sym_table.lookup("var2").name == "var2"
-    assert isinstance(sym_table.lookup("var3"), Symbol)
-    assert sym_table.lookup("var3").name == "var3"
-
-    with pytest.raises(KeyError) as error:
-        sym_table.lookup("notdeclared")
-    assert "Could not find 'notdeclared' in the Symbol Table." in \
-        str(error.value)
-
-
-def test_symboltable_view(capsys):
-    '''Test the view method of the SymbolTable class, it should print to
-    standard out a representation of the full SymbolTable.'''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real"))
-    sym_table.add(Symbol("var2", "integer"))
-    sym_table.view()
-    output, _ = capsys.readouterr()
-    assert "Symbol Table:\n" in output
-    assert "var1" in output
-    assert "var2" in output
-
-
-def test_symboltable_can_be_printed():
-    '''Test that a SymbolTable instance can always be printed. (i.e. is
-    initialised fully)'''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real"))
-    sym_table.add(Symbol("var2", "integer"))
-    sym_table.add(Symbol("var3", "deferred",
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
-    sym_table_text = str(sym_table)
-    assert "Symbol Table:\n" in sym_table_text
-    assert "var1" in sym_table_text
-    assert "var2" in sym_table_text
-    assert "FortranModule(my_mod)" in sym_table_text
-
-
-def test_symboltable_specify_argument_list():
-    '''Test that the specify argument list method sets the argument_list
-    with references to each Symbol and updates the Symbol attributes when
-    needed.'''
-    sym_table = SymbolTable()
-    sym_v1 = Symbol("var1", "real", [])
-    sym_table.add(sym_v1)
-    sym_table.add(Symbol("var2", "real", []))
-    sym_v1.interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
-    sym_table.specify_argument_list([sym_v1])
-
-    assert len(sym_table.argument_list) == 1
-    assert sym_table.argument_list[0].scope == 'global'
-    assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
-
-    # Test that repeated calls still produce a valid argument list
-    sym_table.specify_argument_list([sym_v1])
-    assert len(sym_table.argument_list) == 1
-
-    # Check that specifying the Interface allows us to specify how
-    # the argument is accessed
-    sym_v2 = sym_table.lookup("var2")
-    sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
-    sym_table.specify_argument_list([sym_v1, sym_v2])
-    assert sym_table.argument_list[1].scope == 'global'
-    assert sym_table.argument_list[1].access == Symbol.Access.READWRITE
-
-
-def test_symboltable_specify_argument_list_errors():
-    ''' Check that supplying specify_argument_list() with Symbols that
-    don't have the correct Interface information raises the expected
-    errors. '''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_v1 = sym_table.lookup("var1")
-    # Attempt to say the argument list consists of "var1" which at this
-    # point is just a local variable.
-    with pytest.raises(ValueError) as err:
-        sym_table.specify_argument_list([sym_v1])
-    assert "Symbol 'var1:" in str(err)
-    assert ("is listed as a kernel argument but has no associated "
-            "Interface" in str(err))
-    # Now add an Interface for "var1" but of the wrong type
-    sym_v1.interface = Symbol.FortranGlobal("some_mod")
-    with pytest.raises(ValueError) as err:
-        sym_table.specify_argument_list([sym_v1])
-    assert "Symbol 'var1:" in str(err)
-    assert "has an interface of type '" in str(err)
-
-
-def test_symboltable_argument_list_errors():
-    ''' Tests the internal sanity checks of the SymbolTable.argument_list
-    property. '''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_table.add(Symbol("var3", "real",
-                         interface=Symbol.FortranGlobal("some_mod")))
-    # Manually put a local symbol into the internal list of arguments
-    sym_table._argument_list = [sym_table.lookup("var1")]
-    with pytest.raises(ValueError) as err:
-        sym_table._validate_arg_list(sym_table._argument_list)
-    pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
-               "no associated Interface")
-    assert re.search(pattern, str(err)) is not None
-    # Check that the argument_list property converts this error into an
-    # InternalError
-    with pytest.raises(InternalError) as err:
-        _ = sym_table.argument_list
-    assert re.search(pattern, str(err)) is not None
-    # Check that we reject a symbol imported from a module
-    with pytest.raises(ValueError) as err:
-        sym_table._validate_arg_list([sym_table.lookup("var3")])
-    # Manually put that symbol into the argument list
-    sym_table._argument_list = [sym_table.lookup("var3")]
-    pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
-               r"interface of type \'.*\.FortranGlobal\'>")
-    assert re.search(pattern, str(err)) is not None
-    # Check that the argument_list property converts this error into an
-    # InternalError
-    with pytest.raises(InternalError) as err:
-        _ = sym_table.argument_list
-    assert re.search(pattern, str(err)) is not None
-    # Check that we get the expected TypeError if we provide a list containing
-    # objects that are not Symbols
-    with pytest.raises(TypeError) as err:
-        sym_table._validate_arg_list(["Not a symbol"])
-    assert "Expected a list of Symbols but found an object of type" in str(err)
-
-
-def test_symboltable_validate_non_args():
-    ''' Checks for the validation of non-argument entries in the
-    SymbolTable. '''
-    sym_table = SymbolTable()
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", []))
-    sym_table.add(Symbol("var3", "real",
-                         interface=Symbol.FortranGlobal("some_mod")))
-    # Everything should be fine so far
-    sym_table._validate_non_args()
-    # Add an entry with an Argument interface
-    sym_table.add(Symbol("var4", "real",
-                         interface=Symbol.Argument()))
-    # Since this symbol isn't in the argument list, the SymbolTable
-    # is no longer valid
-    with pytest.raises(ValueError) as err:
-        sym_table._validate_non_args()
-    pattern = (r"Symbol 'var4.* is not listed as a kernel argument and yet "
-               "has a Symbol.Argument interface")
-    assert re.search(pattern, str(err)) is not None
-
-
-def test_symboltable_contains():
-    '''Test that the __contains__ method returns True if the given name
-    is in the SymbolTable, otherwise returns False.'''
-    sym_table = SymbolTable()
-
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
-
-    assert "var1" in sym_table
-    assert "var2" in sym_table
-    assert "var3" not in sym_table
-
-
-def test_symboltable_symbols():
-    '''Test that the symbols property returns a list of the symbols in the
-    SymbolTable.'''
-    sym_table = SymbolTable()
-    assert sym_table.symbols == []
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
-    assert len(sym_table.symbols) == 2
-    sym_table.add(Symbol("var3", "real", [],
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
-    assert len(sym_table.symbols) == 3
-
-
-def test_symboltable_local_symbols():
-    '''Test that the local_symbols property returns a list with the
-    symbols with local scope.'''
-    sym_table = SymbolTable()
-    assert [] == sym_table.local_symbols
-
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
-    sym_table.add(Symbol("var3", "real", []))
-
-    assert len(sym_table.local_symbols) == 3
-    assert sym_table.lookup("var1") in sym_table.local_symbols
-    assert sym_table.lookup("var2") in sym_table.local_symbols
-    assert sym_table.lookup("var3") in sym_table.local_symbols
-    sym_v1 = sym_table.lookup("var1")
-    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
-    sym_table.specify_argument_list([sym_v1])
-
-    assert len(sym_table.local_symbols) == 2
-    assert sym_table.lookup("var1") not in sym_table.local_symbols
-    assert sym_table.lookup("var2") in sym_table.local_symbols
-    assert sym_table.lookup("var3") in sym_table.local_symbols
-
-    sym_table.add(Symbol("var4", "real", [],
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
-    assert len(sym_table.local_symbols) == 2
-    assert sym_table.lookup("var4") not in sym_table.local_symbols
-
-
-def test_symboltable_global_symbols():
-    ''' Test that the global_symbols property returns those symbols with
-    'global' scope (i.e. that represent data that exists outside the current
-    scoping unit) but are not routine arguments. '''
-    sym_table = SymbolTable()
-    assert sym_table.global_symbols == []
-    # Add some local symbols
-    sym_table.add(Symbol("var1", "real", []))
-    sym_table.add(Symbol("var2", "real", [None]))
-    assert sym_table.global_symbols == []
-    # Add some global symbols
-    sym_table.add(Symbol("gvar1", "real", [],
-                         interface=Symbol.FortranGlobal(module_use="my_mod")))
-    assert sym_table.lookup("gvar1") in sym_table.global_symbols
-    sym_table.add(
-        Symbol("gvar2", "real", [],
-               interface=Symbol.Argument(access=Symbol.Access.READWRITE)))
-    gsymbols = sym_table.global_symbols
-    assert len(gsymbols) == 1
-    assert sym_table.lookup("gvar2") not in gsymbols
-
-
-def test_symboltable_abstract_properties():
-    '''Test that the SymbolTable abstract properties raise the appropriate
-    error.'''
-    sym_table = SymbolTable()
-
-    with pytest.raises(NotImplementedError) as error:
-        _ = sym_table.data_arguments
-    assert "Abstract property. Which symbols are data arguments is " \
-        "API-specific." in str(error.value)
-
-    with pytest.raises(NotImplementedError) as error:
-        _ = sym_table.iteration_indices
-    assert "Abstract property. Which symbols are iteration indices is " \
-        "API-specific." in str(error.value)
 
 
 def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
@@ -4233,3 +3617,26 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
     assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
+
+
+def test_walk():
+    '''Tests the walk functionality.'''
+
+    # This function contains only umask(ji,jj,jk) = ji*jj*jk/r
+    _, invoke = get_invoke("explicit_do.f90", "nemo", 0)
+
+    # Test without stop type: one assignment
+    assignment_list = invoke.schedule.walk(Assignment)
+    assert len(assignment_list) == 1
+
+    # Three binary operators: *, *, /
+    binary_op_list = invoke.schedule.walk(BinaryOperation)
+    assert len(binary_op_list) == 3
+
+    # Now the same tests, but stop at any Kern --> no assignment
+    # or binary operation should be found"
+    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assert not assignment_list
+
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    assert not binary_op_list

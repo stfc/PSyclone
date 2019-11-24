@@ -39,7 +39,8 @@
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
-from psyclone.psyGen import Symbol, SymbolTable, KernelSchedule, Return
+from psyclone.psyGen import KernelSchedule, Return
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArgumentInterface
 
 
 def test_oclw_initialization():
@@ -53,12 +54,12 @@ def test_oclw_initialization():
     with pytest.raises(TypeError) as error:
         oclwriter = OpenCLWriter(kernels_local_size='invalid')
     assert "kernel_local_size should be an integer but found 'str'." \
-        in str(error)
+        in str(error.value)
 
     with pytest.raises(ValueError) as error:
         oclwriter = OpenCLWriter(kernels_local_size=-4)
     assert "kernel_local_size should be a positive integer but found -4." \
-        in str(error)
+        in str(error.value)
 
     oclwriter = OpenCLWriter(kernels_local_size=4)
     assert oclwriter._kernels_local_size == 4
@@ -70,15 +71,15 @@ def test_oclw_gen_id_variable():
 
     '''
     oclwriter = OpenCLWriter()
-    symbol = Symbol("id1", "integer")
+    symbol = DataSymbol("id1", "integer")
     result = oclwriter.gen_id_variable(symbol, 3)
     assert result == "int id1 = get_global_id(3);\n"
 
-    symbol = Symbol("array", "integer", shape=[2, None, 2])
+    symbol = DataSymbol("array", "integer", shape=[2, None, 2])
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
     assert "OpenCL work-item identifiers must be scalar integer symbols " \
-        "but found" in str(excinfo)
+        "but found" in str(excinfo.value)
 
 
 def test_oclw_gen_declaration():
@@ -90,18 +91,19 @@ def test_oclw_gen_declaration():
 
     # Basic entry - Scalar are passed by value and don't have additional
     # qualifiers.
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     result = oclwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
     # Array argument has a memory qualifier (only __global for now)
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2])
+    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2])
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
     # Array with unknown intent
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
@@ -114,17 +116,17 @@ def test_oclw_gen_array_length_variables():
     oclwriter = OpenCLWriter()
 
     # A scalar should not return any LEN variables
-    symbol1 = Symbol("dummy2LEN1", "integer")
+    symbol1 = DataSymbol("dummy2LEN1", "integer")
     result = oclwriter.gen_array_length_variables(symbol1)
     assert result == ""
 
     # Array with 1 dimension generates 1 length variable
-    symbol2 = Symbol("dummy1", "integer", shape=[2])
+    symbol2 = DataSymbol("dummy1", "integer", shape=[2])
     result = oclwriter.gen_array_length_variables(symbol2)
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
     # Array with multiple dimension generates one variable per dimension
-    symbol3 = Symbol("dummy2", "integer", shape=[2, None, 2])
+    symbol3 = DataSymbol("dummy2", "integer", shape=[2, None, 2])
     result = oclwriter.gen_array_length_variables(symbol3)
     assert result == "int dummy2LEN1 = get_global_size(0);\n" \
         "int dummy2LEN2 = get_global_size(1);\n" \
@@ -144,7 +146,7 @@ def test_oclw_gen_array_length_variables():
         _ = oclwriter.gen_array_length_variables(symbol3, symtab)
     assert "Unable to declare the variable 'dummy2LEN1' to store the length " \
         "of 'dummy2' because the Symbol Table already contains a symbol with" \
-        " the same name." in str(excinfo)
+        " the same name." in str(excinfo.value)
 
 
 def test_oclw_kernelschedule():
@@ -161,7 +163,7 @@ def test_oclw_kernelschedule():
     with pytest.raises(NotImplementedError) as error:
         _ = oclwriter(kschedule)
     assert "Abstract property. Which symbols are data arguments is " \
-        "API-specific." in str(error)
+        "API-specific." in str(error.value)
 
     # Mock abstract properties. (pytest monkeypatch does not work
     # with properties, used sub-class instead)
@@ -177,11 +179,11 @@ def test_oclw_kernelschedule():
     kschedule.symbol_table.__class__ = MockSymbolTable
 
     # Create a sample symbol table and kernel schedule
-    interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
-    i = Symbol('i', 'integer', interface=interface)
-    j = Symbol('j', 'integer', interface=interface)
-    data1 = Symbol('data1', 'real', [10, 10], interface=interface)
-    data2 = Symbol('data2', 'real', [10, 10], interface=interface)
+    interface = ArgumentInterface(ArgumentInterface.Access.UNKNOWN)
+    i = DataSymbol('i', 'integer', interface=interface)
+    j = DataSymbol('j', 'integer', interface=interface)
+    data1 = DataSymbol('data1', 'real', [10, 10], interface=interface)
+    data2 = DataSymbol('data2', 'real', [10, 10], interface=interface)
     kschedule.symbol_table.add(i)
     kschedule.symbol_table.add(j)
     kschedule.symbol_table.add(data1)
