@@ -127,33 +127,14 @@ class ExtractNode(Node):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
-        from psyclone.f2pygen import CallGen, CommentGen, UseGen
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
-
-        use = UseGen(parent, "io", only=True,
-                     funcnames=["WriteVariable"])
-        parent.add(use)
-
+        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
-
-        dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
-        for var_name in input_list:
-            call = CallGen(parent, "WriteVariable",
-                           ["\"{0}\"".format(var_name),
-                            "{0}".format(var_name)])
-            parent.add(call)
+        parent.add(CommentGen(
+            parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
         for child in self.extract_body:
             child.gen_code(parent)
         parent.add(CommentGen(parent, ""))
-
-        for var_name in output_list:
-            call = CallGen(parent, "WriteVariable",
-                           ["\"{0}\"".format(var_name),
-                            "{0}".format(var_name)])
-            parent.add(call)
-
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
