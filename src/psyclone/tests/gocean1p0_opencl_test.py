@@ -164,7 +164,7 @@ def test_opencl_options_validation(kernel_outputdir):
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
     '''
-    from psyclone.transformations import TransformationError
+    from psyclone.psyir.transformations import TransformationError
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -465,7 +465,7 @@ def test_symtab_implementation_for_opencl():
 def test_opencl_kernel_with_use(kernel_outputdir):
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
-    from psyclone.transformations import TransformationError
+    from psyclone.psyir.transformations import TransformationError
     psy, _ = get_invoke("single_invoke_kern_with_use.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()

@@ -44,11 +44,11 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
-from psyclone.transformations import TransformationError, \
-    GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
-    OMPParallelTrans, GOceanOMPParallelLoopTrans, \
-    GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import GOConstLoopBoundsTrans, \
+    LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
+    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
+    GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
