@@ -41,11 +41,11 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.psyGen import PSyFactory
-from psyclone.transformations import TransformationError, ProfileRegionTrans
+from psyclone.psyir.transformations import ProfileRegion, TransformationError
 from fparser.common.readfortran import FortranStringReader
 
 # The transformation that most of these tests use
-PTRANS = ProfileRegionTrans()
+PTRANS = ProfileRegion()
 
 
 def get_nemo_schedule(parser, code):

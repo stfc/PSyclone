@@ -44,7 +44,7 @@ from psyclone.psyGen import GenerationError, Kern, NameSpace, \
      NameSpaceFactory, Node, BuiltIn
 
 
-class Profiler(object):
+class Profiler():
     ''' This class wraps all profiling related settings.'''
 
     # Command line option to use for the various profiling options
@@ -114,8 +114,8 @@ class Profiler(object):
         :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
         '''
 
-        from psyclone.transformations import ProfileRegionTrans
-        profile_trans = ProfileRegionTrans()
+        from psyclone.psyir.transformations import ProfileRegion
+        profile_trans = ProfileRegion()
         if Profiler.profile_kernels():
             for i in schedule.children:
                 if isinstance(i, loop_class):
@@ -269,6 +269,8 @@ class ProfileNode(Node):
                                   "for profiling")
 
     def update(self):
+        # pylint: disable=too-many-locals, too-many-branches
+        # pylint: disable=too-many-statements
         '''
         Update the underlying fparser2 parse tree to implement the profiling
         region represented by this Node. This involves adding the necessary
@@ -291,13 +293,15 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, Schedule, InternalError
+        from psyclone.psyGen import object_index, InternalError
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()
 
         # Get the parse tree of the routine containing this region
+        # pylint: disable=protected-access
         ptree = self.root.invoke._ast
+        # pylint: enable=protected-access
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
         node_list = walk_ast([ptree], [Fortran2003.Main_Program,
@@ -413,7 +417,9 @@ class ProfileNode(Node):
         # AST for the content of this region.
         content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
+        # pylint: disable=protected-access
         fp_parent = content_ast._parent
+        # pylint: enable=protected-access
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
@@ -437,8 +443,10 @@ class ProfileNode(Node):
             except ValueError:
                 # ast_end is not a child of fp_parent so go up to its parent
                 # and try again
+                # pylint: disable=protected-access
                 if hasattr(ast_end, "_parent") and ast_end._parent:
                     ast_end = ast_end._parent
+                    # pylint: enable=protected-access
                 else:
                     raise InternalError(
                         "Failed to find the location of '{0}' in the fparser2 "

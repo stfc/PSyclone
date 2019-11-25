@@ -38,6 +38,7 @@ transformations and base classes.
 '''
 
 from psyclone.psyir.transformations.extract_region import ExtractRegion
+from psyclone.psyir.transformations.profile_region import ProfileRegion
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -47,5 +48,6 @@ from psyclone.psyir.transformations.transformation_error \
 # from psyclone.psyir.transformations import ExtractRegion
 
 __all__ = ['ExtractRegion',
+           'ProfileRegion',
            'RegionTrans',
            'TransformationError']
