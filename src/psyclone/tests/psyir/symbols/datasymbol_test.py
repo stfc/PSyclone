@@ -39,8 +39,8 @@
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
 import pytest
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface, SymbolError
+from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
+    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.nodes import DataType
 from psyclone.psyGen import InternalError, Container
 
@@ -230,6 +230,9 @@ def test_datasymbol_can_be_printed():
     sym3 = DataSymbol("s3", DataType.INTEGER, constant_value=12)
     assert "s3: <DataType.INTEGER, Scalar, Local, constant_value=12>" \
         in str(sym3)
+
+    sym4 = DataSymbol("s4", "integer", interface=UnresolvedInterface())
+    assert "s4: <integer, Scalar, Unresolved>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():

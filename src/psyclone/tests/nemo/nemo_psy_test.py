@@ -83,7 +83,7 @@ def test_unamed_unit(parser):
     main_prog.content[0].items = (main_prog.content[0].items[0], "not a Name")
     with pytest.raises(InternalError) as err:
         _ = PSyFactory(API, distributed_memory=False).create(prog)
-    assert "Found no names in supplied Fortran" in str(err)
+    assert "Found no names in supplied Fortran" in str(err.value)
 
 
 def test_explicit_do_sched():
@@ -139,7 +139,7 @@ def test_multi_kern():
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
     assert ("getter method does not yet support a loop containing more than "
-            "one kernel but this loop contains 2" in str(err))
+            "one kernel but this loop contains 2" in str(err.value))
 
 
 def test_implicit_loop_assign():
@@ -233,8 +233,9 @@ def test_nemokern_match():
     with pytest.raises(InternalError) as err:
         nemo.NemoKern.match("invalid string type")
     # Different error message in python2 vs python3
-    assert "Expected 'Schedule' in 'match', got '<class 'str'>" in str(err) or\
-        "Expected 'Schedule' in 'match', got '<type 'str'>" in str(err)
+    assert ("Expected 'Schedule' in 'match', got '<class 'str'>"
+            in str(err.value) or "Expected 'Schedule' in 'match', "
+            "got '<type 'str'>" in str(err.value))
 
 
 def test_no_explicit_loop_in_kernel(parser):
@@ -371,7 +372,7 @@ def test_no_inline():
     with pytest.raises(NotImplementedError) as err:
         psy.inline(None)
     assert ("The NemoPSy.inline method has not yet been implemented!"
-            in str(err))
+            in str(err.value))
 
 
 def test_empty_routine():

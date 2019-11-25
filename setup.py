@@ -132,8 +132,7 @@ if __name__ == '__main__':
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pytest<5.0",  # TODO: Issue 438. Fix > 5.0 broken tests.
-                     "pep8", "pylint==1.6.5", "pytest-cov",
+            'test': ["pep8", "pylint==1.6.5", "pytest-cov",
                      "pytest-pep8", "pytest-pylint", "pytest-flakes",
                      "pytest-pep257"],
         },

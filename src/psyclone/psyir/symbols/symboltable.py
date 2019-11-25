@@ -38,6 +38,7 @@
 
 ''' This module contains the SymbolTable implementation. '''
 
+from __future__ import print_function
 from collections import OrderedDict
 from psyclone.psyir.symbols import Symbol, DataSymbol
 
@@ -230,6 +231,30 @@ class SymbolTable(object):
                         "yet has an ArgumentInterface interface."
                         "".format(str(symbol)))
 
+    def get_unresolved_datasymbols(self, ignore_precision=False):
+        '''
+        Create a list of the names of all of the DataSymbols in the table that
+        do not have a resolved interface. If ignore_precision is True then
+        those DataSymbols that are used to define the precision of other
+        DataSymbols are ignored. If no unresolved DataSymbols are found then an
+        empty list is returned.
+
+        :param bool ignore_precision: whether or not to ignore DataSymbols \
+                    that are used to define the precision of other DataSymbols.
+
+        :returns: the names of those DataSymbols with unresolved interfaces.
+        :rtype: list of str
+
+        '''
+        unresolved_symbols = [sym for sym in self.datasymbols
+                              if sym.unresolved_interface]
+        if ignore_precision:
+            unresolved_datasymbols = list(set(unresolved_symbols) -
+                                          set(self.precision_datasymbols))
+        else:
+            unresolved_datasymbols = unresolved_symbols
+        return [sym.name for sym in unresolved_datasymbols]
+
     @property
     def symbols(self):
         '''
@@ -272,6 +297,21 @@ class SymbolTable(object):
 
         '''
         return [sym for sym in self.datasymbols if sym.is_global]
+
+    @property
+    def precision_datasymbols(self):
+        '''
+        :returns: list of all symbols used to define the precision of \
+                  other symbols within the table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        # Accumulate into a set so as to remove any duplicates
+        precision_symbols = set()
+        for sym in self.datasymbols:
+            if isinstance(sym.precision, DataSymbol):
+                precision_symbols.add(sym.precision)
+        return list(precision_symbols)
 
     @property
     def iteration_indices(self):

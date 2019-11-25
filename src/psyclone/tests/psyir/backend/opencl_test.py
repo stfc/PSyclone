@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclond.psyir.backend.opencl module'''
@@ -40,7 +41,8 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import KernelSchedule, Return
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
+    ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.nodes import DataType
 
 
@@ -55,12 +57,12 @@ def test_oclw_initialization():
     with pytest.raises(TypeError) as error:
         oclwriter = OpenCLWriter(kernels_local_size='invalid')
     assert "kernel_local_size should be an integer but found 'str'." \
-        in str(error)
+        in str(error.value)
 
     with pytest.raises(ValueError) as error:
         oclwriter = OpenCLWriter(kernels_local_size=-4)
     assert "kernel_local_size should be a positive integer but found -4." \
-        in str(error)
+        in str(error.value)
 
     oclwriter = OpenCLWriter(kernels_local_size=4)
     assert oclwriter._kernels_local_size == 4
@@ -80,7 +82,7 @@ def test_oclw_gen_id_variable():
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
     assert "OpenCL work-item identifiers must be scalar integer symbols " \
-        "but found" in str(excinfo)
+        "but found" in str(excinfo.value)
 
 
 def test_oclw_gen_declaration():
@@ -147,7 +149,7 @@ def test_oclw_gen_array_length_variables():
         _ = oclwriter.gen_array_length_variables(symbol3, symtab)
     assert "Unable to declare the variable 'dummy2LEN1' to store the length " \
         "of 'dummy2' because the Symbol Table already contains a symbol with" \
-        " the same name." in str(excinfo)
+        " the same name." in str(excinfo.value)
 
 
 def test_oclw_kernelschedule():
@@ -164,7 +166,7 @@ def test_oclw_kernelschedule():
     with pytest.raises(NotImplementedError) as error:
         _ = oclwriter(kschedule)
     assert "Abstract property. Which symbols are data arguments is " \
-        "API-specific." in str(error)
+        "API-specific." in str(error.value)
 
     # Mock abstract properties. (pytest monkeypatch does not work
     # with properties, used sub-class instead)
@@ -193,7 +195,6 @@ def test_oclw_kernelschedule():
     kschedule.addchild(Return(parent=kschedule))
 
     result = oclwriter(kschedule)
-    print(result)
     assert result == "" \
         "__kernel void kname(\n" \
         "  __global double * restrict data1,\n" \
@@ -226,3 +227,13 @@ def test_oclw_kernelschedule():
         "  int j = get_global_id(1);\n" \
         "  return;\n" \
         "}\n\n"
+
+    # Add a symbol with a deferred interface and check that this raises the
+    # expected error
+    kschedule.symbol_table.add(DataSymbol('broken', 'real', [10, 10],
+                                          interface=UnresolvedInterface()))
+    with pytest.raises(VisitorError) as err:
+        _ = oclwriter(kschedule)
+    assert ("symbol table contains unresolved data entries (i.e. that have no "
+            "defined Interface) which are not used purely to define the "
+            "precision of other symbols: 'broken'" in str(err.value))
