@@ -3719,8 +3719,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    lit_uninit = lit + "[value:'NOT_INITIALISED', 'DataType.INTEGER']\n"
-    lit_one = lit + "[value:'1', 'DataType.INTEGER']\n"
+    lit_uninit = lit + "[value:'NOT_INITIALISED', DataType.INTEGER]\n"
+    lit_one = lit + "[value:'1', DataType.INTEGER]\n"
     indent = "    "
 
     _, invoke_info = parse(

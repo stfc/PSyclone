@@ -40,6 +40,7 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
@@ -469,33 +470,32 @@ def test_process_declarations_intent(f2008_parser):
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
-    from fparser.two.Fortran2003 import Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    arg_list = [Name("arg1")]
+    arg_list = [Fortran2003.Name("arg1")]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg1").interface.access == \
         ArgumentInterface.Access.READ
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
-    arg_list.append(Name("arg2"))
+    arg_list.append(Fortran2003.Name("arg2"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg2").interface.access == \
         ArgumentInterface.Access.READ
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
-    arg_list.append(Name("arg3"))
+    arg_list.append(Fortran2003.Name("arg3"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg3").interface.access == \
         ArgumentInterface.Access.WRITE
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
-    arg_list.append(Name("arg4"))
+    arg_list.append(Fortran2003.Name("arg4"))
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg4").interface.access is \

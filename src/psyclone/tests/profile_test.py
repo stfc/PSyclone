@@ -121,15 +121,15 @@ def test_profile_basic(capsys):
 Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', 'DataType.INTEGER']
-Literal[value:'jstop-1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'jstop-1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 ProfileStart[var=profile_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', 'DataType.INTEGER']
-Literal[value:'istop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'istop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: compute_cv_code
 End Schedule
@@ -138,14 +138,14 @@ ProfileEnd
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'jstop+1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'jstop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'istop+1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'istop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_ssh_code
 End Schedule
@@ -484,14 +484,14 @@ def test_transform(capsys):
 Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', 'DataType.INTEGER']
-Literal[value:'jstop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'jstop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', 'DataType.INTEGER']
-Literal[value:'istop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'istop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_ssh_code
 End Schedule
@@ -499,14 +499,14 @@ End GOLoop
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'jstop+1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'jstop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'istop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'istop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_solid_u_code
 End Schedule
@@ -514,14 +514,14 @@ End GOLoop
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'jstop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'jstop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'istop+1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'istop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_solid_v_code
 End Schedule
@@ -539,14 +539,14 @@ End Schedule""")
 Constant loop bounds=True]:
 ProfileStart[var=profile]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', 'DataType.INTEGER']
-Literal[value:'jstop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'jstop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', 'DataType.INTEGER']
-Literal[value:'istop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'istop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_ssh_code
 End Schedule
@@ -555,14 +555,14 @@ End Schedule
 End GOLoop
 ProfileStart[var=profile_1]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'jstop+1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'jstop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'istop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'istop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_solid_u_code
 End Schedule
@@ -571,14 +571,14 @@ End Schedule
 End GOLoop
 ProfileEnd
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'jstop', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'jstop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', 'DataType.INTEGER']
-Literal[value:'istop+1', 'DataType.INTEGER']
-Literal[value:'1', 'DataType.INTEGER']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'istop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_solid_v_code
 End Schedule

@@ -6209,7 +6209,7 @@ class Literal(Node):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return "{0}[value:'{1}', '{2}']".format(
+        return "{0}[value:'{1}', {2}]".format(
             self.coloured_name(colour),
             self._value, str(self.datatype))
 
