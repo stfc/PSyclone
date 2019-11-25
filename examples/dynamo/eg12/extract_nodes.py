@@ -56,7 +56,7 @@ Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
 from __future__ import print_function
-from psyclone.transformations import DynamoExtractRegionTrans
+from psyclone.domain.lfric.transformations import LFRicExtractRegion
 
 
 # Specify the name of the Invoke containing the Nodes to extract.
@@ -75,7 +75,7 @@ def trans(psy):
     the specified Nodes in an Invoke. '''
 
     # Get instance of the ExtractRegionTrans transformation
-    etrans = DynamoExtractRegionTrans()
+    etrans = LFRicExtractRegion()
 
     # Get Invoke and its Schedule
     invoke = psy.invokes.get(INVOKE_NAME)
