@@ -40,6 +40,7 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
+from psyclone.transformations import TransformationError
 
 
 def test_accloop():
@@ -81,7 +82,8 @@ def test_accenterdata_internalerr(monkeypatch):
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
-    assert "validate() has not rejected an (unsupported) schedule" in str(err)
+    assert ("validate() has not rejected an (unsupported) schedule"
+            in str(err.value))
 
 
 def test_omploop_no_collapse():
@@ -95,7 +97,7 @@ def test_omploop_no_collapse():
     with pytest.raises(NotImplementedError) as err:
         _ = trans._directive(pnode, cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
-            "directives" in str(err))
+            "directives" in str(err.value))
 
 
 def test_ifblock_children_region():
@@ -103,7 +105,7 @@ def test_ifblock_children_region():
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
     from psyclone.psyGen import IfBlock, Reference, Schedule
-    from psyclone.transformations import ACCParallelTrans, TransformationError
+    from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
     ifblock = IfBlock()
@@ -120,19 +122,19 @@ def test_ifblock_children_region():
     # is an error because the first child is the conditional part of the
     # IfBlock.
     with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate(ifblock.children)
-    assert ("transformation to the conditional expression (first child" in
-            str(err))
+        super(ACCParallelTrans, acct).validate([ifblock.children[0]])
+    assert ("transformation to the immediate children of a Loop/IfBlock "
+            "unless it is to a single Schedule" in str(err.value))
     with pytest.raises(TransformationError) as err:
         super(ACCParallelTrans, acct).validate(ifblock.children[1:])
-    assert ("Cannot enclose both the if- and else- clauses of an IfBlock by "
-            in str(err))
+    assert (" to multiple nodes when one or more is a Schedule. "
+            "Either target a single Schedule or " in str(err.value))
 
 
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
     from psyclone.psyGen import Loop, Schedule, Literal, Return
-    from psyclone.transformations import LoopFuseTrans, TransformationError
+    from psyclone.transformations import LoopFuseTrans
     sch = Schedule()
     loop1 = Loop(variable_name="i", parent=sch)
     loop2 = Loop(variable_name="j", parent=sch)
@@ -173,7 +175,7 @@ def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
     from psyclone.psyGen import Loop, Schedule, Literal
-    from psyclone.transformations import LoopFuseTrans, TransformationError
+    from psyclone.transformations import LoopFuseTrans
 
     sch1 = Schedule()
     sch2 = Schedule()
@@ -199,3 +201,23 @@ def test_fusetrans_error_not_same_parent():
         fuse.validate(loop1, loop2)
     assert "Error in LoopFuse transformation. Loops do not have the " \
         "same parent" in str(err.value)
+
+
+def test_regiontrans_wrong_children():
+    ''' Check that the validate method raises the expected error if
+        passed the wrong children of a Node. (e.g. those representing the
+        bounds of a Loop.) '''
+    from psyclone.psyGen import Loop, Literal, Schedule
+    # RegionTrans is abstract so use a concrete sub-class
+    from psyclone.transformations import RegionTrans, ACCParallelTrans
+    rtrans = ACCParallelTrans()
+    # Construct a valid Loop in the PSyIR
+    parent = Loop(parent=None)
+    parent.addchild(Literal("1", parent))
+    parent.addchild(Literal("10", parent))
+    parent.addchild(Literal("1", parent))
+    parent.addchild(Schedule(parent=parent))
+    with pytest.raises(TransformationError) as err:
+        RegionTrans.validate(rtrans, parent.children)
+    assert ("Cannot apply a transformation to multiple nodes when one or more "
+            "is a Schedule" in str(err.value))

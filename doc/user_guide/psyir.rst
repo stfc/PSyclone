@@ -107,3 +107,30 @@ objective is to move down the tree to a specific node or list of nodes without
 information about the exact location.
 
 .. automethod:: psyclone.psyGen.Node.walk
+
+
+.. _symbol-label:
+
+Symbols and Symbol Tables
+-------------------------
+
+Some PSyIR nodes have an associated Symbol Table
+(`psyclone.psyir.symbols.SymbolTable`) which keeps a record of the
+Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
+The ``SymbolTable`` has the following interface:
+
+.. autoclass:: psyclone.psyir.symbols.SymbolTable
+    :members:
+
+Where each element is a `Symbol` with an immutable name:
+
+.. autoclass:: psyclone.psyir.symbols.Symbol
+    :members:
+
+There are several `Symbol` sub-classes to represent different labeled entities
+in the PSyIR. At the moment the available symbols are:
+
+- .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
+
+- .. autoclass:: psyclone.psyir.symbols.DataSymbol
+

@@ -58,7 +58,7 @@ def test_access_info():
     with pytest.raises(InternalError) as err:
         access_info.change_read_to_write()
     assert "Trying to change variable to 'WRITE' which does not have "\
-        "'READ' access." in str(err)
+        "'READ' access." in str(err.value)
 
     access_info.indices = ["i"]
     assert access_info.indices == ["i"]
@@ -102,7 +102,7 @@ def test_variable_access_info():
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Trying to change variable 'var_name' to 'WRITE' which "\
-        "does not have 'READ' access." in str(err)
+        "does not have 'READ' access." in str(err.value)
 
     assert vai.all_accesses[0] == vai[0]
     with pytest.raises(IndexError) as err:
@@ -114,7 +114,7 @@ def test_variable_access_info():
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
     assert "Variable 'var_name' had 2 accesses listed, "\
-           "not one in change_read_to_write." in str(err)
+           "not one in change_read_to_write." in str(err.value)
 
     # And make sure the variable is not read_only if a write is added
     vai.add_access(AccessType.WRITE, 3, Node())

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-19, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,7 @@ def test_accroutine_err(monkeypatch):
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kern)
     assert ("Failed to find subroutine source for kernel testkern_code"
-            in str(err))
+            in str(err.value))
 
 
 def test_accroutine_module_use():
@@ -108,7 +108,8 @@ def test_accroutine_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
-    assert "'global' scope: ['rdt']. PSyclone cannot currently" in str(err)
+    assert ("'global' scope: ['rdt']. PSyclone cannot currently"
+            in str(err.value))
 
 
 def test_accroutine():
@@ -320,7 +321,7 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
             "scheme is set to 'single'".format(str(kernel_outputdir))
-            in str(err))
+            in str(err.value))
 
 
 def test_new_same_kern_single(kernel_outputdir, monkeypatch):
@@ -414,7 +415,7 @@ def test_builtin_no_trans():
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
-            "kernel 'x_plus_y' is of type " in str(err))
+            "kernel 'x_plus_y' is of type " in str(err.value))
 
 
 def test_no_inline_before_trans(kernel_outputdir, monkeypatch):
@@ -432,14 +433,14 @@ def test_no_inline_before_trans(kernel_outputdir, monkeypatch):
     _, _ = inline_trans.apply(kernels[1])
     with pytest.raises(TransformationError) as err:
         _, _ = rtrans.apply(kernels[1])
-    assert "because it will be module-inlined" in str(err)
+    assert "because it will be module-inlined" in str(err.value)
     # Monkeypatch the validate() routine so we can check that we catch
     # the error at code-generation time
     monkeypatch.setattr(rtrans, "validate", lambda kern, options: None)
     _, _ = rtrans.apply(kernels[1])
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen).lower()
-    assert "Cannot module-inline a transformed kernel " in str(err)
+    assert "Cannot module-inline a transformed kernel " in str(err.value)
 
 
 def test_no_inline_after_trans(monkeypatch):
@@ -458,13 +459,13 @@ def test_no_inline_after_trans(monkeypatch):
     # Then attempt to inline it
     with pytest.raises(TransformationError) as err:
         _, _ = inline_trans.apply(kernels[1])
-    assert "because it has previously been transformed" in str(err)
+    assert "because it has previously been transformed" in str(err.value)
     # Monkeypatch the validate() routine so we can check that we catch
     # the error at the psyGen level too.
     monkeypatch.setattr(inline_trans, "validate", lambda node, inline: None)
     with pytest.raises(NotImplementedError) as err:
         _, _ = inline_trans.apply(kernels[1])
-    assert "Cannot module-inline a transformed kernel " in str(err)
+    assert "Cannot module-inline a transformed kernel " in str(err.value)
 
 
 def test_no_inline_global_var():
@@ -480,7 +481,7 @@ def test_no_inline_global_var():
         _, _ = inline_trans.apply(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to data (variable "
             "'alpha') that are not captured in the PSyIR Symbol Table(s) "
-            "within KernelSchedule scope." in str(err))
+            "within KernelSchedule scope." in str(err.value))
 
 
 # Class KernelTrans
@@ -504,7 +505,7 @@ def test_kernel_trans_validate(monkeypatch):
 
     def dummy_func():
         '''Simple Dummy function that raises SymbolError.'''
-        from psyclone.psyGen import SymbolError
+        from psyclone.psyir.symbols import SymbolError
         raise SymbolError("error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", dummy_func)
     with pytest.raises(TransformationError) as err:

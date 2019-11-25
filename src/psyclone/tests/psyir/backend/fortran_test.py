@@ -40,13 +40,15 @@
 from __future__ import absolute_import
 
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
-from psyclone.psyGen import Symbol, Node, CodeBlock, Container, SymbolTable
+from psyclone.psyGen import Node, CodeBlock, Container
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
+    GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.fixture(scope="function", name="fort_writer")
@@ -60,17 +62,21 @@ def test_gen_intent():
     strings.
 
     '''
-    symbol = Symbol("dummy", "integer",
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy", "integer",
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     assert gen_intent(symbol) is None
-    symbol = Symbol("dummy", "integer",
-                    interface=Symbol.Argument(Symbol.Access.READ))
+    symbol = DataSymbol("dummy", "integer",
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     assert gen_intent(symbol) == "in"
-    symbol = Symbol("dummy", "integer",
-                    interface=Symbol.Argument(Symbol.Access.WRITE))
+    symbol = DataSymbol("dummy", "integer",
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.WRITE))
     assert gen_intent(symbol) == "out"
-    symbol = Symbol("dummy", "integer",
-                    interface=Symbol.Argument(Symbol.Access.READWRITE))
+    symbol = DataSymbol("dummy", "integer",
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
 
 
@@ -79,12 +85,13 @@ def test_gen_intent_error(monkeypatch):
     access type is found.
 
     '''
-    symbol = Symbol("dummy", "integer",
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy", "integer",
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_intent(symbol)
-    assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo)
+    assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
 def test_gen_dims():
@@ -92,10 +99,12 @@ def test_gen_dims():
     strings.
 
     '''
-    arg = Symbol("arg", "integer",
-                 interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
-    symbol = Symbol("dummy", "integer", shape=[arg, 2, None],
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    arg = DataSymbol("arg", "integer",
+                     interface=ArgumentInterface(
+                         ArgumentInterface.Access.UNKNOWN))
+    symbol = DataSymbol("dummy", "integer", shape=[arg, 2, None],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     assert gen_dims(symbol) == ["arg", "2", ":"]
 
 
@@ -104,12 +113,13 @@ def test_gen_dims_error(monkeypatch):
     entry is not supported.
 
     '''
-    symbol = Symbol("dummy", "integer",
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy", "integer",
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_dims(symbol)
-    assert "unsupported gen_dims index 'invalid'" in str(excinfo)
+    assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
@@ -120,7 +130,7 @@ def test_gen_dims_error(monkeypatch):
      ("boolean", "logical")])
 def test_gen_datatype(datatype, result):
     '''Check the gen_datatype function produces the expected datatypes.'''
-    symbol = Symbol("dummy", datatype)
+    symbol = DataSymbol("dummy", datatype)
     assert gen_datatype(symbol) == result
 
 
@@ -129,15 +139,15 @@ def test_gen_datatype(datatype, result):
     [("real", None, "real"),
      ("integer", 8, "integer*8"),
      ("real", 16, "real*16"),
-     ("real", Symbol.Precision.DOUBLE, "double precision"),
-     ("integer", Symbol("i_def", "integer"), "integer(kind=i_def)"),
-     ("real", Symbol("r_def", "integer"), "real(kind=r_def)")])
+     ("real", DataSymbol.Precision.DOUBLE, "double precision"),
+     ("integer", DataSymbol("i_def", "integer"), "integer(kind=i_def)"),
+     ("real", DataSymbol("r_def", "integer"), "real(kind=r_def)")])
 def test_gen_datatype_precision(datatype, precision, result):
     '''Check the gen_datatype function produces the expected datatypes when
     precision is specified.
 
     '''
-    symbol = Symbol("dummy", datatype, precision=precision)
+    symbol = DataSymbol("dummy", datatype, precision=precision)
     assert gen_datatype(symbol) == result
 
 
@@ -167,14 +177,14 @@ def test_gen_datatype_error(monkeypatch):
 
     '''
     # unsupported datatype found
-    symbol = Symbol("dummy", "deferred")
+    symbol = DataSymbol("dummy", "deferred")
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("unsupported datatype 'deferred' for symbol 'dummy' found in "
             "gen_datatype()." in str(excinfo.value))
 
     # Fixed precision not supported for character
-    symbol = Symbol("dummy", "integer", precision=4)
+    symbol = DataSymbol("dummy", "integer", precision=4)
     monkeypatch.setattr(symbol, "_datatype", "character")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
@@ -182,21 +192,21 @@ def test_gen_datatype_error(monkeypatch):
             "symbol 'dummy' in Fortran backend." in str(excinfo.value))
 
     # Fixed precision value not supported for real
-    symbol = Symbol("dummy", "real", precision=2)
+    symbol = DataSymbol("dummy", "real", precision=2)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Datatype 'real' in symbol 'dummy' supports fixed precision of "
             "[4, 8, 16] but found '2'." in str(excinfo.value))
 
     # Fixed precision value not supported for integer
-    symbol = Symbol("dummy", "integer", precision=32)
+    symbol = DataSymbol("dummy", "integer", precision=32)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Datatype 'integer' in symbol 'dummy' supports fixed precision "
             "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
 
     # Fixed precision value not supported for logical
-    symbol = Symbol("dummy", "boolean")
+    symbol = DataSymbol("dummy", "boolean")
     # This needs to be monkeypatched as the Fortran front end will not
     # create logicals with a precision
     monkeypatch.setattr(symbol, "precision", 32)
@@ -206,7 +216,8 @@ def test_gen_datatype_error(monkeypatch):
             "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
 
     # Kind not supported for character
-    symbol = Symbol("dummy", "real", precision=Symbol("c_def", "integer"))
+    symbol = DataSymbol("dummy", "real",
+                        precision=DataSymbol("c_def", "integer"))
     # This needs to be monkeypatched as the Symbol constructor can not
     # create characters with a size dependent on another variable.
     monkeypatch.setattr(symbol, "_datatype", "character")
@@ -216,7 +227,7 @@ def test_gen_datatype_error(monkeypatch):
             "Fortran backend." in str(excinfo.value))
 
     # Unsupported precision type found
-    symbol = Symbol("dummy", "real")
+    symbol = DataSymbol("dummy", "real")
     monkeypatch.setattr(symbol, "precision", "unsupported")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
@@ -230,16 +241,17 @@ def test_fw_gen_use(fort_writer):
     does not describe a use statement.
 
     '''
-    symbol = Symbol("dummy1", "deferred",
-                    interface=Symbol.FortranGlobal("my_module"))
+    symbol = DataSymbol("dummy1", "deferred",
+                        interface=GlobalInterface(
+                            ContainerSymbol("my_module")))
     result = fort_writer.gen_use(symbol)
     assert result == "use my_module, only : dummy1\n"
 
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_use(symbol)
     assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
-            "be a FortranGlobal instance but found 'NoneType'."
+            "be a Global instance but found 'LocalInterface'."
             in str(excinfo.value))
 
 
@@ -250,35 +262,47 @@ def test_fw_gen_vardecl(fort_writer):
 
     '''
     # Basic entry
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer :: dummy1\n"
 
     # Array with intent
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.READ))
+    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2) :: dummy2\n"
 
     # Constant
-    symbol = Symbol("dummy3", "integer", constant_value=10)
+    symbol = DataSymbol("dummy3", "integer", constant_value=10)
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
     # Use statement
-    symbol = Symbol("dummy1", "deferred",
-                    interface=Symbol.FortranGlobal("my_module"))
+    symbol = DataSymbol("dummy1", "deferred",
+                        interface=GlobalInterface(
+                            ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to be a local "
-            "declaration or an argument declaration, but found scope "
-            "'global' and interface 'FortranGlobal'." in str(excinfo.value))
+    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
+            "an Argument interface but found a 'GlobalInterface' interface."
+            in str(excinfo.value))
+
+    # An unresolved symbol
+    symbol = DataSymbol("dummy1", "deferred",
+                        interface=UnresolvedInterface())
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
+            "an Argument interface but found a 'UnresolvedInterface' "
+            "interface." in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):
@@ -289,12 +313,15 @@ def test_gen_decls(fort_writer):
 
     '''
     symbol_table = SymbolTable()
-    use_statement = Symbol("my_use", "deferred",
-                           interface=Symbol.FortranGlobal("my_module"))
+    symbol_table.add(ContainerSymbol("my_module"))
+    use_statement = DataSymbol("my_use", "deferred",
+                               interface=GlobalInterface(
+                                   symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
-    argument_variable = Symbol("arg", "integer", interface=Symbol.Argument())
+    argument_variable = DataSymbol("arg", "integer",
+                                   interface=ArgumentInterface())
     symbol_table.add(argument_variable)
-    local_variable = Symbol("local", "integer")
+    local_variable = DataSymbol("local", "integer")
     symbol_table.add(local_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
@@ -305,6 +332,15 @@ def test_gen_decls(fort_writer):
         _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['arg']'." in str(excinfo.value))
+
+    # Add a symbol with a deferred (unknown) interface
+    symbol_table.add(DataSymbol("unknown", "integer",
+                                interface=UnresolvedInterface()))
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_decls(symbol_table)
+    assert ("The following symbols are not explicitly declared or imported "
+            "from a module (in the local scope) and are not KIND parameters: "
+            "'unknown'" in str(excinfo.value))
 
 
 def test_fw_exception(fort_writer):
@@ -340,7 +376,7 @@ def test_fw_exception(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo)
+    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
 
 
 def test_fw_container_1(fort_writer, monkeypatch):
@@ -359,7 +395,8 @@ def test_fw_container_1(fort_writer, monkeypatch):
     monkeypatch.setattr(container, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
-    assert "Expected Container node name to have a value." in str(excinfo)
+    assert ("Expected Container node name to have a value."
+            in str(excinfo.value))
 
 
 def test_fw_container_2(fort_writer):
@@ -399,7 +436,7 @@ def test_fw_container_2(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
-            "to be KernelSchedules." in str(excinfo))
+            "to be KernelSchedules." in str(excinfo.value))
 
 
 def test_fw_container_3(fort_writer, monkeypatch):
@@ -420,12 +457,12 @@ def test_fw_container_3(fort_writer, monkeypatch):
     container = schedule.root
     symbol = container.symbol_table.symbols[0]
     assert symbol.name == "a"
-    monkeypatch.setattr(symbol, "_interface", Symbol.Argument())
+    monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("Arguments are not allowed in this context but this symbol table "
-            "contains argument(s): '['a']'." in str(excinfo))
+            "contains argument(s): '['a']'." in str(excinfo.value))
 
 
 def test_fw_kernelschedule(fort_writer, monkeypatch):
@@ -465,7 +502,7 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Expected node name to have a value." in str(excinfo)
+    assert "Expected node name to have a value." in str(excinfo.value)
 
 # assignment and binaryoperation (not intrinsics) are already checked
 # within previous tests
@@ -515,7 +552,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Unexpected binary op" in str(excinfo)
+    assert "Unexpected binary op" in str(excinfo.value)
 
 
 def test_fw_naryopeator(fort_writer):
@@ -561,7 +598,7 @@ def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as err:
         _ = fort_writer(schedule)
-    assert "Unexpected N-ary op" in str(err)
+    assert "Unexpected N-ary op" in str(err.value)
 
 
 def test_fw_reference(fort_writer):
@@ -608,7 +645,8 @@ def test_fw_reference(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = fort_writer(schedule)
-    assert "Expecting a Reference with no children but found" in str(excinfo)
+    assert ("Expecting a Reference with no children but found"
+            in str(excinfo.value))
 
 
 def test_fw_array(fort_writer):
@@ -763,7 +801,7 @@ def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Unexpected unary op" in str(excinfo)
+    assert "Unexpected unary op" in str(excinfo.value)
 
 
 def test_fw_return(fort_writer):

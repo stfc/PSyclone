@@ -43,8 +43,10 @@ import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyGen import Symbol, Node, CodeBlock, Assignment, Reference, \
-    Return, Array, Literal, UnaryOperation, BinaryOperation, Schedule
+from psyclone.psyGen import Node, CodeBlock, Assignment, \
+    Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
+    Schedule
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 
 def test_cw_gen_declaration():
@@ -55,27 +57,29 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = Symbol("dummy1", "character")
+    symbol = DataSymbol("dummy1", "character")
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = Symbol("dummy1", "boolean")
+    symbol = DataSymbol("dummy1", "boolean")
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = Symbol("dummy2", "real", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.READ))
+    symbol = DataSymbol("dummy2", "real", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
     # Array with unknown intent
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)
     assert result == "int * restrict dummy2"
 
@@ -84,7 +88,7 @@ def test_cw_gen_declaration():
     with pytest.raises(NotImplementedError) as error:
         _ = cwriter.gen_declaration(symbol)
     assert "Could not generate the C definition for the variable 'dummy2', " \
-        "type 'invalid' is currently not supported." in str(error)
+        "type 'invalid' is currently not supported." in str(error.value)
 
 
 def test_cw_gen_local_variable(monkeypatch):
@@ -98,7 +102,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", "integer")
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
@@ -120,7 +124,7 @@ def test_cw_exception():
     cwriter = CWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = cwriter(unsupported)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo)
+    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
 
 
 def test_cw_literal():
@@ -168,7 +172,7 @@ def test_cw_assignment_and_reference():
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
     assert "Expecting a Reference with no children but found: " \
-        in str(excinfo)
+        in str(excinfo.value)
 
 
 def test_cw_array():
@@ -188,7 +192,7 @@ def test_cw_array():
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
     assert "Arrays must have at least 1 dimension but found node: '" \
-        in str(excinfo)
+        in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
     arr.addchild(Reference('b', parent=arr))
@@ -272,7 +276,7 @@ def test_cw_codeblock():
 
     with pytest.raises(VisitorError) as error:
         _ = cwriter(cblock)
-    assert "CodeBlocks can not be translated to C." in str(error)
+    assert "CodeBlocks can not be translated to C." in str(error.value)
 
 
 def test_cw_unaryoperator():
@@ -319,8 +323,8 @@ def test_cw_unaryoperator():
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
-    assert "The C backend does not support the '" in str(err)
-    assert "' operator." in str(err)
+    assert "The C backend does not support the '" in str(err.value)
+    assert "' operator." in str(err.value)
 
 
 def test_cw_binaryoperator():
@@ -373,8 +377,8 @@ def test_cw_binaryoperator():
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
-    assert "The C backend does not support the '" in str(err)
-    assert "' operator." in str(err)
+    assert "The C backend does not support the '" in str(err.value)
+    assert "' operator." in str(err.value)
 
 
 def test_cw_loop():
