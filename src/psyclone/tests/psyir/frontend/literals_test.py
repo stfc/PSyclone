@@ -40,6 +40,7 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import DataType
 from psyclone.psyGen import Node, Literal, CodeBlock
@@ -55,9 +56,8 @@ def test_handling_literal(f2008_parser, code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
     supported datatypes. Note that signed literals are represented in the
     PSyIR as a Unary operation on an unsigned literal. '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
     reader = FortranStringReader("x=" + code)
-    astmt = Assignment_Stmt(reader)
+    astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Node()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt], None)
@@ -91,3 +91,14 @@ def test_literal_datatype():
         Literal(True, DataType.INTEGER)
     assert ("non-boolean Literal must be supplied with a value encoded as a "
             "string but got" in str(err.value))
+
+
+def test_number_handler():
+    ''' Check that the number_handler raises a NotImplementedError for an
+    unrecognised fparser2 node. '''
+    processor = Fparser2Reader()
+    fake_parent = Node()
+    reader = FortranStringReader("(1.0, 1.0)")
+    with pytest.raises(NotImplementedError):
+        processor._number_handler(
+            Fortran2003.Complex_Literal_Constant(reader), fake_parent)
