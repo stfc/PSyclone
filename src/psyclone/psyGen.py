@@ -5335,6 +5335,55 @@ class IfBlock(Node):
             return self._children[2]
         return None
 
+    @staticmethod
+    def create(if_condition, if_body, else_body=None):
+        '''Create an IfBlock instance given valid instances of an
+        if_condition, an if_body and an optional else_body.
+
+        :param if_condition: the PSyIR node containing the if \
+        condition of the if block.
+        :type: :py:class:`psyclone.psyGen.Node`
+        :param if_body: the PSyIR node containing the if body of \
+        the if block.
+        :type: :py:class:`psyclone.psyGen.Schedule`
+        :param else_body: PSyIR node containing the else body of the \
+        if block of None if there is no else body (defaults to None).
+        :type: :py:class:`psyclone.psyGen.Schedule` or NoneType
+
+        :returns: an IfBlock instance.
+        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+
+        '''
+        if not isinstance(if_condition, Node):
+            raise GenerationError(
+                "if_condition argument to class IfBlock method create "
+                "should be a PSyIR Node but found '{0}'.")
+                "".format(name, type(if_condition).__name__))
+        if not (isinstance(if_body, List) and all(isinstance(child, Node)
+                                                  for child in if_body)):
+            raise GenerationError(
+                "if_body argument to class IfBlock method create should be "
+                "a list of PSyIR Nodes but it is either not a list or "
+                "one of the list's children is not a Node.")
+        if else_body and not (isinstance(if_body, List) and
+                all(isinstance(child, Node) for child in if_body)):
+            raise GenerationError(
+                "else_body argument to class IfBlock method create should be "
+                "a list of PSyIR Nodes but it is either not a list or "
+                "one of the list's children is not a Node.")
+        if_stmt = IfBlock()
+        if_schedule = Schedule(parent=if_stmt)
+        if_body.parent = if_schedule
+        if_schedule.children = if_body
+        if else_body:
+            else_schedule = Schedule(parent=if_stmt)
+            else_body.parent = else_schedule
+            else_schedule.children = else_body
+            if_stmt.children = [if_condition, if_schedule, else_schedule]
+        else:
+            if_stmt.children = [if_condition, if_schedule]
+        return if_stmt
+
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
@@ -5678,6 +5727,37 @@ class Assignment(Node):
 
         return self._children[1]
 
+    @staticmethod
+    def create(lhs, rhs):
+        '''Create an Assignment instance given lhs and rhs child instances.
+
+        :param lhs: the PSyIR node containing the left hand side of \
+        the assignment.
+        :type: :py:class:`psyclone.psyGen.Node`
+        :param rhs: the PSyIR node containing the right hand side of \
+        the assignment.
+        :type: :py:class:`psyclone.psyGen.Node`
+
+        :returns: an Assignment instance.
+        :rtype: :py:class:`psyclone.psyGen.Assignment`
+
+        '''
+        if not isinstance(lhs, Node):
+            raise GenerationError(
+                "lhs argument to class Assignment method create should be "
+                "a PSyIR Node but found '{0}'."
+                "".format(type(lhs).__name__)
+        if not isinstance(rhs, Node):
+            raise GenerationError(
+                "rhs argument to class Assignment method create should be "
+                "a PSyIR Node but found '{0}'."
+                "".format(type(rhs).__name__)
+        new_assignment = Assignment()
+        lhs.parent = new_assignment
+        rhs.parent = new_assignment
+        new_assignment.children = [lhs, rhs]
+        return new_assignment
+
     def __str__(self):
         result = "Assignment[]\n"
         for entity in self._children:
@@ -5992,6 +6072,34 @@ class UnaryOperation(Operation):
         super(UnaryOperation, self).__init__(operation, parent)
         self._text_name = "UnaryOperation"
 
+    @staticmethod
+    def create(oper, child):
+        '''Create a UnaryOperation instance given oper and child instances.
+
+        :param oper: the specified operator.
+        :type: :py:class:`psyclone.psyGen.???`
+        :param child: the PSyIR node that oper operates on.
+        :type: :py:class:`psyclone.psyGen.Node`
+
+        :returns: a UnaryOperation instance.
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+
+        '''
+        if not isinstance(oper, psyclone.psyGen.UnaryOperation.Operator):
+            raise GenerationError(
+                "oper argument to class Argument method create should be "
+                "a UnaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__)
+        if not isinstance(child, Node):
+            raise GenerationError(
+                "Child argument to class UnaryOperation method create should "
+                "be a PSyIR Node but found '{0}'."
+                "".format(type(child).__name__)
+        unary_op = UnaryOperation(oper)
+        child.parent=unary_op
+        unary_op.children = [child]
+        return unary_op
+
 
 class BinaryOperation(Operation):
     '''
@@ -6044,6 +6152,42 @@ class BinaryOperation(Operation):
             return self._children[0].math_equal(other.children[1]) and \
                 self._children[1].math_equal(other.children[0])
         return self.operator == other.operator
+
+    @staticmethod
+    def create(oper, lhs, rhs):
+        '''Create a BinaryOperator instance given an operator and lhs and rhs
+        child instances.
+
+        :param operator: the operator used in the operation.
+        :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+        :param lhs: the PSyIR node containing the left hand side of \
+        the assignment.
+        :type: :py:class:`psyclone.psyGen.Node`
+        :param rhs: the PSyIR node containing the right hand side of \
+        the assignment.
+        :type: :py:class:`psyclone.psyGen.Node`
+
+        :returns: a BinaryOperator instance.
+        :rtype: :py:class:`psyclone.psyGen.BinaryOperator`
+
+        '''
+        if not isinstance(oper, BinaryOperation.Operator):
+            raise GenerationError(
+                "oper argument to class BinaryOperator method create "
+                "should be a PSyIR Node but found '{0}'."
+                "".format(type(instance).__name__))
+        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
+            if not isinstance(instance, Node):
+                raise GenerationError(
+                    "{0} argument to class Argument method create should be "
+                    "a PSyIR Node but found '{1}'."
+                    "".format(name, type(instance).__name__))
+        binary_op = BinaryOperation(oper)
+        lhs.parent=binary_op
+        rhs.parent=binary_op
+        binary_op.children = [lhs, rhs]
+        return binary_op
+
 
 
 class NaryOperation(Operation):
