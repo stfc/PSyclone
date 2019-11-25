@@ -2090,8 +2090,10 @@ class DynReferenceElement(DynCollection):
 
     def _invoke_declarations(self, parent):
         '''
+        Create the necessary declarations for the variables needed in order
+        to provide properties of the reference element.
 
-        :param parent:
+        :param parent: TODO
         :type parent:
 
         '''
@@ -2175,6 +2177,29 @@ class DynReferenceElement(DynCollection):
                         name="{0}%get_normals_to_horizontal_faces({1})".format(
                             self._ref_elem_name,
                             self._horiz_face_normals_name)))
+
+        if self._horiz_face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_out_normals_to_horizontal_faces({1})".format(
+                        self._ref_elem_name,
+                        self._horiz_face_out_normals_name)))
+
+        if self._vert_face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_vertical_faces({1})".format(
+                            self._ref_elem_name,
+                            self._vert_face_normals_name)))
+
+        if self._vert_face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_out_normals_to_vertical_faces({1})".format(
+                        self._ref_elem_name,
+                        self._vert_face_out_normals_name)))
 
 
 class DynDofmaps(DynCollection):
@@ -7121,6 +7146,10 @@ class ArgOrdering(object):
                     format(self._kern.name, op_arg.access.api_specific_name()))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
+        # Reference-element properties
+        if self._kern.reference_element:
+            self.ref_element_properties()
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -7308,6 +7337,11 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
+
+    @abc.abstractmethod
+    def ref_element_properties(self):
+        ''' Add kernel arguments relating to properties of the reference
+        element. '''
 
     def quad_rule(self):
         '''
@@ -7637,6 +7671,11 @@ class KernCallArgList(ArgOrdering):
                                                     context="PSyVars",
                                                     label=base_name)
         self._arglist.append(name)
+
+    def reference_element_properties(self):
+        ''' Provide kernel arguments required by the reference-element
+        properties. '''
+        assert 0  # ARPDBG
 
     def quad_rule(self):
         ''' add qr information to the argument list'''

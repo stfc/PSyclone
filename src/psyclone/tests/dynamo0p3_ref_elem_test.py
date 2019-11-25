@@ -166,6 +166,19 @@ def test_refelem_gen(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen)
     print(gen_code)
+    assert "use blah, only: yyy" in gen_code
+    assert ("INTEGER, allocatable :: horiz_face_normals(:,:), "
+            "vert_face_normals(:,:)" in gen_code)
+    # We need a mesh object in order to get a reference_element object
+    assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
+    assert "reference_element => mesh%get_reference_element()" in gen_code
     assert "nfaces_re_h = xxx" in gen_code
     assert "nfaces_re_v = yyy" in gen_code
-    
+    assert ("CALL reference_element%get_normals_to_horizontal_faces(xxx)"
+            in gen_code)
+    # The kernel call
+    assert ("CALL testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
+            "horiz_face_normals, vert_face_normals)" in gen_code)
