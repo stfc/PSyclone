@@ -230,7 +230,7 @@ def test_oclw_kernelschedule():
 
     # Add a symbol with a deferred interface and check that this raises the
     # expected error
-    kschedule.symbol_table.add(DataSymbol('broken', 'real', [10, 10],
+    kschedule.symbol_table.add(DataSymbol('broken', DataType.REAL, [10, 10],
                                           interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as err:
         _ = oclwriter(kschedule)

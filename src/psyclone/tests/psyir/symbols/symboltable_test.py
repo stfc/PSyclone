@@ -416,15 +416,16 @@ def test_symboltable_abstract_properties():
 def test_symboltable_unresolved():
     ''' Tests for the get_unresolved_datasymbols method. '''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("s1", "integer", []))
+    sym_table.add(DataSymbol("s1", DataType.INTEGER, []))
     # Check that we get an empty list if everything is defined
     assert sym_table.get_unresolved_datasymbols() == []
     # Add a symbol with a deferred interface
-    rdef = DataSymbol("r_def", "integer", interface=UnresolvedInterface())
+    rdef = DataSymbol("r_def", DataType.INTEGER,
+                      interface=UnresolvedInterface())
     sym_table.add(rdef)
     assert sym_table.get_unresolved_datasymbols() == ["r_def"]
     # Add a symbol that uses r_def for its precision
-    sym_table.add(DataSymbol("s2", "real", [], precision=rdef))
+    sym_table.add(DataSymbol("s2", DataType.REAL, [], precision=rdef))
     # By default we should get this precision symbol
     assert sym_table.get_unresolved_datasymbols() == ["r_def"]
     # But not if we request that precision symbols be ignored

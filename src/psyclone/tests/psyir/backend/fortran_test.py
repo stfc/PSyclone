@@ -181,8 +181,8 @@ def test_gen_datatype_error(monkeypatch):
     symbol = DataSymbol("dummy", DataType.DEFERRED)
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_datatype(symbol)
-    assert ("unsupported datatype 'deferred' for symbol 'dummy' found in "
-            "gen_datatype()." in str(excinfo.value))
+    assert ("unsupported datatype 'DataType.DEFERRED' for symbol 'dummy' "
+            "found in gen_datatype()." in str(excinfo.value))
 
     # Fixed precision not supported for character
     symbol = DataSymbol("dummy", DataType.INTEGER, precision=4)
@@ -207,7 +207,7 @@ def test_gen_datatype_error(monkeypatch):
             "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
 
     # Fixed precision value not supported for logical
-    symbol = DataSymbol("dummy", "boolean")
+    symbol = DataSymbol("dummy", DataType.BOOLEAN)
     # This needs to be monkeypatched as the Fortran front end will not
     # create logicals with a precision
     monkeypatch.setattr(symbol, "precision", 32)
@@ -297,7 +297,7 @@ def test_fw_gen_vardecl(fort_writer):
             in str(excinfo.value))
 
     # An unresolved symbol
-    symbol = DataSymbol("dummy1", "deferred",
+    symbol = DataSymbol("dummy1", DataType.DEFERRED,
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
@@ -335,7 +335,7 @@ def test_gen_decls(fort_writer):
             "contains argument(s): '['arg']'." in str(excinfo.value))
 
     # Add a symbol with a deferred (unknown) interface
-    symbol_table.add(DataSymbol("unknown", "integer",
+    symbol_table.add(DataSymbol("unknown", DataType.INTEGER,
                                 interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)

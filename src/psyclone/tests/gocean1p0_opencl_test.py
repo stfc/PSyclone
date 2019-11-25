@@ -45,6 +45,7 @@ from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
+from psyclone.psyir.nodes import DataType
 from psyclone.tests.utilities import Compile, get_invoke
 
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
@@ -409,7 +410,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = DataSymbol("arg1", "integer", [],
+    arg1 = DataSymbol("arg1", DataType.INTEGER, [],
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
@@ -422,7 +423,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 2 kernel argument
-    arg2 = DataSymbol("arg2", "integer", shape=[],
+    arg2 = DataSymbol("arg2", DataType.INTEGER, shape=[],
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
@@ -432,7 +433,7 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    arg3 = DataSymbol("buffer1", "real", shape=[10, 10],
+    arg3 = DataSymbol("buffer1", DataType.REAL, shape=[10, 10],
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg3)
@@ -444,20 +445,20 @@ def test_symtab_implementation_for_opencl():
     assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
-    arg1._datatype = "real"
+    arg1._datatype = DataType.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
-            " but got a scalar of type 'real' for kernel 'test'.")\
-        in str(err.value)
+            " but got a scalar of type 'DataType.REAL' for kernel 'test'."
+            in str(err.value))
 
-    arg1._datatype = "integer"  # restore
+    arg1._datatype = DataType.INTEGER  # restore
     arg2._shape = [None]
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
-            " but got an array of type 'integer' for kernel 'test'.")\
-        in str(err.value)
+            " but got an array of type 'DataType.INTEGER' for kernel 'test'."
+            in str(err.value))
 
 
 @pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "

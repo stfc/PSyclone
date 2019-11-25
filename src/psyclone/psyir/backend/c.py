@@ -75,7 +75,7 @@ class CWriter(PSyIRVisitor):
         '''
         code = ""
         try:
-            code = code + TYPE_MAP_TO_C[symbol.datatype]
+            code = code + TYPE_MAP_TO_C[symbol.datatype] + " "
         except KeyError:
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "

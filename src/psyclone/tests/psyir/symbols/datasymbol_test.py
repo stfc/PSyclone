@@ -231,8 +231,8 @@ def test_datasymbol_can_be_printed():
     assert "s3: <DataType.INTEGER, Scalar, Local, constant_value=12>" \
         in str(sym3)
 
-    sym4 = DataSymbol("s4", "integer", interface=UnresolvedInterface())
-    assert "s4: <integer, Scalar, Unresolved>" in str(sym4)
+    sym4 = DataSymbol("s4", DataType.INTEGER, interface=UnresolvedInterface())
+    assert "s4: <DataType.INTEGER, Scalar, Unresolved>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():

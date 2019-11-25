@@ -47,6 +47,7 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     Container, InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError
+from psyclone.psyir.nodes import DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -327,7 +328,7 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
-    assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
+    assert fake_parent.symbol_table.lookup("l1").datatype == DataType.INTEGER
     assert fake_parent.symbol_table.lookup("l1").shape == []
     assert fake_parent.symbol_table.lookup("l1").is_local
     assert not fake_parent.symbol_table.lookup("l1").precision
@@ -336,14 +337,14 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
-    assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
+    assert fake_parent.symbol_table.lookup("l2").datatype == DataType.REAL
     assert not fake_parent.symbol_table.lookup("l2").precision
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("b").name == "b"
-    assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
+    assert fake_parent.symbol_table.lookup("b").datatype == DataType.BOOLEAN
     assert not fake_parent.symbol_table.lookup("b").precision
 
     # RHS array specifications
@@ -351,7 +352,7 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l3").name == 'l3'
-    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
+    assert fake_parent.symbol_table.lookup("l3").datatype == DataType.INTEGER
     assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
     assert not fake_parent.symbol_table.lookup("l3").precision
 
@@ -359,7 +360,7 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l4").name == 'l4'
-    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
+    assert fake_parent.symbol_table.lookup("l4").datatype == DataType.INTEGER
     assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
     assert not fake_parent.symbol_table.lookup("l4").precision
 
@@ -513,7 +514,7 @@ def test_process_declarations_kind_new_param(f2008_parser):
                       DataSymbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
-    assert wp_var.datatype == "integer"
+    assert wp_var.datatype == DataType.INTEGER
     assert fake_parent.symbol_table.lookup("var1").precision is wp_var
     # Check that, despite the difference in case, the second variable
     # references the same 'wp' symbol.
@@ -631,8 +632,8 @@ def test_process_declarations_stmt_functions(f2008_parser):
 
     # If 'a' is declared in the symbol table as an array, it is an array
     # assignment which belongs in the execution part.
-    fake_parent.symbol_table.add(DataSymbol('a', 'real', shape=[None]))
-    fake_parent.symbol_table.add(DataSymbol('x', 'real', shape=[]))
+    fake_parent.symbol_table.add(DataSymbol('a', DataType.REAL, shape=[None]))
+    fake_parent.symbol_table.add(DataSymbol('x', DataType.REAL, shape=[]))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -643,9 +644,10 @@ def test_process_declarations_stmt_functions(f2008_parser):
     fake_parent = KernelSchedule("dummy_schedule")
     reader = FortranStringReader("b(x, y) = 1")
     fparser2spec = Stmt_Function_Stmt(reader)
-    fake_parent.symbol_table.add(DataSymbol('b', 'real', shape=[None, None]))
-    fake_parent.symbol_table.add(DataSymbol('x', 'integer', shape=[]))
-    fake_parent.symbol_table.add(DataSymbol('y', 'integer', shape=[]))
+    fake_parent.symbol_table.add(DataSymbol('b', DataType.REAL,
+                                            shape=[None, None]))
+    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER, shape=[]))
+    fake_parent.symbol_table.add(DataSymbol('y', DataType.INTEGER, shape=[]))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -684,7 +686,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
 
-    sym_table.add(DataSymbol('var1', 'integer', []))
+    sym_table.add(DataSymbol('var1', DataType.INTEGER, []))
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
@@ -703,7 +705,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        sym_table.add(DataSymbol("var2", "real", []))
+        sym_table.add(DataSymbol("var2", DataType.REAL, []))
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
@@ -728,7 +730,7 @@ def test_parse_array_dimensions_attributes(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec],
                                    [Name("array3")])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
-    assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
+    assert fake_parent.symbol_table.lookup("array3").datatype == DataType.REAL
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
     assert fake_parent.symbol_table.lookup("array3").interface.access is \
         ArgumentInterface.Access.READ
@@ -747,7 +749,7 @@ def test_deferred_array_size(f2008_parser):
                                    [Name("array3"), Name("n")])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, ArgumentInterface)
-    assert dim_sym.datatype == "integer"
+    assert dim_sym.datatype == DataType.INTEGER
 
 
 def test_unresolved_array_size(f2008_parser):
@@ -761,7 +763,7 @@ def test_unresolved_array_size(f2008_parser):
     processor.process_declarations(fake_parent, fparser2spec, [])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, UnresolvedInterface)
-    assert dim_sym.datatype == "integer"
+    assert dim_sym.datatype == DataType.INTEGER
     # Check that the lookup of the dimensioning symbol is not case sensitive
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
@@ -876,7 +878,7 @@ def test_handling_name(f2008_parser):
         processor.process_nodes(fake_parent, [fparser2name], None)
     assert "Undeclared reference 'x' found." in str(error.value)
 
-    fake_parent.symbol_table.add(DataSymbol('x', 'integer'))
+    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2name], None)
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -919,7 +921,7 @@ def test_handling_part_ref(f2008_parser):
         processor.process_nodes(fake_parent, [fparser2part_ref], None)
     assert "Undeclared reference 'x' found." in str(error.value)
 
-    fake_parent.symbol_table.add(DataSymbol('x', 'integer'))
+    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
