@@ -38,8 +38,6 @@
 
 ''' This module contains the generic Symbol and the SymbolError.'''
 
-from enum import Enum
-
 
 class SymbolError(Exception):
     '''

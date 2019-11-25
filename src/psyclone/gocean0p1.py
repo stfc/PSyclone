@@ -250,9 +250,9 @@ class GOLoop(Loop):
             self._variable_name = "j"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.CHARACTER,
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.CHARACTER,
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
                               parent=self))  # stop
         self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body

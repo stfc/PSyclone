@@ -6119,8 +6119,8 @@ class Literal(Node):
     '''
     Node representing a Literal.
 
-    :param value: String representing the literal value.
-    :type value: str or bool
+    :param value: the value of the literal.
+    :type value: str (for numberical values) or bool
     :param datatype: The datatype of this literal.
     :type datatype: :py:class:`psyclone.psyGen.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
@@ -6149,16 +6149,16 @@ class Literal(Node):
         Setter for the data-type of this Literal.
 
         :param value: the data-type.
-        :type value: :py:class:`psyclone.psyGen.DataType`
+        :type value: :py:class:`psyclone.psyir.nodes.DataType`
 
         :raises TypeError: if the value is not an instance of \
-                           :py:class:`psyclone.psyGen.DataType`
+                           :py:class:`psyclone.psyir.nodes.DataType`
         :raises ValueError: if the data-type is not one of \
                             self.VALID_DATA_TYPES.
         '''
         if not isinstance(value, DataType):
             raise TypeError("The datatype of a Literal must be an instance of"
-                            " psyGen.DataType but got '{0}'".format(
+                            " psyir.nodes.DataType but got '{0}'".format(
                                 type(value).__name__))
         if value not in self.VALID_DATA_TYPES:
             raise ValueError("The datatype of a Literal must be one of {0} "

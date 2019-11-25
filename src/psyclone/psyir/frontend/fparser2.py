@@ -1997,6 +1997,8 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
 
+        :raises NotImplementedError: if the fparser2 node is not recognised.
+
         '''
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)

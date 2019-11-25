@@ -51,7 +51,7 @@ class DataType(Enum):
     DEFERRED = 5
 
 
-# Mapping from PSyIR data types to internal Python types
+# Mapping from PSyIR data types to intrinsic Python types
 TYPE_MAP_TO_PYTHON = {DataType.INTEGER: int,
                       DataType.CHARACTER: str,
                       DataType.BOOLEAN: bool,
