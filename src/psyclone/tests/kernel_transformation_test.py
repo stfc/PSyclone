@@ -42,7 +42,8 @@ import re
 import pytest
 
 from fparser.two.utils import walk_ast
-from psyclone.transformations import TransformationError, ACCRoutineTrans, \
+from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
