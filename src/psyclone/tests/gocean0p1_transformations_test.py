@@ -14,8 +14,9 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import LoopFuseTrans, GOceanLoopFuseTrans, \
+from psyclone.transformations import TransformationError,\
+    LoopFuseTrans,\
+    GOceanLoopFuseTrans,\
     GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"

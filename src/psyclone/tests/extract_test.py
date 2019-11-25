@@ -35,8 +35,8 @@
 # Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone LFRIcExtractRegion and
-GOceanExtractRegion transformations and ExtractNode.
+''' Module containing tests for PSyclone DynamoExtractRegionTrans and
+GOceanExtractRegionTrans transformations and ExtractNode.
 '''
 
 from __future__ import absolute_import
@@ -44,12 +44,11 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.domain.lfric.transformations import LFRicExtractRegion
-from psyclone.domain.gocean.transformations import GOceanExtractRegion
-from psyclone.extractor import ExtractNode
 from psyclone.parse.algorithm import parse
+from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import TransformationError, \
+    DynamoExtractRegionTrans, GOceanExtractRegionTrans
 
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 
@@ -74,11 +73,11 @@ def test_malformed_extract_node(monkeypatch):
     enode = ExtractNode()
     monkeypatch.setattr(enode, "_children", [])
     with pytest.raises(InternalError) as err:
-        _ = enode.extract_body
+        enode.extract_body
     assert "malformed or incomplete. It should have a " in str(err.value)
     monkeypatch.setattr(enode, "_children", [Node(), Node()])
     with pytest.raises(InternalError) as err:
-        _ = enode.extract_body
+        enode.extract_body
     assert "malformed or incomplete. It should have a " in str(err.value)
 
 
@@ -87,7 +86,7 @@ def test_node_list_error(tmpdir):
     Nodes or a list of Nodes raises a TransformationError. Also raise
     transformation errors when the Nodes do not have the same parent
     if they are incorrectly ordered. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
@@ -99,7 +98,7 @@ def test_node_list_error(tmpdir):
     # Supply an object which is not a Node or a list of Nodes
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(invoke0)
-    assert ("Error in LFRicExtractRegion: Argument must be "
+    assert ("Error in DynamoExtractRegionTrans: Argument must be "
             "a single Node in a Schedule or a list of Nodes in a Schedule "
             "but have been passed an object of type: "
             "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
@@ -130,7 +129,7 @@ def test_node_list_error(tmpdir):
 def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
     enabled raises a TransformationError. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     # Test Dynamo0.3 API with distributed memory
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
@@ -142,14 +141,14 @@ def test_distmem_error():
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[3])
-    assert ("Error in LFRicExtractRegion: Distributed memory is "
+    assert ("Error in DynamoExtractRegionTrans: Distributed memory is "
             "not supported.") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
-            "cannot be enclosed by a LFRicExtractRegion "
+            "cannot be enclosed by a DynamoExtractRegionTrans "
             "transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
@@ -163,14 +162,14 @@ def test_distmem_error():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
-            "cannot be enclosed by a LFRicExtractRegion "
+            "cannot be enclosed by a DynamoExtractRegionTrans "
             "transformation") in str(excinfo.value)
 
 
 def test_repeat_extract():
     ''' Test that applying Extract Transformation on Node(s) already
     containing an ExtractNode raises a TransformationError. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     # Test Dynamo0.3 API
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
@@ -185,7 +184,7 @@ def test_repeat_extract():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
     assert ("Nodes of type '<class 'psyclone.extractor.ExtractNode'>' "
-            "cannot be enclosed by a LFRicExtractRegion "
+            "cannot be enclosed by a DynamoExtractRegionTrans "
             "transformation") in str(excinfo.value)
 
 
@@ -194,7 +193,7 @@ def test_kern_builtin_no_loop():
     call without its parent Loop raises a TransformationError. '''
 
     # Test Dynamo0.3 API for Built-in call error
-    dynetrans = LFRicExtractRegion()
+    dynetrans = DynamoExtractRegionTrans()
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
                      "15.1.2_builtin_and_normal_kernel_invoke.f90"),
@@ -210,7 +209,7 @@ def test_kern_builtin_no_loop():
             "parent Loop is not allowed.") in str(excinfo.value)
 
     # Test GOcean1.0 API for Kernel call error
-    gocetrans = GOceanExtractRegion()
+    gocetrans = GOceanExtractRegionTrans()
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
                            api=GOCEAN_API)
@@ -229,7 +228,7 @@ def test_loop_no_directive_dynamo0p3():
     ''' Test that applying Extract Transformation on a Loop without its
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
@@ -259,7 +258,7 @@ def test_no_parent_accdirective():
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans, \
         ACCLoopTrans
 
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractRegionTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -288,13 +287,13 @@ def test_no_parent_accdirective():
 
 
 def test_no_colours_loop_dynamo0p3():
-    ''' Test that applying LFRicExtractRegion on a Loop over cells
+    ''' Test that applying DynamoExtractRegionTrans on a Loop over cells
     in a colour without its parent Loop over colours in Dynamo0.3 API
     raises a TransformationError. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
 
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
@@ -322,9 +321,9 @@ def test_no_colours_loop_dynamo0p3():
 
 
 def test_no_outer_loop_gocean1p0():
-    ''' Test that applying GOceanExtractRegion on an inner Loop without
+    ''' Test that applying GOceanExtractRegionTrans on an inner Loop without
     its parent outer Loop in GOcean1.0 API raises a TransformationError. '''
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
@@ -351,7 +350,7 @@ def test_extract_node_position():
     marked for extraction. '''
 
     # Test GOcean1.0 API for extraction of a single Node
-    gocetrans = GOceanExtractRegion()
+    gocetrans = GOceanExtractRegionTrans()
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
                            api=GOCEAN_API)
@@ -373,7 +372,7 @@ def test_extract_node_position():
     assert extract_node[0].depth == dpth
 
     # Test Dynamo0.3 API for extraction of a list of Nodes
-    dynetrans = LFRicExtractRegion()
+    dynetrans = DynamoExtractRegionTrans()
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
                      "15.1.2_builtin_and_normal_kernel_invoke.f90"),
@@ -402,7 +401,7 @@ def test_extract_node_representation(capsys):
     class: view, dag_name and __str__ produce the correct results. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
@@ -437,7 +436,7 @@ def test_extract_node_representation(capsys):
 def test_single_node_dynamo0p3():
     ''' Test that Extract Transformation on a single Node in a Schedule
     produces the correct result in Dynamo0.3 API. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "1_single_invoke.f90"),
@@ -467,7 +466,7 @@ def test_single_node_dynamo0p3():
 def test_node_list_dynamo0p3():
     ''' Test that applying Extract Transformation on a list of Nodes
     produces the correct result in Dynamo0.3 API. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
@@ -506,7 +505,7 @@ def test_single_node_ompparalleldo_gocean1p0():
     in GOcean1.0 API. '''
     from psyclone.transformations import GOceanOMPParallelLoopTrans
 
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractRegionTrans()
     otrans = GOceanOMPParallelLoopTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
@@ -548,7 +547,7 @@ def test_node_list_ompparallel_gocean1p0():
     in GOcean1.0 API. '''
     from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractRegionTrans()
     ltrans = GOceanOMPLoopTrans()
     otrans = OMPParallelTrans()
 
@@ -602,7 +601,7 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations. '''
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
     # Test extract without optimisations
@@ -658,7 +657,7 @@ def test_extract_single_builtin_dynamo0p3():
 def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     ''' Test that extraction of a Kernel and a BuiltIny in an Invoke
     produces the correct result in Dynamo0.3 API. '''
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
@@ -697,7 +696,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
         DynamoOMPParallelLoopTrans
     from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
-    etrans = LFRicExtractRegion()
+    etrans = DynamoExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 

@@ -40,7 +40,7 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import TransformationError
 
 
 def test_accloop():

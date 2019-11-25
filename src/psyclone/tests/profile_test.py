@@ -45,9 +45,8 @@ import pytest
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, NameSpace, InternalError
-from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
-    ProfileRegionTrans
+    ProfileRegionTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
 
 
