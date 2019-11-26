@@ -1536,13 +1536,14 @@ class Node(object):
         '''
         Search back up tree and check whether we have an ancestor that is
         an instance of the supplied type. If we do then we return
-        it otherwise we return None. A tuple of (sub-) classes to ignore
-        may be provided via the `excluding` argument. If include_self is
-        True then the current node is included in the search.
+        it otherwise we return None. An individual (or tuple of) (sub-)
+        class(es) to ignore may be provided via the `excluding` argument. If
+        include_self is True then the current node is included in the search.
 
         :param my_type: class(es) to search for.
         :type my_type: type or tuple of types
-        :param tuple excluding: tuple of (sub-)classes to ignore or None.
+        :param tuple excluding: individual (or tuple of) (sub-)class(es) to \
+                                ignore or None.
         :param bool include_self: whether or not to include this node in the \
                                   search.
 
