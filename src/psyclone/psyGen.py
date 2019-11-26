@@ -5342,13 +5342,14 @@ class IfBlock(Node):
 
         :param if_condition: the PSyIR node containing the if \
         condition of the if block.
-        :type: :py:class:`psyclone.psyGen.Node`
+        :type if_condition: :py:class:`psyclone.psyGen.Node`
         :param if_body: the PSyIR node containing the if body of \
         the if block.
-        :type: :py:class:`psyclone.psyGen.Schedule`
+        :type if_body: :py:class:`psyclone.psyGen.Schedule`
         :param else_body: PSyIR node containing the else body of the \
         if block of None if there is no else body (defaults to None).
-        :type: :py:class:`psyclone.psyGen.Schedule` or NoneType
+        :type else_body: :py:class:`psyclone.psyGen.Schedule` or \
+        NoneType
 
         :returns: an IfBlock instance.
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
@@ -5735,25 +5736,21 @@ class Assignment(Node):
 
         :param lhs: the PSyIR node containing the left hand side of \
         the assignment.
-        :type: :py:class:`psyclone.psyGen.Node`
+        :type lhs: :py:class:`psyclone.psyGen.Node`
         :param rhs: the PSyIR node containing the right hand side of \
         the assignment.
-        :type: :py:class:`psyclone.psyGen.Node`
+        :type rhs: :py:class:`psyclone.psyGen.Node`
 
         :returns: an Assignment instance.
         :rtype: :py:class:`psyclone.psyGen.Assignment`
 
         '''
-        if not isinstance(lhs, Node):
-            raise GenerationError(
-                "lhs argument to class Assignment method create should be "
-                "a PSyIR Node but found '{0}'."
-                "".format(type(lhs).__name__))
-        if not isinstance(rhs, Node):
-            raise GenerationError(
-                "rhs argument to class Assignment method create should be "
-                "a PSyIR Node but found '{0}'."
-                "".format(type(rhs).__name__))
+        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
+            if not isinstance(instance, Node):
+                raise GenerationError(
+                    "{0} argument to class Assignment method create should "
+                    "be a PSyIR Node but found '{1}'."
+                    "".format(instance, type(node).__name__))
         new_assignment = Assignment()
         lhs.parent = new_assignment
         rhs.parent = new_assignment
@@ -6079,9 +6076,9 @@ class UnaryOperation(Operation):
         '''Create a UnaryOperation instance given oper and child instances.
 
         :param oper: the specified operator.
-        :type: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
+        :type oper: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
         :param child: the PSyIR node that oper operates on.
-        :type: :py:class:`psyclone.psyGen.Node`
+        :type child: :py:class:`psyclone.psyGen.Node`
 
         :returns: a UnaryOperation instance.
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
@@ -6164,10 +6161,10 @@ class BinaryOperation(Operation):
         :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
         :param lhs: the PSyIR node containing the left hand side of \
         the assignment.
-        :type: :py:class:`psyclone.psyGen.Node`
+        :type lhs: :py:class:`psyclone.psyGen.Node`
         :param rhs: the PSyIR node containing the right hand side of \
         the assignment.
-        :type: :py:class:`psyclone.psyGen.Node`
+        :type rhs: :py:class:`psyclone.psyGen.Node`
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyGen.BinaryOperator`
@@ -6216,14 +6213,14 @@ class NaryOperation(Operation):
 
     @staticmethod
     def create(oper, children):
-        '''Create a NaryOperator instance given an operator and a list of
+        '''Create an NaryOperator instance given an operator and a list of
         Node instances.
 
         :param operator: the operator used in the operation.
         :type operator: :py:class:`psyclone.psyGen.NaryOperation.Operator`
         :param children: a list of PSyIR nodes that the operator \
             operates on.
-        :type: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyGen.Node`
 
         :returns: an NaryOperator instance.
         :rtype: :py:class:`psyclone.psyGen.NaryOperator`
