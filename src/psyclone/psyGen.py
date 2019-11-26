@@ -5750,7 +5750,7 @@ class Assignment(Node):
                 raise GenerationError(
                     "{0} argument to class Assignment method create should "
                     "be a PSyIR Node but found '{1}'."
-                    "".format(instance, type(node).__name__))
+                    "".format(name, type(instance).__name__))
         new_assignment = Assignment()
         lhs.parent = new_assignment
         rhs.parent = new_assignment
@@ -5826,7 +5826,7 @@ class Reference(Node):
 
     :param str reference_name: the name of the symbol being referenced.
     :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
     '''
     def __init__(self, reference_name, parent=None):
         super(Reference, self).__init__(parent=parent)
@@ -6240,7 +6240,7 @@ class NaryOperation(Operation):
             if not isinstance(child, Node):
                 raise GenerationError(
                     "child of children argument to class NaryOperation method "
-                    "create should be a PSyIR Node but found '{1}'."
+                    "create should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
         nary_op = NaryOperation(oper)
         for child in children:

@@ -3366,6 +3366,15 @@ def test_reference_can_be_printed():
     assert "Reference[name:'rname']" in str(ref)
 
 
+def test_reference_optional_parent():
+    '''Test that the parent attribute is None if the optional parent
+    argument is not supplied.
+
+    '''
+    ref = Reference("rname")
+    assert ref.parent is None
+
+
 def test_reference_symbol(monkeypatch):
     '''Test that the symbol method in a Reference Node instance returns
     the associated symbol if there is one and None if not. Also test
