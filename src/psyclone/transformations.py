@@ -4390,9 +4390,18 @@ class PromoteKernelGlobalsToArguments(Transformation):
                 "".format(type(node)))
 
     def apply(self, node):
+        from psyclone.psyir.symbols import ArgumentInterface
+
         kernel = node.get_kernel_schedule()
 
-        kernel.symbol_table.evaluate_deferred_symbols()
+        for globalvar in kernel.symbol_table.global_datasymbols:
+            if globalvar.datatype == 'deferred':
+                globalvar.resolve_deferred()
 
-        for globalvar in kernel.symbol_table.global_symbols:
-            print(globalvar.name)
+            # Convert the symbol to an Argument
+            globalvar.interface = ArgumentInterface(
+                ArgumentInterface.Access.READWRITE)
+            # Add new argument to the arglist
+
+            # Add import in the Schedule
+            # Add global in the call argument list
