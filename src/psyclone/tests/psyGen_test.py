@@ -58,6 +58,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
     ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
 from psyclone.psyir.symbols import DataSymbol, SymbolTable
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Kern, Arguments, CodedKern
@@ -3191,6 +3192,83 @@ def test_ifblock_properties():
     assert ifblock.else_body[0] is ret2
 
 
+def test_ifblock_create():
+    '''Test that the create method in an IfBlock class correctly creates
+    an IfBlock instance.
+
+    '''
+    # Without an else clause
+    if_condition = Literal(".True.")
+    if_body = [Assignment.create(Reference("tmp"), Literal("0.0")),
+               Assignment.create(Reference("tmp2"), Literal("1.0"))]
+    ifblock = IfBlock.create(if_condition, if_body)
+    result = FortranWriter().ifblock_node(ifblock)
+    assert result == ("if (.True.) then\n"
+                      "  tmp=0.0\n"
+                      "  tmp2=1.0\n"
+                      "end if\n")
+
+    # With an else clause
+    else_body = [Assignment.create(Reference("tmp"), Literal("1.0")),
+                 Assignment.create(Reference("tmp2"), Literal("0.0"))]
+    ifblock = IfBlock.create(if_condition, if_body, else_body)
+    result = FortranWriter().ifblock_node(ifblock)
+    assert result == ("if (.True.) then\n"
+                      "  tmp=0.0\n"
+                      "  tmp2=1.0\n"
+                      "else\n"
+                      "  tmp=1.0\n"
+                      "  tmp2=0.0\n"
+                      "end if\n")
+
+def test_ifblock_create_invalid():
+    '''Test that the create method in an IfBlock class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    if_condition = Literal(".True.")
+    if_body = [Assignment.create(Reference("tmp"), Literal("0.0")),
+               Assignment.create(Reference("tmp2"), Literal("1.0"))]
+
+    # if_condition not a Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create("True", None)
+    assert ("if_condition argument to class IfBlock method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # One of more if body not a Node
+    if_body_err = [Assignment.create(Reference("tmp"), Literal("0.0")),
+                   None]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, if_body_err)
+    assert ("if_body argument to class IfBlock method create should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+    # if body not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, None)
+    assert ("if_body argument to class IfBlock method create should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+    # One of more of else_body not a Node
+    else_body_err = [Assignment.create(Reference("tmp"), Literal("1.0")),
+                     None]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, if_body, else_body_err)
+    assert ("else_body argument to class IfBlock method create should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+    # else body not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, if_body, "HELLO")
+    assert ("else_body argument to class IfBlock method create should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+
 # Test Assignment class
 
 def test_assignment_node_str():
@@ -3233,6 +3311,36 @@ def test_assignment_semantic_navigation():
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]
+
+
+def test_assignment_create():
+    '''Test that the create method in the Assignment class correctly
+    creates an Assignment instance.
+
+    '''
+    lhs = Reference("tmp")
+    rhs = Literal("0.0")
+    assignment = Assignment.create(lhs, rhs)
+    result = FortranWriter().assignment_node(assignment)
+    assert result == "tmp=0.0\n"
+
+
+def test_assignment_create_invalid():
+    '''Test that the create method in an Assignment class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    # lhs not a Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Assignment.create("invalid", Literal("0.0"))
+    assert ("lhs argument to class Assignment method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # rhs not a Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Assignment.create(Reference("tmp"), "invalid")
+    assert ("rhs argument to class Assignment method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
 # Test Reference class
@@ -3413,6 +3521,47 @@ def test_binaryoperation_can_be_printed():
     assert "Literal[value:'2']" in str(binary_operation)
 
 
+def test_binaryoperation_create():
+    '''Test that the create method in the BinaryOperation class correctly
+    creates a BinaryOperation instance.
+
+    '''
+    lhs = Reference("tmp1")
+    rhs = Reference("tmp2")
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation = BinaryOperation.create(oper, lhs, rhs)
+    result = FortranWriter().binaryoperation_node(binaryoperation)
+    assert result == "tmp1 + tmp2"
+
+
+def test_binaryoperation_create_invalid():
+    '''Test that the create method in a BinaryOperation class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    # oper not a BinaryOperation.Operator
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create("invalid", Reference("tmp1"),
+                                   Reference("tmp2"))
+    assert ("oper argument to class BinaryOperation method create should "
+            "be a PSyIR BinaryOperation Operator but found 'str'."
+            in str(excinfo.value))
+
+    # lhs not a Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create(BinaryOperation.Operator.ADD, "invalid",
+                                  Reference("tmp2"))
+    assert ("lhs argument to class BinaryOperation method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # rhs not a Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference("tmp1"), "invalid")
+    assert ("rhs argument to class BinaryOperation method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+
 # Test UnaryOperation class
 def test_unaryoperation_initialization():
     ''' Check the initialization method of the UnaryOperation class works
@@ -3457,6 +3606,37 @@ def test_unaryoperation_can_be_printed():
     assert "Literal[value:'1']" in str(unary_operation)
 
 
+def test_unaryoperation_create():
+    '''Test that the create method in the UnaryOperation class correctly
+    creates a UnaryOperation instance.
+
+    '''
+    child = Reference("tmp")
+    oper = UnaryOperation.Operator.SIN
+    unaryoperation = UnaryOperation.create(oper, child)
+    result = FortranWriter().unaryoperation_node(unaryoperation)
+    assert result == "SIN(tmp)"
+
+
+def test_unaryoperation_create_invalid():
+    '''Test that the create method in a UnaryOperation class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    # oper not a UnaryOperator.Operator
+    with pytest.raises(GenerationError) as excinfo:
+        _ = UnaryOperation.create("invalid", Reference("tmp"))
+    assert ("oper argument to class UnaryOperation method create should "
+            "be a PSyIR UnaryOperation Operator but found 'str'."
+            in str(excinfo.value))
+
+    # child not a Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
+    assert ("child argument to class UnaryOperation method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
@@ -3482,6 +3662,44 @@ def test_naryoperation_can_be_printed():
     assert "Literal[value:'1']\n" in str(nary_operation)
     assert "Literal[value:'2']\n" in str(nary_operation)
     assert "Literal[value:'3']" in str(nary_operation)
+
+
+def test_naryoperation_create():
+    '''Test that the create method in the NaryOperation class correctly
+    creates an NaryOperation instance.
+
+    '''
+    children = [Reference("tmp1"), Reference("tmp2"), Reference("tmp3")]
+    oper = NaryOperation.Operator.MAX
+    naryoperation = NaryOperation.create(oper, children)
+    result = FortranWriter().naryoperation_node(naryoperation)
+    assert result == "MAX(tmp1, tmp2, tmp3)"
+
+
+def test_binaryoperation_create_invalid():
+    '''Test that the create method in an NaryOperation class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    # oper not an NaryOperation.Operator
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create("invalid", [])
+    assert ("oper argument to class NaryOperation method create should "
+            "be a PSyIR NaryOperation Operator but found 'str'."
+            in str(excinfo.value))
+
+    # children not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create(NaryOperation.Operator.SUM, "invalid")
+    assert ("children argument to class NaryOperation method create should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create(NaryOperation.Operator.SUM,
+                                 [Reference("tmp1"), "invalid"])
+    assert ("child of children argument to class NaryOperation method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
 # Test Return class

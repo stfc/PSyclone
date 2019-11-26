@@ -5357,27 +5357,29 @@ class IfBlock(Node):
         if not isinstance(if_condition, Node):
             raise GenerationError(
                 "if_condition argument to class IfBlock method create "
-                "should be a PSyIR Node but found '{0}'.")
-                "".format(name, type(if_condition).__name__))
-        if not (isinstance(if_body, List) and all(isinstance(child, Node)
+                "should be a PSyIR Node but found '{0}'."
+                "".format(type(if_condition).__name__))
+        if not (isinstance(if_body, list) and all(isinstance(child, Node)
                                                   for child in if_body)):
             raise GenerationError(
                 "if_body argument to class IfBlock method create should be "
                 "a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
-        if else_body and not (isinstance(if_body, List) and
-                all(isinstance(child, Node) for child in if_body)):
+        if else_body and not (isinstance(if_body, list) and
+                all(isinstance(child, Node) for child in else_body)):
             raise GenerationError(
                 "else_body argument to class IfBlock method create should be "
                 "a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
         if_stmt = IfBlock()
         if_schedule = Schedule(parent=if_stmt)
-        if_body.parent = if_schedule
+        for node in if_body:
+            node.parent = if_schedule
         if_schedule.children = if_body
         if else_body:
             else_schedule = Schedule(parent=if_stmt)
-            else_body.parent = else_schedule
+            for node in else_body:
+                node.parent = else_schedule
             else_schedule.children = else_body
             if_stmt.children = [if_condition, if_schedule, else_schedule]
         else:
@@ -5746,12 +5748,12 @@ class Assignment(Node):
             raise GenerationError(
                 "lhs argument to class Assignment method create should be "
                 "a PSyIR Node but found '{0}'."
-                "".format(type(lhs).__name__)
+                "".format(type(lhs).__name__))
         if not isinstance(rhs, Node):
             raise GenerationError(
                 "rhs argument to class Assignment method create should be "
                 "a PSyIR Node but found '{0}'."
-                "".format(type(rhs).__name__)
+                "".format(type(rhs).__name__))
         new_assignment = Assignment()
         lhs.parent = new_assignment
         rhs.parent = new_assignment
@@ -5829,7 +5831,7 @@ class Reference(Node):
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent):
+    def __init__(self, reference_name, parent=None):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
 
@@ -6077,7 +6079,7 @@ class UnaryOperation(Operation):
         '''Create a UnaryOperation instance given oper and child instances.
 
         :param oper: the specified operator.
-        :type: :py:class:`psyclone.psyGen.???`
+        :type: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
         :param child: the PSyIR node that oper operates on.
         :type: :py:class:`psyclone.psyGen.Node`
 
@@ -6085,16 +6087,16 @@ class UnaryOperation(Operation):
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
 
         '''
-        if not isinstance(oper, psyclone.psyGen.UnaryOperation.Operator):
+        if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
-                "oper argument to class Argument method create should be "
-                "a UnaryOperation Operator but found '{0}'."
-                "".format(type(oper).__name__)
+                "oper argument to class UnaryOperation method create should "
+                "be a PSyIR UnaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__))
         if not isinstance(child, Node):
             raise GenerationError(
-                "Child argument to class UnaryOperation method create should "
+                "child argument to class UnaryOperation method create should "
                 "be a PSyIR Node but found '{0}'."
-                "".format(type(child).__name__)
+                "".format(type(child).__name__))
         unary_op = UnaryOperation(oper)
         child.parent=unary_op
         unary_op.children = [child]
@@ -6173,21 +6175,20 @@ class BinaryOperation(Operation):
         '''
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
-                "oper argument to class BinaryOperator method create "
-                "should be a PSyIR Node but found '{0}'."
-                "".format(type(instance).__name__))
+                "oper argument to class BinaryOperation method create "
+                "should be a PSyIR BinaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__))
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
-                    "{0} argument to class Argument method create should be "
-                    "a PSyIR Node but found '{1}'."
+                    "{0} argument to class BinaryOperation method create "
+                    "should be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
         binary_op = BinaryOperation(oper)
         lhs.parent=binary_op
         rhs.parent=binary_op
         binary_op.children = [lhs, rhs]
         return binary_op
-
 
 
 class NaryOperation(Operation):
@@ -6211,6 +6212,44 @@ class NaryOperation(Operation):
     def __init__(self, operator, parent=None):
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
+
+
+    @staticmethod
+    def create(oper, children):
+        '''Create a NaryOperator instance given an operator and a list of
+        Node instances.
+
+        :param operator: the operator used in the operation.
+        :type operator: :py:class:`psyclone.psyGen.NaryOperation.Operator`
+        :param children: a list of PSyIR nodes that the operator \
+            operates on.
+        :type: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: an NaryOperator instance.
+        :rtype: :py:class:`psyclone.psyGen.NaryOperator`
+
+        '''
+        if not isinstance(oper, NaryOperation.Operator):
+            raise GenerationError(
+                "oper argument to class NaryOperation method create "
+                "should be a PSyIR NaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument to class NaryOperation method "
+                "create should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument to class NaryOperation method "
+                    "create should be a PSyIR Node but found '{1}'."
+                    "".format(type(child).__name__))
+        nary_op = NaryOperation(oper)
+        for child in children:
+            child.parent=nary_op
+        nary_op.children = children
+        return nary_op
 
 
 class Array(Reference):
