@@ -1,4 +1,44 @@
 
+        1) #579 for #509. Improves the structuring of the html version
+	of the User Guide.
+
+        2) PR #581 for #578. Extends the PSyIR Fortran backend so
+	that variable declarations include kind information. This
+	currently only works if kind-parameters are declared or
+	explicitly imported in the local scope - see #587 and #586.
+
+        3) PR #562 for #473. Fixes the DAG generation to allow for
+	Loops having Schedules and children (e.g. loop limits) that
+	we want to ignore.
+
+	4) PR #535 for part of #150. Implements support for parsing
+	of reference element metadata in the Dynamo0.3 (LFRic) API.
+
+	5) PR #516 for #497. Adds support for translating the Fortran
+	where construct into the PSyIR.
+
+        6) PR #545 for #544 and #543. Moves the Symbol support into
+	a separate sub-module and adds support for parameter declarations
+	and the functionality to resolve deferred datatypes.
+
+        7) PR #559 for #483. Introduces new InlinedKernel class and
+	uses this as the base class for all NEMO kernels.
+
+	8) PR #580 for #542. Adds a Schedule as a child of ExtractNode and
+	ProfileNode.
+
+        9) PR #573 for #438. Fixes all tests to use the value property of
+	exceptions rather than str(err).
+
+	10) PR #416 for #408. Adds support for non-ascii chars in Fortran
+	strings.
+
+	11) PR #591 for #584. Adds the concept of a deferred interface to
+	PSyIR symbols. This allows declarations to appear in any order and
+	helps to deal with kind symbols scoped via module use statements.
+
+release 1.8.0 8th November 2019
+
 	1) #245 and PR #247. Extend PSyIR to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
@@ -290,6 +330,36 @@
 
 	93) #526 for PR #527. Update fparser submodule and fix parsing of
 	intrinsics with a single argument.
+
+	94) PR #556 for #478. Changes the apply() and validate() methods of
+	all Transformations to take a dict of options. Also renames any
+	_validate() methods to validate().
+
+	95) PR #558 for #557. Move code-creation out of visitor and into
+	the appropriate back-ends.
+
+	96) PR #565 for #564. Alter implementation of auto-addition of
+	profiling so that it happens *after* the application of any
+	transformation script.
+
+	97) PR #505 for #303. Restructure view method to move the replicated
+	logic into the abstract class and add index numbers to the printed
+	Schedule statements. Also adds a Schedule to encapsulate Directive
+	children.
+
+	98) #570. PSyclone now set to require fparser 0.0.9 on
+	installation.
+
+	99) PR #572 for #571. Bug fixes now that fparser uses unicode.
+
+	100) PR 524 for #472. Adds support for scalar variables to the
+	SIR backend.
+
+	101) PR #574 towards #567. Fixes bug in profiling that causes
+	crash if first kernel in an invoke is a built-in.
+
+        102) PR #576 for #530. Includes the repository examples in the
+        distribution and updates the documentation accordingly.
 
 release 1.7.0 20th December 2018
 

@@ -43,7 +43,8 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyGen import GenerationError, Symbol
+from psyclone.psyGen import GenerationError
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 from psyclone.tests.utilities import Compile, get_invoke
 
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
@@ -172,31 +173,31 @@ def test_opencl_options_validation(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'unsupported': 1})
     assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
-        in str(err)
+        in str(err.value)
 
     # end_barrier option must be a boolean
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'end_barrier': 1})
     assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
-        in str(err)
+        in str(err.value)
 
     # Unsupported kernel options are not accepted
     with pytest.raises(AttributeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'unsupported': 1})
     assert "CodedKern does not support the opencl_option 'unsupported'." \
-        in str(err)
+        in str(err.value)
 
     # local_size must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'local_size': 'a'})
     assert "CodedKern opencl_option 'local_size' should be an integer." \
-        in str(err)
+        in str(err.value)
 
     # queue_number must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'queue_number': 'a'})
     assert "CodedKern opencl_option 'queue_number' should be an integer." \
-        in str(err)
+        in str(err.value)
 
 
 def test_opencl_options_effects(kernel_outputdir):
@@ -327,7 +328,7 @@ def test_set_arg_const_scalar():
     with pytest.raises(NotImplementedError) as err:
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
-            "arguments passed by value" in str(err))
+            "arguments passed by value" in str(err.value))
 
 
 def test_opencl_kernel_code_generation(kernel_outputdir):
@@ -404,22 +405,26 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only 0 argument(s).") in str(err)
+            "Table for kernel 'test' has only 0 argument(s)."
+            in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = Symbol("arg1", "integer", [],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg1 = DataSymbol("arg1", "integer", [],
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only 1 argument(s).") in str(err)
+            "Table for kernel 'test' has only 1 argument(s)."
+            in str(err.value))
 
     # Test symbol table with 2 kernel argument
-    arg2 = Symbol("arg2", "integer", shape=[],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg2 = DataSymbol("arg2", "integer", shape=[],
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
     kschedule.symbol_table.specify_argument_list([arg1, arg2])
     iteration_indices = kschedule.symbol_table.iteration_indices
@@ -427,8 +432,9 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    arg3 = Symbol("buffer1", "real", shape=[10, 10],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg3 = DataSymbol("buffer1", "real", shape=[10, 10],
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg3)
     kschedule.symbol_table.specify_argument_list([arg1, arg2, arg3])
     iteration_indices = kschedule.symbol_table.iteration_indices
@@ -443,7 +449,7 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
             " but got a scalar of type 'real' for kernel 'test'.")\
-        in str(err)
+        in str(err.value)
 
     arg1._datatype = "integer"  # restore
     arg2._shape = [None]
@@ -451,7 +457,7 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
             " but got an array of type 'integer' for kernel 'test'.")\
-        in str(err)
+        in str(err.value)
 
 
 @pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
@@ -466,4 +472,5 @@ def test_opencl_kernel_with_use(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. PSyclone cannot currently" in str(err))
+            "'global' scope: ['rdt']. PSyclone cannot currently"
+            in str(err.value))

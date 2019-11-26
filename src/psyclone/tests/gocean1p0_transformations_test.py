@@ -111,7 +111,7 @@ def test_const_loop_bounds_toggle(tmpdir):
     assert "DO i=2,istop" in gen
 
     # Finally, test that we can turn-off constant loop bounds
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
     invoke.schedule = newsched
     # Store the generated code as a string
     gen = str(psy.gen)
@@ -132,7 +132,7 @@ def test_const_loop_bounds_invalid_offset():
                              API, idx=0)
     cbtrans = GOConstLoopBoundsTrans()
     schedule = invoke.schedule
-    newsched, _ = cbtrans.apply(schedule, const_bounds=True)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
     invoke.schedule = newsched
     with pytest.raises(GenerationError):
         _ = psy.gen
@@ -149,24 +149,38 @@ def test_loop_fuse_different_iterates_over():
 
     # Attempt to fuse two loops that are iterating over different
     # things
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Turn off constant loop bounds (which should have no effect)
     # and repeat
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
-    with pytest.raises(TransformationError):
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
+    with pytest.raises(TransformationError) as err:
         _, _ = lftrans.apply(newsched.children[0],
                              newsched.children[1])
+    assert "Loops do not have the same iteration space" in str(err.value)
 
 
-def test_loop_fuse_unexpected_error():
-    ''' Test that we catch an unexpected error when loop fusing '''
+def test_loop_fuse_error():
+    ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0)
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
+
+    # Apply loop fuse, but the first node is not a loop:
+    with pytest.raises(TransformationError) as err:
+        _, _ = lftrans.apply(schedule.children[0].children[0],
+                             schedule.children[1])
+    assert "Both nodes must be of the same GOLoop class." in str(err.value)
+
+    # Also check that we catch this for the second argument:
+    with pytest.raises(TransformationError) as err:
+        _, _ = lftrans.apply(schedule.children[0],
+                             schedule.children[1].children[0])
+    assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # cause an unexpected error
     schedule.children[0].loop_body.children = None
@@ -203,7 +217,7 @@ def test_omp_parallel_loop(tmpdir):
                 "      !$omp end parallel do")
     assert expected in gen
 
-    newsched, _ = cbtrans.apply(omp_sched, const_bounds=False)
+    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -265,7 +279,7 @@ def test_omp_region_with_single_loop(tmpdir):
     assert call_count == 1
 
     # Repeat the test after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -340,13 +354,15 @@ def test_omp_region_with_slice_change_order():
     # could result in changing the order of operations:
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[2], schedule.children[1]])
-    assert "Children are not consecutive children of one parent" in str(err)
+    assert ("Children are not consecutive children of one parent"
+            in str(err.value))
 
     # Also test the case of duplicated children:
     # ------------------------------------------
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[0], schedule.children[0]])
-    assert "Children are not consecutive children of one parent" in str(err)
+    assert ("Children are not consecutive children of one parent"
+            in str(err.value))
 
 
 def test_omp_region_no_slice(tmpdir):
@@ -387,7 +403,7 @@ def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
 
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
     omp_schedule, _ = ompr.apply(newsched.children)
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
@@ -440,10 +456,10 @@ def test_omp_region_retains_kernel_order1(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
 
     # Repeat after turning off constant loop bounds
-    newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(omp_schedule, {"const_bounds": False})
     invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
@@ -460,7 +476,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -495,7 +511,7 @@ def test_omp_region_retains_kernel_order2(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -535,7 +551,7 @@ def test_omp_region_retains_kernel_order3(tmpdir):
             ts_idx = idx
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
-    assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert cu_idx < cv_idx < ts_idx
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -554,7 +570,7 @@ def test_omp_region_before_loops_trans(tmpdir):
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].children:
+    for child in omp_schedule.children[0].dir_body[:]:
         schedule, _ = ompl.apply(child)
         omp_schedule = schedule
 
@@ -661,7 +677,7 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].children:
+    for child in omp_schedule.children[0].dir_body[:]:
         schedule, _ = ompl.apply(child)
         omp_schedule = schedule
 
@@ -685,7 +701,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -713,7 +729,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
-    schedule, _ = cbtrans.apply(schedule, const_bounds=False)
+    schedule, _ = cbtrans.apply(schedule, {"const_bounds": False})
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
@@ -723,7 +739,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     # Put an OpenMP do directive around each loop contained
     # in the region
     ompl = GOceanOMPLoopTrans()
-    for child in omp_schedule.children[0].children:
+    for child in omp_schedule.children[0].dir_body[:]:
         schedule, _ = ompl.apply(child)
         omp_schedule = schedule
 
@@ -938,7 +954,7 @@ def test_omp_parallel_region_inside_parallel_do():
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply([schedule.children[1].children[0]])
     assert ("cannot create an OpenMP PARALLEL region within another "
-            "OpenMP region" in str(err))
+            "OpenMP region" in str(err.value))
 
 
 def test_omp_parallel_do_around_parallel_region():
@@ -952,11 +968,11 @@ def test_omp_parallel_do_around_parallel_region():
     ompr = OMPParallelTrans()
 
     # Put a parallel region around two of the loops
-    omp_schedule, _ = ompr.apply(schedule.children[0:2])
+    omp_schedule, _ = ompr.apply(schedule[0:2])
 
     # Put an OpenMP parallel do directive around one of those loops
     # (which is now a child of the region directive)
-    schedule, _ = ompl.apply(omp_schedule.children[0].children[0])
+    schedule, _ = ompl.apply(omp_schedule[0].dir_body[0])
 
     # Replace the original loop schedule with the transformed one
     invoke.schedule = schedule
@@ -980,8 +996,10 @@ def test_omp_region_invalid_node():
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply(new_sched.children)
     assert ("ACCParallelDirective'>' cannot be enclosed by a "
-            "OMPParallelTrans transformation" in str(err))
+            "OMPParallelTrans transformation" in str(err.value))
 
+    # Check that the test can be disabled with the appropriate option:
+    ompr.apply(new_sched.children, {"node-type-check": False})
 
 @pytest.mark.xfail(reason="OMP Region with children of different types "
                    "not yet implemented")
@@ -1213,7 +1231,7 @@ def test_module_no_inline_with_transformation(tmpdir):
     kern_call.module_inline = True
     inline_trans = KernelModuleInlineTrans()
     # use a transformation to switch inlining off again
-    schedule, _ = inline_trans.apply(kern_call, inline=False)
+    schedule, _ = inline_trans.apply(kern_call, {"inline": False})
     gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
@@ -1307,7 +1325,7 @@ def test_module_inline_warning_no_change():
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
-    _, _ = inline_trans.apply(kern_call, inline=False)
+    _, _ = inline_trans.apply(kern_call, {"inline": False})
 
 
 def test_loop_swap_correct(tmpdir):
@@ -1476,7 +1494,7 @@ def test_ocl_apply(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
     assert "the supplied node must be a (sub-class of) InvokeSchedule " \
-        in str(err)
+        in str(err.value)
 
     new_sched, _ = ocl.apply(schedule)
     assert new_sched.opencl
@@ -1520,7 +1538,7 @@ def test_acc_parallel_trans(tmpdir):
     with pytest.raises(GenerationError) as err:
         _ = str(psy.gen)
     assert ("an ACC parallel region must also contain an ACC enter data "
-            "directive but none was found for invoke_0" in str(err))
+            "directive but none was found for invoke_0" in str(err.value))
 
     accdt = ACCEnterDataTrans()
     new_sched, _ = accdt.apply(schedule)
@@ -1556,14 +1574,14 @@ def test_acc_incorrect_parallel_trans():
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply([schedule.children[1], schedule.children[0]])
 
-    assert "Children are not consecutive children" in str(err)
+    assert "Children are not consecutive children" in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply([schedule.children[0].children[0],
                            schedule.children[0]])
 
     assert ("supplied nodes are not children of the same parent"
-            in str(err))
+            in str(err.value))
 
 
 def test_acc_data_not_a_schedule():
@@ -1578,7 +1596,7 @@ def test_acc_data_not_a_schedule():
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
     assert ("Cannot apply an OpenACC enter-data directive to something that "
-            "is not a Schedule" in str(err))
+            "is not a Schedule" in str(err.value))
 
 
 def test_acc_parallel_invalid_node():
@@ -1597,7 +1615,7 @@ def test_acc_parallel_invalid_node():
     with pytest.raises(TransformationError) as err:
         _, _ = accpara.apply(new_sched.children[0])
     assert ("GOACCEnterDataDirective'>' cannot be enclosed by a "
-            "ACCParallelTrans transformation" in str(err))
+            "ACCParallelTrans transformation" in str(err.value))
 
 
 def test_acc_data_copyin(tmpdir):
@@ -1737,7 +1755,7 @@ def test_accloop(tmpdir):
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
     assert ("Cannot apply a parallel-loop directive to something that is not "
-            "a loop" in str(err))
+            "a loop" in str(err.value))
 
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
@@ -1749,7 +1767,7 @@ def test_accloop(tmpdir):
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("ACCLoopDirective must have an ACCParallelDirective as an "
-            "ancestor in the Schedule" in str(err))
+            "ancestor in the Schedule" in str(err.value))
 
     # Add an enclosing parallel region
     new_sched, _ = accpara.apply(schedule.children)
@@ -1760,7 +1778,7 @@ def test_accloop(tmpdir):
         _ = psy.gen
     assert ("A Schedule containing an ACC parallel region must also "
             "contain an ACC enter data directive but none was found for "
-            "invoke_0" in str(err))
+            "invoke_0" in str(err.value))
 
     # Add a data region
     new_sched, _ = accdata.apply(new_sched)
@@ -1791,25 +1809,25 @@ def test_acc_collapse(tmpdir):
 
     # Check that we reject non-integer collapse arguments
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, collapse=child)
+        _, _ = acclpt.apply(child, {"collapse": child})
     assert ("The 'collapse' argument must be an integer but got an object "
-            "of type" in str(err))
+            "of type" in str(err.value))
 
     # Check that we reject invalid depths
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, collapse=1)
+        _, _ = acclpt.apply(child, {"collapse": 1})
     assert ("It only makes sense to collapse 2 or more loops but got a "
-            "value of 1" in str(err))
+            "value of 1" in str(err.value))
 
     # Check that we reject attempts to collapse more loops than we have
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, collapse=3)
+        _, _ = acclpt.apply(child, {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err))
+            "only 2 loops" in str(err.value))
 
     # Finally, do something valid and check that we get the correct
     # generated code
-    new_sched, _ = acclpt.apply(child, collapse=2)
+    new_sched, _ = acclpt.apply(child, {"collapse": 2})
 
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
@@ -1835,8 +1853,8 @@ def test_acc_indep(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
-    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
+    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1857,7 +1875,7 @@ def test_acc_loop_seq():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], sequential=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], {"sequential": True})
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1875,9 +1893,9 @@ def test_acc_loop_view(capsys):
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                            name="invoke_0")
     schedule = invoke.schedule
-    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
-    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
-    new_sched, _ = acclpt.apply(schedule.children[2], sequential=True)
+    new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
+    new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
+    new_sched, _ = acclpt.apply(schedule.children[2], {"sequential": True})
     # Check the view method
     new_sched.view()
     output, _ = capsys.readouterr()
@@ -1897,4 +1915,4 @@ def test_acc_kernels_error():
     with pytest.raises(NotImplementedError) as err:
         _, _ = accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
-            " and dynamo0.3 front-ends" in str(err))
+            " and dynamo0.3 front-ends" in str(err.value))

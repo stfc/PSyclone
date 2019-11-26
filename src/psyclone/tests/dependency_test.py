@@ -137,7 +137,7 @@ def test_double_variable_lhs(parser):
     with pytest.raises(ParseError) as err:
         indirect_addressing.reference_accesses(var_accesses)
     assert "The variable 'g' appears more than once on the left-hand side "\
-           "of an assignment." in str(err)
+           "of an assignment." in str(err.value)
 
 
 def test_if_statement(parser):

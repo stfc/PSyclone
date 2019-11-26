@@ -805,7 +805,7 @@ class AllocateGen(BaseGen):
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
         self._decl = fparser1.statements.Allocate(parent.root, myline)
-        if isinstance(content, str):
+        if isinstance(content, six.string_types):
             self._decl.items = [content]
         elif isinstance(content, list):
             self._decl.items = content
