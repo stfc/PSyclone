@@ -99,7 +99,7 @@ def test_data_no_gen_code():
     with pytest.raises(InternalError) as err:
         schedule.children[0].gen_code(schedule)
     assert ("ACCDataDirective.gen_code should not have "
-            "been called" in str(err))
+            "been called" in str(err.value))
 
 
 def test_add_region_invalid_data_move():
@@ -146,11 +146,11 @@ def test_add_region_comment_err(parser):
     with pytest.raises(InternalError) as err:
         datadir._add_region("!data", "!end data")
     assert ("start_text must be a plain label without directive or comment "
-            "characters but got: '!data'" in str(err))
+            "characters but got: '!data'" in str(err.value))
     with pytest.raises(InternalError) as err:
         datadir._add_region("data", "!end data")
     assert ("end_text must be a plain label without directive or comment "
-            "characters but got: '!end data'" in str(err))
+            "characters but got: '!end data'" in str(err.value))
 
 
 def test_data_view(parser, capsys):
@@ -299,7 +299,7 @@ def test_no_data_ref_read(parser):
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen)
     assert ("derived-type references on the RHS of assignments are not yet "
-            "supported" in str(err))
+            "supported" in str(err.value))
 
 
 def test_array_section():
@@ -373,10 +373,12 @@ def test_no_code_blocks(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:1])
-    assert "CodeBlock'>' cannot be enclosed by a ACCDataTrans" in str(err)
+    assert ("CodeBlock'>' cannot be enclosed by a ACCDataTrans"
+            in str(err.value))
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[1:2])
-    assert "CodeBlock'>' cannot be enclosed by a ACCDataTrans" in str(err)
+    assert ("CodeBlock'>' cannot be enclosed by a ACCDataTrans"
+            in str(err.value))
 
 
 def test_kernels_in_data_region(parser):
@@ -424,7 +426,7 @@ def test_no_enter_data(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
-            "contains an 'enter data' directive" in str(err))
+            "contains an 'enter data' directive" in str(err.value))
 
 
 def test_array_access_in_ifblock(parser):
@@ -506,4 +508,4 @@ def test_missed_array_case(parser):
     with pytest.raises(InternalError) as err:
         _ = str(psy.gen)
     assert ("Array 'ice_mask' present in source code ('ice_mask(ji, jj)') "
-            "but not identified" in str(err))
+            "but not identified" in str(err.value))

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
+# Modified A. R. Porter, STFC Daresbury Lab.
 
 '''OpenCL PSyIR backend. Extends the C PSyIR back-end to generate
 OpenCL code from PSyIR nodes.
@@ -179,11 +180,14 @@ class OpenCLWriter(CWriter):
         :returns: The OpenCL code as a string.
         :rtype: str
 
+        :raises VisitorError: if a non-precision symbol is found with a \
+                              deferred interface.
         '''
         # OpenCL implementation assumptions:
         # - All array have the same size and it is given by the
         #   global_work_size argument to clEnqueueNDRangeKernel.
         # - Assumes no dependencies among kernels called concurrently.
+        # - All real variables are 64-bit
 
         # TODO: At the moment, the method caller is responsible to ensure
         # these assumptions. KernelSchedule access to the kernel
@@ -192,6 +196,21 @@ class OpenCLWriter(CWriter):
 
         symtab = node.symbol_table
         data_args = symtab.data_arguments
+
+        # Check that we know where everything in the symbol table
+        # comes from.  TODO #592 ultimately precision symbols should
+        # be included in this check too as we will need to be able to
+        # map from them to the equivalent OpenCL type.
+        unresolved_datasymbols = symtab.get_unresolved_datasymbols(
+            ignore_precision=True)
+        if unresolved_datasymbols:
+            symbols_txt = ", ".join(
+                ["'" + sym + "'" for sym in unresolved_datasymbols])
+            raise VisitorError(
+                "Cannot generate OpenCL because the symbol table contains "
+                "unresolved data entries (i.e. that have no defined Interface)"
+                " which are not used purely to define the precision of other "
+                "symbols: {0}".format(symbols_txt))
 
         # Start OpenCL kernel definition
         code = self._nindent

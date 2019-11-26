@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, S. Siso STFC Daresbury Lab.
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. R. Porter, STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -266,8 +267,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if the symbol does not specify a \
-        variable declaration (it is not a local declaration or an \
-        argument declaration).
+            variable declaration (it is not a local declaration or an \
+            argument declaration).
 
         '''
         if not (symbol.is_local or symbol.is_argument):
@@ -306,10 +307,27 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if args_allowed is False and one or more \
-        argument declarations exist in symbol_table.
+                              argument declarations exist in symbol_table.
+        :raises VisitorError: if any symbols representing variables (i.e. \
+            not kind parameters) without an explicit declaration or 'use' \
+            are encountered.
 
         '''
         declarations = ""
+
+        # Does the symbol table contain any symbols with a deferred
+        # interface (i.e. we don't know how they are brought into scope) that
+        # are not KIND parameters?
+        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols(
+            ignore_precision=True)
+        if unresolved_datasymbols:
+            symbols_txt = ", ".join(
+                ["'" + sym + "'" for sym in unresolved_datasymbols])
+            raise VisitorError(
+                "The following symbols are not explicitly declared or imported"
+                " from a module (in the local scope) and are not KIND "
+                "parameters: {0}".format(symbols_txt))
+
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.

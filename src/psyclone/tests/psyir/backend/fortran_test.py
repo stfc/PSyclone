@@ -46,7 +46,7 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
 from psyclone.psyGen import Node, CodeBlock, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface
+    GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -91,7 +91,7 @@ def test_gen_intent_error(monkeypatch):
     monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_intent(symbol)
-    assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo)
+    assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
 def test_gen_dims():
@@ -119,7 +119,7 @@ def test_gen_dims_error(monkeypatch):
     monkeypatch.setattr(symbol, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_dims(symbol)
-    assert "unsupported gen_dims index 'invalid'" in str(excinfo)
+    assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
@@ -295,6 +295,15 @@ def test_fw_gen_vardecl(fort_writer):
             "an Argument interface but found a 'GlobalInterface' interface."
             in str(excinfo.value))
 
+    # An unresolved symbol
+    symbol = DataSymbol("dummy1", "deferred",
+                        interface=UnresolvedInterface())
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
+            "an Argument interface but found a 'UnresolvedInterface' "
+            "interface." in str(excinfo.value))
+
 
 def test_gen_decls(fort_writer):
     '''Check the FortranWriter class gen_decls method produces the
@@ -323,6 +332,15 @@ def test_gen_decls(fort_writer):
         _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
             "contains argument(s): '['arg']'." in str(excinfo.value))
+
+    # Add a symbol with a deferred (unknown) interface
+    symbol_table.add(DataSymbol("unknown", "integer",
+                                interface=UnresolvedInterface()))
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_decls(symbol_table)
+    assert ("The following symbols are not explicitly declared or imported "
+            "from a module (in the local scope) and are not KIND parameters: "
+            "'unknown'" in str(excinfo.value))
 
 
 def test_fw_exception(fort_writer):
@@ -358,7 +376,7 @@ def test_fw_exception(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo)
+    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
 
 
 def test_fw_container_1(fort_writer, monkeypatch):
@@ -377,7 +395,8 @@ def test_fw_container_1(fort_writer, monkeypatch):
     monkeypatch.setattr(container, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
-    assert "Expected Container node name to have a value." in str(excinfo)
+    assert ("Expected Container node name to have a value."
+            in str(excinfo.value))
 
 
 def test_fw_container_2(fort_writer):
@@ -417,7 +436,7 @@ def test_fw_container_2(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
-            "to be KernelSchedules." in str(excinfo))
+            "to be KernelSchedules." in str(excinfo.value))
 
 
 def test_fw_container_3(fort_writer, monkeypatch):
@@ -443,7 +462,7 @@ def test_fw_container_3(fort_writer, monkeypatch):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("Arguments are not allowed in this context but this symbol table "
-            "contains argument(s): '['a']'." in str(excinfo))
+            "contains argument(s): '['a']'." in str(excinfo.value))
 
 
 def test_fw_kernelschedule(fort_writer, monkeypatch):
@@ -483,7 +502,7 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Expected node name to have a value." in str(excinfo)
+    assert "Expected node name to have a value." in str(excinfo.value)
 
 # assignment and binaryoperation (not intrinsics) are already checked
 # within previous tests
@@ -533,7 +552,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Unexpected binary op" in str(excinfo)
+    assert "Unexpected binary op" in str(excinfo.value)
 
 
 def test_fw_naryopeator(fort_writer):
@@ -579,7 +598,7 @@ def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as err:
         _ = fort_writer(schedule)
-    assert "Unexpected N-ary op" in str(err)
+    assert "Unexpected N-ary op" in str(err.value)
 
 
 def test_fw_reference(fort_writer):
@@ -626,7 +645,8 @@ def test_fw_reference(fort_writer):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         result = fort_writer(schedule)
-    assert "Expecting a Reference with no children but found" in str(excinfo)
+    assert ("Expecting a Reference with no children but found"
+            in str(excinfo.value))
 
 
 def test_fw_array(fort_writer):
@@ -781,7 +801,7 @@ def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(schedule)
-    assert "Unexpected unary op" in str(excinfo)
+    assert "Unexpected unary op" in str(excinfo.value)
 
 
 def test_fw_return(fort_writer):

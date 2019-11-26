@@ -102,7 +102,7 @@ def test_node_list_error(tmpdir):
     assert ("Error in LFRicExtractRegion: Argument must be "
             "a single Node in a Schedule or a list of Nodes in a Schedule "
             "but have been passed an object of type: "
-            "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo)
+            "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
 
     # Supply Nodes in incorrect order or duplicate Nodes
     node_list = [invoke0.schedule.children[0],
@@ -111,9 +111,9 @@ def test_node_list_error(tmpdir):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(node_list)
     assert "Children are not consecutive children of one parent:" \
-           in str(excinfo)
+           in str(excinfo.value)
     assert "has position 0, but previous child had position 0."\
-        in str(excinfo)
+        in str(excinfo.value)
 
     # Supply Nodes which are not children of the same parent
     node_list = [invoke0.schedule.children[1],
@@ -122,7 +122,7 @@ def test_node_list_error(tmpdir):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(node_list)
     assert ("supplied nodes are not children of the same "
-            "parent.") in str(excinfo)
+            "parent.") in str(excinfo.value)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
@@ -150,7 +150,7 @@ def test_distmem_error():
         _, _ = etrans.apply(schedule.children[2:4])
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
             "cannot be enclosed by a LFRicExtractRegion "
-            "transformation") in str(excinfo)
+            "transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
     _, invoke_info = parse(
@@ -164,7 +164,7 @@ def test_distmem_error():
         _, _ = etrans.apply(glob_sum)
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
             "cannot be enclosed by a LFRicExtractRegion "
-            "transformation") in str(excinfo)
+            "transformation") in str(excinfo.value)
 
 
 def test_repeat_extract():
@@ -186,7 +186,7 @@ def test_repeat_extract():
         _, _ = etrans.apply(schedule.children[0])
     assert ("Nodes of type '<class 'psyclone.extractor.ExtractNode'>' "
             "cannot be enclosed by a LFRicExtractRegion "
-            "transformation") in str(excinfo)
+            "transformation") in str(excinfo.value)
 
 
 def test_kern_builtin_no_loop():
@@ -207,7 +207,7 @@ def test_kern_builtin_no_loop():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = dynetrans.apply(builtin_call)
     assert ("Extraction of a Kernel or a Built-in call without its "
-            "parent Loop is not allowed.") in str(excinfo)
+            "parent Loop is not allowed.") in str(excinfo.value)
 
     # Test GOcean1.0 API for Kernel call error
     gocetrans = GOceanExtractRegion()
@@ -222,7 +222,7 @@ def test_kern_builtin_no_loop():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = gocetrans.apply(kernel_call)
     assert ("Extraction of a Kernel or a Built-in call without its "
-            "parent Loop is not allowed.") in str(excinfo)
+            "parent Loop is not allowed.") in str(excinfo.value)
 
 
 def test_loop_no_directive_dynamo0p3():
@@ -249,7 +249,7 @@ def test_loop_no_directive_dynamo0p3():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)
     assert ("Extraction of a Loop without its parent Directive is not "
-            "allowed.") in str(excinfo)
+            "allowed.") in str(excinfo.value)
 
 
 def test_no_parent_accdirective():
@@ -284,7 +284,7 @@ def test_no_parent_accdirective():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(orphaned_directive)
     assert ("Extraction of Nodes enclosed within a thread parallel "
-            "region is not allowed.") in str(excinfo)
+            "region is not allowed.") in str(excinfo.value)
 
 
 def test_no_colours_loop_dynamo0p3():
@@ -318,7 +318,7 @@ def test_no_colours_loop_dynamo0p3():
         _, _ = etrans.apply(directive)
     assert ("Dynamo0.3 API: Extraction of a Loop over cells in a "
             "colour without its ancestor Loop over colours is not "
-            "allowed.") in str(excinfo)
+            "allowed.") in str(excinfo.value)
 
 
 def test_no_outer_loop_gocean1p0():
@@ -338,7 +338,7 @@ def test_no_outer_loop_gocean1p0():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(inner_loop)
     assert ("GOcean1.0 API: Extraction of an inner Loop without its "
-            "ancestor outer Loop is not allowed.") in str(excinfo)
+            "ancestor outer Loop is not allowed.") in str(excinfo.value)
 
 # --------------------------------------------------------------------------- #
 # ================== ExtractNode tests ====================================== #

@@ -226,7 +226,7 @@ wmask(ji, jj, jk)
     with pytest.raises(GenerationError) as err:
         _ = directive.update()
     assert ("An OpenMP DO can only be applied to a single loop but "
-            "this Node has 2 children:" in str(err))
+            "this Node has 2 children:" in str(err.value))
 
 
 def test_omp_parallel_errs():
@@ -247,7 +247,7 @@ def test_omp_parallel_errs():
     with pytest.raises(InternalError) as err:
         _ = psy.gen
     assert ("Failed to find locations to insert begin/end directives" in
-            str(err))
+            str(err.value))
 
 
 def test_omp_do_children_err():
@@ -267,7 +267,7 @@ def test_omp_do_children_err():
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "
-            "this Node has 2 children:" in str(err))
+            "this Node has 2 children:" in str(err.value))
 
 
 def test_omp_do_within_if():

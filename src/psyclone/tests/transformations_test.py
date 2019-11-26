@@ -82,7 +82,8 @@ def test_accenterdata_internalerr(monkeypatch):
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
-    assert "validate() has not rejected an (unsupported) schedule" in str(err)
+    assert ("validate() has not rejected an (unsupported) schedule"
+            in str(err.value))
 
 
 def test_omploop_no_collapse():
@@ -96,7 +97,7 @@ def test_omploop_no_collapse():
     with pytest.raises(NotImplementedError) as err:
         _ = trans._directive(pnode, cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
-            "directives" in str(err))
+            "directives" in str(err.value))
 
 
 def test_ifblock_children_region():
