@@ -31,3 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
+
+'''PSyclone Internal Representation module. Contains all nodes for the PSyIR,
+tools and basic transformations (in subdirectories).
+'''
+
+from psyclone.psyir.psy_data import PSyData
+
+# The entities in the __all__ list are made available to import directly from
+# this package e.g.:
+# from psyclone.psyir.transformations import ExtractRegion
+
+__all__ = ['PSyData']
