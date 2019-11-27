@@ -43,7 +43,7 @@ from psyclone.psyGen import Kern, NameSpace, \
 
 
 # =============================================================================
-class PSyData(Node):
+class PSyDataNode(Node):
     # pylint: disable=too-many-instance-attributes, too-many-locals
     '''
     This class can be inserted into a schedule to instrument a set of nodes.
@@ -189,14 +189,15 @@ class PSyData(Node):
                     module_name = kernel.module_name
                 break
             if self._region_name is None:
-                self._region_name = PSyData._namespace.create_name(region_name)
+                self._region_name = PSyDataNode._namespace\
+                                               .create_name(region_name)
             if self._module_name is None:
                 self._module_name = module_name
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         use = UseGen(parent, self.fortran_module, only=True,
-                     funcnames=PSyData.symbols)
+                     funcnames=PSyDataNode.symbols)
         parent.add(use)
         var_decl = TypeDeclGen(parent, datatype="PSyDataType",
                                entity_decls=[self._var_name],
@@ -256,7 +257,7 @@ class PSyData(Node):
         :raises NotImplementedError: Not yet supported for profiling.
         '''
         raise NotImplementedError("Generation of C code is not supported "
-                                  "for PSyData.")
+                                  "for PSyDataNode.")
 
     # -------------------------------------------------------------------------
     def update(self):

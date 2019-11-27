@@ -38,7 +38,8 @@
 
 from psyclone.psyGen import Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.transformation_error import TransformationError
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 from psyclone.undoredo import Memento
 
 
@@ -185,8 +186,8 @@ class PSyDataTrans(RegionTrans):
 
         # Create the PSyData node. All of the supplied child nodes will have
         # the PSyData's Schedule as their parent.
-        from psyclone.psyir.psy_data import PSyData
+        from psyclone.psyir.psy_data_node import PSyDataNode
 
-        _ = PSyData(parent=node_parent, children=node_list[:])
+        _ = PSyDataNode(parent=node_parent, children=node_list[:])
 
         return schedule, keep

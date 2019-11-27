@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import re
 import pytest
 
-from psyclone.psyir.psy_data import PSyData
+from psyclone.psyir.psy_data_node import PSyDataNode
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
@@ -59,7 +59,7 @@ def test_psy_data_basic(capsys):
     data_trans = PSyDataTrans()
     data_trans.apply(schedule)
 
-    assert isinstance(invoke.schedule[0], PSyData)
+    assert isinstance(invoke.schedule[0], PSyDataNode)
 
     schedule.view()
     out, _ = capsys.readouterr()
@@ -133,10 +133,10 @@ def test_c_code_creation():
     at this stage.
     '''
 
-    data_node = PSyData()
+    data_node = PSyDataNode()
     with pytest.raises(NotImplementedError) as excinfo:
         data_node.gen_c_code()
-    assert "Generation of C code is not supported for PSyData" \
+    assert "Generation of C code is not supported for PSyDataNode" \
         in str(excinfo)
 
 
@@ -152,11 +152,11 @@ def test_psy_data_invokes_gocean1p0():
     data_trans.apply(schedule[0])
 
     code = invoke.gen()
+    print(code)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
-
     # First a simple test that the nesting is correct - the
     # profile regions include both loops. Note that indeed
     # the function 'compute_cv_code' is in the module file
@@ -174,7 +174,7 @@ def test_psy_data_invokes_gocean1p0():
                   r"call psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
-    # Check that if gen() is called more than once the same PSyData
+    # Check that if gen() is called more than once the same PSyDataNode
     # variables and region names are created:
     code_again = str(invoke.gen()).replace("\n", "")
     assert code == code_again
