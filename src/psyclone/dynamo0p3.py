@@ -7674,7 +7674,11 @@ class KernCallArgList(ArgOrdering):
 
     def ref_element_properties(self):
         ''' Provide kernel arguments required by the reference-element
-        properties. '''
+        properties specified in the kernel metadata.
+
+        :raises InternalError: if an unsupported reference-element property \
+                               is encountered.
+        '''
         # Provide no. of horizontal faces if required
         if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
            in self._kern.reference_element.properties or \
@@ -7692,6 +7696,39 @@ class KernCallArgList(ArgOrdering):
             nfaces_v = self._name_space_manager.create_name(
                 root_name="nfaces_v", context="PSyVars", label="nfaces_v")
             self._arglist.append(nfaces_v)
+        # Now the arrays themselves, in the order specified in the
+        # kernel metadata
+        for property in self._kern.reference_element.properties:
+            if property == \
+               RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
+                name = self._name_space_manager.create_name(
+                    root_name="horiz_face_out_normals", context="PSyVars",
+                    label="horiz_face_out_normals")
+                self._arglist.append(name)
+            elif property == \
+                 RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
+                name = self._name_space_manager.create_name(
+                    root_name="horiz_face_normals", context="PSyVars",
+                    label="horiz_face_normals")
+                self._arglist.append(name)
+            elif property == \
+                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES:
+                name = self._name_space_manager.create_name(
+                    root_name="vert_face_out_normals", context="PSyVars",
+                    label="vert_face_out_normals")
+                self._arglist.append(name)
+            elif property == \
+                 RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES:
+                name = self._name_space_manager.create_name(
+                    root_name="vert_face_normals", context="PSyVars",
+                    label="vert_face_normals")
+                self._arglist.append(name)
+            else:
+                raise InternalError(
+                    "Unsupported reference-element property ('{0}') found when"
+                    " generating kernel arguments. Supported properties are: "
+                    "{1}".format(str(property),
+                                 str(RefElementMetaData.Property))
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
