@@ -36,11 +36,11 @@
 '''Transformation module for LFRic.
 '''
 
-from psyclone.domain.lfric.transformations.lfric_extract_region \
-    import LFRicExtractRegion
+from psyclone.domain.lfric.transformations.lfric_extract_trans \
+    import LFRicExtractTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
-# from psyclone.domain.lfric.transformations import LFRicExtractRegion
+# from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
-__all__ = ['LFRicExtractRegion']
+__all__ = ['LFRicExtractTrans']
