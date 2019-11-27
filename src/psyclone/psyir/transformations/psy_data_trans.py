@@ -186,7 +186,7 @@ class PSyDataTrans(RegionTrans):
 
         # Create the PSyData node. All of the supplied child nodes will have
         # the PSyData's Schedule as their parent.
-        from psyclone.psyir.psy_data_node import PSyDataNode
+        from psyclone.psyir.nodes import PSyDataNode
 
         _ = PSyDataNode(parent=node_parent, children=node_list[:])
 

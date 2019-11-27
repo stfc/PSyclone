@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import re
 import pytest
 
-from psyclone.psyir.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke

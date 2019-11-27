@@ -49,7 +49,7 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyir.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
 class ExtractNode(PSyDataNode):

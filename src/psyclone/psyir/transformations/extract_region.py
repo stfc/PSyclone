@@ -199,7 +199,7 @@ class ExtractRegion(RegionTrans):
 
         keep = Memento(schedule, self)
 
-        from psyclone.psyir import ExtractNode
+        from psyclone.psyir.nodes import ExtractNode
         ExtractNode(parent=node_parent, children=node_list[:])
 
         return schedule, keep

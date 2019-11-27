@@ -46,7 +46,7 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractRegion
 from psyclone.domain.gocean.transformations import GOceanExtractRegion
-from psyclone.psyir import ExtractNode
+from psyclone.psyir.nodes import ExtractNode
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.psyir.transformations import TransformationError
@@ -184,7 +184,7 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
-    assert ("Nodes of type '<class 'psyclone.psyir.extract_node."
+    assert ("Nodes of type '<class 'psyclone.psyir.nodes.extract_node."
             "ExtractNode'>' cannot be enclosed by a LFRicExtractRegion "
             "transformation") in str(excinfo.value)
 

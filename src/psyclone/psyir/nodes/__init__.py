@@ -36,5 +36,7 @@
 '''PSyclone Internal Representation module. Contains all nodes for the PSyIR,
 tools and basic transformations (in subdirectories).
 '''
+from psyclone.psyir.nodes.extract_node import ExtractNode
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
-__all__ = []
+__all__ = ['ExtractNode', 'PSyDataNode']
