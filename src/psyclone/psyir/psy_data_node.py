@@ -54,6 +54,9 @@ class PSyDataNode(Node):
     of data, or for writing fields to a file (e.g. for creating test
     cases, or using driver to run a certain kernel only)
 
+    :param ast: reference into the fparser2 parse tree corresponding to \
+                this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: a list of child nodes for this node. These will be made \
                      children of the child Schedule of this Profile Node.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
@@ -73,7 +76,7 @@ class PSyDataNode(Node):
     # A namespace manager to make sure we get unique region names
     _namespace = NameSpace()
 
-    def __init__(self, children=None, parent=None, options=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
 
         # Store the name of the profile variable that is used for this
         # profile name. This allows to show the variable name in __str__
@@ -81,33 +84,18 @@ class PSyDataNode(Node):
         # change every time gen() is called).
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
-        # Name of the region. In general at constructor time we might not
-        # have a parent subroutine or a child for the kernel, so we leave
-        # the name empty for now. The region and module names are set the
-        # first time gen() is called (and then remain unchanged).
-        self._region_name = None
-        self._module_name = None
-
-        # Name and colour to use for this node
-        self._text_name = "PSyData"
-        self._colour_key = "PSyData"
-
-        if options:
-            # Create a copy
-            self._options = dict(options)
+        if not children:
+            super(PSyDataNode, self).__init__(ast=ast, children=children,
+                                              parent=parent)
         else:
-            self._options = {}
-
-        self._pre_variable_list = self._options.get("pre-var-list", [])
-        self._post_variable_list = self._options.get("post-var-list", [])
-
-        if children:
             node_parent = children[0].parent
             node_position = children[0].position
 
             # A PSyData node always contains a Schedule
             sched = self._insert_schedule(children)
-            Node.__init__(self, children=[sched], parent=parent)
+
+            super(PSyDataNode, self).__init__(ast=ast, children=[sched],
+                                              parent=parent)
 
             # Correct the parent's list of children. Use a slice of the list
             # of nodes so that we're looping over a local copy of the list.
@@ -122,14 +110,35 @@ class PSyDataNode(Node):
             # of the first of these nodes
             node_parent.addchild(self, index=node_position)
 
+        # Name and colour to use for this node - must be set after calling
+        # the constructor
+        self._text_name = "PSyData"
+        self._colour_key = "PSyData"
+
+        # Name of the region. In general at constructor time we might not
+        # have a parent subroutine or a child for the kernel, so we leave
+        # the name empty for now. The region and module names are set the
+        # first time gen() is called (and then remain unchanged).
+        self._region_name = None
+        self._module_name = None
+
+        if options:
+            # Create a copy
+            self._options = dict(options)
+        else:
+            self._options = {}
+
+        self._pre_variable_list = self._options.get("pre-var-list", [])
+        self._post_variable_list = self._options.get("post-var-list", [])
+
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         this node. '''
-        result = "PSyDataStart[var={0}]\n".format(self._var_name)
+        result = "{0}Start[var={1}]\n".format(self._text_name, self._var_name)
         for child in self.psy_data_body.children:
             result += str(child)+"\n"
-        return result+"PSyDataEnd[var={0}]".format(self._var_name)
+        return result+"{0}End[var={1}]".format(self._text_name, self._var_name)
 
     # -------------------------------------------------------------------------
     @property

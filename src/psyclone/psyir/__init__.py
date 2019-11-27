@@ -37,10 +37,11 @@
 tools and basic transformations (in subdirectories).
 '''
 
+from psyclone.psyir.extract_node import ExtractNode
 from psyclone.psyir.psy_data_node import PSyDataNode
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractRegion
 
-__all__ = ['PSyDataNode']
+__all__ = ['ExtractNode', 'PSyDataNode']

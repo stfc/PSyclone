@@ -192,7 +192,6 @@ class ExtractRegion(RegionTrans):
         # the first child to be enclosed as that will be the position
         # of the ExtractNode.
         node_parent = node_list[0].parent
-        node_position = node_list[0].position
 
         # Create a Memento of the Schedule and the proposed
         # transformation
@@ -200,21 +199,7 @@ class ExtractRegion(RegionTrans):
 
         keep = Memento(schedule, self)
 
-        from psyclone.extractor import ExtractNode
-        extract_node = ExtractNode(parent=node_parent, children=node_list[:])
-
-        # Change all of the affected children so that they have the
-        # ExtractNode as their parent. Use a slice of the list of Nodes
-        # so that we're looping over a local copy of the list. Otherwise
-        # things get confused when we remove children from the list.
-        for child in node_list[:]:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
-            child.parent = extract_node
-
-        # Add the ExtractNode as a child of the parent of the Nodes being
-        # enclosed at the original location of the first of these Nodes
-        node_parent.addchild(extract_node,
-                             index=node_position)
+        from psyclone.psyir import ExtractNode
+        ExtractNode(parent=node_parent, children=node_list[:])
 
         return schedule, keep

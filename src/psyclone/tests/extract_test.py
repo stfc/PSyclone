@@ -46,7 +46,7 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractRegion
 from psyclone.domain.gocean.transformations import GOceanExtractRegion
-from psyclone.extractor import ExtractNode
+from psyclone.psyir import ExtractNode
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.psyir.transformations import TransformationError
@@ -184,8 +184,8 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
-    assert ("Nodes of type '<class 'psyclone.extractor.ExtractNode'>' "
-            "cannot be enclosed by a LFRicExtractRegion "
+    assert ("Nodes of type '<class 'psyclone.psyir.extract_node."
+            "ExtractNode'>' cannot be enclosed by a LFRicExtractRegion "
             "transformation") in str(excinfo.value)
 
 
@@ -423,8 +423,11 @@ def test_extract_node_representation(capsys):
     assert schedule.children[1].dag_name == "extract_1"
 
     # Test __str__ method
-    assert "End DynLoop\nExtractStart\nDynLoop[id:''" in str(schedule)
-    assert "End DynLoop\nExtractEnd\nDynLoop[id:''" in str(schedule)
+
+    assert "End DynLoop\nExtractStart[var=psy_data]\nDynLoop[id:''" in \
+        str(schedule)
+    assert "End DynLoop\nExtractEnd[var=psy_data]\nDynLoop[id:''" in \
+        str(schedule)
     # Count the loops inside and outside the extract to check it is in
     # the right place
     [before, after] = str(schedule).split("ExtractStart")

@@ -49,10 +49,10 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyGen import Node
+from psyclone.psyir.psy_data_node import PSyDataNode
 
 
-class ExtractNode(Node):
+class ExtractNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for \
     code extraction using the ExtractRegionTrans transformation. By \
@@ -69,24 +69,10 @@ class ExtractNode(Node):
 
     '''
     def __init__(self, ast=None, children=None, parent=None):
-        # An ExtractNode always contains a Schedule
-        sched = self._insert_schedule(children, ast)
-        super(ExtractNode, self).__init__(ast, [sched], parent)
+        super(ExtractNode, self).__init__(ast=ast, children=children,
+                                          parent=parent)
         self._text_name = "Extract"
         self._colour_key = "Extract"
-
-    def __str__(self):
-        '''
-        Returns a string representation of the subtree starting at the \
-        Extract Node.
-
-        :returns: the Extract Node with all its children.
-        :rtype: str
-        '''
-        result = "ExtractStart\n"
-        for child in self.extract_body:
-            result += str(child) + "\n"
-        return result + "ExtractEnd"
 
     @property
     def extract_body(self):
