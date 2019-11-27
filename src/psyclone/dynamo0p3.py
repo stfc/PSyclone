@@ -7698,26 +7698,26 @@ class KernCallArgList(ArgOrdering):
             self._arglist.append(nfaces_v)
         # Now the arrays themselves, in the order specified in the
         # kernel metadata
-        for property in self._kern.reference_element.properties:
-            if property == \
+        for prop in self._kern.reference_element.properties:
+            if prop == \
                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
                 name = self._name_space_manager.create_name(
                     root_name="horiz_face_out_normals", context="PSyVars",
                     label="horiz_face_out_normals")
                 self._arglist.append(name)
-            elif property == \
+            elif prop == \
                  RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
                 name = self._name_space_manager.create_name(
                     root_name="horiz_face_normals", context="PSyVars",
                     label="horiz_face_normals")
                 self._arglist.append(name)
-            elif property == \
+            elif prop == \
                  RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES:
                 name = self._name_space_manager.create_name(
                     root_name="vert_face_out_normals", context="PSyVars",
                     label="vert_face_out_normals")
                 self._arglist.append(name)
-            elif property == \
+            elif prop == \
                  RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES:
                 name = self._name_space_manager.create_name(
                     root_name="vert_face_normals", context="PSyVars",
@@ -7726,9 +7726,10 @@ class KernCallArgList(ArgOrdering):
             else:
                 raise InternalError(
                     "Unsupported reference-element property ('{0}') found when"
-                    " generating kernel arguments. Supported properties are: "
-                    "{1}".format(str(property),
-                                 str(RefElementMetaData.Property)))
+                    " generating arguments for kernel '{1}'. Supported "
+                    "properties are: {2}".format(
+                        str(prop), self._kern.name,
+                        [str(sprop) for sprop in RefElementMetaData.Property]))
 
     def quad_rule(self):
         ''' add qr information to the argument list'''

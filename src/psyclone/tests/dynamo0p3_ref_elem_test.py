@@ -156,6 +156,26 @@ def test_mdata_wrong_type_var():
 # Tests for generating the PSy-layer code
 
 
+def test_refelem_arglist_err():
+    ''' Check that the KernCallArgList.ref_element_properties method raises
+    the expected error if it encounters an unsupported property. '''
+    from psyclone.psyGen import Kern, InternalError
+    _, invoke_info = parse(os.path.join(BASE_PATH, "23.1_ref_elem_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Get hold of the Kernel object
+    kernels = sched.walk(Kern)
+    kernel = kernels[0]
+    # Break the list of ref-element properties required by the Kernel
+    kernel.reference_element.properties.append("Not a property")
+    with pytest.raises(InternalError) as err:
+        kernel.arguments.raw_arg_list()
+    assert ("Unsupported reference-element property ('Not a property') found "
+            "when generating arguments for kernel 'testkern_ref_elem_code'. "
+            "Supported properties are: ['Property." in str(err.value))
+
+
 def test_refelem_gen(tmpdir):
     ''' Basic test for code-generation for an invoke containing a single
     kernel requiring reference-element properties. '''
@@ -197,7 +217,7 @@ def test_duplicate_refelem_gen(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert gen.count("integer, allocatable :: horiz_face_normals(:,:), "
-                          "vert_face_normals(:,:)") == 1
+                     "vert_face_normals(:,:)") == 1
     assert gen.count(
         "reference_element => mesh%get_reference_element") == 1
     assert gen.count(
