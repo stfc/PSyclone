@@ -76,7 +76,7 @@ class PSyDataNode(Node):
     # A namespace manager to make sure we get unique region names
     _namespace = NameSpace()
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    def __init__(self, ast=None, children=None, parent=None):
 
         # Store the name of the profile variable that is used for this
         # profile name. This allows to show the variable name in __str__
@@ -121,15 +121,6 @@ class PSyDataNode(Node):
         # first time gen() is called (and then remain unchanged).
         self._region_name = None
         self._module_name = None
-
-        if options:
-            # Create a copy
-            self._options = dict(options)
-        else:
-            self._options = {}
-
-        self._pre_variable_list = self._options.get("pre-var-list", [])
-        self._post_variable_list = self._options.get("post-var-list", [])
 
     # -------------------------------------------------------------------------
     def __str__(self):
@@ -176,13 +167,21 @@ class PSyDataNode(Node):
         parent.add(call)
 
     # -------------------------------------------------------------------------
-    def gen_code(self, parent):
+    def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children
         of this node.
 
         :param parent: the parent of this node.
         :type parent: :py:class:`psyclone.psyGen.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param options["pre-var-list"]: a list of variables to be extracted \
+            before the first child.
+        :type options["pre-var-list"]: list of str
+        :param options["post-var-list"]: a list of variables to be extracted \
+            after the last child.
+        :type options["poist-var-list"]: list of str
 
         '''
         if self._module_name is None or self._region_name is None:
@@ -203,6 +202,12 @@ class PSyDataNode(Node):
             if self._module_name is None:
                 self._module_name = module_name
 
+        if not options:
+            options = {}
+
+        pre_variable_list = options.get("pre-var-list", [])
+        post_variable_list = options.get("post-var-list", [])
+
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         use = UseGen(parent, self.fortran_module, only=True,
@@ -213,17 +218,13 @@ class PSyDataNode(Node):
                                save=True)
         parent.add(var_decl)
 
-        # Now determine the variables to write:
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
-
-        dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
         self._add_call("PreStart", parent,
                        ["\"{0}\"".format(self._module_name),
                         "\"{0}\"".format(self._region_name),
-                        len(input_list), len(output_list)])
+                        len(pre_variable_list),
+                        len(post_variable_list)])
 
-        for var_name in input_list+output_list:
+        for var_name in pre_variable_list+post_variable_list:
             self._add_call("PreDeclareVariable", parent,
                            ["\"{0}\"".format(var_name),
                             "{0}".format(var_name)])
@@ -232,7 +233,7 @@ class PSyDataNode(Node):
                        ["\"{0}\"".format(self._module_name),
                         "\"{0}\"".format(self._region_name)])
 
-        for var_name in input_list:
+        for var_name in pre_variable_list:
             self._add_call("WriteVariable", parent,
                            ["\"{0}\"".format(var_name),
                             "{0}".format(var_name)])
@@ -247,7 +248,7 @@ class PSyDataNode(Node):
         self._add_call("PostStart", parent,
                        ["\"{0}\"".format(self._module_name),
                         "\"{0}\"".format(self._region_name)])
-        for var_name in output_list:
+        for var_name in post_variable_list:
             self._add_call("WriteVariable", parent,
                            ["\"{0}\"".format(var_name),
                             "{0}".format(var_name)])

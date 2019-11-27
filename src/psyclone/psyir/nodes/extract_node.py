@@ -83,14 +83,7 @@ class ExtractNode(PSyDataNode):
         :raises InternalError: if this node does not have a single Schedule as\
                                its child.
         '''
-        from psyclone.psyGen import Schedule, InternalError
-        if len(self.children) != 1 or not \
-           isinstance(self.children[0], Schedule):
-            raise InternalError(
-                "ExtractNode malformed or incomplete. It should have a single "
-                "Schedule as a child but found: {0}".format(
-                    [type(child).__name__ for child in self.children]))
-        return self.children[0]
+        return super(ExtractNode, self).psy_data_body
 
     @property
     def dag_name(self):
@@ -103,6 +96,7 @@ class ExtractNode(PSyDataNode):
         return "extract_" + str(self.position)
 
     def gen_code(self, parent):
+        # pylint: disable=arguments-differ
         '''
         Generates the code required for extraction of one or more Nodes. \
         For now it inserts comments before and after the code belonging \
@@ -113,14 +107,19 @@ class ExtractNode(PSyDataNode):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
+
+        # Determine the variables to write:
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        dep = DependencyTools()
+        input_list, output_list = dep.get_in_out_parameters(self)
+        options = {'pre-var-list': input_list,
+                   'post-var-list': output_list}
+
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
-        parent.add(CommentGen(
-            parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
-        for child in self.extract_body:
-            child.gen_code(parent)
+        super(ExtractNode, self).gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))

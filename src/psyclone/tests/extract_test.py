@@ -452,19 +452,35 @@ def test_single_node_dynamo0p3():
 
     schedule, _ = etrans.apply(schedule.children[0])
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
-    assert output in code
+    outpu1 = """      ! ExtractStart
+      !
+      CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL psy_data%PreDeclareVariable("a", a)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("m1", m1)
+      CALL psy_data%PreDeclareVariable("m2", m2)
+      CALL psy_data%PreDeclareVariable("cell", cell)
+      CALL psy_data%PreDeclareVariable("f1", f1)
+      CALL psy_data%PreEndDeclaration("testkern_mod", "testkern_code")
+      CALL psy_data%WriteVariable("a", a)
+      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%WriteVariable("m1", m1)
+      CALL psy_data%WriteVariable("m2", m2)
+      CALL psy_data%PreEnd("testkern_mod", "testkern_code")
+      DO cell=1,f1_proxy%vspace%get_ncell()
+        !
+        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, """ + \
+        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, " + \
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
+        """undf_w3, map_w3(:,cell))
+      END DO 
+      CALL psy_data%PostStart("testkern_mod", "testkern_code")
+      CALL psy_data%WriteVariable("cell", cell)
+      CALL psy_data%WriteVariable("f1", f1)
+      CALL psy_data%PostEnd("testkern_mod", "testkern_code")
+      !
+      ! ExtractEnd"""
+    assert outpu1 in code
 
 
 def test_node_list_dynamo0p3():
@@ -483,23 +499,34 @@ def test_node_list_dynamo0p3():
 
     schedule, _ = etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO df=1,undf_any_space_1_f5\n"
-        "        f5_proxy%data(df) = 0.0\n"
-        "      END DO \n"
-        "      DO df=1,undf_any_space_1_f2\n"
-        "        f2_proxy%data(df) = 0.0\n"
-        "      END DO \n"
-        "      DO cell=1,f3_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        CALL testkern_code_w2_only(nlayers, f3_proxy%data, "
-        "f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = """! ExtractStart
+      !
+      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("cell", cell)
+      CALL psy_data%PreDeclareVariable("df", df)
+      CALL psy_data%PreDeclareVariable("f3", f3)
+      CALL psy_data%PreEndDeclaration("unknown-module", "setval_c")
+      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%PreEnd("unknown-module", "setval_c")
+      DO df=1,undf_any_space_1_f5
+        f5_proxy%data(df) = 0.0
+      END DO 
+      DO df=1,undf_any_space_1_f2
+        f2_proxy%data(df) = 0.0
+      END DO 
+      DO cell=1,f3_proxy%vspace%get_ncell()
+        !
+        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
+      END DO 
+      CALL psy_data%PostStart("unknown-module", "setval_c")
+      CALL psy_data%WriteVariable("cell", cell)
+      CALL psy_data%WriteVariable("df", df)
+      CALL psy_data%WriteVariable("f3", f3)
+      CALL psy_data%PostEnd("unknown-module", "setval_c")
+      !
+      ! ExtractEnd"""
     assert output in code
 
 
@@ -527,21 +554,33 @@ def test_single_node_ompparalleldo_gocean1p0():
     schedule, _ = etrans.apply(schedule.children[1])
 
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      !$omp parallel do default(shared), private(i,j), "
-        "schedule(static)\n"
-        "      DO j=2,jstop+1\n"
-        "        DO i=2,istop\n"
-        "          CALL compute_cv_code(i, j, cv_fld%data, "
-        "p_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !$omp end parallel do\n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = """      ! ExtractStart
+      !
+      CALL psy_data%PreStart("compute_cv_mod", "compute_cv_code", 2, 3)
+      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
+      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
+      CALL psy_data%PreDeclareVariable("cv_fld", cv_fld)
+      CALL psy_data%PreDeclareVariable("i", i)
+      CALL psy_data%PreDeclareVariable("j", j)
+      CALL psy_data%PreEndDeclaration("compute_cv_mod", "compute_cv_code")
+      CALL psy_data%WriteVariable("p_fld", p_fld)
+      CALL psy_data%WriteVariable("v_fld", v_fld)
+      CALL psy_data%PreEnd("compute_cv_mod", "compute_cv_code")
+      !$omp parallel do default(shared), private(i,j), schedule(static)
+      DO j=2,jstop+1
+        DO i=2,istop
+          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+        END DO 
+      END DO 
+      !$omp end parallel do
+      CALL psy_data%PostStart("compute_cv_mod", "compute_cv_code")
+      CALL psy_data%WriteVariable("cv_fld", cv_fld)
+      CALL psy_data%WriteVariable("i", i)
+      CALL psy_data%WriteVariable("j", j)
+      CALL psy_data%PostEnd("compute_cv_mod", "compute_cv_code")
+      !
+      ! ExtractEnd"""
+
     assert output in code
 
 
@@ -573,30 +612,47 @@ def test_node_list_ompparallel_gocean1p0():
     schedule, _ = etrans.apply(schedule.children[0])
 
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      !$omp parallel default(shared), private(i,j)\n"
-        "      !$omp do schedule(static)\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop+1\n"
-        "          CALL compute_cu_code(i, j, cu_fld%data, "
-        "p_fld%data, u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !$omp end do\n"
-        "      !$omp do schedule(static)\n"
-        "      DO j=2,jstop+1\n"
-        "        DO i=2,istop\n"
-        "          CALL compute_cv_code(i, j, cv_fld%data, "
-        "p_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !$omp end do\n"
-        "      !$omp end parallel\n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = """
+      ! ExtractStart
+      !
+      CALL psy_data%PreStart("compute_cu_mod", "compute_cu_code", 3, 4)
+      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
+      CALL psy_data%PreDeclareVariable("u_fld", u_fld)
+      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
+      CALL psy_data%PreDeclareVariable("cu_fld", cu_fld)
+      CALL psy_data%PreDeclareVariable("cv_fld", cv_fld)
+      CALL psy_data%PreDeclareVariable("i", i)
+      CALL psy_data%PreDeclareVariable("j", j)
+      CALL psy_data%PreEndDeclaration("compute_cu_mod", "compute_cu_code")
+      CALL psy_data%WriteVariable("p_fld", p_fld)
+      CALL psy_data%WriteVariable("u_fld", u_fld)
+      CALL psy_data%WriteVariable("v_fld", v_fld)
+      CALL psy_data%PreEnd("compute_cu_mod", "compute_cu_code")
+      !$omp parallel default(shared), private(i,j)
+      !$omp do schedule(static)
+      DO j=2,jstop
+        DO i=2,istop+1
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      !$omp end do
+      !$omp do schedule(static)
+      DO j=2,jstop+1
+        DO i=2,istop
+          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+        END DO 
+      END DO 
+      !$omp end do
+      !$omp end parallel
+      CALL psy_data%PostStart("compute_cu_mod", "compute_cu_code")
+      CALL psy_data%WriteVariable("cu_fld", cu_fld)
+      CALL psy_data%WriteVariable("cv_fld", cv_fld)
+      CALL psy_data%WriteVariable("i", i)
+      CALL psy_data%WriteVariable("j", j)
+      CALL psy_data%PostEnd("compute_cu_mod", "compute_cu_code")
+      !
+      ! ExtractEnd"""
+
     assert output in code
 
 
@@ -619,15 +675,21 @@ def test_extract_single_builtin_dynamo0p3():
 
     schedule, _ = etrans.apply(schedule.children[1])
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO df=1,undf_any_space_1_f2\n"
-        "        f2_proxy%data(df) = 0.0\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = """! ExtractStart
+      !
+      CALL psy_data%PreStart("unknown-module", "setval_c", 0, 1)
+      CALL psy_data%PreDeclareVariable("df", df)
+      CALL psy_data%PreEndDeclaration("unknown-module", "setval_c")
+      CALL psy_data%PreEnd("unknown-module", "setval_c")
+      DO df=1,undf_any_space_1_f2
+        f2_proxy%data(df) = 0.0
+      END DO 
+      CALL psy_data%PostStart("unknown-module", "setval_c")
+      CALL psy_data%WriteVariable("df", df)
+      CALL psy_data%PostEnd("unknown-module", "setval_c")
+      !
+      ! ExtractEnd"""
+
     assert output in code
 
     # Test extract with OMP Parallel optimisation
@@ -642,19 +704,23 @@ def test_extract_single_builtin_dynamo0p3():
     schedule, _ = otrans.apply(schedule.children[1])
     schedule, _ = etrans.apply(schedule.children[1])
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      !$omp parallel do default(shared), private(df), "
-        "schedule(static)\n"
-        "      DO df=1,undf_any_space_1_f1\n"
-        "        f1_proxy%data(df) = 0.5*f1_proxy%data(df) + "
-        "f2_proxy%data(df)\n"
-        "      END DO \n"
-        "      !$omp end parallel do\n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = """
+      ! ExtractStart
+      !
+      CALL psy_data%PreStart("unknown-module", "inc_ax_plus_y", 0, 1)
+      CALL psy_data%PreDeclareVariable("df", df)
+      CALL psy_data%PreEndDeclaration("unknown-module", "inc_ax_plus_y")
+      CALL psy_data%PreEnd("unknown-module", "inc_ax_plus_y")
+      !$omp parallel do default(shared), private(df), schedule(static)
+      DO df=1,undf_any_space_1_f1
+        f1_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)
+      END DO 
+      !$omp end parallel do
+      CALL psy_data%PostStart("unknown-module", "inc_ax_plus_y")
+      CALL psy_data%WriteVariable("df", df)
+      CALL psy_data%PostEnd("unknown-module", "inc_ax_plus_y")
+      !
+      ! ExtractEnd"""
     assert output in code
 
 
@@ -673,20 +739,32 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
 
     schedule, _ = etrans.apply(schedule.children[1:3])
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO df=1,undf_any_space_1_f2\n"
-        "        f2_proxy%data(df) = 0.0\n"
-        "      END DO \n"
-        "      DO cell=1,f3_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        CALL testkern_code_w2_only(nlayers, f3_proxy%data, "
-        "f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = """
+      ! ExtractStart
+      !
+      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("cell", cell)
+      CALL psy_data%PreDeclareVariable("df", df)
+      CALL psy_data%PreDeclareVariable("f3", f3)
+      CALL psy_data%PreEndDeclaration("unknown-module", "setval_c")
+      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%PreEnd("unknown-module", "setval_c")
+      DO df=1,undf_any_space_1_f2
+        f2_proxy%data(df) = 0.0
+      END DO 
+      DO cell=1,f3_proxy%vspace%get_ncell()
+        !
+        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
+      END DO 
+      CALL psy_data%PostStart("unknown-module", "setval_c")
+      CALL psy_data%WriteVariable("cell", cell)
+      CALL psy_data%WriteVariable("df", df)
+      CALL psy_data%WriteVariable("f3", f3)
+      CALL psy_data%PostEnd("unknown-module", "setval_c")
+      !
+      ! ExtractEnd"""
     assert output in code
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
@@ -734,27 +812,49 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     schedule, _ = etrans.apply(child)
 
     code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO colour=1,ncolour\n"
-        "        !$omp parallel do default(shared), private(cell), "
-        "schedule(static)\n"
-        "        DO cell=1,mesh%get_last_edge_cell_per_colour(colour)\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, b_proxy%data, a_proxy%data, istp, "
-        "rdt, c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), "
-        "basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO \n"
-        "        !$omp end parallel do\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+    output = ("""
+      ! ExtractStart
+      !
+      CALL psy_data%PreStart("ru_kernel_mod", "ru_code", 6, 3)
+      CALL psy_data%PreDeclareVariable("a", a)
+      CALL psy_data%PreDeclareVariable("b", b)
+      CALL psy_data%PreDeclareVariable("c", c)
+      CALL psy_data%PreDeclareVariable("e", e)
+      CALL psy_data%PreDeclareVariable("istp", istp)
+      CALL psy_data%PreDeclareVariable("rdt", rdt)
+      CALL psy_data%PreDeclareVariable("b", b)
+      CALL psy_data%PreDeclareVariable("cell", cell)
+      CALL psy_data%PreDeclareVariable("colour", colour)
+      CALL psy_data%PreEndDeclaration("ru_kernel_mod", "ru_code")
+      CALL psy_data%WriteVariable("a", a)
+      CALL psy_data%WriteVariable("b", b)
+      CALL psy_data%WriteVariable("c", c)
+      CALL psy_data%WriteVariable("e", e)
+      CALL psy_data%WriteVariable("istp", istp)
+      CALL psy_data%WriteVariable("rdt", rdt)
+      CALL psy_data%PreEnd("ru_kernel_mod", "ru_code")
+      DO colour=1,ncolour
+        !$omp parallel do default(shared), private(cell), schedule(static)
+        DO cell=1,mesh%get_last_edge_cell_per_colour(colour)
+          !
+          CALL ru_code(nlayers, b_proxy%data, a_proxy%data, istp, rdt, """
+              "c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+              "e_proxy(3)%data, ndf_w2, undf_w2, "
+              "map_w2(:,cmap(colour, cell)), "
+              "basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+              "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+              "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+              """np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
+        END DO 
+        !$omp end parallel do
+      END DO 
+      CALL psy_data%PostStart("ru_kernel_mod", "ru_code")
+      CALL psy_data%WriteVariable("b", b)
+      CALL psy_data%WriteVariable("cell", cell)
+      CALL psy_data%WriteVariable("colour", colour)
+      CALL psy_data%PostEnd("ru_kernel_mod", "ru_code")
+      !
+      ! ExtractEnd""")
     assert output in code
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)

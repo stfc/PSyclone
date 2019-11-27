@@ -158,14 +158,16 @@ def test_psy_data_invokes_gocean1p0():
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
     # First a simple test that the nesting is correct - the
-    # profile regions include both loops. Note that indeed
+    # PSyData regions include both loops. Note that indeed
     # the function 'compute_cv_code' is in the module file
     # kernel_ne_offset_mod.
+    # Since this is only PSyData, which by default does not supply
+    # variable inforation, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
                   r"TYPE\(PSyDataType\), save :: psy_data.*"
                   r"call psy_data%PreStart\(\"kernel_ne_offset_mod\", "
-                  r"\"compute_cv_code\", 2, 3\).*"
+                  r"\"compute_cv_code\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
