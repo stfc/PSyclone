@@ -2130,7 +2130,7 @@ class DynReferenceElement(DynCollection):
         if self._vert_face_normals_name:
             ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
         if self._vert_face_out_normals_name:
-            ref_element_arrays.append(self._vert_face_out_normals+"(:,:)")
+            ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
 
         parent.add(DeclGen(parent, datatype="integer", allocatable=True,
                            entity_decls=ref_element_arrays))
@@ -7728,7 +7728,7 @@ class KernCallArgList(ArgOrdering):
                     "Unsupported reference-element property ('{0}') found when"
                     " generating kernel arguments. Supported properties are: "
                     "{1}".format(str(property),
-                                 str(RefElementMetaData.Property))
+                                 str(RefElementMetaData.Property)))
 
     def quad_rule(self):
         ''' add qr information to the argument list'''

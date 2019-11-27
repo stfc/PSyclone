@@ -164,21 +164,92 @@ def test_refelem_gen(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    gen_code = str(psy.gen)
-    print(gen_code)
-    assert "use blah, only: yyy" in gen_code
-    assert ("INTEGER, allocatable :: horiz_face_normals(:,:), "
-            "vert_face_normals(:,:)" in gen_code)
+    gen = str(psy.gen).lower()
+    assert "use reference_element_mod, only: reference_element_type" in gen
+    assert "integer nfaces_h, nfaces_v" in gen
+    assert ("integer, allocatable :: horiz_face_normals(:,:), "
+            "vert_face_normals(:,:)" in gen)
     # We need a mesh object in order to get a reference_element object
-    assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
-    assert "reference_element => mesh%get_reference_element()" in gen_code
-    assert "nfaces_re_h = xxx" in gen_code
-    assert "nfaces_re_v = yyy" in gen_code
-    assert ("CALL reference_element%get_normals_to_horizontal_faces(xxx)"
-            in gen_code)
+    assert "mesh => f1_proxy%vspace%get_mesh()" in gen
+    assert "reference_element => mesh%get_reference_element()" in gen
+    assert "nfaces_h = reference_element%get_number_horizontal_faces()" in gen
+    assert "nfaces_v = reference_element%get_number_vertical_faces()" in gen
+    assert ("call reference_element%get_normals_to_horizontal_faces("
+            "horiz_face_normals)" in gen)
+    assert ("call reference_element%get_normals_to_vertical_faces("
+            "vert_face_normals)" in gen)
     # The kernel call
-    assert ("CALL testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
             "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "horiz_face_normals, vert_face_normals)" in gen_code)
+            "undf_w3, map_w3(:,cell), nfaces_h, nfaces_v, "
+            "horiz_face_normals, vert_face_normals)" in gen)
+
+
+def test_duplicate_refelem_gen(tmpdir):
+    ''' Test for code-generation for an invoke containing two kernels that
+    require the same properties of the reference-element. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "23.2_multi_ref_elem_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    gen = str(psy.gen).lower()
+    assert gen.count("integer, allocatable :: horiz_face_normals(:,:), "
+                          "vert_face_normals(:,:)") == 1
+    assert gen.count(
+        "reference_element => mesh%get_reference_element") == 1
+    assert gen.count(
+        "nfaces_h = reference_element%get_number_horizontal_faces()") == 1
+    assert gen.count(
+        "nfaces_v = reference_element%get_number_vertical_faces()") == 1
+    assert gen.count("call reference_element%get_normals_to_horizontal_faces("
+                     "horiz_face_normals)") == 1
+    assert gen.count("call reference_element%get_normals_to_vertical_faces("
+                     "vert_face_normals)") == 1
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+            "undf_w3, map_w3(:,cell), nfaces_h, nfaces_v, "
+            "horiz_face_normals, vert_face_normals)" in gen)
+    assert ("call testkern_ref_elem_code(nlayers, a, f3_proxy%data, "
+            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+            "undf_w3, map_w3(:,cell), nfaces_h, nfaces_v, "
+            "horiz_face_normals, vert_face_normals)" in gen)
+
+
+def test_union_refelem_gen(tmpdir):
+    ''' Check that code generation works for an invoke with kernels that
+    only have a sub-set of reference-element properties in common. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "23.3_shared_ref_elem_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    gen = str(psy.gen).lower()
+
+    assert (
+        "      reference_element => mesh%get_reference_element()\n"
+        "      nfaces_h = reference_element%get_number_horizontal_faces()\n"
+        "      nfaces_v = reference_element%get_number_vertical_faces()\n"
+        "      call reference_element%get_normals_to_horizontal_faces("
+        "horiz_face_normals)\n"
+        "      call reference_element%get_out_normals_to_horizontal_faces("
+        "horiz_face_out_normals)\n"
+        "      call reference_element%get_normals_to_vertical_faces("
+        "vert_face_normals)\n"
+        "      call reference_element%get_out_normals_to_vertical_faces("
+        "vert_face_out_normals)\n" in gen)
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
+            " map_w3(:,cell), nfaces_h, nfaces_v, horiz_face_normals, "
+            "vert_face_normals)" in gen)
+    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
+            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
+            " map_w3(:,cell), nfaces_h, nfaces_v, horiz_face_out_normals, "
+            "vert_face_normals, vert_face_out_normals)" in gen)
