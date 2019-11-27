@@ -198,6 +198,11 @@ class DynBuiltIn(BuiltIn):
         ''' Built-ins do not currently require quadrature '''
         return False
 
+    @property
+    def reference_element(self):
+        ''' Built-ins do not require reference-element properties. '''
+        return None
+
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
 
