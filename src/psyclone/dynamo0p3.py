@@ -864,7 +864,8 @@ class RefElementMetaData(object):
     class Property(Enum):
         '''
         Enumeration of the various properties of the Reference Element
-        (that a kernel can request).
+        (that a kernel can request). The names of each of these corresponds to
+        the names that must be used in kernel meta-data.
 
         '''
         NORMALS_TO_HORIZONTAL_FACES = 1
@@ -872,17 +873,6 @@ class RefElementMetaData(object):
         OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
 
-    # Mapping from meta-data text to our property enumeration.
-    reference_element_property_map = {
-        "normals_to_horizontal_faces":
-        Property.NORMALS_TO_HORIZONTAL_FACES,
-        "normals_to_vertical_faces":
-        Property.NORMALS_TO_VERTICAL_FACES,
-        "outward_normals_to_horizontal_faces":
-        Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
-        "outward_normals_to_vertical_faces":
-        Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
-    }
 
     def __init__(self, kernel_name, type_declns):
         from psyclone.parse.kernel import getkerneldescriptors
@@ -909,19 +899,19 @@ class RefElementMetaData(object):
         try:
             # The meta-data entry is a declaration of a Fortran array of type
             # reference_element_data_type. The initialisation of each member
-            # of this array is done as a structure constructor, the argument
-            # to which gives a property of the reference element.
+            # of this array is done as a Fortran structure constructor, the
+            # argument to which gives a property of the reference element.
             for re_prop in re_properties:
                 for arg in re_prop.args:
                     self.properties.append(
-                        self.reference_element_property_map[str(arg).lower()])
+                        self.Property[str(arg).upper()])
         except KeyError:
             # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing
-            sorted_keys = sorted(self.reference_element_property_map.keys())
+            # Sort for consistency when testing.
+            sorted_names = sorted([prop.name for prop in self.Property])
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_keys))
+                "values are: {1}".format(arg, sorted_names))
 
 
 class DynKernMetadata(KernelType):
@@ -2030,8 +2020,8 @@ class DynReferenceElement(DynCollection):
         # all kernels in this invoke.
         self._properties = set()
         for call in self._calls:
-            for prop in call.reference_element.properties:
-                self._properties.add(prop)
+            if call.reference_element:
+                self._properties.update(call.reference_element.properties)
 
         if not self._properties:
             return

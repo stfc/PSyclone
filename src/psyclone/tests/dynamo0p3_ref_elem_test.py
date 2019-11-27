@@ -107,7 +107,7 @@ def test_mdata_invalid_property():
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
     assert ("property: 'not_a_property'. Supported values are: "
-            "['normals_to_horizontal_faces'," in str(err.value))
+            "['NORMALS_TO_HORIZONTAL_FACES'," in str(err.value))
 
 
 def test_mdata_wrong_arg_count():
