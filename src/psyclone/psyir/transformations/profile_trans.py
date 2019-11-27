@@ -45,7 +45,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.undoredo import Memento
 
 
-class ProfileRegion(RegionTrans):
+class ProfileTrans(RegionTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
@@ -59,7 +59,7 @@ class ProfileRegion(RegionTrans):
     >>>
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
-    >>> p_trans = t.get_trans_name('ProfileRegion')
+    >>> p_trans = t.get_trans_name('ProfileTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
@@ -80,7 +80,7 @@ class ProfileRegion(RegionTrans):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string '''
-        return "ProfileRegion"
+        return "ProfileTrans"
 
     def validate(self, nodes, options=None):
         # pylint: disable=arguments-differ
@@ -103,7 +103,7 @@ class ProfileRegion(RegionTrans):
         from fparser.two.utils import walk_ast
         from psyclone.nemo import NemoInvoke
 
-        super(ProfileRegion, self).validate(nodes, options)
+        super(ProfileTrans, self).validate(nodes, options)
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.

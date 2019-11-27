@@ -114,8 +114,8 @@ class Profiler():
         :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
         '''
 
-        from psyclone.psyir.transformations import ProfileRegion
-        profile_trans = ProfileRegion()
+        from psyclone.psyir.transformations import ProfileTrans
+        profile_trans = ProfileTrans()
         if Profiler.profile_kernels():
             for i in schedule.children:
                 if isinstance(i, loop_class):
