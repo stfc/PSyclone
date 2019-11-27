@@ -7672,10 +7672,26 @@ class KernCallArgList(ArgOrdering):
                                                     label=base_name)
         self._arglist.append(name)
 
-    def reference_element_properties(self):
+    def ref_element_properties(self):
         ''' Provide kernel arguments required by the reference-element
         properties. '''
-        assert 0  # ARPDBG
+        # Provide no. of horizontal faces if required
+        if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES \
+           in self._kern.reference_element.properties:
+            # Query the namespace manager to get the variable name
+            nfaces_h = self._name_space_manager.create_name(
+                root_name="nfaces_h", context="PSyVars", label="nfaces_h")
+            self._arglist.append(nfaces_h)
+        # Provide no. of vertical faces if required
+        if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES \
+           in self._kern.reference_element.properties:
+            nfaces_v = self._name_space_manager.create_name(
+                root_name="nfaces_v", context="PSyVars", label="nfaces_v")
+            self._arglist.append(nfaces_v)
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
