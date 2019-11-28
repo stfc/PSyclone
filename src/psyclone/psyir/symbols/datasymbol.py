@@ -53,9 +53,13 @@ class DataSymbol(Symbol):
         :py:attr:`psyclone.psyir.symbols.DataSymbol.valid_data_types`.)
     :param list shape: shape of the symbol in column-major order (leftmost \
         index is contiguous in memory). Each entry represents an array \
-        dimension. If it is 'None' the extent of that dimension is unknown, \
-        otherwise it holds an integer literal or a reference to an integer \
-        symbol with the extent. If it is an empty list then the symbol \
+        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that \
+        dimension is unknown but can be obtained by querying the run-time \
+        system (e.g. using the SIZE intrinsic in Fortran). If it is \
+        DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
+        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
+        Fortran). Otherwise it holds an integer literal or a reference to an \
+        integer symbol with the extent. If it is an empty list then the symbol\
         represents a scalar.
     :param interface: object describing the interface to this symbol (i.e. \
         whether it is passed as a routine argument or accessed in some other \
@@ -74,7 +78,7 @@ class DataSymbol(Symbol):
                      :py:class:`psyclone.psyir.symbols.DataSymbol.Precision`
 
     :raises NotImplementedError: provided parameters are not supported yet.
-    :raises TypeError: provided parameters have invalid error type.
+    :raises TypeError: provided parameters have invalid type.
     :raises ValueError: provided parameters contain invalid values.
 
     '''
