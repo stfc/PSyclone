@@ -117,6 +117,53 @@ will be automatically found and started. If only a subset of all tests
 need to be run, ``pytest`` can be invoked from the corresponding
 subdirectory or with that subdirectory or filename as an argument.
 
+Fixtures
+--------
+
+Various pytest fixtures
+(https://docs.pytest.org/en/latest/fixture.html) are provided as part
+of the PSyclone test suite. These are implemented in
+``<PSYCLONEHOME>/src/psyclone/tests/conftest.py`` and are
+automatically discovered by pytest.
+
+Those fixtures available for use when implementing tests are (in
+alphabetical order):
+
+.. tabularcolumns:: |l|L|
+
+================ ==============================================================
+Fixture name   	 Description
+================ ==============================================================
+annexed        	 Supplies a test with the various possible values of the LFRic
+                 `annexed_dofs` option.
+dist_mem       	 Supplies a test with the various possible values of the
+                 `distributed-memory` option (only applicable to the LFRic API
+                 currently).
+have_graphviz  	 True if the Python bindings to the graphviz package (used when
+                 generating DAG visualisations) are available. Does *not* check
+                 that the underlying graphviz library is installed.
+kernel_outputdir Sets the output directory used by PSyclone for transformed
+                 kernels to be `tmpdir` (a built-in pytest fixture) and then
+                 returns `tmpdir`. Any test that directly or indirectly causes
+                 kernels to be transformed needs to use this fixture in order
+                 to avoid having unwanted files created within the git working
+                 tree.
+parser           Creates an fparser2 parser. This is an expensive operation so
+                 this fixture is only run once per test session.
+================ ==============================================================
+
+In addition, there are two fixtures that are automatically run (just
+once) whenever a test session is begun. The first of these,
+``setup_psyclone_config``, ensures that the PSyclone configuration
+file used when running the test suite is the one distributed with
+PSyclone and not any locally-modified version.  The second,
+``infra_compile``, sets-up the ``tests.utilities.Compile`` class with
+any compilation-testing flags (see :ref:`compilation_testing`)
+provided to the pytest command line. It also ensures that (if
+compilation testing is enabled) the LFRic-stub and GOcean infrastructure
+libraries are compiled prior to any tests running.
+
+
 .. _test_coverage:
 
 Coverage
