@@ -70,14 +70,16 @@ def test_cw_gen_declaration():
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = DataSymbol("dummy2", "real", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", "real",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
     # Array with unknown intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", "integer",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)

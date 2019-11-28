@@ -77,7 +77,8 @@ def test_oclw_gen_id_variable():
     result = oclwriter.gen_id_variable(symbol, 3)
     assert result == "int id1 = get_global_id(3);\n"
 
-    symbol = DataSymbol("array", "integer", shape=[2, None, 2])
+    symbol = DataSymbol("array", "integer",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2])
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
     assert "OpenCL work-item identifiers must be scalar integer symbols " \
@@ -98,12 +99,14 @@ def test_oclw_gen_declaration():
     assert result == "int dummy1"
 
     # Array argument has a memory qualifier (only __global for now)
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2])
+    symbol = DataSymbol("dummy2", "integer",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2])
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
     # Array with unknown intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", "integer",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = oclwriter.gen_declaration(symbol)
@@ -128,7 +131,8 @@ def test_oclw_gen_array_length_variables():
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
     # Array with multiple dimension generates one variable per dimension
-    symbol3 = DataSymbol("dummy2", "integer", shape=[2, None, 2])
+    symbol3 = DataSymbol("dummy2", "integer",
+                         shape=[2, DataSymbol.Extent.ATTRIBUTE, 2])
     result = oclwriter.gen_array_length_variables(symbol3)
     assert result == "int dummy2LEN1 = get_global_size(0);\n" \
         "int dummy2LEN2 = get_global_size(1);\n" \

@@ -103,7 +103,8 @@ def gen_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
-        elif index is None:
+        elif isinstance(index, DataSymbol.Extent):
+            # unknown extent
             dims.append(":")
         else:
             raise NotImplementedError(
@@ -279,6 +280,9 @@ class FortranWriter(PSyIRVisitor):
 
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)
+        if DataSymbol.Extent.DEFERRED in symbol.shape:
+            # A 'deferred' array extent means this is an allocatable array
+            result += ", allocatable"
         dims = gen_dims(symbol)
         if dims:
             result += ", dimension({0})".format(",".join(dims))

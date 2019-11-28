@@ -102,7 +102,8 @@ def test_gen_dims():
     arg = DataSymbol("arg", "integer",
                      interface=ArgumentInterface(
                          ArgumentInterface.Access.UNKNOWN))
-    symbol = DataSymbol("dummy", "integer", shape=[arg, 2, None],
+    symbol = DataSymbol("dummy", "integer",
+                        shape=[arg, 2, DataSymbol.Extent.ATTRIBUTE],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     assert gen_dims(symbol) == ["arg", "2", ":"]
@@ -267,18 +268,29 @@ def test_fw_gen_vardecl(fort_writer):
     assert result == "integer :: dummy1\n"
 
     # Array with intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", "integer",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
 
     # Array with unknown intent
-    symbol = DataSymbol("dummy2", "integer", shape=[2, None, 2],
+    symbol = DataSymbol("dummy2", "integer",
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,:,2) :: dummy2\n"
+
+    # Allocatable array
+    symbol = DataSymbol("dummy2", "real", shape=[DataSymbol.Extent.DEFERRED,
+                                                 DataSymbol.Extent.DEFERRED],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
+    result = fort_writer.gen_vardecl(symbol)
+    assert result == \
+        "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n"
 
     # Constant
     symbol = DataSymbol("dummy3", "integer", constant_value=10)

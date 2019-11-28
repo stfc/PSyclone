@@ -67,9 +67,11 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', 'boolean'), DataSymbol)
     assert isinstance(DataSymbol('a', 'boolean', constant_value=False),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [None]), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real', [DataSymbol.Extent.ATTRIBUTE]),
+                      DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [3]), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [3, None]), DataSymbol)
+    assert isinstance(DataSymbol('a', 'real',
+                                 [3, DataSymbol.Extent.ATTRIBUTE]), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', []), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [], precision=8), DataSymbol)
     assert isinstance(DataSymbol('a', 'real', [],
@@ -91,7 +93,9 @@ def test_datasymbol_initialisation():
         DataSymbol)
     dim = DataSymbol('dim', 'integer', [])
     assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [3, dim, None]), DataSymbol)
+    assert isinstance(
+        DataSymbol('a', 'real', [3, dim, DataSymbol.Extent.ATTRIBUTE]),
+        DataSymbol)
 
 
 def test_datasymbol_init_errors():
@@ -118,7 +122,7 @@ def test_datasymbol_init_errors():
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'real', ['invalidshape'])
     assert ("DataSymbol shape list elements can only be 'DataSymbol', "
-            "'integer' or 'None'.") in str(error.value)
+            "'integer' or DataSymbol.Extent.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
         bad_dim = DataSymbol('dim', 'real', [])
@@ -140,7 +144,8 @@ def test_datasymbol_init_errors():
             " 'Argument(pass-by-value=False)'." in str(error.value))
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'integer', shape=[None], constant_value=9)
+        DataSymbol('a', 'integer', shape=[DataSymbol.Extent.ATTRIBUTE],
+                   constant_value=9)
     assert ("Error setting 'a' constant value. A DataSymbol with a constant "
             "value must be a scalar but a shape was found."
             in str(error.value))
@@ -226,8 +231,8 @@ def test_datasymbol_can_be_printed():
     sym1 = DataSymbol("s1", "integer")
     assert "s1: <integer, Scalar, Local>" in str(sym1)
 
-    sym2 = DataSymbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, Array['Unknown bound', 2, s1], Local>" in str(sym2)
+    sym2 = DataSymbol("s2", "real", [DataSymbol.Extent.ATTRIBUTE, 2, sym1])
+    assert "s2: <real, Array['ATTRIBUTE', 2, s1], Local>" in str(sym2)
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", "real", interface=GlobalInterface(my_mod))
@@ -289,7 +294,7 @@ def test_datasymbol_scalar_array():
 
     '''
     sym1 = DataSymbol("s1", "integer")
-    sym2 = DataSymbol("s2", "real", [None, 2, sym1])
+    sym2 = DataSymbol("s2", "real", [DataSymbol.Extent.ATTRIBUTE, 2, sym1])
     assert sym1.is_scalar
     assert not sym1.is_array
     assert not sym2.is_scalar

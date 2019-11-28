@@ -3323,7 +3323,8 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", "integer", [None]))
+    kschedule.symbol_table.add(DataSymbol("aname", "integer",
+                                          [DataSymbol.Extent.ATTRIBUTE]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
