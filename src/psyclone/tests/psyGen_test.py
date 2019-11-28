@@ -639,6 +639,65 @@ def test_invokeschedule_can_be_printed():
     assert "InvokeSchedule:\n" in output
 
 
+# Loop class test
+def test_loop_create():
+    '''Test that the create method in the Loop class correctly
+    creates a Loop instance.
+
+    '''
+    loop = Loop.create("i", Literal("0"), Literal("1"), Literal("1"),
+                       [Assignment.create(Reference("tmp"), Reference("i"))])
+    result = FortranWriter().loop_node(loop)
+    assert result == "do i = 0, 1, 1\n  tmp=i\nenddo\n"
+
+
+def test_loop_create_invalid():
+    '''Test that the create method in a Loop class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    zero = Literal("0")
+    one = Literal("1")
+    children = [Assignment.create(Reference("x"), one)]
+
+    # var_name is not a string.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create(1, zero, one, one, children)
+    print (str(excinfo.value))
+    assert ("var_name argument to class Loop method create "
+            "should be a string but found 'int'.") in str(excinfo.value)
+
+    # start not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", "invalid", one, one, children)
+    assert ("start argument to class Loop method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # stop not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, "invalid", one, children)
+    assert ("stop argument to class Loop method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # step not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, one, "invalid", children)
+    assert ("step argument to class Loop method create should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # children not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, one, one, "invalid")
+    assert ("children argument to class Loop method create should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, one, one, ["invalid"])
+    assert (
+        "child of children argument to class Loop method create "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
 # Kern class test
 
 def test_kern_get_kernel_schedule():

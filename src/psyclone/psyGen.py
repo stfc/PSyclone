@@ -3262,7 +3262,52 @@ class Loop(Node):
 
     @staticmethod
     def create(var_name, start, stop, step, children):
-        ''' xxx '''
+        '''Create a Loop instance given valid instances of a variable name,
+        start, stop and step nodes, and a list of child nodes for the
+        loop body.
+
+        :param str var_name: the PSyIR node containing the variable \
+            name of the loop iterator.
+
+        :param start: the PSyIR node determining the value for the \
+        start of the loop.
+        :type start: :py:class:`psyclone.psyGen.Node`
+        :param end: the PSyIR node determining the value for the end \
+        of the loop.
+        :type end: :py:class:`psyclone.psyGen.Node`
+        :param step: the PSyIR node determining the value for the loop \
+        step.
+        :type step: :py:class:`psyclone.psyGen.Node`
+        :param children: a list of PSyIR nodes contained in the \
+            loop.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: a Loop instance.
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        '''
+        if not isinstance(var_name, str):
+            raise GenerationError(
+                "var_name argument to class Loop method create "
+                "should be a string but found '{0}'."
+                "".format(type(var_name).__name__))
+        for name, instance in [("start", start), ("stop", stop), ("step", step)]:
+            if not isinstance(instance, Node):
+                raise GenerationError(
+                    "{0} argument to class Loop method create should "
+                    "be a PSyIR Node but found '{1}'."
+                    "".format(name, type(instance).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument to class Loop method "
+                "create should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument to class Loop method "
+                    "create should be a PSyIR Node but found '{0}'."
+                    "".format(type(child).__name__))
         loop = Loop()
         start.parent = loop
         stop.parent = loop
