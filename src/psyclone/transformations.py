@@ -4390,7 +4390,8 @@ class PromoteKernelGlobalsToArguments(Transformation):
                 "".format(type(node)))
 
     def apply(self, node):
-        from psyclone.psyir.symbols import GlobalInterface, ArgumentInterface
+        from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface, \
+            ArgumentInterface
 
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
@@ -4403,7 +4404,7 @@ class PromoteKernelGlobalsToArguments(Transformation):
             # If the external conatiner name is not in the kernel symbol
             # table, this has to be added
             if external_container_name not in symtab:
-                symtab.add(Container(external_container_name))
+                symtab.add(ContainerSymbol(external_container_name))
 
             # Copy the symbol in the kernel with the appropiate interface
             new_symbol = globalvar.copy()
@@ -4420,6 +4421,20 @@ class PromoteKernelGlobalsToArguments(Transformation):
             if globalvar.datatype == 'deferred':
                 globalvar.resolve_deferred()
 
+            external_container_name = globalvar.interface.container_symbol.name
+
+            # Replicate globals in the InvokeSchedule:
+            # 1) First copy the container symbol if it is not already there
+            if external_container_name not in symtab:
+                new_container_symbol = ContainerSymbol(
+                    globalvar.interface.container_symbol.name)
+                node.root.symbol_table.add(new_container_symbol)
+            # 2) Then copy the Global referencing the appropriate Container
+            new_symbol = globalvar.copy()
+            container_ref = symtab.lookup(external_container_name)
+            new_symbol.interface = GlobalInterface(container_ref)
+            node.root.symbol_table.add(new_symbol)
+
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
             globalvar.interface = ArgumentInterface(
@@ -4427,5 +4442,4 @@ class PromoteKernelGlobalsToArguments(Transformation):
             current_arg_list.append(globalvar)
             symtab.specify_argument_list(current_arg_list)
 
-            # Add import in the Schedule
             # Add global in the call argument list

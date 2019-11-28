@@ -1789,8 +1789,19 @@ class InvokeSchedule(Schedule):
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
+        # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
+        # it would be better to merge them
         self._name_space_manager = NameSpaceFactory().create()
+        self._symbol_table = SymbolTable()
         self._text_name = "InvokeSchedule"
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the kernel.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        return self._symbol_table
 
     def set_opencl_options(self, options):
         '''
@@ -1858,6 +1869,10 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
+        for globalvar in self.symbol_table.global_datasymbols:
+            parent.add(UseGen(parent,
+                              name=globalvar.interface.container_symbol.name,
+                              only=True, funcnames=[globalvar.name]))
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
             parent.add(UseGen(parent, name="clfortran"))
