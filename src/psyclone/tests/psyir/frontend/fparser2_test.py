@@ -451,12 +451,22 @@ def test_process_array_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l7").name == 'l7'
     assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
 
+    # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l8")
     assert symbol.name == "l8"
     assert symbol.shape == [DataSymbol.Extent.DEFERRED]
+
+    # Unknown extents but not allocatable
+    reader = FortranStringReader("integer :: l9(:, :)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("l9")
+    assert symbol.name == "l9"
+    assert symbol.shape == [DataSymbol.Extent.ATTRIBUTE,
+                            DataSymbol.Extent.ATTRIBUTE]
 
 
 def test_process_not_supported_declarations(f2008_parser):
