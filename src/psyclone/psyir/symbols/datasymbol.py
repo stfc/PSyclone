@@ -106,7 +106,7 @@ class DataSymbol(Symbol):
 
     class Extent(Enum):
         '''
-        Arrays may have one or more a dimensions of unknown extent.
+        Arrays may have one or more dimensions of unknown extent.
         Where the extent must exist and is accessible via the run-time system
         it is an 'ATTRIBUTE'. When it may or may not currently be defined (e.g.
         the array may need to be allocated/malloc'd) it is 'DEFERRED'.
