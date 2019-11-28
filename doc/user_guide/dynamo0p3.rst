@@ -1409,7 +1409,7 @@ and at ``W1``)::
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
 If the metadata specifies that the kernel requires a property of the
-reference element (to be implemented in Issue #150)::
+reference element::
 
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
