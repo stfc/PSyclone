@@ -4425,15 +4425,16 @@ class PromoteKernelGlobalsToArguments(Transformation):
 
             # Replicate globals in the InvokeSchedule:
             # 1) First copy the container symbol if it is not already there
-            if external_container_name not in symtab:
+            invoke_symtab = node.root.symbol_table
+            if external_container_name not in invoke_symtab:
                 new_container_symbol = ContainerSymbol(
                     globalvar.interface.container_symbol.name)
                 node.root.symbol_table.add(new_container_symbol)
             # 2) Then copy the Global referencing the appropriate Container
             new_symbol = globalvar.copy()
-            container_ref = symtab.lookup(external_container_name)
+            container_ref = invoke_symtab.lookup(external_container_name)
             new_symbol.interface = GlobalInterface(container_ref)
-            node.root.symbol_table.add(new_symbol)
+            invoke_symtab.add(new_symbol)
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
