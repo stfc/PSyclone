@@ -315,7 +315,7 @@ def test_generate_schedule_unmatching_arguments(parser):
 
 
 def test_process_declarations(f2008_parser):
-    '''Test that process_declarations method of fparse2reader
+    '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
     parent Kernel Schedule.
     '''
@@ -346,29 +346,6 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
     assert not fake_parent.symbol_table.lookup("b").precision
 
-    # RHS array specifications
-    reader = FortranStringReader("integer :: l3(l1)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
-    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
-    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
-    assert not fake_parent.symbol_table.lookup("l3").precision
-
-    reader = FortranStringReader("integer :: l4(l1, 2)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
-    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
-    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
-    assert not fake_parent.symbol_table.lookup("l4").precision
-
-    reader = FortranStringReader("integer :: l5(2), l6(3)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").shape == [3]
-
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
@@ -398,13 +375,6 @@ def test_process_declarations(f2008_parser):
     assert "Could not process " in str(error.value)
     assert "Initialisations on the declaration statements are only " \
            "supported for parameter declarations." in str(error.value)
-
-    # Test that component-array-spec has priority over dimension attribute
-    reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
-    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
 
     # Check we catch duplicated symbols
     with pytest.raises(SymbolError) as error:
@@ -440,6 +410,44 @@ def test_process_declarations(f2008_parser):
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Character length specifications are not "
             "supported.") in str(error.value)
+
+
+def test_process_array_declarations(f2008_parser):
+    ''' Test that Fparser2Reader.process_declarations() handles various forms
+    of array declaration.
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # RHS array specifications
+    reader = FortranStringReader("integer :: l3(l1)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
+    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
+    assert not fake_parent.symbol_table.lookup("l3").precision
+
+    reader = FortranStringReader("integer :: l4(l1, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
+    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
+    assert not fake_parent.symbol_table.lookup("l4").precision
+
+    reader = FortranStringReader("integer :: l5(2), l6(3)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l5").shape == [2]
+    assert fake_parent.symbol_table.lookup("l6").shape == [3]
+
+    # Test that component-array-spec has priority over dimension attribute
+    reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
+    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
 
 
 def test_process_not_supported_declarations(f2008_parser):
