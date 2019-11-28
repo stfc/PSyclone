@@ -4390,18 +4390,42 @@ class PromoteKernelGlobalsToArguments(Transformation):
                 "".format(type(node)))
 
     def apply(self, node):
-        from psyclone.psyir.symbols import ArgumentInterface
+        from psyclone.psyir.symbols import GlobalInterface, ArgumentInterface
 
         kernel = node.get_kernel_schedule()
+        symtab = kernel.symbol_table
 
+        # Globals in the Container have to be brought inside the kernel
+        for globalvar in kernel.parent.symbol_table.global_datasymbols:
+
+            external_container_name = globalvar.interface.container_symbol.name
+
+            # If the external conatiner name is not in the kernel symbol
+            # table, this has to be added
+            if external_container_name not in symtab:
+                symtab.add(Container(external_container_name))
+
+            # Copy the symbol in the kernel with the appropiate interface
+            new_symbol = globalvar.copy()
+            container_ref = symtab.lookup(external_container_name)
+            new_symbol.interface = GlobalInterface(container_ref)
+            symtab.add(new_symbol)
+
+            # Note that we can not remove the original symbol at this point
+            # as they can still be used by other kernels.
+
+        # Transform each kernel global variable into an argument
         for globalvar in kernel.symbol_table.global_datasymbols:
+            print(globalvar.name)
             if globalvar.datatype == 'deferred':
                 globalvar.resolve_deferred()
 
-            # Convert the symbol to an Argument
+            # Convert the symbol to an argument and add it to the argument list
+            current_arg_list = symtab.argument_list
             globalvar.interface = ArgumentInterface(
                 ArgumentInterface.Access.READWRITE)
-            # Add new argument to the arglist
+            current_arg_list.append(globalvar)
+            symtab.specify_argument_list(current_arg_list)
 
             # Add import in the Schedule
             # Add global in the call argument list
