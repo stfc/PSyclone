@@ -3260,6 +3260,19 @@ class Loop(Node):
         self._variable_name = variable_name
         self._id = ""
 
+    @staticmethod
+    def create(var_name, start, stop, step, children):
+        ''' xxx '''
+        loop = Loop()
+        start.parent = loop
+        stop.parent = loop
+        step.parent = loop
+        schedule = Schedule(parent=loop, children=children)
+        loop.children = [start, stop, step, schedule]
+        loop._variable_name = var_name
+        return loop
+
+
     def _check_completeness(self):
         ''' Check that the Loop has 4 children and the 4th is a Schedule.
 
@@ -5341,15 +5354,15 @@ class IfBlock(Node):
         if_condition, an if_body and an optional else_body.
 
         :param if_condition: the PSyIR node containing the if \
-        condition of the if block.
+            condition of the if block.
         :type if_condition: :py:class:`psyclone.psyGen.Node`
         :param if_body: the PSyIR node containing the if body of \
-        the if block.
+            the if block.
         :type if_body: :py:class:`psyclone.psyGen.Schedule`
         :param else_body: PSyIR node containing the else body of the \
-        if block of None if there is no else body (defaults to None).
+            if block of None if there is no else body (defaults to None).
         :type else_body: :py:class:`psyclone.psyGen.Schedule` or \
-        NoneType
+            NoneType
 
         :returns: an IfBlock instance.
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
@@ -5561,6 +5574,52 @@ class KernelSchedule(Schedule):
         self._name = name
         self._symbol_table = SymbolTable(self)
 
+    @staticmethod
+    def create(name, symbol_table, children):
+        '''Create a KernelSchedule instance given a name, a symbol table and a
+        list of child nodes.
+
+        :param str name: the name of the KernelSchedule.
+        :param symbol_table: the symbol table associated with this \
+            KernelSchedule.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param children: a list of PSyIR nodes contained in the \
+            KernelSchedule.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: a KernelSchedule instance.
+        :rtype: :py:class:`psyclone.psyGen.KernelInstance`
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument to class KernelSchedule method create "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise GenerationError(
+                "symbol_table argument to class KernelSchedule method create "
+                "should be a SymbolTable but found '{0}'."
+                "".format(type(symbol_table).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument to class KernelSchedule method "
+                "create should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument to class KernelSchedule method "
+                    "create should be a PSyIR Node but found '{0}'."
+                    "".format(type(child).__name__))
+        kern = KernelSchedule(name)
+        kern._symbol_table = symbol_table
+        symbol_table._schedule = kern
+        for child in children:
+            child.parent = kern
+        kern.children = children
+        return kern
+
     @property
     def name(self):
         '''
@@ -5735,10 +5794,10 @@ class Assignment(Node):
         '''Create an Assignment instance given lhs and rhs child instances.
 
         :param lhs: the PSyIR node containing the left hand side of \
-        the assignment.
+            the assignment.
         :type lhs: :py:class:`psyclone.psyGen.Node`
         :param rhs: the PSyIR node containing the right hand side of \
-        the assignment.
+            the assignment.
         :type rhs: :py:class:`psyclone.psyGen.Node`
 
         :returns: an Assignment instance.
@@ -6160,10 +6219,10 @@ class BinaryOperation(Operation):
         :param operator: the operator used in the operation.
         :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
         :param lhs: the PSyIR node containing the left hand side of \
-        the assignment.
+            the assignment.
         :type lhs: :py:class:`psyclone.psyGen.Node`
         :param rhs: the PSyIR node containing the right hand side of \
-        the assignment.
+            the assignment.
         :type rhs: :py:class:`psyclone.psyGen.Node`
 
         :returns: a BinaryOperator instance.
@@ -6372,6 +6431,53 @@ class Container(Node):
         super(Container, self).__init__(parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
+
+    @staticmethod
+    def create(name, symbol_table, children):
+        '''Create a Container instance given a name, a symbol table and a
+        list of child nodes.
+
+        :param str name: the name of the Container.
+        :param symbol_table: the symbol table associated with this \
+            Container.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param children: a list of PSyIR nodes contained in the \
+            Container. These must be Containers or KernelSchedules.
+        :type children: list of :py:class:`psyclone.psyGen.Container` \
+            or :py:class:`psyclone.psyGen.KernelSchedule`
+
+        :returns: a Container instance.
+        :rtype: :py:class:`psyclone.psyGen.Container`
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument to class Container method create "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise GenerationError(
+                "symbol_table argument to class Container method create "
+                "should be a SymbolTable but found '{0}'."
+                "".format(type(symbol_table).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument to class Container method "
+                "create should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, (KernelSchedule, Container)):
+                raise GenerationError(
+                    "child of children argument to class Container method "
+                    "create should be a PSyIR KernelSchedule or Container "
+                    "but found '{0}'.".format(type(child).__name__))
+        container = Container(name)
+        container._symbol_table = symbol_table
+        symbol_table._schedule = container
+        for child in children:
+            child.parent = container
+        container.children = children
+        return container
 
     @property
     def name(self):
