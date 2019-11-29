@@ -4821,11 +4821,10 @@ class Argument(object):
 
     @property
     def type(self):
-        '''Return the type of the argument. API's that do not have this
-        concept (such as gocean0.1 and dynamo0.1) can use this
-        baseclass version which just returns "field" in all
+        '''Return the type of the argument. API's that do not have this concept
+        can use this baseclass version which just returns "scalar" in all
         cases. API's with this concept can override this method '''
-        return "field"
+        return "scalar"
 
     @property
     def call(self):
