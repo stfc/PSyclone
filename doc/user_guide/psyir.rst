@@ -53,43 +53,47 @@ The PSyIR consists of classes whose instances can be connected
 together to form a tree which represent computation in a
 language-independent way. These classes all inherit from the ``Node``
 baseclass and, as a result, PSyIR instances are often referred to
-collectively as PSyIR nodes:
-
-.. autoclass:: psyclone.psGen.Node
-    :members:
+collectively as 'PSyIR nodes'.
 
 At the present time PSyIR classes can be essentially split into two
 types. PSy-layer classes and Kernel-layer classes. PSy-layer classes
-make use of a ``gen_code()`` method to create Fortran code whereas
-Kernel-layer classes make use of PSyIR backends - which can output
-different languages - to create code. This separation will be removed
-over time and eventually all PSyIR classes will make use of backends
-with gen_code() methods being removed.
+make use of a ``gen_code()`` or an ``update()`` method to create
+Fortran code whereas Kernel-layer classes make use of PSyIR backends
+to create code.
 
-PSy-layer classes
-+++++++++++++++++
+.. note:: This separation will be removed in the future and eventually
+	  all PSyIR classes will make use of backends with the
+	  expectation that ``gen_code()`` and ``update()`` methods will
+	  be removed.
+
+PSy-layer nodes
+^^^^^^^^^^^^^^^
 
 PSy-layer PSyIR classes are primarily used to create the
 PSy-layer. These tend to be relatively descriptive and do not specify
-how a particular API would implement them. With the exception of
-``Loop``, these classes are currently not compatible with the PSyIR
-backends. The generic (non-api-specific) PSyIR nodes are:
+how a particular PSyclone frontend would implement them. With the
+exception of ``Loop``, these classes are currently not compatible with
+the PSyIR backends. The generic (non-api-specific) PSyIR nodes are:
 ``Schedule``, ``Directive``, ``GlobalSum``, ``HaloExchange``, ``Loop``
-and ``Kern``, with ``Schedule``, ``Directive`` and ``Kern`` being
-further subclassed.
+and ``Kern``. The ``Schedule`` class is further subclassed into
+``InvokeSchedule``. The ``Directive`` class is subclassed into many
+directives associated with OpenMP and OpenACC. The ``Kern`` class is
+subclassed into ``CodedKern``, ``InlinedKern`` and ``BuiltinKern``.
 
-Kernel-layer classes
-++++++++++++++++++++
+
+Kernel-layer nodes
+^^^^^^^^^^^^^^^^^^
 
 Kernel-layer PSyIR classes are currently used to describe existing
 code in a language independent way. Consequently these nodes are more
-prescriptive. These nodes are designed to be used with PSyIR
-backends. One PSy-layer class (``Loop``), can also be used as a
-Kernel-layer class. Kernel-layer PSyIR nodes are: ``Loop``,
-``IfBLock``, ``CodeBlock``, ``Assignment``, ``Reference``,
-``Operation``, ``Literal``, ``Return`` and
-``Container``. ``Operation`` is further subclassed into
-``UnaryOperation``, ``BinaryOperation`` and ``NaryOperation``.
+prescriptive and are independent of a particular PSyclone
+frontend. These nodes are designed to be used with PSyIR backends. One
+PSy-layer class (``Loop``), can also be used as a Kernel-layer
+class. Kernel-layer PSyIR nodes are: ``Loop``, ``IfBlock``,
+``CodeBlock``, ``Assignment``, ``Reference``, ``Operation``,
+``Literal``, ``Return`` and ``Container``. The ``Operation`` class is
+further subclassed into ``UnaryOperation``, ``BinaryOperation`` and
+``NaryOperation``.
 
 
 Text Representation
@@ -184,10 +188,31 @@ in the PSyIR. At the moment the available symbols are:
 Creating or adding to PSyIR
 ---------------------------
 
-PSyIR nodes are connected via parent and child connections provided by
-the ``Node`` baseclass.
+PSyIR nodes are connected together via parent and child methods
+provided by the ``Node`` baseclass.
 
-Create in isolation then connect. However, difficult to manage.
+These nodes can be created in isolation and then connected
+together. For example::
 
-Therefore Kernel nodes which contain other nodes have a create method which can help constructing PSyIR. For example ...
+    literal = Literal("0.0")
+    reference = Reference("a")
+    assignment = Assignment()
+    literal.parent = assignment
+    reference.parent = assignment
+    assignment.children = [reference, assignment]
 
+However, as connections get more complicated, creating the correct
+connections can become difficult to manage and error prone. Further,
+in some cases children must be collected together within a
+``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+
+To simplify this complexity, each of the Kernel-layer nodes which
+contain other nodes have a ``create`` method which helps construct the
+PSyIR. Using this method, the above example then becomes::
+  
+    literal = Literal("0.0")
+    reference = Reference("a")
+    assignment = Assignment.create(reference, literal)
+
+A more complete example of using this approach can be found in the
+PSyclone ``examples/psyir`` directory.
