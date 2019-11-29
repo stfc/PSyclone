@@ -218,7 +218,7 @@ def test_profile_single_line_if(parser):
     # TODO #435
     with pytest.raises(TransformationError) as err:
         schedule, _ = PTRANS.apply(schedule[0].if_body)
-    assert "child of a single-line if" in str(err.value)
+    assert "single-line if statement" in str(err.value)
     # But we should be able to put the whole If statement in a profiling
     # region...
     schedule, _ = PTRANS.apply(schedule[0])
@@ -344,7 +344,7 @@ def test_profiling_no_spec_part(parser, monkeypatch):
 
     # Monkeypatch the validate method so that we can check that we raise the
     # expected error at code-generation time too.
-    monkeypatch.setattr(PTRANS, "_validate", lambda nodes: None)
+    monkeypatch.setattr(PTRANS, "validate", lambda nodes, options: None)
     PTRANS.apply(sched.children)
 
     with pytest.raises(NotImplementedError) as err:

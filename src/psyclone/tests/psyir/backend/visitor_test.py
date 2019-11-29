@@ -34,11 +34,11 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''Performs pytest tests on the psyclond.psyir.backend.base module'''
+'''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
 
 from __future__ import print_function
 import pytest
-from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Node
 
 
@@ -252,4 +252,4 @@ def test_psyirvisitor_visit_return_node():
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
             "attempted were ['return_node', 'node_node']."
-            ""in str(excinfo))
+            ""in str(excinfo.value))

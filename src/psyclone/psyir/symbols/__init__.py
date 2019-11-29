@@ -30,18 +30,27 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Author S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-These scripts and this version of PSyclone work with version 1.0 of GOcean.
+''' Symbols package module '''
 
-In order to use PSyclone you must first install it, ideally with pip.
-See ../../../README.md for more details.
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
+    GlobalInterface, ArgumentInterface, UnresolvedInterface
+from psyclone.psyir.symbols.containersymbol import ContainerSymbol
+from psyclone.psyir.symbols.symboltable import SymbolTable
 
-PSyclone can be run in the directory containing this file by 
-executing, e.g.
-::
-    python ./runme.py
-
-Examine the runme*.py scripts themselves for further details.
-
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
+__all__ = ['Symbol',
+           'SymbolError',
+           'SymbolTable',
+           'DataSymbol',
+           'LocalInterface',
+           'GlobalInterface',
+           'ArgumentInterface',
+           'UnresolvedInterface',
+           'ContainerSymbol']

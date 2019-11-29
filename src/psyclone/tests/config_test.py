@@ -76,14 +76,12 @@ def clear_config_instance():
     '''
 
     # Enforce loading of the default config file
-    # pylint: disable=protected-access
     Config._instance = None
 
     # Now execute all tests
     yield
 
     # Enforce loading of the default config file
-    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -149,7 +147,7 @@ def test_singleton_create():
     # Test that we can not create more than one instance
     with pytest.raises(ConfigurationError) as err:
         Config()
-    assert "Only one instance of Config can be created" in str(err)
+    assert "Only one instance of Config can be created" in str(err.value)
 
 
 def test_missing_file(tmpdir):
@@ -159,7 +157,7 @@ def test_missing_file(tmpdir):
         config = Config()
         config.load(config_file=os.path.join(str(tmpdir),
                                              "not_a_file.cfg"))
-    assert "not_a_file.cfg does not exist" in str(err)
+    assert "not_a_file.cfg does not exist" in str(err.value)
 
 
 def test_search_path(monkeypatch, tmpdir):
@@ -186,7 +184,7 @@ def test_search_path(monkeypatch, tmpdir):
                 lambda: inside_venv)  # pylint: disable=cell-var-from-loop
             with pytest.raises(ConfigurationError) as err:
                 _ = Config.find_file()
-            err_msg = str(err)
+            err_msg = str(err.value)
             assert "not found in any of " in err_msg
             # CWD
             cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
@@ -290,7 +288,7 @@ def test_dm():
     assert not config.distributed_memory
     with pytest.raises(ConfigurationError) as err:
         config.distributed_memory = "not-a-bool"
-    assert "distributed_memory must be a boolean but got " in str(err)
+    assert "distributed_memory must be a boolean but got " in str(err.value)
 
 
 def test_api_not_in_list(tmpdir):
@@ -309,7 +307,7 @@ def test_api_not_in_list(tmpdir):
             config.load(config_file=str(config_file))
 
         assert ("The API (invalid) is not in the list of "
-                "supported APIs" in str(err))
+                "supported APIs" in str(err.value))
 
 
 def test_default_stubapi_invalid(tmpdir):
@@ -328,7 +326,7 @@ def test_default_stubapi_invalid(tmpdir):
             config.load(config_file=str(config_name))
 
         assert ("The default stub API (invalid) is not in the list of "
-                "supported stub APIs" in str(err))
+                "supported stub APIs" in str(err.value))
 
 
 def test_default_stubapi_missing(tmpdir):
@@ -364,9 +362,9 @@ def test_not_bool(bool_entry, tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert "configuration error (file=" in str(err)
-        assert ": error while parsing {0}".format(bool_entry) in str(err)
-        assert "Not a boolean: wrong" in str(err)
+        assert "configuration error (file=" in str(err.value)
+        assert ": error while parsing {0}".format(bool_entry) in str(err.value)
+        assert "Not a boolean: wrong" in str(err.value)
 
 
 def test_not_int(int_entry, tmpdir):
@@ -385,9 +383,9 @@ def test_not_int(int_entry, tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert "configuration error (file=" in str(err)
+        assert "configuration error (file=" in str(err.value)
         assert (": error while parsing {0}: invalid literal".format(int_entry)
-                in str(err))
+                in str(err.value))
 
 
 def test_broken_fmt(tmpdir):
@@ -405,7 +403,7 @@ def test_broken_fmt(tmpdir):
             config.load(config_file=str(config_file))
         assert ("ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: File contains no section "
-                "headers" in str(err))
+                "headers" in str(err.value))
 
 
 def test_default_missing(tmpdir):
@@ -424,8 +422,8 @@ COMPUTE_ANNEXED_DOFS = false
             config = Config()
             config.load(config_file=str(config_file))
 
-        assert "configuration error (file=" in str(err)
-        assert "Configuration file has no [DEFAULT] section" in str(err)
+        assert "configuration error (file=" in str(err.value)
+        assert "Configuration file has no [DEFAULT] section" in str(err.value)
 
 
 def test_wrong_api():
@@ -435,14 +433,14 @@ def test_wrong_api():
     _config.load(config_file=TEST_CONFIG)
     with pytest.raises(ConfigurationError) as err:
         _ = _config.api_conf("blah")
-    assert "API 'blah' is not in the list" in str(err)
+    assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
         _ = _config.api_conf("dynamo0.1")
     assert ("Configuration file did not contain a section for the "
-            "'dynamo0.1' API" in str(err))
+            "'dynamo0.1' API" in str(err.value))
     with pytest.raises(ValueError) as err:
         _config.api = "invalid"
-    assert "'invalid' is not a valid API" in str(err)
+    assert "'invalid' is not a valid API" in str(err.value)
 
 
 def test_api_unimplemented(tmpdir, monkeypatch):
@@ -467,7 +465,8 @@ def test_api_unimplemented(tmpdir, monkeypatch):
         with pytest.raises(NotImplementedError) as err:
             config.load(str(config_file))
         assert ("file contains a UNIMPLEMENTED section but no Config "
-                "sub-class has been implemented for this API" in str(err))
+                "sub-class has been implemented for this API"
+                in str(err.value))
 
 
 def test_default_api(tmpdir):
@@ -498,7 +497,8 @@ def test_kernel_naming_setter():
     with pytest.raises(ValueError) as err:
         config.kernel_naming = "not-a-scheme"
     assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
-            format(configuration.VALID_KERNEL_NAMING_SCHEMES) in str(err))
+            format(configuration.VALID_KERNEL_NAMING_SCHEMES)
+            in str(err.value))
 
 
 def test_incl_path_errors(tmpdir):
@@ -508,12 +508,12 @@ def test_incl_path_errors(tmpdir):
     config = Config()
     with pytest.raises(ValueError) as err:
         config.include_paths = config
-    assert "include_paths must be a list but got:" in str(err)
+    assert "include_paths must be a list but got:" in str(err.value)
     # Create a path that does not exist
     missing_path = tmpdir.join("does_not_exist")
     with pytest.raises(ConfigurationError) as cerr:
         config.include_paths = [missing_path.strpath]
-    assert "does_not_exist' does not exist" in str(cerr)
+    assert "does_not_exist' does not exist" in str(cerr.value)
 
 
 def test_mappings():
@@ -532,7 +532,7 @@ def test_mappings():
     # Tests errors: check that '=' instead of ":" is detected as invalid:
     with pytest.raises(ConfigurationError) as err:
         mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2=v2")
-    assert "Invalid format for mapping: k2=v2" in str(err)
+    assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
 def test_invalid_access_mapping(tmpdir):
@@ -549,7 +549,7 @@ def test_invalid_access_mapping(tmpdir):
         with pytest.raises(ConfigurationError) as cerr:
             config.load(str(config_file))
         assert "Unknown access type 'invalid' found for key 'gh_read'" \
-            in str(cerr)
+            in str(cerr.value)
 
     # Test that all values of the mapping are access types:
     api_config = Config.get().api_conf("dynamo0.3")

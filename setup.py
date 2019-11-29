@@ -45,8 +45,7 @@ SRC_PATH = os.path.join(BASE_PATH, "src")
 PACKAGES = find_packages(where=SRC_PATH,
                          exclude=["psyclone.tests",
                                   "psyclone.tests.test_files",
-                                  "psyclone.tests.psyir",
-                                  "psyclone.tests.psyir.backend"])
+                                  "psyclone.tests.*"])
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
@@ -90,6 +89,33 @@ VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 if __name__ == '__main__':
 
+    # We have all of the example files listed in MANIFEST.in but unless we
+    # specify them in the data_files argument of setup() they don't
+    # seem to get installed.
+    # Since the data_files argument doesn't accept wildcards we have to
+    # explicitly list every file we want.
+    EGS_DIR = os.path.join(BASE_PATH, "examples")
+    # Examples will be installed under share/psyclone/examples
+    INSTALL_PATH = os.path.join("share", "psyclone", "examples")
+    # The suffixes of files we will install from under examples/
+    VALID_SUFFIXES = ["90", "py", "md", ".c", ".cl", "Makefile"]
+    # We create a list of 2-tuples, each consisting of the target installation
+    # directory and a list of files (specified relative to the project root
+    # directory).
+    EXAMPLES = []
+    for dirpath, _, filenames in os.walk(EGS_DIR):
+        if ("__" not in dirpath) and filenames:
+            rel_path = os.path.relpath(dirpath, EGS_DIR)
+            eg_files = []
+            for filename in filenames:
+                if any([filename.endswith(suffix) for
+                        suffix in VALID_SUFFIXES]):
+                    eg_files.append(os.path.join("examples", rel_path,
+                                                 filename))
+            if eg_files:
+                EXAMPLES.append((os.path.join(INSTALL_PATH, rel_path),
+                                 eg_files))
+
     setup(
         name=NAME,
         version=VERSION,
@@ -102,16 +128,15 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.9', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pytest<5.0",  # TODO: Issue 438. Fix > 5.0 broken tests.
-                     "pep8", "pylint==1.6.5", "pytest-cov",
+            'test': ["pep8", "pylint==1.6.5", "pytest-cov",
                      "pytest-pep8", "pytest-pylint", "pytest-flakes",
                      "pytest-pep257"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
-        data_files=[('share/psyclone', ['config/psyclone.cfg'])]
+        data_files=[('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES,
     )

@@ -122,7 +122,7 @@ def test_builtin_multiple_writes():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
             "one argument that is written to but found 2 for kernel " +
-            test_builtin_name.lower() in str(excinfo))
+            test_builtin_name.lower() in str(excinfo.value))
 
 
 def test_builtin_write_and_inc():
@@ -145,7 +145,7 @@ def test_builtin_write_and_inc():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
             "one argument that is written to but found 2 for kernel " +
-            test_builtin_name.lower() in str(excinfo))
+            test_builtin_name.lower() in str(excinfo.value))
 
 
 def test_builtin_sum_and_inc():
@@ -168,7 +168,7 @@ def test_builtin_sum_and_inc():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
             "only one argument that is written to but found 2 for kernel " +
-            test_builtin_name.lower() in str(excinfo))
+            test_builtin_name.lower() in str(excinfo.value))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -191,7 +191,7 @@ def test_builtin_zero_writes(monkeypatch):
     assert ("A Dynamo 0.3 kernel must have at least one "
             "argument that is updated (written to) but "
             "found none for kernel " + test_builtin_name.lower()
-            in str(excinfo))
+            in str(excinfo.value))
 
 
 def test_builtin_no_field_args():
@@ -213,7 +213,7 @@ def test_builtin_no_field_args():
     assert ("A built-in kernel in the Dynamo 0.3 API "
             "must have at least one field as an argument but "
             "kernel " + test_builtin_name.lower() + " has none"
-            in str(excinfo))
+            in str(excinfo.value))
 
 
 def test_builtin_operator_arg():
@@ -238,7 +238,7 @@ def test_builtin_operator_arg():
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
             "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
             "kernel " + test_builtin_name.lower() + " has an argument of "
-            "type gh_operator" in str(excinfo))
+            "type gh_operator" in str(excinfo.value))
 
 
 def test_builtin_args_not_same_space():
@@ -264,7 +264,7 @@ def test_builtin_args_not_same_space():
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
             "must be on the same space. However, found spaces ['any_space_1', "
             "'any_space_2'] for arguments to " + test_builtin_name.lower() in
-            str(excinfo))
+            str(excinfo.value))
 
 
 def test_dynbuiltincallfactory_str():
@@ -2570,7 +2570,7 @@ def test_scalar_int_builtin_error(monkeypatch):
                      api=API)
     assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
             "only valid with a real scalar argument, but 'gh_integer' "
-            "was found" in str(excinfo))
+            "was found" in str(excinfo.value))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

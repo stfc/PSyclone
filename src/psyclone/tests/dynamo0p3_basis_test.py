@@ -128,7 +128,8 @@ def test_eval_targets_err():
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because gh_shape=gh_quadrature_xyoz" in str(err))
+            "an evaluator because gh_shape=gh_quadrature_xyoz"
+            in str(err.value))
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
         "    type(func_type) :: meta_funcs(2) = (/     &\n"
@@ -142,7 +143,7 @@ def test_eval_targets_err():
         _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
             "an evaluator because no basis or differential basis functions "
-            "are required" in str(err))
+            "are required" in str(err.value))
 
 
 def test_eval_targets_wrong_space():
@@ -153,7 +154,7 @@ def test_eval_targets_wrong_space():
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies that an evaluator is required on w3 but does not have "
-            "an argument on this space" in str(err))
+            "an argument on this space" in str(err.value))
 
 
 def test_eval_targets_op_space():
@@ -168,7 +169,7 @@ def test_eval_targets_op_space():
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies that an evaluator is required on w3 but does not have "
-            "an argument on this space" in str(err))
+            "an argument on this space" in str(err.value))
     # Change to a space that is referenced by an operator
     code = code.replace("[W0, W3]", "[W0, W2]")
     ast = fpapi.parse(code, ignore_comments=False)
@@ -1422,6 +1423,7 @@ def test_basis_unsupported_space():
     unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This information will be passed from the
     PSy layer to the kernels (see issue #461). '''
+    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1429,7 +1431,9 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
+    assert ("Unsupported space for basis function, expecting one of " +
+            str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
+            in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                            "any_discontinuous_space_5")
@@ -1440,7 +1444,8 @@ def test_basis_unsupported_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
+    assert "Unsupported space for basis function" in str(excinfo.value)
+    assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
 # diff basis function : spaces
@@ -1745,6 +1750,7 @@ def test_diff_basis_unsupp_space():
     and any_discontinuous_space_*) in kernel stub generation.
     This information will be passed from the PSy layer to the
     kernels (see issue #461). '''
+    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1752,8 +1758,9 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
+    assert ("Unsupported space for differential basis function, expecting one "
+            "of " + str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
+            in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                                 "any_discontinuous_space_5")
@@ -1764,8 +1771,9 @@ def test_diff_basis_unsupp_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
+    assert ("Unsupported space for differential basis function"
+            in str(excinfo.value))
+    assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
 def test_dynbasisfns_unsupp_qr(monkeypatch):
@@ -1786,7 +1794,7 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     with pytest.raises(GenerationError) as err:
         dbasis._stub_declarations(ModuleGen(name="my_mod"))
     assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
-            "supported - got 'unsupported-shape'" in str(err))
+            "supported - got 'unsupported-shape'" in str(err.value))
 
 
 def test_dynbasisfns_declns(monkeypatch):
@@ -1801,21 +1809,22 @@ def test_dynbasisfns_declns(monkeypatch):
     dbasis._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
-    assert "Unrecognised evaluator shape: 'not-a-shape'. Should" in str(err)
+    assert ("Unrecognised evaluator shape: 'not-a-shape'. Should"
+            in str(err.value))
     monkeypatch.setattr(dbasis, "_kernel", None)
     dbasis._basis_fns[0]['type'] = "basis"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
     assert ("basis functions but do not have either a Kernel or an Invoke. "
-            "Should be" in str(err))
+            "Should be" in str(err.value))
     dbasis._basis_fns[0]['type'] = "diff-basis"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
     assert ("differential basis functions but do not have either a Kernel or "
-            "an Invoke. Should be" in str(err))
+            "an Invoke. Should be" in str(err.value))
     for fun in dbasis._basis_fns:
         fun['type'] = "broken"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
     assert ("Unrecognised type of basis function: 'broken'. Should be "
-            "either 'basis' or 'diff-basis'" in str(err))
+            "either 'basis' or 'diff-basis'" in str(err.value))

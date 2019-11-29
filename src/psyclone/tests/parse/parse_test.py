@@ -50,9 +50,6 @@ from psyclone.psyGen import InternalError
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")
 
-# pylint: disable=invalid-name
-# pylint: disable=protected-access
-
 
 def test_default_api():
     ''' Check that parse() picks up the default API if none is specified
@@ -165,8 +162,8 @@ def test_too_many_names_invoke():
         _, _ = parse(
             os.path.join(TEST_PATH, "1.0.2_many_named_invoke.f90"),
             api="dynamo0.3")
-    assert "An invoke must contain one or zero " in str(err)
-    assert "1.0.2_many_named_invoke.f90" in str(err)
+    assert "An invoke must contain one or zero " in str(err.value)
+    assert "1.0.2_many_named_invoke.f90" in str(err.value)
 
 
 def test_wrong_named_invoke():
@@ -177,7 +174,7 @@ def test_wrong_named_invoke():
             os.path.join(TEST_PATH, "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
     assert ("Expected named identifier to be 'name' but found "
-            "'not_a_name'" in str(err))
+            "'not_a_name'" in str(err.value))
 
 
 def test_wrong_type_named_invoke():
@@ -188,8 +185,8 @@ def test_wrong_type_named_invoke():
             os.path.join(TEST_PATH, "1.0.4_wrong_type_named_arg_invoke.f90"),
             api="dynamo0.3")
     assert ("The (optional) name of an invoke must be specified as a "
-            "string" in str(err))
-    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err)
+            "string" in str(err.value))
+    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err.value)
 
 
 def test_invalid_named_invoke():
@@ -201,8 +198,8 @@ def test_invalid_named_invoke():
             api="dynamo0.3")
     assert ("the (optional) name of an invoke must be a string containing a "
             "valid Fortran name (with any spaces replaced by underscores) but "
-            "got 'ja_ck(1)' " in str(err))
-    assert "1.0.6_invoke_name_invalid_chars.f90" in str(err)
+            "got 'ja_ck(1)' " in str(err.value))
+    assert "1.0.6_invoke_name_invalid_chars.f90" in str(err.value)
 
 
 def test_duplicate_named_invoke():
@@ -213,8 +210,8 @@ def test_duplicate_named_invoke():
             TEST_PATH, "3.3_multi_functions_multi_invokes_name_clash.f90"),
                      api="dynamo0.3")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
-            "when parsing " in str(err))
-    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
+            "when parsing " in str(err.value))
+    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err.value)
 
 
 def test_duplicate_named_invoke_case():
@@ -226,8 +223,8 @@ def test_duplicate_named_invoke_case():
             TEST_PATH, "3.4_multi_invoke_name_clash_case_insensitive.f90"),
                      api="dynamo0.3")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
-            "when parsing " in str(err))
-    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
+            "when parsing " in str(err.value))
+    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err.value)
 
 
 def test_get_stencil():
@@ -239,12 +236,12 @@ def test_get_stencil():
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(enode, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found the "
-            "literal" in str(excinfo))
+            "literal" in str(excinfo.value))
     node = FunctionVar(["stencil()"])
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(node, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
-            in str(excinfo))
+            in str(excinfo.value))
     node = FunctionVar(["stencil", "cross"])
     # Deliberately break the args member of node in order to trigger an
     # internal error
@@ -252,7 +249,7 @@ def test_get_stencil():
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(node, ["cross"])
     assert ("expecting either FunctionVar or str from the expression analyser"
-            in str(excinfo))
+            in str(excinfo.value))
 
 
 MDATA = '''
@@ -295,7 +292,7 @@ def test_get_int_err():
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
-            str(err))
+            str(err.value))
 
 
 def test_get_int_array():
@@ -336,7 +333,8 @@ def test_get_int_array_err1(monkeypatch):
 
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
-    assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
+    assert ("Unsupported assignment statement: 'invalid = [1, 2]'"
+            in str(err.value))
 
 
 def test_get_int_array_not_array():
@@ -349,7 +347,7 @@ def test_get_int_array_not_array():
     with pytest.raises(ParseError) as err:
         _ = ktype.get_integer_array("iterates_over")
     assert ("RHS of assignment is not an array constructor: 'iterates_over = "
-            "cells'" in str(err))
+            "cells'" in str(err.value))
 
 
 def test_get_int_array_err2(monkeypatch):
@@ -375,7 +373,8 @@ def test_get_int_array_err2(monkeypatch):
 
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
-    assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)
+    assert ("Failed to parse array constructor: '[hello, goodbye]'"
+            in str(err.value))
 
 
 def test_kernel_binding_not_code():
@@ -386,7 +385,7 @@ def test_kernel_binding_not_code():
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("binds to a specific procedure but does not use 'code' as the "
-            "generic name" in str(err))
+            "generic name" in str(err.value))
 
 
 def test_kernel_binding_missing():
@@ -398,7 +397,7 @@ def test_kernel_binding_missing():
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("Kernel type testkern_eval_type does not bind a specific "
-            "procedure" in str(err))
+            "procedure" in str(err.value))
 
 
 def test_empty_kernel_name(monkeypatch):
@@ -416,4 +415,4 @@ def test_empty_kernel_name(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = KernelType(ast)
     assert ("Empty Kernel name returned for Kernel type testkern_eval_type"
-            in str(err))
+            in str(err.value))

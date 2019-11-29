@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import GenerationError, Kern, NameSpace, \
+     NameSpaceFactory, Node, BuiltIn
 
 
 class Profiler(object):
@@ -139,7 +139,8 @@ class ProfileNode(Node):
     '''
     This class can be inserted into a schedule to create profiling code.
 
-    :param children: a list of children nodes for this node.
+    :param children: a list of child nodes for this node. These will be made \
+                     children of the child Schedule of this Profile Node.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
@@ -148,7 +149,7 @@ class ProfileNode(Node):
     '''
     # Profiling interface Fortran module
     fortran_module = "profile_mod"
-    # The symbols we import from the profiling module
+    # The symbols we import from the profiling Fortran module
     profiling_symbols = ["ProfileData", "ProfileStart", "ProfileEnd"]
     # The use statement that we will insert. Any use of a module of the
     # same name that doesn't match this will result in a NotImplementedError
@@ -158,7 +159,9 @@ class ProfileNode(Node):
     profiling_var = "psy_profile"
 
     def __init__(self, children=None, parent=None):
-        Node.__init__(self, children=children, parent=parent)
+        # A ProfileNode always contains a Schedule
+        sched = self._insert_schedule(children)
+        Node.__init__(self, children=[sched], parent=parent)
 
         # Store the name of the profile variable that is used for this
         # profile name. This allows to show the variable name in __str__
@@ -173,38 +176,37 @@ class ProfileNode(Node):
         self._region_name = None
         self._module_name = None
 
+        # Name and colour to use for this node
+        self._text_name = "Profile"
+        self._colour_key = "Profile"
+
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         this node. '''
         result = "ProfileStart[var={0}]\n".format(self._var_name)
-        for child in self.children:
+        for child in self.profile_body.children:
             result += str(child)+"\n"
         return result+"ProfileEnd"
 
-    # -------------------------------------------------------------------------
     @property
-    def coloured_text(self):
+    def profile_body(self):
         '''
-        Return text containing the (coloured) name of this node type
+        :returns: the Schedule associated with this Profiling region.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
 
-        :return: the name of this node type, possibly with control codes
-                 for colour
-        :rtype: string
+        :raises InternalError: if this Profile node does not have a Schedule \
+                               as its one and only child.
         '''
-        return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
+        from psyclone.psyGen import Schedule, InternalError
+        if len(self.children) != 1 or not \
+           isinstance(self.children[0], Schedule):
+            raise InternalError(
+                "ProfileNode malformed or incomplete. It should have a single "
+                "Schedule as a child but found: {0}".format(
+                    [type(child).__name__ for child in self.children]))
+        return self.children[0]
 
-    # -------------------------------------------------------------------------
-    def view(self, indent=0):
-        '''Class specific view function to print the tree.
-        Parameters:
-        :param int indent: Indentation to be used for this node.'''
-        # pylint: disable=arguments-differ
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children
@@ -222,7 +224,9 @@ class ProfileNode(Node):
             module_name = "unknown-module"
             for kernel in self.walk(Kern):
                 region_name = kernel.name
-                module_name = kernel.module_name
+                if not isinstance(kernel, BuiltIn):
+                    # If the kernel is not a builtin then it has a module name.
+                    module_name = kernel.module_name
                 break
             if self._region_name is None:
                 self._region_name = Profiler.create_unique_region(region_name)
@@ -245,7 +249,7 @@ class ProfileNode(Node):
                               self._var_name])
         parent.add(prof_start)
 
-        for child in self.children:
+        for child in self.profile_body:
             child.gen_code(parent)
 
         prof_end = CallGen(parent, "ProfileEnd",
@@ -407,12 +411,7 @@ class ProfileNode(Node):
 
         # Find the parent in the parse tree - first get a pointer to the
         # AST for the content of this region.
-        if isinstance(self.children[0], Schedule) and \
-           not self.children[0].ast:
-            # TODO #435 Schedule should really have a valid ast pointer.
-            content_ast = self.children[0][0].ast
-        else:
-            content_ast = self.children[0].ast
+        content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
         fp_parent = content_ast._parent
         # Find the location of the AST of our first child node in the
@@ -424,10 +423,10 @@ class ProfileNode(Node):
         # work back up the fparser2 parse tree until we find a node that is
         # a direct child of the parent node.
         ast_end_index = None
-        if self.children[-1].ast_end:
-            ast_end = self.children[-1].ast_end
+        if self.profile_body[-1].ast_end:
+            ast_end = self.profile_body[-1].ast_end
         else:
-            ast_end = self.children[-1].ast
+            ast_end = self.profile_body[-1].ast
         # Keep a copy of the pointer into the parse tree in case of errors
         ast_end_copy = ast_end
 

@@ -52,7 +52,6 @@ def setup():
     # At the end of all tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
-    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -79,9 +78,7 @@ def test_invalid_nemo_config_files(tmpdir):
                         ("start", "var: ji, stop: jpi"),
                         ("stop", "var: ji, start: 1")]:
         content = _CONFIG_CONTENT + "mapping-lon = " + data
-        # pylint: disable=protected-access
         Config._instance = None
-        # pylint: enable=protected-access
         config_file = tmpdir.join("config1")
         with config_file.open(mode="w") as new_cfg:
             new_cfg.write(content)
@@ -90,7 +87,7 @@ def test_invalid_nemo_config_files(tmpdir):
             config = Config()
             with pytest.raises(ConfigurationError) as err:
                 config.load(str(config_file))
-            assert "does not contain key '{0}".format(key) in str(err)
+            assert "does not contain key '{0}".format(key) in str(err.value)
 
     # Add an invalid index-order
     content = _CONFIG_CONTENT + \
@@ -105,7 +102,7 @@ def test_invalid_nemo_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid loop type \"invalid\" found " in str(err)
+        assert "Invalid loop type \"invalid\" found " in str(err.value)
         assert "Must be one of [\\'lon\\', \\'lat\\']"
 
     # Add an invalid key:
@@ -120,7 +117,7 @@ def test_invalid_nemo_config_files(tmpdir):
             config.load(str(config_file))
         assert "Invalid key \"invalid-key\" found in the \"nemo\" section " \
                "of the configuration file \"{0}\".". format(str(config_file)) \
-               in str(err)
+               in str(err.value)
 
     # Use a variable name more than once:
     content = _CONFIG_CONTENT + \
@@ -137,6 +134,6 @@ def test_invalid_nemo_config_files(tmpdir):
             config.load(str(config_file))
         assert "mapping-lat defines variable \"i\" again in the \"nemo\" "\
                "section of the file \"{0}\".".format(str(config_file)) \
-               in str(err)
+               in str(err.value)
 
 # =============================================================================

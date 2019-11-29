@@ -41,8 +41,8 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
-from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import TransformationError
 from fparser.common.readfortran import FortranStringReader
 
@@ -92,32 +92,28 @@ def test_explicit(parser):
 def test_data_no_gen_code():
     ''' Check that the ACCDataDirective.gen_code() method raises the
     expected InternalError as it should not be called. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[0:2])
     with pytest.raises(InternalError) as err:
         schedule.children[0].gen_code(schedule)
     assert ("ACCDataDirective.gen_code should not have "
-            "been called" in str(err))
+            "been called" in str(err.value))
 
 
 def test_add_region_invalid_data_move():
     ''' Check that _add_region() raises the expected error if an invalid
     value for data_movement is supplied. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('explicit_do').schedule
+    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     datadir = schedule.children[0]
     with pytest.raises(InternalError) as err:
         datadir._add_region("DATA", "END DATA", data_movement="invalid")
     assert ("optional data_movement argument must be one of ['present', "
-            "'analyse'] but got 'invalid'" in str(err))
+            "'analyse'] but got 'invalid'" in str(err.value))
 
 
 def test_add_region(parser):
@@ -150,11 +146,11 @@ def test_add_region_comment_err(parser):
     with pytest.raises(InternalError) as err:
         datadir._add_region("!data", "!end data")
     assert ("start_text must be a plain label without directive or comment "
-            "characters but got: '!data'" in str(err))
+            "characters but got: '!data'" in str(err.value))
     with pytest.raises(InternalError) as err:
         datadir._add_region("data", "!end data")
     assert ("end_text must be a plain label without directive or comment "
-            "characters but got: '!end data'" in str(err))
+            "characters but got: '!end data'" in str(err.value))
 
 
 def test_data_view(parser, capsys):
@@ -181,7 +177,7 @@ def test_explicit_directive(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children, default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
@@ -199,10 +195,8 @@ def test_explicit_directive(parser):
 
 def test_array_syntax():
     '''Check code generation for a mixture of loops and code blocks.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('tra_ldf_iso').schedule
+    psy, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # We do not permit arbitrary code blocks to be included in data
     # regions so just put two of the loops into regions.
@@ -223,10 +217,8 @@ def test_array_syntax():
 
 def test_multi_data():
     '''Check code generation with multiple data directives.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('imperfect_nest').schedule
+    psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[0].loop_body[0:2])
     schedule, _ = acc_trans.apply(schedule.children[0].loop_body[1:3])
@@ -280,10 +272,8 @@ def test_data_ref():
     '''Check code generation with an array accessed via a derived type.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "data_ref.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('data_ref').schedule
+    psy, invoke_info = get_invoke("data_ref.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
@@ -309,17 +299,15 @@ def test_no_data_ref_read(parser):
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen)
     assert ("derived-type references on the RHS of assignments are not yet "
-            "supported" in str(err))
+            "supported" in str(err.value))
 
 
 def test_array_section():
     '''Check code generation with a arrays accessed via an array section.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "array_section.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('array_section').schedule
+    psy, invoke_info = get_invoke("array_section.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
@@ -385,10 +373,12 @@ def test_no_code_blocks(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:1])
-    assert "CodeBlock'>' cannot be enclosed by a ACCDataTrans" in str(err)
+    assert ("CodeBlock'>' cannot be enclosed by a ACCDataTrans"
+            in str(err.value))
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[1:2])
-    assert "CodeBlock'>' cannot be enclosed by a ACCDataTrans" in str(err)
+    assert ("CodeBlock'>' cannot be enclosed by a ACCDataTrans"
+            in str(err.value))
 
 
 def test_kernels_in_data_region(parser):
@@ -405,7 +395,8 @@ def test_kernels_in_data_region(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
     acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_ktrans.apply(schedule.children[:], default_present=True)
+    schedule, _ = acc_ktrans.apply(schedule.children[:],
+                                   {"default_present": True})
     schedule, _ = acc_dtrans.apply(schedule.children[:])
     new_code = str(psy.gen)
     assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"
@@ -428,12 +419,14 @@ def test_no_enter_data(parser):
     # We don't yet support ACCEnterDataTrans for the NEMO API (Issue 310)
     # so manually insert a GOACCEnterDataDirective in the Schedule.
     from psyclone.gocean1p0 import GOACCEnterDataDirective
+    # pylint: disable=abstract-class-instantiated
     directive = GOACCEnterDataDirective(parent=schedule, children=[])
+    # pylint: enable=abstract-class-instantiated
     schedule.children.insert(0, directive)
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
-            "contains an 'enter data' directive" in str(err))
+            "contains an 'enter data' directive" in str(err.value))
 
 
 def test_array_access_in_ifblock(parser):
@@ -515,4 +508,4 @@ def test_missed_array_case(parser):
     with pytest.raises(InternalError) as err:
         _ = str(psy.gen)
     assert ("Array 'ice_mask' present in source code ('ice_mask(ji, jj)') "
-            "but not identified" in str(err))
+            "but not identified" in str(err.value))

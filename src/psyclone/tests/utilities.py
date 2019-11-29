@@ -51,9 +51,8 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 class CompileError(Exception):
     '''
-    Exception raised when compilation of a Fortran source file
+    Exception raised when compilation of a Fortran source file fails.
 
-    fails.
     :param value: description of the error condition.
     :type value: str or :py:class:`bytes`
 
@@ -184,7 +183,6 @@ class Compile(object):
         :returns: A list of strings with the compiler flags required.
         :rtype: list
         '''
-        # pylint: disable=no-self-use
         return []
 
     @staticmethod
@@ -197,7 +195,6 @@ class Compile(object):
 
     @staticmethod
     def skip_if_opencl_compilation_disabled():
-        # pylint:disable=invalid-name
         '''This function is used in all tests that should only run
         if opencl compilation is enabled. It calls pytest.skip if
         opencl compilation is not enabled.'''
@@ -418,8 +415,11 @@ def get_invoke(algfile, api, idx=None, name=None):
                            "requested invoke must be specified")
 
     # Set up a mapping of supported APIs and corresponding directories
+    # Note that the nemo files are outside of the default tests/test_files
+    # directory, they are in tests/nemo/test_files
     api_2_path = {"dynamo0.1": "dynamo0p1",
                   "dynamo0.3": "dynamo0p3",
+                  "nemo": "../nemo/test_files",
                   "gocean1.0": "gocean1p0",
                   "gocean0.1": "gocean0p1"}
     try:

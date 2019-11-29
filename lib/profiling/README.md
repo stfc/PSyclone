@@ -1,7 +1,9 @@
+# Libraries for use with PSyclone Profiling
+
 This directory contains wrapper libraries that can be used with
 PSyclone's profiling interface.
 
-# Compilation #
+## Compilation
 
 The top level makefile can be used to compile some or all profiling-library
 interfaces:
@@ -29,16 +31,16 @@ profile_mod` statements, the location of the `profile_mod.mod` file
 must be provided as an include path when compiling the application
 source.
 
-# Wrappers #
+## Wrappers
 
-## template ##
+### `template`
 
 This is a very simple example library that just prints the name of the
 subroutines used (e.g. ProfileStart) and name of the module and region.
 It uses the ProfileData variables to make the module and region name
 available in the ProfileEnd call.
 
-## simple_timing ##
+### `simple_timing`
 
 This is a simple, stand-alone library that measures the real time of
 a region, and prints a summary at the end. It is NOT thread-safe.
@@ -58,7 +60,7 @@ Example output:
      psy_time_step_mod::swlat_update_code                      11      1.87500000             0.167968750             0.170454547             0.179687500    
      ===========================================
 
-## dl_timer ##
+### `dl_timer`
 
 This is a wrapper library that maps the PSyclone profiling API
 to the dl_timer API. A copy of dl_timer can be downloaded from
@@ -101,7 +103,7 @@ Example output:
     * corrected for systematic error
     =============================================================================
 
-## Dr Hook ##
+### Dr Hook
 
 This wrapper library interfaces with ECMWF's Dr Hook library. This
 library appears not to be available as open source on a public
@@ -151,7 +153,7 @@ Example profiling output (some spaces removed to shorten the lines):
     8   0.00   29.165   0.000   29.083    11     0.01   2643.90   swlon_adjust_mod:swlon_adjust_code@1
     9   0.00   29.165   0.000    0.082     1     0.01     82.33   eliminate_one_node_islands_mod:eliminate_one_node_islands_code@1
 
-## NVIDIA ##
+### NVIDIA
 
 This wrapper library uses the NVIDIA Tools Extension (NVTX) to mark-up
 profiling regions so that they appear in the NVIDIA profiling tools
