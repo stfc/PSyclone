@@ -31,6 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
