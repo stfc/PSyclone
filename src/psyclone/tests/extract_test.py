@@ -282,7 +282,7 @@ def test_no_parent_accdirective():
     orphaned_directive = schedule.children[1].children[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(orphaned_directive)
-    assert ("Extraction of Nodes enclosed within a thread parallel "
+    assert ("Extraction of Nodes enclosed within a thread-parallel "
             "region is not allowed.") in str(excinfo.value)
 
 
