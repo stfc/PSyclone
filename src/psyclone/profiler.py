@@ -136,15 +136,20 @@ class Profiler(object):
 
 # =============================================================================
 class ProfileNode(Node):
-    '''
-    This class can be inserted into a schedule to create profiling code.
+    '''This class can be inserted into a schedule to create profiling code.
 
     :param children: a list of child nodes for this node. These will be made \
-                     children of the child Schedule of this Profile Node.
+        children of the child Schedule of this Profile Node.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
-                    or derived classes
+        or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py::class::`psyclone.psyGen.Node`
+    :param str region_name: the name to call this profile region. This \
+        name should be unique within this invoke unless aggregate \
+        information is required.
+    :param str location_name: a name describing the location of the \
+        invoke. This name should be unique for each invoke in this \
+        code unless aggregate information is required.
 
     '''
     # Profiling interface Fortran module
@@ -158,7 +163,8 @@ class ProfileNode(Node):
     # Root of the name to use for variables associated with profiling regions
     profiling_var = "psy_profile"
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, region_name=None,
+                 location_name=None):
         # A ProfileNode always contains a Schedule
         sched = self._insert_schedule(children)
         Node.__init__(self, children=[sched], parent=parent)
@@ -169,12 +175,13 @@ class ProfileNode(Node):
         # change every time gen() is called).
         self._var_name = NameSpaceFactory().create().create_name("profile")
 
-        # Name of the region. In general at constructor time we might not
-        # have a parent subroutine or a child for the kernel, so we leave
-        # the name empty for now. The region and module names are set the
-        # first time gen() is called (and then remain unchanged).
-        self._region_name = None
-        self._module_name = None
+        # Name of the region. In general at constructor time we might
+        # not have a parent subroutine or a child for the kernel, so
+        # the name is left empty, unless explicitly provided by the
+        # user. The region and module names are set the first time
+        # gen() is called (and then remain unchanged).
+        self._region_name = region_name
+        self._module_name = location_name
 
         # Name and colour to use for this node
         self._text_name = "Profile"
@@ -216,6 +223,13 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
+        if not self._module_name:
+            pass
+        if not self._region_name:
+            # if single kernel use name+index_start+index_end
+            # elif full invoke use invoke_name
+            # else say "region"+index_start+index_end
+            pass
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
             # Schedule there should be only one kernel, but if Profile is
