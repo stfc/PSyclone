@@ -53,8 +53,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ProfileRegion
-    proftrans = ProfileRegion()
+    from psyclone.psyir.transformations import ProfileTrans
+    proftrans = ProfileTrans()
 
     # Use the trans() routine in acc_transform.py to add the OpenACC directives
     psy = acc_trans(psy)
