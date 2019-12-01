@@ -140,18 +140,18 @@ the class `ExtractTrans` should be called `extract_trans.py`.
 The directory structure of the PSyclone classes is as follows:
 
 domain:
-    This directory contains the various API specific classes.
+    This directory contains the various API-specific classes.
 
     domain/API_NAME:
         The following domains are currently supported: `lfric`, `gocean`, `nemo`.
 
         domain/API_NAME/transformations:
-            These directories contain for each API the api-specific transformations,
-            typically using one of the classes in psyir/transformations as base
-            class. Any transformation class should have the domain as postfix, and
-            `Trans` as postfix (e.g. `GOceanExtractTrans`), and corresponding file
-            name should start with the API name and end with `_trans.py` (e.g.
-            `gocean_extract_trans.py`).
+            These directories contain the API-specific transformations,
+            typically using one of the classes in psyir/transformations as a base
+            class. Any transformation class should have the domain as prefix, and
+            `Trans` as postfix (e.g. `GOceanExtractTrans`), and the corresponding
+            file name should start with the API name and end with `_trans.py`
+            (e.g. `gocean_extract_trans.py`).
 
 psyir:
     This directory contains all classes and functions related to the PSyIR
@@ -161,7 +161,7 @@ psyir:
     psyir/transformations
         This directory contains all basic transformations, i.e. all transformations
         that are either directly usable in any API, or are base classes for
-        api-specific transformations. Any transformation class should have `Trans`
-        as postfix (e.g. `ExtractTrans`), and corresponding file name should end
-        with `_trans.py` (e.g. `extract_trans.py`).
+        API-specific transformations. Any transformation class should have `Trans`
+        as postfix (e.g. `ExtractTrans`), and the corresponding file name should
+        end with `_trans.py` (e.g. `extract_trans.py`).
 

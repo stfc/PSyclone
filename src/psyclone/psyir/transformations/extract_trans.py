@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 
-'''This module contains the base class for extracting kernel parameter
-from regions.
+'''This module contains the base class for extracting extracting a region
+of an Invoke into a stand-alone application."
 '''
 
 from psyclone.configuration import Config

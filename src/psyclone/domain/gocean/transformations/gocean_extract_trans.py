@@ -56,7 +56,7 @@ class GOceanExtractTrans(ExtractTrans):
     >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
     >>> etrans = GOceanExtractTrans()
     >>>
-    >>> # Apply GOceanExtractTransTrans transformation to selected Nodes
+    >>> # Apply GOceanExtractTrans transformation to selected Nodes
     >>> newsched, _ = etrans.apply(schedule.children[0])
     >>> newsched.view()
     '''
@@ -81,10 +81,10 @@ class GOceanExtractTrans(ExtractTrans):
         '''
 
         # First check constraints on Nodes in the node_list inherited from
-        # the parent classes (ExtractTransTrans and RegionTrans)
+        # the parent classes (ExtractTrans and RegionTrans)
         super(GOceanExtractTrans, self).validate(node_list, options)
 
-        # Check GOceanExtractTransTrans specific constraints
+        # Check GOceanExtractTrans specific constraints
         from psyclone.gocean1p0 import GOLoop
         for node in node_list:
 

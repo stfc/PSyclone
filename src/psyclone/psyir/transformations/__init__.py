@@ -45,7 +45,7 @@ from psyclone.psyir.transformations.transformation_error \
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
-# from psyclone.psyir.transformations import ExtractRegion
+# from psyclone.psyir.transformations import ExtractTrans
 
 __all__ = ['ExtractTrans',
            'ProfileTrans',

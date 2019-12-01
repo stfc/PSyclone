@@ -51,7 +51,7 @@ class RegionTrans(Transformation):
     # pylint: disable=abstract-method,arguments-differ
     '''
     This abstract class is a base class for all transformations that act
-    on a list of nodes. It gives access to a _validate function that
+    on a list of nodes. It gives access to a validate function that
     makes sure that the nodes in the list are in the same order as in
     the original AST, no node is duplicated, and that all nodes have
     the same parent. We also check that all nodes to be enclosed are
