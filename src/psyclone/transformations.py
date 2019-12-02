@@ -4371,7 +4371,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
                     "allowed.".format(str(self.name)))
 
 
-class PromoteKernelGlobalsToArguments(Transformation):
+class KernelGlobalsToArguments(Transformation):
     '''Transformation that given a kernel call, it takes out of the
     kernel the global accesses and places them in the caller. Then
     the values/references are passe by argument into the kernel.'''
@@ -4379,13 +4379,18 @@ class PromoteKernelGlobalsToArguments(Transformation):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "PromoteKernelGlobalsToArguments"
+        return "KernelGlobalsToArguments"
 
-    def _validate(self, node):
+    def __str__(self):
+        return ("Convert the global variables used inside the kernel "
+                "into arguments and modify the InvokeSchedule to pass them"
+                " in the kernel call.")
+
+    def validate(self, node):
         from psyclone.psyGen import CodedKern
         if not isinstance(node, CodedKern):
             raise TransformationError(
-                "The PromoteKernelGlobalsToArguments transformation can "
+                "The KernelGlobalsToArguments transformation can "
                 "only be applied to CodedKern nodes but found {0} instead."
                 "".format(type(node)))
 
@@ -4393,13 +4398,11 @@ class PromoteKernelGlobalsToArguments(Transformation):
         from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface, \
             ArgumentInterface
 
+        self.validate(node)
+
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
-
-        # Globals in the Container have to be brought inside the kernel first
-        for globalvar in kernel.parent.symbol_table.global_datasymbols:
-            symtab.copy_external_global(globalvar)
 
         # Transform each global variable into an argument
         for globalvar in kernel.symbol_table.global_datasymbols:

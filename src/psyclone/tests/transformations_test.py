@@ -221,3 +221,57 @@ def test_regiontrans_wrong_children():
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "
             "is a Schedule" in str(err.value))
+
+
+def test_kernelglobalstoarguments(monkeypatch):
+    ''' Check the KernelGlobalsToArguments transformation '''
+    from psyclone.tests.utilities import get_invoke
+    from psyclone.transformations import KernelGlobalsToArguments
+    from psyclone.psyGen import KernelArgument
+    trans = KernelGlobalsToArguments()
+    assert trans.name == "KernelGlobalsToArguments"
+    assert str(trans) == "Convert the global variables used inside the " \
+        "kernel into arguments and modify the InvokeSchedule to pass them" \
+        " in the kernel call."
+
+    # Construct a testing InvokeSchedule
+    psy, invoke = get_invoke("single_invoke_kern_with_use.f90", "gocean1.0",
+                             idx=0)
+    notkernel = invoke.schedule.children[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
+        def set_to_real(x):
+            x._datatype = "real"
+        monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
+
+    # Test with invalid node
+    with pytest.raises(TransformationError) as err:
+        trans.apply(notkernel)
+    assert ("The KernelGlobalsToArguments transformation can only be applied"
+            " to CodedKern nodes but found <class 'psyclone.gocean1p0.GOLoop"
+            "'> instead." in str(err.value))
+
+    # Test with a kernel
+    trans.apply(kernel)
+
+    # The transformation;
+    # 1) Has imported the symbol into the InvokeSchedule
+    assert invoke.schedule.symbol_table.lookup("rdt")
+    assert invoke.schedule.symbol_table.lookup("model_mod")
+    var = invoke.schedule.symbol_table.lookup("rdt")
+    container = invoke.schedule.symbol_table.lookup("model_mod")
+    assert var.is_global
+    assert var.interface.container_symbol == container
+
+    # 2) Has added the symbol as the last argument in the kernel call
+    assert isinstance(kernel.args[-1], KernelArgument)
+    assert kernel.args[-1].name == "rdt"
+
+    # 3) Has converted the Kernel Schedule symbol into an argument which is
+    # in also the last position
+    ksymbol = kernel.get_kernel_schedule().symbol_table.lookup("rdt")
+    assert ksymbol.is_argument
+    assert kernel.get_kernel_schedule().symbol_table.argument_list[-1] == \
+        ksymbol
+    assert len(kernel.get_kernel_schedule().symbol_table.argument_list) == \
+        len(kernel.args) + 2  # GOcean kernels have 2 implicit arguments
