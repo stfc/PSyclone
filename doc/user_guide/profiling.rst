@@ -125,6 +125,10 @@ This is the code sequence which is created by PSyclone::
 PSyclone guarantees that different ProfileStart/End pairs have
 different ``ProfileData`` variables.
 
+By default PSyclone will generate appropriate names to specify a
+particular region (the "Module" and "Region" strings in the example
+above). Alternatively these names can be specified by the user when
+adding profiling via a transformation script.
 
 Profiling Command Line Options
 ------------------------------
@@ -296,14 +300,30 @@ As an example::
 
     from psyclone.transformations import ProfileRegionTrans
 
-    t=TransInfo()
-    p_trans= ProfileRegionTrans()
-    schedule=psy.invokes.get('invoke_0').schedule
+    p_trans = ProfileRegionTrans()
+    schedule = psy.invokes.get('invoke_0').schedule
     schedule.view()
     
     # Enclose all children within a single profile region
     newschedule, _ = p_trans.apply(schedule.children[1:3])
     newschedule.view()
+
+The profiler transformation also allows the profile name to be set
+explicitely, rather than being automatically created. This allows for
+more potentially more intuitive names or finer grain control over
+profiling (as particular regions could be provided with the same
+profile names). For example::
+
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileRegionTrans()
+    # Use the actual psy-layer module and subroutine names.
+    options = {"profile_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    # Use own names and repeat for different regions to aggregate profile.
+    options = {"profile_name": ("my_location", "my_region")}
+    profile_trans.apply(schedule[0].children[1:2], options=options)
+    profile_trans.apply(schedule[0].children[5:7], options=options)
 
 .. warning::
  

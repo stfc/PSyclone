@@ -505,7 +505,7 @@ def test_profile_named_dynamo0p3():
     schedule = invoke.schedule
     profile_trans = ProfileRegionTrans()
     options = {"profile_name": (psy.name, invoke.name)}
-    _ = profile_trans.apply(schedule.children, options=options)
+    _, _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL ProfileStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", profile)") in result
