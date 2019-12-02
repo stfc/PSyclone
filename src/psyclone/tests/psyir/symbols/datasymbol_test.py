@@ -135,9 +135,9 @@ def test_datasymbol_init_errors():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', interface=ArgumentInterface(),
                    constant_value=9)
-    assert ("Error setting 'a' constant value. A DataSymbol with a constant "
-            "value is currently limited to Local interfaces but found"
-            " 'Argument(pass-by-value=False)'." in str(error.value))
+    assert ("Error setting 'a' constant value. A DataSymbol with an "
+            "ArgumentInterface can not have a constant value."
+            in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', 'integer', shape=[None], constant_value=9)

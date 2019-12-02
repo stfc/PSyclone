@@ -358,11 +358,11 @@ class DataSymbol(Symbol):
 
         '''
         if new_value is not None:
-            #if not self.is_local:
-            #    raise ValueError(
-            #        "Error setting '{0}' constant value. A DataSymbol with a "
-            #        "constant value is currently limited to Local interfaces "
-            #        "but found '{1}'.".format(self.name, self.interface))
+            if self.is_argument:
+                raise ValueError(
+                    "Error setting '{0}' constant value. A DataSymbol with "
+                    "an ArgumentInterface can not have a constant value."
+                    "".format(self.name))
             if self.is_array:
                 raise ValueError(
                     "Error setting '{0}' constant value. A DataSymbol with a "
