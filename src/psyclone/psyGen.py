@@ -1818,7 +1818,7 @@ class InvokeSchedule(Schedule):
     @property
     def symbol_table(self):
         '''
-        :returns: Table containing symbol information for the kernel.
+        :returns: Table containing symbol information for the schedule.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
@@ -4839,7 +4839,7 @@ class Argument(object):
     def type(self):
         '''Return the type of the argument. API's that do not have this concept
         can use this baseclass version which just returns "scalar" in all
-        cases. API's with this concept can override this method '''
+        cases. API's with this concept can override this method. '''
         return "scalar"
 
     @property

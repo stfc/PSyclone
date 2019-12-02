@@ -370,7 +370,7 @@ class SymbolTable(object):
         if external_container_name not in self:
             self.add(ContainerSymbol(external_container_name))
 
-        # Copy the variable in the SymbolTable with the appropiate interface
+        # Copy the variable in the SymbolTable with the appropriate interface
         if globalvar.name not in self:
             new_symbol = globalvar.copy()
             container_ref = self.lookup(external_container_name)

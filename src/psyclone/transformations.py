@@ -4385,7 +4385,17 @@ class KernelGlobalsToArguments(Transformation):
                 "into arguments and modify the InvokeSchedule to pass them"
                 " in the kernel call.")
 
-    def validate(self, node):
+    def validate(self, node, options=None):
+        '''
+        Check that the supplied node is a valid target for this transformation.
+
+        :param node: the loop node to validate.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied node is not a CodedKern
+        '''
         from psyclone.psyGen import CodedKern
         if not isinstance(node, CodedKern):
             raise TransformationError(
@@ -4393,9 +4403,23 @@ class KernelGlobalsToArguments(Transformation):
                 "only be applied to CodedKern nodes but found {0} instead."
                 "".format(type(node)))
 
-    def apply(self, node):
-        from psyclone.psyir.symbols import ContainerSymbol, GlobalInterface, \
-            ArgumentInterface
+    def apply(self, node, options=None):
+        '''
+        Convert the global variables used inside the kernel into arguments and
+        modify the InvokeSchedule to pass the same global variables to the
+        kernel call.
+
+        :param node: a kernel call
+        :type nodes: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: tuple of the modified Schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                 :py:class:`psyclone.undoredo.Memento`).
+        '''
+        from psyclone.psyir.symbols import ArgumentInterface
 
         self.validate(node)
 

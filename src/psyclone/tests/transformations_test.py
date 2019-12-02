@@ -235,13 +235,13 @@ def test_kernelglobalstoarguments(monkeypatch):
         " in the kernel call."
 
     # Construct a testing InvokeSchedule
-    psy, invoke = get_invoke("single_invoke_kern_with_use.f90", "gocean1.0",
-                             idx=0)
+    _, invoke = get_invoke("single_invoke_kern_with_use.f90", "gocean1.0",
+                           idx=0)
     notkernel = invoke.schedule.children[0]
     kernel = invoke.schedule.coded_kernels()[0]
     for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
-        def set_to_real(x):
-            x._datatype = "real"
+        def set_to_real(variable):
+            variable._datatype = "real"
         monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
 
     # Test with invalid node

@@ -431,7 +431,7 @@ def test_symboltable_unresolved():
 
 
 def test_symboltable_copy_external_global():
-    ''' Tests for the copy_external_global method. '''
+    ''' Tests the SymbolTable copy_external_global method. '''
 
     symtab = SymbolTable()
 
