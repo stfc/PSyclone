@@ -234,26 +234,20 @@ class PSyDataNode(Node):
                                ["\"{0}\"".format(var_name),
                                 "{0}".format(var_name)])
 
-            self._add_call("PreEndDeclaration", parent,
-                           ["\"{0}\"".format(self._module_name),
-                            "\"{0}\"".format(self._region_name)])
+            self._add_call("PreEndDeclaration", parent)
 
             for var_name in pre_variable_list:
                 self._add_call("WriteVariable", parent,
                                ["\"{0}\"".format(var_name),
                                 "{0}".format(var_name)])
 
-            self._add_call("PreEnd", parent,
-                           ["\"{0}\"".format(self._module_name),
-                            "\"{0}\"".format(self._region_name)])
+            self._add_call("PreEnd", parent)
 
         for child in self.psy_data_body:
             child.gen_code(parent)
 
         if has_var:
-            self._add_call("PostStart", parent,
-                           ["\"{0}\"".format(self._module_name),
-                            "\"{0}\"".format(self._region_name)])
+            self._add_call("PostStart", parent)
             for var_name in post_variable_list:
                 self._add_call("WriteVariable", parent,
                                ["\"{0}\"".format(var_name),
@@ -306,7 +300,9 @@ class PSyDataNode(Node):
         super(PSyDataNode, self).update()
 
         # Get the parse tree of the routine containing this region
+        # pylint: disable=protected-access
         ptree = self.root.invoke._ast
+        # pylint: enable=protected-access
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
         node_list = walk_ast([ptree], [Fortran2003.Main_Program,
@@ -422,7 +418,9 @@ class PSyDataNode(Node):
         # AST for the content of this region.
         content_ast = self.psy_data_body.children[0].ast
         # Now store the parent of this region
+        # pylint: disable=protected-access
         fp_parent = content_ast._parent
+        # pylint: enable=protected-access
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
@@ -446,8 +444,10 @@ class PSyDataNode(Node):
             except ValueError:
                 # ast_end is not a child of fp_parent so go up to its parent
                 # and try again
+                # pylint: disable=protected-access
                 if hasattr(ast_end, "_parent") and ast_end._parent:
                     ast_end = ast_end._parent
+                # pylint: enable=protected-access
                 else:
                     raise InternalError(
                         "Failed to find the location of '{0}' in the fparser2 "
