@@ -67,6 +67,15 @@ GOCEAN_API = "gocean1.0"
 # --------------------------------------------------------------------------- #
 
 
+def test_extract_trans(tmpdir):
+    '''Tests basic functions in ExtractTrans.'''
+    from psyclone.psyir.transformations import ExtractTrans
+    etrans = ExtractTrans()
+    assert str(etrans) == "Create a sub-tree of the PSyIR that has " \
+                          "ExtractNode at its root."
+    assert etrans.name == "ExtractTrans"
+
+
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
     a single Schedule node as its child. '''
