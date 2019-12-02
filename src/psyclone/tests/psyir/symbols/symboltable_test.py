@@ -439,7 +439,7 @@ def test_symboltable_copy_external_global():
     with pytest.raises(TypeError) as error:
         symtab.copy_external_global("invalid_type")
     assert "The globalvar argument of SymbolTable.copy_external_global " \
-        "method should be a DataSymbol, but found <class 'str'>." \
+        "method should be a DataSymbol, but found " \
         in str(error.value)
 
     with pytest.raises(TypeError) as error:
