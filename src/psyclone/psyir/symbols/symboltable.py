@@ -40,7 +40,8 @@
 
 from __future__ import print_function
 from collections import OrderedDict
-from psyclone.psyir.symbols import Symbol, DataSymbol
+from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
+    ContainerSymbol
 
 
 class SymbolTable(object):
@@ -336,6 +337,32 @@ class SymbolTable(object):
         raise NotImplementedError(
             "Abstract property. Which symbols are data arguments is"
             " API-specific.")
+
+    def copy_external_global(self, globalvar):
+        ''' asdf'''
+
+        if not globalvar.is_global:
+            raise ValueError("")
+
+        external_container_name = globalvar.interface.container_symbol.name
+
+        # If the Container is not yet in the SymbolTable we need to
+        # create one and add it.
+        if external_container_name not in self:
+            self.add(ContainerSymbol(external_container_name))
+
+        # Copy the variable in the SymbolTable with the appropiate interface
+        if globalvar.name not in self:
+            new_symbol = globalvar.copy()
+            container_ref = self.lookup(external_container_name)
+            new_symbol.interface = GlobalInterface(container_ref)
+            self.add(new_symbol)
+        else:
+            # If it already exists it must refer to the same Container
+            if not (self.lookup(globalvar.name).is_global and
+                    self.lookup(globalvar.name).interface
+                    .container_symbol.name == external_container_name):
+                raise ValueError("")
 
     def view(self):
         '''

@@ -4395,51 +4395,21 @@ class PromoteKernelGlobalsToArguments(Transformation):
 
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
+        invoke_symtab = node.root.symbol_table
 
-        # Globals in the Container have to be brought inside the kernel
-        if False:
-            for globalvar in kernel.parent.symbol_table.global_datasymbols:
-
-                external_container_name = globalvar.interface.container_symbol.name
-
-                # If the external conatiner name is not in the kernel symbol
-                # table, this has to be added
-                if external_container_name not in symtab:
-                    symtab.add(ContainerSymbol(external_container_name))
-
-                # Copy the symbol in the kernel with the appropiate interface
-                new_symbol = globalvar.copy()
-                container_ref = symtab.lookup(external_container_name)
-                new_symbol.interface = GlobalInterface(container_ref)
-                symtab.add(new_symbol)
-
-                # Note that we can not remove the original symbol at this point
-                # as they can still be used by other kernels.
+        # Globals in the Container have to be brought inside the kernel first
+        for globalvar in kernel.parent.symbol_table.global_datasymbols:
+            symtab.copy_external_global(globalvar)
 
         # Transform each global variable into an argument
         for globalvar in kernel.symbol_table.global_datasymbols:
-            print(globalvar.name)
+
+            # Resolve the data type information if it is not available
             if globalvar.datatype == 'deferred':
                 globalvar.resolve_deferred()
 
-            external_container_name = globalvar.interface.container_symbol.name
-
-            # Replicate globals in the InvokeSchedule:
-            # 1) First copy the container symbol if it is not already there
-            invoke_symtab = node.root.symbol_table
-            if external_container_name not in invoke_symtab:
-                new_container_symbol = ContainerSymbol(
-                    globalvar.interface.container_symbol.name)
-                node.root.symbol_table.add(new_container_symbol)
-            # 2) Then copy the Global referencing the appropriate Container
-            if not (globalvar.name in invoke_symtab and
-                    invoke_symtab.lookup(globalvar.name).is_global and
-                    invoke_symtab.lookup(globalvar.name).interface
-                    .container_symbol.name == external_container_name):
-                new_symbol = globalvar.copy()
-                container_ref = invoke_symtab.lookup(external_container_name)
-                new_symbol.interface = GlobalInterface(container_ref)
-                invoke_symtab.add(new_symbol)
+            # Copy the global into the InvokeSchedule SymbolTable
+            invoke_symtab.copy_external_global(globalvar)
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
@@ -4448,7 +4418,7 @@ class PromoteKernelGlobalsToArguments(Transformation):
             current_arg_list.append(globalvar)
             symtab.specify_argument_list(current_arg_list)
 
-            # Add global in the call argument list
+            # Add the Global variable in the call argument list
             from psyclone.psyGen import KernelArgument
             from psyclone.parse.algorithm import Arg
             from psyclone.parse.kernel import Descriptor
