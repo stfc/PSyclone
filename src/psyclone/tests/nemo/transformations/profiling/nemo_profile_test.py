@@ -41,6 +41,7 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from fparser.common.readfortran import FortranStringReader
 
@@ -409,8 +410,7 @@ def test_profiling_mod_name_clash(parser):
 def test_profiling_symbol_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    from psyclone.psyir.nodes import ProfileNode
-    for var_name in ProfileNode.profiling_symbols:
+    for var_name in PSyDataNode.symbols:
         psy, schedule = get_nemo_schedule(
             parser,
             "program my_test\n"
@@ -430,14 +430,13 @@ def test_profiling_var_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a potential
     name clash with the variables we will introduce for each profiling
     region. '''
-    from psyclone.psyir.nodes import ProfileNode
     psy, schedule = get_nemo_schedule(
         parser,
         "program my_test\n"
         "  real :: my_array(3,3)\n"
         "  integer :: {0}\n"
         "  my_array(:,:) = 0.0\n"
-        "end program my_test\n".format(ProfileNode.profiling_var))
+        "end program my_test\n".format(PSyDataNode.psy_data_var))
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
