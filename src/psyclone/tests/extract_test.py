@@ -46,9 +46,9 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractRegion
 from psyclone.domain.gocean.transformations import GOceanExtractRegion
-from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.nodes import ExtractNode, PSyDataNode
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, Loop
+from psyclone.psyGen import PSyFactory, Loop, NameSpace, NameSpaceFactory
 from psyclone.psyir.transformations import TransformationError
 
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
@@ -61,6 +61,16 @@ DYNAMO_API = "dynamo0.3"
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 GOCEAN_API = "gocean1.0"
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_psydata_namespace():
+    '''This function is called at the before any test function. It
+    creates a new NameSpace manager, which is responsible to create
+    unique region names - this makes sure the test works if the order
+    or number of tests run is changed, otherwise the created region
+    names will change.'''
+    PSyDataNode._namespace = NameSpace()
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
