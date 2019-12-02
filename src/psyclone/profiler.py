@@ -163,8 +163,7 @@ class ProfileNode(Node):
     # Root of the name to use for variables associated with profiling regions
     profiling_var = "psy_profile"
 
-    def __init__(self, children=None, parent=None, region_name=None,
-                 location_name=None):
+    def __init__(self, children=None, parent=None, name=None):
         # A ProfileNode always contains a Schedule
         sched = self._insert_schedule(children)
         Node.__init__(self, children=[sched], parent=parent)
@@ -180,8 +179,11 @@ class ProfileNode(Node):
         # the name is left empty, unless explicitly provided by the
         # user. The region and module names are set the first time
         # gen() is called (and then remain unchanged).
-        self._region_name = region_name
-        self._module_name = location_name
+        self._module_name = None
+        self._region_name = None
+        if name:
+            self._module_name = name[0]
+            self._region_name = name[1]
 
         # Name and colour to use for this node
         self._text_name = "Profile"
@@ -223,13 +225,15 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        if not self._module_name:
-            pass
-        if not self._region_name:
-            # if single kernel use name+index_start+index_end
-            # elif full invoke use invoke_name
-            # else say "region"+index_start+index_end
-            pass
+        #if not self._module_name:
+        #    # PSy-layer subroutine name
+        #    self._module_name = self.root.invoke.name
+        #if not self._region_name:
+        #    self._region_name = "invoke"
+        #    # if single kernel use name+index_start+index_end
+        #    # elif full invoke use invoke_name
+        #    # else say "region"+index_start+index_end
+        #    pass
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
             # Schedule there should be only one kernel, but if Profile is

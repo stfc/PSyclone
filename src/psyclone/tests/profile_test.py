@@ -466,6 +466,32 @@ def test_profile_kernels_dynamo0p3():
 
 
 # -----------------------------------------------------------------------------
+def test_profile_named_dynamo0p3():
+    '''Check that the Dynamo 0.3 API is instrumented correctly when the
+    profile name is supplied by the user.
+
+    '''
+
+    # Single invoke with a single kernel
+    import os
+    from psyclone.parse.algorithm import parse
+    from psyclone.psyGen import PSyFactory
+    DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "test_files", "dynamo0p3")
+    _, info = parse(os.path.join(DYNAMO_BASE_PATH, "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileRegionTrans()
+    options = {"profile_name": (psy.name, invoke.name)}
+    _ = profile_trans.apply(invoke.schedule.children, options=options)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"single_invoke_psy\", "
+            "\"invoke_0_testkern_type\", profile)") in result
+
+
+# -----------------------------------------------------------------------------
 def test_transform(capsys):
     '''Tests normal behaviour of profile region transformation.'''
 
