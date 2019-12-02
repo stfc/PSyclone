@@ -37,6 +37,7 @@
 tools and basic transformations (in subdirectories).
 '''
 from psyclone.psyir.nodes.extract_node import ExtractNode
+from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
-__all__ = ['ExtractNode', 'PSyDataNode']
+__all__ = ['ExtractNode', 'ProfileNode', 'PSyDataNode']

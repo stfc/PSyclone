@@ -41,11 +41,11 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.psyGen import PSyFactory
-from psyclone.transformations import TransformationError, ProfileRegionTrans
+from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from fparser.common.readfortran import FortranStringReader
 
 # The transformation that most of these tests use
-PTRANS = ProfileRegionTrans()
+PTRANS = ProfileTrans()
 
 
 def get_nemo_schedule(parser, code):
@@ -409,7 +409,7 @@ def test_profiling_mod_name_clash(parser):
 def test_profiling_symbol_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
-    from psyclone.profiler import ProfileNode
+    from psyclone.psyir.nodes import ProfileNode
     for var_name in ProfileNode.profiling_symbols:
         psy, schedule = get_nemo_schedule(
             parser,
@@ -430,7 +430,7 @@ def test_profiling_var_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a potential
     name clash with the variables we will introduce for each profiling
     region. '''
-    from psyclone.profiler import ProfileNode
+    from psyclone.psyir.nodes import ProfileNode
     psy, schedule = get_nemo_schedule(
         parser,
         "program my_test\n"

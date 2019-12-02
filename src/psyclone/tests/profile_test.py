@@ -43,11 +43,12 @@ import re
 import pytest
 
 from psyclone.generator import GenerationError
-from psyclone.profiler import Profiler, ProfileNode
+from psyclone.profiler import Profiler
 from psyclone.psyGen import Loop, NameSpace, InternalError
+from psyclone.psyir.nodes import ProfileNode
+from psyclone.psyir.transformations import ProfileTrans
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
-    ProfileRegionTrans
+from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 from psyclone.tests.utilities import get_invoke
 
 
@@ -110,7 +111,7 @@ def test_profile_basic(capsys):
         "it_space='go_internal_pts']\n")
     assert expected in out
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
 
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
@@ -474,9 +475,9 @@ def test_transform(capsys):
                            name="invoke_loop1")
     schedule = invoke.schedule
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
     assert str(prt) == "Insert a profile start and end call."
-    assert prt.name == "ProfileRegionTrans"
+    assert prt.name == "ProfileTrans"
 
     # Try applying it to a list
     sched1, _ = prt.apply(schedule.children)
@@ -629,7 +630,7 @@ def test_transform_errors(capsys):
                            name="invoke_loop1")
 
     schedule = invoke.schedule
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
 
     with pytest.raises(TransformationError) as excinfo:
         prt.apply([schedule.children[0].children[0], schedule.children[1]])
@@ -694,7 +695,7 @@ def test_transform_errors(capsys):
                            name="invoke_loop1")
     schedule = invoke.schedule
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
 
     # Parallelise the first loop:
@@ -718,7 +719,7 @@ def test_omp_transform():
                            name="invoke_loop1")
     schedule = invoke.schedule
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
     omp_par = OMPParallelTrans()
 
