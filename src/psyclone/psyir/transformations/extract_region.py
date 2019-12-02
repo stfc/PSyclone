@@ -138,11 +138,10 @@ class ExtractRegion(RegionTrans):
             # this may be between an orphaned Directive (e.g. OMPDoDirective,
             # ACCLoopDirective) and its ancestor Directive (e.g. ACC or OMP
             # Parallel Directive) or within an OMPParallelDoDirective.
-            if node.ancestor(OMPParallelDirective) or \
-                    node.ancestor(ACCParallelDirective):
+            if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
                     "Error in {0}: Extraction of Nodes enclosed within "
-                    "a thread parallel region is not allowed."
+                    "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
     def apply(self, nodes, options=None):
