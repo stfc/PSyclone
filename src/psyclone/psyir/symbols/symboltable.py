@@ -356,11 +356,12 @@ class SymbolTable(object):
                 "The globalvar argument of SymbolTable.copy_external_global"
                 " method should be a DataSymbol, but found {0}."
                 "".format(type(globalvar)))
-            if not globalvar.is_global:
-                raise TypeError(
-                    "The globalvar argument of SymbolTable.copy_external_"
-                    "global method should have a GlobalInterface interface, "
-                    "but found {0}.".format(type(globalvar.interface)))
+
+        if not globalvar.is_global:
+            raise TypeError(
+                "The globalvar argument of SymbolTable.copy_external_"
+                "global method should have a GlobalInterface interface, "
+                "but found {0}.".format(type(globalvar.interface)))
 
         external_container_name = globalvar.interface.container_symbol.name
 
@@ -381,9 +382,9 @@ class SymbolTable(object):
                     self.lookup(globalvar.name).interface
                     .container_symbol.name == external_container_name):
                 raise KeyError(
-                    "Couldn't copy '{0}' into the SymbolTable '{1}'. The"
-                    " name '{2}' is already used by another symbol."
-                    "".format(golbalvar, self, globarvar.name))
+                    "Couldn't copy '{0}' into the SymbolTable. The"
+                    " name '{1}' is already used by another symbol."
+                    "".format(globalvar, globalvar.name))
 
     def view(self):
         '''
