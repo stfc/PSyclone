@@ -40,7 +40,9 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.transformations import TransformationError
+from psyclone.transformations import TransformationError, ProfileRegionTrans, \
+    RegionTrans, ACCParallelTrans
+from psyclone.psyGen import Node, Invoke, InvokeSchedule
 
 
 def test_accloop():
@@ -209,7 +211,6 @@ def test_regiontrans_wrong_children():
         bounds of a Loop.) '''
     from psyclone.psyGen import Loop, Literal, Schedule
     # RegionTrans is abstract so use a concrete sub-class
-    from psyclone.transformations import RegionTrans, ACCParallelTrans
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
     parent = Loop(parent=None)
@@ -221,3 +222,101 @@ def test_regiontrans_wrong_children():
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "
             "is a Schedule" in str(err.value))
+
+
+def test_regiontrans_wrong_options():
+    '''Check that the validate method raises the expected error if passed
+        options that are not contained in a dictionary.
+
+    '''
+    # RegionTrans is abstract so use a concrete sub-class
+    region_trans = ACCParallelTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        RegionTrans.validate(region_trans, None, options="invalid")
+    assert ("Transformation apply method options argument must be a "
+            "dictionary but found 'str'." in str(excinfo.value))
+
+# Tests for ProfileRegionTrans
+
+
+def dummy_nodes():
+    '''Utility routine which create a minimal invoke and schedule
+    hierarchy for use in subsequent ProfileRegionTrans tests.
+
+    :returns: a list containing a single node connected to a minimal \
+    InvokeSchedule which is connected to a minimal Schedule. This \
+    hierarchy is required for code unrelated to the tests.
+    :rtype: list of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    schedule = InvokeSchedule(None, None)
+    schedule.invoke = Invoke(None, None, None)
+    node = Node()
+    node.parent = schedule
+    nodes = [node]
+    schedule.children = nodes
+    return nodes
+
+
+def test_profilerregiontrans_noname(monkeypatch):
+    '''Check that when no name is supplied to the profile transformation
+    then it creates a profile node with no name information.
+
+    '''
+    class dummy():
+        '''Dummy class that checks the name argument is None.
+
+        :param NonType parent: dummy to conform to ProfileNode arguments.
+        :param NonType children: dummy to conform to ProfileNode arguments.
+        :param NoneType name: the name argument that we are testing.
+
+        '''
+        def __init__(self, parent=None, children=None, name=None):
+            if name is not None:
+                raise Exception("test failed")
+    monkeypatch.setattr("psyclone.profiler.ProfileNode", dummy)
+    # Create and apply the transformation.
+    profile_trans = ProfileRegionTrans()
+    _ = profile_trans.apply(dummy_nodes())
+
+
+def test_profilerregiontrans_name(monkeypatch):
+    '''Check that when a valid name is supplied to the profile
+    transformation then it creates a profile node with that name
+    information.
+
+    '''
+    class dummy():
+        '''Dummy class that checks the options argument is None.
+
+        :param NonType parent: dummy to conform to ProfileNode arguments.
+        :param NonType children: dummy to conform to ProfileNode arguments.
+        :param (str, str) name: the name argument we are testing.
+
+        '''
+        def __init__(self, parent=None, children=None, name=None):
+            assert name == ("x", "y")
+    monkeypatch.setattr("psyclone.profiler.ProfileNode", dummy)
+    # Create and apply the transformation.
+    profile_trans = ProfileRegionTrans()
+    _ = profile_trans.apply(dummy_nodes(),
+                            options={"profile_name": ("x", "y")})
+
+
+def test_profilerregiontrans_invalid_name():
+    '''Invalid name supplied to options argument.'''
+
+    # Incorrect format in general.
+    profile_trans = ProfileRegionTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        _ = profile_trans.apply(Node(), options="invalid")
+    assert ("Transformation apply method options argument must be a "
+            "dictionary but found 'str'." in str(excinfo.value))
+
+    # Invalid profile name.
+    for value in [None, ["a", "b"], (), ("a"), ("a", "b", "c"),
+                  ("a", []), ([], "a")]:
+        with pytest.raises(TransformationError) as excinfo:
+            _ = profile_trans.apply(Node(), options={"profile_name": value})
+            assert ("User-supplied profile name must be a tuple containing "
+                    "two non-empty strings." in str(excinfo.value))
