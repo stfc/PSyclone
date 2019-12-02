@@ -339,10 +339,28 @@ class SymbolTable(object):
             " API-specific.")
 
     def copy_external_global(self, globalvar):
-        ''' asdf'''
+        '''
+        Copy the given global variable (and its referenced ContainerSymbol if
+        needed) into the SymbolTable.
 
-        if not globalvar.is_global:
-            raise ValueError("")
+        :param globalvar: the variable to be copied in
+        :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raise TypeError: if the given variable is not a global variable
+        :raise KeyError: if the given variable name already exists in the \
+            symbol table
+        '''
+
+        if not isinstance(globalvar, DataSymbol):
+            raise TypeError(
+                "The globalvar argument of SymbolTable.copy_external_global"
+                " method should be a DataSymbol, but found {0}."
+                "".format(type(globalvar)))
+            if not globalvar.is_global:
+                raise TypeError(
+                    "The globalvar argument of SymbolTable.copy_external_"
+                    "global method should have a GlobalInterface interface, "
+                    "but found {0}.".format(type(globalvar.interface)))
 
         external_container_name = globalvar.interface.container_symbol.name
 
@@ -362,7 +380,10 @@ class SymbolTable(object):
             if not (self.lookup(globalvar.name).is_global and
                     self.lookup(globalvar.name).interface
                     .container_symbol.name == external_container_name):
-                raise ValueError("")
+                raise KeyError(
+                    "Couldn't copy '{0}' into the SymbolTable '{1}'. The"
+                    " name '{2}' is already used by another symbol."
+                    "".format(golbalvar, self, globarvar.name))
 
     def view(self):
         '''
