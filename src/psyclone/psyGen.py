@@ -1532,29 +1532,49 @@ class Node(object):
             local_list += child.walk(my_type, stop_type)
         return local_list
 
-    def ancestor(self, my_type, excluding=None):
+    def ancestor(self, my_type, excluding=None, include_self=False):
         '''
         Search back up tree and check whether we have an ancestor that is
         an instance of the supplied type. If we do then we return
-        it otherwise we return None. A list of (sub-) classes to ignore
-        may be provided via the `excluding` argument.
+        it otherwise we return None. An individual (or tuple of) (sub-)
+        class(es) to ignore may be provided via the `excluding` argument. If
+        include_self is True then the current node is included in the search.
 
-        :param type my_type: Class to search for.
-        :param list excluding: list of (sub-)classes to ignore or None.
-        :returns: First ancestor Node that is an instance of the requested \
-                  class or None if not found.
+        :param my_type: class(es) to search for.
+        :type my_type: type or tuple of types
+        :param tuple excluding: individual (or tuple of) (sub-)class(es) to \
+                                ignore or None.
+        :param bool include_self: whether or not to include this node in the \
+                                  search.
+
+        :returns: First ancestor Node that is an instance of any of the \
+                  requested classes or None if not found.
+        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+
+        :raises TypeError: if `excluding` is provided but is not a type or \
+                           tuple of types.
         '''
-        myparent = self.parent
+        if include_self:
+            myparent = self
+        else:
+            myparent = self.parent
+
+        if excluding is not None:
+            if isinstance(excluding, type):
+                excludes = (excluding, )
+            elif isinstance(excluding, tuple):
+                excludes = excluding
+            else:
+                raise TypeError(
+                    "The 'excluding' argument to ancestor() must be a type or "
+                    "a tuple of types but got: '{0}'".format(
+                        type(excluding).__name__))
+
         while myparent is not None:
             if isinstance(myparent, my_type):
-                matched = True
-                if excluding:
-                    # We have one or more sub-classes we must exclude
-                    for etype in excluding:
-                        if isinstance(myparent, etype):
-                            matched = False
-                            break
-                if matched:
+                if not (excluding and isinstance(myparent, excludes)):
+                    # This parent node is not an instance of an excluded
+                    # sub-class so return it
                     return myparent
             myparent = myparent.parent
         return None
@@ -2716,12 +2736,8 @@ class OMPParallelDirective(OMPDirective):
                 # Go up the tree till we either find the InvokeSchedule,
                 # which is at the top, or a Loop statement (or no parent,
                 # which means we have reached the end of a called kernel).
-                # TODO #597: see if a modified Node.ancestor() method can be
-                # used (that would be able to return 'self' if appropriate).
-                parent = accesses[0].node
-                while parent and \
-                        not isinstance(parent, (Loop, InvokeSchedule)):
-                    parent = parent.parent
+                parent = accesses[0].node.ancestor((Loop, InvokeSchedule),
+                                                   include_self=True)
 
                 if parent and isinstance(parent, Loop):
                     # The assignment to the variable is inside a loop, so
@@ -2853,7 +2869,7 @@ class OMPDoDirective(OMPDirective):
         # directive, we must have an OMPRegionDirective as an ancestor
         # somewhere back up the tree.
         if not self.ancestor(OMPParallelDirective,
-                             excluding=[OMPParallelDoDirective]):
+                             excluding=OMPParallelDoDirective):
             raise GenerationError("OMPOrphanLoopDirective must have an "
                                   "OMPRegionDirective as ancestor")
 
