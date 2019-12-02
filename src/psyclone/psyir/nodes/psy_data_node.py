@@ -151,15 +151,15 @@ class PSyDataNode(Node):
         return self.children[0]
 
     # -------------------------------------------------------------------------
-    def _add_call(self, name, parent, arguments):
+    def _add_call(self, name, parent, arguments=None):
         '''This function adds a call to the specified method of
         self._var_name to the parent.
 
         :param str name: name of the method to call.
         :param parent: parent node into which to insert the calls.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param arguments: arguments for the method call.
-        :type arguments: list of str
+        :param arguments: optional arguments for the method call.
+        :type arguments: list of str or None
         '''
         call = CallGen(parent,
                        "{0}%{1}".format(self._var_name, name),
@@ -223,39 +223,39 @@ class PSyDataNode(Node):
                         "\"{0}\"".format(self._region_name),
                         len(pre_variable_list),
                         len(post_variable_list)])
+        has_var = pre_variable_list or post_variable_list
+        if has_var:
+            for var_name in pre_variable_list+post_variable_list:
+                self._add_call("PreDeclareVariable", parent,
+                               ["\"{0}\"".format(var_name),
+                                "{0}".format(var_name)])
 
-        for var_name in pre_variable_list+post_variable_list:
-            self._add_call("PreDeclareVariable", parent,
-                           ["\"{0}\"".format(var_name),
-                            "{0}".format(var_name)])
+            self._add_call("PreEndDeclaration", parent,
+                           ["\"{0}\"".format(self._module_name),
+                            "\"{0}\"".format(self._region_name)])
 
-        self._add_call("PreEndDeclaration", parent,
-                       ["\"{0}\"".format(self._module_name),
-                        "\"{0}\"".format(self._region_name)])
+            for var_name in pre_variable_list:
+                self._add_call("WriteVariable", parent,
+                               ["\"{0}\"".format(var_name),
+                                "{0}".format(var_name)])
 
-        for var_name in pre_variable_list:
-            self._add_call("WriteVariable", parent,
-                           ["\"{0}\"".format(var_name),
-                            "{0}".format(var_name)])
-
-        self._add_call("PreEnd", parent,
-                       ["\"{0}\"".format(self._module_name),
-                        "\"{0}\"".format(self._region_name)])
+            self._add_call("PreEnd", parent,
+                           ["\"{0}\"".format(self._module_name),
+                            "\"{0}\"".format(self._region_name)])
 
         for child in self.psy_data_body:
             child.gen_code(parent)
 
-        self._add_call("PostStart", parent,
-                       ["\"{0}\"".format(self._module_name),
-                        "\"{0}\"".format(self._region_name)])
-        for var_name in post_variable_list:
-            self._add_call("WriteVariable", parent,
-                           ["\"{0}\"".format(var_name),
-                            "{0}".format(var_name)])
+        if has_var:
+            self._add_call("PostStart", parent,
+                           ["\"{0}\"".format(self._module_name),
+                            "\"{0}\"".format(self._region_name)])
+            for var_name in post_variable_list:
+                self._add_call("WriteVariable", parent,
+                               ["\"{0}\"".format(var_name),
+                                "{0}".format(var_name)])
 
-        self._add_call("PostEnd", parent,
-                       ["\"{0}\"".format(self._module_name),
-                        "\"{0}\"".format(self._region_name)])
+        self._add_call("PostEnd", parent)
 
     # -------------------------------------------------------------------------
     def gen_c_code(self, indent=0):

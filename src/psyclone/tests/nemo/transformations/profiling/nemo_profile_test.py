@@ -82,17 +82,17 @@ def test_profile_single_loop(parser):
     schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
-        "  USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd\n"
+        "  USE psy_data_mod, ONLY: PSyDataType\n"
         "  USE kind_mod, ONLY: wp\n" in code)
     assert (
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-        "  TYPE(ProfileData), SAVE :: psy_profile0\n" in code)
+        "  TYPE(PSyDataType), SAVE :: psy_data0\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'r0', psy_profile0)\n"
+        "  CALL psy_data0 % PreStart('do_loop', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL ProfileEnd(psy_profile0)\n" in code)
+        "  CALL psy_data0 % PostEnd\n" in code)
 
 
 def test_profile_two_loops(parser):
@@ -114,25 +114,25 @@ def test_profile_two_loops(parser):
     schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
-        "  USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd\n"
+        "  USE psy_data_mod, ONLY: PSyDataType\n"
         "  USE kind_mod, ONLY: wp\n" in code)
-    assert code.count("USE profile_mod") == 1
+    assert code.count("USE psy_data_mod") == 1
     assert (
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-        "  TYPE(ProfileData), SAVE :: psy_profile0\n"
-        "  TYPE(ProfileData), SAVE :: psy_profile1\n" in code)
+        "  TYPE(PSyDataType), SAVE :: psy_data0\n"
+        "  TYPE(PSyDataType), SAVE :: psy_data1\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'r0', psy_profile0)\n"
+        "  CALL psy_data0 % PreStart('do_loop', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL ProfileEnd(psy_profile0)\n" in code)
+        "  CALL psy_data0 % PostEnd\n" in code)
     assert (
-        "  CALL ProfileStart('do_loop', 'r1', psy_profile1)\n"
+        "  CALL psy_data1 % PreStart('do_loop', 'r1', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp2(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL ProfileEnd(psy_profile1)\n" in code)
+        "  CALL psy_data1 % PostEnd\n" in code)
 
 
 def test_profile_codeblock(parser):
@@ -149,11 +149,11 @@ def test_profile_codeblock(parser):
     schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
-        "  CALL ProfileStart('cb_test', 'r0', psy_profile0)\n"
+        "  CALL psy_data0 % PreStart('cb_test', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    WRITE(*, FMT = *) sto_tmp2(ji)\n"
         "  END DO\n"
-        "  CALL ProfileEnd(psy_profile0)\n" in code)
+        "  CALL psy_data0 % PostEnd\n" in code)
 
 
 def test_profile_inside_if1(parser):
@@ -174,8 +174,8 @@ def test_profile_inside_if1(parser):
     schedule, _ = PTRANS.apply(schedule.children[0].if_body[0])
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
-            "    CALL ProfileStart(" in gen_code)
-    assert ("    CALL ProfileEnd(psy_profile0)\n"
+            "    CALL psy_data0 % PreStart(" in gen_code)
+    assert ("    CALL psy_data0 % PostEnd\n"
             "  END IF\n" in gen_code)
 
 
@@ -196,8 +196,8 @@ def test_profile_inside_if2(parser):
     schedule, _ = PTRANS.apply(schedule.children[0].if_body)
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
-            "    CALL ProfileStart(" in gen_code)
-    assert ("    CALL ProfileEnd(psy_profile0)\n"
+            "    CALL psy_data0 % PreStart(" in gen_code)
+    assert ("    CALL psy_data0 % PostEnd\n"
             "  END IF\n" in gen_code)
 
 
@@ -224,9 +224,9 @@ def test_profile_single_line_if(parser):
     schedule, _ = PTRANS.apply(schedule[0])
     gen_code = str(psy.gen)
     assert (
-        "  CALL ProfileStart('one_line_if_test', 'r0', psy_profile0)\n"
+        "  CALL psy_data0 % PreStart('one_line_if_test', 'r0', 0, 0)\n"
         "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
-        "  CALL ProfileEnd(psy_profile0)\n" in gen_code)
+        "  CALL psy_data0 % PostEnd\n" in gen_code)
 
 
 def test_profiling_case(parser):
@@ -280,27 +280,27 @@ def test_profiling_case(parser):
     PTRANS.apply(sched.children)
     code = str(psy.gen)
     assert (
-        "  TYPE(ProfileData), SAVE :: psy_profile2\n"
-        "  TYPE(ProfileData), SAVE :: psy_profile1\n"
-        "  TYPE(ProfileData), SAVE :: psy_profile3\n"
-        "  TYPE(ProfileData), SAVE :: psy_profile0\n"
-        "  CALL ProfileStart('my_test', 'r0', psy_profile0)\n"
+        "  TYPE(PSyDataType), SAVE :: psy_data2\n"
+        "  TYPE(PSyDataType), SAVE :: psy_data1\n"
+        "  TYPE(PSyDataType), SAVE :: psy_data3\n"
+        "  TYPE(PSyDataType), SAVE :: psy_data0\n"
+        "  CALL psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
         "  p_fld_crs(:, :) = 0._wp\n" in code)
     assert ("      IF (mje_crs(2) - mjs_crs(2) == 1) THEN\n"
-            "        CALL ProfileStart('my_test', 'r2', psy_profile2)\n"
+            "        CALL psy_data2 % PreStart('my_test', 'r2', 0, 0)\n"
             in code)
     assert ("        END DO\n"
-            "        CALL ProfileEnd(psy_profile2)\n"
+            "        CALL psy_data2 % PostEnd\n"
             "      END IF\n" in code)
     assert ("  CASE ('VOL')\n"
-            "    CALL ProfileStart('my_test', 'r1', psy_profile1)\n" in code)
-    assert ("    CALL ProfileEnd(psy_profile1)\n"
+            "    CALL psy_data1 % PreStart('my_test', 'r1', 0, 0)\n" in code)
+    assert ("    CALL psy_data1 % PostEnd\n"
             "  CASE ('SUM')\n" in code)
     assert ("  CASE ('SUM')\n"
-            "    CALL ProfileStart('my_test', 'r3', psy_profile3)\n" in code)
-    assert ("    CALL ProfileEnd(psy_profile3)\n"
+            "    CALL psy_data3 % PreStart('my_test', 'r3', 0, 0)\n" in code)
+    assert ("    CALL psy_data3 % PostEnd\n"
             "  END SELECT\n"
-            "  CALL ProfileEnd(psy_profile0)\n"
+            "  CALL psy_data0 % PostEnd\n"
             "END SUBROUTINE my_test" in code)
 
 
@@ -322,9 +322,9 @@ def test_profiling_case_loop(parser):
     psy, sched = get_nemo_schedule(parser, code)
     PTRANS.apply(sched.children)
     code = str(psy.gen)
-    assert ("  CALL ProfileStart('my_test', 'r0', psy_profile0)\n"
+    assert ("  CALL psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
             "  SELECT CASE (igrd)\n" in code)
-    assert ("CALL ProfileEnd(psy_profile0)\n"
+    assert ("CALL psy_data0 % PostEnd\n"
             "END SUBROUTINE" in code)
 
 
@@ -379,7 +379,7 @@ def test_profiling_mod_use_clash(parser):
     clashes with the one we would 'use' for the profiling API. '''
     psy, schedule = get_nemo_schedule(parser,
                                       "program the_clash\n"
-                                      "  use profile_mod, only: some_var\n"
+                                      "  use psy_data_mod, only: some_var\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program the_clash\n")
     PTRANS.apply(schedule.children[0])
@@ -387,21 +387,21 @@ def test_profiling_mod_use_clash(parser):
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
     assert ("Cannot add profiling to 'the_clash' because it already 'uses' "
-            "a module named 'profile_mod'" in str(err.value))
+            "a module named 'psy_data_mod'" in str(err.value))
 
 
 def test_profiling_mod_name_clash(parser):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with the name of the profiling API module. '''
     psy, schedule = get_nemo_schedule(parser,
-                                      "program profile_mod\n"
+                                      "program psy_data_mod\n"
                                       "  real :: my_array(3,3)\n"
                                       "  my_array(:,:) = 0.0\n"
-                                      "end program profile_mod\n")
+                                      "end program psy_data_mod\n")
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
-    assert ("Cannot add profiling to 'profile_mod' because it already "
+    assert ("Cannot add profiling to 'psy_data_mod' because it already "
             "contains a symbol that clashes with the name of the PSyclone "
             "profiling " in str(err.value))
 

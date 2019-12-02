@@ -121,13 +121,13 @@ def test_profile_basic(capsys):
     new_sched_str = str(new_sched)
     correct = ("""GOInvokeSchedule[invoke='invoke_0', \
 Constant loop bounds=True]:
-ProfileStart[var=profile]
+ProfileStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
 Literal[value:'jstop-1']
 Literal[value:'1']
 Schedule:
-ProfileStart[var=profile_1]
+ProfileStart[var=psy_data_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
 Literal[value:'2']
 Literal[value:'istop']
@@ -202,16 +202,16 @@ def test_profile_invokes_gocean1p0():
     # the function 'compute_cv_code' is in the module file
     # kernel_ne_offset_mod.
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"kernel_ne_offset_mod\", "
-                  r"\"compute_cv_code\", profile\).*"
+                  "use psy_data_mod, ONLY: PSyDataType.*"
+                  r"TYPE\(PsyDataType\), save :: psy_data.*"
+                  r"call psy_data%PreStart\(\"kernel_ne_offset_mod\", "
+                  r"\"compute_cv_code\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call ProfileEnd\(profile\)")
+                  r"call psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     # Check that if gen() is called more than once the same profile
@@ -228,10 +228,10 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"compute_cu_mod\", "
-                  r"\"compute_cu_code\", profile\).*"
+                  "use psy_data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call psy_data%PreStart\(\"compute_cu_mod\", "
+                  r"\"compute_cu_code\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -242,7 +242,7 @@ def test_profile_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call ProfileEnd\(profile\)")
+                  r"call psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
     Profiler.set_options(None)
 
@@ -271,25 +271,25 @@ def test_unique_region_names():
     # those two groups and they can be accessed using the resulting
     # re object.group(n).
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"compute_cu_mod\", \"(\w*)\", "
-                  r"profile\).*"
+                  "use psy_Data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call psy_data.*%PreStart\(\"compute_cu_mod\", "
+                  r"\"(\w*)\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
-                  r"call ProfileEnd\(profile\).*"
-                  r"call ProfileStart\(\"compute_cu_mod\", \"(\w*)\", "
-                  r"profile_1\).*"
+                  r"call psy_Data.*%PostEnd.*"
+                  r"call psy_data.*%PreStart\(\"compute_cu_mod\", "
+                  r"\"(\w*)\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
-                  r"call ProfileEnd\(profile_1\)")
+                  r"call psy_data.*%PostEnd")
 
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
@@ -323,25 +323,25 @@ def test_profile_kernels_gocean1p0():
     # the name could be changed to avoid duplicates (depending on order
     # in which the tests are executed).
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"compute_cu_mod\", "
-                  r"\"compute_cu_code.*\", (?P<profile1>\w*)\).*"
+                  "use psy_data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call (?P<profile1>\w*)%PreStart\(\"compute_cu_mod\", "
+                  r"\"compute_cu_code.*\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call ProfileEnd\((?P=profile1)\).*"
-                  r"call ProfileStart\(\"time_smooth_mod\", "
-                  r"\"time_smooth_code\", (?P<profile2>\w*)\).*"
+                  r"call (?P=profile1)%PostEnd.*"
+                  r"call (?P<profile2>\w*)%PreStart\(\"time_smooth_mod\", "
+                  r"\"time_smooth_code\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call ProfileEnd\((?P=profile2)\)")
+                  r"call (?P=profile2)%PostEnd")
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
     # Check that the variables are different
@@ -365,14 +365,14 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code\", "
-                  r"profile\).*"
+                  "use psy_data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call psy_data%PreStart\(\"testkern_mod\", "
+                  r"\"testkern_code\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call ProfileEnd\(profile\)")
+                  r"call psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     # Next test two kernels in one invoke:
@@ -385,29 +385,29 @@ def test_profile_invokes_dynamo0p3():
     # The .* after testkern_code is necessary since the name can be changed
     # by PSyclone to avoid name duplications.
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code.*\","
-                  r" profile\).*"
+                  "use psy_data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call psy_data%PreStart\(\"testkern_mod\", "
+                  "\"testkern_code.*\","
+                  r" 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call ProfileEnd\(profile\)")
+                  r"call psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     # Lastly, test an invoke whose first kernel is a builtin
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "dynamo0.3", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = str(invoke.gen())
-    assert "USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd" \
+    assert "USE psy_data_mod, ONLY: PSyDataType" in code
+    assert "TYPE(PSyDataType), save :: psy_data" in code
+    assert "CALL psy_data%PreStart(\"unknown-module\", \"x_plus_y\", 0, 0)" \
         in code
-    assert "TYPE(ProfileData), save :: profile" in code
-    assert "CALL ProfileStart(\"unknown-module\", \"x_plus_y\", profile)" \
-        in code
-    assert "CALL ProfileEnd(profile)" in code
+    assert "CALL psy_data%PostEnd" in code
 
     Profiler.set_options(None)
 
@@ -426,15 +426,14 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData, ProfileStart, "
-                  "ProfileEnd.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code.*\", "
-                  r"profile\).*"
+                  "use psy_data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call psy_data%PreStart\(\"testkern_mod\", "
+                  r"\"testkern_code.*\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call ProfileEnd\(profile\)")
+                  r"call psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
@@ -445,21 +444,20 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData, ProfileStart, "
-                  "ProfileEnd.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code.*\", "
-                  r"(?P<profile1>\w*)\).*"
+                  "use psy_data_mod, only: PSyDataType.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"call (?P<profile1>\w*)%PreStart\(\"testkern_mod\", "
+                  r"\"testkern_code.*\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call ProfileEnd\((?P=profile1)\).*"
-                  r"call ProfileStart\(.*, (?P<profile2>\w*)\).*"
+                  r"call (?P=profile1)%PostEnd.*"
+                  r"call (?P<profile2>\w*)%PreStart\(.*, .*, 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call ProfileEnd\((?P=profile2)\).*")
+                  r"call (?P=profile2)%PostEnd")
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
     # Check that the variables are different
@@ -484,7 +482,7 @@ def test_transform(capsys):
 
     correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
 Constant loop bounds=True]:
-ProfileStart[var=profile]
+ProfileStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
 Literal[value:'jstop']
@@ -539,7 +537,7 @@ End Schedule""")
 
     correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
 Constant loop bounds=True]:
-ProfileStart[var=profile]
+ProfileStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'2']
 Literal[value:'jstop']
@@ -555,7 +553,7 @@ End Schedule
 End GOLoop
 End Schedule
 End GOLoop
-ProfileStart[var=profile_1]
+ProfileStart[var=psy_data_1]
 GOLoop[id:'', variable:'j', loop_type:'outer']
 Literal[value:'1']
 Literal[value:'jstop+1']
@@ -729,8 +727,8 @@ def test_omp_transform():
     sched3, _ = prt.apply(sched2[0])
 
     correct = (
-        "      CALL ProfileStart(\"boundary_conditions_ne_offset_mod\", "
-        "\"bc_ssh_code\", profile)\n"
+        "      CALL psy_data%PreStart(\"boundary_conditions_ne_offset_mod\", "
+        "\"bc_ssh_code\", 0, 0)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop\n"
@@ -740,7 +738,7 @@ def test_omp_transform():
         "      END DO \n"
         "      !$omp end do\n"
         "      !$omp end parallel\n"
-        "      CALL ProfileEnd(profile)")
+        "      CALL psy_data%PostEnd")
     code = str(invoke.gen())
     assert correct in code
 
@@ -750,19 +748,21 @@ def test_omp_transform():
 
     code = str(invoke.gen())
 
-    correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code", profile)
+    correct = \
+        "CALL psy_data%PreStart(\"boundary_conditions_ne_offset_mod\", " + \
+        '''"bc_ssh_code", 0, 0)
       !$omp parallel default(shared), private(i,j)
-      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_1", \
-profile_1)
+      CALL psy_data_1%PreStart("boundary_conditions_ne_offset_mod", ''' + \
+        '''"bc_ssh_code_1", 0, 0)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
-        END DO\x20
-      END DO\x20
+        END DO 
+      END DO 
       !$omp end do
-      CALL ProfileEnd(profile_1)
+      CALL psy_data_1%PostEnd
       !$omp end parallel
-      CALL ProfileEnd(profile)'''
+      CALL psy_data%PostEnd'''
+
     assert correct in code

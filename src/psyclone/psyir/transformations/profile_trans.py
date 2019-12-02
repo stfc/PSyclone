@@ -171,7 +171,6 @@ class ProfileTrans(RegionTrans):
             raise TransformationError("A ProfileNode cannot be inserted "
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
-        node_position = node_list[0].position
 
         # Perform validation checks
         self.validate(node_list, options)
@@ -185,19 +184,6 @@ class ProfileTrans(RegionTrans):
         # Create the ProfileNode. All of the supplied child nodes will have
         # the Profile's Schedule as their parent.
         from psyclone.psyir.nodes import ProfileNode
-        profile_node = ProfileNode(parent=node_parent, children=node_list[:])
-
-        # Correct the parent's list of children. Use a slice of the list of
-        # nodes so that we're looping over a local copy of the list. Otherwise
-        # things get confused when we remove children from the list.
-        for child in node_list[:]:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
-
-        # Add the Profile node as a child of the parent
-        # of the nodes being enclosed and at the original location
-        # of the first of these nodes
-        node_parent.addchild(profile_node,
-                             index=node_position)
+        ProfileNode(parent=node_parent, children=node_list[:])
 
         return schedule, keep
