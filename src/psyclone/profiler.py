@@ -182,6 +182,13 @@ class ProfileNode(Node):
         self._module_name = None
         self._region_name = None
         if name:
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise GenerationError(
+                    "Error in ProfileNode. Profile name must be a "
+                    "tuple containing two non-empty strings.")
+            # Valid profile names have been provided by the user.
             self._module_name = name[0]
             self._region_name = name[1]
 
@@ -225,15 +232,6 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        #if not self._module_name:
-        #    # PSy-layer subroutine name
-        #    self._module_name = self.root.invoke.name
-        #if not self._region_name:
-        #    self._region_name = "invoke"
-        #    # if single kernel use name+index_start+index_end
-        #    # elif full invoke use invoke_name
-        #    # else say "region"+index_start+index_end
-        #    pass
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
             # Schedule there should be only one kernel, but if Profile is
@@ -324,13 +322,16 @@ class ProfileNode(Node):
                                        Fortran2003.Specification_Part,
                                        Fortran2003.Use_Stmt,
                                        Fortran2003.Name])
-        for node in node_list:
-            if isinstance(node, (Fortran2003.Main_Program,
-                                 Fortran2003.Subroutine_Stmt,
-                                 Fortran2003.Function_Stmt)):
-                names = walk_ast([node], [Fortran2003.Name])
-                routine_name = str(names[0]).lower()
-                break
+        if self._module_name:
+            routine_name = self._module_name
+        else:
+            for node in node_list:
+                if isinstance(node, (Fortran2003.Main_Program,
+                                     Fortran2003.Subroutine_Stmt,
+                                     Fortran2003.Function_Stmt)):
+                    names = walk_ast([node], [Fortran2003.Name])
+                    routine_name = str(names[0]).lower()
+                    break
 
         for node in node_list:
             if isinstance(node, Fortran2003.Specification_Part):
@@ -416,7 +417,10 @@ class ProfileNode(Node):
         sched = self.root
         pnodes = sched.walk(ProfileNode)
         region_idx = pnodes.index(self)
-        region_name = "r{0}".format(region_idx)
+        if self._region_name:
+            region_name = self._region_name
+        else:
+            region_name = "r{0}".format(region_idx)
         var_name = "psy_profile{0}".format(region_idx)
 
         # Create a variable for this profiling region

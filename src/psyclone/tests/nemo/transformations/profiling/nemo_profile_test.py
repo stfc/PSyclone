@@ -95,6 +95,27 @@ def test_profile_single_loop(parser):
         "  CALL ProfileEnd(psy_profile0)\n" in code)
 
 
+def test_profile_single_loop_named(parser):
+    '''Check that the correct code is added to the generated Fortran when
+    profiling a single loop nest whend the profile is named by the
+    user.
+
+    '''
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+                                      "do ji = 1,jpj\n"
+                                      "  sto_tmp(ji) = 1.0d0\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
+    options = {"profile_name": ("my_routine", "my_region")}
+    schedule, _ = PTRANS.apply(schedule.children[0], options=options)
+    code = str(psy.gen)
+    assert ("CALL ProfileStart('my_routine', 'my_region', psy_profile0)"
+            in code)
+
+
 def test_profile_two_loops(parser):
     ''' Check that the correct code is added to the generated Fortran
     when profiling two, separate loop nests. '''

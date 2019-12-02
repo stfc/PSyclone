@@ -39,15 +39,17 @@
 
 from __future__ import absolute_import
 
+import os
 import re
 import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace, InternalError
+from psyclone.psyGen import Loop, NameSpace, InternalError, PSyFactory
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
     ProfileRegionTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
+from psyclone.parse.algorithm import parse
 
 
 # -----------------------------------------------------------------------------
@@ -349,6 +351,29 @@ def test_profile_kernels_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
+def test_profile_named_gocean1p0():
+    '''Check that the gocean 1.0 API is instrumented correctly when the
+    profile name is supplied by the user.
+
+    '''
+    GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "test_files", "gocean1p0")
+    _, info = parse(os.path.join(
+        GOCEAN_BASE_PATH,
+        "test11_different_iterates_over_one_invoke.f90"),
+                    api="gocean1.0")
+    psy = PSyFactory("gocean1.0").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileRegionTrans()
+    options = {"profile_name": (psy.name, invoke.name)}
+    _ = profile_trans.apply(invoke.schedule.children, options=options)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"psy_single_invoke_different_iterates_over\", "
+            "\"invoke_0\", profile)") in result
+
+
+# -----------------------------------------------------------------------------
 def test_profile_invokes_dynamo0p3():
     '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
@@ -471,11 +496,6 @@ def test_profile_named_dynamo0p3():
     profile name is supplied by the user.
 
     '''
-
-    # Single invoke with a single kernel
-    import os
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
     DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "test_files", "dynamo0p3")
     _, info = parse(os.path.join(DYNAMO_BASE_PATH, "1_single_invoke.f90"),
