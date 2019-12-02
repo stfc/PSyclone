@@ -303,20 +303,12 @@ def test_profilerregiontrans_name(monkeypatch):
                             options={"profile_name": ("x", "y")})
 
 
-def test_profilerregiontrans_invalid_name():
+@pytest.mark.parametrize("value", [None, ["a", "b"], (), ("a"),
+                                   ("a", "b", "c"), ("a", []), ([], "a")])
+def test_profilerregiontrans_invalid_name(value):
     '''Invalid name supplied to options argument.'''
-
-    # Incorrect format in general.
     profile_trans = ProfileRegionTrans()
     with pytest.raises(TransformationError) as excinfo:
-        _ = profile_trans.apply(Node(), options="invalid")
-    assert ("Transformation apply method options argument must be a "
-            "dictionary but found 'str'." in str(excinfo.value))
-
-    # Invalid profile name.
-    for value in [None, ["a", "b"], (), ("a"), ("a", "b", "c"),
-                  ("a", []), ([], "a")]:
-        with pytest.raises(TransformationError) as excinfo:
-            _ = profile_trans.apply(Node(), options={"profile_name": value})
-            assert ("User-supplied profile name must be a tuple containing "
-                    "two non-empty strings." in str(excinfo.value))
+        _ = profile_trans.apply(Node(), options={"profile_name": value})
+        assert ("User-supplied profile name must be a tuple containing "
+                "two non-empty strings." in str(excinfo.value))
