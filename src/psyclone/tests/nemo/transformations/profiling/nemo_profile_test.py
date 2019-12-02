@@ -40,9 +40,9 @@
 
 from __future__ import absolute_import, print_function
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, ProfileRegionTrans
-from fparser.common.readfortran import FortranStringReader
 
 # The transformation that most of these tests use
 PTRANS = ProfileRegionTrans()

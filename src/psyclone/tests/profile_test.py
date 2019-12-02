@@ -356,10 +356,10 @@ def test_profile_named_gocean1p0():
     profile name is supplied by the user.
 
     '''
-    GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    gocean_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "test_files", "gocean1p0")
     _, info = parse(os.path.join(
-        GOCEAN_BASE_PATH,
+        gocean_base_path,
         "test11_different_iterates_over_one_invoke.f90"),
                     api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(info)
@@ -367,7 +367,7 @@ def test_profile_named_gocean1p0():
     schedule = invoke.schedule
     profile_trans = ProfileRegionTrans()
     options = {"profile_name": (psy.name, invoke.name)}
-    _ = profile_trans.apply(invoke.schedule.children, options=options)
+    _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL ProfileStart(\"psy_single_invoke_different_iterates_over\", "
             "\"invoke_0\", profile)") in result
@@ -496,16 +496,16 @@ def test_profile_named_dynamo0p3():
     profile name is supplied by the user.
 
     '''
-    DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    dynamo_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "test_files", "dynamo0p3")
-    _, info = parse(os.path.join(DYNAMO_BASE_PATH, "1_single_invoke.f90"),
+    _, info = parse(os.path.join(dynamo_base_path, "1_single_invoke.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     profile_trans = ProfileRegionTrans()
     options = {"profile_name": (psy.name, invoke.name)}
-    _ = profile_trans.apply(invoke.schedule.children, options=options)
+    _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL ProfileStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", profile)") in result

@@ -307,7 +307,7 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, Schedule, InternalError
+        from psyclone.psyGen import object_index, InternalError
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()

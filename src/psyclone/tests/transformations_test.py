@@ -48,7 +48,7 @@ from psyclone.psyGen import Node, Invoke, InvokeSchedule
 def test_accloop():
     ''' Generic tests for the ACCLoopTrans transformation class '''
     from psyclone.transformations import ACCLoopTrans
-    from psyclone.psyGen import Node, ACCLoopDirective
+    from psyclone.psyGen import ACCLoopDirective
     trans = ACCLoopTrans()
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
@@ -61,7 +61,6 @@ def test_accloop():
 
 def test_accparallel():
     ''' Generic tests for the ACCParallelTrans class '''
-    from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     assert acct.name == "ACCParallelTrans"
 
@@ -91,7 +90,6 @@ def test_accenterdata_internalerr(monkeypatch):
 def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
     collapse argument '''
-    from psyclone.psyGen import Node
     from psyclone.transformations import OMPLoopTrans
     trans = OMPLoopTrans()
     pnode = Node()
@@ -107,7 +105,6 @@ def test_ifblock_children_region():
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
     from psyclone.psyGen import IfBlock, Reference, Schedule
-    from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
     ifblock = IfBlock()
@@ -263,7 +260,7 @@ def test_profilerregiontrans_noname(monkeypatch):
     then it creates a profile node with no name information.
 
     '''
-    class dummy():
+    class Dummy(object):
         '''Dummy class that checks the name argument is None.
 
         :param NonType parent: dummy to conform to ProfileNode arguments.
@@ -272,9 +269,11 @@ def test_profilerregiontrans_noname(monkeypatch):
 
         '''
         def __init__(self, parent=None, children=None, name=None):
+            self._parent = parent
+            self._children = children
             if name is not None:
                 raise Exception("test failed")
-    monkeypatch.setattr("psyclone.profiler.ProfileNode", dummy)
+    monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
     # Create and apply the transformation.
     profile_trans = ProfileRegionTrans()
     _ = profile_trans.apply(dummy_nodes())
@@ -286,7 +285,7 @@ def test_profilerregiontrans_name(monkeypatch):
     information.
 
     '''
-    class dummy():
+    class Dummy(object):
         '''Dummy class that checks the options argument is None.
 
         :param NonType parent: dummy to conform to ProfileNode arguments.
@@ -295,8 +294,10 @@ def test_profilerregiontrans_name(monkeypatch):
 
         '''
         def __init__(self, parent=None, children=None, name=None):
+            self._parent = parent
+            self._children = children
             assert name == ("x", "y")
-    monkeypatch.setattr("psyclone.profiler.ProfileNode", dummy)
+    monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
     # Create and apply the transformation.
     profile_trans = ProfileRegionTrans()
     _ = profile_trans.apply(dummy_nodes(),
