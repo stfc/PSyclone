@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -41,7 +42,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn
+     NameSpaceFactory, Node, BuiltIn, InternalError
 
 
 class Profiler(object):
@@ -177,15 +178,16 @@ class ProfileNode(Node):
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or a child for the kernel, so
         # the name is left empty, unless explicitly provided by the
-        # user. The region and module names are set the first time
-        # gen() is called (and then remain unchanged).
+        # user. If not names are provided here then the region and
+        # module names are set the first time gen() is called (and
+        # then remain unchanged).
         self._module_name = None
         self._region_name = None
         if name:
             if not isinstance(name, tuple) or not len(name) == 2 or \
                not name[0] or not isinstance(name[0], str) or \
                not name[1] or not isinstance(name[1], str):
-                raise GenerationError(
+                raise InternalError(
                     "Error in ProfileNode. Profile name must be a "
                     "tuple containing two non-empty strings.")
             # Valid profile names have been provided by the user.
@@ -214,7 +216,7 @@ class ProfileNode(Node):
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule, InternalError
+        from psyclone.psyGen import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
@@ -307,7 +309,7 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, InternalError
+        from psyclone.psyGen import object_index
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()

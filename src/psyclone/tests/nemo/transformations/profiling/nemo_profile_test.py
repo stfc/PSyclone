@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code to insert profiling calls.
@@ -97,7 +98,7 @@ def test_profile_single_loop(parser):
 
 def test_profile_single_loop_named(parser):
     '''Check that the correct code is added to the generated Fortran when
-    profiling a single loop nest whend the profile is named by the
+    profiling a single loop nest with the profile being named by the
     user.
 
     '''

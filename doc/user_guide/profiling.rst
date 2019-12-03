@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by J. Henrichs, Bureau of Meteorology
 .. Modified by A. R. Porter, STFC Daresbury Lab
+.. Modified by R. W. Ford, STFC Daresbury Lab
 
 .. _profiling:
 
@@ -309,10 +310,10 @@ As an example::
     newschedule.view()
 
 The profiler transformation also allows the profile name to be set
-explicitely, rather than being automatically created. This allows for
-more potentially more intuitive names or finer grain control over
-profiling (as particular regions could be provided with the same
-profile names). For example::
+explicitly, rather than being automatically created. This allows for
+potentially more intuitive names or finer grain control over profiling
+(as particular regions could be provided with the same profile
+names). For example::
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -325,6 +326,12 @@ profile names). For example::
     profile_trans.apply(schedule[0].children[1:2], options=options)
     profile_trans.apply(schedule[0].children[5:7], options=options)
 
+.. warning::
+
+   If "profile_name" is misspelt in the options dictionary then the
+   option will be silently ignored. This is true for all
+   options. Issue #613 captures this problem.
+   
 .. warning::
  
     It is the responsibility of the user to make sure that a profile

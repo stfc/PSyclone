@@ -42,7 +42,7 @@ from __future__ import absolute_import, print_function
 import pytest
 from psyclone.transformations import TransformationError, ProfileRegionTrans, \
     RegionTrans, ACCParallelTrans
-from psyclone.psyGen import Node, Invoke, InvokeSchedule
+from psyclone.psyGen import Node
 
 
 def test_accloop():
@@ -236,104 +236,38 @@ def test_regiontrans_wrong_options():
 # Tests for ProfileRegionTrans
 
 
-def dummy_nodes():
-    '''Utility routine which create a minimal invoke and schedule
-    hierarchy for use in subsequent ProfileRegionTrans tests.
-
-    :returns: a list containing a single node connected to a minimal \
-    InvokeSchedule which is connected to a minimal Schedule. This \
-    hierarchy is required for code unrelated to the tests.
-    :rtype: list of :py:class:`psyclone.psyGen.Node`
-
-    '''
-    schedule = InvokeSchedule(None, None)
-    schedule.invoke = Invoke(None, None, None)
-    node = Node()
-    node.parent = schedule
-    nodes = [node]
-    schedule.children = nodes
-    return nodes
-
-
-def test_profilerregiontrans_noname(monkeypatch):
-    '''Check that when no name is supplied to the profile transformation
-    then it creates a profile node with no name information.
+@pytest.mark.parametrize("options", [None, {"invalid": "invalid"},
+                                     {"profile_name": ("mod", "reg")}])
+def test_profileregiontrans_name(options):
+    '''Check that providing no option or an option not associated with the
+    profile transformation does not result in anything being passed
+    into ProfileNode via the name argument and that providing an
+    option associated with the profile transformation does result in
+    the the relevant names being passed into ProfileNode via the name
+    argument. This is checked by looking at the variables
+    '_module_name' and '_region_name' which are set to the name
+    argument values if they are provided, otherwise the variables are
+    set to None.
 
     '''
-    class Dummy(object):
-        '''Dummy class that checks the name argument is None.
-
-        :param NonType parent: dummy to conform to ProfileNode arguments.
-        :param NonType children: dummy to conform to ProfileNode arguments.
-        :param NoneType name: the name argument that we are testing.
-
-        '''
-        def __init__(self, parent=None, children=None, name=None):
-            self._parent = parent
-            self._children = children
-            if name is None:
-                raise Exception("test passed")
-    monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
-    # Create and apply the transformation.
+    from psyclone.tests.utilities import get_invoke
+    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    schedule = invoke.schedule
     profile_trans = ProfileRegionTrans()
-    with pytest.raises(Exception) as excinfo:
-        _ = profile_trans.apply(dummy_nodes())
-    assert "test passed" in str(excinfo.value)
+    if options:
+        _, _ = profile_trans.apply(schedule.children, options=options)
+    else:
+        _, _ = profile_trans.apply(schedule.children)
+    profile_node = schedule[0]
+    if options and "profile_name" in options:
+        assert profile_node._module_name == "mod"
+        assert profile_node._region_name == "reg"
+    else:
+        assert profile_node._module_name is None
+        assert profile_node._region_name is None
 
 
-def test_profilerregiontrans_otheroption(monkeypatch):
-    '''Check that an option not associated with the profile transformation
-    is ignored.
-
-    '''
-    class Dummy(object):
-        '''Dummy class that checks the name argument is None.
-
-        :param NonType parent: dummy to conform to ProfileNode arguments.
-        :param NonType children: dummy to conform to ProfileNode arguments.
-        :param NoneType name: the name argument that we are testing.
-
-        '''
-        def __init__(self, parent=None, children=None, name=None):
-            self._parent = parent
-            self._children = children
-            if name is None:
-                raise Exception("test passed")
-    monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
-    # Create and apply the transformation.
-    profile_trans = ProfileRegionTrans()
-    options = {"someotheroption": "someothervalue"}
-    with pytest.raises(Exception) as excinfo:
-        _ = profile_trans.apply(dummy_nodes(), options=options)
-    assert "test passed" in str(excinfo.value)
-
-
-def test_profilerregiontrans_name(monkeypatch):
-    '''Check that when a valid name is supplied to the profile
-    transformation then it creates a profile node with that name
-    information.
-
-    '''
-    class Dummy(object):
-        '''Dummy class that checks the options argument is None.
-
-        :param NonType parent: dummy to conform to ProfileNode arguments.
-        :param NonType children: dummy to conform to ProfileNode arguments.
-        :param (str, str) name: the name argument we are testing.
-
-        '''
-        def __init__(self, parent=None, children=None, name=None):
-            self._parent = parent
-            self._children = children
-            assert name == ("x", "y")
-    monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
-    # Create and apply the transformation.
-    profile_trans = ProfileRegionTrans()
-    _ = profile_trans.apply(dummy_nodes(),
-                            options={"profile_name": ("x", "y")})
-
-
-@pytest.mark.parametrize("value", [None, ["a", "b"], (), ("a"),
+@pytest.mark.parametrize("value", [None, ["a", "b"], (), ("a",),
                                    ("a", "b", "c"), ("a", []), ([], "a")])
 def test_profilerregiontrans_invalid_name(value):
     '''Invalid name supplied to options argument.'''
