@@ -275,3 +275,10 @@ def test_kernelglobalstoarguments(monkeypatch):
         ksymbol
     assert len(kernel.get_kernel_schedule().symbol_table.argument_list) == \
         len(kernel.args) + 2  # GOcean kernels have 2 implicit arguments
+
+    # Check that the PSy-layer generated code now contains the use statement
+    from psyclone.f2pygen import ModuleGen, SubroutineGen
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    _ = invoke.schedule.gen_code(sub)
+    assert "USE model_mod, ONLY: rdt" in str(sub.root)
