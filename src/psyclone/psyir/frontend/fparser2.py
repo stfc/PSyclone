@@ -587,9 +587,9 @@ class Fparser2Reader(object):
                                                         type_spec)
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
+                    "Could not process {0}. Only 'real', 'integer', "
+                    "'logical' and 'character' intrinsic types are "
+                    "supported.".format(str(decl.items)))
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -2003,11 +2003,10 @@ class Fparser2Reader(object):
         # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)
-        elif isinstance(node, Fortran2003.Real_Literal_Constant):
+        if isinstance(node, Fortran2003.Real_Literal_Constant):
             return Literal(str(node.items[0]), DataType.REAL, parent=parent)
-        else:
-            # Unrecognised datatype - will result in a CodeBlock
-            raise NotImplementedError()
+        # Unrecognised datatype - will result in a CodeBlock
+        raise NotImplementedError()
 
     def _char_literal_handler(self, node, parent):
         '''

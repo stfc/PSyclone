@@ -1493,7 +1493,7 @@ def test_handling_invalid_case_construct(f2008_parser):
         processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert "to be a Case_Selector but got" in str(error.value)
 
-    
+
 def test_handling_binaryopbase(f2008_parser):
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
@@ -1776,7 +1776,6 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
     ''' Check that encountering a loop in the fparser parse tree that is
     missing a Loop_Control element raises an InternalError. '''
     from fparser.two.utils import walk_ast
-    from fparser.two import Fortran2003
     reader = FortranStringReader('''
         do while(a .gt. b)\n
             c = c + 1\n

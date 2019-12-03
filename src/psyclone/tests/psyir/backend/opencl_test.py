@@ -37,6 +37,7 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.opencl module'''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
