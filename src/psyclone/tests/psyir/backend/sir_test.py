@@ -657,7 +657,8 @@ def test_sirwriter_literal_node_1(parser, sir_writer):
 
 
 # (2/2) Method literal_node
-@pytest.mark.xfail(reason="#468 PSyIR does not capture the type of literals")
+@pytest.mark.xfail(reason="#612 SIR backend does not yet make use of the"
+                   "datatype of the PSyIR Literal node.")
 def test_sirwriter_literal_node_2(parser, sir_writer):
     '''Check the array_node method of the SIRWriter class outputs the
     expected SIR when given a PSyIR Literal node with an 'integer'
@@ -717,7 +718,8 @@ def test_sirwriter_unary_node_3(parser, sir_writer):
 
 
 # (4/4) Method unaryoperation_node
-@pytest.mark.xfail(reason="#468 PSyIR does not capture the type of literals")
+@pytest.mark.xfail(reason="#612 the SIR backend does not yet make use of the"
+                   "datatype of the PSyIR Literal node.")
 def test_sirwriter_unary_node_4(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class outputs
     the expected SIR when the subject of the unary operator is an
