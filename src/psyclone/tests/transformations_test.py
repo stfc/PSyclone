@@ -336,5 +336,5 @@ def test_profilerregiontrans_invalid_name(value):
     profile_trans = ProfileRegionTrans()
     with pytest.raises(TransformationError) as excinfo:
         _ = profile_trans.apply(Node(), options={"profile_name": value})
-        assert ("User-supplied profile name must be a tuple containing "
-                "two non-empty strings." in str(excinfo.value))
+    assert ("User-supplied profile name must be a tuple containing "
+            "two non-empty strings." in str(excinfo.value))
