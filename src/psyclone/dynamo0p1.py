@@ -43,7 +43,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
     Schedule, Array
-from psyclone.psyir.nodes import DataType
+from psyclone.psyir.symbols import DataType
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 

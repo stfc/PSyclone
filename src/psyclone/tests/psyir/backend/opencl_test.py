@@ -42,8 +42,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyGen import KernelSchedule, Return
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    ArgumentInterface, UnresolvedInterface
-from psyclone.psyir.nodes import DataType
+    ArgumentInterface, UnresolvedInterface, DataType
 
 
 def test_oclw_initialization():

@@ -42,7 +42,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import DataType
+from psyclone.psyir.symbols import DataType
 from psyclone.psyGen import Node, Literal, CodeBlock
 
 
@@ -76,8 +76,8 @@ def test_literal_datatype():
     ival = Literal("1", DataType.INTEGER)
     with pytest.raises(TypeError) as err:
         ival.datatype = 1
-    assert ("datatype of a Literal must be an instance of psyir.nodes.DataType"
-            " but got" in str(err.value))
+    assert ("datatype of a Literal must be an instance of psyir.symbols."
+            "DataType but got" in str(err.value))
     with pytest.raises(ValueError) as err:
         ival.datatype = DataType.DEFERRED
     assert "datatype of a Literal must be one of" in str(err.value)

@@ -47,8 +47,7 @@ from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     NaryOperation, IfBlock, Reference, Array, KernelSchedule, \
     Container, InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError
-from psyclone.psyir.nodes import DataType
+    ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 

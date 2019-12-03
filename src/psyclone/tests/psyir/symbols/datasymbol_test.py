@@ -38,10 +38,12 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
+from __future__ import absolute_import
 import pytest
+
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
-from psyclone.psyir.nodes import DataType
+    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    DataType
 from psyclone.psyGen import InternalError, Container
 
 

@@ -48,8 +48,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, SymbolError
-from psyclone.psyir.nodes import DataType
+from psyclone.psyir.symbols import SymbolTable, SymbolError, DataType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -6120,9 +6119,9 @@ class Literal(Node):
     Node representing a Literal.
 
     :param value: the value of the literal.
-    :type value: str (for numberical values) or bool
-    :param datatype: The datatype of this literal.
-    :type datatype: :py:class:`psyclone.psyGen.DataType`
+    :type value: str (for numerical values) or bool
+    :param datatype: the datatype of this literal.
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -6149,16 +6148,16 @@ class Literal(Node):
         Setter for the data-type of this Literal.
 
         :param value: the data-type.
-        :type value: :py:class:`psyclone.psyir.nodes.DataType`
+        :type value: :py:class:`psyclone.psyir.symbols.DataType`
 
         :raises TypeError: if the value is not an instance of \
-                           :py:class:`psyclone.psyir.nodes.DataType`
+                           :py:class:`psyclone.psyir.symbols.DataType`.
         :raises ValueError: if the data-type is not one of \
                             self.VALID_DATA_TYPES.
         '''
         if not isinstance(value, DataType):
             raise TypeError("The datatype of a Literal must be an instance of"
-                            " psyir.nodes.DataType but got '{0}'".format(
+                            " psyir.symbols.DataType but got '{0}'".format(
                                 type(value).__name__))
         if value not in self.VALID_DATA_TYPES:
             raise ValueError("The datatype of a Literal must be one of {0} "

@@ -59,7 +59,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
     CodedKern, ACCEnterDataDirective
-from psyclone.psyir.nodes import DataType
+from psyclone.psyir.symbols import DataType
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #

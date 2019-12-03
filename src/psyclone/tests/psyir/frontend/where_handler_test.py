@@ -115,7 +115,7 @@ def test_where_array_notation_rank(parser):
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
     '''
-    from psyclone.psyir.nodes import DataType
+    from psyclone.psyir.symbols import DataType
     my_array = Array("my_array", None)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:

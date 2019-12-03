@@ -39,8 +39,8 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from enum import Enum
-from psyclone.psyir.symbols import Symbol, SymbolError
-from psyclone.psyir.nodes import DataType, TYPE_MAP_TO_PYTHON
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
 
 
 class DataSymbol(Symbol):
@@ -51,7 +51,7 @@ class DataSymbol(Symbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
-    :type datatype: :py:class:`psyclone.psyir.nodes.DataType`
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param list shape: shape of the symbol in column-major order (leftmost \
         index is contiguous in memory). Each entry represents an array \
         dimension. If it is 'None' the extent of that dimension is unknown, \
@@ -74,8 +74,8 @@ class DataSymbol(Symbol):
     :type precision: int or :py:class:`psyclone.psyir.symbol.DataSymbol` or \
                      :py:class:`psyclone.psyir.symbols.DataSymbol.Precision`
 
-    :raises TypeError: provided parameters have invalid type.
-    :raises ValueError: provided parameters contain invalid values.
+    :raises TypeError: if the provided parameters have invalid type.
+    :raises ValueError: if the provided parameters contain invalid values.
 
     '''
     class Precision(Enum):
@@ -191,7 +191,7 @@ class DataSymbol(Symbol):
         ''' Setter for DataSymbol datatype.
 
         :param value: new value for datatype.
-        :type value: :py:class:`psyclone.psyir.nodes.DataType`
+        :type value: :py:class:`psyclone.psyir.symbols.DataType`
 
         :raises TypeError: if value is not of the correct type.
         :raises NotImplementedError: if the specified data type is invalid.

@@ -46,9 +46,9 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
-from psyclone.psyir.nodes import DataType, TYPE_MAP_TO_PYTHON
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface
+    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
+    DataType, TYPE_MAP_TO_PYTHON
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -2000,6 +2000,7 @@ class Fparser2Reader(object):
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
+        # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)
         elif isinstance(node, Fortran2003.Real_Literal_Constant):
@@ -2014,13 +2015,14 @@ class Fparser2Reader(object):
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
-        :param parent: Parent node of the PSyIR node we are constructing.
+        :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
 
         '''
+        # pylint: disable=no-self-use
         return Literal(str(node.items[0]), DataType.CHARACTER, parent=parent)
 
     def _bool_literal_handler(self, node, parent):
@@ -2029,12 +2031,13 @@ class Fparser2Reader(object):
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
-        :param parent: Parent node of the PSyIR node we are constructing.
+        :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Literal`
 
         '''
+        # pylint: disable=no-self-use
         value = str(node.items[0]).lower() == ".true."
         return Literal(value, DataType.BOOLEAN, parent=parent)

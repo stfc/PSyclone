@@ -41,7 +41,7 @@ OpenCL code from PSyIR nodes.
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.nodes import DataType
+from psyclone.psyir.symbols import DataType
 
 
 class OpenCLWriter(CWriter):

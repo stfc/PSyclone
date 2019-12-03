@@ -42,9 +42,9 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
-from psyclone.psyir.nodes import DataType
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -52,11 +52,12 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
-# Mapping from PSyIR types to Fortran data types
-TYPE_MAP_TO_FORTRAN = {DataType.INTEGER: "integer",
-                       DataType.CHARACTER: "character",
-                       DataType.BOOLEAN: "logical",
-                       DataType.REAL: "real"}
+# Mapping from PSyIR types to Fortran data types - simply reverse the map
+# from the frontend.
+TYPE_MAP_TO_FORTRAN = {}
+for key, item in TYPE_MAP_FROM_FORTRAN.items():
+    TYPE_MAP_TO_FORTRAN[item] = key
+
 
 
 def gen_intent(symbol):
