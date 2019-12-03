@@ -271,12 +271,14 @@ def test_profilerregiontrans_noname(monkeypatch):
         def __init__(self, parent=None, children=None, name=None):
             self._parent = parent
             self._children = children
-            if name is not None:
-                raise Exception("test failed")
+            if name is None:
+                raise Exception("test passed")
     monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
     # Create and apply the transformation.
     profile_trans = ProfileRegionTrans()
-    _ = profile_trans.apply(dummy_nodes())
+    with pytest.raises(Exception) as excinfo:
+        _ = profile_trans.apply(dummy_nodes())
+    assert "test passed" in str(excinfo.value)
 
 
 def test_profilerregiontrans_otheroption(monkeypatch):
@@ -295,13 +297,15 @@ def test_profilerregiontrans_otheroption(monkeypatch):
         def __init__(self, parent=None, children=None, name=None):
             self._parent = parent
             self._children = children
-            if name is not None:
-                raise Exception("test failed")
+            if name is None:
+                raise Exception("test passed")
     monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
     # Create and apply the transformation.
     profile_trans = ProfileRegionTrans()
     options = {"someotheroption": "someothervalue"}
-    _ = profile_trans.apply(dummy_nodes(), options=options)
+    with pytest.raises(Exception) as excinfo:
+        _ = profile_trans.apply(dummy_nodes(), options=options)
+    assert "test passed" in str(excinfo.value)
 
 
 def test_profilerregiontrans_name(monkeypatch):
