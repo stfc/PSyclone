@@ -140,7 +140,7 @@ class RegionTrans(Transformation):
         # an If statement or the bounds of a Loop. If the parent node is
         # a Loop or IfBlock then we can only accept a single Schedule.
         if not isinstance(node_parent, Schedule) and \
-            not(isinstance(node_list[0], Schedule)):
+                not isinstance(node_list[0], Schedule):
             # We've already checked for lists with len > 1 that contain a
             # Schedule above so if the first item is a Schedule then that's
             # all the list contains.
