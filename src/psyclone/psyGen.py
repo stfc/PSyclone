@@ -3290,26 +3290,26 @@ class Loop(Node):
         '''
         if not isinstance(var_name, str):
             raise GenerationError(
-                "var_name argument to class Loop method create "
+                "var_name argument in create method of Loop class "
                 "should be a string but found '{0}'."
                 "".format(type(var_name).__name__))
         for name, instance in [("start", start), ("stop", stop),
                                ("step", step)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
-                    "{0} argument to class Loop method create should "
+                    "{0} argument in create method of Loop class should "
                     "be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument to class Loop method "
-                "create should be a list but found '{0}'."
+                "children argument in create method of Loop class "
+                "should be a list but found '{0}'."
                 "".format(type(children).__name__))
         for child in children:
             if not isinstance(child, Node):
                 raise GenerationError(
-                    "child of children argument to class Loop method "
-                    "create should be a PSyIR Node but found '{0}'."
+                    "child of children argument in create method of Loop "
+                    "class should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
 
         loop = Loop()
@@ -5421,21 +5421,21 @@ class IfBlock(Node):
         '''
         if not isinstance(if_condition, Node):
             raise GenerationError(
-                "if_condition argument to class IfBlock method create "
+                "if_condition argument in create method of IfBlock class "
                 "should be a PSyIR Node but found '{0}'."
                 "".format(type(if_condition).__name__))
         if not (isinstance(if_body, list) and all(isinstance(child, Node)
                                                   for child in if_body)):
             raise GenerationError(
-                "if_body argument to class IfBlock method create should be "
+                "if_body argument in create method of IfBlock class should be "
                 "a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
         if else_body and \
            not (isinstance(if_body, list) and
                 all(isinstance(child, Node) for child in else_body)):
             raise GenerationError(
-                "else_body argument to class IfBlock method create should be "
-                "a list of PSyIR Nodes but it is either not a list or "
+                "else_body argument in create method of IfBlock class should "
+                "be a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
 
         if_stmt = IfBlock()
@@ -5649,25 +5649,25 @@ class KernelSchedule(Schedule):
         '''
         if not isinstance(name, str):
             raise GenerationError(
-                "name argument to class KernelSchedule method create "
+                "name argument in create method of KernelSchedule class "
                 "should be a string but found '{0}'."
                 "".format(type(name).__name__))
         if not isinstance(symbol_table, SymbolTable):
             raise GenerationError(
-                "symbol_table argument to class KernelSchedule method create "
-                "should be a SymbolTable but found '{0}'."
+                "symbol_table argument in create method of KernelSchedule "
+                "class should be a SymbolTable but found '{0}'."
                 "".format(type(symbol_table).__name__))
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument to class KernelSchedule method "
-                "create should be a list but found '{0}'."
+                "children argument in create method of KernelSchedule class "
+                "should be a list but found '{0}'."
                 "".format(type(children).__name__))
         for child in children:
             if not isinstance(child, Node):
                 raise GenerationError(
-                    "child of children argument to class KernelSchedule "
-                    "method create should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
+                    "child of children argument in create method of "
+                    "KernelSchedule class should be a PSyIR Node but "
+                    "found '{0}'.".format(type(child).__name__))
 
         kern = KernelSchedule(name)
         kern._symbol_table = symbol_table
@@ -5867,8 +5867,8 @@ class Assignment(Node):
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
-                    "{0} argument to class Assignment method create should "
-                    "be a PSyIR Node but found '{1}'."
+                    "{0} argument in create method of Assignment class "
+                    "should be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
 
         new_assignment = Assignment()
@@ -6209,13 +6209,13 @@ class UnaryOperation(Operation):
         '''
         if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
-                "oper argument to class UnaryOperation method create should "
-                "be a PSyIR UnaryOperation Operator but found '{0}'."
+                "oper argument in create method of UnaryOperation class "
+                "should be a PSyIR UnaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
         if not isinstance(child, Node):
             raise GenerationError(
-                "child argument to class UnaryOperation method create should "
-                "be a PSyIR Node but found '{0}'."
+                "child argument in create method of UnaryOperation class "
+                "should be a PSyIR Node but found '{0}'."
                 "".format(type(child).__name__))
 
         unary_op = UnaryOperation(oper)
@@ -6299,13 +6299,13 @@ class BinaryOperation(Operation):
         '''
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
-                "oper argument to class BinaryOperation method create "
+                "oper argument in create method of BinaryOperation class "
                 "should be a PSyIR BinaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
-                    "{0} argument to class BinaryOperation method create "
+                    "{0} argument in create method of BinaryOperation class "
                     "should be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
 
@@ -6358,20 +6358,20 @@ class NaryOperation(Operation):
         '''
         if not isinstance(oper, NaryOperation.Operator):
             raise GenerationError(
-                "oper argument to class NaryOperation method create "
+                "oper argument in create method of NaryOperation class "
                 "should be a PSyIR NaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument to class NaryOperation method "
-                "create should be a list but found '{0}'."
+                "children argument in create method of NaryOperation class "
+                "should be a list but found '{0}'."
                 "".format(type(children).__name__))
         for child in children:
             if not isinstance(child, Node):
                 raise GenerationError(
-                    "child of children argument to class NaryOperation method "
-                    "create should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
+                    "child of children argument in create method of "
+                    "NaryOperation class should be a PSyIR Node but "
+                    "found '{0}'.".format(type(child).__name__))
 
         nary_op = NaryOperation(oper)
         for child in children:
@@ -6390,10 +6390,54 @@ class Array(Reference):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-    def __init__(self, reference_name, parent):
+    def __init__(self, reference_name, parent=None):
         super(Array, self).__init__(reference_name, parent=parent)
         self._text_name = "ArrayReference"
         self._colour_key = "Reference"
+
+    @staticmethod
+    def create(name, children):
+        '''Create an Array instance given an array name and a list of Node
+        array indices.
+
+        :param str name: the name of the array.
+        :param children: a list of Nodes describing the array indices.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: an Array instance.
+        :rtype: :py:class:`psyclone.psyGen.Array`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument in create method of Array class "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not name:
+            raise GenerationError(
+                "name argument in create method of Array class "
+                "can't be an empty string.")
+            
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of Array class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "Array class should be a PSyIR Node but found '{0}'."
+                    "".format(type(child).__name__))
+
+        array = Array(name)
+        for child in children:
+            child.parent = array
+        array.children = children
+        return array
 
     def __str__(self):
         result = "Array" + super(Array, self).__str__() + "\n"
@@ -6527,25 +6571,25 @@ class Container(Node):
         '''
         if not isinstance(name, str):
             raise GenerationError(
-                "name argument to class Container method create "
+                "name argument in create method of Container class "
                 "should be a string but found '{0}'."
                 "".format(type(name).__name__))
         if not isinstance(symbol_table, SymbolTable):
             raise GenerationError(
-                "symbol_table argument to class Container method create "
+                "symbol_table argument in create method of Container class "
                 "should be a SymbolTable but found '{0}'."
                 "".format(type(symbol_table).__name__))
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument to class Container method "
-                "create should be a list but found '{0}'."
+                "children argument in create method of Container class "
+                "should be a list but found '{0}'."
                 "".format(type(children).__name__))
         for child in children:
             if not isinstance(child, (KernelSchedule, Container)):
                 raise GenerationError(
-                    "child of children argument to class Container method "
-                    "create should be a PSyIR KernelSchedule or Container "
-                    "but found '{0}'.".format(type(child).__name__))
+                    "child of children argument in create method of "
+                    "Container class should be a PSyIR KernelSchedule or "
+                    "Container but found '{0}'.".format(type(child).__name__))
 
         container = Container(name)
         container._symbol_table = symbol_table

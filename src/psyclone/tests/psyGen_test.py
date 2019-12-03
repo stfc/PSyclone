@@ -663,38 +663,38 @@ def test_loop_create_invalid():
     # var_name is not a string.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(1, zero, one, one, children)
-    assert ("var_name argument to class Loop method create "
+    assert ("var_name argument in create method of Loop class "
             "should be a string but found 'int'.") in str(excinfo.value)
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", "invalid", one, one, children)
-    assert ("start argument to class Loop method create should "
+    assert ("start argument in create method of Loop class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, "invalid", one, children)
-    assert ("stop argument to class Loop method create should "
+    assert ("stop argument in create method of Loop class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, one, "invalid", children)
-    assert ("step argument to class Loop method create should "
+    assert ("step argument in create method of Loop class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, one, one, "invalid")
-    assert ("children argument to class Loop method create should "
+    assert ("children argument in create method of Loop class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, one, one, ["invalid"])
     assert (
-        "child of children argument to class Loop method create "
+        "child of children argument in create method of Loop class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
@@ -3293,7 +3293,7 @@ def test_ifblock_create_invalid():
     # if_condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create("True", "invalid")
-    assert ("if_condition argument to class IfBlock method create should "
+    assert ("if_condition argument in create method of IfBlock class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # One of more if body not a Node.
@@ -3301,14 +3301,14 @@ def test_ifblock_create_invalid():
                    "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body_err)
-    assert ("if_body argument to class IfBlock method create should be a "
+    assert ("if_body argument in create method of IfBlock class should be a "
             "list of PSyIR Nodes but it is either not a list or one of the "
             "list's children is not a Node.") in str(excinfo.value)
 
     # If body not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, "invalid")
-    assert ("if_body argument to class IfBlock method create should be a "
+    assert ("if_body argument in create method of IfBlock class should be a "
             "list of PSyIR Nodes but it is either not a list or one of the "
             "list's children is not a Node.") in str(excinfo.value)
 
@@ -3317,14 +3317,14 @@ def test_ifblock_create_invalid():
                      "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, else_body_err)
-    assert ("else_body argument to class IfBlock method create should be a "
+    assert ("else_body argument in create method of IfBlock class should be a "
             "list of PSyIR Nodes but it is either not a list or one of the "
             "list's children is not a Node.") in str(excinfo.value)
 
     # Else body not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, "invalid")
-    assert ("else_body argument to class IfBlock method create should be a "
+    assert ("else_body argument in create method of IfBlock class should be a "
             "list of PSyIR Nodes but it is either not a list or one of the "
             "list's children is not a Node.") in str(excinfo.value)
 
@@ -3393,13 +3393,13 @@ def test_assignment_create_invalid():
     # lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Assignment.create("invalid", Literal("0.0"))
-    assert ("lhs argument to class Assignment method create should "
+    assert ("lhs argument in create method of Assignment class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Assignment.create(Reference("tmp"), "invalid")
-    assert ("rhs argument to class Assignment method create should "
+    assert ("rhs argument in create method of Assignment class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
@@ -3517,6 +3517,50 @@ def test_array_can_be_printed():
     assert "ArrayReference[name:'aname']\n" in str(array)
 
 
+def test_array_create():
+    '''Test that the create method in the Array class correctly
+    creates an Array instance.
+
+    '''
+    children = [Reference("i"), Reference("j"), Literal("1")]
+    array = Array.create("temp", children)
+    result = FortranWriter().array_node(array)
+    assert result == "temp(i,j,1)"
+
+
+def test_array_create_invalid():
+    '''Test that the create method in an Array class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    # name is not a string
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create([], [])
+    assert ("name argument in create method of Array class should "
+            "be a string but found 'list'."
+            in str(excinfo.value))
+
+    # name is an empty string
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create("", [])
+    assert ("name argument in create method of Array class can't "
+            "be an empty string.")
+
+    # children not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create("temp", "invalid")
+    assert ("children argument in create method of Array class should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create("temp",
+                                 [Reference("i"), "invalid"])
+    assert (
+        "child of children argument in create method of Array class "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
+
 # Test Literal class
 def test_literal_value():
     '''Test the value property returns the value of the Literal object.
@@ -3615,20 +3659,20 @@ def test_binaryoperation_create_invalid():
     # oper not a BinaryOperation.Operator.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create("invalid", ref1, ref2)
-    assert ("oper argument to class BinaryOperation method create should "
+    assert ("oper argument in create method of BinaryOperation class should "
             "be a PSyIR BinaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
     # lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(add, "invalid", ref2)
-    assert ("lhs argument to class BinaryOperation method create should "
+    assert ("lhs argument in create method of BinaryOperation class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(add, ref1, "invalid")
-    assert ("rhs argument to class BinaryOperation method create should "
+    assert ("rhs argument in create method of BinaryOperation class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
@@ -3696,14 +3740,14 @@ def test_unaryoperation_create_invalid():
     # oper not a UnaryOperator.Operator.
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create("invalid", Reference("tmp"))
-    assert ("oper argument to class UnaryOperation method create should "
+    assert ("oper argument in create method of UnaryOperation class should "
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
     # child not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
-    assert ("child argument to class UnaryOperation method create should "
+    assert ("child argument in create method of UnaryOperation class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
@@ -3754,14 +3798,14 @@ def test_naryoperation_create_invalid():
     # oper not an NaryOperation.Operator
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create("invalid", [])
-    assert ("oper argument to class NaryOperation method create should "
+    assert ("oper argument in create method of NaryOperation class should "
             "be a PSyIR NaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(NaryOperation.Operator.SUM, "invalid")
-    assert ("children argument to class NaryOperation method create should "
+    assert ("children argument in create method of NaryOperation class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node
@@ -3769,7 +3813,7 @@ def test_naryoperation_create_invalid():
         _ = NaryOperation.create(NaryOperation.Operator.SUM,
                                  [Reference("tmp1"), "invalid"])
     assert (
-        "child of children argument to class NaryOperation method create "
+        "child of children argument in create method of NaryOperation class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
@@ -3845,7 +3889,6 @@ def test_container_create():
     '''
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", "real"))
-    content = [Assignment.create(Reference("tmp"), Literal("0.0"))]
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
@@ -3874,26 +3917,26 @@ def test_container_create_invalid():
     # name is not a string.
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create(1, symbol_table, children)
-    assert ("name argument to class Container method create "
+    assert ("name argument in create method of Container class "
             "should be a string but found 'int'.") in str(excinfo.value)
 
     # symbol_table not a SymbolTable.
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("container", "invalid", children)
-    assert ("symbol_table argument to class Container method create "
+    assert ("symbol_table argument in create method of Container class "
             "should be a SymbolTable but found 'str'.") in str(excinfo.value)
 
     # children not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, "invalid")
-    assert ("children argument to class Container method create should "
+    assert ("children argument in create method of Container class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Container or KernelSchedule.
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert (
-        "child of children argument to class Container method create "
+        "child of children argument in create method of Container class "
         "should be a PSyIR KernelSchedule or Container but found 'str'."
         in str(excinfo.value))
 
@@ -3973,26 +4016,26 @@ def test_kernelschedule_create_invalid():
     # name is not a string.
     with pytest.raises(GenerationError) as excinfo:
         _ = KernelSchedule.create(1, symbol_table, children)
-    assert ("name argument to class KernelSchedule method create "
+    assert ("name argument in create method of KernelSchedule class "
             "should be a string but found 'int'.") in str(excinfo.value)
 
     # symbol_table not a SymbolTable.
     with pytest.raises(GenerationError) as excinfo:
         _ = KernelSchedule.create("mod_name", "invalid", children)
-    assert ("symbol_table argument to class KernelSchedule method create "
+    assert ("symbol_table argument in create method of KernelSchedule class "
             "should be a SymbolTable but found 'str'.") in str(excinfo.value)
 
     # children not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = KernelSchedule.create("mod_name", symbol_table, "invalid")
-    assert ("children argument to class KernelSchedule method create should "
-            "be a list but found 'str'." in str(excinfo.value))
+    assert ("children argument in create method of KernelSchedule class "
+            "should be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = KernelSchedule.create("mod_name", symbol_table, ["invalid"])
     assert (
-        "child of children argument to class KernelSchedule method create "
+        "child of children argument in create method of KernelSchedule class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
