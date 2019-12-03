@@ -663,7 +663,6 @@ def test_loop_create_invalid():
     # var_name is not a string.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(1, zero, one, one, children)
-    print (str(excinfo.value))
     assert ("var_name argument to class Loop method create "
             "should be a string but found 'int'.") in str(excinfo.value)
 
@@ -3280,6 +3279,7 @@ def test_ifblock_create():
                       "  tmp=1.0\n"
                       "  tmp2=0.0\n"
                       "end if\n")
+
 
 def test_ifblock_create_invalid():
     '''Test that the create method in an IfBlock class raises the expected

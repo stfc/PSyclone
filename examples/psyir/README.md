@@ -42,7 +42,7 @@ code.
 
 ## Example 1:
 
-Create an instance of PSyIR using all of the generic PSyIR nodes and
+Create an instance of PSyIR using many of the generic PSyIR nodes and
 output the resultant tree as Fortran and C. Currently the C
 backend does not support all of the node types so it only outputs a
 subset of the tree. First, ensure that PSyclone is installed,

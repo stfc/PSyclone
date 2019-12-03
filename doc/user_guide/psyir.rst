@@ -87,13 +87,16 @@ Kernel-layer nodes
 Kernel-layer PSyIR classes are currently used to describe existing
 code in a language independent way. Consequently these nodes are more
 prescriptive and are independent of a particular PSyclone
-frontend. These nodes are designed to be used with PSyIR backends. One
-PSy-layer class (``Loop``), can also be used as a Kernel-layer
-class. Kernel-layer PSyIR nodes are: ``Loop``, ``IfBlock``,
-``CodeBlock``, ``Assignment``, ``Reference``, ``Operation``,
-``Literal``, ``Return`` and ``Container``. The ``Operation`` class is
-further subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation``.
+frontend. These nodes are designed to be used with PSyIR backends. Two
+PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
+Kernel-layer classes. Additionally, the ``Schedule`` class is further
+subclassed into a kernel-layer ``KernelSchedule``. In addition to
+``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
+``IfBlock``, ``CodeBlock``, ``Assignment``, ``Reference``,
+``Operation``, ``Literal``, ``Return`` and ``Container``. The
+``Reference`` class is further subclassed into ``Array`` and the
+``Operation`` class is further subclassed into ``UnaryOperation``,
+``BinaryOperation`` and ``NaryOperation``.
 
 
 Text Representation
@@ -185,8 +188,8 @@ in the PSyIR. At the moment the available symbols are:
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
 
-Creating or adding to PSyIR
----------------------------
+Creating PSyIR
+--------------
 
 PSyIR nodes are connected together via parent and child methods
 provided by the ``Node`` baseclass.
@@ -194,21 +197,22 @@ provided by the ``Node`` baseclass.
 These nodes can be created in isolation and then connected
 together. For example::
 
+    assignment = Assignment()
     literal = Literal("0.0")
     reference = Reference("a")
-    assignment = Assignment()
     literal.parent = assignment
     reference.parent = assignment
-    assignment.children = [reference, assignment]
-
+    assignment.children = [reference, literal]
+    
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
 in some cases children must be collected together within a
 ``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
 
 To simplify this complexity, each of the Kernel-layer nodes which
-contain other nodes have a ``create`` method which helps construct the
-PSyIR. Using this method, the above example then becomes::
+contain other nodes have a ``static`` ``create`` method which helps
+construct the PSyIR using a bottom up approach. Using this method, the
+above example then becomes::
   
     literal = Literal("0.0")
     reference = Reference("a")

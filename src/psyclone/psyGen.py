@@ -3268,15 +3268,14 @@ class Loop(Node):
 
         :param str var_name: the PSyIR node containing the variable \
             name of the loop iterator.
-
         :param start: the PSyIR node determining the value for the \
-        start of the loop.
+            start of the loop.
         :type start: :py:class:`psyclone.psyGen.Node`
         :param end: the PSyIR node determining the value for the end \
-        of the loop.
+            of the loop.
         :type end: :py:class:`psyclone.psyGen.Node`
         :param step: the PSyIR node determining the value for the loop \
-        step.
+            step.
         :type step: :py:class:`psyclone.psyGen.Node`
         :param children: a list of PSyIR nodes contained in the \
             loop.
@@ -3285,13 +3284,17 @@ class Loop(Node):
         :returns: a Loop instance.
         :rtype: :py:class:`psyclone.psyGen.Loop`
 
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
         '''
         if not isinstance(var_name, str):
             raise GenerationError(
                 "var_name argument to class Loop method create "
                 "should be a string but found '{0}'."
                 "".format(type(var_name).__name__))
-        for name, instance in [("start", start), ("stop", stop), ("step", step)]:
+        for name, instance in [("start", start), ("stop", stop),
+                               ("step", step)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
                     "{0} argument to class Loop method create should "
@@ -3308,6 +3311,7 @@ class Loop(Node):
                     "child of children argument to class Loop method "
                     "create should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
+
         loop = Loop()
         start.parent = loop
         stop.parent = loop
@@ -3316,7 +3320,6 @@ class Loop(Node):
         loop.children = [start, stop, step, schedule]
         loop._variable_name = var_name
         return loop
-
 
     def _check_completeness(self):
         ''' Check that the Loop has 4 children and the 4th is a Schedule.
@@ -5403,14 +5406,17 @@ class IfBlock(Node):
         :type if_condition: :py:class:`psyclone.psyGen.Node`
         :param if_body: the PSyIR node containing the if body of \
             the if block.
-        :type if_body: :py:class:`psyclone.psyGen.Schedule`
+        :type if_body: list of :py:class:`psyclone.psyGen.Node`
         :param else_body: PSyIR node containing the else body of the \
             if block of None if there is no else body (defaults to None).
-        :type else_body: :py:class:`psyclone.psyGen.Schedule` or \
+        :type else_body: list of :py:class:`psyclone.psyGen.Node` or \
             NoneType
 
         :returns: an IfBlock instance.
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
 
         '''
         if not isinstance(if_condition, Node):
@@ -5424,12 +5430,14 @@ class IfBlock(Node):
                 "if_body argument to class IfBlock method create should be "
                 "a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
-        if else_body and not (isinstance(if_body, list) and
+        if else_body and \
+           not (isinstance(if_body, list) and
                 all(isinstance(child, Node) for child in else_body)):
             raise GenerationError(
                 "else_body argument to class IfBlock method create should be "
                 "a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
+
         if_stmt = IfBlock()
         if_schedule = Schedule(parent=if_stmt)
         for node in if_body:
@@ -5635,6 +5643,9 @@ class KernelSchedule(Schedule):
         :returns: a KernelSchedule instance.
         :rtype: :py:class:`psyclone.psyGen.KernelInstance`
 
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
         '''
         if not isinstance(name, str):
             raise GenerationError(
@@ -5654,9 +5665,10 @@ class KernelSchedule(Schedule):
         for child in children:
             if not isinstance(child, Node):
                 raise GenerationError(
-                    "child of children argument to class KernelSchedule method "
-                    "create should be a PSyIR Node but found '{0}'."
+                    "child of children argument to class KernelSchedule "
+                    "method create should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
+
         kern = KernelSchedule(name)
         kern._symbol_table = symbol_table
         symbol_table._schedule = kern
@@ -5848,6 +5860,9 @@ class Assignment(Node):
         :returns: an Assignment instance.
         :rtype: :py:class:`psyclone.psyGen.Assignment`
 
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
         '''
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, Node):
@@ -5855,6 +5870,7 @@ class Assignment(Node):
                     "{0} argument to class Assignment method create should "
                     "be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
+
         new_assignment = Assignment()
         lhs.parent = new_assignment
         rhs.parent = new_assignment
@@ -6187,6 +6203,9 @@ class UnaryOperation(Operation):
         :returns: a UnaryOperation instance.
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
 
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
         '''
         if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
@@ -6198,8 +6217,9 @@ class UnaryOperation(Operation):
                 "child argument to class UnaryOperation method create should "
                 "be a PSyIR Node but found '{0}'."
                 "".format(type(child).__name__))
+
         unary_op = UnaryOperation(oper)
-        child.parent=unary_op
+        child.parent = unary_op
         unary_op.children = [child]
         return unary_op
 
@@ -6273,6 +6293,9 @@ class BinaryOperation(Operation):
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyGen.BinaryOperator`
 
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
         '''
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
@@ -6285,9 +6308,10 @@ class BinaryOperation(Operation):
                     "{0} argument to class BinaryOperation method create "
                     "should be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
+
         binary_op = BinaryOperation(oper)
-        lhs.parent=binary_op
-        rhs.parent=binary_op
+        lhs.parent = binary_op
+        rhs.parent = binary_op
         binary_op.children = [lhs, rhs]
         return binary_op
 
@@ -6314,7 +6338,6 @@ class NaryOperation(Operation):
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
 
-
     @staticmethod
     def create(oper, children):
         '''Create an NaryOperator instance given an operator and a list of
@@ -6328,6 +6351,9 @@ class NaryOperation(Operation):
 
         :returns: an NaryOperator instance.
         :rtype: :py:class:`psyclone.psyGen.NaryOperator`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
 
         '''
         if not isinstance(oper, NaryOperation.Operator):
@@ -6346,9 +6372,10 @@ class NaryOperation(Operation):
                     "child of children argument to class NaryOperation method "
                     "create should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
+
         nary_op = NaryOperation(oper)
         for child in children:
-            child.parent=nary_op
+            child.parent = nary_op
         nary_op.children = children
         return nary_op
 
@@ -6494,6 +6521,9 @@ class Container(Node):
         :returns: a Container instance.
         :rtype: :py:class:`psyclone.psyGen.Container`
 
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
         '''
         if not isinstance(name, str):
             raise GenerationError(
@@ -6516,6 +6546,7 @@ class Container(Node):
                     "child of children argument to class Container method "
                     "create should be a PSyIR KernelSchedule or Container "
                     "but found '{0}'.".format(type(child).__name__))
+
         container = Container(name)
         container._symbol_table = symbol_table
         symbol_table._schedule = container

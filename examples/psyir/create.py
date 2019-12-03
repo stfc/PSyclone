@@ -69,15 +69,15 @@ INT_ONE = Literal("1")
 TMP1 = Reference("tmp1")
 TMP2 = Reference("tmp2")
 
-# Unary OPERation
+# Unary Operation
 OPER = UnaryOperation.Operator.SIN
 UNARYOPERATION = UnaryOperation.create(OPER, TMP2)
 
-# Binary OPERation
+# Binary Operation
 OPER = BinaryOperation.Operator.ADD
 BINARYOPERATION = BinaryOperation.create(OPER, ONE, UNARYOPERATION)
 
-# Nary OPERation
+# Nary Operation
 OPER = NaryOperation.Operator.MAX
 NARYOPERATION = NaryOperation.create(OPER, [TMP1, TMP2, ONE])
 
@@ -107,11 +107,11 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 # Write out the code as Fortran
 WRITER = FortranWriter()
 RESULT = WRITER(CONTAINER)
-print (RESULT)
+print(RESULT)
 
-# Write out the code as C. At the moment NaryOPERator, KernelSchedule
-# and CONTAINER are not supported in the C backend so the full example
+# Write out the code as C. At the moment NaryOperator, KernelSchedule
+# and Container are not supported in the C backend so the full example
 # can't be output.
 WRITER = CWriter()
 RESULT = WRITER(LOOP)
-print (RESULT)
+print(RESULT)
