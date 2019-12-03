@@ -89,7 +89,6 @@ def test_profile_node_invalid_name(value):
 
     '''
     with pytest.raises(GenerationError) as excinfo:
-        print (value)
         _ = ProfileNode(name=value)
     assert ("Error in ProfileNode. Profile name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
