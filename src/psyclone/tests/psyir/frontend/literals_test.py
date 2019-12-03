@@ -72,14 +72,14 @@ def test_handling_literal(f2008_parser, code, dtype):
 
 
 def test_literal_datatype():
-    ''' Tests for the setter and getter of the Literal.datatype property. '''
-    ival = Literal("1", DataType.INTEGER)
+    ''' Tests for the setting (via constructor) and getter of the
+    Literal.datatype property. '''
     with pytest.raises(TypeError) as err:
-        ival.datatype = 1
+        Literal("1", 1)
     assert ("datatype of a Literal must be an instance of psyir.symbols."
             "DataType but got" in str(err.value))
     with pytest.raises(ValueError) as err:
-        ival.datatype = DataType.DEFERRED
+        Literal("1", DataType.DEFERRED)
     assert "datatype of a Literal must be one of" in str(err.value)
     lval = Literal(False, DataType.BOOLEAN)
     assert lval.value is False

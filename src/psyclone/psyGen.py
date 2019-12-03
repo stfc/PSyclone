@@ -6116,7 +6116,8 @@ class Array(Reference):
 
 class Literal(Node):
     '''
-    Node representing a Literal.
+    Node representing a Literal. The value and datatype properties of
+    this node are immutable.
 
     :param value: the value of the literal.
     :type value: str (for numerical values) or bool
@@ -6124,6 +6125,15 @@ class Literal(Node):
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
+
+    :raises TypeError: if the datatype is not an instance of \
+                       :py:class:`psyclone.psyir.symbols.DataType`.
+    :raises ValueError: if the datatype is not one of \
+                        self.VALID_DATA_TYPES.
+    :raises TypeError: if this Literal is of BOOLEAN type and the \
+                       supplied value is not a bool.
+    :raises TypeError: if this Literal is not of BOOLEAN type and the \
+                       supplied value is not a string.
     '''
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
@@ -6131,8 +6141,30 @@ class Literal(Node):
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
-        self.datatype = datatype
-        self.value = value
+
+        # Checks for the datatype
+        if not isinstance(datatype, DataType):
+            raise TypeError("The datatype of a Literal must be an instance of"
+                            " psyir.symbols.DataType but got '{0}'".format(
+                                type(datatype).__name__))
+        if datatype not in self.VALID_DATA_TYPES:
+            raise ValueError("The datatype of a Literal must be one of {0} "
+                             "but got '{1}'".format(self.VALID_DATA_TYPES,
+                                                    datatype))
+        self._datatype = datatype
+
+        # Checks for the value
+        if self.datatype is DataType.BOOLEAN:
+            if not isinstance(value, bool):
+                raise TypeError("A boolean Literal must be supplied with a "
+                                "value that is a bool but got: {0}".format(
+                                    type(value).__name__))
+        else:
+            if not isinstance(value, six.string_types):
+                raise TypeError("A non-boolean Literal must be supplied with "
+                                "a value encoded as a string but got: {0}".
+                                format(type(value).__name__))
+        self._value = value
 
     @property
     def datatype(self):
@@ -6142,29 +6174,6 @@ class Literal(Node):
         '''
         return self._datatype
 
-    @datatype.setter
-    def datatype(self, value):
-        '''
-        Setter for the data-type of this Literal.
-
-        :param value: the data-type.
-        :type value: :py:class:`psyclone.psyir.symbols.DataType`
-
-        :raises TypeError: if the value is not an instance of \
-                           :py:class:`psyclone.psyir.symbols.DataType`.
-        :raises ValueError: if the data-type is not one of \
-                            self.VALID_DATA_TYPES.
-        '''
-        if not isinstance(value, DataType):
-            raise TypeError("The datatype of a Literal must be an instance of"
-                            " psyir.symbols.DataType but got '{0}'".format(
-                                type(value).__name__))
-        if value not in self.VALID_DATA_TYPES:
-            raise ValueError("The datatype of a Literal must be one of {0} "
-                             "but got '{1}'".format(self.VALID_DATA_TYPES,
-                                                    value))
-        self._datatype = value
-
     @property
     def value(self):
         '''
@@ -6172,31 +6181,6 @@ class Literal(Node):
         :rtype: str
         '''
         return self._value
-
-    @value.setter
-    def value(self, lvalue):
-        '''
-        Setter for the value of this Literal.
-
-        :param lvalue: the value of the Literal.
-        :type lvalue: bool or str
-
-        :raises TypeError: if this Literal is of BOOLEAN type and the \
-                           supplied value is not a bool.
-        :raises TypeError: if this Literal is not of BOOLEAN type and the \
-                           supplied value is not a string.
-        '''
-        if self.datatype is DataType.BOOLEAN:
-            if not isinstance(lvalue, bool):
-                raise TypeError("A boolean Literal must be supplied with a "
-                                "value that is a bool but got: {0}".format(
-                                    type(lvalue).__name__))
-        else:
-            if not isinstance(lvalue, six.string_types):
-                raise TypeError("A non-boolean Literal must be supplied with "
-                                "a value encoded as a string but got: {0}".
-                                format(type(lvalue).__name__))
-        self._value = lvalue
 
     def node_str(self, colour=True):
         '''
