@@ -81,6 +81,20 @@ def test_malformed_profile_node(monkeypatch):
     assert "malformed or incomplete. It should have a " in str(err.value)
 
 
+@pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
+                                   ("a", []), ([], "a")])
+def test_profile_node_invalid_name(value):
+    '''Test that the expected exception is raised when an invalid profile
+    name is provided to a ProfileNode.
+
+    '''
+    with pytest.raises(GenerationError) as excinfo:
+        print (value)
+        _ = ProfileNode(name=value)
+    assert ("Error in ProfileNode. Profile name must be a tuple containing "
+            "two non-empty strings." in str(excinfo.value))
+
+
 # -----------------------------------------------------------------------------
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.

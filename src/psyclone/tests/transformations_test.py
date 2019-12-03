@@ -279,6 +279,31 @@ def test_profilerregiontrans_noname(monkeypatch):
     _ = profile_trans.apply(dummy_nodes())
 
 
+def test_profilerregiontrans_otheroption(monkeypatch):
+    '''Check that an option not associated with the profile transformation
+    is ignored.
+
+    '''
+    class Dummy(object):
+        '''Dummy class that checks the name argument is None.
+
+        :param NonType parent: dummy to conform to ProfileNode arguments.
+        :param NonType children: dummy to conform to ProfileNode arguments.
+        :param NoneType name: the name argument that we are testing.
+
+        '''
+        def __init__(self, parent=None, children=None, name=None):
+            self._parent = parent
+            self._children = children
+            if name is not None:
+                raise Exception("test failed")
+    monkeypatch.setattr("psyclone.profiler.ProfileNode", Dummy)
+    # Create and apply the transformation.
+    profile_trans = ProfileRegionTrans()
+    options = {"someotheroption": "someothervalue"}
+    _ = profile_trans.apply(dummy_nodes(), options=options)
+
+
 def test_profilerregiontrans_name(monkeypatch):
     '''Check that when a valid name is supplied to the profile
     transformation then it creates a profile node with that name
