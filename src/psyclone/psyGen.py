@@ -6436,7 +6436,6 @@ class Array(Reference):
             raise GenerationError(
                 "name argument in create method of Array class "
                 "can't be an empty string.")
-            
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Array class "

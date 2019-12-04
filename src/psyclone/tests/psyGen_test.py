@@ -3566,7 +3566,7 @@ def test_array_create_invalid():
     # contents of children list are not Node
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create("temp",
-                                 [Reference("i"), "invalid"])
+                         [Reference("i"), "invalid"])
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
