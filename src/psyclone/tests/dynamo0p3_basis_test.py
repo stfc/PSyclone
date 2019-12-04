@@ -1552,8 +1552,6 @@ def test_diff_basis():
         "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(generated_code)
     assert output in generated_code
 
 
@@ -1789,12 +1787,11 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     monkeypatch.setattr(
-        dynamo0p3, "VALID_QUADRATURE_SHAPES",
-        dynamo0p3.VALID_QUADRATURE_SHAPES + ["unsupported-shape"])
+        dbasis, "_qr_vars", {"unsupported-shape": None})
     with pytest.raises(GenerationError) as err:
         dbasis._stub_declarations(ModuleGen(name="my_mod"))
     assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
-            "supported - got 'unsupported-shape'" in str(err.value))
+            "supported - got: ['unsupported-shape']" in str(err.value))
 
 
 def test_dynbasisfns_declns(monkeypatch):

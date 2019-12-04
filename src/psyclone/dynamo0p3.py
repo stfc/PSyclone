@@ -3629,20 +3629,19 @@ class DynBasisFunctions(DynCollection):
                                kind="r_def", intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
-        for qr_shape in VALID_QUADRATURE_SHAPES:
-            if qr_shape.lower() == "gh_quadrature_xyoz":
-                if qr_shape not in self._qr_vars:
-                    continue
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                                   intent="in", dimension="np_xy",
-                                   entity_decls=["weights_xy"]))
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                                   intent="in", dimension="np_z",
-                                   entity_decls=["weights_z"]))
-            else:
-                raise GenerationError(
-                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
-                    "yet supported - got '{0}'".format(qr_shape))
+
+        if "gh_quadrature_xyoz" in self._qr_vars:
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               intent="in", dimension="np_xy",
+                               entity_decls=["weights_xy"]))
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               intent="in", dimension="np_z",
+                               entity_decls=["weights_z"]))
+        else:
+            raise GenerationError(
+                "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
+                "yet supported - got: {0}".format(
+                    [key for key in self._qr_vars.keys()]))
 
     def _invoke_declarations(self, parent):
         '''

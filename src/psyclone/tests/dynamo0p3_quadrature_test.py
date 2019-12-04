@@ -219,17 +219,18 @@ def test_edge_qr(tmpdir, dist_mem):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     print(generated_code)
+    #TODO
 
 
+@pytest.mark.xfail(reason="#150 reference element support not on master")
 def test_face_qr(tmpdir, dist_mem):
     ''' Check that we generate correct code when a kernel specifies
     that it requires face quadrature. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.6_face_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    assert Dynamo0p3Build.code_compiles(psy)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
-    print(generated_code)
     output_decls = (
         "      USE testkern_qr_faces, ONLY: testkern_qr_code\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
@@ -243,17 +244,17 @@ def test_face_qr(tmpdir, dist_mem):
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
-        "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:), "
+        "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER dim_w1, dim_w3, diff_dim_w2, diff_dim_w3\n"
+        "      INTEGER dim_w1, nfaces, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
         "      INTEGER np_xyz_qr\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_face_proxy_type) qr_proxy\n"
         "      INTEGER, pointer :: map_w1(:,:) => null(), "
-        "map_w2(:,:) => null(), map_w3(:,:) => null()\n")
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n")
     assert output_decls in generated_code
     init_output = (
         "      !\n"
@@ -298,7 +299,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      !\n"
         "      qr_proxy = qr%get_quadrature_proxy()\n"
         "      np_xyz_qr = qr_proxy%np_xyz\n"
-        # TODO need to add support to get reference_element
+        # TODO #150 need to add support to get reference_element
         "      nface_qr = reference_element%get_number_horizontal_faces()\n"
         "      weights_xyz_qr => qr_proxy%weights_xyz\n")
     assert init_output in generated_code
@@ -410,9 +411,9 @@ def test_internal_qr_err(monkeypatch):
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.4_wrong_qr_shape.f90"),
                            api=API)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = PSyFactory(API).create(invoke_info)
-    assert ("Internal error: unsupported shape (gh_quadrature_wrong) "
+    assert ("internal error: unsupported shape (gh_quadrature_wrong) "
             "found" in str(excinfo.value))
 
 
@@ -520,7 +521,7 @@ def test_dynbasisfns_compute(monkeypatch):
     with pytest.raises(InternalError) as err:
         dinf._compute_basis_fns(mod)
     assert ("Unrecognised shape 'not-a-shape' specified for basis function. "
-            "Should be one of: ['gh_quadrature_xyoz', 'gh_evaluator']"
+            "Should be one of: ['gh_quadrature_xyoz', "
             in str(err.value))
     # Now supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
@@ -712,7 +713,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
-    assert ("Quadrature shape 'gh_quadrature_wrong' not yet supported in "
+    assert ("unrecognised shape (gh_quadrature_wrong) specified in "
             "dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))
 
 
@@ -739,5 +740,5 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
-    assert ("Quadrature shape 'gh_quadrature_wrong' not yet "
-            "supported in dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))
+    assert ("unrecognised shape (gh_quadrature_wrong) specified in "
+            "dynamo0p3.qr_basis_alloc_args(). Should be" in str(excinfo.value))
