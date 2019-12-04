@@ -77,7 +77,7 @@ def test_cw_gen_declaration():
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
-    # Array with unknown intent
+    # Array with unknown access
     symbol = DataSymbol("dummy2", "integer",
                         shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(

@@ -98,7 +98,7 @@ class DataSymbol(Symbol):
 
     class Precision(Enum):
         '''
-        Enumeration for the different types of 'default' precision that may
+        Enumeration of the different types of 'default' precision that may
         be specified for a Symbol.
         '''
         SINGLE = 1
@@ -106,10 +106,11 @@ class DataSymbol(Symbol):
 
     class Extent(Enum):
         '''
-        Arrays may have one or more dimensions of unknown extent.
-        Where the extent must exist and is accessible via the run-time system
-        it is an 'ATTRIBUTE'. When it may or may not currently be defined (e.g.
-        the array may need to be allocated/malloc'd) it is 'DEFERRED'.
+        Enumeration of array shape extents that are unspecified at compile
+        time. When the extent must exist and is accessible via the run-time
+        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
+        current scope (e.g. the array may need to be allocated/malloc'd) it
+        is 'DEFERRED'.
         '''
         DEFERRED = 1
         ATTRIBUTE = 2
