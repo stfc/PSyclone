@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,16 +39,27 @@ GOcean 1.0 API.'''
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.generator import GenerationError, ParseError
 
+from psyclone.configuration import Config
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.generator import GenerationError
+from psyclone.parse.utils import ParseError
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr
+
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
+
 
 # Section 1
 # Tests for the case where an object of type GOStencil has not been
@@ -93,13 +104,13 @@ def test_stencil_invalid_format_1():
     # this should cause a general unexpected format error
     with pytest.raises(ParseError) as excinfo:
         stencil.load(None, "kernel_stencil")
-    assert "expected either a name or the format 'stencil(...)" \
+    assert "expected either a name or the format 'go_stencil(...)" \
         in str(excinfo.value)
 
     # this should cause a general unexpected format error
     with pytest.raises(ParseError) as excinfo:
         stencil.load(stencil, "kernel_stencil")
-    assert "expected either a name or the format 'stencil(...)" \
+    assert "expected either a name or the format 'go_stencil(...)" \
         in str(excinfo.value)
 
     # this should cause a general unexpected format error
@@ -107,7 +118,7 @@ def test_stencil_invalid_format_1():
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
-    assert "expected either a name or the format 'stencil(...)" \
+    assert "expected either a name or the format 'go_stencil(...)" \
         in str(excinfo.value)
 
     # this should cause an unsupported name error
@@ -115,35 +126,35 @@ def test_stencil_invalid_format_1():
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
-    assert ("argument is 'random_name' but must be one of ['pointwise'] or "
-            "stencil(...)") in str(excinfo.value)
+    assert ("argument is 'random_name' but must be one of ['go_pointwise'] or "
+            "go_stencil(...)") in str(excinfo.value)
 
     # this should cause an unsupported name error
     stencil_string = "stenci(a)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
-    assert "argument is 'stenci' but must be 'stencil(...)" \
+    assert "argument is 'stenci' but must be 'go_stencil(...)" \
         in str(excinfo.value)
 
 
 def test_stencil_invalid_format_2():
-    '''Check all the ways in which the arguments in the 'stencil(...)
+    '''Check all the ways in which the arguments in the 'go_stencil(...)
     format can be invalid
 
     '''
     stencil = GOStencil()
 
     # this should cause a not-enough-args error
-    stencil_string = "stencil(a)"
+    stencil_string = "go_stencil(a)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
-    assert "format 'stencil(...)', has 1 arguments but should have 3" \
+    assert "format 'go_stencil(...)', has 1 arguments but should have 3" \
         in str(excinfo.value)
 
     # this should cause a not-a-number error
-    stencil_string = "stencil(a,b,c)"
+    stencil_string = "go_stencil(a,b,c)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
@@ -151,7 +162,7 @@ def test_stencil_invalid_format_2():
         in str(excinfo.value)
 
     # this should also cause a not-a-number error
-    stencil_string = "stencil(000,x00,000)"
+    stencil_string = "go_stencil(000,x00,000)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
@@ -159,7 +170,7 @@ def test_stencil_invalid_format_2():
         in str(excinfo.value)
 
     # this should cause a not-3-numbers error
-    stencil_string = "stencil(012,345,67)"
+    stencil_string = "go_stencil(012,345,67)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
@@ -167,7 +178,7 @@ def test_stencil_invalid_format_2():
         in str(excinfo.value)
 
     # this should cause an invalid-middle-number error
-    stencil_string = "stencil(012,345,678)"
+    stencil_string = "go_stencil(012,345,678)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
@@ -175,15 +186,15 @@ def test_stencil_invalid_format_2():
         in str(excinfo.value)
 
     # this should cause a zero-size-stencil error
-    stencil_string = "stencil(000,010,000)"
+    stencil_string = "go_stencil(000,010,000)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
     assert ("A zero sized stencil has been specified. This should be "
-            "specified with the 'pointwise' keyword") in str(excinfo.value)
+            "specified with the 'go_pointwise' keyword") in str(excinfo.value)
 
     # lastly, this should work as it is valid
-    stencil_string = "stencil(000,011,000)"
+    stencil_string = "go_stencil(000,011,000)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
 
@@ -198,7 +209,7 @@ def test_stencil_depth_args():
     '''
     stencil = GOStencil()
 
-    stencil_string = "stencil(010,111,010)"
+    stencil_string = "go_stencil(010,111,010)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
     for i, j in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
@@ -212,13 +223,13 @@ def test_stencil_depth_args():
 
 
 def test_stencil_case_1():
-    '''test that the metadata name 'stencil' can be provided in lower, or
+    '''test that the metadata name 'go_stencil' can be provided in lower, or
     upper case.
 
     '''
     stencil = GOStencil()
 
-    stencil_string = "StEnCiL(000,011,000)"
+    stencil_string = "go_StEnCiL(000,011,000)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
     assert stencil.has_stencil
@@ -232,20 +243,20 @@ def test_stencil_case_1():
 
 
 def test_stencil_case_2():
-    '''test that the metadata name 'pointwise' can be provided in lower,
+    '''test that the metadata name 'go_pointwise' can be provided in lower,
     or upper case
 
     '''
 
     stencil = GOStencil()
-    stencil_string = "pOiNtWiSe"
+    stencil_string = "go_pOiNtWiSe"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
     assert not stencil.has_stencil
-    assert stencil.name == "pointwise"
+    assert stencil.name == "go_pointwise"
 
 
-def test_stencil_information():
+def test_stencil_information(tmpdir):
     '''Test that the GOStencil class provides the expected stencil
     information. This exercises the "pointwise" name and the stencil
     description
@@ -257,14 +268,14 @@ def test_stencil_information():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernel = schedule.children[0].children[0].children[0]
+    kernel = schedule.children[0].loop_body[0].loop_body[0]
 
     # args 1 and 3 specify pointwise as a stencil access
     for idx in [0, 2]:
         pointwise_arg = kernel.args[idx]
         assert pointwise_arg.stencil
         assert not pointwise_arg.stencil.has_stencil
-        assert pointwise_arg.stencil.name == "pointwise"
+        assert pointwise_arg.stencil.name == "go_pointwise"
 
     # arg 4 provides grid information so knows nothing about stencils
     grid_arg = kernel.args[3]
@@ -282,3 +293,5 @@ def test_stencil_information():
             else:
                 expected_depth = 0
             assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth
+
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)

@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 module testkern_any_space_1_mod
   use argument_mod
   use kernel_mod
-  use constants_mod
+  use constants_mod, only : r_def
 
 ! test for any_space producing correct code where there are a) more than one any_space declarations, 
 ! 2) an existing space as another argument (W0 in this case), 3) func_type basis functions on any_space.
@@ -68,15 +68,16 @@ contains
        ndf_w0, undf_w0, map_w0, diff_basis_w0, np_xy, np_z, &
        weights_xy, weights_z)
     implicit none
-    integer :: cell, nlayers, ncell_3d, ndf_w0, undf_w0
-    integer :: ndf_any_space_1, undf_any_space_1, ndf_any_space_2, &
-         undf_any_space_2
-    integer :: np_xy, np_z
-    integer, dimension(:) :: map_w0, map_any_space_1, map_any_space_2
-    real(kind=r_def) :: rdt
-    real(kind=r_def), dimension(:) :: flda, fldb, fldc1, fldc2, fldc3
-    real(kind=r_def), dimension(:) :: weights_xy, weights_z
-    real(kind=r_def), dimension(:,:,:,:) :: basis_any_space_1, &
+    integer, intent(in) :: nlayers, ndf_w0, undf_w0, ndf_any_space_1, &
+         undf_any_space_1, ndf_any_space_2, undf_any_space_2
+    integer, intent(in) :: np_xy, np_z
+    integer, intent(in), dimension(:) :: map_w0, map_any_space_1, &
+         map_any_space_2
+    real(kind=r_def), intent(in) :: rdt
+    real(kind=r_def), intent(inout), dimension(:) :: flda, fldb, fldc1, &
+         fldc2, fldc3
+    real(kind=r_def), intent(in), dimension(:) :: weights_xy, weights_z
+    real(kind=r_def), intent(in), dimension(:,:,:,:) :: basis_any_space_1, &
          basis_any_space_2, diff_basis_w0
 
 end subroutine testkern_any_space_1_code

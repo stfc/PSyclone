@@ -1,18 +1,47 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: A. R. Porter, STFC Daresbury Lab
+
 module time_smooth_mod
-  !use kind_params_mod
-  !use grid_mod
-  !use field_mod
-  !use kernel_mod
-  !use argument_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   IMPLICIT none
 
   PRIVATE
 
-  PUBLIC time_smooth_init, invoke_time_smooth
   PUBLIC time_smooth, time_smooth_code
-
-  !> Parameter for time smoothing
-  REAL(wp), save :: alpha
 
   !> The time smoothing operates in time rather than space
   !! and therefore takes three fields defined on any one
@@ -20,15 +49,15 @@ module time_smooth_mod
   !! Presumably FE should be FD for us and maybe CELLS 
   !! should be COLUMNS?
   TYPE, EXTENDS(kernel_type) :: time_smooth
-     TYPE(arg), DIMENSION(3) :: meta_args = &
-          (/ arg(READ, EVERY, POINTWISE),     &
-             arg(READ, EVERY, POINTWISE),     &
-             arg(READWRITE , EVERY, POINTWISE)      &
+     TYPE(go_arg), DIMENSION(3) :: meta_args = &
+          (/ go_arg(GO_READ,      GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READ,      GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READWRITE, GO_EVERY, GO_POINTWISE)      &
            /)
 
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     INTEGER :: ITERATES_OVER = INTERNAL_PTS
+     INTEGER :: ITERATES_OVER = GO_INTERNAL_PTS
   
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -36,7 +65,7 @@ module time_smooth_mod
      !! which grid-point types have the same (i,j) index as a T
      !! point. This kernel is independent of this choice (because it
      !! acts in time rather than space).
-     integer :: index_offset = OFFSET_ANY
+     integer :: index_offset = GO_OFFSET_ANY
 
   CONTAINS
     procedure, nopass :: code => time_smooth_code
@@ -44,55 +73,19 @@ module time_smooth_mod
 
 CONTAINS
 
-  !===================================================
-
-  !> Initialise the time-smoothing module. Sets parameter
-  !! alpha that is used in the time-smooth kernel.
-  SUBROUTINE time_smooth_init(alpha_tmp)
-    IMPLICIT none
-    REAL(wp), INTENT(in) :: alpha_tmp
-
-    alpha = alpha_tmp
-
-  END SUBROUTINE time_smooth_init
-
-  !===================================================
-
-  !> Manual implementation of code to invoke the time-smoothing
-  !! kernel
-  subroutine invoke_time_smooth(field, field_new, field_old)
-    implicit none
-    type(r2d_field), intent(in)    :: field
-    type(r2d_field), intent(in)    :: field_new
-    type(r2d_field), intent(inout) :: field_old
-    ! Locals
-    integer :: i, j
-    integer :: idim1, idim2
-    
-    ! Here we will query what should be field objects to get at
-    ! raw data.
-    idim1 = SIZE(field%data, 1)
-    idim2 = SIZE(field%data, 2)
-
-    ! Loop over 'columns'
-    DO J=1,idim2
-      DO I=1,idim1
-         CALL time_smooth_code(i, j, &
-                               field%data, field_new%data, field_old%data)
-      END DO
-    END DO
-
-  end subroutine invoke_time_smooth
-
-  !===================================================
-
   !> Kernel to smooth supplied field in time
   SUBROUTINE time_smooth_code(i, j, field, field_new, field_old)
     IMPLICIT none
     INTEGER,  INTENT(in)                    :: i, j
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: field
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: field_new
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: field_old
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: field_new
+    REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: field_old
+    REAL(go_wp) :: alpha
+    ! 'alpha' was originally a module variable but that causes problems
+    ! when transforming kernels so it has been made local to keep
+    ! existing tests happy. There are separate test kernels for
+    ! exercising this aspect of PSyclone (e.g. kernel_with_use_mod.f90).
+    alpha = 1.0d0
 
     field_old(i,j) = field(i,j) + &
          alpha*(field_new(i,j) - 2.0d0*field(i,j) + field_old(i,j))

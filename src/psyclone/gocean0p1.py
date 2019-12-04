@@ -1,26 +1,115 @@
-# ----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Funded by the GOcean project
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
-    the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Arguments and KernelArgument). '''
+    the required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop,
+    CodedKern, Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
-    Arguments, KernelArgument
+from psyclone.configuration import Config
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
+    CodedKern, Arguments, KernelArgument, Literal, Schedule
+from psyclone.parse.kernel import KernelType, Descriptor
+from psyclone.parse.utils import ParseError
+
+
+class GODescriptor(Descriptor):
+    '''The GOcean specific Descriptor class. This captures kernel
+    argument descriptor information specified in kernel
+    metadata. Currently this class is just a wrapper around the base
+    class.
+
+    :param str access: whether argument is read/write etc.
+    :param str space: which function space/grid-point type argument is \
+    on
+    :param dict stencil: type of stencil access for this \
+    argument. Defaults to None if the argument is not supplied.
+    :param str mesh: which mesh this argument is on. Defaults to \
+    None if the argument is not supplied.
+
+    '''
+    def __init__(self, access, space, stencil=None, mesh=None):
+        api_config = Config.get().api_conf("gocean0.1")
+        access_mapping = api_config.get_access_mapping()
+        access_type = access_mapping[access]
+        super(GODescriptor, self).__init__(access_type, space, stencil, mesh)
+
+
+class GOKernelType(KernelType):
+    '''The GOcean specific KernelType class. This captures kernel metadata
+    for this API.
+
+    :param ast: fparser1 parse tree for the parsed kernel meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param str name: The name of the metadata. This is an optional \
+    argument which defaults to None.
+
+    '''
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError(
+                    "gocean0p1.py:GOKernelType:__init__: Each meta_arg value "
+                    "must be of type 'arg' for the gocean0.1 api, but found "
+                    "'{0}'.".format(init.name))
+            access = init.args[0].name
+            funcspace = init.args[1].name
+            stencil = init.args[2].name
+            if len(init.args) != 3:
+                raise ParseError(
+                    "gocean0p1.py:GOKernelType:__init__: 'arg' type expects "
+                    "3 arguments but found {0} in '{1}'".
+                    format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GODescriptor(access, funcspace,
+                                                      stencil))
 
 
 class GOPSy(PSy):
-    ''' The GOcean specific PSy class. This creates a GOcean specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOceaen
-        specific PSy module code. '''
+    '''
+    The GOcean specific PSy class. This creates a GOcean specific
+    invokes object (which controls all the required invocation calls).
+    Also overrides the PSy gen method so that we generate GOceaen
+    specific PSy module code.
+
+    :param invoke_info: An object containing the required invocation \
+                        information for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
@@ -55,6 +144,7 @@ class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls):
+        # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke)
@@ -69,9 +159,10 @@ class GOInvoke(Invoke):
         provides to methods which separate arguments that are arrays from
         arguments that are scalars. '''
     def __init__(self, alg_invocation, idx):
+        # pylint: disable=using-constant-test
         if False:
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule,
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule,
                         reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
@@ -80,7 +171,7 @@ class GOInvoke(Invoke):
             not rspace). GOcean needs to kow this as we are dealing with
             arrays directly so need to declare them correctly. '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in call.arguments.args:
                 if(not arg.is_literal and
                    not arg.space.lower() == "r" and
@@ -94,7 +185,7 @@ class GOInvoke(Invoke):
             rspace). GOcean needs to kow this as we are dealing with arrays
             directly so need to declare them correctly. '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in call.arguments.args:
                 if(not arg.is_literal and
                    arg.space.lower() == "r" and
@@ -116,7 +207,7 @@ class GOInvoke(Invoke):
         # add the subroutine argument declarations for arrays
         if len(self.unique_args_arrays) > 0:
             my_decl_arrays = DeclGen(invoke_sub, datatype="REAL",
-                                     intent="inout", kind="wp",
+                                     intent="inout", kind="go_wp",
                                      entity_decls=self.unique_args_arrays,
                                      dimension=":,:")
             invoke_sub.add(my_decl_arrays)
@@ -130,13 +221,14 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_scalars)
 
 
-class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. All we have to do is supply our
-    API-specific factories to the base Schedule class constructor. '''
+class GOInvokeSchedule(InvokeSchedule):
+    ''' The GOcean specific InvokeSchedule sub-class. All we have to do is
+    supply our API-specific factories to the base InvokeSchedule class
+    constructor. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory,
+                                GOBuiltInCallFactory, alg_calls)
 
 
 class GOLoop(Loop):
@@ -156,32 +248,49 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
     def gen_code(self, parent):
 
         if self.field_space == "every":
             from psyclone.f2pygen import DeclGen
+            from psyclone.psyGen import BinaryOperation, Reference
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
 
-            # loop bounds
-            self._start = "1"
+            # Update start loop bound
+            self.start_expr = Literal("1", parent=self)
+
+            # Update stop loop bound
             if self._loop_type == "inner":
                 index = "1"
             elif self._loop_type == "outer":
                 index = "2"
-            self._stop = ("SIZE(" + self.field_name + ", " +
-                          index + ")")
+            self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                             parent=self)
+            self.stop_expr.addchild(Reference(self.field_name,
+                                              parent=self.stop_expr))
+            self.stop_expr.addchild(Literal(index, parent=self.stop_expr))
 
         else:  # one of our spaces so use values provided by the infrastructure
 
             # loop bounds
+            # TODO: Issue 440. Implement derive types in PSyIR
             if self._loop_type == "inner":
-                self._start = self.field_space + "%istart"
-                self._stop = self.field_space + "%istop"
+                self.start_expr = Reference(
+                    self.field_space + "%istart", parent=self)
+                self.stop_expr = Reference(
+                    self.field_space + "%istop", parent=self)
             elif self._loop_type == "outer":
-                self._start = self.field_space + "%jstart"
-                self._stop = self.field_space + "%jstop"
+                self.start_expr = Reference(
+                    self.field_space + "%jstart", parent=self)
+                self.stop_expr = Reference(
+                    self.field_space + "%jstop", parent=self)
 
         Loop.gen_code(self, parent)
 
@@ -201,14 +310,12 @@ class GOKernCallFactory(object):
     @staticmethod
     def create(call, parent=None):
         ''' Creates a kernel call and associated Loop structure '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
+        outer_loop = GOLoop(parent=parent, loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
+        outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
+        gocall.load(call, parent=inner_loop.loop_body)
+        inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner
@@ -224,18 +331,27 @@ class GOKernCallFactory(object):
         return outer_loop
 
 
-class GOKern(Kern):
+class GOKern(CodedKern):
     ''' Stores information about GOcean Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
     def __init__(self):
+        # pylint: disable=using-constant-test
         if False:
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
 
     def load(self, call, parent=None):
-        ''' Load this GOKern object with state pulled from the call object '''
-        Kern.__init__(self, GOKernelArguments, call, parent)
+        '''
+        Load this GOKern object with state pulled from the call object.
+
+        :param call: details of the Algorithm-layer call of this Kernel.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: parent of this kernel node in the PSyIR.
+        :type parent: :py:class:`psyclone.gocean0p1.GOLoop` or NoneType.
+
+        '''
+        super(GOKern, self).__init__(GOKernelArguments, call, parent)
 
     def local_vars(self):
         return []
@@ -261,6 +377,7 @@ class GOKernelArguments(Arguments):
         as specified by the kernel argument metadata. This class ensures that
         initialisation is performed correctly. It also adds three '''
     def __init__(self, call, parent_call):
+        # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
@@ -273,18 +390,9 @@ class GOKernelArguments(Arguments):
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
-            sense for GOcean. Need to refactor the invoke class and pull out
-            dofs into the gunghoproto api '''
+            sense for GOcean. Need to refactor the Invoke base class and
+            remove the need for this property (#279). '''
         return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            my_mapping = {"write": "write", "read": "read",
-                          "readwrite": "readwrite", "inc": "inc"}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
 
 
 class GOKernelArgument(KernelArgument):

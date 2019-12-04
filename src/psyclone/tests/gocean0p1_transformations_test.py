@@ -11,7 +11,8 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.parse import parse
+from psyclone.configuration import Config
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError,\
     LoopFuseTrans,\
@@ -19,6 +20,12 @@ from psyclone.transformations import TransformationError,\
     GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean0.1 as API.'''
+    Config.get().api = "gocean0.1"
 
 
 def test_loop_fuse_with_not_a_loop():
@@ -44,7 +51,7 @@ def test_loop_fuse_with_not_a_loop():
         schedule, _ = lftrans.apply(new_sched.children[0],
                                     new_sched.children[1])
     # Exercise the __str__ method of TransformationError
-    assert "Transformation" in str(ex)
+    assert "At least one of the nodes is not a loop." in str(ex.value)
 
 
 def test_loop_fuse_on_non_siblings():
@@ -132,14 +139,10 @@ def test_openmp_loop_fuse_trans():
     schedule, _ = lftrans.apply(lf_schedule.children[0],
                                 lf_schedule.children[1])
     # fuse all inner loops
-    lf_schedule, _ = lftrans.apply(schedule.children[0].
-                                   children[0],
-                                   schedule.children[0].
-                                   children[1])
-    schedule, _ = lftrans.apply(lf_schedule.children[0].
-                                children[0],
-                                lf_schedule.children[0].
-                                children[1])
+    lf_schedule, _ = lftrans.apply(schedule.children[0].loop_body[0],
+                                   schedule.children[0].loop_body[1])
+    schedule, _ = lftrans.apply(lf_schedule.children[0].loop_body[0],
+                                lf_schedule.children[0].loop_body[1])
 
     # Add an OpenMP directive around the fused loop
     lf_schedule, _ = ompf.apply(schedule.children[0])

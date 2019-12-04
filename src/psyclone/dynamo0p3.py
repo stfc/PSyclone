@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,51 +31,81 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
     KernelType) and adding a new class (DynFuncDescriptor03) to
     capture function descriptor metadata and 2) specialising the
-    required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
+    required base classes in psyGen.py (PSy, Invokes, Invoke, InvokeSchedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
-from __future__ import print_function
+from __future__ import print_function, absolute_import
+import abc
 import os
+from enum import Enum
+from collections import OrderedDict, namedtuple
 import fparser
-from psyclone.parse import Descriptor, KernelType, ParseError
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
-from psyclone.configuration import ConfigFactory
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
-from collections import OrderedDict
+    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
+    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
+    CodedKern, ACCEnterDataDirective
 
-# Get our one-and-only Config object - this holds the global configuration
-# options read from the psyclone.cfg file.
-_CONFIG = ConfigFactory().create()
-
-# First section : Parser specialisations and classes
-
-# Function spaces (FS)
+# --------------------------------------------------------------------------- #
+# ========== First section : Parser specialisations and classes ============= #
+# --------------------------------------------------------------------------- #
+#
+# ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
 # Continuous FS
-# Space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Note, any_w2 is not a space on its own. any_w2 is used as a common term for
+# any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
+# (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
+# it needs to a) be treated as continuous and b) have vector basis and scalar
+# differential basis dimensions.
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
+
 # Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
-VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
-                         "any_space_4", "any_space_5", "any_space_6",
-                         "any_space_7", "any_space_8", "any_space_9"]
+# Valid any_space metadata (general FS, could be continuous or discontinuous)
+VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
 
-VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
+# Valid any_discontinuous_space metadata (general FS known to be discontinuous)
+VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
+    ["any_discontinuous_space_{0}".format(x+1) for x in range(10)]
 
+# Valid discontinuous FS names (for optimisation purposes)
+VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
+    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+# FS names consist of all valid names
+VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
+                             VALID_ANY_SPACE_NAMES + \
+                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+
+# Lists of function spaces that have
+# a) scalar basis functions;
+SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta"]
+# b) vector basis functions;
+VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
+# c) scalar differential basis functions;
+SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
+# d) vector differential basis functions.
+VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta"]
+
+# ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 
@@ -99,27 +129,13 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_edge_type",
                            "proxy_type": "quadrature_edge_proxy_type"}}
 
-# Datatypes (scalars, fields, operators)
-VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
-VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
-VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
-    VALID_SCALAR_NAMES
+# ---------- Datatypes (scalars, fields, operators) ------------------------- #
+GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
+GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
+GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
+    GH_VALID_SCALAR_NAMES
 
-# Access types
-VALID_REDUCTION_NAMES = ["gh_sum"]
-# List of all access types that involve writing to an argument
-# in some form
-GH_WRITE_ACCESSES = ["gh_write", "gh_readwrite", "gh_inc"] + \
-                     VALID_REDUCTION_NAMES
-# List of all access types that involve reading an argument in some
-# form
-GH_READ_ACCESSES = ["gh_read", "gh_readwrite", "gh_inc"]
-# Access type that is only a read, as a list for convenience
-GH_READ_ONLY_ACCESS = ["gh_read"]
-
-VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ONLY_ACCESS + GH_WRITE_ACCESSES
-
-# Stencils
+# ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
 # file as it causes failures with py.test 2.8.7. Therefore some parts
@@ -133,11 +149,13 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
+# ---------- Mesh types ----------------------------------------------------- #
 # These are the valid mesh types that may be specified for a field
 # using the mesh_arg=... meta-data element (for inter-grid kernels that
 # perform prolongation/restriction).
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
+# ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a fields
 # halo. It is useful to group these together as we often need to
 # determine whether an access to a field or other object includes
@@ -172,23 +190,17 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                                          # dofs.
                            + HALO_ACCESS_LOOP_BOUNDS)
 
-# The mapping from meta-data strings to field-access types
-# used in this API.
-FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "inc": "gh_inc", "readwrite": "gh_readwrite"}
 
 # Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
+# ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
-psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
-psyGen.MAPPING_ACCESSES = FIELD_ACCESS_MAP
-psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
-psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
+psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 
-# Functions
+# ---------- Functions ------------------------------------------------------ #
 
 
 def get_fs_map_name(function_space):
@@ -250,19 +262,6 @@ def get_fs_basis_name(function_space, qr_var=None, on_space=None):
     return name
 
 
-def basis_first_dim_name(function_space):
-    '''
-    Get the name of the variable holding the first dimension of a
-    basis function
-
-    :param function_space: the function space the basis function is for
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: a Fortran variable name
-    :rtype: string
-    '''
-    return "dim_" + function_space.mangled_name
-
-
 def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
     '''
     Returns a name for the differential basis function on the
@@ -290,19 +289,6 @@ def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
     return name
 
 
-def diff_basis_first_dim_name(function_space):
-    '''
-    Get the name of the variable holding the first dimension of a
-    differential basis function
-
-    :param function_space: the function space the diff-basis function is for
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: a Fortran variable name
-    :rtype: string
-    '''
-    return "diff_dim_" + function_space.mangled_name
-
-
 def qr_basis_alloc_args(first_dim, basis_fn):
     '''
     Generate the list of dimensions required to allocate the
@@ -317,16 +303,31 @@ def qr_basis_alloc_args(first_dim, basis_fn):
                     Algorithm layer), respectively
     :return: list of dimensions to use to allocate array
     :rtype: list of strings
+
+    :raises InternalError: if an unrecognised quadrature shape is encountered.
+    :raises NotImplementedError: if a quadrature shape other than \
+                                 "gh_quadrature_xyoz" is supplied.
     '''
+    if basis_fn["shape"] not in VALID_QUADRATURE_SHAPES:
+        raise InternalError(
+            "Unrecognised shape ({0}) specified in "
+            "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
+            "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
+
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
     # if basis_fn["shape"] == "gh_quadrature_xyz":
     #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
     #          "np_xyz"+"_"+basis_fn["qr_var"]]
     if basis_fn["shape"] == "gh_quadrature_xyoz":
-        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                      "np_xy"+"_"+basis_fn["qr_var"],
-                      "np_z"+"_"+basis_fn["qr_var"]]
+        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"])]
+        if basis_fn["qr_var"]:
+            alloc_args += ["np_xy"+"_"+basis_fn["qr_var"],
+                           "np_z"+"_"+basis_fn["qr_var"]]
+        else:
+            # We have no name for the QR variable (as will be the case when
+            # generating a kernel stub).
+            alloc_args += ["np_xy", "np_z"]
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
     #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
     #                   "np_x"+"_"+basis_fn["qr_var"],
@@ -339,7 +340,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
         alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
                       "np_xyz"+"_"+basis_fn["qr_var"], "nedges"]                
     else:
-        raise InternalError(
+        raise NotImplementedError(
             "unrecognised shape ({0}) specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
             "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
@@ -380,9 +381,10 @@ def get_fs_operator_name(operator_name, function_space, qr_var=None,
 def mangle_fs_name(args, fs_name):
     ''' Construct the mangled version of a function-space name given
     a list of kernel arguments '''
-    if fs_name not in VALID_ANY_SPACE_NAMES:
-        # If the supplied function-space name is not any any-space then
-        # we don't need to mangle the name
+    if fs_name not in VALID_ANY_SPACE_NAMES + \
+       VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        # If the supplied function-space name is not any any_space
+        # or any_discontinuous_space then we don't need to mangle the name
         return fs_name
     for arg in args:
         for fspace in arg.function_spaces:
@@ -420,7 +422,7 @@ def cma_on_space(function_space, arguments):
                 return arg
     return None
 
-# Classes
+# ---------- Classes -------------------------------------------------------- #
 
 
 class FunctionSpace(object):
@@ -431,8 +433,10 @@ class FunctionSpace(object):
     def __init__(self, name, kernel_args):
         self._orig_name = name
         self._kernel_args = kernel_args
-        if self._orig_name not in VALID_ANY_SPACE_NAMES:
-            # We only need to name-mangle any-space spaces
+        if self._orig_name not in VALID_ANY_SPACE_NAMES + \
+           VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+            # We only need to name-mangle any_space and
+            # any_discontinuous_space spaces
             self._mangled_name = self._orig_name
         else:
             # We do not construct the name-mangled name at this point
@@ -454,13 +458,12 @@ class FunctionSpace(object):
         called. '''
         if self._mangled_name:
             return self._mangled_name
-        else:
-            # Cannot use kernel_args.field_on_space(x) here because that
-            # routine itself requires the mangled name in order to identify
-            # whether the space is present in the kernel call.
-            self._mangled_name = mangle_fs_name(self._kernel_args.args,
-                                                self._orig_name)
-            return self._mangled_name
+        # Cannot use kernel_args.field_on_space(x) here because that
+        # routine itself requires the mangled name in order to identify
+        # whether the space is present in the kernel call.
+        self._mangled_name = mangle_fs_name(self._kernel_args.args,
+                                            self._orig_name)
+        return self._mangled_name
 
 
 class DynFuncDescriptor03(object):
@@ -539,7 +542,7 @@ class DynArgDescriptor03(Descriptor):
     def __init__(self, arg_type):
         '''
         :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
         '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
@@ -567,13 +570,13 @@ class DynArgDescriptor03(Descriptor):
                     "(field*n) where n is an integer, but the following was "
                     "found '{0}' in '{1}'.".
                     format(str(arg_type.args[0].toks[2]), arg_type))
-            if self._type not in VALID_ARG_TYPE_NAMES:
+            if self._type not in GH_VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a meta_arg "
                     "entry should be a valid argument type (one of {0}), but "
-                    "found '{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES,
+                    "found '{1}' in '{2}'".format(GH_VALID_ARG_TYPE_NAMES,
                                                   self._type, arg_type))
-            if self._type in VALID_SCALAR_NAMES and self._vector_size > 1:
+            if self._type in GH_VALID_SCALAR_NAMES and self._vector_size > 1:
                 raise ParseError(
                     "In the dynamo0.3 API vector notation is not supported "
                     "for scalar arguments (found '{0}')".
@@ -594,12 +597,12 @@ class DynArgDescriptor03(Descriptor):
 
         elif isinstance(arg_type.args[0], expr.FunctionVar):
             # We expect 'field_type' to have been specified
-            if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
+            if arg_type.args[0].name not in GH_VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a "
                     "meta_arg entry should be a valid argument type (one of "
                     "{0}), but found '{1}' in '{2}'".
-                    format(VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
+                    format(GH_VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
                            arg_type))
             self._type = arg_type.args[0].name
         else:
@@ -608,20 +611,28 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here")
 
         # The 2nd arg is an access descriptor
-        if arg_type.args[1].name not in VALID_ACCESS_DESCRIPTOR_NAMES:
+        # Convert from GH_* names to the generic access type:
+        api_config = Config.get().api_conf("dynamo0.3")
+        access_mapping = api_config.get_access_mapping()
+        try:
+            self._access_type = access_mapping[arg_type.args[1].name]
+        except KeyError:
+            valid_names = api_config.get_valid_accesses_api()
             raise ParseError(
                 "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
                 "must be a valid access descriptor (one of {0}), but found "
-                "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
+                "'{1}' in '{2}'".format(valid_names,
                                         arg_type.args[1].name, arg_type))
-        self._access_descriptor = arg_type.args[1]
+
         # Reduction access descriptors are only valid for real scalar arguments
         if self._type != "gh_real" and \
-           self._access_descriptor.name in VALID_REDUCTION_NAMES:
+           self._access_type in \
+           AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
-                format(self._access_descriptor.name, self._type))
+                format(self._access_type.api_specific_name(),
+                       self._type))
 
         # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
         stencil = None
@@ -654,7 +665,7 @@ class DynArgDescriptor03(Descriptor):
             # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
-                    from psyclone.parse import get_stencil, get_mesh
+                    from psyclone.parse.kernel import get_stencil, get_mesh
                     if "stencil" in str(arg_type.args[3]):
                         stencil = get_stencil(arg_type.args[3],
                                               VALID_STENCIL_TYPES)
@@ -671,32 +682,35 @@ class DynArgDescriptor03(Descriptor):
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
             # Test allowed accesses for fields
-            if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
-               and self._access_descriptor.name.lower() == "gh_inc":
+            if self._function_space1.lower() in \
+               VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
+               and self._access_type == AccessType.INC:
                 raise ParseError(
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
-            # TODO: extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
-               and self._access_descriptor.name.lower() == "gh_readwrite":
+               and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
-            # TODO: extend for "gh_write"
+            # TODO: extend restriction to "gh_write" for kernels that loop
+            # over cells (issue #138) and update access rules for kernels
+            # (built-ins) that loop over DoFs to accesses for discontinuous
+            # quantities (issue #471)
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
-               and self._access_descriptor.name.lower() == "gh_readwrite":
+               and self._access_type == AccessType.READWRITE:
                 raise ParseError(
-                    "In the dynamo0.3 API a field on any_space cannot "
+                    "In the Dynamo0.3 API a field on any_space cannot "
                     "have 'gh_readwrite' access because it is treated "
                     "as continuous")
-            if stencil and self._access_descriptor.name.lower() != "gh_read":
-                raise ParseError("a stencil must be read only so its access"
+            if stencil and self._access_type != AccessType.READ:
+                raise ParseError("a stencil must be read only so its access "
                                  "should be gh_read")
 
         # Operators
-        elif self._type in VALID_OPERATOR_NAMES:
+        elif self._type in GH_VALID_OPERATOR_NAMES:
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
             if len(arg_type.args) != 4:
@@ -722,36 +736,41 @@ class DynArgDescriptor03(Descriptor):
                            arg_type))
             self._function_space2 = arg_type.args[3].name
             # Test allowed accesses for operators
-            if self._access_descriptor.name.lower() == "gh_inc":
+            if self._access_type == AccessType.INC:
                 raise ParseError(
                     "In the dynamo0.3 API operators cannot have a 'gh_inc' "
                     "access because they behave as discontinuous quantities")
 
         # Scalars
-        elif self._type in VALID_SCALAR_NAMES:
+        elif self._type in GH_VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
                     "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # Test allowed accesses for scalars (read_only or reduction)
-            if self._access_descriptor.name not in ["gh_read"] + \
-               VALID_REDUCTION_NAMES:
+            if self._access_type not in [AccessType.READ] + \
+               AccessType.get_valid_reduction_modes():
+                rev_access_mapping = api_config.get_reverse_access_mapping()
+                api_specific_name = rev_access_mapping[self._access_type]
+                valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
                     "read-only (gh_read) or a reduction ({0}) but found "
-                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
-                                            self._access_descriptor.name,
+                    "'{1}' in '{2}'".format(valid_reductions,
+                                            api_specific_name,
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
+            self._vector_size = 0
 
         # We should never get to here
         else:
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
-        Descriptor.__init__(self, self._access_descriptor.name,
+
+        Descriptor.__init__(self, self._access_type,
                             self._function_space1, stencil=stencil,
                             mesh=mesh)
 
@@ -760,24 +779,22 @@ class DynArgDescriptor03(Descriptor):
         ''' Return the "to" function space for a gh_operator. This is
         the first function space specified in the metadata. Raise an
         error if this is not an operator. '''
-        if self._type in VALID_OPERATOR_NAMES:
+        if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space1
-        else:
-            raise RuntimeError(
-                "function_space_to only makes sense for one of {0}, but "
-                "this is a '{1}'".format(VALID_OPERATOR_NAMES, self._type))
+        raise RuntimeError(
+            "function_space_to only makes sense for one of {0}, but "
+            "this is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space_from(self):
         ''' Return the "from" function space for a gh_operator. This is
         the second function space specified in the metadata. Raise an
         error if this is not an operator. '''
-        if self._type in VALID_OPERATOR_NAMES:
+        if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
-        else:
-            raise RuntimeError(
-                "function_space_from only makes sense for one of {0}, but this"
-                " is a '{1}'".format(VALID_OPERATOR_NAMES, self._type))
+        raise RuntimeError(
+            "function_space_from only makes sense for one of {0}, but this"
+            " is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space(self):
@@ -786,14 +803,13 @@ class DynArgDescriptor03(Descriptor):
         are 2 function spaces, return function_space_from. '''
         if self._type == "gh_field":
             return self._function_space1
-        elif self._type in VALID_OPERATOR_NAMES:
+        if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
-        elif self._type in VALID_SCALAR_NAMES:
+        if self._type in GH_VALID_SCALAR_NAMES:
             return None
-        else:
-            raise RuntimeError(
-                "Internal error, DynArgDescriptor03:function_space(), should "
-                "not get to here.")
+        raise RuntimeError(
+            "Internal error, DynArgDescriptor03:function_space(), should "
+            "not get to here.")
 
     @property
     def function_spaces(self):
@@ -802,15 +818,14 @@ class DynArgDescriptor03(Descriptor):
         spaces, we return both. '''
         if self._type == "gh_field":
             return [self.function_space]
-        elif self._type in VALID_OPERATOR_NAMES:
+        if self._type in GH_VALID_OPERATOR_NAMES:
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        elif self._type in VALID_SCALAR_NAMES:
+        if self._type in GH_VALID_SCALAR_NAMES:
             return []
-        else:
-            raise RuntimeError(
-                "Internal error, DynArgDescriptor03:function_spaces(), should "
-                "not get to here.")
+        raise RuntimeError(
+            "Internal error, DynArgDescriptor03:function_spaces(), should "
+            "not get to here.")
 
     @property
     def vector_size(self):
@@ -829,39 +844,114 @@ class DynArgDescriptor03(Descriptor):
         if self._vector_size > 1:
             res += "*"+str(self._vector_size)
         res += os.linesep
-        res += "  access_descriptor[1]='{0}'".format(self._access_descriptor) \
+        res += "  access_descriptor[1]='{0}'"\
+               .format(self._access_type.api_specific_name())\
                + os.linesep
         if self._type == "gh_field":
             res += "  function_space[2]='{0}'".format(self._function_space1) \
                    + os.linesep
-        elif self._type in VALID_OPERATOR_NAMES:
+        elif self._type in GH_VALID_OPERATOR_NAMES:
             res += "  function_space_to[2]='{0}'".\
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[3]='{0}'".\
                    format(self._function_space2) + os.linesep
-        elif self._type in VALID_SCALAR_NAMES:
+        elif self._type in GH_VALID_SCALAR_NAMES:
             pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
         return res
 
-    def __repr__(self):
-        return "DynArgDescriptor03({0})".format(self._arg_type)
+
+class RefElementMetaData(object):
+    '''
+    Class responsible for parsing reference-element meta-data and storing
+    the properties that a kernel requires.
+
+    :param str kernel_name: name of the Kernel that the meta-data is for.
+    :param type_declns: list of fparser1 parse tree nodes representing type \
+                        declaration statements
+    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
+
+    :raises ParseError: if an unrecognised reference-element property is found.
+
+    '''
+    class Property(Enum):
+        '''
+        Enumeration of the various properties of the Reference Element
+        (that a kernel can request).
+
+        '''
+        NORMALS_TO_HORIZONTAL_FACES = 1
+        NORMALS_TO_VERTICAL_FACES = 2
+        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
+        OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
+
+    # Mapping from meta-data text to our property enumeration.
+    reference_element_property_map = {
+        "normals_to_horizontal_faces":
+        Property.NORMALS_TO_HORIZONTAL_FACES,
+        "normals_to_vertical_faces":
+        Property.NORMALS_TO_VERTICAL_FACES,
+        "outward_normals_to_horizontal_faces":
+        Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
+        "outward_normals_to_vertical_faces":
+        Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
+    }
+
+    def __init__(self, kernel_name, type_declns):
+        from psyclone.parse.kernel import getkerneldescriptors
+
+        # The list of properties requested in the meta-data (if any)
+        self.properties = []
+
+        re_properties = []
+        # Search the supplied list of type declarations for the one
+        # describing the reference-element properties required by the kernel.
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "reference_element_data_type":
+                    # getkerneldescriptors raises a ParseError if the named
+                    # element cannot be found.
+                    re_properties = getkerneldescriptors(
+                        kernel_name, line, var_name="meta_reference_element",
+                        var_type="reference_element_data_type")
+                    break
+            if re_properties:
+                # Optimisation - stop searching if we've found a type
+                # declaration for the reference-element data
+                break
+        try:
+            # The meta-data entry is a declaration of a Fortran array of type
+            # reference_element_data_type. The initialisation of each member
+            # of this array is done as a structure constructor, the argument
+            # to which gives a property of the reference element.
+            for re_prop in re_properties:
+                for arg in re_prop.args:
+                    self.properties.append(
+                        self.reference_element_property_map[str(arg).lower()])
+        except KeyError:
+            # We found a reference-element property that we don't recognise.
+            # Sort for consistency when testing
+            sorted_keys = sorted(self.reference_element_property_map.keys())
+            raise ParseError(
+                "Unsupported reference-element property: '{0}'. Supported "
+                "values are: {1}".format(arg, sorted_keys))
 
 
 class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
-    the subroutine for the Dynamo 0.3 API. '''
+    the subroutine for the Dynamo 0.3 API.
 
+    :param ast: fparser1 AST for the kernel.
+    :type ast: :py:class:`fparser.block_statements.BeginSource`
+    :param str name: The name of this kernel.
+
+    :raises ParseError: if the meta-data does not conform to the \
+                        rules for the Dynamo 0.3 API.
+    '''
     def __init__(self, ast, name=None):
-        '''
-        :param ast: fparser1 AST for the kernel
-        :type ast: :py:class:`fparser.block_statements.BeginSource`
-        :param str name: The name of this kernel
+        from psyclone.parse.kernel import getkerneldescriptors
 
-        :raises ParseError: if the meta-data does not conform to the
-                            rules for the Dynamo 0.3 API
-        '''
         KernelType.__init__(self, ast, name=name)
 
         # The type of CMA operation this kernel performs (or None if
@@ -872,6 +962,10 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
+        # The list of function space names for which an evaluator is
+        # required. We set this up below once we've processed the meta-
+        # -data describing the kernel arguments.
+        self._eval_targets = []
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -882,22 +976,21 @@ class DynKernMetadata(KernelType):
         self._arg_descriptors = []
         for arg_type in self._inits:
             self._arg_descriptors.append(DynArgDescriptor03(arg_type))
-        # parse the func_type metadata if it exists
-        found = False
-        for line in self._ktype.content:
-            if isinstance(line, fparser.one.typedecl_statements.Type):
-                for entry in line.selector:
-                    if entry == "func_type":
-                        if line.entity_decls[0].split()[0].split("(")[0] == \
-                                "meta_funcs":
-                            found = True
-                            break
-        if not found:
-            func_types = []
-        else:
-            # use the base class method to extract the information
-            func_types = self.getkerneldescriptors(self._ktype,
-                                                   var_name="meta_funcs")
+
+        # Get a list of the Type declarations in the metadata
+        type_declns = [cline for cline in self._ktype.content if
+                       isinstance(cline, fparser.one.typedecl_statements.Type)]
+
+        # Parse the func_type metadata if it exists
+        func_types = []
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "func_type":
+                    func_types = getkerneldescriptors(
+                        name, line, var_name="meta_funcs",
+                        var_type="func_type")
+                    break
+
         self._func_descriptors = []
         # populate a list of function descriptor objects which we
         # return via the func_descriptors method.
@@ -946,7 +1039,30 @@ class DynKernMetadata(KernelType):
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
+
             self._func_descriptors.append(descriptor)
+
+        # Check to see whether the optional 'gh_evaluator_targets'
+        # has been supplied. This lists the function spaces for which
+        # any evaluators (gh_shape=gh_evaluator) should be provided.
+        _targets = self.get_integer_array('gh_evaluator_targets')
+        if not _targets and \
+           self._eval_shape and self._eval_shape.lower() == "gh_evaluator":
+            # Use the FS of the kernel arguments that are updated
+            write_accesses = AccessType.all_write_accesses()
+            write_args = psyGen.args_filter(self._arg_descriptors,
+                                            arg_accesses=write_accesses)
+            # We want the 'to' space of any operator arguments so get
+            # the first FS associated with the kernel argument.
+            _targets = [arg.function_spaces[0] for arg in write_args]
+        # Ensure that _eval_targets entries are not duplicated
+        for target in _targets:
+            if target not in self._eval_targets:
+                self._eval_targets.append(target)
+
+        # Does this kernel require any properties of the reference element?
+        self.reference_element = RefElementMetaData(self.name, type_declns)
+
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
         self._validate(need_evaluator)
@@ -964,17 +1080,19 @@ class DynKernMetadata(KernelType):
         # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
-            if arg.access != "gh_read":
+            if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
-                   arg.type in VALID_SCALAR_NAMES:
+                   arg.type in GH_VALID_SCALAR_NAMES:
                     raise ParseError(
                         "A user-supplied Dynamo 0.3 kernel must not "
                         "write/update a scalar argument but kernel {0} has "
-                        "{1} with {2} access".format(self.name,
-                                                     arg.type, arg.access))
+                        "{1} with {2} access"
+                        .format(self.name,
+                                arg.type,
+                                arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -987,16 +1105,33 @@ class DynKernMetadata(KernelType):
                 "Kernel '{0}' specifies a gh_shape ({1}) but does not "
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
-
-        # Check that this kernel only updates a single argument if an
-        # evaluator is required
-        if self._eval_shape == "gh_evaluator" and write_count > 1:
-            raise ParseError(
-                "A Dynamo 0.3 kernel requiring quadrature/evaluator must "
-                "only write to one argument but kernel {0} requires {1} and "
-                "updates {2} arguments".format(self.name,
-                                               self._eval_shape, write_count))
-
+        # Check that gh_evaluator_targets is only present if required
+        if self._eval_targets:
+            if not need_evaluator:
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because no basis or "
+                    "differential basis functions are required".
+                    format(self.name, self._eval_targets))
+            if self._eval_shape != "gh_evaluator":
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because gh_shape={2}".
+                    format(self.name, self._eval_targets, self._eval_shape))
+            # Check that there is a kernel argument on each of the
+            # specified spaces...
+            # Create a list (set) of the function spaces associated with
+            # the kernel arguments
+            fs_list = set()
+            for arg in self._arg_descriptors:
+                fs_list.update(arg.function_spaces)
+            # Check each evaluator_target against this list
+            for eval_fs in self._eval_targets:
+                if eval_fs not in fs_list:
+                    raise ParseError(
+                        "Kernel '{0}' specifies that an evaluator is required "
+                        "on {1} but does not have an argument on this space."
+                        .format(self.name, eval_fs))
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
@@ -1067,14 +1202,15 @@ class DynKernMetadata(KernelType):
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    VALID_MESH_TYPES, self.name, list(mesh_list)))
+                    VALID_MESH_TYPES, self.name,
+                    [str(name) for name in mesh_list]))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API are only "
                 "permitted to have field arguments but kernel {0} also "
                 "has arguments of type {1}".format(
-                    self.name, list(non_field_arg_types)))
+                    self.name, [str(name) for name in non_field_arg_types]))
         # Check that all arguments have a mesh specified
         if missing_mesh:
             raise ParseError(
@@ -1097,7 +1233,9 @@ class DynKernMetadata(KernelType):
                 "kernels must be on different function spaces if they are "
                 "on different meshes. However kernel {0} has a field on "
                 "function space(s) {1} on each of the mesh types {2}.".
-                format(self.name, list(fs_common), list(mesh_list)))
+                format(self.name,
+                       [str(name) for name in fs_common],
+                       [str(name) for name in mesh_list]))
         # Finally, record that this is a valid inter-grid kernel
         self._is_intergrid = True
 
@@ -1123,7 +1261,7 @@ class DynKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access in GH_WRITE_ACCESSES:
+            if cop.access in AccessType.all_write_accesses():
                 write_count += 1
 
         if write_count == 0:
@@ -1147,10 +1285,11 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
-                                           arg_accesses=GH_READ_ONLY_ACCESS)
+                                           arg_accesses=[AccessType.READ])
+            write_accesses = AccessType.all_write_accesses()
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
-                                            arg_accesses=GH_WRITE_ACCESSES)
+                                            arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
                     "Kernel {0} has a read-only CMA operator. In order "
@@ -1185,8 +1324,9 @@ class DynKernMetadata(KernelType):
             # or performing a matrix-matrix operation...
             # The kernel must not write to any args other than the CMA
             # operator
+            write_accesses = AccessType.all_write_accesses()
             write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=GH_WRITE_ACCESSES)
+                                            arg_accesses=write_accesses)
             if len(write_args) > 1:
                 # Remove the one CMA operator from the list of arguments
                 # that are written to so that we can produce a nice
@@ -1199,7 +1339,7 @@ class DynKernMetadata(KernelType):
                     "Kernel {0} writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
                     "allowed.".format(self.name,
-                                      [arg.type for arg in write_args]))
+                                      [str(arg.type) for arg in write_args]))
             if len(cwise_ops) == 1:
 
                 # If this is a valid assembly kernel then we need at least one
@@ -1207,7 +1347,7 @@ class DynKernMetadata(KernelType):
                 lma_read_ops = psyGen.args_filter(
                     self._arg_descriptors,
                     arg_types=["gh_operator"],
-                    arg_accesses=GH_READ_ONLY_ACCESS)
+                    arg_accesses=[AccessType.READ])
                 if lma_read_ops:
                     return "assembly"
                 else:
@@ -1220,7 +1360,7 @@ class DynKernMetadata(KernelType):
                 # A valid matrix-matrix kernel must only have CMA operators
                 # and scalars as arguments.
                 scalar_args = psyGen.args_filter(
-                    self._arg_descriptors, arg_types=VALID_SCALAR_NAMES)
+                    self._arg_descriptors, arg_types=GH_VALID_SCALAR_NAMES)
                 if (len(scalar_args) + len(cwise_ops)) != \
                    len(self._arg_descriptors):
                     raise ParseError(
@@ -1228,7 +1368,8 @@ class DynKernMetadata(KernelType):
                         "column-wise operators and scalars as arguments but "
                         "kernel {0} has: {1}.".
                         format(self.name,
-                               [arg.type for arg in self._arg_descriptors]))
+                               [str(arg.type) for arg in
+                                self._arg_descriptors]))
                 return "matrix-matrix"
         else:
             raise ParseError(
@@ -1263,29 +1404,50 @@ class DynKernMetadata(KernelType):
         '''
         if self._eval_shape:
             return self._eval_shape
-        else:
-            return ""
+        return ""
+
+    @property
+    def eval_targets(self):
+        '''
+        Returns the list of function spaces upon which any evaluator must be
+        provided. This list is obtained from the GH_EVALUATOR_TARGETS meta-data
+        entry (if present). If this is not specified in the meta-data then
+        we default to providing evaluators on all of the function spaces
+        associated with the arguments which this kernel updates.
+
+        :return: list of the names of the function spaces (as they appear in \
+                 kernel metadata) upon which any evaluator must be provided.
+        :rtype: list of str
+        '''
+        return self._eval_targets
 
     @property
     def is_intergrid(self):
         '''
-        Returns whether or not this is an inter-grid kernel
+        Returns whether or not this is an inter-grid kernel.
+
         :return: True if kernel is an inter-grid kernel, False otherwise
         :rtype: bool
         '''
         return self._is_intergrid
 
-# Second section : PSy specialisations
+# --------------------------------------------------------------------------- #
+# ========== Second section : PSy specialisations =========================== #
+# --------------------------------------------------------------------------- #
 
-# classes
+# ---------- Classes -------------------------------------------------------- #
 
 
 class DynamoPSy(PSy):
     ''' The Dynamo specific PSy class. This creates a Dynamo specific
     invokes object (which controls all the required invocation calls).
     It also overrides the PSy gen method so that we generate dynamo
-    specific PSy module code. '''
+    specific PSy module code.
 
+    :param invoke_info: object containing the required invocation information \
+                        for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+    '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls)
@@ -1339,79 +1501,126 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke)
 
 
-def stencil_extent_value(field):
-    '''Returns the content of the stencil extent. This may be a literal
-    value (a number) or a variable name. This function simplifies this
-    problem by returning a string in either case'''
-    if field.stencil.extent_arg.is_literal():
-        extent = field.stencil.extent_arg.text
-    else:
-        extent = field.stencil.extent_arg.varName
-    return extent
+class DynCollection(object):
+    '''
+    Base class for managing the declaration and initialisation of a
+    group of related entities within an Invoke or Kernel stub
 
+    :param node: the Kernel or Invoke for which to manage variable \
+                 declarations and initialisation.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
 
-def stencil_unique_str(arg, context):
-    '''Returns a string that uniquely identifies a stencil. As a stencil
-    differs due to the function space it operates on, type of
-    stencil and extent of stencil, we concatenate these things together
-    to return a unique string '''
-    unique = context
-    unique += arg.function_space.mangled_name
-    unique += arg.descriptor.stencil['type']
-    if arg.descriptor.stencil['extent']:
-        raise GenerationError(
-            "found a stencil with an extent specified in the metadata. This "
-            "is not coded for.")
-    unique += arg.stencil.extent_arg.text.lower()
-    if arg.descriptor.stencil['type'] == 'xory1d':
-        unique += arg.stencil.direction_arg.text.lower()
-    return unique
+    :raises InternalError: if the supplied node is not a DynInvoke or a \
+                           DynKern.
+    '''
+    def __init__(self, node):
+        if isinstance(node, DynInvoke):
+            # We are handling declarations/initialisations for an Invoke
+            self._invoke = node
+            self._kernel = None
+            # The list of kernel calls we are responsible for
+            self._calls = node.schedule.kernels()
+        elif isinstance(node, DynKern):
+            # We are handling declarations for a Kernel stub
+            self._invoke = None
+            self._kernel = node
+            # We only have a single kernel call in this case
+            self._calls = [node]
+        else:
+            raise InternalError("DynCollection takes only a DynInvoke "
+                                "or a DynKern but got: {0}".format(
+                                    type(node)))
 
-
-def stencil_map_name(arg):
-    ''' returns a valid unique map name for a stencil in the PSy layer '''
-    root_name = arg.name + "_stencil_map"
-    unique = stencil_unique_str(arg, "map")
-    name_space_manager = NameSpaceFactory().create()
-    return name_space_manager.create_name(
-        root_name=root_name, context="PSyVars", label=unique)
-
-
-def stencil_dofmap_name(arg):
-    ''' returns a valid unique dofmap name for a stencil in the PSy layer '''
-    root_name = arg.name + "_stencil_dofmap"
-    unique = stencil_unique_str(arg, "dofmap")
-    name_space_manager = NameSpaceFactory().create()
-    return name_space_manager.create_name(
-        root_name=root_name, context="PSyVars", label=unique)
-
-
-def stencil_size_name(arg):
-    ''' returns a valid unique name for the size (in cells) of a stencil
-    in the PSy layer '''
-    root_name = arg.name + "_stencil_size"
-    unique = stencil_unique_str(arg, "size")
-    name_space_manager = NameSpaceFactory().create()
-    return name_space_manager.create_name(
-        root_name=root_name, context="PSyVars", label=unique)
-
-
-class DynInvokeStencil(object):
-    '''stencil information and code generation associated with a
-    DynInvoke call'''
-
-    def __init__(self, schedule):
+        # Whether or not the associated Invoke contains only kernels that
+        # iterate over dofs.
+        if self._invoke:
+            self._dofs_only = self._invoke.iterate_over_dofs_only
+        else:
+            self._dofs_only = False
 
         self._name_space_manager = NameSpaceFactory().create()
-        # list of arguments which have an extent value passed to this
+
+    def declarations(self, parent):
+        '''
+        Insert declarations for all necessary variables into the AST of
+        the generated code. Simply calls either _invoke_declarations() or
+        _stub_declarations() depending on whether we're handling an Invoke
+        or a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the routine \
+                       in which to insert the declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if neither self._invoke or self._kernel \
+                               are set.
+        '''
+        if self._invoke:
+            self._invoke_declarations(parent)
+        elif self._kernel:
+            self._stub_declarations(parent)
+        else:
+            raise InternalError("DynCollection has neither a Kernel "
+                                "or an Invoke - should be impossible.")
+
+    def initialise(self, parent):
+        '''
+        Add code to initialise the entities being managed by this class.
+        We do nothing by default - it is up to the sub-class to override
+        this method if initialisation is required.
+
+        :param parent: the node in the f2pygen AST to which to add \
+                       initialisation code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+
+    @abc.abstractmethod
+    def _invoke_declarations(self, parent):
+        '''
+        Add all necessary declarations for an Invoke.
+
+        :param parent: node in the f2pygen AST representing the Invoke to \
+                       which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+    def _stub_declarations(self, parent):
+        '''
+        Add all necessary declarations for a Kernel stub. Not abstract because
+        not all entities need representing within a Kernel.
+
+        :param parent: node in the f2pygen AST representing the Kernel stub \
+                       to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+
+class DynStencils(DynCollection):
+    '''
+    Stencil information and code generation associated with a PSy-layer
+    routine or Kernel stub.
+
+    :param node: the Invoke or Kernel stub for which to provide stencil info.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises GenerationError: if a literal has been supplied for a stencil \
+                             direction.
+    '''
+    def __init__(self, node):
+        super(DynStencils, self).__init__(node)
+
+        # List of arguments which have an extent value passed to this
         # invoke routine from the algorithm layer. Duplicate argument
         # names are removed.
         self._unique_extent_args = []
         extent_names = []
-        for call in schedule.calls():
+        for call in self._calls:
             for arg in call.arguments.args:
                 if arg.stencil:
-                    # check for the existence of arg.extent here as in
+                    # Check for the existence of arg.extent here as in
                     # the future we plan to support kernels which
                     # specify the value of extent in metadata. If this
                     # is the case then an extent argument is not
@@ -1423,12 +1632,12 @@ class DynInvokeStencil(object):
                                     arg.stencil.extent_arg.text)
                                 self._unique_extent_args.append(arg)
 
-        # a list of arguments that have a direction variable passed in
+        # A list of arguments that have a direction variable passed in
         # to this invoke routine from the algorithm layer. Duplicate
         # argument names are removed.
         self._unique_direction_args = []
         direction_names = []
-        for call in schedule.calls():
+        for call in self._calls:
             for idx, arg in enumerate(call.arguments.args):
                 if arg.stencil and arg.stencil.direction_arg:
                     if arg.stencil.direction_arg.is_literal():
@@ -1447,26 +1656,164 @@ class DynInvokeStencil(object):
         # list of stencil args with an extent variable passed in. The same
         # field name may occur more than once here from different kernels.
         self._kern_args = []
-        for call in schedule.calls():
+        for call in self._calls:
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:
                         self._kern_args.append(arg)
 
+    @staticmethod
+    def extent_value(arg):
+        '''
+        Returns the content of the stencil extent which may be a literal
+        value (a number) or a variable name. This function simplifies this
+        problem by returning a string in either case.
+
+        :param arg: the argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: the content of the stencil extent.
+        :rtype: str
+
+        '''
+        if arg.stencil.extent_arg.is_literal():
+            return arg.stencil.extent_arg.text
+        return arg.stencil.extent_arg.varname
+
+    @staticmethod
+    def stencil_unique_str(arg, context):
+        '''
+        Creates a unique identifier for a stencil. As a stencil
+        differs due to the function space it operates on, type of
+        stencil and extent of stencil, we concatenate these things together
+        to create a unique string.
+
+        :param arg: kernel argument with which stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param str context: a context for this stencil (e.g. "size" or \
+                            "direction").
+
+        :returns: unique string identifying the stencil for this argument.
+        :rtype: str
+
+        :raises GenerationError: if an explicit stencil extent is found in \
+                                 the meta-data for the kernel argument.
+        '''
+        unique = context
+        unique += arg.function_space.mangled_name
+        unique += arg.descriptor.stencil['type']
+        if arg.descriptor.stencil['extent']:
+            raise GenerationError(
+                "Found a stencil with an extent specified in the metadata. "
+                "This is not coded for.")
+        unique += arg.stencil.extent_arg.text.lower()
+        if arg.descriptor.stencil['type'] == 'xory1d':
+            unique += arg.stencil.direction_arg.text.lower()
+        return unique
+
+    def map_name(self, arg):
+        '''
+        Creates and registers a name for the stencil map associated with the
+        supplied kernel argument.
+
+        :param arg: kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a valid unique map name for a stencil in the PSy layer.
+        :rtype: str
+        '''
+        root_name = arg.name + "_stencil_map"
+        unique = DynStencils.stencil_unique_str(arg, "map")
+        return self._name_space_manager.create_name(
+            root_name=root_name, context="PSyVars", label=unique)
+
+    @staticmethod
+    def dofmap_name(arg):
+        '''
+        Creates and registers a name for the stencil dofmap associated with
+        the supplied kernel argument.
+
+        :param arg: kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a valid unique dofmap name for a stencil in the PSy layer.
+        :rtype: str
+        '''
+        name_space_manager = NameSpaceFactory().create()
+        root_name = arg.name + "_stencil_dofmap"
+        unique = DynStencils.stencil_unique_str(arg, "dofmap")
+        return name_space_manager.create_name(
+            root_name=root_name, context="PSyVars", label=unique)
+
+    @staticmethod
+    def dofmap_size_name(arg):
+        '''
+        Create a valid unique name for the size (in cells) of a stencil
+        dofmap in the PSy layer.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a Fortran variable name for the stencil size.
+        :rtype: str
+        '''
+        root_name = arg.name + "_stencil_size"
+        unique = DynStencils.stencil_unique_str(arg, "size")
+        name_space_manager = NameSpaceFactory().create()
+        return name_space_manager.create_name(
+            root_name=root_name, context="PSyVars", label=unique)
+
+    @staticmethod
+    def direction_name(arg):
+        '''
+        Creates a Fortran variable name to hold the direction of the stencil
+        associated with the supplied kernel argument.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a Fortran variable name for the stencil direction.
+        :rtype: str
+        '''
+        name_space_manager = NameSpaceFactory().create()
+        root_name = arg.name+"_direction"
+        unique = DynStencils.stencil_unique_str(arg, "direction")
+        return name_space_manager.create_name(
+            root_name=root_name, context="PSyVars", label=unique)
+
     @property
     def _unique_extent_vars(self):
-        '''return a list of all the unique extent argument names in this
-        invoke call. '''
-        names = []
-        for arg in self._unique_extent_args:
-            names.append(arg.stencil.extent_arg.varName)
+        '''
+        :returns: list of all the unique extent argument names in this \
+                  invoke or kernel call.
+        :rtype: list of str
+
+        :raises InternalError: if neither self._kernel or self._invoke are set.
+
+        '''
+        if self._invoke:
+            names = [arg.stencil.extent_arg.varname for arg in
+                     self._unique_extent_args]
+        elif self._kernel:
+            # A kernel is passed the size of the stencil map
+            names = [self.dofmap_size_name(arg) for arg in
+                     self._unique_extent_args]
+        else:
+            raise InternalError("_unique_extent_vars: have neither Invoke "
+                                "or Kernel. Should be impossible.")
         return names
 
     def _declare_unique_extent_vars(self, parent):
-        '''Declare all unique extent arguments as integers with intent in and
+        '''
+        Declare all unique extent arguments as integers with intent in and
         add the declaration as a child of the parent argument passed
-        in. The parent argument should be an appropriate f2pygen
-        object. '''
+        in.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
@@ -1475,18 +1822,30 @@ class DynInvokeStencil(object):
 
     @property
     def _unique_direction_vars(self):
-        '''return a list of all the unique direction argument names in this
-        invoke call.'''
+        '''
+        :returns: a list of all the unique direction argument names in this \
+                  invoke call.
+        :rtype: list of str
+        '''
         names = []
         for arg in self._unique_direction_args:
-            names.append(arg.stencil.direction_arg.varName)
+            if arg.stencil.direction_arg.varname:
+                names.append(arg.stencil.direction_arg.varname)
+            else:
+                names.append(arg.name+"_direction")
         return names
 
     def _declare_unique_direction_vars(self, parent):
-        '''Declare all unique direction arguments as integers with intent in
+        '''
+        Declare all unique direction arguments as integers with intent in
         and add the declaration as a child of the parent argument
-        passed in. The parent argument should be an appropriate
-        f2pygen object. '''
+        passed in.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
@@ -1495,98 +1854,191 @@ class DynInvokeStencil(object):
 
     @property
     def unique_alg_vars(self):
-        '''returns a list of the names of the extent and direction arguments
-        specified in the algorithm layer'''
+        '''
+        :returns: list of the names of the extent and direction arguments \
+                  supplied to the PSy routine from the Algorithm layer.
+        :rtype: list of str
+        '''
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def declare_unique_alg_vars(self, parent):
-        '''declares all extent and direction arguments passed into the PSy
-        layer'''
+    def _invoke_declarations(self, parent):
+        '''
+        Declares all stencil maps, extent and direction arguments passed into
+        the PSy layer.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         self._declare_unique_extent_vars(parent)
         self._declare_unique_direction_vars(parent)
+        self._declare_maps_invoke(parent)
 
-    def initialise_stencil_maps(self, parent):
-        '''adds in the required stencil dofmap code to the PSy layer'''
-        from psyclone.f2pygen import AssignGen, IfThenGen, TypeDeclGen, \
-            UseGen, CommentGen, DeclGen
-        if self._kern_args:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
-            parent.add(CommentGen(parent, ""))
-            parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
-                              funcnames=["stencil_dofmap_type"]))
-            stencil_map_names = []
-            for arg in self._kern_args:
-                map_name = stencil_map_name(arg)
-                if map_name not in stencil_map_names:
-                    # only initialise maps once
-                    stencil_map_names.append(map_name)
+    def _stub_declarations(self, parent):
+        '''
+        Declare all stencil-related quanitites for a Kernel stub.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        self._declare_unique_extent_vars(parent)
+        self._declare_unique_direction_vars(parent)
+        self._declare_maps_stub(parent)
+
+    def initialise(self, parent):
+        '''
+        Adds in the code to initialise stencil dofmaps to the PSy layer.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       initialisations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: if an unsupported stencil type is encountered.
+        '''
+        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen
+        if not self._kern_args:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
+        parent.add(CommentGen(parent, ""))
+        stencil_map_names = []
+        for arg in self._kern_args:
+            map_name = self.map_name(arg)
+            if map_name not in stencil_map_names:
+                # Only initialise maps once.
+                stencil_map_names.append(map_name)
+                stencil_type = arg.descriptor.stencil['type']
+                if stencil_type == "xory1d":
+                    direction_name = arg.stencil.direction_arg.varname
+                    for direction in ["x", "y"]:
+                        if_then = IfThenGen(parent, direction_name +
+                                            " .eq. " + direction +
+                                            "_direction")
+                        if_then.add(
+                            AssignGen(
+                                if_then, pointer=True, lhs=map_name,
+                                rhs=arg.proxy_name_indexed +
+                                "%vspace%get_stencil_dofmap("
+                                "STENCIL_1D" + direction.upper() +
+                                ","+self.extent_value(arg)+")"))
+                        parent.add(if_then)
+                else:
+                    try:
+                        stencil_name = STENCIL_MAPPING[stencil_type]
+                    except KeyError:
+                        raise GenerationError(
+                            "Unsupported stencil type '{0}' supplied. "
+                            "Supported mappings are {1}".
+                            format(arg.descriptor.stencil['type'],
+                                   str(STENCIL_MAPPING)))
                     parent.add(
-                        TypeDeclGen(parent, pointer=True,
-                                    datatype="stencil_dofmap_type",
-                                    entity_decls=[map_name+" => null()"]))
-                    stencil_type = arg.descriptor.stencil['type']
-                    if stencil_type == "xory1d":
-                        parent.add(UseGen(parent, name="flux_direction_mod",
-                                          only=True,
-                                          funcnames=["x_direction",
-                                                     "y_direction"]))
-                        parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                          only=True,
-                                          funcnames=["STENCIL_1DX",
-                                                     "STENCIL_1DY"]))
-                        direction_name = arg.stencil.direction_arg.varName
-                        for direction in ["x", "y"]:
-                            if_then = IfThenGen(parent, direction_name +
-                                                " .eq. " + direction +
-                                                "_direction")
-                            if_then.add(
-                                AssignGen(if_then, pointer=True,
-                                          lhs=map_name, rhs=arg.proxy_name +
-                                          "%vspace%get_stencil_dofmap("
-                                          "STENCIL_1D" + direction.upper() +
-                                          ","+stencil_extent_value(arg)+")"))
-                            parent.add(if_then)
-                    else:
-                        try:
-                            stencil_name = STENCIL_MAPPING[stencil_type]
-                        except KeyError:
-                            raise GenerationError(
-                                "Unsupported stencil type '{0}' supplied. "
-                                "Supported mappings are {1}".
-                                format(arg.descriptor.stencil['type'],
-                                       str(STENCIL_MAPPING)))
-                        parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                          only=True,
-                                          funcnames=[stencil_name]))
-                        parent.add(
-                            AssignGen(parent, pointer=True, lhs=map_name,
-                                      rhs=arg.proxy_name +
-                                      "%vspace%get_stencil_dofmap(" +
-                                      stencil_name + "," +
-                                      stencil_extent_value(arg) + ")"))
-                    parent.add(DeclGen(parent, datatype="integer",
-                                       pointer=True,
-                                       entity_decls=[stencil_dofmap_name(arg) +
-                                                     "(:,:,:) => null()"]))
-                    parent.add(AssignGen(parent, pointer=True,
-                                         lhs=stencil_dofmap_name(arg),
-                                         rhs=map_name + "%get_whole_dofmap()"))
+                        AssignGen(parent, pointer=True, lhs=map_name,
+                                  rhs=arg.proxy_name_indexed +
+                                  "%vspace%get_stencil_dofmap(" +
+                                  stencil_name + "," +
+                                  self.extent_value(arg) + ")"))
 
-                    # Add declaration and look-up of stencil size
-                    parent.add(DeclGen(parent, datatype="integer",
-                                       entity_decls=[stencil_size_name(arg)]))
-                    parent.add(AssignGen(parent, lhs=stencil_size_name(arg),
-                                         rhs=map_name + "%get_size()"))
+                parent.add(AssignGen(parent, pointer=True,
+                                     lhs=self.dofmap_name(arg),
+                                     rhs=map_name + "%get_whole_dofmap()"))
+
+                # Add declaration and look-up of stencil size
+                parent.add(AssignGen(parent,
+                                     lhs=self.dofmap_size_name(arg),
+                                     rhs=map_name + "%get_size()"))
+
+    def _declare_maps_invoke(self, parent):
+        '''
+        Declare all stencil maps in the PSy layer.
+
+        :param parent: the node in the f2pygen AST to which to add \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: if an unsupported stencil type is encountered.
+        '''
+        from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
+        if not self._kern_args:
+            return
+
+        parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
+                          funcnames=["stencil_dofmap_type"]))
+
+        stencil_map_names = []
+        for arg in self._kern_args:
+            map_name = self.map_name(arg)
+
+            if map_name in stencil_map_names:
+                continue
+
+            stencil_map_names.append(map_name)
+
+            parent.add(TypeDeclGen(parent, pointer=True,
+                                   datatype="stencil_dofmap_type",
+                                   entity_decls=[map_name+" => null()"]))
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=[self.dofmap_name(arg) +
+                                             "(:,:,:) => null()"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[self.dofmap_size_name(arg)]))
+
+            stencil_type = arg.descriptor.stencil['type']
+            if stencil_type == "xory1d":
+                parent.add(UseGen(parent, name="flux_direction_mod",
+                                  only=True, funcnames=["x_direction",
+                                                        "y_direction"]))
+                parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                  only=True, funcnames=["STENCIL_1DX",
+                                                        "STENCIL_1DY"]))
+            else:
+                try:
+                    stencil_name = STENCIL_MAPPING[stencil_type]
+                except KeyError:
+                    raise GenerationError(
+                        "Unsupported stencil type '{0}' supplied. "
+                        "Supported mappings are {1}".
+                        format(arg.descriptor.stencil['type'],
+                               str(STENCIL_MAPPING)))
+                parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                  only=True, funcnames=[stencil_name]))
+                parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                                   entity_decls=[self.dofmap_name(arg) +
+                                                 "(:,:,:) => null()"]))
+
+    def _declare_maps_stub(self, parent):
+        '''
+        Add declarations for all stencil maps to a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the Kernel \
+                       stub routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        for arg in self._kern_args:
+            parent.add(DeclGen(
+                parent, datatype="integer", intent="in",
+                dimension=",".join([get_fs_ndf_name(arg.function_space),
+                                    self.dofmap_size_name(arg)]),
+                entity_decls=[self.dofmap_name(arg)]))
 
 
-class DynInvokeDofmaps(object):
-    ''' Holds all information on the dofmaps (including column-banded and
-    indirection) required by an invoke '''
+class DynDofmaps(DynCollection):
+    '''
+    Holds all information on the dofmaps (including column-banded and
+    indirection) required by an invoke.
 
-    def __init__(self, schedule):
+    :param node: Kernel or Invoke for which to manage dofmaps.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
 
-        self._name_space_manager = NameSpaceFactory().create()
+    '''
+    def __init__(self, node):
+        super(DynDofmaps, self).__init__(node)
+
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
         # We create a dictionary whose keys are the map names and entries
@@ -1596,7 +2048,7 @@ class DynInvokeDofmaps(object):
         # in this one are themselves dictionaries containing two entries:
         # "argument" - the object holding information on the CMA kernel
         #              argument
-        # "direction" - whether the dofmap is required for the "to" for
+        # "direction" - whether the dofmap is required for the "to" or
         #               "from" function space of the operator.
         self._unique_cbanded_maps = OrderedDict()
         # A dictionary of required CMA indirection dofmaps. As with the
@@ -1604,7 +2056,7 @@ class DynInvokeDofmaps(object):
         # "argument" and "direction" entries.
         self._unique_indirection_maps = OrderedDict()
 
-        for call in schedule.calls():
+        for call in self._calls:
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
                 for unique_fs in call.arguments.unique_fss:
@@ -1671,7 +2123,7 @@ class DynInvokeDofmaps(object):
                             "argument": cma_args[0],
                             "direction": "from"}
 
-    def initialise_dofmaps(self, parent):
+    def initialise(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
@@ -1713,11 +2165,15 @@ class DynInvokeDofmaps(object):
                                      rhs=cma["argument"].proxy_name_indexed +
                                      "%indirection_dofmap_"+cma["direction"]))
 
-    def declare_dofmaps(self, parent):
-        ''' Declare all unique function space dofmaps as pointers to
-        integer arrays of rank 2. The declarations are added as
-        children of the supplied parent argument. This must be an
-        appropriate f2pygen object. '''
+    def _invoke_declarations(self, parent):
+        '''
+        Declare all unique function space dofmaps in the PSy layer as pointers
+        to integer arrays of rank 2.
+
+        :param parent: the f2pygen node to which to add the declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen
 
         # Function space dofmaps
@@ -1742,10 +2198,581 @@ class DynInvokeDofmaps(object):
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_ind_map_names))
 
+    def _stub_declarations(self, parent):
+        '''
+        Add dofmap-related declarations to a Kernel stub.
 
-class DynInvokeCMAOperators(object):
-    ''' Holds all information on the CMA operators required by an invoke '''
+        :param parent: node in the f2pygen AST representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        '''
+        from psyclone.f2pygen import DeclGen
+        # Function space dofmaps
+        for dmap in sorted(self._unique_fs_maps):
+            # We declare ndf first as some compilers require this
+            ndf_name = get_fs_ndf_name(
+                self._unique_fs_maps[dmap].function_space)
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=ndf_name, entity_decls=[dmap]))
+        # Column-banded dofmaps
+        for dmap, cma in self._unique_cbanded_maps.items():
+            if cma["direction"] == "to":
+                ndf_name = get_fs_ndf_name(cma["argument"].function_space_to)
+            elif cma["direction"] == "from":
+                ndf_name = get_fs_ndf_name(cma["argument"].function_space_from)
+            else:
+                raise InternalError(
+                    "Invalid direction ('{0}') found for CMA operator when "
+                    "collecting column-banded dofmaps. Should "
+                    "be either 'to' or 'from'.".format(cma["direction"]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=",".join([ndf_name, "nlayers"]),
+                               entity_decls=[dmap]))
+        # CMA operator indirection dofmaps
+        for dmap, cma in self._unique_indirection_maps.items():
+            if cma["direction"] == "to":
+                dim_name = cma["argument"].name + "_nrow"
+            elif cma["direction"] == "from":
+                dim_name = cma["argument"].name + "_ncol"
+            else:
+                raise InternalError(
+                    "Invalid direction ('{0}') found for CMA operator when "
+                    "collecting indirection dofmaps. Should "
+                    "be either 'to' or 'from'.".format(cma["direction"]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[dim_name]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=dim_name, entity_decls=[dmap]))
+
+
+class DynOrientations(DynCollection):
+    '''
+    Handle the declaration of any orientation arrays. Orientation arrays
+    are initialised on a per-cell basis (within the loop over cells) and
+    this is therefore handled by the kernel-call generation.
+
+    '''
+    # We use a named-tuple to manage the storage of the various quantities
+    # that we require. This is neater and more robust than a dict.
+    Orientation = namedtuple("Orientation", ["name", "field",
+                                             "function_space"])
+
+    def __init__(self, node):
+        super(DynOrientations, self).__init__(node)
+
+        self._orients = []
+
+        # Loop over each kernel call and check whether orientation is required.
+        # If it is then we create an Orientation object for it and store in
+        # our internal list.
+        for call in self._calls:
+            for unique_fs in call.arguments.unique_fss:
+                if call.fs_descriptors.exists(unique_fs):
+                    fs_descriptor = call.fs_descriptors.get_descriptor(
+                        unique_fs)
+                    if fs_descriptor.requires_orientation:
+                        field = call.arguments.get_arg_on_space(unique_fs)
+                        oname = get_fs_orientation_name(unique_fs)
+                        self._orients.append(
+                            self.Orientation(oname, field, unique_fs))
+
+    def _stub_declarations(self, parent):
+        '''
+        Insert declarations for any orientation quantities into a Kernel stub.
+
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        for orient in self._orients:
+            ndf_name = get_fs_ndf_name(orient.function_space)
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=ndf_name, entity_decls=[orient.name]))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Insert declarations for any orientation quantities into a PSy-layer
+        routine.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        declns = [orient.name+"(:) => null()" for orient in self._orients]
+        if declns:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=declns))
+
+
+class DynFunctionSpaces(DynCollection):
+    '''
+    Handles the declaration and initialisation of all function-space-related
+    quantities required by an Invoke.
+
+    :param invoke: the Invoke or Kernel object.
+    '''
+    def __init__(self, kern_or_invoke):
+        super(DynFunctionSpaces, self).__init__(kern_or_invoke)
+
+        if self._invoke:
+            self._function_spaces = self._invoke.unique_fss()[:]
+        else:
+            self._function_spaces = self._calls[0].arguments.unique_fss
+
+        self._var_list = []
+
+        # Loop over all unique function spaces used by our kernel(s)
+        for function_space in self._function_spaces:
+
+            # We need ndf for a space if a kernel iterates over cells,
+            # has a field or operator on that space and is not a
+            # CMA kernel performing a matrix-matrix operation.
+            if self._invoke and not self._dofs_only or \
+               self._kernel and self._kernel.cma_operation != "matrix-matrix":
+                self._var_list.append(get_fs_ndf_name(function_space))
+
+            # If there is a field on this space then add undf to list
+            # to declare later. However, if the invoke contains only
+            # kernels that iterate over dofs and distributed memory is
+            # enabled then the number of dofs is obtained from the
+            # field proxy and undf is not required.
+            if self._invoke and self._invoke.field_on_space(function_space):
+                if not (self._dofs_only and Config.get().distributed_memory):
+                    self._var_list.append(get_fs_undf_name(function_space))
+            elif self._kernel and field_on_space(function_space,
+                                                 self._kernel.arguments):
+                self._var_list.append(get_fs_undf_name(function_space))
+
+    def _stub_declarations(self, parent):
+        '''
+        Add function-space-related declarations to a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the kernel \
+                       stub to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import DeclGen
+        if self._var_list:
+            # Declare ndf and undf for all function spaces
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=self._var_list))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Add function-space-related declarations to a PSy-layer routine.
+
+        :param parent: the node in the f2pygen AST to which to add \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        if self._var_list:
+            # Declare ndf and undf for all function spaces
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self._var_list))
+
+    def initialise(self, parent):
+        '''
+        Create the code that initialises function-space quantities.
+
+        :param parent: the node in the f2pygen AST representing the PSy-layer \
+                       routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+        # Loop over all unique function spaces used by the kernels in
+        # the invoke
+        for function_space in self._function_spaces:
+            # Initialise information associated with this function space.
+            # If we have 1+ kernels that iterate over cells then we
+            # will need ndf and undf. If we don't then we only need undf
+            # (for the upper bound of the loop over dofs) if we're not
+            # doing DM.
+            if not (self._dofs_only and Config.get().distributed_memory):
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent,
+                                      " Initialise number of DoFs for " +
+                                      function_space.mangled_name))
+                parent.add(CommentGen(parent, ""))
+
+            # Find an argument on this space to use to dereference
+            arg = self._invoke.arg_for_funcspace(function_space)
+            name = arg.proxy_name_indexed
+            # Initialise ndf for this function space.
+            if not self._dofs_only:
+                ndf_name = get_fs_ndf_name(function_space)
+                parent.add(AssignGen(parent, lhs=ndf_name,
+                                     rhs=name +
+                                     "%" + arg.ref_name(function_space) +
+                                     "%get_ndf()"))
+            # If there is a field on this space then initialise undf
+            # for this function space. However, if the invoke contains
+            # only kernels that iterate over dofs and distributed
+            # memory is enabled then the number of dofs is obtained
+            # from the field proxy and undf is not required.
+            if not (self._dofs_only and Config.get().distributed_memory):
+                if self._invoke.field_on_space(function_space):
+                    undf_name = get_fs_undf_name(function_space)
+                    parent.add(AssignGen(parent, lhs=undf_name,
+                                         rhs=name + "%" +
+                                         arg.ref_name(function_space) +
+                                         "%get_undf()"))
+
+
+class DynFields(DynCollection):
+    '''
+    Manages the declarations for all field arguments required by an Invoke
+    or Kernel stub.
+
+    '''
+    def _invoke_declarations(self, parent):
+        '''
+        Add field-related declarations to the PSy-layer routine.
+
+        :param parent: the node in the f2pygen AST representing the PSy-layer \
+                       routine to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import TypeDeclGen
+        # Add the subroutine argument declarations for fields
+        fld_args = self._invoke.unique_declns_by_intent("gh_field")
+        for intent in FORTRAN_INTENT_NAMES:
+            if fld_args[intent]:
+                if intent == "out":
+                    # The data part of a field might have intent(out) but
+                    # in order to preserve the state of the whole
+                    # derived-type object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                parent.add(TypeDeclGen(parent, datatype="field_type",
+                                       entity_decls=fld_args[intent],
+                                       intent=fort_intent))
+
+    def _stub_declarations(self, parent):
+        '''
+        Add field-related declarations to a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the Kernel \
+                       stub to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import DeclGen
+        fld_args = psyGen.args_filter(self._kernel.args,
+                                      arg_types=["gh_field"])
+        for fld in fld_args:
+            undf_name = get_fs_undf_name(fld.function_space)
+            intent = fld.intent
+
+            if fld.vector_size > 1:
+                for idx in range(1, fld.vector_size+1):
+                    text = (fld.name + "_" +
+                            fld.function_space.mangled_name +
+                            "_v" + str(idx))
+                    parent.add(DeclGen(parent, datatype="real",
+                                       kind="r_def", dimension=undf_name,
+                                       intent=intent, entity_decls=[text]))
+            else:
+                parent.add(
+                    DeclGen(parent, datatype="real", kind="r_def",
+                            intent=fld.intent,
+                            dimension=undf_name,
+                            entity_decls=[fld.name + "_" +
+                                          fld.function_space.mangled_name]))
+
+
+class DynProxies(DynCollection):
+    '''
+    Handles all proxy-related declarations and initialisation. Unlike other
+    sub-classes of DynCollection, we do not have to handle Kernel-stub
+    generation since Kernels know nothing about proxies.
+
+    '''
+    def _invoke_declarations(self, parent):
+        '''
+        Insert declarations of all proxy-related quantities into the PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import TypeDeclGen
+        field_proxy_decs = self._invoke.unique_proxy_declarations("gh_field")
+        if field_proxy_decs:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="field_proxy_type",
+                                   entity_decls=field_proxy_decs))
+        op_proxy_decs = self._invoke.unique_proxy_declarations("gh_operator")
+        if op_proxy_decs:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="operator_proxy_type",
+                                   entity_decls=op_proxy_decs))
+        cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
+            "gh_columnwise_operator")
+        if cma_op_proxy_decs:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="columnwise_operator_proxy_type",
+                                   entity_decls=cma_op_proxy_decs))
+
+    def initialise(self, parent):
+        '''
+        Insert code into the PSy layer to initialise all necessary proxies.
+
+        :param parent: node in the f2pygen AST representing the PSy-layer \
+                       routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                              " Initialise field and/or operator proxies"))
+        parent.add(CommentGen(parent, ""))
+        for arg in self._invoke.psy_unique_vars:
+            # We don't have proxies for scalars
+            if arg.type in GH_VALID_SCALAR_NAMES:
+                continue
+            if arg.vector_size > 1:
+                # the range function below returns values from
+                # 1 to the vector size which is what we
+                # require in our Fortran code
+                for idx in range(1, arg.vector_size+1):
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=arg.proxy_name+"("+str(idx)+")",
+                                  rhs=arg.name+"("+str(idx)+")%get_proxy()"))
+            else:
+                parent.add(AssignGen(parent, lhs=arg.proxy_name,
+                                     rhs=arg.name+"%get_proxy()"))
+
+
+class DynCellIterators(DynCollection):
+    '''
+    Handles all entities required by kernels that iterate over cells.
+
+    :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
+                           iterators.
+    :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                          :py:class:`psyclone.dynamo0p3.DynInvoke`
+    '''
+    def __init__(self, kern_or_invoke):
+        super(DynCellIterators, self).__init__(kern_or_invoke)
+
+        # Use our namespace manager to create a unique name unless
+        # the context and label match and in this case return the
+        # previous name.
+        self._nlayers_name = self._name_space_manager.create_name(
+            root_name="nlayers", context="PSyVars", label="nlayers")
+
+        # Store a reference to the first field/operator object that
+        # we can use to look-up nlayers in the PSy layer.
+        if not self._invoke:
+            # We're not generating a PSy layer so we're done here.
+            return
+        first_var = None
+        for var in self._invoke.psy_unique_vars:
+            if var.type not in GH_VALID_SCALAR_NAMES:
+                first_var = var
+                break
+        if not first_var:
+            raise GenerationError(
+                "Cannot create an Invoke with no field/operator arguments")
+        self._first_var = first_var
+
+    def _invoke_declarations(self, parent):
+        '''
+        Declare entities required for iterating over cells in the Invoke.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        # We only need the number of layers in the mesh if we are calling
+        # one or more kernels that iterate over cells
+        if not self._dofs_only:
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[self._nlayers_name]))
+
+    def _stub_declarations(self, parent):
+        '''
+        Declare entities required for a kernel stub that iterates over cells.
+
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import DeclGen
+        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[self._nlayers_name]))
+
+    def initialise(self, parent):
+        '''
+        Look-up the number of vertical layers in the mesh in the PSy layer.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+        if not self._dofs_only:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Initialise number of layers"))
+            parent.add(CommentGen(parent, ""))
+            parent.add(AssignGen(
+                parent, lhs=self._nlayers_name,
+                rhs=self._first_var.proxy_name_indexed + "%" +
+                self._first_var.ref_name() + "%get_nlayers()"))
+
+
+class DynScalarArgs(DynCollection):
+    '''
+    Handles the declaration of scalar kernel arguments appearing in either
+    an Invoke or Kernel stub.
+
+    :param node: the Kernel stub or Invoke for which to manage the scalar \
+                 arguments.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    :raises InternalError: if an unrecognised type of scalar argument is \
+                           encountered.
+    '''
+    def __init__(self, node):
+        super(DynScalarArgs, self).__init__(node)
+
+        if self._invoke:
+            self._real_scalars = self._invoke.unique_declns_by_intent(
+                "gh_real")
+            self._int_scalars = self._invoke.unique_declns_by_intent(
+                "gh_integer")
+        else:
+            # We have a kernel stub.
+            self._real_scalars = {}
+            self._int_scalars = {}
+            for intent in FORTRAN_INTENT_NAMES:
+                self._real_scalars[intent] = []
+                self._int_scalars[intent] = []
+            for arg in self._calls[0].arguments.args:
+                if arg.type in GH_VALID_SCALAR_NAMES:
+                    if arg.type == "gh_real":
+                        self._real_scalars[arg.intent].append(arg.name)
+                    elif arg.type == "gh_integer":
+                        self._int_scalars[arg.intent].append(arg.name)
+                    else:
+                        raise InternalError(
+                            "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
+                            " not handled in DynScalarArgs".format(arg.type))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Insert declarations for all of the scalar arguments.
+
+        :param parent: the f2pygen node in which to insert declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import DeclGen
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._real_scalars[intent]:
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   entity_decls=self._real_scalars[intent],
+                                   intent=intent))
+
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._int_scalars[intent]:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=self._int_scalars[intent],
+                                   intent=intent))
+
+    def _stub_declarations(self, parent):
+        '''
+        Declarations for scalars in Kernel stubs are the same as for those
+        in Invokes.
+
+        :param parent: node in the f2pygen AST representing the Kernel stub \
+                       to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        self._invoke_declarations(parent)
+
+
+class DynLMAOperators(DynCollection):
+    '''
+    Handles all entities associated with Local-Matrix-Assembly Operators.
+    '''
+    def _stub_declarations(self, parent):
+        '''
+        Declare all LMA-related quantities in a Kernel stub.
+
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        lma_args = psyGen.args_filter(
+            self._kernel.arguments.args, arg_types=["gh_operator"])
+        if lma_args:
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=["cell"]))
+        for arg in lma_args:
+            size = arg.name+"_ncell_3d"
+            parent.add(DeclGen(parent, datatype="integer",
+                               intent="in", entity_decls=[size]))
+            ndf_name_to = get_fs_ndf_name(arg.function_space_to)
+            ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               dimension=",".join([ndf_name_to,
+                                                   ndf_name_from, size]),
+                               intent=arg.intent,
+                               entity_decls=[arg.name]))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Declare all LMA-related quantities in a PSy-layer routine.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import TypeDeclGen
+
+        op_declarations_dict = self._invoke.unique_declns_by_intent(
+            "gh_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                parent.add(
+                    TypeDeclGen(parent, datatype="operator_type",
+                                entity_decls=op_declarations_dict[intent],
+                                intent=fort_intent))
+
+
+class DynCMAOperators(DynCollection):
+    '''
+    Holds all information on the Column-Matrix-Assembly operators
+    required by an Invoke or Kernel stub.
+
+    :param node: either an Invoke schedule or a single Kernel object.
+    :type node: :py:class:`psyclone.dynamo0p3.DynSchedule` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
+
+    '''
     # The scalar parameters that must be passed along with a CMA operator
     # if its 'to' and 'from' spaces are the same
     cma_same_fs_params = ["nrow", "bandwidth", "alpha",
@@ -1755,11 +2782,10 @@ class DynInvokeCMAOperators(object):
     cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
                           "beta", "gamma_m", "gamma_p"]
 
-    def __init__(self, schedule):
+    def __init__(self, node):
+        super(DynCMAOperators, self).__init__(node)
 
-        self._name_space_manager = NameSpaceFactory().create()
-
-        # Look at every kernel call in this invoke and generate a set of
+        # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
         # dictionary entry. The key is the name of the CMA argument in the
         # PSy layer and the entry is itself another dictionary containing
@@ -1768,8 +2794,11 @@ class DynInvokeCMAOperators(object):
         # that CMA operator. The contents of this list depend on whether
         # or not the to/from function spaces of the CMA operator are the
         # same.
-        self._cma_ops = {}
-        for call in schedule.calls():
+        self._cma_ops = OrderedDict()
+        # You can't index into an OrderedDict so we keep a separate ref
+        # to the first CMA argument we find.
+        self._first_cma_arg = None
+        for call in self._calls:
             if call.cma_operation:
                 # Get a list of all of the CMA arguments to this call
                 cma_args = psyGen.args_filter(
@@ -1788,17 +2817,40 @@ class DynInvokeCMAOperators(object):
                             self._cma_ops[arg.name] = {
                                 "arg": arg,
                                 "params": self.cma_same_fs_params}
+                        self._cma_ops[arg.name]["intent"] = arg.intent
+                        # Keep a reference to the first CMA argument
+                        if not self._first_cma_arg:
+                            self._first_cma_arg = arg
 
-    def initialise_cma_ops(self, parent):
-        ''' Generates the calls to the LFRic infrastructure that look-up
+    def initialise(self, parent):
+        '''
+        Generates the calls to the LFRic infrastructure that look-up
         the various components of each CMA operator. Adds these as
-        children of the supplied parent node. This must be an appropriate
-        f2pygen object. '''
-        from psyclone.f2pygen import CommentGen, AssignGen
+        children of the supplied parent node.
+
+        :param parent: f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
+
+        # If we have one or more CMA operators then we will need the number
+        # of columns in the mesh
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Initialise number of cols"))
+        parent.add(CommentGen(parent, ""))
+        ncol_name = self._name_space_manager.create_name(
+            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        parent.add(
+            AssignGen(
+                parent, lhs=ncol_name,
+                rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
@@ -1825,14 +2877,39 @@ class DynInvokeCMAOperators(object):
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
 
-    def declare_cma_ops(self, parent):
-        ''' Generate the necessary declarations for all column-wise operators
-        and their associated parameters '''
-        from psyclone.f2pygen import DeclGen
+    def _invoke_declarations(self, parent):
+        '''
+        Generate the necessary PSy-layer declarations for all column-wise
+        operators and their associated parameters.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen, TypeDeclGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
+
+        # Add subroutine argument declarations for CMA operators that are
+        # read or written (as with normal/LMA operators, they are never 'inc'
+        # because they are discontinuous)
+        cma_op_declarations_dict = self._invoke.unique_declns_by_intent(
+            "gh_columnwise_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if cma_op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                parent.add(
+                    TypeDeclGen(parent, datatype="columnwise_operator_type",
+                                entity_decls=cma_op_declarations_dict[intent],
+                                intent=fort_intent))
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
@@ -1852,35 +2929,85 @@ class DynInvokeCMAOperators(object):
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=param_names))
 
+    def _stub_declarations(self, parent):
+        '''
+        Generate all necessary declarations for CMA operators being passed to
+        a Kernel stub.
+
+        :param parent: f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
+        # CMA operators always need the current cell index and the number
+        # of columns in the mesh
+        parent.add(DeclGen(parent, datatype="integer", intent="in",
+                           entity_decls=["cell", "ncell_2d"]))
+
+        for op_name in self._cma_ops:
+            # Declare the associated scalar arguments before the array because
+            # some of them are used to dimension the latter (and some compilers
+            # get upset if this ordering is not followed)
+            _local_args = []
+            for param in self._cma_ops[op_name]["params"]:
+                param_name = self._name_space_manager.create_name(
+                    root_name=op_name+"_"+param,
+                    context="PSyVars",
+                    label=op_name+"_"+param)
+                _local_args.append(param_name)
+            parent.add(DeclGen(parent, datatype="integer",
+                               intent="in",
+                               entity_decls=_local_args))
+            # Declare the array that holds the CMA operator
+            bandwidth = op_name + "_bandwidth"
+            nrow = op_name + "_nrow"
+            intent = self._cma_ops[op_name]["intent"]
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               dimension=",".join([bandwidth,
+                                                   nrow, "ncell_2d"]),
+                               intent=intent, entity_decls=[op_name]))
+
 
 class DynMeshes(object):
     '''
-    Holds all mesh-related information. If there are no inter-grid
-    kernels then there is only one mesh object required (when doing
-    distributed memory). However, kernels performing inter-grid
-    operations require multiple mesh objects as well as mesh maps and
-    other quantities.
+    Holds all mesh-related information (including colour maps if
+    required).  If there are no inter-grid kernels then there is only
+    one mesh object required (when colouring or doing distributed memory).
+    However, kernels performing inter-grid operations require multiple mesh
+    objects as well as mesh maps and other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
+    :param invoke: the Invoke for which to extract information on all \
+                   required inter-grid operations.
+    :type invoke: :py:class:`psyclone.dynamo0p3.DynInvoke`
+    :param unique_psy_vars: list of arguments to the PSy-layer routine.
+    :type unique_psy_vars: list of \
+                      :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
     '''
 
-    def __init__(self, schedule, unique_psy_vars):
-        '''
-        :param schedule: the schedule of the Invoke for which to extract \
-                         information on all required inter-grid operations
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
-        :param unique_psy_vars: list of arguments to the PSy-layer routine
-        :type unique_psy_vars: list of \
-                   :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
-        '''
+    def __init__(self, invoke, unique_psy_vars):
         self._name_space_manager = NameSpaceFactory().create()
-
-        self._kern_calls = []
+        # Dict of DynInterGrid objects holding information on the mesh-related
+        # variables required by each inter-grid kernel. Keys are the kernel
+        # names.
+        self._ig_kernels = OrderedDict()
+        # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
+        # Whether or not the associated Invoke requires colourmap information
+        self._needs_colourmap = False
+        # Keep a reference to the InvokeSchedule so we can check for colouring
+        # later
+        self._schedule = invoke.schedule
+
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -1889,7 +3016,7 @@ class DynMeshes(object):
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if var.type not in VALID_SCALAR_NAMES:
+            if var.type not in GH_VALID_SCALAR_NAMES:
                 self._first_var = var
                 break
 
@@ -1897,7 +3024,7 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        for call in schedule.kern_calls():
+        for call in self._schedule.coded_kernels():
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -1911,37 +3038,9 @@ class DynMeshes(object):
             fine_arg = fine_args[0]
             coarse_arg = coarse_args[0]
 
-            # Generate name for inter-mesh map
-            base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
-                                                   coarse_arg.name)
-            mmap = self._name_space_manager.create_name(
-                root_name=base_mmap_name,
-                context="PSyVars",
-                label=base_mmap_name)
-
-            # Generate name for ncell variables
-            ncell_fine = self._name_space_manager.create_name(
-                root_name="ncell_{0}".format(fine_arg.name),
-                context="PSyVars",
-                label="ncell_{0}".format(fine_arg.name))
-            ncellpercell = self._name_space_manager.create_name(
-                root_name="ncpc_{0}_{1}".format(fine_arg.name,
-                                                coarse_arg.name),
-                context="PSyVars",
-                label="ncpc_{0}_{1}".format(fine_arg.name,
-                                            coarse_arg.name))
-            # Name for cell map
-            base_name = "cell_map_" + coarse_arg.name
-            cell_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
-
-            # Store this information in our list of dicts
-            self._kern_calls.append({"fine": fine_arg,
-                                     "ncell_fine": ncell_fine,
-                                     "coarse": coarse_arg,
-                                     "mmap": mmap,
-                                     "ncperc": ncellpercell,
-                                     "cellmap": cell_map})
+            # Create an object to capture info. on this inter-grid kernel
+            # and store in our dictionary
+            self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
             _name_set.add(
@@ -1957,38 +3056,81 @@ class DynMeshes(object):
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._kern_calls:
+        if non_intergrid_kernels and self._ig_kernels:
             raise GenerationError(
                 "An invoke containing inter-grid kernels must contain no "
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
                 "not inter-grid kernels.".format(
                     ", ".join([call.name for call in non_intergrid_kernels]),
-                    schedule.invoke.name))
+                    invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object
-        if not _name_set and _CONFIG.distributed_memory:
-            mesh_name = "mesh"
-            _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name=mesh_name, context="PSyVars", label=mesh_name))
+        # is enabled then we will still need a mesh object if we have one or
+        # more kernels that iterate over cells. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
+        if not _name_set and (Config.get().distributed_memory and
+                              not invoke.iterate_over_dofs_only):
+            _name_set.add(self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
 
+    def _colourmap_init(self):
+        '''
+        Sets-up information on any required colourmaps. This cannot be done
+        in the constructor since colouring is applied by Transformations
+        and happens after the Schedule has already been constructed.
+        '''
+        for call in [call for call in self._schedule.coded_kernels() if
+                     call.is_coloured()]:
+            # Keep a record of whether or not any kernels (loops) in this
+            # invoke have been coloured
+            self._needs_colourmap = True
+
+            if call.is_intergrid:
+                # This is an inter-grid kernel so look-up the names of
+                # the colourmap variables associated with the coarse
+                # mesh (since that determines the iteration space).
+                carg_name = self._ig_kernels[call.name].coarse.name
+                # Colour map
+                base_name = "cmap_" + carg_name
+                colour_map = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of colours
+                base_name = "ncolour_" + carg_name
+                ncolours = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # Add these names into the dictionary entry for this
+                # inter-grid kernel
+                self._ig_kernels[call.name].colourmap = colour_map
+                self._ig_kernels[call.name].ncolours_var = ncolours
+
+        if not self._mesh_names and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need colourmap
+            # information and that means we'll need a mesh object
+            mesh_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            self._mesh_names.append(mesh_name)
+
     def declarations(self, parent):
         '''
-        Declare variables specific to inter-grid kernels
+        Declare variables specific to mesh objects.
 
         :param parent: the parent node to which to add the declarations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+
+        # Since we're now generating code, any transformations must
+        # have been applied so we can set-up colourmap information
+        self._colourmap_init()
+
         # We'll need various typedefs from the mesh module
         if self._mesh_names:
             parent.add(UseGen(parent, name="mesh_mod", only=True,
                               funcnames=["mesh_type"]))
-        if self._kern_calls:
+        if self._ig_kernels:
             parent.add(UseGen(parent, name="mesh_map_mod", only=True,
                               funcnames=["mesh_map_type"]))
         # Declare the mesh object(s)
@@ -1996,19 +3138,43 @@ class DynMeshes(object):
             parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
                                    entity_decls=[name + " => null()"]))
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._kern_calls:
+        for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="mesh_map_type",
-                                   entity_decls=[kern["mmap"] + " => null()"]))
+                                   entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
-                        entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
+                        entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[kern["ncell_fine"],
-                                             kern["ncperc"]]))
+                               entity_decls=[kern.ncell_fine,
+                                             kern.ncellpercell]))
+            # Declare variables to hold the colourmap information if required
+            if kern.colourmap:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   pointer=True,
+                                   entity_decls=[kern.colourmap+"(:,:)"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[kern.ncolours_var]))
+
+        if not self._ig_kernels and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need
+            # colourmap information
+            base_name = "cmap"
+            colour_map = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # No. of colours
+            base_name = "ncolour"
+            ncolours = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # Add declarations for these variables
+            parent.add(DeclGen(parent, datatype="integer",
+                               pointer=True,
+                               entity_decls=[colour_map+"(:,:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[ncolours]))
 
     def initialise(self, parent):
         '''
@@ -2028,12 +3194,31 @@ class DynMeshes(object):
 
         if len(self._mesh_names) == 1:
             # We only require one mesh object which means that this invoke
-            # contains no inter-grid kernels
+            # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
-            rhs = self._first_var.name_indexed + "%get_mesh()"
+            rhs = "%".join([self._first_var.proxy_name_indexed,
+                            self._first_var.ref_name(), "get_mesh()"])
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
+            if self._needs_colourmap:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent, " Get the colourmap"))
+                parent.add(CommentGen(parent, ""))
+                # Look-up variable names for colourmap and number of colours
+                colour_map = self._name_space_manager.create_name(
+                    root_name="cmap", context="PSyVars", label="cmap")
+                ncolour = self._name_space_manager.create_name(
+                    root_name="ncolour", context="PSyVars",
+                    label="ncolour")
+                # Get the number of colours
+                parent.add(AssignGen(
+                    parent, lhs=ncolour,
+                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                # Get the colour map
+                parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
+                                     rhs=self._mesh_names[0] +
+                                     "%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -2045,180 +3230,427 @@ class DynMeshes(object):
         # that we don't generate duplicate assignments
         initialised = []
 
-        for kern in self._kern_calls:
+        # Loop over the DynInterGrid objects in our dictionary
+        for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["fine"].name),
+                root_name="mesh_{0}".format(dig.fine.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["fine"].name))
+                label="mesh_{0}".format(dig.fine.name))
             coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["coarse"].name),
+                root_name="mesh_{0}".format(dig.coarse.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["coarse"].name))
+                label="mesh_{0}".format(dig.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=kern["fine"].name_indexed + "%get_mesh()"))
+                              rhs="%".join([dig.fine.proxy_name_indexed,
+                                            dig.fine.ref_name(),
+                                            "get_mesh()"])))
+
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=kern["coarse"].name_indexed + "%get_mesh()"))
+                              rhs="%".join([dig.coarse.proxy_name_indexed,
+                                            dig.coarse.ref_name(),
+                                            "get_mesh()"])))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            if kern["mmap"] not in initialised:
-                initialised.append(kern["mmap"])
+            if dig.mmap not in initialised:
+                initialised.append(dig.mmap)
                 parent.add(
                     AssignGen(parent, pointer=True,
-                              lhs=kern["mmap"],
+                              lhs=dig.mmap,
                               rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
                                                                  fine_mesh)))
 
             # Cell map. This is obtained from the mesh map.
-            if kern["cellmap"] not in initialised:
-                initialised.append(kern["cellmap"])
+            if dig.cell_map not in initialised:
+                initialised.append(dig.cell_map)
                 parent.add(
-                    AssignGen(parent, pointer=True, lhs=kern["cellmap"],
-                              rhs=kern["mmap"]+"%get_whole_cell_map()"))
+                    AssignGen(parent, pointer=True, lhs=dig.cell_map,
+                              rhs=dig.mmap+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
-            if kern["ncell_fine"] not in initialised:
-                initialised.append(kern["ncell_fine"])
-                if _CONFIG.distributed_memory:
+            if dig.ncell_fine not in initialised:
+                initialised.append(dig.ncell_fine)
+                if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
+                        AssignGen(parent, lhs=dig.ncell_fine,
                                   rhs=(fine_mesh+"%get_last_halo_cell"
                                        "(depth=2)")))
                 else:
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
-                                  rhs="%".join([kern["fine"].proxy_name,
-                                                kern["fine"].ref_name(),
+                        AssignGen(parent, lhs=dig.ncell_fine,
+                                  rhs="%".join([dig.fine.proxy_name,
+                                                dig.fine.ref_name(),
                                                 "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
-            if kern["ncperc"] not in initialised:
-                initialised.append(kern["ncperc"])
+            if dig.ncellpercell not in initialised:
+                initialised.append(dig.ncellpercell)
                 parent.add(
-                    AssignGen(parent, lhs=kern["ncperc"],
-                              rhs=kern["mmap"] +
+                    AssignGen(parent, lhs=dig.ncellpercell,
+                              rhs=dig.mmap +
                               "%get_ntarget_cells_per_source_cell()"))
 
+            # Colour map for the coarse mesh (if required)
+            if dig.colourmap:
+                # Number of colours
+                parent.add(AssignGen(parent, lhs=dig.ncolours_var,
+                                     rhs=coarse_mesh + "%get_ncolours()"))
+                # Colour map itself
+                parent.add(AssignGen(parent, lhs=dig.colourmap,
+                                     pointer=True,
+                                     rhs=coarse_mesh + "%get_colour_map()"))
 
-class DynInvokeBasisFns(object):
-    ''' Holds all information on the basis and differential basis
-    functions required by an invoke. This covers both those required for
-    quadrature and for evaluators. '''
+    @property
+    def intergrid_kernels(self):
+        ''' Getter for the dictionary of intergrid kernels.
 
-    def __init__(self, schedule):
+        :returns: Dictionary of intergrid kernels, indexed by name.
+        :rtype: :py:class:`collections.OrderedDict`
         '''
-        :param schedule: the schedule of the Invoke for which to extract
-                         information on all required basis/diff-basis
-                         functions
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
-        '''
+        return self._ig_kernels
+
+
+class DynInterGrid(object):
+    '''
+    Holds information on quantities required by an inter-grid kernel.
+
+    :param fine_arg: Kernel argument on the fine mesh.
+    :type fine_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param coarse_arg: Kernel argument on the coarse mesh.
+    :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    '''
+    def __init__(self, fine_arg, coarse_arg):
         self._name_space_manager = NameSpaceFactory().create()
+
+        # Arguments on the coarse and fine grids
+        self.coarse = coarse_arg
+        self.fine = fine_arg
+
+        # Generate name for inter-mesh map
+        base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
+                                               coarse_arg.name)
+        self.mmap = self._name_space_manager.create_name(
+            root_name=base_mmap_name,
+            context="PSyVars",
+            label=base_mmap_name)
+
+        # Generate name for ncell variables
+        self.ncell_fine = self._name_space_manager.create_name(
+            root_name="ncell_{0}".format(fine_arg.name),
+            context="PSyVars",
+            label="ncell_{0}".format(fine_arg.name))
+        # No. of fine cells per coarse cell
+        self.ncellpercell = self._name_space_manager.create_name(
+            root_name="ncpc_{0}_{1}".format(fine_arg.name,
+                                            coarse_arg.name),
+            context="PSyVars",
+            label="ncpc_{0}_{1}".format(fine_arg.name,
+                                        coarse_arg.name))
+        # Name for cell map
+        base_name = "cell_map_" + coarse_arg.name
+        self.cell_map = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        # We have no colourmap information when first created
+        self.colourmap = ""
+        # Name of the variable holding the number of colours
+        self.ncolours_var = ""
+
+
+class DynBasisFunctions(DynCollection):
+    ''' Holds all information on the basis and differential basis
+    functions required by an invoke or kernel call. This covers both those
+    required for quadrature and for evaluators.
+
+    :param node: either the schedule of an Invoke or a single Kernel object \
+                 for which to extract information on all required \
+                 basis/diff-basis functions.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises InternalError: if a call has an unrecognised evaluator shape.
+    '''
+    qr_dim_vars = {"xyoz": ["np_xy", "np_z"]}
+    qr_weight_vars = {"xyoz": ["weights_xy", "weights_z"]}
+
+    def __init__(self, node):
+        from psyclone.dynamo0p3_builtins import DynBuiltIn
+
+        super(DynBasisFunctions, self).__init__(node)
+
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
-        # the shape, the function space and the function space
-        # of the corresponding kernel argument that is being updated.
+        # the shape, the function space and the 'target' function spaces
+        # (upon which the basis functions are evaluated).
         self._basis_fns = []
-        self._diff_basis_fns = []
         # The dictionary of quadrature objects passed to this invoke. Keys
         # are the various VALID_QUADRATURE_SHAPES, values are a list of
         # associated quadrature variables. (i.e. we have a list of
         # quadrature arguments for each shape.)
         self._qr_vars = {}
-        # The list of kernel args for which we require evaluators
-        self._unique_evaluator_args = []
-        # Corresponding set of unique function spaces (to ensure we don't
-        # duplicate anything)
-        _fs_eval_list = set()
+        # The dict of target function spaces upon which we must provide
+        # evaluators. Keys are the FS names, values are (FunctionSpace,
+        # DynKernelArgument) tuples.
+        self._eval_targets = OrderedDict()
 
-        for call in schedule.kern_calls():
-            # Does this kernel require basis/diff basis functions?
-            if call.eval_shape:
-                # Keep a list of the quadrature objects passed to this
-                # invoke
-                if call.eval_shape in VALID_QUADRATURE_SHAPES:
-                    if call.eval_shape not in self._qr_vars:
-                        # We haven't seen a quadrature arg with this shape
-                        # before so create a dictionary entry with an
-                        # empty list
-                        self._qr_vars[call.eval_shape] = []
-                    if call.qr_name not in self._qr_vars[call.eval_shape]:
-                        # Add this qr argument to the list of those that
-                        # have this shape
-                        self._qr_vars[call.eval_shape].append(call.qr_name)
-                elif call.eval_shape == "gh_evaluator":
-                    # Keep a list of the unique evaluators we require. We do
-                    # this as a list of the kernel arguments to which they
-                    # correspond. A kernel requiring an evaluator is only
-                    # permitted to update a single argument and the function
-                    # space of this argument determines which nodes the basis
-                    # functions must be evaluated upon. If this argument is an
-                    # operator then the 'to' space is used.
-                    arg = call.updated_arg
-                    fname = arg.evaluator_function_space.mangled_name
-                    if fname not in _fs_eval_list:
-                        _fs_eval_list.add(fname)
-                        self._unique_evaluator_args.append(arg)
+        for call in self._calls:
 
-                # For each FS descriptor, we need a full function-space object
-                for fsd in call.fs_descriptors.descriptors:
+            if isinstance(call, DynBuiltIn) or not call.eval_shape:
+                # Skip this kernel if it doesn't require basis/diff basis fns
+                continue
 
-                    # We need the full FS object, not just the name. Therefore
-                    # we first have to get a kernel argument that is on this
-                    # space...
-                    arg = call.arguments.get_arg_on_space_name(fsd.fs_name)
-                    # ...and then use that to get the appropriate function
-                    # space object. We have to take care that we get the
-                    # right object if this argument is an operator
-                    if arg.type in VALID_OPERATOR_NAMES:
-                        if fsd.fs_name == arg.function_space_to.orig_name:
-                            fspace = arg.function_space_to
-                        else:
-                            fspace = arg.function_space_from
-                    else:
-                        fspace = arg.function_space
+            if call.eval_shape in VALID_QUADRATURE_SHAPES:
 
-                    # Which FS is this on and is it a basis or diff-basis
-                    # function that is required?
-                    entry = {"shape": call.eval_shape,
-                             "write_arg": call.updated_arg,
-                             "fspace": fspace,
-                             "arg": arg}
-                    if call.eval_shape in VALID_QUADRATURE_SHAPES:
-                        entry["qr_var"] = call.qr_name
-                        # Quadrature are evaluated at pre-determined
-                        # points rather than at the nodes of another FS
-                        entry["nodal_fspace"] = None
-                    else:
-                        entry["qr_var"] = None
-                        # Store the function space upon which the basis
-                        # functions are to be evaluated
-                        entry["nodal_fspace"] = call.updated_arg.\
-                            evaluator_function_space
-                    if fsd.requires_basis:
-                        self._basis_fns.append(entry)
-                    if fsd.requires_diff_basis:
-                        self._diff_basis_fns.append(entry)
+                # This kernel requires quadrature
+                if call.eval_shape not in self._qr_vars:
+                    # We haven't seen a quadrature arg with this shape
+                    # before so create a dictionary entry with an
+                    # empty list
+                    self._qr_vars[call.eval_shape] = []
+                if call.qr_name not in self._qr_vars[call.eval_shape]:
+                    # Add this qr argument to the list of those that
+                    # have this shape
+                    self._qr_vars[call.eval_shape].append(call.qr_name)
 
-    def declare_qr(self, parent):
+            elif call.eval_shape.lower() == "gh_evaluator":
+                # An evaluator consists of basis or diff basis functions
+                # for one FS evaluated on the nodes of another 'target' FS.
+                # Make a dict of 2-tuples, each containing the FunctionSpace
+                # and associated kernel argument for the target FSs.
+
+                # Loop over the target FS for evaluators required by this
+                # kernel
+                for fs_name in call.eval_targets:
+                    if fs_name not in self._eval_targets:
+                        # We don't already have this space in our list so
+                        # add it to the list of target spaces
+                        self._eval_targets[fs_name] = \
+                            call.eval_targets[fs_name]
+            else:
+                raise InternalError("Unrecognised evaluator shape: '{0}'. "
+                                    "Should be one of {1}".format(
+                                        call.eval_shape,
+                                        VALID_EVALUATOR_SHAPES))
+
+            # Both quadrature and evaluators require basis and/or differential
+            # basis functions. This helper routine populates self._basis_fns
+            # with entries describing the basis functions required by
+            # this call.
+            self._setup_basis_fns_for_call(call)
+
+    @staticmethod
+    def basis_first_dim_name(function_space):
         '''
-        Create the declarations for any quadrature objects passed
-        in to an invoke. These are added as children of the supplied
-        parent node.
+        Get the name of the variable holding the first dimension of a
+        basis function
 
-        :param parent: the node in the f2pygen AST that will be the
-                       parent of all of the declarations (i.e. the
-                       PSy-layer subroutine)
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param function_space: the function space the basis function is for
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: a Fortran variable name
+        :rtype: str
+
+        '''
+        return "dim_" + function_space.mangled_name
+
+    @staticmethod
+    def basis_first_dim_value(function_space):
+        '''
+        Get the size of the first dimension of a basis function.
+
+        :param function_space: the function space the basis function is for
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: an integer length.
+        :rtype: string
+
+        :raises GenerationError: if an unsupported function space is supplied \
+                                 (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
+        '''
+        if function_space.orig_name.lower() in SCALAR_BASIS_SPACE_NAMES:
+            first_dim = "1"
+        elif function_space.orig_name.lower() in VECTOR_BASIS_SPACE_NAMES:
+            first_dim = "3"
+        else:
+            # It is not possible to determine explicitly the first basis
+            # function array dimension from the metadata for any_space or
+            # any_discontinuous_space. This information needs to be passed
+            # from the PSy layer to the kernels (see issue #461).
+            raise GenerationError(
+                "Unsupported space for basis function, "
+                "expecting one of {0} but found "
+                "'{1}'".format(VALID_FUNCTION_SPACES,
+                               function_space.orig_name))
+        return first_dim
+
+    @staticmethod
+    def diff_basis_first_dim_name(function_space):
+        '''
+        Get the name of the variable holding the first dimension of a
+        differential basis function.
+
+        :param function_space: the function space the diff-basis function \
+                               is for.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: a Fortran variable name.
+        :rtype: str
+
+        '''
+        return "diff_dim_" + function_space.mangled_name
+
+    @staticmethod
+    def diff_basis_first_dim_value(function_space):
+        '''
+        Get the size of the first dimension of an array for a
+        differential basis function.
+
+        :param function_space: the function space the diff-basis function \
+                               is for.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: an integer length.
+        :rtype: str
+
+        :raises GenerationError: if an unsupported function space is \
+                                 supplied (e.g. ANY_SPACE_*, \
+                                 ANY_DISCONTINUOUS_SPACE_*)
+
+        '''
+        if function_space.orig_name.lower() in SCALAR_DIFF_BASIS_SPACE_NAMES:
+            first_dim = "1"
+        elif function_space.orig_name.lower() in VECTOR_DIFF_BASIS_SPACE_NAMES:
+            first_dim = "3"
+        else:
+            # It is not possible to determine explicitly the first
+            # differential basis function array dimension from the metadata
+            # for any_space or any_discontinuous_space. This information
+            # needs to be passed from the PSy layer to the kernels
+            # (see issue #461).
+            raise GenerationError(
+                "Unsupported space for differential basis function, expecting "
+                "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
+                                                    function_space.orig_name))
+        return first_dim
+
+    def _setup_basis_fns_for_call(self, call):
+        '''
+        Populates self._basis_fns with entries describing the basis
+        functions required by the supplied Call.
+
+        :param call: the kernel call for which basis functions are required.
+        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+
+        :raises InternalError: if the supplied call is of incorrect type.
+        :raises InternalError: if the supplied call has an unrecognised \
+                               evaluator shape.
+        '''
+        if not isinstance(call, DynKern):
+            raise InternalError("Expected a DynKern object but got: '{0}'".
+                                format(type(call)))
+        # We need a full FunctionSpace object for each function space
+        # that has basis functions associated with it.
+        for fsd in call.fs_descriptors.descriptors:
+
+            # We need the full FS object, not just the name. Therefore
+            # we first have to get a kernel argument that is on this
+            # space...
+            arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
+
+            # Populate a dict with the shape, function space and
+            # associated kernel argument for this basis/diff-basis f'n.
+            entry = {"shape": call.eval_shape,
+                     "fspace": fspace,
+                     "arg": arg}
+            if call.eval_shape in VALID_QUADRATURE_SHAPES:
+                # This is for quadrature - store the name of the
+                # qr variable
+                entry["qr_var"] = call.qr_name
+                # Quadrature are evaluated at pre-determined
+                # points rather than at the nodes of another FS.
+                # We put one entry of None in the list of target
+                # spaces to facilitate cases where we loop over
+                # this list.
+                entry["nodal_fspaces"] = [None]
+            elif call.eval_shape.lower() == "gh_evaluator":
+                # This is an evaluator
+                entry["qr_var"] = None
+                # Store a list of the FunctionSpace objects for which
+                # these basis functions are to be evaluated
+                entry["nodal_fspaces"] = [items[0] for items in
+                                          call.eval_targets.values()]
+            else:
+                raise InternalError("Unrecognised evaluator shape: '{0}'. "
+                                    "Should be one of {1}".format(
+                                        call.eval_shape,
+                                        VALID_EVALUATOR_SHAPES))
+
+            # Add our newly-constructed dict object to the list describing
+            # the required basis and/or differential basis functions for
+            # this Invoke.
+            if fsd.requires_basis:
+                entry["type"] = "basis"
+                self._basis_fns.append(entry)
+            if fsd.requires_diff_basis:
+                # Take a shallow copy of the dict and just modify the
+                # 'type' of the basis function it describes (this works
+                # because the 'type' entry is a primitive type [str]).
+                diff_entry = entry.copy()
+                diff_entry["type"] = "diff-basis"
+                self._basis_fns.append(diff_entry)
+
+    def _stub_declarations(self, parent):
+        '''
+        Insert the variable declarations required by the basis functions into
+        the Kernel stub.
+
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        if not self._qr_vars and not self._eval_targets:
+            return
+
+        # Get the lists of dimensioning variables and basis arrays
+        var_dims, basis_arrays = self._basis_fn_declns()
+
+        if var_dims:
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=var_dims))
+        for basis in basis_arrays:
+            parent.add(DeclGen(parent, datatype="real",
+                               kind="r_def", intent="in",
+                               dimension=",".join(basis_arrays[basis]),
+                               entity_decls=[basis]))
+        for qr_shape in VALID_QUADRATURE_SHAPES:
+            if qr_shape.lower() == "gh_quadrature_xyoz":
+                if qr_shape not in self._qr_vars:
+                    continue
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in", dimension="np_xy",
+                                   entity_decls=["weights_xy"]))
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in", dimension="np_z",
+                                   entity_decls=["weights_z"]))
+            else:
+                raise GenerationError(
+                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
+                    "yet supported - got '{0}'".format(qr_shape))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Add basis-function declarations to the PSy layer.
+
+        :param parent: f2pygen node represening the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import TypeDeclGen
         # Create a single declaration for each quadrature type
@@ -2245,25 +3677,26 @@ class DynInvokeBasisFns(object):
                         datatype=QUADRATURE_TYPE_MAP[shape]["proxy_type"],
                         entity_decls=var_names))
 
-    def initialise_basis_fns(self, parent):
+    def initialise(self, parent):
         '''
         Create the declarations and assignments required for the
         basis-functions required by an invoke. These are added as children
         of the supplied parent node in the AST.
 
         :param parent: the node in the f2pygen AST that will be the
-                       parent of all of the declarations and assignments
+                       parent of all of the declarations and assignments.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if an invalid entry is encountered in the \
+                               self._basis_fns list.
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
             AllocateGen, UseGen
-        var_dim_list = []
         basis_declarations = []
-        op_name_list = []
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
-        if self._qr_vars or self._unique_evaluator_args:
+        if self._qr_vars or self._eval_targets:
             parent.add(UseGen(parent, name="function_space_mod",
                               only=True,
                               funcnames=["BASIS", "DIFF_BASIS"]))
@@ -2288,25 +3721,16 @@ class DynInvokeBasisFns(object):
             self._initialise_face_qr(parent)
             self._initialise_edge_qr(parent)
 
-        if self._unique_evaluator_args:
+        if self._eval_targets:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
                                   " Initialise evaluator-related quantities "
-                                  "using the field(s) that are written to"))
+                                  "for the target function spaces"))
             parent.add(CommentGen(parent, ""))
 
-        for arg in self._unique_evaluator_args:
-            # We need an 'ndf_nodal' for each unique FS for which there
-            # is an evaluator
-
-            fspace = arg.evaluator_function_space
-            ndf_nodal_name = "ndf_nodal_" + fspace.mangled_name
-
-            rhs = "%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
-                            "get_ndf()"])
-            parent.add(AssignGen(parent, lhs=ndf_nodal_name, rhs=rhs))
-            var_dim_list.append(ndf_nodal_name)
-            # ...and the list of nodes for that field
+        for (fspace, arg) in self._eval_targets.values():
+            # We need the list of nodes for each unique FS upon which we need
+            # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             parent.add(AssignGen(
                 parent, lhs=nodes_name,
@@ -2319,109 +3743,173 @@ class DynInvokeBasisFns(object):
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Allocate basis arrays"))
+            parent.add(CommentGen(parent, " Allocate basis/diff-basis arrays"))
             parent.add(CommentGen(parent, ""))
 
+        var_dim_list = []
         for basis_fn in self._basis_fns:
-            # Get the extent of the first dimension of the basis array
-            first_dim = basis_first_dim_name(basis_fn["fspace"])
+            # Get the extent of the first dimension of the basis array. and
+            if basis_fn['type'] == "basis":
+                first_dim = self.basis_first_dim_name(basis_fn["fspace"])
+                dim_space = "get_dim_space()"
+            elif basis_fn['type'] == "diff-basis":
+                first_dim = self.diff_basis_first_dim_name(
+                    basis_fn["fspace"])
+                dim_space = "get_dim_space_diff()"
+            else:
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Should "
+                    "be either 'basis' or 'diff-basis'.".format(
+                        basis_fn['type']))
+
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
-                rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
-                                basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                                "get_dim_space()"])
+                rhs = "%".join(
+                    [basis_fn["arg"].proxy_name_indexed,
+                     basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                     dim_space])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-            op_name = get_fs_operator_name("gh_basis", basis_fn["fspace"],
-                                           qr_var=basis_fn["qr_var"],
-                                           on_space=basis_fn["nodal_fspace"])
-            if op_name not in op_name_list:
-                # We haven't seen a basis with this name before so
-                # need to declare it and add allocate statement
-                op_name_list.append(op_name)
-                if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                    # Dimensionality of the basis arrays depends on the
-                    # type of quadrature...
-                    alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                    parent.add(
-                        AllocateGen(parent,
-                                    op_name+"("+", ".join(alloc_args)+")"))
-                    # Add basis function variable to list to declare later.
-                    # We use the length of alloc_args to determine how
-                    # many dimensions this array has.
-                    basis_declarations.append(
-                        op_name+"("+",".join([":"]*len(alloc_args))+")")
-                else:
-                    # This is an evaluator
-                    ndf_nodal_name = "ndf_nodal_" + basis_fn["nodal_fspace"].\
-                                     mangled_name
-                    alloc_args_str = ", ".join(
-                        [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                         ndf_nodal_name])
-                    parent.add(AllocateGen(parent,
-                                           op_name+"("+alloc_args_str+")"))
-                    # add basis function variable to list to declare later
-                    basis_declarations.append(op_name+"(:,:,:)")
 
-        if self._diff_basis_fns:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Allocate differential basis arrays"))
-            parent.add(CommentGen(parent, ""))
+        var_dims, basis_arrays = self._basis_fn_declns()
 
-        for basis_fn in self._diff_basis_fns:
-            # initialise 'diff_dim' variable for this function
-            # space and add name to list to declare later
-            first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
-            if first_dim not in var_dim_list:
-                var_dim_list.append(first_dim)
-                rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
-                                basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                                "get_dim_space_diff()"])
-                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-            op_name = get_fs_operator_name("gh_diff_basis",
-                                           basis_fn["fspace"],
-                                           qr_var=basis_fn["qr_var"],
-                                           on_space=basis_fn["nodal_fspace"])
-            if op_name not in op_name_list:
-                # We haven't seen a differential basis with this name before
-                # so need to declare it and add allocate statement
-                op_name_list.append(op_name)
-                if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                    # Dimensionality of the differential-basis arrays
-                    # depends on the type of quadrature...
-                    alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                    parent.add(
-                        AllocateGen(parent,
-                                    op_name+"("+", ".join(alloc_args)+")"))
-                    # Add diff-basis function variable to list to
-                    # declare later.  We use the length of alloc_args
-                    # to determine how many dimensions this array has.
-                    basis_declarations.append(
-                        op_name+"("+",".join([":"]*len(alloc_args))+")")
-                else:
-                    # This is an evaluator.
-                    # Need the number of dofs in the field being written by
-                    # the kernel that requires this evaluator
-                    ndf_nodal_name = "ndf_nodal_" + basis_fn["nodal_fspace"].\
-                                     mangled_name
-                    alloc_str = ", ".join(
-                        [diff_basis_first_dim_name(basis_fn["fspace"]),
-                         get_fs_ndf_name(basis_fn["fspace"]),
-                         ndf_nodal_name])
-                    parent.add(AllocateGen(parent, op_name+"("+alloc_str+")"))
-                    # Add diff-basis function variable to list to declare later
-                    basis_declarations.append(op_name+"(:,:,:)")
-
-        if var_dim_list:
+        if var_dims:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=var_dim_list))
+                               entity_decls=var_dims))
+
+        basis_declarations = []
+        for basis in basis_arrays:
+            parent.add(
+                AllocateGen(parent,
+                            basis+"("+", ".join(basis_arrays[basis])+")"))
+            basis_declarations.append(
+                basis+"("+",".join([":"]*len(basis_arrays[basis]))+")")
+
+        # declare the basis function arrays
         if basis_declarations:
-            # declare the basis function arrays
             parent.add(DeclGen(parent, datatype="real",
-                               allocatable=True,
-                               kind="r_def",
+                               allocatable=True, kind="r_def",
                                entity_decls=basis_declarations))
+
+        # Compute the values for any basis arrays
+        self._compute_basis_fns(parent)
+
+    def _basis_fn_declns(self):
+        '''
+        Extracts all information relating to the necessary declarations
+        for basis-function arrays.
+
+        :returns: a 2-tuple containing a list of dimensioning variables & a \
+                  dict of basis arrays.
+        :rtype: (list of str, dict)
+
+        :raises InternalError: if neither self._invoke or self._kernel are set.
+        :raises InternalError: if an unrecognised type of basis function is \
+                               encountered.
+        :raises InternalError: if an unrecognised evaluator shape is \
+                               encountered.
+        '''
+        # Dictionary of basis arrays where key values are the array names and
+        # entries are a list of dimensions.
+        basis_arrays = OrderedDict()
+        # List of names of dimensioning (scalar) variables
+        var_dim_list = []
+
+        # Loop over the list of dicts describing each basis function
+        # required by this Invoke.
+        for basis_fn in self._basis_fns:
+            # Get the extent of the first dimension of the basis array and
+            # store whether we have a basis or a differential basis function.
+            # Currently there are only those two possible types of basis
+            # function and we store which we have in is_diff_basis. Should
+            # further basis-function types be added in the future then the if
+            # blocks that use if_diff_basis further down must be updated.
+            if basis_fn['type'] == "basis":
+                if self._invoke:
+                    first_dim = self.basis_first_dim_name(basis_fn["fspace"])
+                elif self._kernel:
+                    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
+                else:
+                    raise InternalError("Require basis functions but do not "
+                                        "have either a Kernel or an "
+                                        "Invoke. Should be impossible.")
+                dim_space = "get_dim_space()"
+                is_diff_basis = False
+            elif basis_fn['type'] == "diff-basis":
+                if self._invoke:
+                    first_dim = self.diff_basis_first_dim_name(
+                        basis_fn["fspace"])
+                elif self._kernel:
+                    first_dim = self.diff_basis_first_dim_value(
+                        basis_fn["fspace"])
+                else:
+                    raise InternalError("Require differential basis functions "
+                                        "but do not have either a Kernel or "
+                                        "an Invoke. Should be impossible.")
+                dim_space = "get_dim_space_diff()"
+                is_diff_basis = True
+            else:
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Should "
+                    "be either 'basis' or 'diff-basis'.".format(
+                        basis_fn['type']))
+
+            if self._invoke and first_dim not in var_dim_list:
+                var_dim_list.append(first_dim)
+
+            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
+
+                if is_diff_basis:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                else:
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                if op_name in basis_arrays:
+                    # We've already seen a basis with this name so skip
+                    continue
+
+                # Dimensionality of the basis arrays depends on the
+                # type of quadrature...
+                alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
+                for arg in alloc_args:
+                    # In a kernel stub the first dimension of the array is
+                    # a numerical value so make sure we don't try and declare
+                    # it as a variable.
+                    if not arg[0].isdigit() and arg not in var_dim_list:
+                        var_dim_list.append(arg)
+                basis_arrays[op_name] = alloc_args
+
+            elif basis_fn["shape"].lower() == "gh_evaluator":
+                # This is an evaluator and thus may be required on more than
+                # one function space
+                for target_space in basis_fn["nodal_fspaces"]:
+                    if is_diff_basis:
+                        op_name = get_fs_operator_name(
+                            "gh_diff_basis", basis_fn["fspace"],
+                            qr_var=basis_fn["qr_var"],
+                            on_space=target_space)
+                    else:
+                        op_name = get_fs_operator_name(
+                            "gh_basis", basis_fn["fspace"],
+                            qr_var=basis_fn["qr_var"],
+                            on_space=target_space)
+                    if op_name in basis_arrays:
+                        continue
+                    # We haven't seen a basis with this name before so
+                    # need to store its dimensions
+                    basis_arrays[op_name] = [
+                        first_dim,
+                        get_fs_ndf_name(basis_fn["fspace"]),
+                        get_fs_ndf_name(target_space)]
+            else:
+                raise InternalError(
+                    "Unrecognised evaluator shape: '{0}'. Should be one of "
+                    "{1}".format(basis_fn["shape"], VALID_EVALUATOR_SHAPES))
+
+        return (var_dim_list, basis_arrays)
 
     def _initialise_xyz_qr(self, parent):
         '''
@@ -2449,9 +3937,6 @@ class DynInvokeBasisFns(object):
         if "gh_quadrature_xyoz" not in self._qr_vars:
             return
 
-        qr_vars = ["np_xy", "np_z"]
-        qr_ptr_vars = ["weights_xy", "weights_z"]
-
         for qr_arg_name in self._qr_vars["gh_quadrature_xyoz"]:
 
             # We generate unique names for the integers holding the numbers
@@ -2460,9 +3945,10 @@ class DynInvokeBasisFns(object):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
-                    entity_decls=[name+"_"+qr_arg_name for name in qr_vars]))
+                    entity_decls=[name+"_"+qr_arg_name
+                                  for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
-                         for name in qr_ptr_vars]
+                         for name in self.qr_weight_vars["xyoz"]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind="r_def", entity_decls=decl_list))
@@ -2472,12 +3958,12 @@ class DynInvokeBasisFns(object):
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
             # Number of points in each dimension
-            for qr_var in qr_vars:
+            for qr_var in self.qr_dim_vars["xyoz"]:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
                               rhs=proxy_name+"%"+qr_var))
             # Pointers to the weights arrays
-            for qr_var in qr_ptr_vars:
+            for qr_var in self.qr_weight_vars["xyoz"]:
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=qr_var+"_"+qr_arg_name,
@@ -2552,8 +4038,8 @@ class DynInvokeBasisFns(object):
                        in which to insert the initialisation
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
         '''
-        
-    def compute_basis_fns(self, parent):
+
+    def _compute_basis_fns(self, parent):
         '''
         Generates the necessary Fortran to compute the values of
         any basis/diff-basis arrays required
@@ -2569,113 +4055,108 @@ class DynInvokeBasisFns(object):
         # add calls to compute the values of any basis arrays
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Compute basis arrays"))
+            parent.add(CommentGen(parent, " Compute basis/diff-basis arrays"))
             parent.add(CommentGen(parent, ""))
 
         for basis_fn in self._basis_fns:
-            op_name = get_fs_operator_name("gh_basis",
-                                           basis_fn["fspace"],
-                                           qr_var=basis_fn["qr_var"],
-                                           on_space=basis_fn["nodal_fspace"])
-            if op_name in op_name_list:
-                # Jump over any basis arrays we've seen before
-                continue
-            op_name_list.append(op_name)
 
+            # Currently there are only two possible types of basis function
+            # and we store which we have in is_diff_basis. If support for
+            # other basis function types is added in future then the if-blocks
+            # (further down) that use is_diff_basis will have to be changed.
+            if basis_fn["type"] == "diff-basis":
+                is_diff_basis = True
+            elif basis_fn["type"] == "basis":
+                is_diff_basis = False
+            else:
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Expected one "
+                    "of 'basis' or 'diff-basis'.". format(basis_fn["type"]))
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
+                if is_diff_basis:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                else:
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                if op_name in op_name_list:
+                    # Jump over any basis arrays we've seen before
+                    continue
+                op_name_list.append(op_name)
+
                 # Create the argument list
-                args = ["BASIS",
-                        basis_fn["arg"].proxy_name_indexed + "%" +
-                        basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                        basis_first_dim_name(basis_fn["fspace"]),
-                        get_fs_ndf_name(basis_fn["fspace"]),
-                        op_name]
+                if is_diff_basis:
+                    args = ["DIFF_BASIS",
+                            basis_fn["arg"].proxy_name_indexed + "%" +
+                            basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                            self.diff_basis_first_dim_name(basis_fn["fspace"]),
+                            get_fs_ndf_name(basis_fn["fspace"]), op_name]
+                else:
+                    args = ["BASIS",
+                            basis_fn["arg"].proxy_name_indexed + "%" +
+                            basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                            self.basis_first_dim_name(basis_fn["fspace"]),
+                            get_fs_ndf_name(basis_fn["fspace"]), op_name]
                 # insert the basis array call
                 parent.add(
                     CallGen(parent,
                             name=basis_fn["qr_var"]+"%compute_function",
                             args=args))
+            elif basis_fn["shape"].lower() == "gh_evaluator":
+                # We have an evaluator. We may need this on more than one
+                # function space.
+                for space in basis_fn["nodal_fspaces"]:
+                    if is_diff_basis:
+                        op_name = get_fs_operator_name("gh_diff_basis",
+                                                       basis_fn["fspace"],
+                                                       on_space=space)
+                    else:
+                        op_name = get_fs_operator_name("gh_basis",
+                                                       basis_fn["fspace"],
+                                                       on_space=space)
+                    if op_name in op_name_list:
+                        # Jump over any basis arrays we've seen before
+                        continue
+                    op_name_list.append(op_name)
+
+                    nodal_loop_var = "df_nodal"
+                    loop_var_list.add(nodal_loop_var)
+
+                    # Loop over dofs of target function space
+                    nodal_dof_loop = DoGen(
+                        parent, nodal_loop_var, "1", get_fs_ndf_name(space))
+                    parent.add(nodal_dof_loop)
+
+                    dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
+                    loop_var_list.add(dof_loop_var)
+
+                    dof_loop = DoGen(nodal_dof_loop, dof_loop_var,
+                                     "1", get_fs_ndf_name(basis_fn["fspace"]))
+                    nodal_dof_loop.add(dof_loop)
+                    lhs = op_name + "(:," + "df_" + \
+                        basis_fn["fspace"].mangled_name + "," + "df_nodal)"
+                    if is_diff_basis:
+                        rhs = "%".join(
+                            [basis_fn["arg"].proxy_name_indexed,
+                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                             "call_function(DIFF_BASIS," + dof_loop_var +
+                             ",nodes_" + space.mangled_name +
+                             "(:," + nodal_loop_var + "))"])
+                    else:
+                        rhs = "%".join(
+                            [basis_fn["arg"].proxy_name_indexed,
+                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                             "call_function(BASIS," + dof_loop_var +
+                             ",nodes_" + space.mangled_name +
+                             "(:," + nodal_loop_var + "))"])
+                    dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
             else:
-                # We have an evaluator
-                nodal_loop_var = "df_nodal"
-                loop_var_list.add(nodal_loop_var)
-
-                nodal_dof_loop = DoGen(
-                    parent, nodal_loop_var, "1",
-                    "ndf_nodal_"+basis_fn["nodal_fspace"].mangled_name)
-                parent.add(nodal_dof_loop)
-
-                dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
-                loop_var_list.add(dof_loop_var)
-
-                dof_loop = DoGen(nodal_dof_loop, dof_loop_var,
-                                 "1", get_fs_ndf_name(basis_fn["fspace"]))
-                nodal_dof_loop.add(dof_loop)
-                lhs = op_name + "(:," + "df_" + \
-                    basis_fn["fspace"].mangled_name + "," + "df_nodal)"
-                rhs = "%".join(
-                    [basis_fn["arg"].proxy_name_indexed,
-                     basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                     "call_function(BASIS," + dof_loop_var +
-                     ",nodes_" + basis_fn["nodal_fspace"].mangled_name +
-                     "(:," + nodal_loop_var + "))"])
-                dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
-
-        if self._diff_basis_fns:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Compute differential basis arrays"))
-            parent.add(CommentGen(parent, ""))
-
-        for dbasis_fn in self._diff_basis_fns:
-            op_name = get_fs_operator_name("gh_diff_basis",
-                                           dbasis_fn["fspace"],
-                                           qr_var=dbasis_fn["qr_var"],
-                                           on_space=dbasis_fn["nodal_fspace"])
-            if op_name in op_name_list:
-                # Jump over any differential basis arrays we've seen before
-                continue
-            op_name_list.append(op_name)
-
-            if dbasis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                # Create the argument list
-                args = ["DIFF_BASIS",
-                        dbasis_fn["arg"].proxy_name_indexed + "%" +
-                        dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]),
-                        diff_basis_first_dim_name(dbasis_fn["fspace"]),
-                        get_fs_ndf_name(dbasis_fn["fspace"]),
-                        op_name]
-                # insert the call to compute the diff basis array
-                parent.add(
-                    CallGen(parent,
-                            name=dbasis_fn["qr_var"]+"%compute_function",
-                            args=args))
-            else:
-                # Have an evaluator
-                nodal_loop_var = "df_nodal"
-                loop_var_list.add(nodal_loop_var)
-
-                nodal_dof_loop = DoGen(
-                    parent, "df_nodal", "1",
-                    "ndf_nodal_"+dbasis_fn["nodal_fspace"].mangled_name)
-                parent.add(nodal_dof_loop)
-
-                df_loop_var = "df_"+dbasis_fn["fspace"].mangled_name
-                loop_var_list.add(df_loop_var)
-
-                dof_loop = DoGen(nodal_dof_loop, df_loop_var,
-                                 "1", get_fs_ndf_name(dbasis_fn["fspace"]))
-                nodal_dof_loop.add(dof_loop)
-                lhs = op_name + "(:," + "df_" + \
-                    dbasis_fn["fspace"].mangled_name + "," + "df_nodal)"
-                rhs = "%".join(
-                    [dbasis_fn["arg"].proxy_name_indexed,
-                     dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]),
-                     "call_function(DIFF_BASIS," + df_loop_var +
-                     ",nodes_" + dbasis_fn["nodal_fspace"].mangled_name +
-                     "(:," + nodal_loop_var + "))"])
-                dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
-
+                raise InternalError(
+                    "Unrecognised shape '{0}' specified for basis function. "
+                    "Should be one of: {1}".format(basis_fn['shape'],
+                                                   VALID_EVALUATOR_SHAPES))
         if loop_var_list:
             # Declare any loop variables
             parent.add(DeclGen(parent, datatype="integer",
@@ -2688,10 +4169,13 @@ class DynInvokeBasisFns(object):
         :param parent: node in the f2pygen AST to which the deallocate
                        calls will be added
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if an unrecognised type of basis function \
+                               is encountered.
         '''
         from psyclone.f2pygen import CommentGen, DeallocateGen
 
-        if self._basis_fns or self._diff_basis_fns:
+        if self._basis_fns:
             # deallocate all allocated basis function arrays
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Deallocate basis arrays"))
@@ -2700,27 +4184,127 @@ class DynInvokeBasisFns(object):
         func_space_var_names = set()
         for basis_fn in self._basis_fns:
             # add the basis array name to the list to use later
-            op_name = get_fs_operator_name("gh_basis",
-                                           basis_fn["fspace"],
-                                           qr_var=basis_fn["qr_var"],
-                                           on_space=basis_fn["nodal_fspace"])
-            func_space_var_names.add(op_name)
-        for basis_fn in self._diff_basis_fns:
-            # add the diff_basis array name to the list to use later
-            op_name = get_fs_operator_name("gh_diff_basis",
-                                           basis_fn["fspace"],
-                                           qr_var=basis_fn["qr_var"],
-                                           on_space=basis_fn["nodal_fspace"])
-            func_space_var_names.add(op_name)
-
+            if basis_fn["type"] == "basis":
+                for fspace in basis_fn["nodal_fspaces"]:
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"],
+                                                   on_space=fspace)
+                    func_space_var_names.add(op_name)
+            elif basis_fn["type"] == "diff-basis":
+                for fspace in basis_fn["nodal_fspaces"]:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"],
+                                                   on_space=fspace)
+                    func_space_var_names.add(op_name)
+            else:
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Should be "
+                    "one of 'basis' or 'diff-basis'.".format(basis_fn["type"]))
         if func_space_var_names:
             # add the required deallocate call
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
 
+class DynBoundaryConditions(DynCollection):
+    '''
+    Manages declarations and initialisation of quantities required by
+    kernels that need boundary condition information.
+
+    :param node: the Invoke or Kernel stub for which we are to handle \
+                 any boundary conditions.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises GenerationError: if a kernel named "enforce_bc_code" is found \
+                             but does not have an argument on ANY_SPACE_1.
+    :raises GenerationError: if a kernel named "enforce_operator_bc_code" is \
+                             found but does not have exactly one argument.
+    '''
+    # Define a BoundaryDofs namedtuple to help us manage the arrays that
+    # are required.
+    BoundaryDofs = namedtuple("BoundaryDofs", ["argument", "function_space"])
+
+    def __init__(self, node):
+        super(DynBoundaryConditions, self).__init__(node)
+
+        self._boundary_dofs = []
+        # Check through all the kernel calls to see whether any of them
+        # require boundary conditions. Currently this is done by recognising
+        # the kernel name.
+        for call in self._calls:
+            if call.name.lower() == "enforce_bc_code":
+                bc_fs = None
+                for fspace in call.arguments.unique_fss:
+                    if fspace.orig_name == "any_space_1":
+                        bc_fs = fspace
+                        break
+                if not bc_fs:
+                    raise GenerationError(
+                        "The enforce_bc_code kernel must have an argument on "
+                        "ANY_SPACE_1 but failed to find such an argument.")
+                farg = call.arguments.get_arg_on_space(bc_fs)
+                self._boundary_dofs.append(self.BoundaryDofs(farg, bc_fs))
+            elif call.name.lower() == "enforce_operator_bc_code":
+                # Check that the kernel only has one argument
+                if len(call.arguments.args) != 1:
+                    raise GenerationError(
+                        "The enforce_operator_bc_code kernel must have exactly"
+                        " one argument but found {0}".format(
+                            len(call.arguments.args)))
+                op_arg = call.arguments.args[0]
+                bc_fs = op_arg.function_space_to
+                self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Add declarations for any boundary-dofs arrays required by an Invoke.
+
+        :param parent: node in the PSyIR to which to add declarations.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+        from psyclone.f2pygen import DeclGen
+        for dofs in self._boundary_dofs:
+            name = "boundary_dofs_" + dofs.argument.name
+            parent.add(DeclGen(parent, datatype="integer", pointer="True",
+                               entity_decls=[name+"(:,:) => null()"]))
+
+    def _stub_declarations(self, parent):
+        '''
+        Add declarations for any boundary-dofs arrays required by a kernel.
+
+        :param parent: node in the PSyIR to which to add declarations.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+        from psyclone.f2pygen import DeclGen
+        for dofs in self._boundary_dofs:
+            name = "boundary_dofs_" + dofs.argument.name
+            ndf_name = get_fs_ndf_name(dofs.function_space)
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=",".join([ndf_name, "2"]),
+                               entity_decls=[name]))
+
+    def initialise(self, parent):
+        '''
+        Initialise any boundary-dofs arrays required by an Invoke.
+
+        :param parent: node in PSyIR to which to add declarations.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+        from psyclone.f2pygen import AssignGen
+        for dofs in self._boundary_dofs:
+            name = "boundary_dofs_" + dofs.argument.name
+            parent.add(AssignGen(
+                parent, pointer=True, lhs=name,
+                rhs="%".join([dofs.argument.proxy_name,
+                              dofs.argument.ref_name(dofs.function_space),
+                              "get_boundary_dofs()"])))
+
+
 class DynInvoke(Invoke):
     '''The Dynamo specific invoke class. This passes the Dynamo
-    specific schedule class to the base class so it creates the one we
+    specific InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
@@ -2728,20 +4312,20 @@ class DynInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         '''
         :param alg_invocation: node in the AST describing the invoke call
-        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
         :param int idx: the position of the invoke in the list of invokes \
                         contained in the Algorithm
         :raises GenerationError: if integer reductions are required in the \
                                  psy-layer
         '''
         if False:  # pylint: disable=using-constant-test
-            self._schedule = DynSchedule(None)  # for pyreverse
+            self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
-        Invoke.__init__(self, alg_invocation, idx, DynSchedule,
+        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
                         reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
@@ -2749,31 +4333,55 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
+        self.scalar_args = DynScalarArgs(self)
+
         # initialise our invoke stencil information
-        self.stencil = DynInvokeStencil(self.schedule)
+        self.stencil = DynStencils(self)
+
+        # Initialise our information on the function spaces used by this Invoke
+        self.function_spaces = DynFunctionSpaces(self)
 
         # Initialise the object holding all information on the dofmaps
         # required by this invoke.
-        self.dofmaps = DynInvokeDofmaps(self.schedule)
+        self.dofmaps = DynDofmaps(self)
+
+        # Initialise information on all of the fields accessed in this Invoke.
+        self.fields = DynFields(self)
+
+        # Initialise info. on all of the LMA operators used in this Invoke.
+        self.lma_ops = DynLMAOperators(self)
 
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this invoke.
-        self.cma_ops = DynInvokeCMAOperators(self.schedule)
+        self.cma_ops = DynCMAOperators(self)
 
         # Initialise the object holding all information on the quadrature
         # and/or evaluators required by this invoke
-        self.evaluators = DynInvokeBasisFns(self.schedule)
+        self.evaluators = DynBasisFunctions(self)
 
         # Initialise the object holding all information related to meshes
         # and inter-grid operations
-        self.meshes = DynMeshes(self.schedule, self.psy_unique_vars)
+        self.meshes = DynMeshes(self, self.psy_unique_vars)
 
-        # extend arg list
+        # Initialise the object holding information on any boundary-condition
+        # kernel calls
+        self.boundary_conditions = DynBoundaryConditions(self)
+
+        # Information on all proxies required by this Invoke
+        self.proxies = DynProxies(self)
+
+        # Information required by kernels that iterate over cells
+        self.cell_iterators = DynCellIterators(self)
+
+        # Information on any orientation arrays required by this invoke
+        self.orientation = DynOrientations(self)
+
+        # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
         # adding in qr arguments
         self._alg_unique_qr_args = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             if call.qr_required:
                 if call.qr_text not in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(call.qr_text)
@@ -2782,7 +4390,7 @@ class DynInvoke(Invoke):
         # arguments within the psy layer. These are stored in the
         # _psy_unique_qr_vars list
         self._psy_unique_qr_vars = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             if call.qr_required:
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
@@ -2792,40 +4400,47 @@ class DynInvoke(Invoke):
         # since operators are assembled in place and scalars don't
         # have halos. We only need to add global sum calls for scalars
         # which have a gh_sum access.
-        if _CONFIG.distributed_memory:
+        if Config.get().distributed_memory:
             # halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
             # global sum calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
-                        arg_types=VALID_SCALAR_NAMES,
-                        arg_accesses=VALID_REDUCTION_NAMES, unique=True):
-                    if scalar.type.lower() == "gh_integer":
-                        raise GenerationError(
-                            "Integer reductions are not currently supported "
-                            "by the LFRic infrastructure. Error found in "
-                            "Kernel '{0}', argument '{1}'".format(
-                                scalar.call.name, scalar.name))
+                        arg_types=GH_VALID_SCALAR_NAMES,
+                        arg_accesses=AccessType.get_valid_reduction_modes(),
+                        unique=True):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
     def unique_proxy_declarations(self, datatype, access=None):
         ''' Returns a list of all required proxy declarations for the
-        specified datatype.  If access is supplied (e.g. "gh_write")
-        then only declarations with that access are returned. '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
+        specified datatype.  If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned.
+        :param str datatype: Datatype that proxy declarations are \
+                             searched for.
+        :param access: optional AccessType for the specified data type.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`.
+        :return: a list of all required proxy declarations for the \
+                 specified datatype.
+        :raises GenerationError: if datatype is invalid.
+        :raises InternalError: if an invalid access is specified, i.e. \
+                not of type AccessType.
+        '''
+        if datatype not in GH_VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_proxy_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
-        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
-            raise GenerationError(
+                format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
+        if access and not isinstance(access, AccessType):
+            api_config = Config.get().api_conf("dynamo0.3")
+            valid_names = api_config.get_valid_accesses_api()
+            raise InternalError(
                 "unique_proxy_declarations called with an invalid access "
                 "type. Expected one of '{0}' but got '{1}'".
-                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
+                format(valid_names, access))
         declarations = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text and arg.type == datatype:
@@ -2838,7 +4453,7 @@ class DynInvoke(Invoke):
         function space. Searches through all Kernel calls in this
         invoke. Currently the first argument object that is found is
         used. Throws an exception if no argument exists. '''
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             try:
                 return kern_call.arguments.get_arg_on_space(fspace)
             except FieldNotFoundError:
@@ -2851,7 +4466,7 @@ class DynInvoke(Invoke):
         calls in this invoke. '''
         unique_fs = []
         unique_fs_names = []
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             kern_fss = kern_call.arguments.unique_fss
             for fspace in kern_fss:
                 if fspace.mangled_name not in unique_fs_names:
@@ -2867,10 +4482,22 @@ class DynInvoke(Invoke):
                 return True
         return False
 
+    @property
+    def iterate_over_dofs_only(self):
+        '''
+        :returns: whether or not this Invoke consists only of kernels that \
+                  iterate over DoFs.
+        :rtype: bool
+        '''
+        for kern_call in self.schedule.kernels():
+            if kern_call.iterates_over.lower() != "dofs":
+                return False
+        return True
+
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
         invoke then return that field. Otherwise return None. '''
-        for kern_call in self.schedule.calls():
+        for kern_call in self.schedule.kernels():
             field = field_on_space(func_space, kern_call.arguments)
             if field:
                 return field
@@ -2887,8 +4514,9 @@ class DynInvoke(Invoke):
                        subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
+        from psyclone.f2pygen import SubroutineGen, AssignGen, \
             DeclGen, CommentGen
+
         # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
         # Create the subroutine
@@ -2897,185 +4525,15 @@ class DynInvoke(Invoke):
                                    self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
 
-        # Add the subroutine argument declarations for real scalars
-        scalar_args = self.unique_declns_by_intent("gh_real")
-        for intent in FORTRAN_INTENT_NAMES:
-            if scalar_args[intent]:
-                invoke_sub.add(DeclGen(invoke_sub, datatype="real",
-                                       kind="r_def",
-                                       entity_decls=scalar_args[intent],
-                                       intent=intent))
+        # Declare all quantities required by this PSy routine (invoke)
+        for entities in [self.scalar_args, self.fields, self.lma_ops,
+                         self.stencil, self.orientation, self.meshes,
+                         self.function_spaces, self.dofmaps, self.cma_ops,
+                         self.boundary_conditions, self.evaluators,
+                         self.proxies, self.cell_iterators]:
+            entities.declarations(invoke_sub)
 
-        # Add the subroutine argument declarations for integer scalars
-        scalar_args = self.unique_declns_by_intent("gh_integer")
-        for intent in FORTRAN_INTENT_NAMES:
-            if scalar_args[intent]:
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=scalar_args[intent],
-                                       intent=intent))
-
-        # declare any stencil arguments
-        self.stencil.declare_unique_alg_vars(invoke_sub)
-
-        # Declare any mesh objects (including those for inter-grid kernels)
-        self.meshes.declarations(invoke_sub)
-
-        # Declare any dofmaps
-        self.dofmaps.declare_dofmaps(invoke_sub)
-
-        # Declare any CMA operators and associated parameters
-        self.cma_ops.declare_cma_ops(invoke_sub)
-
-        # Add the subroutine argument declarations for fields
-        fld_args = self.unique_declns_by_intent("gh_field")
-        for intent in FORTRAN_INTENT_NAMES:
-            if fld_args[intent]:
-                if intent == "out":
-                    # The data part of a field might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                           entity_decls=fld_args[intent],
-                                           intent=fort_intent))
-
-        # Add the subroutine argument declarations for operators that
-        # are read or written (operators are always on discontinuous spaces
-        # and therefore are never 'inc')
-        op_declarations_dict = self.unique_declns_by_intent("gh_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                invoke_sub.add(
-                    TypeDeclGen(invoke_sub, datatype="operator_type",
-                                entity_decls=op_declarations_dict[intent],
-                                intent=fort_intent))
-
-        # Add subroutine argument declarations for CMA operators that are
-        # read or written (as with normal/LMA operators, they are never 'inc'
-        # because they are discontinuous)
-        cma_op_declarations_dict = self.unique_declns_by_intent(
-            "gh_columnwise_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if cma_op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                invoke_sub.add(
-                    TypeDeclGen(invoke_sub,
-                                datatype="columnwise_operator_type",
-                                entity_decls=cma_op_declarations_dict[intent],
-                                intent=fort_intent))
-
-        # Add the subroutine argument declarations for qr (quadrature
-        # rules)
-        self.evaluators.declare_qr(invoke_sub)
-
-        # declare and initialise proxies for each of the (non-scalar)
-        # arguments
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub,
-                                  " Initialise field and/or operator proxies"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        for arg in self.psy_unique_vars:
-            # We don't have proxies for scalars
-            if arg.type in VALID_SCALAR_NAMES:
-                continue
-            if arg.vector_size > 1:
-                # the range function below returns values from
-                # 1 to the vector size which is what we
-                # require in our Fortran code
-                for idx in range(1, arg.vector_size+1):
-                    invoke_sub.add(
-                        AssignGen(invoke_sub,
-                                  lhs=arg.proxy_name+"("+str(idx)+")",
-                                  rhs=arg.name+"("+str(idx)+")%get_proxy()"))
-            else:
-                invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
-                                         rhs=arg.name+"%get_proxy()"))
-
-        field_proxy_decs = self.unique_proxy_declarations("gh_field")
-        if len(field_proxy_decs) > 0:
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub,
-                            datatype="field_proxy_type",
-                            entity_decls=field_proxy_decs))
-        op_proxy_decs = self.unique_proxy_declarations("gh_operator")
-        if len(op_proxy_decs) > 0:
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub,
-                            datatype="operator_proxy_type",
-                            entity_decls=op_proxy_decs))
-        cma_op_proxy_decs = self.unique_proxy_declarations(
-            "gh_columnwise_operator")
-        if cma_op_proxy_decs:
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub,
-                            datatype="columnwise_operator_proxy_type",
-                            entity_decls=cma_op_proxy_decs))
-
-        # Initialise the number of layers
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # Find the first argument that is not a scalar. Also, if there
-        # any CMA operators as arguments then keep a reference to one
-        # of them so that we can look-up the number of columns in the
-        # mesh using its proxy
-        first_var = None
-        cma_op = None
-        for var in self.psy_unique_vars:
-            if not first_var and var.type not in VALID_SCALAR_NAMES:
-                first_var = var
-            if var.type == "gh_columnwise_operator":
-                cma_op = var
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments")
-
-        # Use our namespace manager to create a unique name unless
-        # the context and label match and in this case return the
-        # previous name
-        nlayers_name = self._name_space_manager.create_name(
-            root_name="nlayers", context="PSyVars", label="nlayers")
-        invoke_sub.add(
-            AssignGen(invoke_sub, lhs=nlayers_name,
-                      rhs=first_var.proxy_name_indexed + "%" +
-                      first_var.ref_name() + "%get_nlayers()"))
-        invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                               entity_decls=[nlayers_name]))
-
-        # Initialise mesh object(s) and all related quantities for any
-        # inter-grid kernels (number of fine cells per coarse cell etc.)
-        self.meshes.initialise(invoke_sub)
-
-        # If we have one or more CMA operators then we will need the number
-        # of columns in the mesh
-        if cma_op:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub,
-                                      " Initialise number of cols"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            ncol_name = self._name_space_manager.create_name(
-                root_name="ncell_2d", context="PSyVars", label="ncell_2d")
-            invoke_sub.add(
-                AssignGen(invoke_sub, lhs=ncol_name,
-                          rhs=cma_op.proxy_name_indexed + "%ncell_2d"))
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[ncol_name]))
+        # Initialise all quantities required by this PSy routine (invoke)
 
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
@@ -3095,87 +4553,23 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
                                      rhs=omp_function_name+"()"))
 
-        # Initialise any stencil maps
-        self.stencil.initialise_stencil_maps(invoke_sub)
+        for entities in [self.proxies, self.cell_iterators, self.meshes,
+                         self.stencil, self.orientation, self.dofmaps,
+                         self.cma_ops, self.boundary_conditions,
+                         self.function_spaces, self.evaluators]:
+            entities.initialise(invoke_sub)
 
-        # Initialise dofmaps (one for each function space that is used
-        # in this invoke)
-        self.dofmaps.initialise_dofmaps(invoke_sub)
-
-        # Initialise CMA operators and associated parameters
-        self.cma_ops.initialise_cma_ops(invoke_sub)
-
-        var_list = []
-        # loop over all unique function spaces used by the kernels in this
-        # invoke
-        for function_space in self.unique_fss():
-            # Initialise information associated with this function space
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(
-                CommentGen(invoke_sub, " Initialise number of DoFs for " +
-                           function_space.mangled_name))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            # Find an argument on this space to use to dereference
-            arg = self.arg_for_funcspace(function_space)
-            name = arg.proxy_name_indexed
-            # initialise ndf for this function space and add name to
-            # list to declare later
-            ndf_name = get_fs_ndf_name(function_space)
-            var_list.append(ndf_name)
-            invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                     rhs=name +
-                                     "%" + arg.ref_name(function_space) +
-                                     "%get_ndf()"))
-            # if there is a field on this space then initialise undf
-            # for this function space and add name to list to declare
-            # later
-            if self.field_on_space(function_space):
-                undf_name = get_fs_undf_name(function_space)
-                var_list.append(undf_name)
-                invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
-                                         rhs=name + "%" +
-                                         arg.ref_name(function_space) +
-                                         "%get_undf()"))
-        if var_list:
-            # declare ndf and undf for all function spaces
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=var_list))
-
-        # Initialise basis and/or differential-basis functions
-        self.evaluators.initialise_basis_fns(invoke_sub)
-
-        if self.is_coloured():
-            # Declare the colour map
-            declns = ["cmap(:,:)"]
-            if not _CONFIG.distributed_memory:
-                # Declare the array holding the no. of cells of each
-                # colour. For distributed memory this variable is not
-                # used, as a function is called to determine the upper
-                # bound in a loop
-                declns.append("ncp_colour(:)")
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=declns))
-            if not _CONFIG.distributed_memory:
-                # Declaration of variable to hold the number of
-                # colours. For distributed memory this variable is not
-                # used, as a function is called to determine loop
-                # colour information
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=["ncolour"]))
-
-        # add calls to compute the values of any basis arrays
-        self.evaluators.compute_basis_fns(invoke_sub)
+        # Now that everything is initialised, we can call our kernels
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        if _CONFIG.distributed_memory:
+        if Config.get().distributed_memory:
             invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
                                       "communication routines"))
         else:
             invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
 
-        # add content from the schedule
+        # Add content from the schedule
         self.schedule.gen_code(invoke_sub)
 
         # Deallocate any basis arrays
@@ -3187,26 +4581,28 @@ class DynInvoke(Invoke):
         parent.add(invoke_sub)
 
 
-class DynSchedule(Schedule):
-    ''' The Dynamo specific schedule class. This passes the Dynamo-
+class DynInvokeSchedule(InvokeSchedule):
+    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
+        InvokeSchedule.__init__(self, DynKernCallFactory,
+                                DynBuiltInCallFactory, arg)
 
-    def view(self, indent=0):
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this node.
+
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
+
         '''
-        A method implemented by all classes in a schedule which display the
-        tree in a textual form. This method overrides the default view
-        method to include distributed memory information.
-        :param int indent: the amount by which to indent the output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "' dm="+str(_CONFIG.distributed_memory)+"]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
+                "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
 class DynGlobalSum(GlobalSum):
@@ -3214,22 +4610,27 @@ class DynGlobalSum(GlobalSum):
     Dynamo specific global sum class which can be added to and
     manipulated in, a schedule.
 
-    :param scalar: the kernel argument for which to perform a global sum
+    :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: the parent node of this node in the Schedule
+    :param parent: the parent node of this node in the PSyIR
     :type parent: :py:class:`psyclone.psyGen.Node`
+
+    :raises GenerationError: if distributed memory is not enabled.
+    :raises GenerationError: if the scalar is not of type gh_real.
     '''
     def __init__(self, scalar, parent=None):
-        if not _CONFIG.distributed_memory:
+        if not Config.get().distributed_memory:
             raise GenerationError("It makes no sense to create a DynGlobalSum "
                                   "object when dm=False")
         # a list of scalar types that this class supports
         self._supported_scalars = ["gh_real"]
         if scalar.type not in self._supported_scalars:
-            raise GenerationError("DynGlobalSum currently only supports "
-                                  "'{0}', but found '{1}'.".
-                                  format(self._supported_scalars, scalar.type))
-        GlobalSum.__init__(self, scalar, parent=parent)
+            raise GenerationError(
+                "DynGlobalSum currently only supports '{0}', but found '{1}'. "
+                "Error found in Kernel '{2}', argument '{3}'".
+                format(self._supported_scalars, scalar.type,
+                       scalar.call.name, scalar.name))
+        super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -3247,13 +4648,15 @@ class DynGlobalSum(GlobalSum):
 
 
 def _create_depth_list(halo_info_list):
-    '''Halo's may have more than one dependency. This method simplifies
-    multiple dependencies to remove duplicates and any obvious
-    redundancy. For example, if one dependency is for depth=1 and
-    another for depth=2 then we do not need the former as it is
+    '''Halo exchanges may have more than one dependency. This method
+    simplifies multiple dependencies to remove duplicates and any
+    obvious redundancy. For example, if one dependency is for depth=1
+    and another for depth=2 then we do not need the former as it is
     covered by the latter. Similarly, if we have a depth=extent+1 and
-    another for depth=extent+2 then we do not need the former as
-    it is covered by the latter.
+    another for depth=extent+2 then we do not need the former as it is
+    covered by the latter. It also takes into account
+    needs_clean_outer, which indicates whether the outermost halo
+    needs to be clean (and therefore whether there is a dependence).
 
     :param: a list containing halo access information derived from
     all read fields dependent on this halo exchange
@@ -3264,35 +4667,61 @@ def _create_depth_list(halo_info_list):
 
     '''
     depth_info_list = []
-    # first look to see if all field dependencies specify
-    # annexed_only. If so we only access annexed dofs
+    # first look to see if all field dependencies are
+    # annexed_only. If so we only care about annexed dofs
     annexed_only = True
     for halo_info in halo_info_list:
-        if not halo_info.annexed_only:
+        if not (halo_info.annexed_only or
+                (halo_info.literal_depth == 1
+                 and not halo_info.needs_clean_outer)):
+            # There are two cases when we only care about accesses to
+            # annexed dofs. 1) when annexed_only is set and 2) when
+            # the halo depth is 1 but we only depend on annexed dofs
+            # being up-to-date (needs_clean_outer is False)
             annexed_only = False
             break
     if annexed_only:
         depth_info = HaloDepth()
         depth_info.set_by_value(max_depth=False, var_depth="",
-                                literal_depth=1, annexed_only=True)
+                                literal_depth=1, annexed_only=True,
+                                max_depth_m1=False)
         return [depth_info]
     # next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
     # so we do not need to be concerned with other accesses.
+    max_depth_m1 = False
     for halo_info in halo_info_list:
         if halo_info.max_depth:
-            # found a max_depth access so we only need one
-            # HaloDepth entry
-            depth_info = HaloDepth()
-            depth_info.set_by_value(max_depth=True, var_depth="",
-                                    literal_depth=0, annexed_only=False)
-            return [depth_info]
+            if halo_info.needs_clean_outer:
+                # found a max_depth access so we only need one
+                # HaloDepth entry
+                depth_info = HaloDepth()
+                depth_info.set_by_value(max_depth=True, var_depth="",
+                                        literal_depth=0, annexed_only=False,
+                                        max_depth_m1=False)
+                return [depth_info]
+            # remember that we found a max_depth-1 access
+            max_depth_m1 = True
+
+    if max_depth_m1:
+        # we have at least one max_depth-1 access.
+        depth_info = HaloDepth()
+        depth_info.set_by_value(max_depth=False, var_depth="",
+                                literal_depth=0, annexed_only=False,
+                                max_depth_m1=True)
+        depth_info_list.append(depth_info)
 
     for halo_info in halo_info_list:
         # go through the halo information associated with each
-        # read dependency
+        # read dependency, skipping any max_depth-1 accesses
+        if halo_info.max_depth and not halo_info.needs_clean_outer:
+            continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
+        if literal_depth and not halo_info.needs_clean_outer:
+            # decrease depth by 1 if we don't care about the outermost
+            # access
+            literal_depth -= 1
         match = False
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
@@ -3308,12 +4737,12 @@ def _create_depth_list(halo_info_list):
                 match = True
                 break
         if not match:
-            # no matches were found with existing variables, or no
-            # variables so create a new halo depth entry
+            # no matches were found with existing entries so
+            # create a new one
             depth_info = HaloDepth()
             depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                     literal_depth=literal_depth,
-                                    annexed_only=False)
+                                    annexed_only=False, max_depth_m1=False)
             depth_info_list.append(depth_info)
     return depth_info_list
 
@@ -3321,8 +4750,29 @@ def _create_depth_list(halo_info_list):
 class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
-    manipulated in, a schedule
+    manipulated in a schedule.
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
     '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        HaloExchange.__init__(self, field, check_dirty=check_dirty,
+                              vector_index=vector_index, parent=parent)
+        # set up some defaults for this class
+        self._halo_exchange_name = "halo_exchange"
 
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
@@ -3331,8 +4781,8 @@ class DynHaloExchange(HaloExchange):
         return that stencil, otherwise we return the "region" stencil
         type (as it is safe for all stencils).
 
-        :return: Return the type of stencil required for this halo exchange
-        :rtype: string
+        :return: the type of stencil required for this halo exchange
+        :rtype: str
 
         '''
         # get information about stencil accesses from all read fields
@@ -3351,10 +4801,10 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_depth(self):
         '''Dynamically determine the depth of the halo for this halo exchange,
         as the depth can change as transformations are applied to the
-        schedule
+        schedule.
 
-        :return: Return the halo exchange depth as a fortran string
-        :rtype: int
+        :return: the halo exchange depth as a Fortran string
+        :rtype: str
 
         '''
         # get information about reading from the halo from all read fields
@@ -3364,21 +4814,13 @@ class DynHaloExchange(HaloExchange):
         # if there is only one entry in the list we can just return
         # the depth
         if len(depth_info_list) == 1:
-            depth_info = depth_info_list[0]
-            if depth_info.max_depth:
-                # return the maximum halo depth (which is returned by
-                # calling get_halo_depth with no depth argument)
-                # TODO fix hard-wired mesh name here
-                return "mesh%get_halo_depth()"
-            else:  # return the variable and/or literal depth expression
-                return str(depth_info)
-        else:
-            # the depth information can't be reduced to a single
-            # expression, therefore we need to determine the maximum
-            # of all expresssions
-            depth_str_list = [str(depth_info) for depth_info in
-                              depth_info_list]
-            return "max("+",".join(depth_str_list)+")"
+            return str(depth_info_list[0])
+        # the depth information can't be reduced to a single
+        # expression, therefore we need to determine the maximum
+        # of all expresssions
+        depth_str_list = [str(depth_info) for depth_info in
+                          depth_info_list]
+        return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
@@ -3387,7 +4829,7 @@ class DynHaloExchange(HaloExchange):
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
 
-        :return: a list containing halo depth information derived from
+        :return: a list containing halo depth information derived from \
         all fields dependent on this halo exchange
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
@@ -3419,10 +4861,10 @@ class DynHaloExchange(HaloExchange):
         '''Determines how much of the halo has been cleaned from any previous
         redundant computation
 
-        :return: a HaloWriteAccess object containing the required
+        :return: a HaloWriteAccess object containing the required \
         information, or None if no dependence information is found.
-        :rtype::py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
-        :raises GenerationError: if more than one write dependence is
+        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
+        :raises GenerationError: if more than one write dependence is \
         found for this halo exchange as this should not be possible
 
         '''
@@ -3439,12 +4881,13 @@ class DynHaloExchange(HaloExchange):
 
     def required(self):
         '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not required
-        (False, *). The first return argument is used to decide whether a halo
-        exchange should exist. If it is True then the halo is required or
-        might be required. If it is False then the halo is definitely not
-        required. The second argument is used to specify whether we definitely
-        know that it is required or are not sure.
+        True), might be required (True, False) or is definitely not
+        required (False, *). The first return argument is used to
+        decide whether a halo exchange should exist. If it is True
+        then the halo is required or might be required. If it is False
+        then the halo exchange is definitely not required. The second
+        argument is used to specify whether we definitely know that it
+        is required or are not sure.
 
         Whilst a halo exchange is generally only ever added if it is
         required, or if it may be required, this situation can change
@@ -3465,10 +4908,10 @@ class DynHaloExchange(HaloExchange):
         updated. Note, the routine would still be correct as is, it
         would just return more unknown results than it should).
 
-        :return: Returns (x, y) where x specifies whether this halo
-        exchange is (or might be) required - True, or is not required
-        - False. If the first argument is True then the second
-        argument specifies whether we definitely know that we need the
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
@@ -3482,7 +4925,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if _CONFIG.api("dynamo0.3").compute_annexed_dofs and \
+        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -3604,19 +5047,35 @@ class DynHaloExchange(HaloExchange):
         known = False
         return required, known
 
-    def view(self, indent=0):
-        ''' Class specific view  '''
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this HaloExchange node.
+
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
+
+        '''
         _, known = self.required()
         runtime_check = not known
-        print(self.indent(indent) + (
-            "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
-                                      self._compute_stencil_type(),
-                                      self._compute_halo_depth(),
-                                      runtime_check)))
+        field_id = self._field.name
+        if self.vector_index:
+            field_id += "({0})".format(self.vector_index)
+        return ("{0}[field='{1}', type='{2}', depth={3}, "
+                "check_dirty={4}]".format(self.coloured_name(colour), field_id,
+                                          self._compute_stencil_type(),
+                                          self._compute_halo_depth(),
+                                          runtime_check))
 
     def gen_code(self, parent):
-        ''' Dynamo specific code generation for this class '''
+        '''Dynamo specific code generation for this class.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self.vector_index:
             ref = "(" + str(self.vector_index) + ")"
@@ -3634,8 +5093,164 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + self._compute_halo_depth() + ")"))
+                "%" + self._halo_exchange_name +
+                "(depth=" + self._compute_halo_depth() + ")"))
         parent.add(CommentGen(parent, ""))
+
+
+class DynHaloExchangeStart(DynHaloExchange):
+    '''The start of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only reads the data being transferred
+    (the associated field is specified as having a read access). As a
+    result this class is not able to determine some important
+    properties (such as whether the halo exchange is known to be
+    required or not). This is solved by finding the corresponding
+    asynchronous halo exchange end (a halo exchange start always has a
+    corresponding halo exchange end and vice versa) and calling its
+    methods (a halo exchange end is specified as having readwrite
+    access to its associated field and therefore is able to determine
+    the required properties).
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument (default True) indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which component of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        # Update the field's access appropriately. Here "gh_read"
+        # specifies that the start of a halo exchange only reads
+        # the field's data.
+        self._field.access = AccessType.READ
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_start"
+        self._text_name = "HaloExchangeStart"
+        self._colour_map_name = "HaloExchangeStart"
+
+    def _compute_stencil_type(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Return the type of stencil required for this pair of \
+        halo exchanges
+        :rtype: str
+
+        '''
+        return self._get_hex_end()._compute_stencil_type()
+
+    def _compute_halo_depth(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Return the halo exchange depth as a Fortran string
+        :rtype: str
+
+        '''
+        return self._get_hex_end()._compute_halo_depth()
+
+    def required(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
+        HaloExchange - True, or are not sure - False.
+        :rtype: (bool, bool)
+
+        '''
+        return self._get_hex_end().required()
+
+    def _get_hex_end(self):
+        '''An internal helper routine for this class which finds the halo
+        exchange end object corresponding to this halo exchange start
+        object or raises an exception if one is not found.
+
+        :return: The corresponding halo exchange end object
+        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :raises GenerationError: If no matching HaloExchangeEnd is \
+        found, or if the first matching haloexchange that is found is \
+        not a HaloExchangeEnd
+
+        '''
+        # Look at all nodes following this one in schedule order
+        # (which is PSyIRe node order)
+        for node in self.following():
+            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+                # Found a following `haloexchange`,
+                # `haloexchangestart` or `haloexchangeend` PSyIRe node
+                # that is at the same calling hierarchy level as this
+                # haloexchangestart
+                access = DataAccess(self.field)
+                if access.overlaps(node.field):
+                    if isinstance(node, DynHaloExchangeEnd):
+                        return node
+                    raise GenerationError(
+                        "Halo exchange start for field '{0}' should match "
+                        "with a halo exchange end, but found {1}".format(
+                            self.field.name, type(node)))
+        # no match has been found which is an error as a halo exchange
+        # start should always have a matching halo exchange end that
+        # follows it in schedule (PSyIRe sibling) order
+        raise GenerationError(
+            "Halo exchange start for field '{0}' has no matching halo "
+            "exchange end".format(self.field.name))
+
+
+class DynHaloExchangeEnd(DynHaloExchange):
+    '''The end of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only writes to the data being
+    transferred.
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument (default True) indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        # Update field properties appropriately. The associated field is
+        # written to. However, a readwrite field access needs to be
+        # specified as this is required for the halo exchange logic to
+        # work correctly.
+        self._field.access = AccessType.READWRITE
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_finish"
+        self._text_name = "HaloExchangeEnd"
+        self._colour_map_name = "HaloExchangeEnd"
 
 
 class HaloDepth(object):
@@ -3654,10 +5269,16 @@ class HaloDepth(object):
         self._var_depth = None
         # max_depth specifies whether the full depth of halo (whatever
         # that might be) is accessed. If this is set then
-        # literal_depth and var_depth have no meaning. max_depth being
-        # False does not necessarily mean the full halo depth is not
-        # accessed, rather it means that we do not know.
+        # literal_depth, var_depth and max_depth_m1 have no
+        # meaning. max_depth being False does not necessarily mean the
+        # full halo depth is not accessed, rather it means that we do
+        # not know.
         self._max_depth = False
+        # max_depth_m1 specifies whether the full depth of halo
+        # (whatever that might be) apart from the outermost level is
+        # accessed. If this is set then literal_depth, var_depth and
+        # max_depth have no meaning.
+        self._max_depth_m1 = False
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
@@ -3685,6 +5306,18 @@ class HaloDepth(object):
 
         '''
         return self._max_depth
+
+    @property
+    def max_depth_m1(self):
+        '''Returns whether the read to the field is known to access all of the
+        halo except the outermost level or not.
+
+        :return: Return True if the read to the field is known to
+        access all of the halo except the outermost and False otherwise
+        :rtype: bool
+
+        '''
+        return self._max_depth_m1
 
     @property
     def var_depth(self):
@@ -3724,61 +5357,68 @@ class HaloDepth(object):
         '''
         self._literal_depth = value
 
-    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only):
+    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only,
+                     max_depth_m1):
         '''Set halo depth information directly
 
-        :param max_depth: True if the field accesses all of the halo
+        :param bool max_depth: True if the field accesses all of the \
+        halo and False otherwise
+        :param str var_depth: A variable name specifying the halo \
+        access depth, if one exists, and None if not
+        :param int literal_depth: The known fixed (literal) halo \
+        access depth
+        :param bool annexed_only: True if only the halo's annexed dofs \
+        are accessed and False otherwise
+        :param bool max_depth_m1: True if the field accesses all of \
+        the halo but does not require the outermost halo to be correct \
         and False otherwise
-        :type max_depth: bool
-        :param var_depth: A variable name specifying the halo access
-        depth, if one exists, and None if not
-        :type var_depth: String
-        :param literal_depth: The known fixed (literal) halo access
-        depth
-        :type literal_depth: integer
-        :param annexed_only: True if only the halo's annexed dofs are
-        accessed and False otherwise
-        :type max_depth: bool
 
         '''
         self._max_depth = max_depth
         self._var_depth = var_depth
         self._literal_depth = literal_depth
         self._annexed_only = annexed_only
+        self._max_depth_m1 = max_depth_m1
 
     def __str__(self):
         '''return the depth of a halo dependency
         as a string'''
         depth_str = ""
-        if self.var_depth:
-            depth_str += self.var_depth
+        if self.max_depth:
+            depth_str += "mesh%get_halo_depth()"
+        elif self.max_depth_m1:
+            depth_str += "mesh%get_halo_depth()-1"
+        else:
+            if self.var_depth:
+                depth_str += self.var_depth
+                if self.literal_depth:
+                    depth_str += "+"
             if self.literal_depth:
-                depth_str += "+"
-        if self.literal_depth:
-            depth_str += str(self.literal_depth)
+                depth_str += str(self.literal_depth)
         return depth_str
 
 
 def halo_check_arg(field, access_types):
-    '''Support function which performs checks to ensure the first argument
+    '''
+    Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
     call and that the field is accessed in one of the ways specified
     by the second argument. If no error is reported it returns the
-    call object containing this argument
+    call object containing this argument.
 
     :param field: the argument object we are checking
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-    :param access_types: list of access types that the field access
-    must be one of
-    :type access_types: :func:`list` of String
+    :param access_types: List of allowed access types.
+    :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
     :return: the call containing the argument object
-    :rtype: :py:class:`psyclone.psyGen.Call`
-    :raises GenerationError: if the first argument to this function is
-    the wrong type
-    :raises GenerationError: if the first argument is not accessed in
-    one of the ways specified by the second argument to the function
-    :raises GenerationError: if the first argument is not contained
-    within a call object
+    :rtype: sub-class of :py:class:`psyclone.psyGen.Kern`
+
+    :raises GenerationError: if the first argument to this function is \
+                             the wrong type.
+    :raises GenerationError: if the first argument is not accessed in one of \
+                    the ways specified by the second argument to the function.
+    :raises GenerationError: if the first argument is not contained \
+                             within a call object.
 
     '''
     try:
@@ -3789,10 +5429,13 @@ def halo_check_arg(field, access_types):
             "HaloInfo class expects an argument of type DynArgument, or "
             "equivalent, on initialisation, but found, "
             "'{0}'".format(type(field)))
+
     if field.access not in access_types:
+        api_strings = [access.api_specific_name() for access in access_types]
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
-            "'{2}'".format(field.name, access_types, field.access))
+            "'{2}'".format(field.name, api_strings,
+                           field.access.api_specific_name()))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
         raise GenerationError(
@@ -3806,11 +5449,14 @@ class HaloWriteAccess(HaloDepth):
     when a field is accessed in a particular kernel within a
     particular loop nest
 
-    :param field: the field that we are concerned with
-    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
     '''
     def __init__(self, field):
+        '''
+        :param field: the field that we are concerned with
+        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+        '''
+
         HaloDepth.__init__(self)
         self._compute_from_field(field)
 
@@ -3840,9 +5486,9 @@ class HaloWriteAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
-        call = halo_check_arg(field, GH_WRITE_ACCESSES)
+        call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
@@ -3868,11 +5514,13 @@ class HaloWriteAccess(HaloDepth):
         # The third argument for set_by_value specifies the name of a
         # variable used to specify the depth. Variables are currently
         # not used when a halo is written to, so we pass None which
-        # indicates there is no variable.
-        # the fifth argument for set_by_value indicates whether we
-        # only access annexed_dofs. At the moment this is not possible
-        # when modifying a field so we always return False
-        HaloDepth.set_by_value(self, max_depth, None, depth, False)
+        # indicates there is no variable.  the fifth argument for
+        # set_by_value indicates whether we only access
+        # annexed_dofs. At the moment this is not possible when
+        # modifying a field so we always return False. The sixth
+        # argument indicates if the depth of access is the
+        # maximum-1. This is not possible here so we return False.
+        HaloDepth.set_by_value(self, max_depth, None, depth, False, False)
 
 
 class HaloReadAccess(HaloDepth):
@@ -3889,7 +5537,22 @@ class HaloReadAccess(HaloDepth):
         '''
         HaloDepth.__init__(self)
         self._stencil_type = None
+        self._needs_clean_outer = None
         self._compute_from_field(field)
+
+    @property
+    def needs_clean_outer(self):
+        '''Returns False if the reader has a gh_inc access and accesses the
+        halo. Otherwise returns True.  Indicates that the outer level
+        of halo that has been read does not need to be clean (although
+        any annexed dofs do).
+
+        :return: Returns False if the outer layer of halo that is read \
+        does not need to be clean and True otherwise.
+        :rtype: bool
+
+        '''
+        return self._needs_clean_outer
 
     @property
     def stencil_type(self):
@@ -3920,9 +5583,25 @@ class HaloReadAccess(HaloDepth):
 
         '''
         self._annexed_only = False
-        call = halo_check_arg(field, GH_READ_ACCESSES)
+        call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
-        loop = call.parent
+        loop = call.parent.parent
+
+        # For GH_INC we accumulate contributions into the field being
+        # modified. In order to get correct results for owned and
+        # annexed dofs, this requires that the fields we are
+        # accumulating contributions from have up-to-date values in
+        # the halo cell(s). However, we do not need to be concerned
+        # with the values of the modified field in the last-level of
+        # the halo. This is because we only have enough information to
+        # partially compute the contributions in those cells
+        # anyway. (If the values of the field being modified are
+        # required, at some later point, in that level of the halo
+        # then we do a halo swap.)
+        self._needs_clean_outer = (
+            not (field.access == AccessType.INC
+                 and loop.upper_bound_name in ["cell_halo",
+                                               "colour_halo"]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
@@ -3999,7 +5678,7 @@ class HaloReadAccess(HaloDepth):
                         self._literal_depth += int(value_str)
                     else:
                         # a variable is specified
-                        self._var_depth = field.stencil.extent_arg.varName
+                        self._var_depth = field.stencil.extent_arg.varname
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
@@ -4019,7 +5698,6 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
-        self._kern = None
 
         # Get the namespace manager instance so we can look-up
         # the name of the nlayers and ndf variables
@@ -4039,22 +5717,29 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
         # At this stage we don't know what our loop bounds are
         self._lower_bound_name = None
         self._lower_bound_index = None
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def view(self, indent=0):
-        '''Print out a textual representation of this loop. We override this
+    def node_str(self, colour=True):
+        ''' Creates a text summary of this loop node. We override this
         method from the Loop class because, in Dynamo0.3, the function
         space is now an object and we need to call orig_name on it. We
-        also output the upper loop bound as this can now be
-        modified.
+        also include the upper loop bound as this can now be modified.
 
-        :param indent: optional argument indicating the level of
-        indentation to add before outputting the class information
-        :type indent: integer
+        :param bool colour: whether or not to include control codes for colour.
+
+        :returns: text summary of this node, optionally with control codes \
+                  for colour highlighting.
+        :rtype: str
 
         '''
         if self._upper_bound_halo_depth:
@@ -4062,13 +5747,12 @@ class DynLoop(Loop):
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        print(self.indent(indent) + self.coloured_text +
-              "[type='{0}',field_space='{1}',it_space='{2}', "
-              "upper_bound='{3}']".format(self._loop_type,
-                                          self._field_space.orig_name,
-                                          self.iteration_space, upper_bound))
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        return ("{0}[type='{1}', field_space='{2}', it_space='{3}', "
+                "upper_bound='{4}']".format(
+                    self.coloured_name(colour),
+                    self._loop_type,
+                    self._field_space.orig_name,
+                    self.iteration_space, upper_bound))
 
     def load(self, kern):
         '''
@@ -4093,26 +5777,28 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if _CONFIG.api("dynamo0.3").compute_annexed_dofs \
-               and _CONFIG.distributed_memory \
+            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
+               and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
         else:
-            if _CONFIG.distributed_memory:
-                if self._field.type in VALID_OPERATOR_NAMES:
+            if Config.get().distributed_memory:
+                if self._field.type in GH_VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
-                      DISCONTINUOUS_FUNCTION_SPACES):
+                      VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
+                    # Iterate to ncells for all discontinuous quantities,
+                    # including any_discontinuous_space
                     self.set_upper_bound("ncells")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
-                    # We don't know whether any-space is continuous or not
+                    # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
                     self.set_upper_bound("cell_halo", index=1)
@@ -4193,7 +5879,7 @@ class DynLoop(Loop):
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised
         '''
-        if not _CONFIG.distributed_memory and \
+        if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
             raise GenerationError(
                 "The lower bound must be 'start' if we are sequential but "
@@ -4238,46 +5924,46 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        # We only require a mesh object to get upper loop bounds if
-        # distributed memory is enabled and the loop is over cells
-        if _CONFIG.distributed_memory and \
-           self._upper_bound_name in ["ncells", "cell_halo"]:
-            # We must allow for self._kern being None (as it will be for
-            # a built-in).
-            if self._kern and self._kern.is_intergrid:
-                # We have more than one mesh object to choose from and we
-                # want the coarse one because that determines the iteration
-                # space. _field_name holds the name of the argument that
-                # determines the iteration space of this kernel and that
-                # is set-up to be the one on the coarse mesh (in
-                # DynKerelArguments.iteration_space_arg()).
-                mesh_name = "mesh_" + self._field_name
-            else:
-                # It's not an inter-grid kernel so there's only one mesh
-                mesh_name = "mesh"
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name=mesh_name, context="PSyVars", label=mesh_name)
+        # We must allow for self._kern being None (as it will be for
+        # a built-in).
+        if self._kern and self._kern.is_intergrid:
+            # We have more than one mesh object to choose from and we
+            # want the coarse one because that determines the iteration
+            # space. _field_name holds the name of the argument that
+            # determines the iteration space of this kernel and that
+            # is set-up to be the one on the coarse mesh (in
+            # DynKerelArguments.iteration_space_arg()).
+            mesh_name = "mesh_" + self._field_name
+        else:
+            # It's not an inter-grid kernel so there's only one mesh
+            mesh_name = "mesh"
+        mesh = self._name_space_manager.create_name(
+            root_name=mesh_name, context="PSyVars", label=mesh_name)
 
         if self._upper_bound_name == "ncolours":
-            if _CONFIG.distributed_memory:
-                # Extract the value in-place rather than extracting to
-                # a variable first. This is the way the manual
-                # reference examples were implemented so I copied these
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                return "{0}%get_ncolours()".format(mesh_obj_name)
-            else:
-                return "ncolour"
+            # Loop over colours
+            kernels = self.walk(DynKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            ncolours = kernels[0].ncolours_var
+            for kern in kernels:
+                if not kern.ncolours_var:
+                    raise InternalError(
+                        "All kernels within a loop over colours must have been"
+                        " coloured but kernel '{0}' has not".format(kern.name))
+            return ncolours
         elif self._upper_bound_name == "ncolour":
-            return "ncp_colour(colour)"
+            # Loop over cells of a particular colour when DM is disabled.
+            # We use the same, DM API as that returns sensible values even
+            # when running without MPI.
+            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
         elif self._upper_bound_name == "colour_halo":
-            # the LFRic API used here allows for colouring with
-            # redundant computation. This API is now used when
-            # ditributed memory is switched on (the default for
-            # LFRic). THe original API (see previous elif) is now only
-            # used when distributed memory is switched off.
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            # Loop over cells of a particular colour when DM is enabled. The
+            # LFRic API used here allows for colouring with redundant
+            # computation.
             append = ""
             if halo_index:
                 # The colouring API support an additional optional
@@ -4288,9 +5974,9 @@ class DynLoop(Loop):
                 # may be).
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh_obj_name, append))
+                    "{1})".format(mesh, append))
         elif self._upper_bound_name in ["ndofs", "nannexed"]:
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
                     result = self.field.proxy_name_indexed + "%" + \
                              self.field.ref_name() + "%get_last_dof_owned()"
@@ -4301,22 +5987,22 @@ class DynLoop(Loop):
                 result = self._kern.undf_name
             return result
         elif self._upper_bound_name == "ncells":
-            if _CONFIG.distributed_memory:
-                result = mesh_obj_name + "%get_last_edge_cell()"
+            if Config.get().distributed_memory:
+                result = mesh + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         elif self._upper_bound_name == "cell_halo":
-            if _CONFIG.distributed_memory:
-                return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
+            if Config.get().distributed_memory:
+                return "{0}%get_last_halo_cell({1})".format(mesh,
                                                             halo_index)
             else:
                 raise GenerationError(
                     "'cell_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
                     halo_index)
@@ -4325,8 +6011,8 @@ class DynLoop(Loop):
                     "'dof_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
-            if _CONFIG.distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
+            if Config.get().distributed_memory:
+                return "{0}%get_last_inner_cell({1})".format(mesh,
                                                              halo_index)
             else:
                 raise GenerationError(
@@ -4337,15 +6023,6 @@ class DynLoop(Loop):
                 "Unsupported upper bound name '{0}' found in dynloop.upper_"
                 "bound_fortran()".format(self._upper_bound_name))
 
-    def has_inc_arg(self, mapping=None):
-        ''' Returns True if any of the Kernels called within this loop
-        have an argument with INC access. Returns False otherwise. '''
-        if mapping is not None:
-            my_mapping = mapping
-        else:
-            my_mapping = FIELD_ACCESS_MAP
-        return Loop.has_inc_arg(self, my_mapping)
-
     def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
         of their halo to be clean to work correctly. '''
@@ -4353,7 +6030,7 @@ class DynLoop(Loop):
         unique_fields = []
         unique_field_names = []
 
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
                 if self._halo_read_access(arg):
                     if arg.name not in unique_field_names:
@@ -4380,42 +6057,43 @@ class DynLoop(Loop):
                     "currently unsupported for kernels with stencil "
                     "accesses. Found '{0}'.".format(self._upper_bound_name))
             return self._upper_bound_name in ["cell_halo", "ncells"]
-        if arg.type in VALID_SCALAR_NAMES:
+        if arg.type in GH_VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
-        elif arg.is_operator:
+        if arg.is_operator:
             # operators do not have halos
             return False
-        elif arg.discontinuous and arg.access.lower() in \
-                ["gh_read", "gh_readwrite"]:
+        if arg.discontinuous and arg.access in \
+                [AccessType.READ, AccessType.READWRITE]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        elif arg.access.lower() in ["gh_read", "gh_inc"]:
+        if arg.access in [AccessType.READ, AccessType.INC]:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness
             if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 # we read in the halo
                 return True
-            elif self._upper_bound_name in ["ncells", "nannexed"]:
+            if self._upper_bound_name in ["ncells", "nannexed"]:
                 # we read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
-                return not _CONFIG.api("dynamo0.3").compute_annexed_dofs
-            elif self._upper_bound_name in ["ndofs"]:
+                return not Config.get()\
+                                 .api_conf("dynamo0.3").compute_annexed_dofs
+            if self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False
-            else:
-                # nothing should get to here so raise an exception
-                raise GenerationError(
-                    "Internal error in _halo_read_access. It should not be "
-                    "possible to get to here. loop upper bound name is '{0}' "
-                    "and arg '{1}' access is '{2}'.".format(
-                        self._upper_bound_name, arg.name, arg.access))
-        else:
-            # access is neither a read nor an inc so does not need halo
-            return False
+            # nothing should get to here so raise an exception
+            raise GenerationError(
+                "Internal error in _halo_read_access. It should not be "
+                "possible to get to here. loop upper bound name is '{0}' "
+                "and arg '{1}' access is '{2}'.".format(
+                    self._upper_bound_name, arg.name,
+                    arg.access.api_specific_name()))
+
+        # access is neither a read nor an inc so does not need halo
+        return False
 
     def _add_halo_exchange_code(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately
@@ -4479,9 +6157,9 @@ class DynLoop(Loop):
         # required. This is done by removing halo exchanges after this
         # loop where a field in this loop previously had a forward
         # dependence on a halo exchange but no longer does
-        for call in self.calls():
+        for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.access in GH_WRITE_ACCESSES:
+                if arg.access in AccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
                         if isinstance(dep_arg.call, DynHaloExchange):
@@ -4563,16 +6241,18 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
+        # Generate the upper and lower loop bounds
+        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        self.start_expr = Literal(self._lower_bound_fortran(), parent=self)
+        self.stop_expr = Literal(self._upper_bound_fortran(), parent=self)
+
         Loop.gen_code(self, parent)
 
-        if _CONFIG.distributed_memory and self._loop_type != "colour":
+        if Config.get().distributed_memory and self._loop_type != "colour":
 
             # Set halo clean/dirty for all fields that are modified
             from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
-            fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
+            fields = self.unique_modified_args("gh_field")
 
             if fields:
                 parent.add(CommentGen(parent, ""))
@@ -4679,7 +6359,7 @@ class DynLoop(Loop):
                 parent.add(CommentGen(parent, ""))
 
 
-class DynKern(Kern):
+class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
@@ -4688,22 +6368,47 @@ class DynKern(Kern):
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
+        self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
         # Whether this kernel requires quadrature
         self._qr_required = False
         # Whether this kernel requires basis functions
         self._basis_required = False
+        # What shape of evaluator this kernel requires (if any)
         self._eval_shape = ""
+        # The function spaces on which to *evaluate* basis/diff-basis
+        # functions if any are required for this kernel. Is a dict with
+        # (mangled) FS names as keys and associated kernel argument as value.
+        self._eval_targets = OrderedDict()
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        # The function space on which to evaluate basis/diff-basis functions
-        # if any are required
-        self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel metadata
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+        for arg in self.arguments.args:
+            if arg.is_scalar():
+                var_accesses.add_access(arg.name, arg.access, self)
+            else:
+                # It's an array, so add an arbitrary index value for the
+                # stored indices (which is at this stage the only way to
+                # indicate an array access).
+                var_accesses.add_access(arg.name, arg.access, self, [1])
+        super(DynKern, self).reference_accesses(var_accesses)
+        # Set the current location index to the next location, since after
+        # this kernel a new statement starts.
+        var_accesses.next_location()
 
     def load(self, call, parent=None):
         '''
@@ -4713,7 +6418,7 @@ class DynKern(Kern):
 
         :param call: The KernelCall object from which to extract information
                      about this kernel
-        :type call: :py:class:`psyclone.parse.KernelCall`
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
         :param parent: The parent node of the kernel call in the AST
                        we are constructing. This will be a loop.
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
@@ -4731,7 +6436,7 @@ class DynKern(Kern):
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         '''
         # create a name for each argument
-        from psyclone.parse import Arg
+        from psyclone.parse.algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
             pre = None
@@ -4748,7 +6453,7 @@ class DynKern(Kern):
             else:
                 raise GenerationError(
                     "load_meta expected one of '{0}' but "
-                    "found '{1}'".format(VALID_ARG_TYPE_NAMES,
+                    "found '{1}'".format(GH_VALID_ARG_TYPE_NAMES,
                                          descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
 
@@ -4797,15 +6502,24 @@ class DynKern(Kern):
                                 the source of this Kernel
         :param args: List of Arg objects produced by the parser for the
                      arguments of this kernel call
-        :type args: List of :py:class:`psyclone.parse.Arg` objects
+        :type args: List of :py:class:`psyclone.parse.algorithm.Arg` objects
         :param parent: the parent of this kernel call in the generated
                        AST (will be a loop object)
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
-        from psyclone.parse import KernelCall
-        Kern.__init__(self, DynKernelArguments,
-                      KernelCall(module_name, ktype, args),
-                      parent, check=False)
+        from psyclone.parse.algorithm import KernelCall
+        CodedKern.__init__(self, DynKernelArguments,
+                           KernelCall(module_name, ktype, args),
+                           parent, check=False)
+        # Remove "_code" from the name if it exists to determine the
+        # base name which (if dynamo0.3 naming conventions are
+        # followed) is used as the root for the module and subroutine
+        # names.
+        if self.name.lower().endswith("_code"):
+            self._base_name = self.name[:-5]
+        else:
+            # TODO: #11 add a warning here when logging is added
+            self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
         # parsing the kernel meta-data
@@ -4830,10 +6544,13 @@ class DynKern(Kern):
             # the context and label match and in this case return the
             # previous name. We use the full text of the original
             # as a label.
-            self._qr_name = self._name_space_manager.create_name(
-                root_name=qr_arg.varName, context="AlgArgs",
-                label=self._qr_text)
-            # dynamo 0.3 api kernels require quadrature rule arguments to be
+            if qr_arg.varname:
+                self._qr_name = self._name_space_manager.create_name(
+                    root_name=qr_arg.varname, context="AlgArgs",
+                    label=self._qr_text)
+            else:
+                self._qr_name = ""
+            # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
             # Currently only _xyoz is supported...
@@ -4855,18 +6572,22 @@ class DynKern(Kern):
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related
             # variables.
-            if qr_arg.varName:
+            if qr_arg.varname:
                 self._qr_args = [
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
         elif self._eval_shape == "gh_evaluator":
-            # Kernel has an evaluator. The FS of the updated argument tells
+            # Kernel has an evaluator. If gh_evaluator_targets is present
+            # then that specifies the function spaces for which the evaluator
+            # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
-            arg = self.updated_arg
-            if arg.is_operator:
-                self._nodal_fspace = arg.function_space_to
-            else:
-                self._nodal_fspace = arg.function_space
+            for fs_name in ktype.eval_targets:
+                arg, fspace = self.arguments.get_arg_on_space_name(fs_name)
+                # Set up our dict of evaluator targets, one entry per
+                # target FS.
+                if fspace.mangled_name not in self._eval_targets:
+                    self._eval_targets[fspace.mangled_name] = (fspace, arg)
+
         elif self._eval_shape:
             # Should never get to here!
             raise GenerationError(
@@ -4891,6 +6612,58 @@ class DynKern(Kern):
         return self._is_intergrid
 
     @property
+    def colourmap(self):
+        '''
+        Getter for the name of the colourmap associated with this kernel call.
+
+        :return: name of the colourmap (Fortran array)
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
+                               colourmaps has not been constructed.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
+        else:
+            cmap = self._name_space_manager.create_name(
+                root_name="cmap", context="PSyVars", label="cmap")
+        return cmap
+
+    @property
+    def ncolours_var(self):
+        '''
+        Getter for the name of the variable holding the number of colours
+        associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
+        else:
+            ncols = self._name_space_manager.create_name(
+                root_name="ncolour", context="PSyVars", label="ncolour")
+        return ncols
+
+    @property
     def fs_descriptors(self):
         ''' Returns a list of function space descriptor objects of
         type FSDescriptor which contain information about the function
@@ -4911,20 +6684,22 @@ class DynKern(Kern):
     @property
     def eval_shape(self):
         '''
-        :return: the value of GH_SHAPE for this kernel or an empty string
-                 if none is specified
+        :return: the value of GH_SHAPE for this kernel or an empty string \
+                 if none is specified.
         :rtype: str
         '''
         return self._eval_shape
 
     @property
-    def eval_fspace(self):
+    def eval_targets(self):
         '''
-        :return: the function space upon which basis/diff-basis functions
-                 are to be evaluated.
-        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: the function spaces upon which basis/diff-basis functions \
+                 are to be evaluated for this kernel.
+        :rtype: dict of (:py:class:`psyclone.dynamo0p3.FunctionSpace`, \
+                :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
+                the names of the target function spaces.
         '''
-        return self._nodal_fspace
+        return self._eval_targets
 
     @property
     def qr_text(self):
@@ -4957,137 +6732,97 @@ class DynKern(Kern):
         return lvars
 
     @property
-    def gen_stub(self):
-        ''' output a kernel stub '''
-        from psyclone.f2pygen import ModuleGen, SubroutineGen
+    def base_name(self):
+        '''
+        :returns: a base name for this kernel.
+        :rtype: str
+        '''
+        return self._base_name
 
-        # remove "_code" from the name if it exists to determine the
-        # base name which (if dynamo0.3 naming conventions are
-        # followed) is used as the root for the module and subroutine
-        # names.
-        if self.name.lower().endswith("_code"):
-            base_name = self.name[:-5]
-        else:
-            # TODO: add a warning here when logging is added
-            base_name = self.name
+    @property
+    def gen_stub(self):
+        '''
+        Create the fparser1 AST for a kernel stub.
+
+        :returns: root of fparser1 AST for the stub routine.
+        :rtype: :py:class:`fparser.one.XXXX`
+
+        '''
+        from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 
         # create an empty PSy layer module
-        psy_module = ModuleGen(base_name+"_mod")
+        base_name = self._base_name
+        psy_module = ModuleGen(self._base_name+"_mod")
 
-        # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
+        # Create the subroutine
+        sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
-        # create the arglist and declarations
-        create_arg_list = KernStubArgList(self, sub_stub)
+        sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
+                            funcnames=["r_def"]))
+
+        # Add all the declarations
+        for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
+                         DynCMAOperators, DynScalarArgs, DynFields,
+                         DynLMAOperators, DynStencils, DynBasisFunctions,
+                         DynOrientations, DynBoundaryConditions]:
+            entities(self).declarations(sub_stub)
+
+        # Create the arglist
+        create_arg_list = KernStubArgList(self)
         create_arg_list.generate()
-        arglist = create_arg_list.arglist
-        # add the arglist
-        sub_stub.args = arglist
-        # add the subroutine to the parent module
+
+        # Add the arglist
+        sub_stub.args = create_arg_list.arglist
+
+        # Add the subroutine to the parent module
         psy_module.add(sub_stub)
         return psy_module.root
 
-    @property
-    def incremented_arg(self):
-        ''' Returns the argument corresponding to a field or operator that has
-        INC access.  '''
-        return Kern.incremented_arg(self, FIELD_ACCESS_MAP)
-
-    @property
-    def written_arg(self):
-        ''' Returns the argument corresponding to a field or operator that has
-        WRITE access '''
-        return Kern.written_arg(self, FIELD_ACCESS_MAP)
-
-    @property
-    def updated_arg(self):
-        ''' Returns the kernel argument that is updated (incremented or
-        written to) '''
-        arg = None
-        try:
-            arg = self.incremented_arg
-        except FieldNotFoundError:
-            arg = self.written_arg
-        return arg
-
     def gen_code(self, parent):
         '''Generates dynamo version 0.3 specific psy code for a call to
-            the dynamo kernel instance.
+           the dynamo kernel instance.
 
-        :param parent: an f2pygen object that will be the parent of
-        f2pygen objects created in this method
+        :param parent: an f2pygen object that will be the parent of \
+                       f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if the loop goes beyond the level 1
-        halo and an operator is accessed
-        :raises GenerationError: if a kernel in the loop has an inc
-        access and the loop is not coloured but is within an OpenMP
-        parallel region.
+        :raises GenerationError: if the loop goes beyond the level 1 \
+                                 halo and an operator is accessed.
+        :raises GenerationError: if a kernel in the loop has an inc access \
+                                 and the loop is not coloured but is within \
+                                 an OpenMP parallel region.
 
         '''
-        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, UseGen, \
-            CommentGen
+        from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        parent_loop = self.parent.parent
+
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
-                                          arg_accesses=["gh_read",
-                                                        "gh_readwrite"])
+        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
+                                          arg_accesses=[AccessType.READ,
+                                                        AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_halo_depth > 1:
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_halo_depth))
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
-        # loop then we have to look-up the colour map
+        # loop then we have to look-up the name of the colour map
         if self.is_coloured():
-
-            # Find which argument object the kernel writes to (either GH_INC
-            # or GH_WRITE) in order to look-up the colour map
-            arg = self.updated_arg
             # TODO Check whether this arg is gh_inc and if not, Warn that
             # we're colouring a kernel that has no field object with INC access
 
-            new_parent, position = parent.start_parent_loop()
-            # Add the look-up of the colouring map for this kernel
-            # call
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, " Look-up colour map"),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            if _CONFIG.distributed_memory:
-                # the LFRic colouring API for distributed memory
-                # differs from the API without distributed
-                # memory. This is to support and control redundant
-                # computation with coloured loops.
-                new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
-                                         rhs=mesh_obj_name +
-                                         "%get_colour_map()"),
-                               position=["before", position])
-            else:
-                name = arg.proxy_name_indexed + \
-                       "%" + arg.ref_name() + "%get_colours"
-                new_parent.add(CallGen(new_parent,
-                                       name=name,
-                                       args=["ncolour", "ncp_colour", "cmap"]),
-                               position=["before", position])
-
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-
             # We must look-up the cell index using the colour map rather than
-            # use the current cell index directly
-            cell_index = "cmap(colour, cell)"
+            # use the current cell index directly. We need to know the name
+            # of the variable holding the colour map for this kernel.
+            cell_index = self.colourmap + "(colour, cell)"
         else:
             # This kernel call has not been coloured
             #  - is it OpenMP parallel, i.e. are we a child of
@@ -5096,7 +6831,7 @@ class DynKern(Kern):
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_arg
+                    arg = self.incremented_arg()
                 except FieldNotFoundError:
                     arg = None
                 if arg:
@@ -5109,15 +6844,14 @@ class DynKern(Kern):
 
         parent.add(CommentGen(parent, ""))
 
-        # orientation arrays initialisation and their declarations
-        orientation_decl_names = []
+        # Orientation array lookup is done for each cell
+        oname = ""
         for unique_fs in self.arguments.unique_fss:
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.requires_orientation:
-                    field = self._arguments.get_arg_on_space(unique_fs)
+                    field = self.arguments.get_arg_on_space(unique_fs)
                     oname = get_fs_orientation_name(unique_fs)
-                    orientation_decl_names.append(oname+"(:) => null()")
                     parent.add(
                         AssignGen(parent, pointer=True,
                                   lhs=oname,
@@ -5125,26 +6859,10 @@ class DynKern(Kern):
                                   field.ref_name(unique_fs) +
                                   "%get_cell_orientation(" +
                                   cell_index + ")"))
-        if orientation_decl_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=orientation_decl_names))
+        if oname:
             parent.add(CommentGen(parent, ""))
 
-        # dump = True
-        # if dump:
-        #    new_parent, position = parent.start_parent_loop()
-        #    create_dump = DinoWriters(self, new_parent, position)
-        #    create_dump.generate()
-
-        create_arg_list = KernCallArgList(self, parent)
-        create_arg_list.generate()
-        arglist = create_arg_list.arglist
-
-        # generate the kernel call and associated use statement
-        parent.add(CallGen(parent, self._name, arglist))
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name,
-                              only=True, funcnames=[self._name]))
+        super(DynKern, self).gen_code(parent)
 
 
 class ArgOrdering(object):
@@ -5152,6 +6870,7 @@ class ArgOrdering(object):
     a Kernel call.'''
     def __init__(self, kern):
         self._kern = kern
+        self._generate_called = False
 
     def generate(self):
         '''
@@ -5162,6 +6881,7 @@ class ArgOrdering(object):
         :raises GenerationError: if the kernel arguments break the
                                  rules for the Dynamo 0.3 API.
         '''
+        self._generate_called = True
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
@@ -5213,13 +6933,14 @@ class ArgOrdering(object):
                 self.operator(arg)
             elif arg.type == "gh_columnwise_operator":
                 self.cma_operator(arg)
-            elif arg.type in VALID_SCALAR_NAMES:
+            elif arg.type in GH_VALID_SCALAR_NAMES:
                 self.scalar(arg)
             else:
                 raise GenerationError(
                     "Unexpected arg type found in dynamo0p3.py:"
                     "ArgOrdering:generate(). Expected one of '{0}' "
-                    "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
+                    "but found '{1}'".format(GH_VALID_ARG_TYPE_NAMES,
+                                             arg.type))
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
@@ -5280,12 +7001,12 @@ class ArgOrdering(object):
                     "Expected a LMA operator from which to look-up boundary "
                     "dofs but kernel {0} has argument {1}.".
                     format(self._kern.name, op_arg.type))
-            if op_arg.access != "gh_readwrite":
+            if op_arg.access != AccessType.READWRITE:
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "
                     "boundary conditions to an operator. However its operator "
                     "argument has access {1} rather than gh_readwrite.".
-                    format(self._kern.name, op_arg.access))
+                    format(self._kern.name, op_arg.access.api_specific_name()))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
         # Provide qr arguments if required
@@ -5494,7 +7215,7 @@ class ArgOrdering(object):
         raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
                                   " be implemented by subclass")
 
-    def indirection_dofmap(self, arg, operator=None):
+    def indirection_dofmap(self, function_space, operator=None):
         '''
         Add indirection dofmap required when applying a CMA operator
 
@@ -5506,13 +7227,24 @@ class ArgOrdering(object):
 
 class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
-    PSy-layer. The ordering and type of arguments is captured by the base
-    class '''
-    def __init__(self, kern, parent=None):
+    PSy-layer and captures the positions of the following arguments in
+    the argument list: nlayers, number of quadrature points and number
+    of degrees of freedom. The ordering and type of arguments is
+    captured by the base class.
+
+    :param kern: The kernel that is being called.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    '''
+    NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
+
+    def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
-        self._parent = parent
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
+        self._nlayers_positions = []
+        self._nqp_positions = []
+        self._ndf_positions = []
 
     def cell_position(self):
         ''' add a cell argument to the argument list'''
@@ -5530,7 +7262,8 @@ class KernCallArgList(ArgOrdering):
         map_name = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
         # Add the cell map to our argument list
-        self._arglist.append(map_name+"(:,cell)")
+        self._arglist.append("{0}(:,{1})".format(map_name,
+                                                 self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = self._name_space_manager.create_name(
@@ -5547,6 +7280,7 @@ class KernCallArgList(ArgOrdering):
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
+        self._nlayers_positions.append(len(self._arglist))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
@@ -5580,25 +7314,43 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(text)
 
     def stencil_unknown_extent(self, arg):
-        '''add stencil information to the argument list associated with the
-        argument 'arg' if the extent is unknown'''
-        # the extent is not specified in the metadata
-        # so pass the value in
-        name = stencil_size_name(arg)
+        '''
+        Add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
+        # The extent is not specified in the metadata so pass the value in
+        name = DynStencils.dofmap_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
-        '''add stencil information to the argument list associated with the
-        argument 'arg' if the direction is unknown'''
+        '''
+        Add stencil information to the argument list associated with the
+        argument 'arg' if the direction is unknown (i.e. it's being supplied
+        in a variable).
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
         # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.varName
+        name = arg.stencil.direction_arg.varname
         self._arglist.append(name)
 
     def stencil(self, arg):
-        '''add general stencil information associated with the argument 'arg'
-        to the argument list'''
+        '''
+        Add general stencil information associated with the argument 'arg'
+        to the argument list.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
         # add in stencil dofmap
-        var_name = stencil_dofmap_name(arg)
+        var_name = DynStencils.dofmap_name(arg)
         name = var_name + "(:,:," + self._cell_ref_name + ")"
         self._arglist.append(name)
 
@@ -5610,13 +7362,20 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
 
     def cma_operator(self, arg):
-        ''' add the CMA operator and associated scalars to the argument
-        list '''
+        '''
+        Add the CMA operator and associated scalars to the argument
+        list.
+
+        :param arg: the CMA operator argument.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
+        components = ["matrix"]
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            components = ["matrix"] + DynInvokeCMAOperators.cma_diff_fs_params
+            components += DynCMAOperators.cma_diff_fs_params
         else:
-            components = ["matrix"] + DynInvokeCMAOperators.cma_same_fs_params
+            components += DynCMAOperators.cma_same_fs_params
         for component in components:
             self._arglist.append(
                 self._name_space_manager.create_name(
@@ -5635,6 +7394,9 @@ class KernCallArgList(ArgOrdering):
         # There is currently one argument: "ndf"
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
+        self._ndf_positions.append(
+            KernCallArgList.NdfInfo(position=len(self._arglist),
+                                    function_space=function_space.orig_name))
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -5672,14 +7434,26 @@ class KernCallArgList(ArgOrdering):
         Add basis function information for this function space to the
         argument list.
 
-        :param function_space: the function space for which the basis
-                               function is required
+        :param function_space: the function space for which the basis \
+                               function is required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
-        basis_name = get_fs_basis_name(function_space,
-                                       qr_var=self._kern.qr_name,
-                                       on_space=self._kern.eval_fspace)
-        self._arglist.append(basis_name)
+        if self._kern.qr_required:
+            basis_name = get_fs_basis_name(function_space,
+                                           qr_var=self._kern.qr_name)
+            self._arglist.append(basis_name)
+        else:
+            # We are dealing with an evaluator and therefore need as many
+            # basis functions as there are target function spaces.
+            for fs_name in self._kern.eval_targets:
+                # The associated FunctionSpace object is the first item in
+                # the tuple dict entry associated with the name of the target
+                # function space
+                fspace = self._kern.eval_targets[fs_name][0]
+                basis_name = get_fs_basis_name(function_space,
+                                               qr_var=self._kern.qr_name,
+                                               on_space=fspace)
+                self._arglist.append(basis_name)
 
     def diff_basis(self, function_space):
         '''
@@ -5690,10 +7464,21 @@ class KernCallArgList(ArgOrdering):
                                basis functions are required
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
-        diff_basis_name = get_fs_diff_basis_name(
-            function_space, qr_var=self._kern.qr_name,
-            on_space=self._kern.eval_fspace)
-        self._arglist.append(diff_basis_name)
+        if self._kern.qr_required:
+            diff_basis_name = get_fs_diff_basis_name(
+                function_space, qr_var=self._kern.qr_name)
+            self._arglist.append(diff_basis_name)
+        else:
+            # We are dealing with an evaluator and therefore need as many
+            # basis functions as there are target function spaces.
+            for fs_name in self._kern.eval_targets:
+                # The associated FunctionSpace object is the first item in
+                # the tuple dict entry associated with the name of the target
+                # function space
+                fspace = self._kern.eval_targets[fs_name][0]
+                diff_basis_name = get_fs_diff_basis_name(
+                    function_space, qr_var=self._kern.qr_name, on_space=fspace)
+                self._arglist.append(diff_basis_name)
 
     def orientation(self, function_space):
         '''add orientation information for this function space to the
@@ -5702,13 +7487,11 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(orientation_name)
 
     def field_bcs_kernel(self, function_space):
-        ''' implement the boundary_dofs array fix for a field '''
-        from psyclone.f2pygen import DeclGen, AssignGen
-        self._arglist.append("boundary_dofs")
-        parent = self._parent
-        parent.add(DeclGen(parent, datatype="integer",
-                           pointer=True, entity_decls=[
-                               "boundary_dofs(:,:) => null()"]))
+        '''
+        Implement the boundary_dofs array fix for a field.
+
+        :param function_space: unused argument.
+        '''
         fspace = None
         for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
@@ -5721,34 +7504,36 @@ class KernCallArgList(ArgOrdering):
                 "Expected a gh_field from which to look-up boundary dofs "
                 "for kernel {0} but got {1}".format(self._kern.name,
                                                     farg.type))
-        new_parent, position = parent.start_parent_loop()
-        new_parent.add(AssignGen(new_parent, pointer=True,
-                                 lhs="boundary_dofs",
-                                 rhs=farg.proxy_name +
-                                 "%vspace%get_boundary_dofs()"),
-                       position=["before", position])
+        base_name = "boundary_dofs_" + farg.name
+        name = self._name_space_manager.create_name(root_name=base_name,
+                                                    context="PSyVars",
+                                                    label=base_name)
+        self._arglist.append(name)
 
-    def operator_bcs_kernel(self, function_space):
-        ''' Supply necessary additional arguments for the kernel that
-        applies boundary conditions to a LMA operator '''
-        from psyclone.f2pygen import DeclGen, AssignGen
+    def operator_bcs_kernel(self, _):
+        '''
+        Supply necessary additional arguments for the kernel that
+        applies boundary conditions to a LMA operator. 2nd (unused)
+        argument is for consistency with base class.
+
+        '''
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
-        self._arglist.append("boundary_dofs")
-        parent = self._parent
-        parent.add(DeclGen(parent, datatype="integer",
-                           pointer=True, entity_decls=[
-                               "boundary_dofs(:,:) => null()"]))
-        new_parent, position = parent.start_parent_loop()
-        new_parent.add(AssignGen(new_parent, pointer=True,
-                                 lhs="boundary_dofs",
-                                 rhs=op_arg.proxy_name +
-                                 "%fs_to%get_boundary_dofs()"),
-                       position=["before", position])
+        base_name = "boundary_dofs_"+op_arg.name
+        name = self._name_space_manager.create_name(root_name=base_name,
+                                                    context="PSyVars",
+                                                    label=base_name)
+        self._arglist.append(name)
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
+        # At the moment we only support XYoZ quadrature which requires
+        # a number of quadrature points in the horizontal and
+        # vertical.
+
+        self._nqp_positions.append({"horizontal": len(self._arglist) + 1,
+                                    "vertical": len(self._arglist) + 2})
         self._arglist.extend(self._kern.qr_args)
 
     def banded_dofmap(self, function_space):
@@ -5763,39 +7548,107 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(get_cma_indirection_map_name(function_space))
 
     @property
+    def nlayers_positions(self):
+        '''
+        :return: the position(s) in the argument list of the \
+        variable(s) that passes the number of layers. The generate \
+        method must be called first.
+        :rtype: list of int.
+
+        :raises InternalError: if the generate() method has not been
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the nlayers_positions() method")
+        return self._nlayers_positions
+
+    @property
+    def nqp_positions(self):
+        '''
+        :return: the positions in the argument list of the variables that \
+        pass the number of quadrature points. The number and type of \
+        these will change depending on the type of quadrature. A list \
+        of dictionaries is returned with the quadrature directions \
+        being the keys to the dictionaries and their position in the \
+        argument list being the values. At the moment only XYoZ is \
+        supported (which has horizontal and vertical quadrature \
+        points). The generate method must be called first.
+        :rtype: [{str: int, ...}]
+
+        :raises InternalError: if the generate() method has not been \
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the nqp_positions() method")
+        return self._nqp_positions
+
+    @property
+    def ndf_positions(self):
+        '''
+        :return: the position(s) in the argument list and the function \
+        space(s) associated with the variable(s) that pass(es) the \
+        number of degrees of freedom for the function space. The \
+        generate method must be called first.
+        :rtype: list of namedtuple (position=int, function_space=str).
+
+        :raises InternalError: if the generate() method has not been \
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the ndf_positions() method")
+        return self._ndf_positions
+
+    @property
     def arglist(self):
-        '''return the kernel argument list. The generate function must be
-        called first'''
-        if not self._arglist:
-            raise GenerationError(
-                "Internal error. The argument list in KernCallArgList:"
-                "arglist() is empty. Has the generate() method been called?")
+        '''
+        :return: the kernel argument list. The generate method must be \
+        called first.
+        :rtype: list of str.
+
+        :raises InternalError: if the generate() method has not been \
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the arglist() method")
         return self._arglist
 
     @property
     def _cell_ref_name(self):
-        '''utility routine which determines whether to return the cell value
-        or the colourmap lookup value '''
+        '''
+        Utility routine which determines whether to return the cell value
+        or the colourmap lookup value.
+
+        :returns: the Fortran code needed to access the current cell index.
+        :rtype: str
+        '''
         if self._kern.is_coloured():
-            return "cmap(colour, cell)"
-        else:
-            return "cell"
+            return self._kern.colourmap + "(colour, cell)"
+        return "cell"
 
 
 class KernStubArgList(ArgOrdering):
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
     of the arguments is captured by the base class '''
-    def __init__(self, kern, parent):
+    def __init__(self, kern):
         '''
         :param kern: Kernel for which to create argument list
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-        :param parent: Parent subroutine which calls the kernel
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises NotImplementedError: if kernel is inter-grid
         '''
-        from psyclone.f2pygen import UseGen
 
         # We don't yet support inter-grid kernels (Issue #162)
         if kern.is_intergrid:
@@ -5804,42 +7657,31 @@ class KernStubArgList(ArgOrdering):
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
 
-        parent.add(UseGen(parent, name="constants_mod", only=True,
-                          funcnames=["r_def"]))
         self._first_arg = True
         self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
-        self._parent = parent
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
 
     def cell_position(self):
-        ''' Add cell position to the argument list if required '''
-        from psyclone.f2pygen import DeclGen
+        ''' Add cell position to the argument list. '''
         self._arglist.append("cell")
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=["cell"]))
 
     def mesh_height(self):
-        ''' add mesh height (nlayers) to the argument list if required '''
-        from psyclone.f2pygen import DeclGen
+        ''' Add mesh height (nlayers) to the argument list. '''
         self._arglist.append("nlayers")
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=["nlayers"]))
 
     def mesh_ncell2d(self):
-        ''' Add the number of columns in the mesh to the argument list if
-        required '''
-        from psyclone.f2pygen import DeclGen
+        ''' Add the number of columns in the mesh to the argument list. '''
         self._arglist.append("ncell_2d")
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=["ncell_2d"]))
 
     def field_vector(self, argvect):
-        '''add the field vector associated with the argument 'argvect' to the
-        argument list '''
-        undf_name = get_fs_undf_name(argvect.function_space)
-        from psyclone.f2pygen import DeclGen
+        '''Add the field vector associated with the argument 'argvect' to the
+        argument list.
+
+        :param argvect: the corresponding kernel argument.
+        :type argvect:  :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
@@ -5847,90 +7689,66 @@ class KernStubArgList(ArgOrdering):
             text = (argvect.name + "_" +
                     argvect.function_space.mangled_name +
                     "_v" + str(idx))
-            intent = argvect.intent
-            decl = DeclGen(self._parent, datatype="real",
-                           kind="r_def", dimension=undf_name,
-                           intent=intent, entity_decls=[text])
-            self._parent.add(decl)
             if self._first_arg:
                 self._first_arg = False
-                self._first_arg_decl = decl
             self._arglist.append(text)
 
     def field(self, arg):
-        '''add the field associated with the argument 'arg' to the argument
-        list'''
-        from psyclone.f2pygen import DeclGen
-        undf_name = get_fs_undf_name(arg.function_space)
+        '''
+        Add the field associated with the argument 'arg' to the argument list.
+
+        :param arg: the kernel argument (field).
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         text = arg.name + "_" + arg.function_space.mangled_name
-        intent = arg.intent
-        decl = DeclGen(self._parent, datatype="real",
-                       kind="r_def", dimension=undf_name,
-                       intent=intent, entity_decls=[text])
-        self._parent.add(decl)
-        if self._first_arg:
-            self._first_arg = False
-            self._first_arg_decl = decl
         self._arglist.append(text)
 
     def stencil_unknown_extent(self, arg):
-        '''add stencil information associated with the argument 'arg' if the
-        extent is unknown'''
-        from psyclone.f2pygen import DeclGen
-        name = arg.name + "_stencil_size"
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[name]))
+        '''
+        Add stencil information associated with a kernel argument if the
+        extent is unknown.
+        :param arg: the meta-data description of the kernel argument with \
+                    which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
+        name = DynStencils.dofmap_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
-        '''add stencil information associated with the argument 'arg' if the
-        direction is unknown'''
-        from psyclone.f2pygen import DeclGen
-        name = arg.name+"_direction"
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[name]))
-        self._arglist.append(name)
+        '''
+        Add stencil information associated with the argument 'arg' if the
+        direction is unknown.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
+        self._arglist.append(DynStencils.direction_name(arg))
 
     def stencil(self, arg):
-        '''add general stencil information associated with the argument
-        'arg' '''
-        from psyclone.f2pygen import DeclGen
-        name = arg.name+"_stencil_map"
-        ndf_name = get_fs_ndf_name(arg.function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=",".join(
-                                     [ndf_name, arg.name + "_stencil_size"]),
-                                 entity_decls=[name]))
-        self._arglist.append(name)
+        '''
+        Add general stencil information associated with a kernel argument.
+
+        :param arg: the meta-data description of the kernel argument with \
+                    which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
+        self._arglist.append(DynStencils.dofmap_name(arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
-        from psyclone.f2pygen import DeclGen
         size = arg.name + "_ncell_3d"
         self._arglist.append(size)
-        decl = DeclGen(self._parent, datatype="integer", intent="in",
-                       entity_decls=[size])
-        self._parent.add(decl)
         # If this is the first argument in the kernel then keep a
         # note so that we can put subsequent declarations in the
         # correct location
         if self._first_arg:
             self._first_arg = False
-            self._first_arg_decl = decl
         text = arg.name
         self._arglist.append(text)
 
-        intent = arg.intent
-        ndf_name_to = get_fs_ndf_name(arg.function_space_to)
-        ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 dimension=",".join([ndf_name_to,
-                                                     ndf_name_from, size]),
-                                 intent=intent, entity_decls=[text]))
-
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
-        from psyclone.f2pygen import DeclGen
         # The CMA operator itself
         self._arglist.append(arg.name)
         # Associated scalar parameters
@@ -5951,238 +7769,144 @@ class KernStubArgList(ArgOrdering):
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
         self._arglist += _local_args
 
-        intent = arg.intent
-        # Declare the associated scalar arguments before the array because
-        # some of them are used to dimension the latter (and some compilers
-        # get upset if this ordering is not followed)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 intent="in",
-                                 entity_decls=_local_args))
-        # Declare the array that holds the CMA operator
-        # If this is the first argument in the kernel then keep a
-        # note so that we can put subsequent declarations in the
-        # correct location
-        decl = DeclGen(self._parent, datatype="real", kind="r_def",
-                       dimension=",".join([bandwidth,
-                                           nrow, "ncell_2d"]),
-                       intent=intent, entity_decls=[arg.name])
-        self._parent.add(decl)
         if self._first_arg:
             self._first_arg = False
-            self._first_arg_decl = decl
 
     def banded_dofmap(self, function_space):
         ''' Declare the banded dofmap required for a CMA operator
         that maps to/from the specified function space '''
-        from psyclone.f2pygen import DeclGen
-        ndf = get_fs_ndf_name(function_space)
         dofmap = get_cbanded_map_name(function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=",".join([ndf, "nlayers"]),
-                                 intent="in",
-                                 entity_decls=[dofmap]))
         self._arglist.append(dofmap)
 
     def indirection_dofmap(self, function_space, operator=None):
-        ''' Declare the indirection dofmaps required when applying a
-        CMA operator '''
-        from psyclone.f2pygen import DeclGen
+        '''
+        Declare the indirection dofmaps required when applying a
+        CMA operator.
+
+        :param function_space: the function space for which the dofmap \
+                               is required.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param operator: the CMA operator for which the dofmap is required.
+        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises GenerationError: if no kernel argument is supplied.
+        :raises GenerationError: if the supplied kernel argument is not a \
+                                 CMA operator.
+
+        '''
         if not operator:
             raise GenerationError("Internal error: no CMA operator supplied.")
         if operator.type != "gh_columnwise_operator":
             raise GenerationError(
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
                 "be supplied but got {0}".format(operator.type))
-        # The extent of the (1D) dofmap depends on whether it is for the 'to'
-        # or 'from' function space of the operator
-        if operator.function_space_to.orig_name == function_space.orig_name:
-            dim_name = operator.name + "_nrow"
-        else:
-            dim_name = operator.name + "_ncol"
         map_name = get_cma_indirection_map_name(function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=dim_name,
-                                 intent="in",
-                                 entity_decls=[map_name]))
         self._arglist.append(map_name)
 
     def scalar(self, arg):
-        '''add the name associated with the scalar argument'''
-        from psyclone.f2pygen import DeclGen
-        if arg.type == "gh_real":
-            decl = DeclGen(self._parent, datatype="real", kind="r_def",
-                           intent=arg.intent,
-                           entity_decls=[arg.name])
-        elif arg.type == "gh_integer":
-            decl = DeclGen(self._parent, datatype="integer",
-                           intent=arg.intent,
-                           entity_decls=[arg.name])
-        else:
-            raise GenerationError(
-                "Internal error: expected arg type to be one "
-                "of '{0}' but got '{1}'".format(VALID_SCALAR_NAMES,
-                                                arg.type))
-        self._parent.add(decl)
+        '''
+        Add the name associated with the scalar argument to the argument list.
+
+        :param arg: the kernel argument.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if the argument is not a recognised scalar type.
+        '''
+        if arg.type not in GH_VALID_SCALAR_NAMES:
+            raise InternalError(
+                "Expected argument type to be one of '{0}' but got '{1}'".
+                format(GH_VALID_SCALAR_NAMES, arg.type))
         self._arglist.append(arg.name)
 
     def fs_common(self, function_space):
         ''' Provide arguments common to LMA operators and
         fields on a space. There is one: "ndf". '''
-        from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
-        self._parent.add(
-            DeclGen(self._parent, datatype="integer", intent="in",
-                    entity_decls=[ndf_name]),
-            position=["before", self._first_arg_decl.root])
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
         function space'''
-        from psyclone.f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
         undf_name = get_fs_undf_name(function_space)
         self._arglist.append(undf_name)
         map_name = get_fs_map_name(function_space)
         self._arglist.append(map_name)
-        # ndf* declarations need to be before argument
-        # declarations as some compilers don't like
-        # declarations after they have been used. We place
-        # ndf* before the first argument declaration
-        # (field or operator) (rather than after nlayers)
-        # as this keeps the declarations in the order
-        # specified in the metadata and first used by
-        # fields/operators.
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[undf_name]),
-                         position=["before", self._first_arg_decl.root])
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=ndf_name,
-                                 entity_decls=[map_name]))
 
     def basis(self, function_space):
         '''
-        Add the necessary declarations for a basis function on the supplied
-        function space.
+        Add the necessary declarations for basis function(s) on the supplied
+        function space. There can be more than one if this is an evaluator.
 
-        :param function_space: the function space for which to provide
+        :param function_space: the function space for which to provide \
                                the basis functions
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        :raises InternalError: if the evaluator shape is not recognised.
+
         '''
-        from psyclone.f2pygen import DeclGen
-        basis_name = get_fs_basis_name(function_space)
-        ndf_name = get_fs_ndf_name(function_space)
-        self._arglist.append(basis_name)
-        # the size of the first dimension for a
-        # basis array depends on the
-        # function space. The values are
-        # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
-        first_dim = None
-        if function_space.orig_name.lower() in \
-           ["w0", "w3", "wtheta"]:
-            first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w1", "w2", "w2h", "w2v", "any_w2"]):
-            first_dim = "3"
-        else:
-            raise GenerationError(
-                "Unsupported space for basis function, "
-                "expecting one of {0} but found "
-                "'{1}'".format(VALID_FUNCTION_SPACES,
-                               function_space.orig_name))
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
-            if self._kern.eval_shape == "gh_quadrature_xyoz":
-                dim_list = ",".join([first_dim, ndf_name,
-                                     "np_xy", "np_z"])
-            else:
-                raise GenerationError(
-                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
-                    "yet supported")
+            basis_name = get_fs_basis_name(function_space)
+            self._arglist.append(basis_name)
         elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
-            # Need the ndf for the space on which the basis functions
-            # have been evaluated
-            nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
-            dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+            # Need a basis array for each target space upon which the basis
+            # functions have been evaluated. _kern.eval_targets is a dict
+            # where the values are 2-tuples of (FunctionSpace, argument).
+            for _, target in self._kern.eval_targets.items():
+                basis_name = get_fs_basis_name(function_space,
+                                               on_space=target[0])
+                self._arglist.append(basis_name)
         else:
-            raise GenerationError(
-                "Internal error: unrecognised evaluator shape ({0}). Expected "
-                "one of: {1}".format(self._kern.eval_shape,
-                                     VALID_EVALUATOR_SHAPES))
-        self._parent.add(DeclGen(self._parent, datatype="real",
-                                 kind="r_def", intent="in",
-                                 dimension=dim_list,
-                                 entity_decls=[basis_name]))
+            raise InternalError(
+                "Unrecognised evaluator shape ({0}). Expected one of: {1}".
+                format(self._kern.eval_shape, VALID_EVALUATOR_SHAPES))
 
     def diff_basis(self, function_space):
         '''
         Provide the necessary declarations for the differential basis function
         on the supplied function space.
 
-        :param function_space: the function space for which to provide the
+        :param function_space: the function space for which to provide the \
                                differential basis function
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        :raises GenerationError: if the evaluator shape is not recognised.
         '''
-        from psyclone.f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
-        diff_basis_name = get_fs_diff_basis_name(function_space)
-        self._arglist.append(diff_basis_name)
-        # the size of the first dimension for a
-        # differential basis array depends on the
-        # function space. The values are
-        # w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1
-        first_dim = None
-        if function_space.orig_name.lower() in \
-           ["w2", "w2h", "w2v", "any_w2"]:
-            first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w0", "w1", "w3", "wtheta"]):
-            first_dim = "3"
-        else:
-            raise GenerationError(
-                "Unsupported space for differential basis "
-                "function, expecting one of {0} but found "
-                "'{1}'".format(VALID_FUNCTION_SPACES,
-                               function_space.orig_name))
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             # We need differential basis functions for quadrature
-            if self._kern.eval_shape == "gh_quadrature_xyoz":
-                dim_list = ",".join([first_dim, ndf_name,
-                                     "np_xy", "np_z"])
-            else:
-                raise NotImplementedError(
-                    "Internal error: diff-basis for quadrature shape '{0}' "
-                    "not yet implemented".format(self._kern.eval_shape))
+            diff_basis_name = get_fs_diff_basis_name(function_space)
+            self._arglist.append(diff_basis_name)
+
         elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
-            # We need differential basis functions for an evaluator
-            nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
-            dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+            # We need differential basis functions for an evaluator,
+            # potentially for multiple target spaces. _kern.eval_targets is
+            # a dict where the values are 2-tuples of
+            # (FunctionSpace, argument).
+            for _, target in self._kern.eval_targets.items():
+                diff_basis_name = get_fs_diff_basis_name(function_space,
+                                                         on_space=target[0])
+                self._arglist.append(diff_basis_name)
         else:
             raise GenerationError(
                 "Internal error: unrecognised evaluator shape ({0}). Expected "
                 "one of: {1}".format(self._kern.eval_shape,
                                      VALID_EVALUATOR_SHAPES))
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 intent="in", dimension=dim_list,
-                                 entity_decls=[diff_basis_name]))
 
     def orientation(self, function_space):
-        ''' provide orientation information for the function space '''
-        from psyclone.f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
+        '''
+        Provide orientation information for the function space.
+
+        :param function_space: the function space for which orientation \
+                               is required.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        '''
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 intent="in", dimension=ndf_name,
-                                 entity_decls=[orientation_name]))
 
     def field_bcs_kernel(self, function_space):
         ''' implement the boundary_dofs array fix for fields '''
-        from psyclone.f2pygen import DeclGen
-        self._arglist.append("boundary_dofs")
-        ndf_name = get_fs_ndf_name(function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=",".join([ndf_name, "2"]),
-                                 entity_decls=["boundary_dofs"]))
+        arg = self._kern.arguments.get_arg_on_space(function_space)
+        self._arglist.append("boundary_dofs_"+arg.name)
 
     def operator_bcs_kernel(self, function_space):
         ''' Implement the boundary_dofs array fix for operators. This is the
@@ -6193,18 +7917,7 @@ class KernStubArgList(ArgOrdering):
     def quad_rule(self):
         ''' provide quadrature information for this kernel stub (necessary
         arguments and declarations) '''
-        from psyclone.f2pygen import DeclGen
         self._arglist.extend(self._kern.qr_args)
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=["np_xy", "np_z"]))
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 intent="in",
-                                 dimension="np_xy",
-                                 entity_decls=["weights_xy"]))
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 intent="in",
-                                 dimension="np_z",
-                                 entity_decls=["weights_z"]))
 
     @property
     def arglist(self):
@@ -6218,9 +7931,6 @@ class KernStubArgList(ArgOrdering):
 
 
 # class DinoWriters(ArgOrdering):
-#    '''Creates the required writers to dump the state of a Kernel call
-#    using dino. The integers are output first, followed by the fields,
-#    arrays etc'''
 #    def __init__(self, kern, parent=None, position=None):
 #        ArgOrdering.__init__(self, kern)
 #        self._parent = parent
@@ -6394,8 +8104,17 @@ class FSDescriptors(object):
     ''' Contains a collection of FSDescriptor objects and methods
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
-    meta-data '''
+    meta-data.
+    #TODO #274 this should actually be named something like
+    BasisFuncDescriptors as it holds information describing the
+    basis/diff-basis functions required by a kernel.
 
+    :param descriptors: list of objects describing the basis/diff-basis \
+                        functions required by a kernel, as obtained from \
+                        meta-data.
+    :type descriptors: list of :py:class:`psyclone.DynFuncDescriptor03`.
+
+    '''
     def __init__(self, descriptors):
         self._orig_descriptors = descriptors
         self._descriptors = []
@@ -6441,7 +8160,7 @@ def check_args(call):
 
     :param call: the object produced by the parser that describes the
                  kernel call to be checked.
-    :type call: :py:class:`psyclone.parse.KernelCall`
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :raises: GenerationError if the kernel arguments in the Algorithm layer
              do not match up with the kernel meta-data
     '''
@@ -6513,14 +8232,21 @@ class DynStencil(object):
 
 
 class DynKernelArguments(Arguments):
-    ''' Provides information about Dynamo kernel call arguments
-    collectively, as specified by the kernel argument metadata. '''
+    '''
+    Provides information about Dynamo kernel call arguments
+    collectively, as specified by the kernel argument metadata.
 
+    :param call: the kernel meta-data for which to extract argument info.
+    :type call: :py:class:`psyclone.parse.KernelCall`
+    :param parent_call: the kernel-call object.
+    :type parent_call: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises GenerationError: if the kernel meta-data specifies stencil extent.
+    '''
     def __init__(self, call, parent_call):
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
-
         self._name_space_manager = NameSpaceFactory().create()
 
         Arguments.__init__(self, parent_call)
@@ -6539,7 +8265,11 @@ class DynKernelArguments(Arguments):
                                              parent_call)
             idx += 1
             if dyn_argument.descriptor.stencil:
+                # Create a stencil object and store a reference to it in our
+                # new DynKernelArgument object.
                 stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
+                dyn_argument.stencil = stencil
+
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
@@ -6548,34 +8278,42 @@ class DynKernelArguments(Arguments):
                     # be added.  stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
                 else:
-                    # an extent argument has been added
+                    # An extent argument has been added.
                     stencil.extent_arg = call.args[idx]
-                    # extent_arg is not a standard dynamo argument, it is
-                    # an Arg object created by the parser. Therefore its
-                    # name may clash. We register and update the name here.
-                    unique_name = self._name_space_manager.create_name(
-                        root_name=stencil.extent_arg.varName,
-                        context="AlgArgs",
-                        label=stencil.extent_arg.text)
-                    stencil.extent_arg.varName = unique_name
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
-                    if stencil.direction_arg.varName not in \
-                       VALID_STENCIL_DIRECTIONS:
-                        # direction_arg is not a standard dynamo
-                        # argument, it is an Arg object created by the
-                        # parser. Therefore its name may clash. We
-                        # register and update the name here.
-                        unique_name = self._name_space_manager.create_name(
-                            root_name=stencil.direction_arg.varName,
-                            context="AlgArgs",
-                            label=stencil.direction_arg.text)
-                        stencil.direction_arg.varName = unique_name
                     idx += 1
-                dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
+
+        # We have now completed the construction of the kernel arguments so
+        # we can go back and update the names of any stencil size and/or
+        # direction variable names to ensure there are no clashes.
+        for arg in self._args:
+            if not arg.descriptor.stencil:
+                continue
+            if not arg.stencil.extent_arg.is_literal():
+                if arg.stencil.extent_arg.varname:
+                    # Ensure extent argument name is registered with
+                    # namespace manager
+                    root = arg.stencil.extent_arg.varname
+                    new_name = self._name_space_manager.create_name(
+                        root_name=root, context="AlgArgs",
+                        label=arg.stencil.extent_arg.text)
+                    arg.stencil.extent_arg.varname = new_name
+            if arg.descriptor.stencil['type'] == 'xory1d':
+                # a direction argument has been added
+                if arg.stencil.direction_arg.varname and \
+                   arg.stencil.direction_arg.varname not in \
+                   VALID_STENCIL_DIRECTIONS:
+                    # Register the name of the direction argument to ensure
+                    # it is unique in the PSy layer
+                    root = arg.stencil.direction_arg.varname
+                    unique_name = self._name_space_manager.create_name(
+                        root_name=root, context="AlgArgs",
+                        label=arg.stencil.direction_arg.text)
+                    arg.stencil.direction_arg.varname = unique_name
 
         self._dofs = []
 
@@ -6598,22 +8336,24 @@ class DynKernelArguments(Arguments):
     def get_arg_on_space_name(self, func_space_name):
         '''
         Returns the first argument (field or operator) found that is on
-        the named function space, as specified in the kernel metadata.
+        the named function space, as specified in the kernel metadata. Also
+        returns the associated FunctionSpace object.
 
-        :param str func_space_name: Name of the function space (as specified
-                                    in kernel meta-data) for which
-                                    to find an argument.
-        :return: the first kernel argument that is on the named function
-                 space
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :raises: FieldNotFoundError if no field or operator argument is found
+        :param str func_space_name: Name of the function space (as specified \
+                                    in kernel meta-data) for which to \
+                                    find an argument.
+        :return: the first kernel argument that is on the named function \
+                 space and the associated FunctionSpace object.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynKernelArgument`,
+                 :py:class:`psyclone.dynamo0p3.FunctionSpace`)
+        :raises: FieldNotFoundError if no field or operator argument is found \
                  for the named function space.
         '''
         for arg in self._args:
             for function_space in arg.function_spaces:
                 if function_space:
                     if func_space_name == function_space.orig_name:
-                        return arg
+                        return arg, function_space
         raise FieldNotFoundError("DynKernelArguments:get_arg_on_space_name: "
                                  "there is no field or operator with function "
                                  "space {0}".format(func_space_name))
@@ -6648,13 +8388,13 @@ class DynKernelArguments(Arguments):
         of type op_type (either gh_operator [LMA] or gh_columnwise_operator
         [CMA]). If op_type is None then searches for *any* valid operator
         type. '''
-        if op_type and op_type not in VALID_OPERATOR_NAMES:
+        if op_type and op_type not in GH_VALID_OPERATOR_NAMES:
             raise GenerationError(
                 "If supplied, op_type must be a valid operator type (one "
-                "of {0}) but got {1}".format(VALID_OPERATOR_NAMES, op_type))
+                "of {0}) but got {1}".format(GH_VALID_OPERATOR_NAMES, op_type))
         if not op_type:
             # If no operator type is specified then we match any type
-            op_list = VALID_OPERATOR_NAMES
+            op_list = GH_VALID_OPERATOR_NAMES
         else:
             op_list = [op_type]
         for arg in self._args:
@@ -6675,7 +8415,7 @@ class DynKernelArguments(Arguments):
         specified in the kernel metadata) '''
         return self._unique_fs_names
 
-    def iteration_space_arg(self, mapping=None):
+    def iteration_space_arg(self):
         '''
         Returns an argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
@@ -6683,17 +8423,16 @@ class DynKernelArguments(Arguments):
         are modified. If a kernel writes to more than one argument then
         that requiring the largest iteration space is selected.
 
-        :param dict mapping: un-used argument. Retained for consistency
-                             with base class.
         :return: Kernel argument from which to obtain iteration space
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
 
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
+        write_accesses = AccessType.all_write_accesses()
         op_args = psyGen.args_filter(self._args,
-                                     arg_types=VALID_OPERATOR_NAMES,
-                                     arg_accesses=GH_WRITE_ACCESSES)
+                                     arg_types=GH_VALID_OPERATOR_NAMES,
+                                     arg_accesses=write_accesses)
         if op_args:
             return op_args[0]
 
@@ -6712,16 +8451,18 @@ class DynKernelArguments(Arguments):
         # check first for any modified field on a continuous function
         # space, failing that we try any_space function spaces
         # (because we must assume such a space is continuous) and
-        # finally we try discontinuous function spaces. We do this
-        # because if a quantity on a continuous FS is modified then
-        # our iteration space must be larger (include L1 halo cells)
+        # finally we try all discontinuous function spaces including
+        # any_discontinuous_space. We do this because if a quantity on
+        # a continuous FS is modified then our iteration space must be
+        # larger (include L1-halo cells)
+        write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
-                                      arg_accesses=GH_WRITE_ACCESSES)
+                                      arg_accesses=write_accesses)
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
-                           DISCONTINUOUS_FUNCTION_SPACES]:
+                           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES]:
                 for arg in fld_args:
                     if arg.function_space.orig_name in spaces:
                         return arg
@@ -6739,10 +8480,139 @@ class DynKernelArguments(Arguments):
 
     @property
     def dofs(self):
-        ''' Currently required for invoke base class although this
-        makes no sense for dynamo. Need to refactor the invoke class
-        and pull out dofs into the gunghoproto api. '''
+        ''' Currently required for Invoke base class although this
+        makes no sense for Dynamo. Need to refactor the Invoke base class
+        and remove the need for this property (#279). '''
         return self._dofs
+
+    def raw_arg_list(self):
+        '''
+        Constructs the class-specific argument list for a kernel.
+
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str.
+        '''
+        create_arg_list = KernCallArgList(self._parent_call)
+        create_arg_list.generate()
+        self._raw_arg_list = create_arg_list.arglist
+
+        return self._raw_arg_list
+
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched.
+        :rtype: list of str
+
+        '''
+        class KernCallAccArgList(KernCallArgList):
+            '''
+            Kernel call arguments that need to be declared by OpenACC
+            directives. KernCallArgList only needs to be specialised
+            where modified, or additional, arguments are required.
+            Scalars are apparently not required but it is valid in
+            OpenACC to include them and requires less specialisation
+            to keep them in.
+
+            '''
+            def field_vector(self, argvect):
+                '''
+                Add the field vector associated with the argument 'argvect' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param argvect: the kernel argument (vector field).
+                :type argvect:  :py:class:`psyclone.dynamo0p3.\
+                                DynKernelArgument`
+
+                '''
+                for idx in range(1, argvect.vector_size+1):
+                    text1 = argvect.proxy_name + "(" + str(idx) + ")"
+                    self._arglist.append(text1)
+                    text2 = text1 + "%data"
+                    self._arglist.append(text2)
+
+            def field(self, arg):
+                '''
+                Add the field associated with the argument 'arg' to
+                the argument list. OpenACC requires the field and the
+                dereferenced data to be specified.
+
+                :param arg: the kernel argument (field).
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                text1 = arg.proxy_name
+                self._arglist.append(text1)
+                text2 = text1 + "%data"
+                self._arglist.append(text2)
+
+            def stencil(self, arg):
+                '''
+                Add the stencil dofmap associated with this kernel
+                argument. OpenACC requires the full dofmap to be
+                specified.
+
+                :param arg: the meta-data description of the kernel \
+                argument with which the stencil is associated.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                var_name = DynStencils.dofmap_name(arg)
+                self._arglist.append(var_name)
+
+            def operator(self, arg):
+                '''
+                Add the operator arguments to the argument list if
+                they have not already been added. OpenACC requires the
+                derived type and the dereferenced data to be
+                specified.
+
+                :param arg: the meta-data description of the operator.
+                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+                '''
+                if arg.proxy_name_indexed not in self._arglist:
+                    self._arglist.append(arg.proxy_name_indexed)
+                    self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
+                    self._arglist.append(arg.proxy_name_indexed +
+                                         "%local_stencil")
+
+            def fs_compulsory_field(self, function_space):
+                '''
+                Add compulsory arguments associated with this function space to
+                the list. OpenACC requires the full function-space map
+                to be specified.
+
+                :param arg: the current functionspace.
+                :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+                '''
+                undf_name = get_fs_undf_name(function_space)
+                self._arglist.append(undf_name)
+                map_name = get_fs_map_name(function_space)
+                self._arglist.append(map_name)
+
+        create_acc_arg_list = KernCallAccArgList(self._parent_call)
+        create_acc_arg_list.generate()
+        return create_acc_arg_list.arglist
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        # Return nothing for the moment as it is unclear whether
+        # scalars need to be explicitly dealt with (for OpenACC) in
+        # the dynamo api.
+        return []
 
 
 class DynKernelArgument(KernelArgument):
@@ -6759,7 +8629,7 @@ class DynKernelArgument(KernelArgument):
         :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
-        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param call: The kernel object with which this argument is associated
         :type call: :py:class:`psyclone.dynamo0p3.DynKern`
         '''
@@ -6860,6 +8730,11 @@ class DynKernelArgument(KernelArgument):
         ''' Returns the type of this argument. '''
         return self._type
 
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type in GH_VALID_SCALAR_NAMES
+
     @property
     def mesh(self):
         '''
@@ -6877,17 +8752,22 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def proxy_name(self):
-        ''' Returns the proxy name for this argument. '''
+        '''
+        :returns: the proxy name for this argument.
+        :rtype: str
+        '''
         return self._name+"_proxy"
 
     @property
     def proxy_declaration_name(self):
-        ''' Returns the proxy name for this argument with the array
-        dimensions added if required. '''
+        '''
+        :returns: the proxy name for this argument with the array \
+                  dimensions added if required.
+        :rtype: str
+        '''
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
-        else:
-            return self.proxy_name
+        return self.proxy_name
 
     @property
     def declaration_name(self):
@@ -6895,28 +8775,30 @@ class DynKernelArgument(KernelArgument):
         dimensions added if required. '''
         if self._vector_size > 1:
             return self._name+"("+str(self._vector_size)+")"
-        else:
-            return self._name
+        return self._name
 
     @property
     def proxy_name_indexed(self):
-        ''' Returns the proxy name for this argument with an
-        additional index which accesses the first element for a vector
-        argument. '''
+        '''
+        :returns: the proxy name for this argument with an additional \
+                  index which accesses the first element for a vector \
+                  argument.
+        :rtype: str
+        '''
         if self._vector_size > 1:
             return self._name+"_proxy(1)"
-        else:
-            return self._name+"_proxy"
+        return self._name+"_proxy"
 
     @property
     def name_indexed(self):
-        ''' Returns the name for this argument with an
-        additional index which accesses the first element for a vector
-        argument. '''
+        '''
+        :returns: the name for this argument with an additional index \
+                  which accesses the first element for a vector argument.
+        :rtype: str
+        '''
         if self._vector_size > 1:
             return self._name+"(1)"
-        else:
-            return self._name
+        return self._name
 
     @property
     def function_space(self):
@@ -6928,8 +8810,7 @@ class DynKernelArgument(KernelArgument):
         if self._type == "gh_operator":
             # We return the 'from' space for an operator argument
             return self.function_space_from
-        else:
-            return self._function_spaces[0]
+        return self._function_spaces[0]
 
     @property
     def function_space_to(self):
@@ -6961,21 +8842,6 @@ class DynKernelArgument(KernelArgument):
         return fs_names
 
     @property
-    def evaluator_function_space(self):
-        '''
-        Returns the function space on which any basis/diff-basis functions
-        required for an evaluator are to be calculated. (Kernels requiring an
-        evaluator are only permitted to write to a single arg and that
-        determines the space on which the basis/diff-basis functions are
-        required.) For an operator this is the to-space, otherwise it is
-        just the function space.
-        :return: the Function Space on which basis/diff basis functions must
-                 be evaluated
-        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        '''
-        return self._function_spaces[0]
-
-    @property
     def intent(self):
         '''
         Returns the Fortran intent of this argument.
@@ -6984,32 +8850,35 @@ class DynKernelArgument(KernelArgument):
                  by the kernel argument metadata
         :rtype: str
         '''
-        if self.access == "gh_read":
+        if self.access == AccessType.READ:
             return "in"
-        elif self.access == "gh_write":
+        elif self.access == AccessType.WRITE:
             return "out"
-        elif self.access == "gh_readwrite":
+        elif self.access == AccessType.READWRITE:
             return "inout"
-        elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
+        elif self.access in [AccessType.INC] + \
+                AccessType.get_valid_reduction_modes():
             return "inout"
         else:
+            valid_reductions = AccessType.get_valid_reduction_names()
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
                 "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
-                format(str(VALID_REDUCTION_NAMES), self.access))
+                format(valid_reductions, self.access))
 
     @property
     def discontinuous(self):
         '''Returns True if this argument is known to be on a discontinuous
-        function space, otherwise returns False.'''
-        if self.function_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+        function space including any_discontinuous_space, otherwise
+        returns False.'''
+        if self.function_space.orig_name in \
+           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
             return True
-        elif self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
+        if self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
             # we will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False
-        else:  # must be a continuous function space
-            return False
+        return False
 
     @property
     def stencil(self):
@@ -7030,7 +8899,7 @@ class DynKernelArgument(KernelArgument):
                  False otherwise.
         :rtype: bool
         '''
-        return self._type in VALID_OPERATOR_NAMES
+        return self._type in GH_VALID_OPERATOR_NAMES
 
 
 class DynKernCallFactory(object):
@@ -7047,13 +8916,77 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call)
 
         # Add the kernel as a child of the loop
-        cloop.addchild(kern)
+        cloop.loop_body.addchild(kern)
+        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
 
         # Return the outermost loop
         return cloop
+
+
+class DynACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, _):
+        '''
+        Provide a hook to be able to add information about data being on a
+        device (or not). This is currently not used in dynamo0p3.
+
+        '''
+        return None
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = [
+    'FunctionSpace',
+    'DynFuncDescriptor03',
+    'DynArgDescriptor03',
+    'DynKernMetadata',
+    'DynamoPSy',
+    'DynamoInvokes',
+    'DynCollection',
+    'DynStencils',
+    'DynDofmaps',
+    'DynOrientations',
+    'DynFunctionSpaces',
+    'DynFields',
+    'DynProxies',
+    'DynCellIterators',
+    'DynScalarArgs',
+    'DynLMAOperators',
+    'DynCMAOperators',
+    'DynMeshes',
+    'DynInterGrid',
+    'DynBasisFunctions',
+    'DynBoundaryConditions',
+    'DynInvoke',
+    'DynInvokeSchedule',
+    'DynGlobalSum',
+    'DynHaloExchange',
+    'DynHaloExchangeStart',
+    'DynHaloExchangeEnd',
+    'HaloDepth',
+    'HaloWriteAccess',
+    'HaloReadAccess',
+    'DynLoop',
+    'DynKern',
+    'ArgOrdering',
+    'KernCallArgList',
+    'KernStubArgList',
+    'FSDescriptor',
+    'FSDescriptors',
+    'DynStencil',
+    'DynKernelArguments',
+    'DynKernelArgument',
+    'DynKernCallFactory',
+    'DynACCEnterDataDirective']

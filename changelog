@@ -1,4 +1,380 @@
 
+        1) #602 for #597. Modify Node.ancestor() to optionally include
+	self.
+
+        2) #607 for #457. Add fixtures documentation to the developer
+	guide and split guide into smaller files.
+
+	3) #610 towards #567. Extends the Profile transformation so that
+	a user can supply name and location strings rather than rely
+	on the automatic generation of suitable names.
+
+release 1.8.1 29th November 2019
+
+        1) #579 for #509. Improves the structuring of the html version
+	of the User Guide.
+
+        2) PR #581 for #578. Extends the PSyIR Fortran backend so
+	that variable declarations include kind information. This
+	currently only works if kind-parameters are declared or
+	explicitly imported in the local scope - see #587 and #586.
+
+        3) PR #562 for #473. Fixes the DAG generation to allow for
+	Loops having Schedules and children (e.g. loop limits) that
+	we want to ignore.
+
+	4) PR #535 for part of #150. Implements support for parsing
+	of reference element metadata in the Dynamo0.3 (LFRic) API.
+
+	5) PR #516 for #497. Adds support for translating the Fortran
+	where construct into the PSyIR.
+
+        6) PR #545 for #544 and #543. Moves the Symbol support into
+	a separate sub-module and adds support for parameter declarations
+	and the functionality to resolve deferred datatypes.
+
+        7) PR #559 for #483. Introduces new InlinedKernel class and
+	uses this as the base class for all NEMO kernels.
+
+	8) PR #580 for #542. Adds a Schedule as a child of ExtractNode and
+	ProfileNode.
+
+        9) PR #573 for #438. Fixes all tests to use the value property of
+	exceptions rather than str(err).
+
+	10) PR #416 for #408. Adds support for non-ascii chars in Fortran
+	strings.
+
+	11) PR #591 for #584. Adds the concept of a deferred interface to
+	PSyIR symbols. This allows declarations to appear in any order and
+	helps to deal with kind symbols scoped via module use statements.
+
+release 1.8.0 8th November 2019
+
+	1) #245 and PR #247. Extend PSyIR to support common kernel
+	constructs (e.g. asignments) and generalise ASTProcessor and
+	CodeBlocks.
+
+	2) #275 and PR #276. Update fparser submodule (to point to latest
+	version) as this was not done at the last release.
+
+	3) #269 and PR #273. Remove generation of unnecessary
+	infrastructure calls when an Invoke only contains calls to
+	built-ins.
+
+	4) #196 and PR #242. Add support for kernels with evaluators on
+	multiple target function spaces.
+
+	5) #270 and PR #271. Add ability to specify include directories in
+	PSyclone script to allow Fortran include files to be found when
+	transforming kernels.
+
+	6) #201 and PR #224. Add ability to write transformed kernels to
+	file. Also ensures that kernel and psy-layer names match, allows
+	an output directory to be specified and supports different output
+	options when the same kernel is transformed in more than one
+	location.
+
+	7) #126 and PR #283. Update xfailing tests in alggen_test.py which
+	require multiple quadrature objects in a single invoke to pass.
+
+	8) #227 and PR #233. Add a gocean1.0 API OpenACC example.
+
+	9) #207 and PR #280. Remove support for gunghoproto API.
+
+	10) #174 and PR #216. Adds the ability to generate an OpenCL PSy
+	layer in the gocean1.0 API (including an OpenCL transformation).
+
+	11) #272 and PR #277. Adds an implicit-to-explicit-loop
+	transformation for the nemo API.
+
+	12) PR #255. Construct a KernelSchedule for kernel code with a
+	SymbolTable to hold information on variables used.
+
+	13) PR #302. Fix API's -> APIs typo in documentation.
+
+	14) #292 and PR #293. Add allowed list of nodes to RegionTrans.
+
+	15) #254 and PR #299. Adds methods to generate C and OpenCL
+	code for the Symbol Table and for certain PSyIR nodes.
+
+	16) PR #301. Adds an extras_require section to setup.py to simplify
+	installation of dependencies required for docs and tests.
+
+	17) #281 and PR #313. Adds support for compiling the code
+	generated as part of the GOcean 1.0 tests (including OpenCL
+	code that uses FortCL).
+
+	18) #139 and PR #218. Beginning of implementation of kernel-
+	extraction functionality (PSyKE). Currently only inserts
+	comments into generated Fortran code.
+
+        19) #327 and PR #328. Fix for erroneous xpassing test.
+
+	20) #238 and PR #285. Use fparser2 for parsing the
+	Algorithm layer (instead of fparser1).
+
+	21) #321 and PR #325. Document kernel coding restrictions required
+	for kernel transformations.
+
+        22) #326 PR #335. Alters the use of pytest fixtures to remove the now
+	deprecated use of the global pytest.config.
+
+	23) PR #318. Updates the Schedule hierarchy within the PSyIR.
+	Introduces a new Schedule base class which KernelSchedule and
+	InvokeSchedule then sub-class.
+
+	24) #332 and PR #333. Bug fix for parsing of simple arithmetic
+	expressions in kernel argument lists in the Algorithm layer.
+
+	25) #337 and PR #341. Bug fix to make matching of kernel names
+	in module use statements (in the Algorithm) case insensitive.
+
+	26) #268 and PR #306. Restructure of PSy and stub code generation.
+
+	27) #248 and PR #287. Extends OpenACC transformation support to
+	the nemo api, adds transformations for OpenACC data and kernel
+	directives and adds a sequential option to the OpenACC loop
+	directive transformation.
+
+	28) #319 and PR #331. Bug fix to make matching of kernel names
+	in module use statements (in the Kernel) case insensitive.
+
+	29) #349 Bug fix for unicode characters in comment strings for
+	Python 3 to 3.6.
+
+	30) #320 and PR #334. Remove obsolete GUI-related code.
+
+	31) #322 and PR #343. Add gocean1.0 api example which contains
+	kernels with use statements.
+
+        32) #345 and PR #352. Makes the search for kernels within the parse
+        tree case insensitive.
+
+        33) #350 and PR #351. Bug fix in the stencil lookup for field
+        vectors in the Dynamo0.3 API.
+
+	34) #336 and PR #338. PSyIR Fortran array parsing support (logical
+	type, a(xx) dimension specifications and array size can be an
+	integer variable).
+
+	35) #346 and PR #357. In the nemo api put do-while loops into a
+	code block rather than recognising them as do-loops and make
+	default(present) optional for ACCKernels transformations.
+
+        36) #362 and PR #367. Adds the basics of a transformation for identifying
+	certain LFRic kernel arguments that can be converted to constants.
+	Currently only identifies candidate arguments and prints them to
+	stdout.
+
+        37) PR #347 (working towards #256). Adds support for If and CASE
+	constructs to the PSyIR (superseding and removing the existing, NEMO-
+	specific support for If constructs).
+
+	38) #377 and PR #378. Update fparser submodule to point to latest
+	fparser master (contains bug fix for Python 2 installation).
+
+        39) #329 and PR #371. Removes the global psyGen.MAPPINGS_ACCESSES by
+	moving the functionality into the api-specifc config section of
+	the configuration file.
+
+	40) #361 and PR #365. Identify NemoKernel nodes via the PSyIR
+	rather than the fparser2 parse tree.
+
+	41) #340 and PR #380. Split the documentation into a user-guide
+	and a developer-guide. These will be available separately on
+	read-the-docs.
+
+	42) #369 and PR #347. Adds support for constant values (fixed compile-time
+	known values) in the PSyIR Symbol representation.
+
+        43) PR #383. Fixes to various pylint errors.
+
+        44) PR #384 (working towards #354) Adds support for CASE constructs with
+        a DEFAULT clause when translating Fortran fparser2 to PSyIR.
+
+        45) PR #366 (working towards #323) Improves the Symbol interface
+        infrastructure with Arguments and FortranGlobals. The Fortran-to-PSyIR
+        front-end parses the 'use module only' statements.
+
+        46) PR #370 for #339. Makes the support for operators in the PSyIR
+        more robust by using an enumerator. Adds support for some intrinsics.
+
+        47) PR #389 for #386. Variable names and associated loop-types
+	for the NEMO API are now stored in the configuration file.
+
+        48) PR #394 for #392. Fixes a bug in the way the test suite checks
+	for whether the graphviz package is available.
+
+        49) PR #387 for #249. Extends OCLTrans() so that all kernels within a
+	transformed Invoke are converted to OpenCL. Also includes a
+	work-around for array accesses incorrectly identified as Statement
+	Functions by fparser2.
+
+        50) PR #403 for #390. Use AutoAPI to generate the PSyclone Reference Guide
+        and build all local documentation using the 'sphinx_rtd_theme'.
+
+        51) PR #404 for #364. Re-structure class hierarchy for Kernels, with
+        CodedKernels and BuiltIns as specialisations.
+
+        52) PR #297. Adds support for the Dr Hook profiling library.
+
+        53) PR #413 for #411. Adds support for semantic navigation of the
+        PSyIR tree.
+
+        54) PR #376 for #368. Introduces PSyIR back-end infrastructure using the
+        Visitor Pattern and creates a PSyIR-to-Fortran back-end.
+
+        55) PR #428 for #427. Fix to test suite so that empty, transformed
+        kernel files are not created in the CWD.
+
+        56) PR #439 and Issue #438. Instruct pip to install the version of
+        pytest prior to 5.0 (as changes to the structure of the exception
+        object break a lot of our tests).
+
+        57) PR #420 for #418. Moves the C/OpenCL generation functionality out
+        of the Node class and implements it as PSyIR backends using the
+        Visitor Pattern.
+
+        58) PR #434 for #354. Add support for translating ranges in
+        Fortran case statements into PSyIR.
+
+        59) PR #421. Alters the generated code for the dynamo 0.3 API so that
+        the mesh object is obtained from proxy. (Consistent with other accesses
+        and works around a bug in the PGI compiler.)
+
+        60) PR #452 for #397. Removes unnecessary walk_ast() call from the
+        NemoInvokes constructor.
+
+        61) PR #424 for #399. Adds dependence-analysis functionality to
+        the PSyIR (for reasoning about existing code such as in kernels or
+        the NEMO API).
+
+        62) PR #464 for #443. Adds a coding-style guide to the Developers'
+        Guide.
+
+        63) PR #453 for #449. Adds support for NVIDIA's nvtx profiling
+        API to the PSyclone profiling interface.
+
+        64) PR #454 for #410. Simplifies the Node.walk() method.
+
+        65) PR #400 towards #385. Adds support for Fortran Do loops in
+        the PSyIR - loop bounds are now captured.
+
+        66) PR #469 for #465. Removes duplicate lma tests.
+
+        67) PR #479 from kinow:fix-gungho-link. Fixes broken GungHo link
+        in documentation.
+
+        68) PR #441 for #373. Adds support for writing transformed LFRic
+        kernels to file.
+
+        69) PR #445 for #442. First step towards supporting OpenACC for
+        the LFRic (Dynamo0.3 API) PSy layer.
+
+        70) PR #466. Adds basic SIR backend to the PSyIR.
+
+	71) PR #407 for #315. Use the PSyIR SymbolTable to check for
+	global symbols (module variables) in kernels. Use this support to
+	raise an exception in transformations where global symbols are not
+	supported (e.g. the OpenCL transformation).
+
+	72) PR #498 for #388. Documents the PSyIR CodeBlock node and extends
+	the CodeBlocks with a property to differentiate between statement/s
+	and expression/s.
+
+	73) PR #476 for #429, #432, #433. Fix multi-line codeblocks,
+	add support for nemo implicit loops and nemo invokes.
+
+	74) PR #458 for #425. Add support for profiling in the NEMO API.
+
+	75) PR #510 for #419. Code re-structuring - moves what was the
+	FParser2ASTProcessor into psyir.frontend.fparser2.
+
+	76) PR #503 for #502. Adds size intrinsic to PSyIR and makes use
+	of it in the gocean api's for setting loop bounds.
+
+	77) PR #511 for #508. Includes the test directories in the Python
+	module so that the test utilities are available throught the test
+	directory hierarchy.
+
+	78) PR #496 for #494, #495 and #499. Fixes for OpenCL generation
+	including the ability to specify kernel local size and command
+	queue parameters.
+
+	79) PR #517 for #513. Adds support for if statements to the SIR
+	backend.
+
+	80) PR #522 for #519. Fix for adding profiling around a select
+	case construct.
+
+	81) PR #460 for #133. Add support for ANY_DISCONTINUOUS_SPACE in
+	the dynamo0.3 API (LFRic).
+
+	82) PR #531 for #455. Add ANY_SPACE_10 to the dynamo0.3 API
+	(LFRic) to be consistent with LFRic infrastructure.
+
+	83) PR #360 for part of #150. Document the rules for reference
+	element properties in the dynamo0.3 API (LFRic).
+
+	84) PR #518 for #393. Add the Container PSyIR node.
+
+	85) PR #525 for #459. Bug fix for passing scalar grid properties
+	to GOcean kernels when using OpenCL.
+
+	86) PR #485. Adds a psyclone.psyir.tools.dependency_analysis
+	module and associated DependencyTools class to help with
+	dependence analysis in the PSyIR.
+
+	87) PR #532 for #204. Adds support for W2broken and W2trace
+	function spaces in the dynamo0.3 (LFRic) API.
+
+	89) PR #515 for #512. Adds PSyIR backend support (Fortran and C)
+	for Directives.
+
+	90) PR #534 for #520. Adds PSyIR Fortran backend support for the
+	Container Node.
+
+	91) #547 and PR #551. Update all READMEs to use MarkDown and correct
+	paths in documentation on creating built-ins.
+
+	92) #546 for PR #553. Rename psyir.psyir.backend.base to visitor.
+
+	93) #526 for PR #527. Update fparser submodule and fix parsing of
+	intrinsics with a single argument.
+
+	94) PR #556 for #478. Changes the apply() and validate() methods of
+	all Transformations to take a dict of options. Also renames any
+	_validate() methods to validate().
+
+	95) PR #558 for #557. Move code-creation out of visitor and into
+	the appropriate back-ends.
+
+	96) PR #565 for #564. Alter implementation of auto-addition of
+	profiling so that it happens *after* the application of any
+	transformation script.
+
+	97) PR #505 for #303. Restructure view method to move the replicated
+	logic into the abstract class and add index numbers to the printed
+	Schedule statements. Also adds a Schedule to encapsulate Directive
+	children.
+
+	98) #570. PSyclone now set to require fparser 0.0.9 on
+	installation.
+
+	99) PR #572 for #571. Bug fixes now that fparser uses unicode.
+
+	100) PR 524 for #472. Adds support for scalar variables to the
+	SIR backend.
+
+	101) PR #574 towards #567. Fixes bug in profiling that causes
+	crash if first kernel in an invoke is a built-in.
+
+        102) PR #576 for #530. Includes the repository examples in the
+        distribution and updates the documentation accordingly.
+
+release 1.7.0 20th December 2018
+
 	1) #172 and PR #173 Add support for logical declaration, the save
 	attribute and initialisation in f2pygen (required for the OpenACC
 	transformation)
@@ -37,6 +413,69 @@
 
         12) #188 and PR #189. Bug fix to ensure that the name of profiling
         regions remains the same when gen() is called multiple times.
+
+        13) #176 and PR #200. Introduce new RegionTrans base class and
+	add _validate method to ensure that the list of nodes to
+	be transformed (with OpenMP or OpenACC) is correct.
+
+        14) #197. Tidying of the test suite to use the new, get_invoke()
+	utility everywhere.
+
+	15) #212 and PR #213. Adds fparser as a submodule of psyclone to
+	allow concurrent development of PSyclone and fparser (by allowing
+	development versions of PSyclone to point to development versions
+	of fparser).
+
+	16) #185 and PR #202. Adds ability to modify a kernel in PSyclone
+	using fparser2 and includes an OpenACC transformation to specify a
+	kernel is an OpenACC kernel by adding an appropriate
+	directive. Currently it is not possible to write the modified
+	kernel to file.
+
+	17) #134 and PR #217. Add support for colouring intergrid kernels.
+
+	18) #196 and PR #210. Adds metadata support for evaluators on
+	multiple function spaces in the Dynamo 0.3 API.
+
+	19) #191 and PR #215. Add ability to specify iteration space
+	definitions to the configuration file.
+
+	20) #228 and PR #232. Fix for examples and travis now checks
+	examples at the same time as coverage and code style.
+
+        21) #219 and PR #225. Refactor dependence analysis and fix bug
+        that meant that unnecessary halo exchanges of vector components
+        were not being removed (following a redundant computation
+        transformation).
+
+	22) #27 and PR #209. Created initial NEMO api. Needs lots of work
+	but it provides a starting point.
+
+        23) #214 and PR #221. Adds a transformation to convert a
+        synchronous halo exchange into an asynchronous halo exchange.
+
+	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
+
+	25) #134 and PR #236. Adds support for adding OpenMP to intergrid
+	kernels.
+
+        26) #198 and PR #223. Updates PSyclone to use the latest
+        version of dl_esm_inf which has "GO_" prefixed to all public
+        quantities. Adds dl_esm_inf as a git submodule.
+
+        27) #158 and PR #253. Fix to remove unnecessary halo exchanges
+	related to GH_INC updates to kernel arguments.
+
+	28) #317 and PR #330. Fix to allow module use statements to be
+	added to functions.
+
+	29) #330 and PR #422. Adds PSyIR node to represent Nary operators and
+	increases the number of supported operators.
+
+release 1.6.1 6th December 2018
+
+  	1) #250. Change setup.py (used for pip installation) to only use
+	version 0.0.7 of fparser.
 
 release 1.6.0 18th May 2018
 

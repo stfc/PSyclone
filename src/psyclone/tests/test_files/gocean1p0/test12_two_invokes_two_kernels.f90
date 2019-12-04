@@ -23,25 +23,25 @@ PROGRAM two_invokes_two_kerels
   !> Pressure at current time step
   type(r2d_field) :: p_fld
   !> Velocity in x direction at current time step
-  type(r2d_field) :: u_fld
+  type(r2d_field) :: u_fld, v_fld
   !> Mass flux in x direction at current time step
-  type(r2d_field) :: cu_fld
+  type(r2d_field) :: cu_fld, cv_Fld
 
   !> Loop counter for time-stepping loop
   INTEGER :: ncycle
 
   ! Create the model grid
-  model_grid = grid_type(ARAKAWA_C,                        &
-                         (/BC_PERIODIC,BC_PERIODIC,BC_NONE/) )
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
   ! Create fields on this grid
-  p_fld    = r2d_field(model_grid, T_POINTS)
+  p_fld    = r2d_field(model_grid, GO_T_POINTS)
 
-  u_fld    = r2d_field(model_grid, U_POINTS)
-  v_fld    = r2d_field(model_grid, v_POINTS)
+  u_fld    = r2d_field(model_grid, GO_U_POINTS)
+  v_fld    = r2d_field(model_grid, GO_V_POINTS)
 
-  cu_fld    = r2d_field(model_grid, U_POINTS)
-  cv_fld    = r2d_field(model_grid, V_POINTS)
+  cu_fld    = r2d_field(model_grid, GO_U_POINTS)
+  cv_fld    = r2d_field(model_grid, GO_V_POINTS)
 
   !  ** Start of time loop ** 
   DO ncycle=1,100

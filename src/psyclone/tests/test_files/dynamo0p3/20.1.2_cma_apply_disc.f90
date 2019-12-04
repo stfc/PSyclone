@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,17 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invokes_cma_discontinuous
 
   ! Description: two single invokes containing multiple CMA-related kernels
-  ! on discontinuous spaces W3 and W2V
+  ! on discontinuous spaces ANY_DISCONTINUOUS_SPACE_1 and W2V
 
-  use inf,                              only: field_type, &
-                                              columnwise_operator_type
-  use columnwise_op_app_w3_kernel_mod,  only: &
-                            columnwise_op_app_w3_kernel_type
+  use inf, only: field_type, columnwise_operator_type
+  use columnwise_op_app_anydspace_kernel_mod, only: &
+                            columnwise_op_app_anydspace_kernel_type
   use columnwise_op_app_w2v_kernel_mod, only: &
                             columnwise_op_app_w2v_kernel_type
 
@@ -53,7 +52,7 @@ program single_invokes_cma_discontinuous
   type(columnwise_operator_type) :: cma_op1, cma_op2
 
   call invoke( &
-         columnwise_op_app_w3_kernel_type(field_a, field_b, cma_op1) )
+         columnwise_op_app_anydspace_kernel_type(field_a, field_b, cma_op1) )
   call invoke( &
          columnwise_op_app_w2v_kernel_type(field_c, field_d, cma_op2) )
 

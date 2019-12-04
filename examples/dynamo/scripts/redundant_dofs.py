@@ -63,13 +63,13 @@ def trans(psy):
                 # we may have more than one kernel in the loop so
                 # check that none of them are reductions
                 reduction = False
-                for call in loop.calls():
+                for call in loop.kernels():
                     if call.is_reduction:
                         reduction = True
                         break
                 if not reduction:
                     transformed += 1
-                    schedule, _ = rc_trans.apply(loop, depth=DEPTH)
+                    schedule, _ = rc_trans.apply(loop, {"depth": DEPTH})
 
     print("Transformed {0} loops".format(transformed))
     return psy

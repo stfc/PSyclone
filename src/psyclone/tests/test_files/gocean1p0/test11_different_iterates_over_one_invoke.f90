@@ -32,13 +32,13 @@ PROGRAM single_invoke_different_iterates_over
   INTEGER :: ncycle
 
   ! Create the model grid
-  model_grid = grid_type(ARAKAWA_C,                        &
-                         (/BC_PERIODIC,BC_PERIODIC,BC_NONE/) )
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
   ! Create fields on this grid
-  p_fld  = r2d_field(model_grid, T_POINTS)
-  v_fld  = r2d_field(model_grid, v_POINTS)
-  cv_fld = r2d_field(model_grid, V_POINTS)
+  p_fld  = r2d_field(model_grid, GO_T_POINTS)
+  v_fld  = r2d_field(model_grid, GO_V_POINTS)
+  cv_fld = r2d_field(model_grid, GO_V_POINTS)
 
   !  ** Start of time loop ** 
   DO ncycle=1,100

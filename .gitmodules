@@ -1,0 +1,6 @@
+[submodule "external/fparser"]
+	path = external/fparser
+	url = https://github.com/stfc/fparser.git
+[submodule "external/dl_esm_inf"]
+	path = external/dl_esm_inf
+	url = https://github.com/stfc/dl_esm_inf.git

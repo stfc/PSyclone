@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
 from psyclone.psyGen import InternalError
-import utils
+from psyclone.tests.utilities import Compile, count_lines, line_number
 
 # Fortran we have to add to some of the generated code in order to
 # perform compilation checks.
@@ -122,8 +122,8 @@ def test_subroutine_var_with_implicit_none():
     module.add(subroutine)
     subroutine.add(DeclGen(subroutine, datatype="integer",
                            entity_decls=["var1"]))
-    idx_var = utils.line_number(subroutine.root, "INTEGER var1")
-    idx_imp_none = utils.line_number(subroutine.root, "IMPLICIT NONE")
+    idx_var = line_number(subroutine.root, "INTEGER var1")
+    idx_imp_none = line_number(subroutine.root, "IMPLICIT NONE")
     print(str(module.root))
     assert idx_var - idx_imp_none == 1, \
         "variable declation must be after implicit none"
@@ -140,9 +140,8 @@ def test_subroutine_var_intent_in_with_directive():
                                 "parallel", ""))
     subroutine.add(DeclGen(subroutine, datatype="integer",
                            intent="in", entity_decls=["var1"]))
-    idx_par = utils.line_number(subroutine.root, "!$omp parallel")
-    idx_var = utils.line_number(subroutine.root,
-                                "INTEGER, intent(in) :: var1")
+    idx_par = line_number(subroutine.root, "!$omp parallel")
+    idx_var = line_number(subroutine.root, "INTEGER, intent(in) :: var1")
     assert idx_par - idx_var == 1, \
         "variable declaration must be before directive"
 
@@ -218,8 +217,8 @@ def test_if_add_use():
     if_statement.add(UseGen(if_statement, name="dibna"))
     module.add(if_statement)
     print(str(module.root))
-    use_line = utils.line_number(module.root, "USE dibna")
-    if_line = utils.line_number(module.root, "IF (" + clause + ") THEN")
+    use_line = line_number(module.root, "USE dibna")
+    if_line = line_number(module.root, "IF (" + clause + ") THEN")
     # The use statement must come before the if..then block
     assert use_line < if_line
 
@@ -368,8 +367,8 @@ def test_imp_none_in_module():
     correct location'''
     module = ModuleGen(name="testmodule", implicitnone=False)
     module.add(ImplicitNoneGen(module))
-    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
-    cont_idx = utils.line_number(module.root, "CONTAINS")
+    in_idx = line_number(module.root, "IMPLICIT NONE")
+    cont_idx = line_number(module.root, "CONTAINS")
     assert in_idx > -1, "IMPLICIT NONE not found"
     assert cont_idx > -1, "CONTAINS not found"
     assert cont_idx - in_idx == 1, "CONTAINS is not on the line after" +\
@@ -386,7 +385,7 @@ def test_imp_none_in_module_with_decs():
     module.add(TypeDeclGen(module, datatype="my_type",
                            entity_decls=["type1"]))
     module.add(ImplicitNoneGen(module))
-    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
+    in_idx = line_number(module.root, "IMPLICIT NONE")
     assert in_idx == 1
 
 
@@ -401,7 +400,7 @@ def test_imp_none_in_module_with_use_and_decs():
                            entity_decls=["type1"]))
     module.add(UseGen(module, "fred"))
     module.add(ImplicitNoneGen(module))
-    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
+    in_idx = line_number(module.root, "IMPLICIT NONE")
     assert in_idx == 2
 
 
@@ -419,7 +418,7 @@ def test_imp_none_in_module_with_use_and_decs_and_comments():
         module.add(CommentGen(module, " hello "+str(idx)),
                    position=["before_index", 2*idx])
     module.add(ImplicitNoneGen(module))
-    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
+    in_idx = line_number(module.root, "IMPLICIT NONE")
     assert in_idx == 3
 
 
@@ -428,7 +427,7 @@ def test_imp_none_in_module_already_exists():
     already exists'''
     module = ModuleGen(name="testmodule", implicitnone=True)
     module.add(ImplicitNoneGen(module))
-    count = utils.count_lines(module.root, "IMPLICIT NONE")
+    count = count_lines(module.root, "IMPLICIT NONE")
     print(str(module.root))
     assert count == 1, \
         "There should only be one instance of IMPLICIT NONE"
@@ -455,7 +454,7 @@ def test_imp_none_in_subroutine_with_decs():
     sub.add(TypeDeclGen(sub, datatype="my_type",
                         entity_decls=["type1"]))
     sub.add(ImplicitNoneGen(module))
-    in_idx = utils.line_number(sub.root, "IMPLICIT NONE")
+    in_idx = line_number(sub.root, "IMPLICIT NONE")
     assert in_idx == 1
 
 
@@ -472,7 +471,7 @@ def test_imp_none_in_subroutine_with_use_and_decs():
                         entity_decls=["type1"]))
     sub.add(UseGen(sub, "fred"))
     sub.add(ImplicitNoneGen(sub))
-    in_idx = utils.line_number(sub.root, "IMPLICIT NONE")
+    in_idx = line_number(sub.root, "IMPLICIT NONE")
     assert in_idx == 2
 
 
@@ -492,7 +491,7 @@ def test_imp_none_in_subroutine_with_use_and_decs_and_comments():
         sub.add(CommentGen(sub, " hello "+str(idx)),
                 position=["before_index", 2*idx])
     sub.add(ImplicitNoneGen(sub))
-    in_idx = utils.line_number(sub.root, "IMPLICIT NONE")
+    in_idx = line_number(sub.root, "IMPLICIT NONE")
     assert in_idx == 3
 
 
@@ -503,7 +502,7 @@ def test_imp_none_in_subroutine_already_exists():
     sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
     module.add(sub)
     sub.add(ImplicitNoneGen(sub))
-    count = utils.count_lines(sub.root, "IMPLICIT NONE")
+    count = count_lines(sub.root, "IMPLICIT NONE")
     assert count == 1, \
         "There should only be one instance of IMPLICIT NONE"
 
@@ -526,7 +525,7 @@ def test_subgen_implicit_none_false():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine", implicitnone=False)
     module.add(sub)
-    count = utils.count_lines(sub.root, "IMPLICIT NONE")
+    count = count_lines(sub.root, "IMPLICIT NONE")
     assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST"
 
 
@@ -536,7 +535,7 @@ def test_subgen_implicit_none_true():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
     module.add(sub)
-    count = utils.count_lines(sub.root, "IMPLICIT NONE")
+    count = count_lines(sub.root, "IMPLICIT NONE")
     assert count == 1, "IMPLICIT NONE SHOULD EXIST"
 
 
@@ -546,7 +545,7 @@ def test_subgen_implicit_none_default():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
-    count = utils.count_lines(sub.root, "IMPLICIT NONE")
+    count = count_lines(sub.root, "IMPLICIT NONE")
     assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST BY DEFAULT"
 
 
@@ -568,7 +567,7 @@ def test_directive_wrong_type():
         _ = DirectiveGen(parent,
                          "some_dir_type", "begin", "do",
                          "schedule(static)")
-    assert "unsupported directive language" in str(err)
+    assert "unsupported directive language" in str(err.value)
 
 
 def test_ompdirective_wrong():
@@ -580,7 +579,7 @@ def test_ompdirective_wrong():
         _ = DirectiveGen(parent,
                          "omp", "begin", "dosomething",
                          "schedule(static)")
-    assert "unrecognised directive type" in str(err)
+    assert "unrecognised directive type" in str(err.value)
 
 
 def test_ompdirective_wrong_posn():
@@ -592,7 +591,7 @@ def test_ompdirective_wrong_posn():
         _ = DirectiveGen(parent,
                          "omp", "start", "do",
                          "schedule(static)")
-    assert "unrecognised position 'start'" in str(err)
+    assert "unrecognised position 'start'" in str(err.value)
 
 
 def test_ompdirective_type():
@@ -616,7 +615,7 @@ def test_basegen_add_auto():
     obj = Node()
     with pytest.raises(Exception) as err:
         bgen.add(obj, position=['auto'])
-    assert "auto option must be implemented by the sub" in str(err)
+    assert "auto option must be implemented by the sub" in str(err.value)
 
 
 def test_basegen_add_invalid_posn():
@@ -629,7 +628,7 @@ def test_basegen_add_invalid_posn():
     obj = Node()
     with pytest.raises(Exception) as err:
         bgen.add(obj, position=['wrong'])
-    assert "supported positions are ['append', 'first'" in str(err)
+    assert "supported positions are ['append', 'first'" in str(err.value)
 
 
 def test_basegen_append():
@@ -640,7 +639,7 @@ def test_basegen_append():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=["var1"]))
     sub.add(CommentGen(sub, " hello"), position=["append"])
-    cindex = utils.line_number(sub.root, "hello")
+    cindex = line_number(sub.root, "hello")
     assert cindex == 3
 
 
@@ -654,7 +653,7 @@ def test_basegen_append_default():
     BaseGen.add(sub, DeclGen(sub, datatype="integer",
                              entity_decls=["var1"]))
     BaseGen.add(sub, CommentGen(sub, " hello"))
-    cindex = utils.line_number(sub.root, "hello")
+    cindex = line_number(sub.root, "hello")
     assert cindex == 3
 
 
@@ -666,7 +665,7 @@ def test_basegen_first():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=["var1"]))
     sub.add(CommentGen(sub, " hello"), position=["first"])
-    cindex = utils.line_number(sub.root, "hello")
+    cindex = line_number(sub.root, "hello")
     assert cindex == 1
 
 
@@ -680,11 +679,11 @@ def test_basegen_after_index():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=["var2"]))
     sub.add(CommentGen(sub, " hello"), position=["after_index", 1])
-    # The code checked by utils.line_number() *includes* the SUBROUTINE
+    # The code checked by line_number() *includes* the SUBROUTINE
     # statement (which is obviously not a child of the SubroutineGen
     # object) and therefore the index it returns is 1 greater than we
     # might expect.
-    assert utils.line_number(sub.root, "hello") == 3
+    assert line_number(sub.root, "hello") == 3
 
 
 def test_basegen_before_error():
@@ -703,7 +702,7 @@ def test_basegen_before_error():
     # Try to add an object before the orphan dgen
     with pytest.raises(RuntimeError) as err:
         sub.add(CommentGen(sub, " hello"), position=["before", dgen])
-    assert "Failed to find supplied object" in str(err)
+    assert "Failed to find supplied object" in str(err.value)
 
 
 def test_basegen_last_declaration_no_vars():
@@ -716,7 +715,7 @@ def test_basegen_last_declaration_no_vars():
     # even though we haven't got any
     with pytest.raises(RuntimeError) as err:
         sub.last_declaration()
-    assert "no variable declarations found" in str(err)
+    assert "no variable declarations found" in str(err.value)
 
 
 def test_basegen_start_parent_loop_dbg(capsys):
@@ -837,7 +836,7 @@ def test_basegen_start_parent_loop_no_loop_dbg():
     sub.add(call)
     with pytest.raises(RuntimeError) as err:
         call.start_parent_loop(debug=True)
-    assert "This node has no enclosing Do loop" in str(err)
+    assert "This node has no enclosing Do loop" in str(err.value)
 
 
 def test_progunitgen_multiple_generic_use():
@@ -848,7 +847,7 @@ def test_progunitgen_multiple_generic_use():
     module.add(sub)
     sub.add(UseGen(sub, name="fred"))
     sub.add(UseGen(sub, name="fred"))
-    assert utils.count_lines(sub.root, "USE fred") == 1
+    assert count_lines(sub.root, "USE fred") == 1
 
 
 def test_progunitgen_multiple_use1():
@@ -859,7 +858,7 @@ def test_progunitgen_multiple_use1():
     module.add(sub)
     sub.add(UseGen(sub, name="fred"))
     sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
-    assert utils.count_lines(sub.root, "USE fred") == 1
+    assert count_lines(sub.root, "USE fred") == 1
 
 
 def test_progunitgen_multiple_use2():
@@ -873,7 +872,7 @@ def test_progunitgen_multiple_use2():
     module.add(sub)
     sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
     sub.add(UseGen(sub, name="fred"))
-    assert utils.count_lines(sub.root, "USE fred") == 2
+    assert count_lines(sub.root, "USE fred") == 2
 
 
 def test_progunit_multiple_use3():
@@ -894,7 +893,7 @@ def test_progunit_multiple_use3():
         "      USE fred, ONLY: d\n"
         "      USE fred, ONLY: a, b, c")
     assert expected in gen
-    assert utils.count_lines(sub.root, "USE fred") == 2
+    assert count_lines(sub.root, "USE fred") == 2
     # ensure that the input list does not get modified
     assert funcnames == ["c", "d"]
 
@@ -909,8 +908,8 @@ def test_adduse_empty_only():
     from psyclone.f2pygen import adduse
     # Add a use statement with only=True but an empty list of entities
     adduse("fred", sub.root, only=True, funcnames=[])
-    assert utils.count_lines(sub.root, "USE fred") == 1
-    assert utils.count_lines(sub.root, "USE fred, only") == 0
+    assert count_lines(sub.root, "USE fred") == 1
+    assert count_lines(sub.root, "USE fred, only") == 0
 
 
 def test_adduse():
@@ -955,20 +954,21 @@ def test_basedecl_errors():
         sub.add(DeclGen(sub, datatype="integer", allocatable=True,
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Cannot specify initial values for variable(s) [\'my_int\'] "
-            "because they have the \'allocatable\' attribute" in str(err))
+            "because they have the \'allocatable\' attribute"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         sub.add(DeclGen(sub, datatype="integer", dimension="10",
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Specifying initial values for array declarations is not "
-            "currently supported" in str(err))
+            "currently supported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         sub.add(DeclGen(sub, datatype="integer", intent="iN",
                         entity_decls=["my_int"], initial_values=["1"]))
     assert ("Cannot assign (initial) values to variable(s) [\'my_int\'] as "
-            "they have INTENT(in)" in str(err))
+            "they have INTENT(in)" in str(err.value))
 
 
-def test_decl_logical(tmpdir, f90, f90flags):
+def test_decl_logical(tmpdir):
     ''' Check that we can create a declaration for a logical variable '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -984,10 +984,10 @@ def test_decl_logical(tmpdir, f90, f90flags):
     assert "logical var2" in gen
     assert gen.count("logical first_time") == 1
     # Check that the generated code compiles (if enabled)
-    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_decl_char(tmpdir, f90, f90flags):
+def test_decl_char(tmpdir):
     ''' Check that we can create a declaration for a character variable '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1006,7 +1006,7 @@ def test_decl_char(tmpdir, f90, f90flags):
     assert "character(len=28) :: my_string3='this is a string'" in gen
     # Check that the generated Fortran compiles (if compilation testing is
     # enabled)
-    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    assert Compile(tmpdir).string_compiles(gen)
     # Finally, check initialisation using a variable name. Since this
     # variable isn't declared, we can't include it in the compilation test.
     sub.add(CharDeclGen(sub, length="my_len",
@@ -1016,7 +1016,7 @@ def test_decl_char(tmpdir, f90, f90flags):
     assert "character(len=my_len) :: my_string4=some_variable" in gen
 
 
-def test_decl_save(tmpdir, f90, f90flags):
+def test_decl_save(tmpdir):
     ''' Check that we can declare variables with the save attribute '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1037,10 +1037,10 @@ def test_decl_save(tmpdir, f90, f90flags):
     # manually add a declaration for "field_type".
     parts = gen.split("implicit none")
     gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
-    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_decl_target(tmpdir, f90, f90flags):
+def test_decl_target(tmpdir):
     ''' Check that we can declare variables with the target attribute '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1061,10 +1061,10 @@ def test_decl_target(tmpdir, f90, f90flags):
     # must manually add a definition for the derived type.
     parts = gen.split("implicit none")
     gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
-    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_decl_initial_vals(tmpdir, f90, f90flags):
+def test_decl_initial_vals(tmpdir):
     ''' Check that we can specify initial values for a declaration '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1075,7 +1075,7 @@ def test_decl_initial_vals(tmpdir, f90, f90flags):
         sub.add(DeclGen(sub, datatype="real", entity_decls=["r1", "r2"],
                         initial_values=["1.0"]))
     assert ("number of initial values supplied (1) does not match the number "
-            "of variables to be declared (2: ['r1', 'r2'])" in str(err))
+            "of variables to be declared (2: ['r1', 'r2'])" in str(err.value))
 
     # Single variables
     sub.add(DeclGen(sub, datatype="integer", save=True,
@@ -1089,7 +1089,8 @@ def test_decl_initial_vals(tmpdir, f90, f90flags):
     assert "integer, save :: ivar=1" in gen
     assert "real, save :: var=1.0" in gen
     # Check that the generated code compiles (if enabled)
-    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    _compile = Compile(tmpdir)
+    assert _compile.string_compiles(gen)
 
     # Multiple variables
     sub.add(DeclGen(sub, datatype="integer", save=True,
@@ -1106,7 +1107,7 @@ def test_decl_initial_vals(tmpdir, f90, f90flags):
     assert "integer, save :: ivar1=1, ivar2=2" in gen
     assert "real, save :: var1=1.0, var2=-1.0" in gen
     # Check that the generated code compiles (if enabled)
-    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    assert _compile.string_compiles(gen)
 
 
 def test_declgen_invalid_vals():
@@ -1121,26 +1122,27 @@ def test_declgen_invalid_vals():
                     entity_decls=["ival1", "ival2", "ival3"],
                     initial_values=["good", "1", "-0.35"])
     assert ("Initial value of '-0.35' for an integer "
-            "variable is invalid or unsupported" in str(err))
+            "variable is invalid or unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="real",
                     entity_decls=["val1", "val2", "val3"],
                     initial_values=["good", "1.0", "35"])
     assert ("Initial value of '35' for a real "
-            "variable is invalid or unsupported" in str(err))
+            "variable is invalid or unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="logical",
                     entity_decls=["val1", "val2", "val3"],
                     initial_values=["good", ".fAlse.", "35"])
     assert ("Initial value of '35' for a logical variable is invalid or "
-            "unsupported" in str(err))
+            "unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _char = CharDeclGen(sub, entity_decls=["val1", "val2"],
                             initial_values=["good", ".fAlse."])
-    assert "Initial value of \'.fAlse.' for a character variable" in str(err)
+    assert ("Initial value of \'.fAlse.' for a character variable"
+            in str(err.value))
     with pytest.raises(RuntimeError) as err:
         _char = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
-    assert "Initial value of \'35\' for a character variable" in str(err)
+    assert "Initial value of \'35\' for a character variable" in str(err.value)
 
 
 def test_declgen_wrong_type(monkeypatch):
@@ -1153,14 +1155,14 @@ def test_declgen_wrong_type(monkeypatch):
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
     assert ("Only ['integer', 'real', 'logical'] types are "
-            "currently supported" in str(err))
+            "currently supported" in str(err.value))
     # Check the internal error is raised within the validation routine if
     # an unsupported type is specified
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
     with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
     assert ("internal error: unsupported type 'complex' - should be one "
-            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err))
+            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err.value))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
@@ -1169,7 +1171,7 @@ def test_declgen_wrong_type(monkeypatch):
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
     assert ("internal error: Type 'complex' is in DeclGen.SUPPORTED_TYPES "
-            "but not handled by constructor" in str(err))
+            "but not handled by constructor" in str(err.value))
 
 
 def test_declgen_missing_names():
@@ -1181,7 +1183,7 @@ def test_declgen_missing_names():
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="integer")
     assert ("Cannot create a variable declaration without specifying "
-            "the name" in str(err))
+            "the name" in str(err.value))
 
 
 def test_typedeclgen_names():
@@ -1206,7 +1208,7 @@ def test_typedeclgen_missing_names():
     with pytest.raises(RuntimeError) as err:
         _ = TypeDeclGen(sub, datatype="my_type")
     assert ("Cannot create a variable declaration without specifying"
-            in str(err))
+            in str(err.value))
 
 
 def test_typedeclgen_values_error():
@@ -1219,7 +1221,8 @@ def test_typedeclgen_values_error():
     with pytest.raises(InternalError) as err:
         decl._check_initial_values("my_type", ["1.0"])
     assert ("This method should not have been called because initial values "
-            "for derived-type declarations are not supported" in str(err))
+            "for derived-type declarations are not supported"
+            in str(err.value))
 
 
 def test_typedeclgen_multiple_use():
@@ -1394,8 +1397,8 @@ def test_modulegen_add_wrong_parent():
     sub = SubroutineGen(module_wrong, name="testsubroutine")
     with pytest.raises(RuntimeError) as err:
         module.add(sub)
-    print(str(err))
-    assert "because it is not a descendant of it or of any of" in str(err)
+    assert ("because it is not a descendant of it or of any of"
+            in str(err.value))
 
 
 def test_do_loop_with_increment():
@@ -1406,7 +1409,7 @@ def test_do_loop_with_increment():
     module.add(sub)
     dogen = DoGen(sub, "it", "1", "10", step="2")
     sub.add(dogen)
-    count = utils.count_lines(sub.root, "DO it=1,10,2")
+    count = count_lines(sub.root, "DO it=1,10,2")
     assert count == 1
 
 
@@ -1422,8 +1425,8 @@ def test_do_loop_add_after():
     dogen.add(assign1)
     assign2 = AssignGen(dogen, lhs="sad", rhs=".FALSE.")
     dogen.add(assign2, position=["before", assign1.root])
-    a1_line = utils.line_number(sub.root, "happy = ")
-    a2_line = utils.line_number(sub.root, "sad = ")
+    a1_line = line_number(sub.root, "happy = ")
+    a2_line = line_number(sub.root, "sad = ")
     assert a1_line > a2_line
 
 
@@ -1437,4 +1440,4 @@ def test_basegen_previous_loop_no_loop():
     # even though we haven't got one
     with pytest.raises(RuntimeError) as err:
         sub.previous_loop()
-    assert "no loop found - there is no previous loop" in str(err)
+    assert "no loop found - there is no previous loop" in str(err.value)

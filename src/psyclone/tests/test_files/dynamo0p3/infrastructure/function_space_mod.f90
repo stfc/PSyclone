@@ -110,7 +110,11 @@ contains
   procedure, public :: get_fs_order
   procedure get_last_dof_owned
   procedure get_last_dof_annexed
-  procedure get_last_dof_halo
+  procedure get_last_dof_halo_any
+  procedure get_last_dof_halo_deepest
+  generic :: get_last_dof_halo => get_last_dof_halo_any, &
+                                  get_last_dof_halo_deepest
+
   procedure, public   :: get_stencil_dofmap
   procedure, public  :: get_colours
   procedure, public  :: get_ncolours
@@ -387,7 +391,19 @@ function get_last_dof_annexed(self) result (last_dof_annexed)
   return
 end function get_last_dof_annexed
 
-function get_last_dof_halo(self) result (last_dof_halo)
+function get_last_dof_halo_any(self, depth) result (last_dof_halo)
+
+  implicit none
+  class(function_space_type) :: self
+  integer(i_def), intent(in) :: depth
+
+  integer(i_def) :: last_dof_halo
+
+  last_dof_halo = 0
+  return
+end function get_last_dof_halo_any
+
+function get_last_dof_halo_deepest(self) result (last_dof_halo)
 
   implicit none
   class(function_space_type) :: self
@@ -396,7 +412,7 @@ function get_last_dof_halo(self) result (last_dof_halo)
 
   last_dof_halo = 0
   return
-end function get_last_dof_halo
+end function get_last_dof_halo_deepest
 
 function get_stencil_dofmap(self, stencil_shape, stencil_size) result(map)
 

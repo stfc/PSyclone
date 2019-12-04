@@ -1,4 +1,4 @@
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -35,14 +35,23 @@ module testkern_multi_anyw2_mod
              arg_type(gh_field,gh_read, any_w2), &
              arg_type(gh_field,gh_read, any_w2)  &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => testkern_multi_anyw2_code
+     procedure, nopass :: code => testkern_multi_anyw2_code
   end type testkern_multi_anyw2_type
   !
 contains
   !
-  subroutine testkern_multi_anyw2_code()
+  subroutine testkern_multi_anyw2_code(nlayers, field_1_any_w2, field_2_any_w2, field_3_any_w2, ndf_any_w2, undf_any_w2, map_any_w2)
+      USE constants_mod, ONLY: r_def
+      IMPLICIT NONE
+      INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: ndf_any_w2
+      INTEGER, intent(in), dimension(ndf_any_w2) :: map_any_w2
+      INTEGER, intent(in) :: undf_any_w2
+      REAL(KIND=r_def), intent(out), dimension(undf_any_w2) :: field_1_any_w2
+      REAL(KIND=r_def), intent(in), dimension(undf_any_w2) :: field_2_any_w2
+      REAL(KIND=r_def), intent(in), dimension(undf_any_w2) :: field_3_any_w2
   end subroutine testkern_multi_anyw2_code
   !
 end module testkern_multi_anyw2_mod

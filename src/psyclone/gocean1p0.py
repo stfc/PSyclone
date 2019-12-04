@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
-    Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
+    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType). It adds a
     GOKernelGridArgument class to capture information on kernel arguments
     that supply properties of the grid (and are generated in the PSy
@@ -47,53 +47,66 @@
 '''
 
 from __future__ import print_function
-from psyclone.parse import Descriptor, KernelType, ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError, args_filter
+from psyclone.configuration import Config
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    Loop, CodedKern, Arguments, Argument, KernelArgument, \
+    GenerationError, InternalError, args_filter, NameSpaceFactory, \
+    KernelSchedule, AccessType, Literal, ACCEnterDataDirective, Schedule
+from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
+import six
 
 # The different grid-point types that a field can live on
-VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
+VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
 
 # The two scalar types we support
-VALID_SCALAR_TYPES = ["i_scalar", "r_scalar"]
+VALID_SCALAR_TYPES = ["go_i_scalar", "go_r_scalar"]
 
 # Index-offset schemes (for the Arakawa C-grid)
-VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
-                      "offset_ne", "offset_nw", "offset_any"]
+VALID_OFFSET_NAMES = ["go_offset_se", "go_offset_sw",
+                      "go_offset_ne", "go_offset_nw", "go_offset_any"]
 
 # The offset schemes for which we can currently generate constant
 # loop bounds in the PSy layer
-SUPPORTED_OFFSETS = ["offset_ne", "offset_sw", "offset_any"]
+SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
 
 # The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
-
-# Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
+VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
 # GOcean API altogether.
-VALID_STENCIL_NAMES = ["pointwise"]
+VALID_STENCIL_NAMES = ["go_pointwise"]
 
 # A dictionary giving the mapping from meta-data names for
-# properties of the grid to their names in the Fortran grid_type.
-GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
-                      "grid_area_u": "area_u",
-                      "grid_area_v": "area_v",
-                      "grid_mask_t": "tmask",
-                      "grid_dx_t": "dx_t",
-                      "grid_dx_u": "dx_u",
-                      "grid_dx_v": "dx_v",
-                      "grid_dy_t": "dy_t",
-                      "grid_dy_u": "dy_u",
-                      "grid_dy_v": "dy_v",
-                      "grid_lat_u": "gphiu",
-                      "grid_lat_v": "gphiv",
-                      "grid_dx_const": "dx",
-                      "grid_dy_const": "dy"}
+# properties of the grid to their names and type in the Fortran grid_type.
+# i.e. they can be accessed in Fortran by doing grid%<name>,
+# e.g. grid%area_t or grid%subdomain%internal%xstart.
+GRID_PROPERTY_DICT = {"go_grid_area_t": ("area_t", "array"),
+                      "go_grid_area_u": ("area_u", "array"),
+                      "go_grid_area_v": ("area_v", "array"),
+                      "go_grid_mask_t": ("tmask", "array"),
+                      "go_grid_dx_t": ("dx_t", "array"),
+                      "go_grid_dx_u": ("dx_u", "array"),
+                      "go_grid_dx_v": ("dx_v", "array"),
+                      "go_grid_dy_t": ("dy_t", "array"),
+                      "go_grid_dy_u": ("dy_u", "array"),
+                      "go_grid_dy_v": ("dy_v", "array"),
+                      "go_grid_lat_u": ("gphiu", "array"),
+                      "go_grid_lat_v": ("gphiv", "array"),
+                      "go_grid_dx_const": ("dx", "scalar"),
+                      "go_grid_dy_const": ("dy", "scalar"),
+                      "go_grid_x_min_index": ("subdomain%internal%xstart",
+                                              "scalar"),
+                      "go_grid_x_max_index": ("subdomain%internal%xstop",
+                                              "scalar"),
+                      "go_grid_y_min_index": ("subdomain%internal%ystart",
+                                              "scalar"),
+                      "go_grid_y_max_index": ("subdomain%internal%ystop",
+                                              "scalar")}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -101,10 +114,16 @@ VALID_LOOP_TYPES = ["inner", "outer"]
 
 
 class GOPSy(PSy):
-    ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOcean-
-        specific PSy module code. '''
+    '''
+    The GOcean 1.0 specific PSy class. This creates a GOcean specific
+    invokes object (which controls all the required invocation calls).
+    Also overrides the PSy gen method so that we generate GOcean-
+    specific PSy module code.
+
+    :param invoke_info: An object containing the required invocation \
+                        information for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
@@ -125,7 +144,6 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name="kind_params_mod"))
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name="field_mod"))
-        # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
         self.inline(psy_module)
@@ -133,8 +151,13 @@ class GOPSy(PSy):
 
 
 class GOInvokes(Invokes):
-    ''' The GOcean specific invokes class. This passes the GOcean specific
-        invoke class to the base class so it creates the one we require. '''
+    '''
+    The GOcean specific invokes class. This passes the GOcean specific
+    invoke class to the base class so it creates the one we require.
+    :param alg_calls: The Invoke calls discovered in the Algorithm layer.
+    :type alg_calls: OrderedDict of :py:class:`psyclone.parse.InvokeCall` \
+                     objects.
+    '''
     def __init__(self, alg_calls):
         if False:  # pylint: disable=using-constant-test
             self._0_to_n = GOInvoke(None, None)  # for pyreverse
@@ -150,10 +173,10 @@ class GOInvokes(Invokes):
         # kernels in an application. Therefore it is much simpler to
         # do it here where we have easy access to that information.
         for invoke in self.invoke_list:
-            for kern_call in invoke.schedule.kern_calls():
+            for kern_call in invoke.schedule.coded_kernels():
                 # We only care if the index offset is not offset_any (since
                 # that is compatible with any other offset)
-                if kern_call.index_offset != "offset_any":
+                if kern_call.index_offset != "go_offset_any":
                     # Loop over the offsets we've seen so far
                     for offset in index_offsets:
                         if offset != kern_call.index_offset:
@@ -170,32 +193,32 @@ class GOInvokes(Invokes):
 
 
 class GOInvoke(Invoke):
-    ''' The GOcean specific invoke class. This passes the GOcean specific
-        schedule class to the base class so it creates the one we require.
-        A set of GOcean infrastructure reserved names are also passed to
-        ensure that there are no name clashes. Also overrides the gen_code
-        method so that we generate GOcean specific invocation code and
-        provides three methods which separate arguments that are arrays from
-        arguments that are {integer, real} scalars. '''
+    '''
+    The GOcean specific invoke class. This passes the GOcean specific
+    schedule class to the base class so it creates the one we require.
+    A set of GOcean infrastructure reserved names are also passed to
+    ensure that there are no name clashes. Also overrides the gen_code
+    method so that we generate GOcean specific invocation code and
+    provides three methods which separate arguments that are arrays from
+    arguments that are {integer, real} scalars.
 
+    :param alg_invocation: Node in the AST describing the invoke call.
+    :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+    :param int idx: The position of the invoke in the list of invokes \
+                    contained in the Algorithm.
+
+    '''
     def __init__(self, alg_invocation, idx):
-        '''Constructor for the GOcean-specific invoke class.
-        :param alg_invocation: Node in the AST describing the invoke call.
-        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
-        :param int idx: The position of the invoke in the list of invokes
-                        contained in the Algorithm.
-        '''
-
         if False:  # pylint: disable=using-constant-test
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule)
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
 
     @property
     def unique_args_arrays(self):
         ''' find unique arguments that are arrays (defined as those that are
             field objects as opposed to scalars or properties of the grid). '''
         result = []
-        for call in self._schedule.calls():
+        for call in self._schedule.kernels():
             for arg in call.arguments.args:
                 if arg.type == 'field' and arg.name not in result:
                     result.append(arg.name)
@@ -203,35 +226,48 @@ class GOInvoke(Invoke):
 
     @property
     def unique_args_rscalars(self):
-        ''' find unique arguments that are scalars of type real (defined
-            as those that are r_scalar 'space'. '''
+        '''
+        :returns: the unique arguments that are scalars of type real \
+                  (defined as those that are go_r_scalar 'space').
+        :rtype: list of str.
+
+        '''
         result = []
-        for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'scalar' and \
-                   arg.space.lower() == "r_scalar" and \
-                   not arg.is_literal and arg.name not in result:
+        for call in self._schedule.kernels():
+            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
+                                   is_literal=False):
+                if arg.space.lower() == "go_r_scalar" and \
+                   arg.name not in result:
                     result.append(arg.name)
         return result
 
     @property
     def unique_args_iscalars(self):
-        ''' find unique arguments that are scalars of type integer (defined
-            as those that are i_scalar 'space'). '''
+        '''
+        :returns: the unique arguments that are scalars of type integer \
+                  (defined as those that are i_scalar 'space').
+        :rtype: list of str.
+
+        '''
         result = []
-        for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'scalar' and \
-                   arg.space.lower() == "i_scalar" and \
-                   not arg.is_literal and arg.name not in result:
+        for call in self._schedule.kernels():
+            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
+                                   is_literal=False):
+                if arg.space.lower() == "go_i_scalar" and \
+                   arg.name not in result:
                     result.append(arg.name)
         return result
 
     def gen_code(self, parent):
-        ''' Generates GOcean specific invocation code (the subroutine called
-            by the associated invoke call in the algorithm layer). This
-            consists of the PSy invocation subroutine and the declaration of
-            its arguments.'''
+        '''
+        Generates GOcean specific invocation code (the subroutine called
+        by the associated invoke call in the algorithm layer). This
+        consists of the PSy invocation subroutine and the declaration of
+        its arguments.
+
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
             CommentGen, AssignGen
         # create the subroutine
@@ -249,33 +285,37 @@ class GOInvoke(Invoke):
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
 
+        # If we're generating an OpenCL routine then the arguments must
+        # have the target attribute as we pass pointers to them in to
+        # the OpenCL run-time.
+        target = bool(self.schedule.opencl)
+
         # add the subroutine argument declarations for fields
-        if len(self.unique_args_arrays) > 0:
+        if self.unique_args_arrays:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
-                                         intent="inout",
+                                         intent="inout", target=target,
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
         # add the subroutine argument declarations for real scalars
-        if len(self.unique_args_rscalars) > 0:
+        if self.unique_args_rscalars:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
-                                       intent="inout", kind="wp",
+                                       intent="inout", kind="go_wp",
                                        entity_decls=self.unique_args_rscalars)
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
-        if len(self.unique_args_iscalars) > 0:
+        if self.unique_args_iscalars:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
                                        entity_decls=self.unique_args_iscalars)
             invoke_sub.add(my_decl_iscalars)
 
-        if self._schedule.const_loop_bounds and \
-           len(self.unique_args_arrays) > 0:
+        if self._schedule.const_loop_bounds and self.unique_args_arrays:
 
             # Look-up the loop bounds using the first field object in the
             # list
             sim_domain = self.unique_args_arrays[0] +\
-                "%grid%simulation_domain%"
+                "%grid%subdomain%internal%"
             position = invoke_sub.last_declaration()
 
             invoke_sub.add(CommentGen(invoke_sub, ""),
@@ -292,46 +332,42 @@ class GOInvoke(Invoke):
                            position=["after", position])
 
 
-class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. We call the base class
+class GOInvokeSchedule(InvokeSchedule):
+    ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+                                alg_calls)
 
-        # Configuration of this Schedule - we default to having
+        # Configuration of this InvokeSchedule - we default to having
         # constant loop bounds. If we end up having a long list
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
+        self._text_name = "GOInvokeSchedule"
 
-    def view(self, indent=0):
-        '''Print a representation of this GOSchedule.
-        :param int indent: optional argument indicating the level of
-        indentation to add before outputting the class information.'''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "',Constant loop bounds=" +
-              str(self._const_loop_bounds) + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+    def node_str(self, colour=True):
+        ''' Creates a text description of this node with (optional) control
+        codes to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return "{0}[invoke='{1}', Constant loop bounds={2}]".format(
+            self.coloured_name(colour), self.invoke.name,
+            self._const_loop_bounds)
 
     def __str__(self):
-        ''' Returns the string representation of this GOSchedule '''
-        result = "GOSchedule(Constant loop bounds=" + \
-                 str(self._const_loop_bounds) + "):\n"
+        ''' Returns the string representation of this GOInvokeSchedule '''
+        result = self.node_str(False) + ":\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
-
-    @property
-    def coloured_text(self):
-        ''' Return the name of this object with control-codes for
-        display in terminals that support colour '''
-        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):
@@ -369,7 +405,7 @@ class GOSchedule(Schedule):
 
     @const_loop_bounds.setter
     def const_loop_bounds(self, obj):
-        ''' Set whether the Schedule will use constant loop bounds or
+        ''' Set whether the InvokeSchedule will use constant loop bounds or
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
@@ -381,6 +417,9 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
+
+    _bounds_lookup = {}
+
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
         '''Constructs a GOLoop instance.
@@ -405,98 +444,220 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
 
-        # Create a dictionary to simplify the business of looking-up
-        # loop bounds
-        self._bounds_lookup = {}
+        # Pre-initialise the Loop children  # TODO: See issue #440
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
+        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Schedule(parent=self))  # loop body
+
+        if not GOLoop._bounds_lookup:
+            GOLoop.setup_bounds()
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def setup_bounds():
+        '''Populates the GOLoop._bounds_lookup dictionary. This is
+        used by PSyclone to look up the loop boundaries for each loop
+        it creates.'''
+
         for grid_offset in SUPPORTED_OFFSETS:
-            self._bounds_lookup[grid_offset] = {}
+            GOLoop._bounds_lookup[grid_offset] = {}
             for gridpt_type in VALID_FIELD_GRID_TYPES:
-                self._bounds_lookup[grid_offset][gridpt_type] = {}
+                GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
                 for itspace in VALID_ITERATES_OVER:
-                    self._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
+                    GOLoop._bounds_lookup[grid_offset][gridpt_type][
+                        itspace] = {}
 
         # Loop bounds for a mesh with NE offset
-        self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}-1"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}-1"}}
-        self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}"},
-             'outer': {'start': "1", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}-1"},
-             'outer': {'start': "1", 'stop': "{stop}-1"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_ct']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_ct']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_cu']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_cu']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}-1"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_cv']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_cv']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}-1"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_cf']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['go_offset_ne']['go_cf']['go_internal_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}-1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
-        self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}+1"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}+1"},
-             'outer': {'start': "2", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_ct']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_ct']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_cu']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_cu']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_cv']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_cv']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_cf']['go_all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['go_offset_sw']['go_cf']['go_internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
-                    {'inner': {'start': "1", 'stop': "{stop}"},
-                     'outer': {'start': "1", 'stop': "{stop}"}}
+                GOLoop._bounds_lookup['go_offset_any'][gridpt_type][itspace] =\
+                    {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+                     'outer': {'start': "{start}-1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup[offset]['every'][itspace] = \
-                    {'inner': {'start': "1", 'stop': "{stop}+1"},
-                     'outer': {'start': "1", 'stop': "{stop}+1"}}
+                GOLoop._bounds_lookup[offset]['go_every'][itspace] = \
+                    {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+                     'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def add_bounds(bound_info):
+        '''
+        Adds a new iteration space to PSyclone. An iteration space in the
+        gocean1.0 API is for a certain offset type and field type. It defines
+        the loop boundaries for the outer and inner loop. The format is a
+        ":" separated tuple:
+        bound_info = offset-type:field-type:iteration-space:outer-start:
+                      outer-stop:inner-start:inner-stop
+        Example:
+        bound_info = go_offset_ne:go_ct:go_all_pts\
+                     :{start}-1:{stop}+1:{start}:{stop}
+
+        The expressions {start} and {stop} will be replaced with the loop
+        indices that correspond to the inner points (i.e. non-halo or
+        boundary points) of the field. So the index {start}-1 is actually
+        on the halo / boundary.
+
+        :param str bound_info: A string that contains a ":" separated \
+               tuple with the iteration space definition.
+        :raises ValueError: if bound_info is not a string.
+        :raises ConfigurationError: if bound_info is not formatted correctly.
+        '''
+
+        if not isinstance(bound_info, str):
+            raise InternalError("The parameter 'bound_info' must be a string, "
+                                "got '{0}' (type {1})"
+                                .format(bound_info, type(bound_info)))
+
+        data = bound_info.split(":")
+        if len(data) != 7:
+            from psyclone.configuration import ConfigurationError
+            raise ConfigurationError("An iteration space must be in the form "
+                                     "\"offset-type:field-type:"
+                                     "iteration-space:outer-start:"
+                                     "outer-stop:inner-start:inner-stop\"\n"
+                                     "But got \"{0}\"".format(bound_info))
+
+        if not GOLoop._bounds_lookup:
+            GOLoop.setup_bounds()
+
+        # Check that all bound specifications (min and max index) are valid.
+        # ------------------------------------------------------------------
+        import re
+        # Regular expression that finds stings surrounded by {}
+        bracket_regex = re.compile("{[^}]+}")
+        for bound in data[3:7]:
+            all_expr = bracket_regex.findall(bound)
+            for bracket_expr in all_expr:
+                if bracket_expr not in ["{start}", "{stop}"]:
+                    from psyclone.configuration import ConfigurationError
+                    raise ConfigurationError("Only '{{start}}' and '{{stop}}' "
+                                             "are allowed as bracketed "
+                                             "expression in an iteration "
+                                             "space. But got "
+                                             "{0}".format(bracket_expr))
+
+        # Test if a loop with the given boundaries can actually be parsed.
+        from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+        from fparser.two.parser import ParserFactory
+        # Necessary to setup the parser
+        ParserFactory().create(std="f2003")
+
+        # Test both the outer loop indices (index 3 and 4) and inner
+        # indices (index 5 and 6):
+        for bound in data[3:7]:
+            do_string = "do i=1, {0}".format(bound)
+            # Now replace any {start}/{stop} expression in the loop
+            # with a valid integer value:
+            do_string = do_string.format(start='15', stop='25')
+            # Check if the do loop can be parsed as a nonlabel do loop
+            try:
+                _ = Nonlabel_Do_Stmt(do_string)
+            except NoMatchError as err:
+                from psyclone.configuration import ConfigurationError
+                raise ConfigurationError("Expression '{0}' is not a "
+                                         "valid do loop boundary. Error "
+                                         "message: '{1}'."
+                                         .format(bound, str(err)))
+
+        # All tests successful, so add the new bounds:
+        # --------------------------------------------
+        current_bounds = GOLoop._bounds_lookup   # Shortcut
+        # Check offset-type exists
+        if not data[0] in current_bounds:
+            current_bounds[data[0]] = {}
+
+        # Check field-type exists
+        if not data[1] in current_bounds[data[0]]:
+            current_bounds[data[0]][data[1]] = {}
+
+        # Check iteration space exists:
+        if not data[2] in current_bounds[data[0]][data[1]]:
+            current_bounds[data[0]][data[1]][data[2]] = {}
+            VALID_ITERATES_OVER.append(data[2])
+
+        current_bounds[data[0]][data[1]][data[2]] = \
+            {'outer': {'start': data[3], 'stop': data[4]},
+             'inner': {'start': data[5], 'stop': data[6]}}
+
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _upper_bound(self):
-        ''' Returns the upper bound of this loop as a string.
+        ''' Creates the PSyIR of the upper bound of this loop.
         This takes the field type and usage of const_loop_bounds
-        into account. In case of const_loop_bounds it will be
-        using the data in self._bounds_lookup to find the appropriate
+        into account. In the case of const_loop_bounds it will be
+        using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
-        All occurences of {start} and {stop} in _bounds_loopup will
+        All occurences of {start} and {stop} in _bounds_lookup will
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1 depending on
-        loop type).'''
-        schedule = self.ancestor(GOSchedule)
+        loop type).
+
+        :returns: the PSyIR for the upper bound of this loop.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        from psyclone.psyGen import BinaryOperation
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
-            index_offset = ""
             # Look for a child kernel in order to get the index offset.
-            # Since this is the __str__ method we have no guarantee
-            # what state we expect our object to be in so we allow
-            # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
+            # Since we have no guarantee of what state we expect our object
+            # to be in we allow for the case where we don't have any child
+            # kernels.
+            index_offset = ""
+            go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
@@ -509,62 +670,80 @@ class GOLoop(Loop):
                 # This strange line splitting was the only way I could find
                 # to avoid pep8 warnings: using [..._space]\ keeps on
                 # complaining about a white space
-                bounds = self._bounds_lookup[index_offset][self.field_space][
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
-                stop = bounds["stop"].format(start='', stop=stop)
-            else:
-                stop = "not yet set"
+                stop = bounds["stop"].format(start='2', stop=stop)
+                # Remove all white spaces
+                stop = "".join(stop.split())
+                # This common case is a bit of compile-time computation
+                # but it helps to fix all of the test cases.
+                if stop == "2-1":
+                    stop = "1"
+                return Literal(stop, self)
+            return Literal("not_yet_set", self)
+
+        if self.field_space == "go_every":
+            # Bounds are independent of the grid-offset convention in use
+
+            # We look-up the upper bounds by enquiring about the SIZE of
+            # the array itself
+            stop = BinaryOperation(BinaryOperation.Operator.SIZE,
+                                   self)
+            # TODO 363 - needs to be updated once the PSyIR has support for
+            # Fortran derived types.
+            stop.addchild(Literal(self.field_name+"%data", parent=stop))
+            if self._loop_type == "inner":
+                stop.addchild(Literal("1", parent=stop))
+            elif self._loop_type == "outer":
+                stop.addchild(Literal("2", parent=stop))
+            return stop
+
+        # Loop bounds are pulled from the field object which
+        # is more straightforward for us but provides the
+        # Fortran compiler with less information.
+        stop = self.field_name
+
+        if self._iteration_space.lower() == "go_internal_pts":
+            stop += "%internal"
+        elif self._iteration_space.lower() == "go_all_pts":
+            stop += "%whole"
         else:
-            if self.field_space == "every":
-                # Bounds are independent of the grid-offset convention in use
+            raise GenerationError("Unrecognised iteration space, '{0}'. "
+                                  "Cannot generate loop bounds.".
+                                  format(self._iteration_space))
+        if self._loop_type == "inner":
+            stop += "%xstop"
+        elif self._loop_type == "outer":
+            stop += "%ystop"
+        # TODO 363 - this needs updating once the PSyIR has support for
+        # Fortran derived types.
+        return Literal(stop, self)
 
-                # We look-up the upper bounds by enquiring about the SIZE of
-                # the array itself
-                if self._loop_type == "inner":
-                    stop = "SIZE("+self.field_name+"%data, 1)"
-                elif self._loop_type == "outer":
-                    stop = "SIZE("+self.field_name+"%data, 2)"
-
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                stop = self.field_name
-
-                if self._iteration_space.lower() == "internal_pts":
-                    stop += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
-                    stop += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    stop += "%xstop"
-                elif self._loop_type == "outer":
-                    stop += "%ystop"
-        return stop
-
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
-        using the data in self._bounds_lookup to find the appropriate
+        using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1" depending on
-        loop type).'''
+        loop type).
 
-        schedule = self.ancestor(GOSchedule)
+        :returns: root of PSyIR sub-tree describing this lower bound.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+
+        '''
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
             # Since this is the __str__ method we have no guarantee
             # what state we expect our object to be in so we allow
             # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
+            go_kernels = self.walk(GOKern)
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
@@ -576,61 +755,91 @@ class GOLoop(Loop):
                 # This strange line splitting was the only way I could find
                 # to avoid pep8 warnings: using [..._space]\ keeps on
                 # complaining about a white space
-                bounds = self._bounds_lookup[index_offset][self.field_space][
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
-                start = bounds["start"].format(start='', stop=stop)
-            else:
-                start = "not yet set"
+                start = bounds["start"].format(start='2', stop=stop)
+                # Remove all white spaces
+                start = "".join(start.split())
+                # This common case is a bit of compile-time computation
+                # but it helps with fixing all of the test cases.
+                if start == "2-1":
+                    start = "1"
+                return Literal(start, self)
+            return Literal("not_yet_set", self)
+
+        if self.field_space == "go_every":
+            # Bounds are independent of the grid-offset convention in use
+            return Literal("1", self)
+
+        # Loop bounds are pulled from the field object which is more
+        # straightforward for us but provides the Fortran compiler
+        # with less information.
+        start = self.field_name
+        if self._iteration_space.lower() == "go_internal_pts":
+            start += "%internal"
+        elif self._iteration_space.lower() == "go_all_pts":
+            start += "%whole"
         else:
-            if self.field_space == "every":
-                # Bounds are independent of the grid-offset convention in use
-                start = "1"
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                start = self.field_name
-                if self._iteration_space.lower() == "internal_pts":
-                    start += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
-                    start += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    start += "%xstart"
-                elif self._loop_type == "outer":
-                    start += "%ystart"
-        return start
+            raise GenerationError("Unrecognised iteration space, '{0}'. "
+                                  "Cannot generate loop bounds.".
+                                  format(self._iteration_space))
+        if self._loop_type == "inner":
+            start += "%xstart"
+        elif self._loop_type == "outer":
+            start += "%ystart"
+        # TODO 363 - update once the PSyIR supports derived types
+        return Literal(start, self)
+
+    def node_str(self, colour=True):
+        ''' Creates a text description of this node with (optional) control
+        codes to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        # Generate the upper and lower loop bounds
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
+
+        return super(GOLoop, self).node_str(colour)
 
     def __str__(self):
         ''' Returns a string describing this Loop object '''
-        step = self._step
-        if not step:
-            step = "1"
 
-        result = ("Loop[" + self._id + "]: " + self._variable_name +
-                  "=" + self._id + " lower=" + self._lower_bound() +
-                  "," + self._upper_bound() + "," + step + "\n")
-        for entity in self._children:
-            result += str(entity)+"\n"
-        result += "EndLoop"
-        return result
+        # Generate the upper and lower loop bounds
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
+
+        return super(GOLoop, self).__str__()
 
     def gen_code(self, parent):
-        ''' Generate the Fortran source for this loop '''
+        ''' Create the f2pygen AST for this loop (and update the PSyIR
+        representing the loop bounds if necessary).
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: if we can't find an enclosing Schedule.
+        :raises GenerationError: if this loop does not enclose a Kernel.
+        :raises GenerationError: if constant loop bounds are enabled but are \
+                                 not supported for the current grid offset.
+        :raises GenerationError: if the kernels within this loop expect \
+                                 different different grid offsets.
+
+        '''
         # Our schedule holds the names to use for the loop bounds.
-        # Climb up the tree looking for our enclosing Schedule
-        schedule = self.ancestor(GOSchedule)
-        if schedule is None or not isinstance(schedule, GOSchedule):
+        # Climb up the tree looking for our enclosing GOInvokeSchedule
+        schedule = self.ancestor(GOInvokeSchedule)
+        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
             raise GenerationError("Internal error: cannot find parent"
-                                  " GOSchedule for this Do loop")
+                                  " GOInvokeSchedule for this Do loop")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
-        go_kernels = self.walk(self.children, GOKern)
-        if len(go_kernels) == 0:
+        go_kernels = self.walk(GOKern)
+        if not go_kernels:
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
@@ -651,9 +860,11 @@ class GOLoop(Loop):
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
+
         # Generate the upper and lower loop bounds
-        self._start = self._lower_bound()
-        self._stop = self._upper_bound()
+        self.start_expr = self._lower_bound()
+        self.stop_expr = self._upper_bound()
+
         Loop.gen_code(self, parent)
 
 
@@ -680,14 +891,12 @@ class GOKernCallFactory(object):
     def create(call, parent=None):
         ''' Create a new instance of a call to a GO kernel. Includes the
         looping structure as well as the call to the kernel itself. '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
+        outer_loop = GOLoop(parent=parent, loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop.loop_body, loop_type="inner")
+        outer_loop.loop_body.addchild(inner_loop)
         gocall = GOKern()
-        gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
+        gocall.load(call, parent=inner_loop.loop_body)
+        inner_loop.loop_body.addchild(gocall)
         # determine inner and outer loops space information from the
         # child kernel call. This is only picked up automatically (by
         # the inner loop) if the kernel call is passed into the inner
@@ -703,11 +912,14 @@ class GOKernCallFactory(object):
         return outer_loop
 
 
-class GOKern(Kern):
-    ''' Stores information about GOcean Kernels as specified by the Kernel
-        metadata. Uses this information to generate appropriate PSy layer
-        code for the Kernel instance. Specialises the gen_code method to
-        create the appropriate GOcean specific kernel call. '''
+class GOKern(CodedKern):
+    '''
+    Stores information about GOcean Kernels as specified by the Kernel
+    metadata. Uses this information to generate appropriate PSy layer
+    code for the Kernel instance. Specialises the gen_code method to
+    create the appropriate GOcean specific kernel call.
+
+    '''
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
@@ -718,10 +930,54 @@ class GOKern(Kern):
         self._children = []
         self._name = ""
         self._index_offset = ""
+        # Get a reference to the namespace manager
+        self._name_space_manager = NameSpaceFactory().create()
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All accesses are marked
+        according to the kernel metadata.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # Grid properties are accessed using one of the fields. This stores
+        # the field used to avoid repeatedly determining the best field:
+        field_for_grid_property = None
+        for arg in self.arguments.args:
+            if arg.type == "grid_property":
+                if not field_for_grid_property:
+                    field_for_grid_property = \
+                        self._arguments.find_grid_access()
+                var_name = field_for_grid_property.name + "%grid%" + \
+                    arg.dereference_name
+            else:
+                var_name = arg.name
+
+            if arg.is_scalar():
+                var_accesses.add_access(var_name, arg.access, self)
+            else:
+                # In case of an array for now add an arbitrary array
+                # reference so it is properly recognised as an array access
+                var_accesses.add_access(var_name, arg.access, self, [1])
+        super(GOKern, self).reference_accesses(var_accesses)
+        var_accesses.next_location()
 
     def load(self, call, parent=None):
-        ''' Populate the state of this GOKern object '''
-        Kern.__init__(self, GOKernelArguments, call, parent, check=False)
+        '''
+        Populate the state of this GOKern object.
+
+        :param call: information on the way in which this kernel is called \
+                     from the Algorithm layer.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: the parent of this Kernel node in the PSyIR.
+        :type parent: :py:class:`psyclone.gocean1p0.GOLoop`
+
+        '''
+        super(GOKern, self).__init__(GOKernelArguments, call, parent,
+                                     check=False)
 
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
@@ -735,70 +991,303 @@ class GOKern(Kern):
         '''
         return []
 
-    def find_grid_access(self):
-        '''Determine the best kernel argument from which to get properties of
-            the grid. For this, an argument must be a field (i.e. not
-            a scalar) and must be supplied by the algorithm layer
-            (i.e. not a grid property). If possible it should also be
-            a field that is read-only as otherwise compilers can get
-            confused about data dependencies and refuse to SIMD
-            vectorise.
-
-        '''
-        for access in ["read", "readwrite", "write"]:
-            for arg in self._arguments.args:
-                if arg.type == "field" and arg.access.lower() == access:
-                    return arg
-        # We failed to find any kernel argument which could be used
-        # to access the grid properties. This will only be a problem
-        # if the kernel requires a grid-property argument.
-        return None
-
     def gen_code(self, parent):
-        ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
-            kernel instance. '''
+        '''
+        Generates GOcean v1.0 specific psy code for a call to the
+        kernel instance. Also ensures that the kernel is written to file
+        if it has been transformed.
+
+        :param parent: parent node in the f2pygen AST being created.
+        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
+
+        :raises GenerationError: if the kernel requires a grid property but \
+                                 does not have any field arguments.
+        :raises GenerationError: if it encounters a kernel argument of \
+                                 unrecognised type.
+        '''
         from psyclone.f2pygen import CallGen, UseGen
 
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
+        # If the kernel has been transformed then we rename it. If it
+        # is *not* being module inlined then we also write it to file.
+        self.rename_and_write()
 
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._arguments.args:
+        if self.root.opencl:
+            # OpenCL is completely different so has its own gen method.
+            self.gen_ocl(parent)
+            return
 
-            if arg.type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.type == "field":
-                # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
-            elif arg.type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        "Error: kernel {0} requires grid property {1} but "
-                        "does not have any arguments that are fields".
-                        format(self._name, arg.name))
-                else:
-                    arguments.append(grid_arg.name+"%grid%"+arg.name)
-            else:
-                raise GenerationError("Kernel {0}, argument {1} has "
-                                      "unrecognised type: {2}".
-                                      format(self._name, arg.name, arg.type))
-
+        arguments = self._arguments.raw_arg_list()
         parent.add(CallGen(parent, self._name, arguments))
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
 
+    def gen_ocl(self, parent):
+        '''
+        Generates code for the OpenCL invocation of this kernel.
+
+        :param parent: Parent node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
+        # Create the array used to specify the iteration space of the kernel
+        garg = self._arguments.find_grid_access()
+        glob_size = self._name_space_manager.create_name(
+            root_name="globalsize", context="PSyVars", label="globalsize")
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[glob_size + "(2)"]))
+        parent.add(AssignGen(
+            parent, lhs=glob_size,
+            rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
+
+        # Create array for the local work size argument of the kernel
+        local_size = self._name_space_manager.create_name(
+            root_name="localsize", context="PSyVars", label="localsize")
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[local_size + "(2)"]))
+
+        loc_size_value = self._opencl_options['local_size']
+        parent.add(AssignGen(parent, lhs=local_size,
+                             rhs="(/{0}, 1/)".format(loc_size_value)))
+
+        # Create Kernel name variable
+        base = "kernel_" + self._name
+        kernel = self._name_space_manager.create_name(root_name=base,
+                                                      context="PSyVars",
+                                                      label=base)
+        # Generate code to ensure data is on device
+        self.gen_data_on_ocl_device(parent)
+
+        # Then we set the kernel arguments
+        arguments = [kernel]
+        for arg in self._arguments.args:
+            if arg.type == "scalar":
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                arguments.append(arg.name + "%device_ptr")
+            elif arg.type == "grid_property":
+                # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
+                # the pointers to device memory for grid properties in
+                # "<grid-prop-name>_device" which is a bit hacky but
+                # works for now.
+                if arg.is_scalar():
+                    arguments.append(garg.name+"%grid%"+arg.dereference_name)
+                else:
+                    arguments.append(garg.name+"%grid%"+arg.name+"_device")
+        sub_name = self._name_space_manager.create_name(
+            root_name=self.name+"_set_args", context=self.name+"ArgSetter",
+            label=self.name+"_set_args")
+        parent.add(CallGen(parent, sub_name, arguments))
+
+        # Get the name of the list of command queues (set in
+        # psyGen.InvokeSchedule)
+        qlist = self._name_space_manager.create_name(
+            root_name="cmd_queues", context="PSyVars", label="cmd_queues")
+        flag = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+
+        # Then we call clEnqueueNDRangeKernel
+        parent.add(CommentGen(parent, " Launch the kernel"))
+        cnull = "C_NULL_PTR"
+        queue_number = self._opencl_options['queue_number']
+        cmd_queue = qlist + "({0})".format(queue_number)
+
+        args = ", ".join([cmd_queue, kernel, "2", cnull,
+                          "C_LOC({0})".format(glob_size),
+                          "C_LOC({0})".format(local_size),
+                          "0", cnull, cnull])
+        parent.add(AssignGen(parent, lhs=flag,
+                             rhs="clEnqueueNDRangeKernel({0})".format(args)))
+        parent.add(CommentGen(parent, ""))
+
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
+
+    def gen_arg_setter_code(self, parent):
+        '''
+        Creates a Fortran routine to set the arguments of the OpenCL
+        version of this kernel.
+
+        :param parent: Parent node of the set-kernel-arguments routine
+        :type parent: :py:class:`psyclone.f2pygen.moduleGen`
+        '''
+        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, CommentGen
+        # Currently literal arguments are checked for and rejected by
+        # the OpenCL transformation.
+        kobj = self._name_space_manager.create_name(
+            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
+        args = [kobj] + [arg.name for arg in self._arguments.args]
+
+        sub_name = self._name_space_manager.create_name(
+            root_name=self.name+"_set_args", context=self.name+"ArgSetter",
+            label=self.name+"_set_args")
+        sub = SubroutineGen(parent, name=sub_name, args=args)
+        parent.add(sub)
+        sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
+                       funcnames=["check_status"]))
+        sub.add(UseGen(sub, name="iso_c_binding", only=True,
+                       funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
+        sub.add(UseGen(sub, name="clfortran", only=True,
+                       funcnames=["clSetKernelArg"]))
+        # Declare arguments
+        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                        target=True, entity_decls=[kobj]))
+
+        # Get all Grid property arguments
+        grid_prop_args = args_filter(self._arguments.args,
+                                     arg_types=["field", "grid_property"])
+
+        # Array grid properties are c_intptr_t
+        args = [x for x in grid_prop_args if not x.is_scalar()]
+        if args:
+            sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                            intent="in", target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar grid properties are all integers
+        args = [x for x in grid_prop_args if x.is_scalar()]
+        if args:
+            sub.add(DeclGen(sub, datatype="integer", intent="in",
+                            target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar arguments
+        args = args_filter(self._arguments.args, arg_types=["scalar"],
+                           is_literal=False)
+        for arg in args:
+            if arg.space.lower() == "go_r_scalar":
+                sub.add(DeclGen(
+                    sub, datatype="REAL", intent="in", kind="go_wp",
+                    target=True, entity_decls=[arg.name]))
+            else:
+                sub.add(DeclGen(sub, datatype="INTEGER", intent="in",
+                                target=True, entity_decls=[arg.name]))
+
+        # Declare local variables
+        err_name = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+        sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
+
+        # Set kernel arguments
+        sub.add(CommentGen(
+            sub,
+            " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
+        for index, arg in enumerate(self.arguments.args):
+            arg.set_kernel_arg(sub, index, self.name)
+
+    def gen_data_on_ocl_device(self, parent):
+        '''
+        Generate code to create data buffers on OpenCL device.
+
+        :param parent: Parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import UseGen, CommentGen, IfThenGen, DeclGen, \
+            AssignGen
+        grid_arg = self._arguments.find_grid_access()
+        # Ensure the fields required by this kernel are on device. We must
+        # create the buffers for them if they're not.
+        parent.add(UseGen(parent, name="fortcl", only=True,
+                          funcnames=["create_rw_buffer"]))
+        parent.add(CommentGen(parent, " Ensure field data is on device"))
+        for arg in self._arguments.args:
+            if arg.type == "field" or \
+               (arg.type == "grid_property" and not arg.is_scalar()):
+
+                if arg.type == "field":
+                    # fields have a 'data_on_device' property for keeping
+                    # track of whether they are on the device
+                    condition = ".NOT. {0}%data_on_device".format(arg.name)
+                    device_buff = "{0}%device_ptr".format(arg.name)
+                    host_buff = "{0}%data".format(arg.name)
+                else:
+                    # grid properties do not have such an attribute (because
+                    # they are just arrays) so we check whether the device
+                    # pointer is NULL.
+                    device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
+                                                               arg.name)
+                    condition = device_buff + " == 0"
+                    host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
+                # Name of variable to hold no. of bytes of storage required
+                nbytes = self._name_space_manager.create_name(
+                    root_name="size_in_bytes", context="PSyVars",
+                    label="size_in_bytes")
+                # Variable to hold write event returned by OpenCL runtime
+                wevent = self._name_space_manager.create_name(
+                    root_name="write_event", context="PSyVars",
+                    label="write_event")
+                ifthen = IfThenGen(parent, condition)
+                parent.add(ifthen)
+                parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
+                                   entity_decls=[nbytes]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind="c_intptr_t", target=True,
+                                   entity_decls=[wevent]))
+                # Use c_sizeof() on first element of array to be copied over in
+                # order to cope with the fact that some grid properties are
+                # integer.
+                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*c_sizeof("
+                             "{1}(1,1))".format(grid_arg.name, host_buff))
+                ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
+                ifthen.add(CommentGen(ifthen, " Create buffer on device"))
+                # Get the name of the list of command queues (set in
+                # psyGen.InvokeSchedule)
+                qlist = self._name_space_manager.create_name(
+                    root_name="cmd_queues", context="PSyVars",
+                    label="cmd_queues")
+                flag = self._name_space_manager.create_name(
+                    root_name="ierr", context="PSyVars", label="ierr")
+
+                ifthen.add(AssignGen(ifthen, lhs=device_buff,
+                                     rhs="create_rw_buffer(" + nbytes + ")"))
+                ifthen.add(
+                    AssignGen(ifthen, lhs=flag,
+                              rhs="clEnqueueWriteBuffer({0}(1), {1}, CL_TRUE, "
+                              "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
+                              "C_LOC({4}))".format(qlist, device_buff,
+                                                   nbytes, host_buff, wevent)))
+                if arg.type == "field":
+                    ifthen.add(AssignGen(
+                        ifthen, lhs="{0}%data_on_device".format(arg.name),
+                        rhs=".true."))
+
+                # Ensure data copies have finished
+                ifthen.add(CommentGen(
+                    ifthen, " Block until data copies have finished"))
+                ifthen.add(AssignGen(ifthen, lhs=flag,
+                                     rhs="clFinish(" + qlist + "(1))"))
+
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the GOcean kernel code.
+
+        :return: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
+        '''
+        if self._kern_schedule is None:
+            astp = GOFparser2Reader()
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            # TODO: Validate kernel with metadata (issue #288).
+        return self._kern_schedule
+
+
+class GOFparser2Reader(Fparser2Reader):
+    '''
+    Sub-classes the Fparser2Reader with GOcean 1.0 specific
+    functionality.
+    '''
+    @staticmethod
+    def _create_schedule(name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        :returns: New GOKernelSchedule empty object.
+        :rtype: py:class:`psyclone.gocean1p0.GOKernelSchedule`
+        '''
+        return GOKernelSchedule(name)
 
 
 class GOKernelArguments(Arguments):
@@ -833,26 +1322,81 @@ class GOKernelArguments(Arguments):
                                                    "field"]))
         self._dofs = []
 
+    def raw_arg_list(self):
+        '''
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str
+
+        :raises GenerationError: if the kernel requires a grid property \
+                                 but has no field arguments.
+        :raises InternalError: if we encounter a kernel argument with an \
+                               unrecognised type.
+        '''
+        if self._raw_arg_list:
+            return self._raw_arg_list
+
+        # Before we do anything else, go through the arguments and
+        # determine the best one from which to obtain the grid properties.
+        grid_arg = self.find_grid_access()
+
+        # A GOcean 1.0 kernel always requires the [i,j] indices of the
+        # grid-point that is to be updated
+        arguments = ["i", "j"]
+        for arg in self._args:
+
+            if arg.type == "scalar":
+                # Scalar arguments require no de-referencing
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                # Field objects are Fortran derived-types
+                arguments.append(arg.name + "%data")
+            elif arg.type == "grid_property":
+                # Argument is a property of the grid which we can access via
+                # the grid member of any field object.
+                # We use the most suitable field as chosen above.
+                if grid_arg is None:
+                    raise GenerationError(
+                        "Error: kernel {0} requires grid property {1} but "
+                        "does not have any arguments that are fields".
+                        format(self._parent_call.name, arg.name))
+                arguments.append(grid_arg.name+"%grid%"+arg.dereference_name)
+            else:
+                raise InternalError("Kernel {0}, argument {1} has "
+                                    "unrecognised type: '{2}'".
+                                    format(self._parent_call.name, arg.name,
+                                           arg.type))
+        self._raw_arg_list = arguments
+        return self._raw_arg_list
+
+    def find_grid_access(self):
+        '''
+        Determine the best kernel argument from which to get properties of
+        the grid. For this, an argument must be a field (i.e. not
+        a scalar) and must be supplied by the algorithm layer
+        (i.e. not a grid property). If possible it should also be
+        a field that is read-only as otherwise compilers can get
+        confused about data dependencies and refuse to SIMD
+        vectorise.
+        :returns: the argument object from which to get grid properties.
+        :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
+        '''
+        for access in [AccessType.READ, AccessType.READWRITE,
+                       AccessType.WRITE]:
+            for arg in self._args:
+                if arg.type == "field" and arg.access == access:
+                    return arg
+        # We failed to find any kernel argument which could be used
+        # to access the grid properties. This will only be a problem
+        # if the kernel requires a grid-property argument.
+        return None
+
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
-            sense for GOcean. Need to refactor the invoke class and pull out
-            dofs into the gunghoproto api '''
+            sense for GOcean. Need to refactor the Invoke base class and
+            remove the need for this property (#279). '''
         return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            # We provide an empty mapping for inc as it is not supported
-            # in the GOcean 1.0 API. However, the entry has to be there
-            # in the dictionary as a field that has read access causes
-            # the code (that checks that a kernel has at least one argument
-            # that is written to) to attempt to lookup "inc".
-            my_mapping = {"write": "write", "read": "read",
-                          "readwrite": "readwrite", "inc": ""}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
 
     @property
     def acc_args(self):
@@ -871,7 +1415,7 @@ class GOKernelArguments(Arguments):
         # We do this as some compilers do less optimisation if we get (read-
         # -only) grid properties from a field object that has read-write
         # access.
-        grid_fld = self._parent_call.find_grid_access()
+        grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
 
@@ -936,24 +1480,43 @@ class GOKernelArgument(KernelArgument):
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
 
+    def is_scalar(self):
+        ''':return: whether this variable is a scalar variable or not.
+        :rtype: bool'''
+        return self.type == "scalar"
+
 
 class GOKernelGridArgument(Argument):
-    ''' Describes arguments that supply grid properties to a kernel.
-        These arguments are provided by the PSy layer rather than in
-        the Algorithm layer. '''
+    '''
+    Describes arguments that supply grid properties to a kernel.
+    These arguments are provided by the PSy layer rather than in
+    the Algorithm layer.
 
+    :param arg: the meta-data entry describing the required grid property.
+    :type arg: :py:class:`psyclone.gocean1p0.GO1p0Descriptor`
+
+    :raises GenerationError: if the grid property is not recognised.
+
+    '''
     def __init__(self, arg):
-
-        if arg.grid_prop in GRID_PROPERTY_DICT:
-            self._name = GRID_PROPERTY_DICT[arg.grid_prop]
-        else:
+        super(GOKernelGridArgument, self).__init__(None, None, arg.access)
+        if arg.grid_prop not in GRID_PROPERTY_DICT:
             raise GenerationError("Unrecognised grid property specified. "
                                   "Expected one of {0} but found '{1}'".
                                   format(str(GRID_PROPERTY_DICT.keys()),
                                          arg.grid_prop))
+        # Each entry is a pair (name, type). Name can be subdomain%internal...
+        # so only take the last part after the last % as name.
+        self._name = GRID_PROPERTY_DICT[arg.grid_prop][0].split("%")[-1]
+        # Store the full name used in dereferencing the grid properties.
+        self._dereference_name = GRID_PROPERTY_DICT[arg.grid_prop][0]
+        # Store the original property name for easy lookup in is_scalar()
+        self._property_name = arg.grid_prop
 
         # This object always represents an argument that is a grid_property
         self._type = "grid_property"
+        # Access to the name-space manager
+        self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def name(self):
@@ -962,11 +1525,25 @@ class GOKernelGridArgument(Argument):
         return self._name
 
     @property
+    def dereference_name(self):
+        ''':returns: the dereference string required to access a property in\
+        a dl_esm field (e.g. "subdomain%internal%xstart"). This name is\
+        used in the generated code like so: <fld>%grid%dereference_name
+        :rtype: str'''
+        return self._dereference_name
+
+    @property
     def type(self):
         ''' The type of this argument. We have this for compatibility with
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''
         return self._type
+
+    def is_scalar(self):
+        ''':return: If this variable is a scalar variable or not.
+        :rtype: bool'''
+        # The constructur guarantees that _pro_name is a valid key!
+        return GRID_PROPERTY_DICT[self._property_name][1] == "scalar"
 
     @property
     def text(self):
@@ -1023,9 +1600,9 @@ class GOStencil(object):
         indicating whether there is a stencil access in a particular
         direction and the depth of that access. For example:
 
-        stencil(010,  !   N
-                212,  !  W E
-                010)  !   S
+        go_stencil(010,  !   N
+                   212,  !  W E
+                   010)  !   S
 
         indicates that there is a stencil access of depth 1 in the
         "North" and "South" directions and stencil access of depth 2
@@ -1050,9 +1627,9 @@ class GOStencil(object):
 
         would be stored as:
 
-        stencil(000,
-                011,
-                010)
+        go_stencil(000,
+                   011,
+                   010)
 
         :param stencil_info: contains the appropriate part of the parser AST
         :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
@@ -1068,7 +1645,8 @@ class GOStencil(object):
             raise ParseError(
                 "Meta-data error in kernel '{0}': 3rd descriptor (stencil) of "
                 "field argument is '{1}' but expected either a name or the "
-                "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
+                "format 'go_stencil(...)'".format(kernel_name,
+                                                  str(stencil_info)))
 
         # Get the name
         name = stencil_info.name.lower()
@@ -1079,16 +1657,16 @@ class GOStencil(object):
             # arguments'
             self._has_stencil = True
             args = stencil_info.args
-            if name != "stencil":
+            if name != "go_stencil":
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be "
-                    "'stencil(...)".format(kernel_name, name))
+                    "'go_stencil(...)".format(kernel_name, name))
             if len(args) != 3:
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)', has {1} arguments but should have "
+                    "'go_stencil(...)', has {1} arguments but should have "
                     "3".format(kernel_name, len(args)))
             # Each of the 3 args should be of length 3 and each
             # character should be a digit from 0-9. Whilst we are
@@ -1097,18 +1675,18 @@ class GOStencil(object):
             # check and that extract them
             for arg_idx in range(3):
                 arg = args[arg_idx]
-                if not isinstance(arg, str):
+                if not isinstance(arg, six.string_types):
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index {1} should be a "
+                        "'go_stencil(...)'. Argument index {1} should be a "
                         "number but found "
                         "'{2}'.".format(kernel_name, arg_idx, str(arg)))
                 if len(arg) != 3:
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index {1} should "
+                        "'go_stencil(...)'. Argument index {1} should "
                         "consist of 3 digits but found "
                         "{2}.".format(kernel_name, arg_idx, len(arg)))
             # The central value is constrained to be 0 or 1
@@ -1116,7 +1694,7 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)'. Argument index 1 position 1 "
+                    "'go_stencil(...)'. Argument index 1 position 1 "
                     "should be a number from 0-1 "
                     "but found {1}.".format(kernel_name, args[1][1]))
             # It is not valid to specify a zero stencil. This is
@@ -1127,9 +1705,9 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)'. A zero sized stencil has been "
+                    "'go_stencil(...)'. A zero sized stencil has been "
                     "specified. This should be specified with the "
-                    "'pointwise' keyword.".format(kernel_name))
+                    "'go_pointwise' keyword.".format(kernel_name))
             # store the values in an internal array as integers in i,j
             # order
             for idx0 in range(3):
@@ -1142,8 +1720,8 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be one "
-                    "of {2} or stencil(...)".format(kernel_name, name,
-                                                    VALID_STENCIL_NAMES))
+                    "of {2} or go_stencil(...)".format(kernel_name, name,
+                                                       VALID_STENCIL_NAMES))
             self._name = name
             # We currently only support one valid name ('pointwise')
             # which indicates that there is no stencil
@@ -1291,14 +1869,19 @@ class GO1p0Descriptor(Descriptor):
                        str(len(kernel_arg.args)),
                        kernel_arg.args))
 
-        if access.lower() not in VALID_ARG_ACCESSES:
+        api_config = Config.get().api_conf("gocean1.0")
+        access_mapping = api_config.get_access_mapping()
+        try:
+            access_type = access_mapping[access]
+        except KeyError:
+            valid_names = api_config.get_valid_accesses_api()
             raise ParseError("Meta-data error in kernel {0}: argument "
                              "access  is given as '{1}' but must be "
                              "one of {2}".
-                             format(kernel_name, access, VALID_ARG_ACCESSES))
+                             format(kernel_name, access, valid_names))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil_info)
+        Descriptor.__init__(self, access_type, funcspace, stencil_info)
 
     def __str__(self):
         return repr(self)
@@ -1312,8 +1895,14 @@ class GO1p0Descriptor(Descriptor):
     @property
     def type(self):
         ''' The type of this argument - whether it is a scalar, a field or
-            a grid-property. The latter are special because they must be
-            supplied by the PSy layer. '''
+        a grid-property. The latter are special because they must be
+        supplied by the PSy layer.
+
+        :return: The type of this argument, either 'field', 'scalar', or \
+            'grid_property'
+        :rtype: str
+
+        '''
         return self._type
 
 
@@ -1363,9 +1952,9 @@ class GOKernelType1p0(KernelType):
         self._arg_descriptors = []
         have_grid_prop = False
         for init in self._inits:
-            if init.name != 'arg':
+            if init.name != 'go_arg':
                 raise ParseError("Each meta_arg value must be of type " +
-                                 "'arg' for the gocean1.0 api, but " +
+                                 "'go_arg' for the gocean1.0 api, but " +
                                  "found '{0}'".format(init.name))
             # Pass in the name of this kernel for the purposes
             # of error reporting
@@ -1410,9 +1999,9 @@ class GOKernelType1p0(KernelType):
         return self._index_offset
 
 
-class GOACCDataDirective(ACCDataDirective):
+class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
-    Sub-classes ACCDataDirective to provide an API-specific implementation
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
     of data_on_device().
 
     '''
@@ -1436,3 +2025,79 @@ class GOACCDataDirective(ACCDataDirective):
                                          rhs=".true."))
                     obj_list.append(var)
         return
+
+
+class GOSymbolTable(SymbolTable):
+    '''
+    Sub-classes SymbolTable to provide a GOcean-specific implementation.
+    '''
+
+    def _check_gocean_conformity(self):
+        '''
+        Checks that the Symbol Table has at least 2 arguments which represent
+        the iteration indices (are scalar integers).
+
+        :raises GenerationError: if the Symbol Table does not conform to the \
+                rules for a GOcean 1.0 kernel.
+        '''
+        # Get the kernel name if available for better error messages
+        kname_str = ""
+        if self._schedule and isinstance(self._schedule, KernelSchedule):
+            kname_str = " for kernel '{0}'".format(self._schedule.name)
+
+        # Check that there are at least 2 arguments
+        if len(self.argument_list) < 2:
+            raise GenerationError(
+                "GOcean 1.0 API kernels should always have at least two "
+                "arguments representing the iteration indices but the "
+                "Symbol Table{0} has only {1} argument(s)."
+                "".format(kname_str,
+                          str(len(self.argument_list)))
+                )
+
+        # Check that first 2 arguments are scalar integers
+        for pos, posstr in [(0, "first"), (1, "second")]:
+            dtype = self.argument_list[pos].datatype
+            shape_len = len(self.argument_list[pos].shape)
+            if (dtype != "integer" or shape_len != 0):
+                if shape_len == 0:
+                    shape_str = "a scalar"
+                else:
+                    shape_str = "an array"
+                raise GenerationError(
+                    "GOcean 1.0 API kernels {0} argument should be a scalar "
+                    "integer but got {1} of type '{2}'{3}."
+                    "".format(posstr, shape_str, str(dtype), kname_str))
+
+    @property
+    def iteration_indices(self):
+        '''In the GOcean API the two first kernel arguments are the iteration
+        indices.
+
+        :return: List of symbols representing the iteration indices.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        self._check_gocean_conformity()
+        return self.argument_list[:2]
+
+    @property
+    def data_arguments(self):
+        '''In the GOcean API the data arguments start from the third item in
+        the argument list.
+
+        :return: List of symbols representing the data arguments.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        self._check_gocean_conformity()
+        return self.argument_list[2:]
+
+
+class GOKernelSchedule(KernelSchedule):
+    '''
+    Sub-classes KernelSchedule to provide a GOcean-specific implementation.
+
+    :param str name: Kernel subroutine name
+    '''
+    def __init__(self, name):
+        super(GOKernelSchedule, self).__init__(name)
+        self._symbol_table = GOSymbolTable(self)

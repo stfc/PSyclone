@@ -14,6 +14,8 @@ module oned_conservative_flux_alg_mod
 
   private
 
+  contains
+
   subroutine oned_conservative_flux_alg( direction,    &
                                          u,            &
                                          dep_pts,      &

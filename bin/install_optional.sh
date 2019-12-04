@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,21 @@
 # any optional dependencies.
 
 # Which packages are installed is controlled by environment variables that
-# can be set using the Travis 'env' section in .travis.yml.
+# can be set using the Travis 'env' section in .travis.yml. This script also
+# takes one, optional command-line flag: "fparser_submodule". If present then
+# the version of fparser pointed to by the git submodule is installed rather
+# than relying upon pip to install a released version (from pypi).
 
 if [ "$WITH_TERMCOLOR" = "1" ]; then
     echo "Installing termcolor package..."
     pip install termcolor
+fi
+
+if [ "$1" = "fparser_submodule" ]; then
+    echo "Installing fparser from git submodule..."
+    git submodule init
+    git submodule update
+    cd external/fparser
+    pip install .
+    cd -
 fi

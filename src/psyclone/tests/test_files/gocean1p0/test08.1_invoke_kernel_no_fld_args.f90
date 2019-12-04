@@ -24,8 +24,8 @@ PROGRAM kernel_no_fld_args_test
   INTEGER :: ncycle
 
   ! Create the model grid
-  model_grid = grid_type(ARAKAWA_C,                        &
-                         (/BC_PERIODIC,BC_PERIODIC,BC_NONE/) )
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
   !  ** Start of time loop ** 
   DO ncycle=1,100

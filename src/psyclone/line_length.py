@@ -30,11 +30,9 @@ class FortLineLength(object):
     line wraps any lines that are larger than the specified line
     length'''
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, line_length=132):
         self._line_length = line_length
-        self._line_types = ["statement", "openmp_directive",
-                            "openacc_directive", "comment",
-                            "unknown"]
         self._cont_start = {"statement": "&",
                             "openmp_directive": "!$omp& ",
                             "openacc_directive": "!$acc& ",

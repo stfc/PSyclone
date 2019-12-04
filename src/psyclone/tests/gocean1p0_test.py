@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
 from __future__ import absolute_import, print_function
 import os
+import re
 import pytest
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.configuration import Config
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
-
+from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
+from psyclone.tests.utilities import get_invoke
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
 
 
-def test_field():
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
+
+
+def test_field(tmpdir):
     ''' Tests that a kernel call with only fields produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -73,8 +83,8 @@ def test_field():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%simulation_domain%xstop\n"
-        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop+1\n"
@@ -87,8 +97,10 @@ def test_field():
 
     assert generated_code.find(expected_output) != -1
 
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
-def test_two_kernels():
+
+def test_two_kernels(tmpdir):
     ''' Tests that an invoke containing two kernel calls with only
     fields as arguments produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -116,8 +128,8 @@ def test_two_kernels():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%simulation_domain%xstop\n"
-        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop+1\n"
@@ -135,9 +147,10 @@ def test_two_kernels():
         "  END MODULE psy_single_invoke_two_kernels")
 
     assert str(generated_code).find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_grid_property():
+def test_grid_property(tmpdir):
     ''' Tests that an invoke containing a kernel call requiring
     a property of the grid produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -164,8 +177,8 @@ def test_grid_property():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%simulation_domain%xstop\n"
-        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop-1\n"
@@ -183,9 +196,10 @@ def test_grid_property():
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_int_arg():
+def test_scalar_int_arg(tmpdir):
     ''' Tests that an invoke containing a kernel call requiring
     an integer, scalar argument produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -212,8 +226,8 @@ def test_scalar_int_arg():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ssh_fld%grid%simulation_domain%xstop\n"
-        "      jstop = ssh_fld%grid%simulation_domain%ystop\n"
+        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -225,9 +239,10 @@ def test_scalar_int_arg():
         "  END MODULE psy_single_invoke_scalar_int_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_float_arg():
+def test_scalar_float_arg(tmpdir):
     ''' Tests that an invoke containing a kernel call requiring
     a real, scalar argument produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -248,28 +263,28 @@ def test_scalar_float_arg():
         "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
         "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
         "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
-        "      REAL(KIND=wp), intent(inout) :: a_scalar\n"
+        "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ssh_fld%grid%simulation_domain%xstop\n"
-        "      jstop = ssh_fld%grid%simulation_domain%ystop\n"
+        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
-        "ssh_fld%grid%tmask)\n"
+        "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
-
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_cf_points():
+def test_ne_offset_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CF points '''
     _, invoke_info = parse(os.path.
@@ -297,8 +312,8 @@ def test_ne_offset_cf_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = vort_fld%grid%simulation_domain%xstop\n"
-        "      jstop = vort_fld%grid%simulation_domain%ystop\n"
+        "      istop = vort_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = vort_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop-1\n"
         "        DO i=1,istop-1\n"
@@ -310,9 +325,10 @@ def test_ne_offset_cf_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_ct_points():
+def test_ne_offset_ct_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CT points '''
     _, invoke_info = parse(os.path.
@@ -339,8 +355,8 @@ def test_ne_offset_ct_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = p_fld%grid%simulation_domain%xstop\n"
-        "      jstop = p_fld%grid%simulation_domain%ystop\n"
+        "      istop = p_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = p_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
@@ -352,9 +368,10 @@ def test_ne_offset_ct_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_all_cu_points():
+def test_ne_offset_all_cu_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CU points '''
     _, invoke_info = parse(os.path.
@@ -381,8 +398,8 @@ def test_ne_offset_all_cu_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = u_fld%grid%simulation_domain%xstop\n"
-        "      jstop = u_fld%grid%simulation_domain%ystop\n"
+        "      istop = u_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = u_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop\n"
@@ -393,9 +410,10 @@ def test_ne_offset_all_cu_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_all_cv_points():
+def test_ne_offset_all_cv_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CV points '''
     _, invoke_info = parse(os.path.
@@ -422,8 +440,8 @@ def test_ne_offset_all_cv_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = v_fld%grid%simulation_domain%xstop\n"
-        "      jstop = v_fld%grid%simulation_domain%ystop\n"
+        "      istop = v_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = v_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop\n"
         "        DO i=1,istop+1\n"
@@ -434,9 +452,10 @@ def test_ne_offset_all_cv_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_all_cf_points():
+def test_ne_offset_all_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CF points '''
     _, invoke_info = parse(os.path.
@@ -463,8 +482,8 @@ def test_ne_offset_all_cf_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = f_fld%grid%simulation_domain%xstop\n"
-        "      jstop = f_fld%grid%simulation_domain%ystop\n"
+        "      istop = f_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = f_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
@@ -475,19 +494,17 @@ def test_ne_offset_all_cf_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_cf_points():
+def test_sw_offset_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CF points '''
-    _, invoke_info = parse(os.path.
-                           join(os.path.
-                                dirname(os.path.
-                                        abspath(__file__)),
-                                "test_files", "gocean1p0",
-                                "test19.1_sw_offset_cf_updated" +
-                                "_one_invoke.f90"),
-                           api=API)
+    _, invoke_info = parse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "test_files", "gocean1p0",
+                     "test19.1_sw_offset_cf_updated_one_invoke.f90"),
+        api=API)
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
@@ -497,29 +514,30 @@ def test_sw_offset_cf_points():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_compute_z(zfld, pfld, ufld, vfld)\n"
+        "    SUBROUTINE invoke_0_compute_z(z_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_cf_mod, ONLY: compute_z_code\n"
-        "      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: z_fld, p_fld, u_fld, v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = zfld%grid%simulation_domain%xstop\n"
-        "      jstop = zfld%grid%simulation_domain%ystop\n"
+        "      istop = z_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = z_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop+1\n"
         "        DO i=2,istop+1\n"
-        "          CALL compute_z_code(i, j, zfld%data, pfld%data, "
-        "ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)\n"
+        "          CALL compute_z_code(i, j, z_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data, p_fld%grid%dx, p_fld%grid%dy)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_cf_points():
+def test_sw_offset_all_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CF points '''
     _, invoke_info = parse(os.path.
@@ -539,30 +557,31 @@ def test_sw_offset_all_cf_points():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_apply_bcs_f(zfld, pfld, ufld, vfld)\n"
+        "    SUBROUTINE invoke_0_apply_bcs_f(z_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_cf_mod, ONLY: apply_bcs_f_code\n"
-        "      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: z_fld, p_fld, u_fld, v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = zfld%grid%simulation_domain%xstop\n"
-        "      jstop = zfld%grid%simulation_domain%ystop\n"
+        "      istop = z_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = z_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
-        "          CALL apply_bcs_f_code(i, j, zfld%data, pfld%data, "
-        "ufld%data, vfld%data)\n"
+        "          CALL apply_bcs_f_code(i, j, z_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_apply_bcs_f\n"
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_ct_points():
+def test_sw_offset_ct_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CT points '''
     _, invoke_info = parse(os.path.
@@ -581,30 +600,31 @@ def test_sw_offset_ct_points():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_compute_h(hfld, pfld, ufld, vfld)\n"
+        "    SUBROUTINE invoke_0_compute_h(h_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_ct_mod, ONLY: compute_h_code\n"
-        "      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: h_fld, p_fld, u_fld, v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = hfld%grid%simulation_domain%xstop\n"
-        "      jstop = hfld%grid%simulation_domain%ystop\n"
+        "      istop = h_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = h_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
-        "          CALL compute_h_code(i, j, hfld%data, pfld%data, ufld%data, "
-        "vfld%data)\n"
+        "          CALL compute_h_code(i, j, h_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_compute_h\n"
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_ct_points():
+def test_sw_offset_all_ct_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CT points '''
     _, invoke_info = parse(os.path.
@@ -632,8 +652,8 @@ def test_sw_offset_all_ct_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = hfld%grid%simulation_domain%xstop\n"
-        "      jstop = hfld%grid%simulation_domain%ystop\n"
+        "      istop = hfld%grid%subdomain%internal%xstop\n"
+        "      jstop = hfld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -645,9 +665,10 @@ def test_sw_offset_all_ct_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_cu_points():
+def test_sw_offset_all_cu_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CU points '''
     _, invoke_info = parse(os.path.
@@ -675,8 +696,8 @@ def test_sw_offset_all_cu_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ufld%grid%simulation_domain%xstop\n"
-        "      jstop = ufld%grid%simulation_domain%ystop\n"
+        "      istop = ufld%grid%subdomain%internal%xstop\n"
+        "      jstop = ufld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -687,9 +708,10 @@ def test_sw_offset_all_cu_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_cv_points():
+def test_sw_offset_all_cv_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CV points '''
     _, invoke_info = parse(os.path.
@@ -717,8 +739,8 @@ def test_sw_offset_all_cv_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = vfld%grid%simulation_domain%xstop\n"
-        "      jstop = vfld%grid%simulation_domain%ystop\n"
+        "      istop = vfld%grid%subdomain%internal%xstop\n"
+        "      jstop = vfld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -729,9 +751,10 @@ def test_sw_offset_all_cv_points():
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_offset_any_all_cu_points():
+def test_offset_any_all_cu_points(tmpdir):
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all cu points '''
     _, invoke_info = parse(os.path.
@@ -759,8 +782,8 @@ def test_offset_any_all_cu_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ufld%grid%simulation_domain%xstop\n"
-        "      jstop = ufld%grid%simulation_domain%ystop\n"
+        "      istop = ufld%grid%subdomain%internal%xstop\n"
+        "      jstop = ufld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
@@ -770,11 +793,12 @@ def test_offset_any_all_cu_points():
         "      END DO \n"
         "    END SUBROUTINE invoke_0_compute_u\n"
         "  END MODULE psy_single_invoke_test")
-    print(generated_code)
+
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_offset_any_all_points():
+def test_offset_any_all_points(tmpdir):
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all points '''
     _, invoke_info = parse(os.path.
@@ -802,8 +826,8 @@ def test_offset_any_all_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = voldfld%grid%simulation_domain%xstop\n"
-        "      jstop = voldfld%grid%simulation_domain%ystop\n"
+        "      istop = voldfld%grid%subdomain%internal%xstop\n"
+        "      jstop = voldfld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -812,12 +836,12 @@ def test_offset_any_all_points():
         "      END DO \n"
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
-    print(generated_code)
     assert generated_code.find(expected_output) != -1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_goschedule_view(capsys):
-    ''' Test that the GOSchedule::view() method works as expected '''
+    ''' Test that the GOInvokeSchedule::view() method works as expected '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -834,30 +858,48 @@ def test_goschedule_view(capsys):
     out, _ = capsys.readouterr()
 
     # Ensure we check for the correct (colour) control codes in the output
-    sched = colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+    call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
 
     expected_output = (
-        sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer',field_space='cu',"
-        "it_space='internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='cu',"
-        "it_space='internal_pts']\n"
-        "            " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
+        isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        "    0: " + loop + "[type='outer', field_space='go_cu', "
+        "it_space='go_internal_pts']\n"
+        "        " + lit + "[value:'2']\n"
+        "        " + lit + "[value:'jstop']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + sched + "[]\n"
+        "            0: " + loop + "[type='inner', field_space='go_cu', "
+        "it_space='go_internal_pts']\n"
+        "                " + lit + "[value:'2']\n"
+        "                " + lit + "[value:'istop+1']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + sched + "[]\n"
+        "                    0: " + call +
+        " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer',field_space='every',"
-        "it_space='internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='every',"
-        "it_space='internal_pts']\n"
-        "            " + call + " time_smooth_code(u_fld,unew_fld,uold_fld) "
-        "[module_inline=False]")
-
+        "    1: " + loop + "[type='outer', field_space='go_every', "
+        "it_space='go_internal_pts']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + lit + "[value:'jstop+1']\n"
+        "        " + lit + "[value:'1']\n"
+        "        " + sched + "[]\n"
+        "            0: " + loop + "[type='inner', field_space='go_every', "
+        "it_space='go_internal_pts']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + lit + "[value:'istop+1']\n"
+        "                " + lit + "[value:'1']\n"
+        "                " + sched + "[]\n"
+        "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
+        "uold_fld) [module_inline=False]")
     assert expected_output in out
 
 
 def test_goschedule_str():
-    ''' Test that the GOSchedule::__str__ method works as expected '''
+    ''' Test that the GOInvokeSchedule::__str__ method works as expected '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -867,18 +909,39 @@ def test_goschedule_str():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+
     expected_sched = (
-        "GOSchedule(Constant loop bounds=True):\n"
-        "Loop[]: j= lower=2,jstop,1\n"
-        "Loop[]: i= lower=2,istop+1,1\n"
+        "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=True]:\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'jstop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'istop+1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
-        "Loop[]: j= lower=1,jstop+1,1\n"
-        "Loop[]: i= lower=1,istop+1,1\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'jstop+1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'istop+1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: time_smooth_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
         "End Schedule\n")
     sched_str = str(schedule)
     assert sched_str in expected_sched
@@ -888,23 +951,47 @@ def test_goschedule_str():
     sched_str = str(schedule)
 
     expected_sched = (
-        "GOSchedule(Constant loop bounds=False):\n"
-        "Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1\n"
-        "Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1\n"
+        "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'cu_fld%internal%ystart']\n"
+        "Literal[value:'cu_fld%internal%ystop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'cu_fld%internal%xstart']\n"
+        "Literal[value:'cu_fld%internal%xstop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: compute_cu_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
-        "Loop[]: j= lower=1,SIZE(uold_fld%data, 2),1\n"
-        "Loop[]: i= lower=1,SIZE(uold_fld%data, 1),1\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1']\n"
+        "BinaryOperation[operator:'SIZE']\n"
+        "Literal[value:'uold_fld%data']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'1']\n"
+        "BinaryOperation[operator:'SIZE']\n"
+        "Literal[value:'uold_fld%data']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
         "kern call: time_smooth_code\n"
-        "EndLoop\n"
-        "EndLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
         "End Schedule\n")
     assert sched_str in expected_sched
 
 
 def test_gosched_ijstop():
-    ''' Test that the GOSchedule.{i,j}loop_stop rais an error if
+    ''' Test that the GOInvokeSchedule.{i,j}loop_stop rais an error if
     constant loop bounds are not being used '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -926,9 +1013,8 @@ def test_gosched_ijstop():
 
 
 def test_goloop_no_parent():
-    ''' Attempt to generate code for a loop that has no GOSchedule
+    ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
-    from psyclone.gocean1p0 import GOLoop
     goloop = GOLoop(loop_type="inner")
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
@@ -939,12 +1025,11 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    from psyclone.gocean1p0 import GOLoop, GOSchedule
-    gosched = GOSchedule([])
+    gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
-    gojloop.addchild(goiloop)
+    gojloop.loop_body.addchild(goiloop)
     # Try and generate the code for this loop even though it
     # has no children
     with pytest.raises(GenerationError):
@@ -954,17 +1039,16 @@ def test_goloop_no_children():
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
-    from psyclone.gocean1p0 import GOLoop, GOSchedule, GOKern
-    gosched = GOSchedule([])
+    gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
-    gojloop.addchild(goiloop)
+    gojloop.loop_body.addchild(goiloop)
     gokern = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
     gokern._index_offset = "offset_se"
-    goiloop.addchild(gokern)
+    goiloop.loop_body.addchild(gokern)
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
 
@@ -972,26 +1056,46 @@ def test_goloop_unsupp_offset():
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
-    from psyclone.gocean1p0 import GOLoop, GOSchedule, GOKern
-    gosched = GOSchedule([])
+    gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
-    gojloop.addchild(goiloop)
+    gojloop.loop_body.addchild(goiloop)
     gokern1 = GOKern()
     gokern2 = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
-    gokern1._index_offset = "offset_ne"
-    gokern2._index_offset = "offset_sw"
-    goiloop.addchild(gokern1)
-    goiloop.addchild(gokern2)
-    with pytest.raises(GenerationError):
+    gokern1._index_offset = "go_offset_ne"
+    gokern2._index_offset = "go_offset_sw"
+    goiloop.loop_body.addchild(gokern1)
+    goiloop.loop_body.addchild(gokern2)
+    with pytest.raises(GenerationError) as excinfo:
         goiloop.gen_code(None)
+    # Note that the kernels do not have a name, so there is a double space
+    assert "All Kernels must expect the same grid offset but kernel  " \
+        "has offset go_offset_sw which does not match go_offset_ne" \
+        in str(excinfo.value)
+
+
+def test_goloop_bounds_invalid_iteration_space():
+    ''' Check that the _upper/lower_bound() methods raise the expected error
+    if the iteration space is not recognised. '''
+    gosched = GOInvokeSchedule([])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    # Have to turn-off constant loop bounds to get to the error condition
+    gosched._const_loop_bounds = False
+    # Set the iteration space to something invalid
+    gojloop._iteration_space = "broken"
+    with pytest.raises(GenerationError) as err:
+        gojloop._upper_bound()
+    assert "Unrecognised iteration space, 'broken'." in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        gojloop._lower_bound()
+    assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
-    ''' Test that the GOSchedule::dag() method works as expected when we
+    ''' Test that the GOInvokeSchedule::dag() method works as expected when we
     have two kernels with a write -> read dependency '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -1001,7 +1105,7 @@ def test_writetoread_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     invoke.schedule.dag()
     if have_graphviz:
         dot_file = os.path.join(str(tmpdir), "dag")
@@ -1012,18 +1116,19 @@ def test_writetoread_dag(tmpdir, have_graphviz):
         # write -> read means that the second loop can only begin once the
         # first loop is complete. Check that we have the correct forwards
         # dependence (green) and backwards dependence (red).
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=red]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=red]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#ff0000]' in dot)
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=green]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=green]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#00ff00]' in dot)
+    old_cwd.chdir()
 
 
 def test_dag(tmpdir, have_graphviz):
-    ''' Test that the GOSchedule::dag() method works as expected '''
+    ''' Test that the GOInvokeSchedule::dag() method works as expected '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -1032,7 +1137,7 @@ def test_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     invoke.schedule.dag()
     if have_graphviz:
         assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
@@ -1044,6 +1149,75 @@ def test_dag(tmpdir, have_graphviz):
         # have no forwards/backwards dependencies
         for col in ["red", "#ff0000", "green", "#00ff00"]:
             assert '[color={0}]'.format(col) not in dot
+    old_cwd.chdir()
+
+
+def test_find_grid_access(monkeypatch):
+    ''' Tests for the GOKernelArguments.find_grid_access method. This
+    identifies the best kernel argument from which to access grid
+    properties. '''
+    from psyclone.gocean1p0 import GOKernelArgument
+    _, invoke = get_invoke("single_invoke.f90", API, idx=0)
+    schedule = invoke.schedule
+    kern = schedule.children[0].loop_body[0].loop_body[0]
+    assert isinstance(kern, GOKern)
+    arg = kern.arguments.find_grid_access()
+    assert isinstance(arg, GOKernelArgument)
+    # The first read-only argument for this kernel is the pressure field
+    assert arg.name == "p_fld"
+    # Now monkeypatch the type of each of the kernel arguments so that
+    # none of them is a field
+    for karg in kern.arguments._args:
+        monkeypatch.setattr(karg._arg, "_type", "broken")
+    # find_grid_access should now return None
+    arg = kern.arguments.find_grid_access()
+    assert arg is None
+
+
+def test_raw_arg_list_error(monkeypatch):
+    ''' Test that we raise an internal error in the
+    GOKernelArguments.raw_arg_list method if there's no argument from which
+    to get the grid properties. '''
+    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    kern = schedule.children[0].loop_body[0].loop_body[0]
+    assert isinstance(kern, GOKern)
+    raw_list = kern.arguments.raw_arg_list()
+    assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
+                        'v_fld%data', 'p_fld%grid%dx', 'p_fld%grid%dy']
+    # Now monkeypatch find_grid_access()
+    monkeypatch.setattr(kern.arguments, "find_grid_access", lambda: None)
+    kern.arguments._raw_arg_list = None
+    with pytest.raises(GenerationError) as err:
+        _ = kern.arguments.raw_arg_list()
+    assert ("kernel compute_z_code requires grid property dx but does not "
+            "have any arguments that are fields" in str(err.value))
+    # Now monkeypatch one of the kernel arguments so that it has an
+    # unrecognised type
+    monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
+    with pytest.raises(InternalError) as err:
+        _ = kern.arguments.raw_arg_list()
+    assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
+            "'broken'" in str(err.value))
+
+
+def test_invalid_access_type():
+    ''' Test that we raise an internal error if we try to assign
+    an invalid access type (string instead of AccessType) in
+    a psygen.Argument.'''
+    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    kern = schedule.children[0].loop_body[0].loop_body[0]
+    # Test that assigning a non-AccessType value to a kernel argument
+    # raises an exception.
+    with pytest.raises(InternalError) as err:
+        kern.arguments.args[0].access = "invalid-type"
+    # Note that the error message looks slightly different between
+    # python 2 (type str) and 3 (class str):
+    assert re.search("Invalid access type 'invalid-type' of type.*str",
+                     str(err.value))
 
 
 # -----------------------------------
@@ -1062,7 +1236,7 @@ def test00p1_kernel_wrong_meta_arg_count():
               api="gocean1.0")
 
 
-def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
+def test00p1_invoke_kernel_using_const_scalar():
     '''Check that using a const scalar as parameter works.'''
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "gocean1p0",
@@ -1072,8 +1246,7 @@ def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
     # Old versions of PSyclone tried to declare '0' as a variable:
     # REAL(KIND=wp), intent(inout) :: 0
     # INTEGER, intent(inout) :: 0
-    # Make sure this is not happening anymor
-    import re
+    # Make sure this is not happening anymore
     assert re.search(r"\s*real.*:: *0", out, re.I) is None
     assert re.search(r"\s*integer.*:: *0", out, re.I) is None
     assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
@@ -1176,15 +1349,58 @@ def test05p1_kernel_invalid_iterates_over():
               api="gocean1.0")
 
 
+def test05p1_kernel_add_iteration_spaces():
+    '''Check that adding a new iteration space works
+    '''
+
+    # Add new iteration space 'dofs'
+    GOLoop.add_bounds("go_offset_sw:go_cu:dofs:1:2:3:{stop}")
+
+    _, invoke_info = \
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test05.1_invoke_kernel_invalid_iterates_over.f90"),
+              api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    expected_sched = (
+        "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
+        "Constant loop bounds=True]:\n"
+        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "Literal[value:'1']\n"
+        "Literal[value:'2']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "Literal[value:'3']\n"
+        "Literal[value:'istop']\n"
+        "Literal[value:'1']\n"
+        "Schedule:\n"
+        "kern call: compute_cu_code\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n"
+        "End GOLoop\n"
+        "End Schedule\n")
+    sched_str = str(schedule)
+    assert sched_str in expected_sched
+
+    # Note that this output can not be test compiled, since dl_esm_inf
+    # has no symbol defined for the new iteration space.
+
+
 def test06_kernel_invalid_access():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised access type for a kernel argument (i.e. something
     other than READ,WRITE,READWRITE) '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
+    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
+           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
 
 
 def test07_kernel_wrong_gridpt_type():
