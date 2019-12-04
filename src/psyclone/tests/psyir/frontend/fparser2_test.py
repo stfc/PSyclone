@@ -498,6 +498,15 @@ def test_process_not_supported_declarations(f2008_parser):
     assert ("'allocatable' attribute is only supported on array "
             "declarations" in str(error.value))
 
+    # Allocatable but with specified extent. This is invalid Fortran but
+    # fparser2 doesn't spot it (see fparser/#229).
+    reader = FortranStringReader("integer, allocatable :: l10(5)")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "An array with defined extent cannot have the ALLOCATABLE" \
+        in str(err.value)
+
 
 def test_process_declarations_intent(f2008_parser):
     '''Test that process_declarations method handles various different

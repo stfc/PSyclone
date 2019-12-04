@@ -644,7 +644,7 @@ class Fparser2Reader(object):
                     raise NotImplementedError(
                         "Could not process {0}. The 'allocatable' attribute is"
                         " only supported on array declarations.".format(
-                            decl.items))
+                            str(decl)))
 
                 for idx, extent in enumerate(entity_shape):
                     if extent is None:
@@ -652,6 +652,13 @@ class Fparser2Reader(object):
                             entity_shape[idx] = DataSymbol.Extent.DEFERRED
                         else:
                             entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
+                    elif allocatable:
+                        # We have an allocatable array with a defined extent.
+                        # This is invalid Fortran.
+                        raise InternalError(
+                            "Invalid Fortran: '{0}'. An array with defined "
+                            "extent cannot have the ALLOCATABLE attribute.".
+                            format(str(decl)))
 
                 if initialisation:
                     if has_constant_value:
