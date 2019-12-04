@@ -445,8 +445,8 @@ def test_symboltable_copy_external_global():
     with pytest.raises(TypeError) as error:
         symtab.copy_external_global(DataSymbol("var1", "real"))
     assert "The globalvar argument of SymbolTable.copy_external_global " \
-        "method should have a GlobalInterface interface, but found <class " \
-        "'psyclone.psyir.symbols.datasymbol.LocalInterface'>." \
+        "method should have a GlobalInterface interface, but found " \
+        "'LocalInterface'." \
         in str(error.value)
 
     # Copy a globalvar
@@ -476,15 +476,15 @@ def test_symboltable_copy_external_global():
         symtab.lookup("b").interface.container_symbol
 
     # The copy of globalvars that already exist is supported
-    var3 = DataSymbol("c", "deferred", interface=GlobalInterface(container2))
+    var3 = DataSymbol("b", "deferred", interface=GlobalInterface(container2))
     symtab.copy_external_global(var3)
 
     # But if the symbol is different (e.g. points to a different container),
     # it should fail
     container3 = ContainerSymbol("my_other")
-    var4 = DataSymbol("c", "deferred", interface=GlobalInterface(container3))
+    var4 = DataSymbol("b", "deferred", interface=GlobalInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_global(var4)
-    assert "Couldn't copy 'c: <deferred, Scalar, Global(container='my_other'" \
-        ")>' into the SymbolTable. The name 'c' is already used by another " \
+    assert "Couldn't copy 'b: <deferred, Scalar, Global(container='my_other'" \
+        ")>' into the SymbolTable. The name 'b' is already used by another " \
         "symbol." in str(error.value)

@@ -343,25 +343,24 @@ class SymbolTable(object):
         Copy the given global variable (and its referenced ContainerSymbol if
         needed) into the SymbolTable.
 
-        :param globalvar: the variable to be copied in
+        :param globalvar: the variable to be copied in.
         :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raise TypeError: if the given variable is not a global variable
-        :raise KeyError: if the given variable name already exists in the \
-            symbol table
+        :raises TypeError: if the given variable is not a global variable.
+        :raises KeyError: if the given variable name already exists in the \
+            symbol table.
         '''
-
         if not isinstance(globalvar, DataSymbol):
             raise TypeError(
                 "The globalvar argument of SymbolTable.copy_external_global"
-                " method should be a DataSymbol, but found {0}."
-                "".format(type(globalvar)))
+                " method should be a DataSymbol, but found '{0}'."
+                "".format(type(globalvar).__name__))
 
         if not globalvar.is_global:
             raise TypeError(
                 "The globalvar argument of SymbolTable.copy_external_"
                 "global method should have a GlobalInterface interface, "
-                "but found {0}.".format(type(globalvar.interface)))
+                "but found '{0}'.".format(type(globalvar.interface).__name__))
 
         external_container_name = globalvar.interface.container_symbol.name
 
@@ -370,7 +369,7 @@ class SymbolTable(object):
         if external_container_name not in self:
             self.add(ContainerSymbol(external_container_name))
 
-        # Copy the variable in the SymbolTable with the appropriate interface
+        # Copy the variable into the SymbolTable with the appropriate interface
         if globalvar.name not in self:
             new_symbol = globalvar.copy()
             container_ref = self.lookup(external_container_name)
