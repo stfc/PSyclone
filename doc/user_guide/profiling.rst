@@ -136,7 +136,7 @@ adding profiling via a transformation script.
    When profiling invoke regions using the dynamo0.3 and gocean1.0
    APIs the transformation script approach is strongly recommended, as
    the auto generation of names can lead to confusing results in the
-   current imeplementation, see #567.
+   current implementation, see #567.
 
 Profiling Command Line Options
 ------------------------------
