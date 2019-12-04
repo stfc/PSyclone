@@ -113,8 +113,7 @@ class RegionTrans(Transformation):
     # pylint: disable=abstract-method,arguments-differ
 
     def validate(self, node_list, options=None):
-        '''
-        Checks that the nodes in node_list are valid for a region
+        '''Checks that the nodes in node_list are valid for a region
         transformation.
 
         :param node_list: list of PSyIR nodes or a single Schedule.
@@ -132,10 +131,12 @@ class RegionTrans(Transformation):
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
         :raises TransformationError: if the parent of the supplied Nodes is \
-                                     not a Schedule or a Directive.
-        :raises TransformationError: if the nodes are in a NEMO Schedule and \
-                                     the transformation acts on the child of \
-                                     a single-line If or Where statment.
+                not a Schedule or a Directive.
+        :raises TransformationError: if the nodes are in a NEMO \
+                Schedule and the transformation acts on the child of a \
+                single-line If or Where statment.
+        :raises TransformationError: if the supplied options are not a \
+                dictionary.
 
         '''
         # pylint: disable=too-many-branches
@@ -143,6 +144,10 @@ class RegionTrans(Transformation):
         from psyclone.nemo import NemoInvokeSchedule
         if not options:
             options = {}
+        if not isinstance(options, dict):
+            raise TransformationError(
+                "Transformation apply method options argument must be a "
+                "dictionary but found '{0}'.".format(type(options).__name__))
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -2845,6 +2850,22 @@ class ProfileRegionTrans(RegionTrans):
 
         super(ProfileRegionTrans, self).validate(nodes, options)
 
+        # pylint: disable=too-many-boolean-expressions
+        if options:
+            try:
+                name = options["profile_name"]
+                if not isinstance(name, tuple) or not len(name) == 2 or \
+                   not name[0] or not isinstance(name[0], str) or \
+                   not name[1] or not isinstance(name[1], str):
+                    raise TransformationError(
+                        "Error in {0}. User-supplied profile name must be a "
+                        "tuple containing two non-empty strings."
+                        "".format(str(self)))
+            except KeyError:
+                # profile name is not supplied
+                pass
+        # pylint: enable=too-many-boolean-expressions
+
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
         invoke = nodes[0].root.invoke
@@ -2871,6 +2892,9 @@ class ProfileRegionTrans(RegionTrans):
                      :py:obj:`psyclone.psygen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str, str) options["profile_name"]: an optional name to \
+            use for this profile, provided as a 2-tuple containing a \
+            location name followed by a local name.
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
@@ -2914,6 +2938,13 @@ class ProfileRegionTrans(RegionTrans):
         # Perform validation checks
         self.validate(node_list, options)
 
+        name = None
+        if options:
+            try:
+                name = options["profile_name"]
+            except KeyError:
+                pass
+
         # create a memento of the schedule and the proposed
         # transformation
         schedule = node_list[0].root
@@ -2923,7 +2954,8 @@ class ProfileRegionTrans(RegionTrans):
         # Create the ProfileNode. All of the supplied child nodes will have
         # the Profile's Schedule as their parent.
         from psyclone.profiler import ProfileNode
-        profile_node = ProfileNode(parent=node_parent, children=node_list[:])
+        profile_node = ProfileNode(parent=node_parent, children=node_list[:],
+                                   name=name)
 
         # Correct the parent's list of children. Use a slice of the list of
         # nodes so that we're looping over a local copy of the list. Otherwise
@@ -4172,11 +4204,10 @@ class ExtractRegionTrans(RegionTrans):
             # this may be between an orphaned Directive (e.g. OMPDoDirective,
             # ACCLoopDirective) and its ancestor Directive (e.g. ACC or OMP
             # Parallel Directive) or within an OMPParallelDoDirective.
-            if node.ancestor(OMPParallelDirective) or \
-                    node.ancestor(ACCParallelDirective):
+            if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
                     "Error in {0}: Extraction of Nodes enclosed within "
-                    "a thread parallel region is not allowed."
+                    "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
     def apply(self, nodes, options=None):

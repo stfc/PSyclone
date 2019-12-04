@@ -41,7 +41,12 @@
 .. toctree::
    :maxdepth: 3
 
-   developers
+   working_practises
+   psyir
+   parsing
+   APIs
+   modules
+   transformations
    system_specific_setup
    coding-style
    zz_bibliography

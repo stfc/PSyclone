@@ -2000,14 +2000,25 @@ def test_node_is_valid_location():
 
 
 def test_node_ancestor():
-    ''' Test the Node.ancestor() method '''
+    ''' Test the Node.ancestor() method. '''
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched[0].loop_body[0].loop_body[0]
     node = kern.ancestor(Node)
     assert isinstance(node, Schedule)
-    node = kern.ancestor(Node, excluding=[Schedule])
-    assert node is sched.children[0].loop_body[0]
+    # If 'excluding' is supplied then it can only be a single type or a
+    # tuple of types
+    node = kern.ancestor(Node, excluding=Schedule)
+    assert node is sched[0].loop_body[0]
+    node = kern.ancestor(Node, excluding=(Schedule,))
+    assert node is sched[0].loop_body[0]
+    with pytest.raises(TypeError) as err:
+        kern.ancestor(Node, excluding=[Schedule])
+    assert ("argument to ancestor() must be a type or a tuple of types but "
+            "got: 'list'" in str(err.value))
+    # Check that the include_self argument behaves as expected
+    node = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
+    assert node is kern
 
 
 def test_dag_names():
