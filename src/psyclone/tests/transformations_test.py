@@ -248,8 +248,8 @@ def test_kernelglobalstoarguments(monkeypatch):
     with pytest.raises(TransformationError) as err:
         trans.apply(notkernel)
     assert ("The KernelGlobalsToArguments transformation can only be applied"
-            " to CodedKern nodes but found <class 'psyclone.gocean1p0.GOLoop"
-            "'> instead." in str(err.value))
+            " to CodedKern nodes but found 'GOLoop' instead."
+            in str(err.value))
 
     # Test with a kernel
     trans.apply(kernel)

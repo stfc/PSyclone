@@ -4371,13 +4371,17 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
 
 
 class KernelGlobalsToArguments(Transformation):
-    '''Transformation that given a kernel call, it takes out of the
-    kernel the global accesses and places them in the caller. Then
-    the values/references are passe by argument into the kernel.'''
-
+    '''
+    Transformation that removes any accesses of global data from the supplied
+    kernel and places them in the caller. The values/references are then passed
+    by argument into the kernel.
+    '''
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string.'''
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
         return "KernelGlobalsToArguments"
 
     def __str__(self):
@@ -4389,19 +4393,19 @@ class KernelGlobalsToArguments(Transformation):
         '''
         Check that the supplied node is a valid target for this transformation.
 
-        :param node: the loop node to validate.
+        :param node: the PSyIR node to validate.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if the supplied node is not a CodedKern
+        :raises TransformationError: if the supplied node is not a CodedKern.
         '''
         from psyclone.psyGen import CodedKern
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 "The KernelGlobalsToArguments transformation can "
-                "only be applied to CodedKern nodes but found {0} instead."
-                "".format(type(node)))
+                "only be applied to CodedKern nodes but found '{0}' instead."
+                "".format(type(node).__name__))
 
     def apply(self, node, options=None):
         '''
@@ -4409,7 +4413,7 @@ class KernelGlobalsToArguments(Transformation):
         modify the InvokeSchedule to pass the same global variables to the
         kernel call.
 
-        :param node: a kernel call
+        :param node: a kernel call.
         :type nodes: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
