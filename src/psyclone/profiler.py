@@ -178,18 +178,20 @@ class ProfileNode(Node):
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or a child for the kernel, so
         # the name is left empty, unless explicitly provided by the
-        # user. If not names are provided here then the region and
+        # user. If names are not provided here then the region and
         # module names are set the first time gen() is called (and
         # then remain unchanged).
         self._module_name = None
         self._region_name = None
         if name:
+            # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
                not name[0] or not isinstance(name[0], str) or \
                not name[1] or not isinstance(name[1], str):
                 raise InternalError(
                     "Error in ProfileNode. Profile name must be a "
                     "tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
             # Valid profile names have been provided by the user.
             self._module_name = name[0]
             self._region_name = name[1]

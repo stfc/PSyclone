@@ -2850,6 +2850,7 @@ class ProfileRegionTrans(RegionTrans):
 
         super(ProfileRegionTrans, self).validate(nodes, options)
 
+        # pylint: disable=too-many-boolean-expressions
         if options:
             try:
                 name = options["profile_name"]
@@ -2863,6 +2864,7 @@ class ProfileRegionTrans(RegionTrans):
             except KeyError:
                 # profile name is not supplied
                 pass
+        # pylint: enable=too-many-boolean-expressions
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.

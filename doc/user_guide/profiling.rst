@@ -131,6 +131,13 @@ particular region (the "Module" and "Region" strings in the example
 above). Alternatively these names can be specified by the user when
 adding profiling via a transformation script.
 
+.. warning::
+
+   When profiling invoke regions using the dynamo0.3 and gocean1.0
+   APIs the transformation script approach is strongly recommended, as
+   the auto generation of names can lead to confusing results in the
+   current imeplementation, see #567.
+
 Profiling Command Line Options
 ------------------------------
 PSyclone offers two command line options to automatically instrument

@@ -243,7 +243,7 @@ def test_profileregiontrans_name(options):
     profile transformation does not result in anything being passed
     into ProfileNode via the name argument and that providing an
     option associated with the profile transformation does result in
-    the the relevant names being passed into ProfileNode via the name
+    the relevant names being passed into ProfileNode via the name
     argument. This is checked by looking at the variables
     '_module_name' and '_region_name' which are set to the name
     argument values if they are provided, otherwise the variables are
