@@ -84,6 +84,30 @@ def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
 
+
+# Utility functions
+
+def check_links(parent, children):
+    '''Utilitiy routine to check that the parent node has children as its
+    children in the order specified and that the children have parent
+    as their parent. Also check that the parent does not have any
+    additional children that are not provided in the children
+    argument.
+
+    :param parent: the parent node that should have the child \
+        nodes as its children.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :param children: the child nodes that should have the parent \
+        node as their parent.
+    :type parent: list of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    assert len(parent.children) == len(children)
+    for index, child in enumerate(children):
+        assert child.parent is parent
+        assert parent.children[index] is child
+
+
 # Tests for utilities
 
 
@@ -650,20 +674,10 @@ def test_loop_create():
     step = Literal("1")
     child_node = Assignment.create(Reference("tmp"), Reference("i"))
     loop = Loop.create("i", start, stop, step, [child_node])
-    assert len(loop.children) == 4
-    assert loop.children[0] is start
-    assert loop.children[1] is stop
-    assert loop.children[2] is step
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
-    assert start.parent is loop
-    assert stop.parent is loop
-    assert step.parent is loop
-    assert schedule.parent is loop
-    assert child_node.parent is schedule
-    assert len(schedule.children) == 1
-    assert schedule.children[0] is child_node
-    assert child_node.parent is schedule
+    check_links(loop, [start, stop, step, schedule])
+    check_links(schedule, [child_node])
     result = FortranWriter().loop_node(loop)
     assert result == "do i = 0, 1, 1\n  tmp=i\nenddo\n"
 
@@ -3289,6 +3303,10 @@ def test_ifblock_create():
     if_body = [Assignment.create(Reference("tmp"), Literal("0.0")),
                Assignment.create(Reference("tmp2"), Literal("1.0"))]
     ifblock = IfBlock.create(if_condition, if_body)
+    if_schedule = ifblock.children[1]
+    assert isinstance(if_schedule, Schedule)
+    check_links(ifblock, [if_condition, if_schedule])
+    check_links(if_schedule, if_body)
     result = FortranWriter().ifblock_node(ifblock)
     assert result == ("if (.True.) then\n"
                       "  tmp=0.0\n"
@@ -3299,6 +3317,13 @@ def test_ifblock_create():
     else_body = [Assignment.create(Reference("tmp"), Literal("1.0")),
                  Assignment.create(Reference("tmp2"), Literal("0.0"))]
     ifblock = IfBlock.create(if_condition, if_body, else_body)
+    if_schedule = ifblock.children[1]
+    assert isinstance(if_schedule, Schedule)
+    else_schedule = ifblock.children[2]
+    assert isinstance(else_schedule, Schedule)
+    check_links(ifblock, [if_condition, if_schedule, else_schedule])
+    check_links(if_schedule, if_body)
+    check_links(else_schedule, else_body)
     result = FortranWriter().ifblock_node(ifblock)
     assert result == ("if (.True.) then\n"
                       "  tmp=0.0\n"
@@ -3409,6 +3434,7 @@ def test_assignment_create():
     lhs = Reference("tmp")
     rhs = Literal("0.0")
     assignment = Assignment.create(lhs, rhs)
+    check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
     assert result == "tmp=0.0\n"
 
@@ -3552,6 +3578,7 @@ def test_array_create():
     '''
     children = [Reference("i"), Reference("j"), Literal("1")]
     array = Array.create("temp", children)
+    check_links(array, children)
     result = FortranWriter().array_node(array)
     assert result == "temp(i,j,1)"
 
@@ -3671,6 +3698,7 @@ def test_binaryoperation_create():
     rhs = Reference("tmp2")
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, lhs, rhs)
+    check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
     assert result == "tmp1 + tmp2"
 
@@ -3756,6 +3784,7 @@ def test_unaryoperation_create():
     child = Reference("tmp")
     oper = UnaryOperation.Operator.SIN
     unaryoperation = UnaryOperation.create(oper, child)
+    check_links(unaryoperation, [child])
     result = FortranWriter().unaryoperation_node(unaryoperation)
     assert result == "SIN(tmp)"
 
@@ -3814,6 +3843,7 @@ def test_naryoperation_create():
     children = [Reference("tmp1"), Reference("tmp2"), Reference("tmp3")]
     oper = NaryOperation.Operator.MAX
     naryoperation = NaryOperation.create(oper, children)
+    check_links(naryoperation, children)
     result = FortranWriter().naryoperation_node(naryoperation)
     assert result == "MAX(tmp1, tmp2, tmp3)"
 
@@ -3921,6 +3951,8 @@ def test_container_create():
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
                                  [kernel1, kernel2])
+    check_links(container, [kernel1, kernel2])
+    assert container.symbol_table is symbol_table
     result = FortranWriter().container_node(container)
     assert result == (
         "module container_name\n"
@@ -4021,9 +4053,10 @@ def test_kernelschedule_create():
     '''
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", "real"))
-    kschedule = KernelSchedule.create("mod_name", symbol_table,
-                                      [Assignment.create(Reference("tmp"),
-                                                         Literal("0.0"))])
+    assignment = Assignment.create(Reference("tmp"), Literal("0.0"))
+    kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
+    check_links(kschedule, [assignment])
+    assert kschedule.symbol_table is symbol_table
     result = FortranWriter().kernelschedule_node(kschedule)
     assert result == (
         "subroutine mod_name()\n"

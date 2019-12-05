@@ -5469,6 +5469,7 @@ class IfBlock(Node):
             if_stmt.children = [if_condition, if_schedule, else_schedule]
         else:
             if_stmt.children = [if_condition, if_schedule]
+        if_condition.parent = if_stmt
         return if_stmt
 
     def node_str(self, colour=True):
