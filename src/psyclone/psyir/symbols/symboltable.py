@@ -314,6 +314,16 @@ class SymbolTable(object):
         return list(precision_symbols)
 
     @property
+    def container_symbols(self):
+        '''
+        :returns: a list of the ContainerSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        '''
+        from psyclone.psyir.symbols import ContainerSymbol
+        return [sym for sym in self.symbols if isinstance(sym,
+                                                          ContainerSymbol)]
+
+    @property
     def iteration_indices(self):
         '''
         :returns: List of symbols representing kernel iteration indices.
