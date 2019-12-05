@@ -390,7 +390,9 @@ class Fparser2Reader(object):
         new_container.children.append(new_schedule)
 
         try:
-            if isinstance(module_ast, Fortran2003.Module):
+            if isinstance(module_ast, Fortran2003.Module) or \
+               (isinstance(module_ast, Fortran2003.Program) and
+                isinstance(module_ast.content[0], Fortran2003.Module)):
                 mod_content = module_ast.content[0].content
                 # TODO remove once fparser/#102 is done
                 # pylint: disable=protected-access
@@ -408,7 +410,8 @@ class Fparser2Reader(object):
                 subroutine = module_ast
             else:
                 raise NotImplementedError(
-                    "Expected either Fortran2003.Module, Main_Program or "
+                    "Expected either Fortran2003.Module, Program, "
+                    "Main_Program or "
                     "Subroutine_Subprogram but got: {0}".format(
                         type(module_ast).__name__))
         except (ValueError, IndexError):

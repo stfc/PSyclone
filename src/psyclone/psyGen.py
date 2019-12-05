@@ -5722,18 +5722,25 @@ class Reference(Node):
 
     def check_declared(self):
         '''Check whether this reference has an associated symbol table entry.
+        If it has no enclosing Schedule (as may be the case when constructing
+        a PSyIR fragment) then the check is skipped.
 
         raises SymbolError: if the name of this reference is not found in any \
                         of the SymbolTables accessible from the current scope.
 
         '''
-        test_node = self.parent
+        test_node = self.ancestor(Schedule)
+
+        if not test_node:
+            # If we're in a PSyIR fragment with no enclosing Schedule then
+            # we don't have a Symbol Table.
+            return
+
         while test_node:
-            if hasattr(test_node, 'symbol_table'):
-                symbol_table = test_node.symbol_table
-                if self.name in symbol_table:
-                    return
-            test_node = test_node.parent
+            symbol_table = test_node.symbol_table
+            if self.name in symbol_table:
+                return
+            test_node = test_node.ancestor(Schedule)
 
         raise SymbolError(
             "Undeclared reference '{0}' found.".format(self.name))

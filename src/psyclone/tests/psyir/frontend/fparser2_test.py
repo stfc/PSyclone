@@ -795,6 +795,7 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     assert " has not been handled." in str(error.value)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_assignment_stmt(f2008_parser):
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
@@ -839,6 +840,7 @@ def test_handling_name(f2008_parser):
     assert new_node._reference == "x"
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_parenthesis(f2008_parser):
     ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
@@ -884,7 +886,6 @@ def test_handling_part_ref(f2008_parser):
     assert len(new_node.children) == 1  # Array dimensions
 
     # Parse a complex array expression
-    fake_parent = Node()
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
@@ -898,6 +899,7 @@ def test_handling_part_ref(f2008_parser):
     assert len(new_node.children) == 3  # Array dimensions
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_intrinsics(f2008_parser):
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
@@ -1029,6 +1031,7 @@ def test_nary_op_handler_error(f2008_parser):
             " parse tree to be an Actual_Arg_Spec_List" in str(err))
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_nested_intrinsic(f2008_parser):
     ''' Check that we correctly handle nested intrinsic functions. '''
     from fparser.two.Fortran2003 import Execution_Part
@@ -1067,6 +1070,7 @@ def test_handling_array_product(f2008_parser):
     assert not fake_parent.walk(CodeBlock)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_if_stmt(f2008_parser):
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
@@ -1085,6 +1089,7 @@ def test_handling_if_stmt(f2008_parser):
     assert len(new_node.children) == 2
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_if_construct(f2008_parser):
     ''' Test that fparser2 If_Construct is converted to the expected PSyIR
     tree structure.
@@ -1136,6 +1141,7 @@ def test_handling_if_construct(f2008_parser):
     assert elsebody.ast is fparser2if_construct.content[6]
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_if_construct_errors(f2008_parser):
     ''' Test that unsupported If_Construct structures raise the proper
     errors.
@@ -1200,6 +1206,7 @@ def test_handling_if_construct_errors(f2008_parser):
             "expected, but found") in str(error.value)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_complex_if_construct(f2008_parser):
     ''' Test that nested If_Construct structures and empty bodies are
     handled properly.
@@ -1232,6 +1239,7 @@ def test_handling_complex_if_construct(f2008_parser):
     assert nested_if2.children[1].children[0].children[0].name == 'found'
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_case_construct(f2008_parser):
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
@@ -1272,6 +1280,7 @@ def test_handling_case_construct(f2008_parser):
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_case_default(f2008_parser):
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause. '''
@@ -1308,6 +1317,7 @@ def test_case_default(f2008_parser):
                           Assignment)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_case_list(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of conditions. '''
@@ -1339,6 +1349,7 @@ def test_handling_case_list(f2008_parser):
     assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_case_range(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a range. '''
@@ -1363,6 +1374,7 @@ def test_handling_case_range(f2008_parser):
     assert "branch3" in str(ifnode.if_body[0].lhs)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_case_range_list(f2008_parser):
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of ranges. '''
@@ -1395,12 +1407,12 @@ def test_handling_case_range_list(f2008_parser):
     assert "branch4" in str(ifnode.if_body[0].lhs)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_handling_invalid_case_construct(f2008_parser):
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
     from fparser.two.Fortran2003 import Execution_Part, Name
-
     # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
         '''SELECT CASE (selector)
@@ -1636,6 +1648,7 @@ def test_handling_end_subroutine_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_do_construct(f2008_parser):
     ''' Check that do loop constructs are converted to the expected
     PSyIR node'''
@@ -1721,6 +1734,7 @@ def test_nodes_to_code_block_2(f2008_parser):
 
 
 # (3/4) fparser2reader::nodes_to_code_block
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_nodes_to_code_block_3(f2008_parser):
     '''Check that a codeblock that contains an expression has the
     structure property set to expression.

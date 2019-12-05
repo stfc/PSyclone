@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,33 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
 
-''' Module containing pytest tests for the handling of the SIZE intrinsic
-in the PSyIR. '''
+
+''' Module which performs pytest set-up specific to the PSyIR tests. '''
 
 from __future__ import absolute_import
-
 import pytest
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from fparser.common.readfortran import FortranStringReader
+from psyclone.psyGen import Reference
 
 
-@pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
-                                        "n = SIZE(a(:,:,:), 3)"])
-@pytest.mark.usefixtures("disable_declaration_check")
-def test_size(expression, parser):
-    ''' Basic test that the SIZE intrinsic is recognised and represented
-    in the PSyIR. '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(expression)
-    fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic], None)
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1], Literal)
+@pytest.fixture(scope="function")
+def disable_declaration_check(request, monkeypatch):
+    ''' By default a Reference checks that it has a corresponding entry in
+    the Symbol Table. However, this could make constructing tests very
+    long winded so this fixture simply disables the check. '''
+    monkeypatch.setattr(Reference, "check_declared", lambda x: None)

@@ -71,6 +71,7 @@ def process_where(code, fparser_cls):
     return sched, fparser2spec
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_broken_tree(parser):
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree does not have the correct structure.
@@ -92,6 +93,7 @@ def test_where_broken_tree(parser):
     assert "Failed to find opening where construct " in str(err.value)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_missing_array_notation_expr(parser):
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax in the logical expression.
@@ -102,6 +104,7 @@ def test_missing_array_notation_expr(parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_missing_array_notation_lhs(parser):
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax on the LHS of an assignment within the body. '''
@@ -136,6 +139,7 @@ def test_where_array_notation_rank(parser):
             in str(err.value))
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_different_ranks_error(parser):
     ''' Check that a WHERE construct containing array references of different
     ranks results in the creation of a CodeBlock. '''
@@ -145,6 +149,7 @@ def test_different_ranks_error(parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_array_notation_rank(parser):
     ''' Check that the _array_notation_rank() utility handles various examples
     of array notation.
@@ -168,6 +173,7 @@ def test_array_notation_rank(parser):
     assert "Bounds on array slices are not supported" in str(err.value)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_symbol_clash(parser):
     ''' Check that we raise the expected error if the code we are processing
     already contains a symbol with the same name as one of the loop variables
@@ -180,6 +186,8 @@ def test_where_symbol_clash(parser):
                       "END WHERE\n", Fortran2003.Where_Construct)
     assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
     reader = FortranStringReader("module my_test\n"
+                                 "implicit none\n"
+                                 "integer :: dummy\n"
                                  "contains\n"
                                  "subroutine widx1()\n"
                                  "where (dry(:, :, :))\n"
@@ -194,6 +202,7 @@ def test_where_symbol_clash(parser):
     assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_basic_where(parser):
     ''' Check that a basic WHERE using a logical array as a mask is correctly
     translated into the PSyIR. '''
@@ -218,6 +227,7 @@ def test_basic_where(parser):
             "Reference[name:'widx1']\n" in str(ifblock.condition))
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_array_subsections(parser):
     ''' Check that we handle a WHERE construct with non-contiguous array
     subsections. '''
@@ -241,6 +251,7 @@ def test_where_array_subsections(parser):
     assert assign.lhs.children[2].name == "widx2"
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_elsewhere(parser):
     ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
     translated into a canonical form in the PSyIR. '''
@@ -272,6 +283,7 @@ def test_elsewhere(parser):
     assert ifblock.else_body[0].lhs.name == "z1_st"
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_stmt_validity(parser):
     ''' Check that the correct exceptions are raised when the parse tree
     for a WHERE statement has an unexpected structure. '''
@@ -293,6 +305,7 @@ def test_where_stmt_validity(parser):
             in str(err.value))
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_stmt(parser):
     ''' Basic check that we handle a WHERE statement correctly. '''
     fake_parent, _ = process_where(
@@ -303,6 +316,7 @@ def test_where_stmt(parser):
     assert isinstance(fake_parent[0], Loop)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_ordering(parser):
     ''' Check that the generated schedule has the correct ordering when
     a WHERE construct is processed. '''
