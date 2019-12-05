@@ -9,11 +9,10 @@
 ''' Contains tests for transformations on the Dynamo 0.1 API '''
 
 from __future__ import absolute_import
-import os
 import pytest
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import get_invoke
+
 from psyclone.transformations import OMPParallelTrans
 
 TEST_API = "dynamo0.1"
@@ -28,13 +27,8 @@ def setup():
 def test_openmp_region():
     ''' Test the application of an OpenMP parallel region transformation
     to a single loop '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
+    psy, invoke = get_invoke("algorithm/1_single_function.f90", TEST_API,
+                             name="invoke_0_testkern_type")
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
     invoke.schedule, _ = rtrans.apply(schedule.children[0])
