@@ -42,7 +42,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import ContainerSymbol
+from psyclone.psyir.symbols import ContainerSymbol, SymbolError
 from psyclone.psyGen import KernelSchedule, GenerationError
 
 
@@ -108,3 +108,18 @@ def test_multi_use_stmt():
     csymbols = symtab.container_symbols
     # Although there are 3 use statements, there are only 2 modules
     assert len(csymbols) == 2
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_name_clash_use_stmt():
+    ''' Check that we raise the expected error if we encounter a module
+    with a name that's already taken in the Symbol Table. This is invalid
+    Fortran but we need to test the error-handling in PSyclone. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use some_var, only: var1, var2\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "Found a USE of module 'some_var' but the symbol" in str(err.value)

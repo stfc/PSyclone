@@ -558,8 +558,16 @@ class Fparser2Reader(object):
             mod_name = str(decl.items[2])
 
             # Add the module symbol in the symbol table
-            container = ContainerSymbol(mod_name)
-            parent.symbol_table.add(container)
+            if mod_name not in parent.symbol_table:
+                container = ContainerSymbol(mod_name)
+                parent.symbol_table.add(container)
+            else:
+                container = parent.symbol_table.lookup(mod_name)
+                if not isinstance(container, ContainerSymbol):
+                    raise SymbolError(
+                        "Found a USE of module '{0}' but the symbol table "
+                        "already contains a symbol with that name ({1})".
+                        format(mod_name, str(container)))
 
             # Create a 'deferred' symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
