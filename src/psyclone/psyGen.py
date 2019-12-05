@@ -3333,6 +3333,8 @@ class Loop(Node):
         stop.parent = loop
         step.parent = loop
         schedule = Schedule(parent=loop, children=children)
+        for child in children:
+            child.parent = schedule
         loop.children = [start, stop, step, schedule]
         loop._variable_name = var_name
         return loop

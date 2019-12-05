@@ -645,8 +645,25 @@ def test_loop_create():
     creates a Loop instance.
 
     '''
-    loop = Loop.create("i", Literal("0"), Literal("1"), Literal("1"),
-                       [Assignment.create(Reference("tmp"), Reference("i"))])
+    start = Literal("0")
+    stop = Literal("1")
+    step = Literal("1")
+    child_node = Assignment.create(Reference("tmp"), Reference("i"))
+    loop = Loop.create("i", start, stop, step, [child_node])
+    assert len(loop.children) == 4
+    assert loop.children[0] is start
+    assert loop.children[1] is stop
+    assert loop.children[2] is step
+    schedule = loop.children[3]
+    assert isinstance(schedule, Schedule)
+    assert start.parent is loop
+    assert stop.parent is loop
+    assert step.parent is loop
+    assert schedule.parent is loop
+    assert child_node.parent is schedule
+    assert len(schedule.children) == 1
+    assert schedule.children[0] is child_node
+    assert child_node.parent is schedule
     result = FortranWriter().loop_node(loop)
     assert result == "do i = 0, 1, 1\n  tmp=i\nenddo\n"
 

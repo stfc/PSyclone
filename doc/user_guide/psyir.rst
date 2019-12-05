@@ -73,12 +73,12 @@ PSy-layer PSyIR classes are primarily used to create the
 PSy-layer. These tend to be relatively descriptive and do not specify
 how a particular PSyclone frontend would implement them. With the
 exception of ``Loop``, these classes are currently not compatible with
-the PSyIR backends. The generic (non-api-specific) PSyIR nodes are:
-``Schedule``, ``Directive``, ``GlobalSum``, ``HaloExchange``, ``Loop``
-and ``Kern``. The ``Schedule`` class is further subclassed into
-``InvokeSchedule``. The ``Directive`` class is subclassed into many
-directives associated with OpenMP and OpenACC. The ``Kern`` class is
-subclassed into ``CodedKern``, ``InlinedKern`` and ``BuiltinKern``.
+the PSyIR backends. The generic (non-api-specific) PSy-layer PSyIR
+nodes are: ``InvokeSchedule``, ``Directive``, ``GlobalSum``,
+``HaloExchange``, ``Loop`` and ``Kern``. The ``Directive`` class is
+subclassed into many directives associated with OpenMP and
+OpenACC. The ``Kern`` class is subclassed into ``CodedKern``,
+``InlinedKern`` and ``BuiltinKern``.
 
 
 Kernel-layer nodes
@@ -210,7 +210,7 @@ in some cases children must be collected together within a
 ``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
 
 To simplify this complexity, each of the Kernel-layer nodes which
-contain other nodes have a ``static`` ``create`` method which helps
+contain other nodes have a static ``create`` method which helps
 construct the PSyIR using a bottom up approach. Using this method, the
 above example then becomes::
   
