@@ -5422,10 +5422,10 @@ class IfBlock(Node):
         :param if_condition: the PSyIR node containing the if \
             condition of the if block.
         :type if_condition: :py:class:`psyclone.psyGen.Node`
-        :param if_body: the PSyIR node containing the if body of \
+        :param if_body: the PSyIR nodes representing the if body of \
             the if block.
         :type if_body: list of :py:class:`psyclone.psyGen.Node`
-        :param else_body: PSyIR node containing the else body of the \
+        :param else_body: PSyIR nodes representing the else body of the \
             if block of None if there is no else body (defaults to None).
         :type else_body: list of :py:class:`psyclone.psyGen.Node` or \
             NoneType
