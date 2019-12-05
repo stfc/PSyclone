@@ -139,7 +139,8 @@ def test_openmp_loop_fuse_trans():
 def test_loop_fuse_different_spaces():
     ''' Test that we raise an error if we attempt to fuse loops that are
     over different grid-point types '''
-    _, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
+    _, invoke = get_invoke("fuse_different_spaces_test.f90", API,
+                           name="invoke_0")
     schedule = invoke.schedule
     lftrans = GOceanLoopFuseTrans()
     with pytest.raises(TransformationError):

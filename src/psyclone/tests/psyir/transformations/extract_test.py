@@ -631,7 +631,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     otrans = DynamoOMPParallelLoopTrans()
 
     psy, invoke = get_invoke("4.8_multikernel_invokes.f90",
-                             DYNAMO_API, idx=0, dist_mem=True)
+                             DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # First colour all of the loops over cells unless they are on

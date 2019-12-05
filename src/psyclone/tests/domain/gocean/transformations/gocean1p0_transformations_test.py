@@ -1463,7 +1463,7 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
     psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
-                             "dynamo0.3", idx=0)
+                             "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[3])
 
