@@ -5840,8 +5840,10 @@ class Reference(Node):
             symbol_table = test_node.symbol_table
             if self.name in symbol_table:
                 return
+            # Do we have any Containers that might define the Symbol?
+            # TODO
+            # csymbols = symbol_table.container_symbols
             test_node = test_node.ancestor(Schedule)
-
         raise SymbolError(
             "Undeclared reference '{0}' found.".format(self.name))
 
