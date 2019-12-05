@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified by: J. Henrichs, Bureau of Meteorology
+#              A. R. Porter, STFC Daresbury Lab
 
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.

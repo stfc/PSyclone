@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a

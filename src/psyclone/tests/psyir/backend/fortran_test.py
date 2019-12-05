@@ -140,8 +140,10 @@ def test_gen_datatype(datatype, result):
      (DataType.INTEGER, 8, "integer*8"),
      (DataType.REAL, 16, "real*16"),
      (DataType.REAL, DataSymbol.Precision.DOUBLE, "double precision"),
-     (DataType.INTEGER, DataSymbol("i_def", DataType.INTEGER), "integer(kind=i_def)"),
-     (DataType.REAL, DataSymbol("r_def", DataType.INTEGER), "real(kind=r_def)")])
+     (DataType.INTEGER, DataSymbol("i_def", DataType.INTEGER),
+      "integer(kind=i_def)"),
+     (DataType.REAL, DataSymbol("r_def", DataType.INTEGER),
+      "real(kind=r_def)")])
 def test_gen_datatype_precision(datatype, precision, result):
     '''Check the gen_datatype function produces the expected datatypes when
     precision is specified.
@@ -163,7 +165,8 @@ def test_gen_datatype_precision(datatype, precision, result):
 #     '''
 #     import logging
 #     with caplog.at_level(logging.WARNING):
-#         symbol = Symbol("dummy", DataType.INTEGER,precision=Symbol.Precision.DOUBLE)
+#         symbol = Symbol("dummy", DataType.INTEGER,
+#                         precision=Symbol.Precision.DOUBLE)
 #         _ = gen_datatype(symbol)
 #         assert (
 #             "WARNING  Fortran does not support relative precision for the "

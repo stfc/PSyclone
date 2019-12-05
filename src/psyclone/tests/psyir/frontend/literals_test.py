@@ -48,7 +48,6 @@ from psyclone.psyGen import Node, Literal, CodeBlock
 
 @pytest.mark.parametrize("code, dtype", [("'hello'", DataType.CHARACTER),
                                          ("1", DataType.INTEGER),
-                                         ("1", DataType.INTEGER),
                                          ("1.0", DataType.REAL),
                                          (".tRue.", DataType.BOOLEAN),
                                          (".false.", DataType.BOOLEAN)])

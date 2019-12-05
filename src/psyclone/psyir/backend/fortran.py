@@ -59,7 +59,6 @@ for key, item in TYPE_MAP_FROM_FORTRAN.items():
     TYPE_MAP_TO_FORTRAN[item] = key
 
 
-
 def gen_intent(symbol):
     '''Given a DataSymbol instance as input, determine the Fortran intent that
     the DataSymbol should have and return the value as a string.
