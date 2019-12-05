@@ -64,8 +64,7 @@ class RegionTrans(Transformation):
     valid_node_types = ()
 
     def validate(self, node_list, options=None):
-        '''
-        Checks that the nodes in node_list are valid for a region
+        '''Checks that the nodes in node_list are valid for a region
         transformation.
 
         :param node_list: list of PSyIR nodes or a single Schedule.
@@ -83,10 +82,12 @@ class RegionTrans(Transformation):
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
         :raises TransformationError: if the parent of the supplied Nodes is \
-                                     not a Schedule or a Directive.
-        :raises TransformationError: if the nodes are in a NEMO Schedule and \
-                                     the transformation acts on the child of \
-                                     a single-line If or Where statment.
+                not a Schedule or a Directive.
+        :raises TransformationError: if the nodes are in a NEMO \
+                Schedule and the transformation acts on the child of a \
+                single-line If or Where statment.
+        :raises TransformationError: if the supplied options are not a \
+                dictionary.
 
         '''
         # pylint: disable=too-many-branches
@@ -95,6 +96,10 @@ class RegionTrans(Transformation):
         from psyclone.psyir.transformations import TransformationError
         if not options:
             options = {}
+        if not isinstance(options, dict):
+            raise TransformationError(
+                "Transformation apply method options argument must be a "
+                "dictionary but found '{0}'.".format(type(options).__name__))
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:

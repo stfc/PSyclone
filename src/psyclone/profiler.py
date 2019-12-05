@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -41,7 +42,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn
+     NameSpaceFactory, Node, BuiltIn, InternalError
 
 
 class Profiler():
@@ -136,15 +137,20 @@ class Profiler():
 
 # =============================================================================
 class ProfileNode(Node):
-    '''
-    This class can be inserted into a schedule to create profiling code.
+    '''This class can be inserted into a schedule to create profiling code.
 
     :param children: a list of child nodes for this node. These will be made \
-                     children of the child Schedule of this Profile Node.
+        children of the child Schedule of this Profile Node.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
-                    or derived classes
+        or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py::class::`psyclone.psyGen.Node`
+    :param str region_name: the name to call this profile region. This \
+        name should be unique within this invoke unless aggregate \
+        information is required.
+    :param str location_name: a name describing the location of the \
+        invoke. This name should be unique for each invoke in this \
+        code unless aggregate information is required.
 
     '''
     # Profiling interface Fortran module
@@ -158,7 +164,7 @@ class ProfileNode(Node):
     # Root of the name to use for variables associated with profiling regions
     profiling_var = "psy_profile"
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, name=None):
         # A ProfileNode always contains a Schedule
         sched = self._insert_schedule(children)
         Node.__init__(self, children=[sched], parent=parent)
@@ -169,12 +175,26 @@ class ProfileNode(Node):
         # change every time gen() is called).
         self._var_name = NameSpaceFactory().create().create_name("profile")
 
-        # Name of the region. In general at constructor time we might not
-        # have a parent subroutine or a child for the kernel, so we leave
-        # the name empty for now. The region and module names are set the
-        # first time gen() is called (and then remain unchanged).
-        self._region_name = None
+        # Name of the region. In general at constructor time we might
+        # not have a parent subroutine or a child for the kernel, so
+        # the name is left empty, unless explicitly provided by the
+        # user. If names are not provided here then the region and
+        # module names are set the first time gen() is called (and
+        # then remain unchanged).
         self._module_name = None
+        self._region_name = None
+        if name:
+            # pylint: disable=too-many-boolean-expressions
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise InternalError(
+                    "Error in ProfileNode. Profile name must be a "
+                    "tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
+            # Valid profile names have been provided by the user.
+            self._module_name = name[0]
+            self._region_name = name[1]
 
         # Name and colour to use for this node
         self._text_name = "Profile"
@@ -198,7 +218,7 @@ class ProfileNode(Node):
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule, InternalError
+        from psyclone.psyGen import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
@@ -293,7 +313,7 @@ class ProfileNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, InternalError
+        from psyclone.psyGen import object_index
 
         # Ensure child nodes are up-to-date
         super(ProfileNode, self).update()
@@ -310,13 +330,16 @@ class ProfileNode(Node):
                                        Fortran2003.Specification_Part,
                                        Fortran2003.Use_Stmt,
                                        Fortran2003.Name])
-        for node in node_list:
-            if isinstance(node, (Fortran2003.Main_Program,
-                                 Fortran2003.Subroutine_Stmt,
-                                 Fortran2003.Function_Stmt)):
-                names = walk_ast([node], [Fortran2003.Name])
-                routine_name = str(names[0]).lower()
-                break
+        if self._module_name:
+            routine_name = self._module_name
+        else:
+            for node in node_list:
+                if isinstance(node, (Fortran2003.Main_Program,
+                                     Fortran2003.Subroutine_Stmt,
+                                     Fortran2003.Function_Stmt)):
+                    names = walk_ast([node], [Fortran2003.Name])
+                    routine_name = str(names[0]).lower()
+                    break
 
         for node in node_list:
             if isinstance(node, Fortran2003.Specification_Part):
@@ -402,7 +425,10 @@ class ProfileNode(Node):
         sched = self.root
         pnodes = sched.walk(ProfileNode)
         region_idx = pnodes.index(self)
-        region_name = "r{0}".format(region_idx)
+        if self._region_name:
+            region_name = self._region_name
+        else:
+            region_name = "r{0}".format(region_idx)
         var_name = "psy_profile{0}".format(region_idx)
 
         # Create a variable for this profiling region

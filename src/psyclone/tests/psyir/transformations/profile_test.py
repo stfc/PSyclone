@@ -44,11 +44,11 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace, InternalError
+from psyclone.psyGen import InternalError, Loop, NameSpace
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
-from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
 
 # -----------------------------------------------------------------------------
@@ -78,6 +78,19 @@ def test_malformed_profile_node(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = pnode.profile_body
     assert "malformed or incomplete. It should have a " in str(err.value)
+
+
+@pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
+                                   ("a", []), ([], "a")])
+def test_profile_node_invalid_name(value):
+    '''Test that the expected exception is raised when an invalid profile
+    name is provided to a ProfileNode.
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = ProfileNode(name=value)
+    assert ("Error in ProfileNode. Profile name must be a tuple containing "
+            "two non-empty strings." in str(excinfo.value))
 
 
 # -----------------------------------------------------------------------------
@@ -350,6 +363,23 @@ def test_profile_kernels_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
+def test_profile_named_gocean1p0():
+    '''Check that the gocean 1.0 API is instrumented correctly when the
+    profile name is supplied by the user.
+
+    '''
+    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                             "gocean1.0", idx=0)
+    schedule = invoke.schedule
+    profile_trans = ProfileTrans()
+    options = {"profile_name": (psy.name, invoke.name)}
+    _ = profile_trans.apply(schedule.children, options=options)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"psy_single_invoke_different_iterates_over\", "
+            "\"invoke_0\", profile)") in result
+
+
+# -----------------------------------------------------------------------------
 def test_profile_invokes_dynamo0p3():
     '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
@@ -464,6 +494,22 @@ def test_profile_kernels_dynamo0p3():
     # Check that the variables are different
     assert groups.group(1) != groups.group(2)
     Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_named_dynamo0p3():
+    '''Check that the Dynamo 0.3 API is instrumented correctly when the
+    profile name is supplied by the user.
+
+    '''
+    psy, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    schedule = invoke.schedule
+    profile_trans = ProfileTrans()
+    options = {"profile_name": (psy.name, invoke.name)}
+    _, _ = profile_trans.apply(schedule.children, options=options)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"single_invoke_psy\", "
+            "\"invoke_0_testkern_type\", profile)") in result
 
 
 # -----------------------------------------------------------------------------
