@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -126,8 +126,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "An iteration space must be in the form" in str(err)
-        assert "But got \"a:b\"" in str(err)
+        assert "An iteration space must be in the form" in str(err.value)
+        assert "But got \"a:b\"" in str(err.value)
 
     # Try a multi-line specification to make sure all lines are tested
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:4\n        d:e"
@@ -139,8 +139,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "An iteration space must be in the form" in str(err)
-        assert "But got \"d:e\"" in str(err)
+        assert "An iteration space must be in the form" in str(err.value)
+        assert "But got \"d:e\"" in str(err.value)
 
     # Invalid {} expression in first loop bound
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:3:4"
@@ -153,8 +153,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
-               "expression in an iteration space." in str(err)
-        assert "But got {X}" in str(err)
+               "expression in an iteration space." in str(err.value)
+        assert "But got {X}" in str(err.value)
 
     # Invalid {} expression in last loop bound:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:{Y}"
@@ -167,8 +167,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
-               "expression in an iteration space." in str(err)
-        assert "But got {Y}" in str(err)
+               "expression in an iteration space." in str(err.value)
+        assert "But got {Y}" in str(err.value)
 
     # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
@@ -181,7 +181,7 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
-            format(str(config_file)) in str(err)
+            format(str(config_file)) in str(err.value)
 
         for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
                   "REPRODUCIBLE_REDUCTIONS"]:
@@ -192,17 +192,17 @@ def test_invalid_config_files(tmpdir):
         GOLoop.add_bounds(1)
     # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <type 'int'>)" in str(err) or \
+           "(type <type 'int'>)" in str(err.value) or \
            "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <class 'int'>)" in str(err)
+           "(type <class 'int'>)" in str(err.value)
 
     # Test syntactically invalid loop boundaries
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1(:2:3:4")
-    assert "Expression '1(' is not a valid do loop boundary" in str(err)
+    assert "Expression '1(' is not a valid do loop boundary" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1:2:3:4+")
-    assert "Expression '4+' is not a valid do loop boundary" in str(err)
+    assert "Expression '4+' is not a valid do loop boundary" in str(err.value)
 
 
 # =============================================================================

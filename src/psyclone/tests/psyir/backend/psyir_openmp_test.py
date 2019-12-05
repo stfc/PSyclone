@@ -66,7 +66,11 @@ def test_nemo_omp_parallel():
 
     # Now apply a parallel transform
     omp_par = OMPParallelTrans()
-    omp_par.apply(schedule[0])
+    # Note that the loop is not handled as nemo kernel, so the
+    # omp node-type-check will find the assignment statement and
+    # prevent application of omp parallel to the loop. So
+    # disable the node type check so that omp parallel is applied.
+    omp_par.apply(schedule[0], {"node-type-check": False})
 
     fvisitor = FortranWriter()
     result = fvisitor(schedule)

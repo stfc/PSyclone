@@ -33,20 +33,23 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
 from __future__ import absolute_import
 
+import os
 import re
 import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace
+from psyclone.psyGen import Loop, NameSpace, InternalError, PSyFactory
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
     ProfileRegionTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
+from psyclone.parse.algorithm import parse
 
 
 # -----------------------------------------------------------------------------
@@ -63,6 +66,34 @@ def teardown_function():
     Profiler._namespace = NameSpace()
 
 
+def test_malformed_profile_node(monkeypatch):
+    ''' Check that we raise the expected error if a ProfileNode does not have
+    a single Schedule node as its child. '''
+    from psyclone.psyGen import Node
+    pnode = ProfileNode()
+    monkeypatch.setattr(pnode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        _ = pnode.profile_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        _ = pnode.profile_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+
+
+@pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
+                                   ("a", []), ([], "a")])
+def test_profile_node_invalid_name(value):
+    '''Test that the expected exception is raised when an invalid profile
+    name is provided to a ProfileNode.
+
+    '''
+    with pytest.raises(InternalError) as excinfo:
+        _ = ProfileNode(name=value)
+    assert ("Error in ProfileNode. Profile name must be a tuple containing "
+            "two non-empty strings." in str(excinfo.value))
+
+
 # -----------------------------------------------------------------------------
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
@@ -73,23 +104,24 @@ def test_profile_basic(capsys):
                            "gocean1.0", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
-    assert isinstance(invoke.schedule.children[0], ProfileNode)
+    assert isinstance(invoke.schedule[0], ProfileNode)
 
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = Loop().coloured_name(True)
-    profile = invoke.schedule.children[0].coloured_name(True)
+    profile = invoke.schedule[0].coloured_name(True)
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
         gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
         "    0: " + profile + "[]\n"
-        "        0: " + loop + "[type='outer', field_space='go_cv', "
+        "        " + sched + "[]\n"
+        "            0: " + loop + "[type='outer', field_space='go_cv', "
         "it_space='go_internal_pts']\n")
-
     assert expected in out
 
     prt = ProfileRegionTrans()
@@ -97,10 +129,9 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = prt.apply(invoke.schedule[0].children[0].loop_body)
+    new_sched, _ = prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
 
     new_sched_str = str(new_sched)
-
     correct = ("""GOInvokeSchedule[invoke='invoke_0', \
 Constant loop bounds=True]:
 ProfileStart[var=profile]
@@ -149,7 +180,8 @@ def test_profile_errors2():
 
     with pytest.raises(GenerationError) as gen_error:
         Profiler.set_options(["invalid"])
-    assert "options must be one of 'invokes', 'kernels'" in str(gen_error)
+    assert ("options must be one of 'invokes', 'kernels'"
+            in str(gen_error.value))
 
 
 # -----------------------------------------------------------------------------
@@ -162,7 +194,7 @@ def test_c_code_creation():
     with pytest.raises(NotImplementedError) as excinfo:
         profile_node.gen_c_code()
     assert "Generation of C code is not supported for profiling" \
-        in str(excinfo)
+        in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -332,6 +364,29 @@ def test_profile_kernels_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
+def test_profile_named_gocean1p0():
+    '''Check that the gocean 1.0 API is instrumented correctly when the
+    profile name is supplied by the user.
+
+    '''
+    gocean_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "test_files", "gocean1p0")
+    _, info = parse(os.path.join(
+        gocean_base_path,
+        "test11_different_iterates_over_one_invoke.f90"),
+                    api="gocean1.0")
+    psy = PSyFactory("gocean1.0").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileRegionTrans()
+    options = {"profile_name": (psy.name, invoke.name)}
+    _ = profile_trans.apply(schedule.children, options=options)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"psy_single_invoke_different_iterates_over\", "
+            "\"invoke_0\", profile)") in result
+
+
+# -----------------------------------------------------------------------------
 def test_profile_invokes_dynamo0p3():
     '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
@@ -449,6 +504,27 @@ def test_profile_kernels_dynamo0p3():
 
 
 # -----------------------------------------------------------------------------
+def test_profile_named_dynamo0p3():
+    '''Check that the Dynamo 0.3 API is instrumented correctly when the
+    profile name is supplied by the user.
+
+    '''
+    dynamo_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "test_files", "dynamo0p3")
+    _, info = parse(os.path.join(dynamo_base_path, "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileRegionTrans()
+    options = {"profile_name": (psy.name, invoke.name)}
+    _, _ = profile_trans.apply(schedule.children, options=options)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"single_invoke_psy\", "
+            "\"invoke_0_testkern_type\", profile)") in result
+
+
+# -----------------------------------------------------------------------------
 def test_transform(capsys):
     '''Tests normal behaviour of profile region transformation.'''
 
@@ -516,7 +592,7 @@ End Schedule""")
     assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
-    sched2, _ = prt.apply(schedule[0].children[1])
+    sched2, _ = prt.apply(schedule[0].profile_body[1])
 
     correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
 Constant loop bounds=True]:
@@ -572,22 +648,33 @@ ProfileEnd
 End Schedule""")
     assert correct in str(sched2)
 
-    # Check that an sublist created from individual elements
+    # Check that a sublist created from individual elements
     # can be wrapped
-    sched3, _ = prt.apply([sched2.children[0].children[0],
-                           sched2.children[0].children[1]])
+    sched3, _ = prt.apply([sched2[0].profile_body[0],
+                           sched2[0].profile_body[1]])
     sched3.view()
-    out, _ = capsys.readouterr()  # .replace("\n", "")
-    # out is unicode, and has no replace function, so convert to string first
-    out = str(out).replace("\n", "")
-    correct_re = (".*GOInvokeSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Profile.*"
-                  r"            .*Loop.*\[type='outer'.*"
-                  r"            .*Profile.*"
-                  r"                .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
-    assert re.search(correct_re, out)
+    out, _ = capsys.readouterr()
+
+    from psyclone.psyGen import SCHEDULE_COLOUR_MAP, colored
+    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+
+    indent = 4*" "
+    correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
+               indent + "0: " + prof + "[]\n" +
+               2*indent + sched + "[]\n" +
+               3*indent + "0: " + prof + "[]\n" +
+               4*indent + sched + "[]\n" +
+               5*indent + "0: " + loop + "[type='outer', field_space='go_ct',"
+               " it_space='go_internal_pts']\n")
+    assert correct in out
+    correct2 = (5*indent + "1: " + prof + "[]\n" +
+                6*indent + sched + "[]\n" +
+                7*indent + "0: " + loop + "[type='outer', field_space='go_cu',"
+                " it_space='go_all_pts']\n")
+    assert correct2 in out
 
 
 # -----------------------------------------------------------------------------
@@ -605,27 +692,28 @@ def test_transform_errors(capsys):
     with pytest.raises(TransformationError) as excinfo:
         prt.apply([schedule.children[0].children[0], schedule.children[1]])
     assert "supplied nodes are not children of the same parent." \
-           in str(excinfo)
+           in str(excinfo.value)
 
     # Supply not a node object:
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(5)
     assert "Argument must be a single Node in a schedule or a list of Nodes " \
            "in a schedule but have been passed an object of type: " \
-           in str(excinfo)
+           in str(excinfo.value)
     # Python 3 reports 'class', python 2 'type' - so just check for both
-    assert "<type 'int'>" in str(excinfo) or "<class 'int'>" in str(excinfo)
+    assert ("<type 'int'>" in str(excinfo.value) or "<class 'int'>"
+            in str(excinfo.value))
 
     # Test that it will only allow correctly ordered nodes:
     with pytest.raises(TransformationError) as excinfo:
         sched1, _ = prt.apply([schedule.children[1], schedule.children[0]])
     assert "Children are not consecutive children of one parent:" \
-           in str(excinfo)
+           in str(excinfo.value)
 
     with pytest.raises(TransformationError) as excinfo:
         sched1, _ = prt.apply([schedule.children[0], schedule.children[2]])
     assert "Children are not consecutive children of one parent:" \
-           in str(excinfo)
+           in str(excinfo.value)
 
     # Test 3 element lists: first various incorrect ordering:
     with pytest.raises(TransformationError) as excinfo:
@@ -633,14 +721,14 @@ def test_transform_errors(capsys):
                                schedule.children[2],
                                schedule.children[1]])
     assert "Children are not consecutive children of one parent:" \
-           in str(excinfo)
+           in str(excinfo.value)
 
     with pytest.raises(TransformationError) as excinfo:
         sched1, _ = prt.apply([schedule.children[1],
                                schedule.children[0],
                                schedule.children[2]])
     assert "Children are not consecutive children of one parent:" \
-           in str(excinfo)
+           in str(excinfo.value)
 
     # Just to be sure: also check that the right order does indeed work!
     sched1, _ = prt.apply([schedule.children[0],
@@ -676,7 +764,7 @@ def test_transform_errors(capsys):
         prt.apply(sched1[0].dir_body[0])
 
     assert "A ProfileNode cannot be inserted between an OpenMP/ACC directive "\
-           "and the loop(s) to which it applies!" in str(excinfo)
+           "and the loop(s) to which it applies!" in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -715,7 +803,7 @@ def test_omp_transform():
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
-    sched3, _ = prt.apply(sched3[0].children[0].dir_body[0])
+    sched3, _ = prt.apply(sched3[0].profile_body[0].dir_body[0])
 
     code = str(invoke.gen())
 

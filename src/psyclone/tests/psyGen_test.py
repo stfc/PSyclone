@@ -94,7 +94,7 @@ def test_object_index():
     assert object_index(my_list, two) == 1
     with pytest.raises(InternalError) as err:
         _ = object_index(my_list, None)
-    assert "Cannot search for None item in list" in str(err)
+    assert "Cannot search for None item in list" in str(err.value)
 
 # PSyFactory class unit tests
 
@@ -576,7 +576,7 @@ def test_sched_getitem():
     # Test index out-of-bounds Error
     with pytest.raises(IndexError) as err:
         _ = sched[len(sched._children)]
-    assert "list index out of range" in str(err)
+    assert "list index out of range" in str(err.value)
 
 
 def test_sched_can_be_printed():
@@ -620,7 +620,7 @@ def test_sched_ocl_setter():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
-    assert "Schedule.opencl must be a bool but got " in str(err)
+    assert "Schedule.opencl must be a bool but got " in str(err.value)
 
 
 def test_invokeschedule_can_be_printed():
@@ -697,7 +697,8 @@ def test_kern_abstract_methods():
     my_kern.load_meta(metadata)
     with pytest.raises(NotImplementedError) as err:
         super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
-    assert "gen_arg_setter_code must be implemented by sub-class" in str(err)
+    assert ("gen_arg_setter_code must be implemented by sub-class"
+            in str(err.value))
 
 
 def test_call_abstract_methods():
@@ -738,14 +739,16 @@ def test_arguments_abstract():
     my_arguments = Arguments(None)
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.acc_args
-    assert "Arguments.acc_args must be implemented in sub-class" in str(err)
+    assert ("Arguments.acc_args must be implemented in sub-class"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.scalars
-    assert "Arguments.scalars must be implemented in sub-class" in str(err)
+    assert ("Arguments.scalars must be implemented in sub-class"
+            in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.raw_arg_list()
     assert ("Arguments.raw_arg_list must be implemented in sub-class"
-            in str(err))
+            in str(err.value))
 
 
 def test_incremented_arg():
@@ -974,7 +977,7 @@ def test_reduction_var_error():
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
         assert ("zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer']") in str(err)
+                "'gh_integer']") in str(err.value)
 
 
 def test_reduction_sum_error():
@@ -993,7 +996,8 @@ def test_reduction_sum_error():
             call.reduction_sum_loop(None)
         assert (
             "unsupported reduction access 'gh_write' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)
+            "reduction_sum_loop(). Expected one of '['gh_sum']"
+            in str(err.value))
 
 
 def test_call_multi_reduction_error(monkeypatch):
@@ -1014,7 +1018,7 @@ def test_call_multi_reduction_error(monkeypatch):
                            distributed_memory=dist_mem).create(invoke_info)
         assert (
             "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err))
+            "or builtin" in str(err.value))
 
 
 def test_invoke_name():
@@ -1921,7 +1925,7 @@ def test_directive_get_private(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
     assert ("call 'testkern_code' has a local variable but its name is "
-            "not set" in str(err))
+            "not set" in str(err.value))
 
 
 def test_node_is_valid_location():
@@ -1996,14 +2000,25 @@ def test_node_is_valid_location():
 
 
 def test_node_ancestor():
-    ''' Test the Node.ancestor() method '''
+    ''' Test the Node.ancestor() method. '''
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched[0].loop_body[0].loop_body[0]
     node = kern.ancestor(Node)
     assert isinstance(node, Schedule)
-    node = kern.ancestor(Node, excluding=[Schedule])
-    assert node is sched.children[0].loop_body[0]
+    # If 'excluding' is supplied then it can only be a single type or a
+    # tuple of types
+    node = kern.ancestor(Node, excluding=Schedule)
+    assert node is sched[0].loop_body[0]
+    node = kern.ancestor(Node, excluding=(Schedule,))
+    assert node is sched[0].loop_body[0]
+    with pytest.raises(TypeError) as err:
+        kern.ancestor(Node, excluding=[Schedule])
+    assert ("argument to ancestor() must be a type or a tuple of types but "
+            "got: 'list'" in str(err.value))
+    # Check that the include_self argument behaves as expected
+    node = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
+    assert node is kern
 
 
 def test_dag_names():
@@ -2228,7 +2243,7 @@ def test_acc_datadevice_virtual():
         ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
-            "methods data_on_device" in str(err))
+            "methods data_on_device" in str(err.value))
 
 # (1/1) Method node_str
 # Covered in test test_acc_dir_node_str
@@ -2772,7 +2787,7 @@ def test_node_abstract_methods():
     loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop, parent=None)
-    assert "Please implement me" in str(err)
+    assert "Please implement me" in str(err.value)
 
 
 def test_node_coloured_name():
@@ -2957,8 +2972,9 @@ def test_codeblock_structure(structure):
 def test_loop_navigation_properties():
     # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
-    setter and getter properties'''
-    # pylint: disable=too-many-statements
+    setter and getter properties.
+
+    '''
     loop = Loop()
 
     # Properties return an error if the node is incomplete
@@ -3045,7 +3061,7 @@ def test_loop_invalid_type():
     with pytest.raises(GenerationError) as err:
         loop.loop_type = "not_a_valid_type"
     assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err))
+            "['inner', 'outer']" in str(err.value))
 
 
 def test_loop_gen_code():
@@ -3213,7 +3229,7 @@ def test_assignment_semantic_navigation():
     with pytest.raises(InternalError) as err:
         _ = assignment.lhs
     assert "' malformed or incomplete. It needs at least 1 child to have " \
-        "a lhs." in str(err)
+        "a lhs." in str(err.value)
 
     ref = Reference("a", assignment)
     assignment.addchild(ref)
@@ -3222,7 +3238,7 @@ def test_assignment_semantic_navigation():
     with pytest.raises(InternalError) as err:
         _ = assignment.rhs
     assert " malformed or incomplete. It needs at least 2 children to have " \
-        "a rhs." in str(err)
+        "a rhs." in str(err.value)
 
     lit = Literal("1", assignment)
     assignment.addchild(lit)
@@ -3367,7 +3383,7 @@ def test_binaryoperation_initialization():
     with pytest.raises(TypeError) as err:
         _ = BinaryOperation("not an operator")
     assert "BinaryOperation operator argument must be of type " \
-           "BinaryOperation.Operator but found" in str(err)
+           "BinaryOperation.Operator but found" in str(err.value)
     bop = BinaryOperation(BinaryOperation.Operator.ADD)
     assert bop._operator is BinaryOperation.Operator.ADD
 
@@ -3416,7 +3432,7 @@ def test_unaryoperation_initialization():
     with pytest.raises(TypeError) as err:
         _ = UnaryOperation("not an operator")
     assert "UnaryOperation operator argument must be of type " \
-           "UnaryOperation.Operator but found" in str(err)
+           "UnaryOperation.Operator but found" in str(err.value)
     uop = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert uop._operator is UnaryOperation.Operator.MINUS
 
@@ -3612,3 +3628,26 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
     assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
+
+
+def test_walk():
+    '''Tests the walk functionality.'''
+
+    # This function contains only umask(ji,jj,jk) = ji*jj*jk/r
+    _, invoke = get_invoke("explicit_do.f90", "nemo", 0)
+
+    # Test without stop type: one assignment
+    assignment_list = invoke.schedule.walk(Assignment)
+    assert len(assignment_list) == 1
+
+    # Three binary operators: *, *, /
+    binary_op_list = invoke.schedule.walk(BinaryOperation)
+    assert len(binary_op_list) == 3
+
+    # Now the same tests, but stop at any Kern --> no assignment
+    # or binary operation should be found"
+    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assert not assignment_list
+
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    assert not binary_op_list

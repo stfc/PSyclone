@@ -46,8 +46,8 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
     GenerationError
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolError, \
+    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -494,9 +494,25 @@ class Fparser2Reader(object):
                               Fortran2003.Int_Literal_Constant):
                     shape.append(int(dim.items[1].items[0]))
                 elif isinstance(dim.items[1], Fortran2003.Name):
-                    sym = symbol_table.lookup(dim.items[1].string)
-                    if sym.datatype != 'integer' or sym.shape:
-                        _unsupported_type_error(dimensions)
+                    # Fortran does not regulate the order in which variables
+                    # may be declared so it's possible for the shape
+                    # specification of an array to reference variables that
+                    # come later in the list of declarations. The reference
+                    # may also be to a symbol present in a parent symbol table
+                    # (e.g. if the variable is declared in an outer, module
+                    # scope).
+                    dim_name = dim.items[1].string.lower()
+                    try:
+                        sym = symbol_table.lookup(dim_name)
+                        if sym.datatype != 'integer' or sym.shape:
+                            _unsupported_type_error(dimensions)
+                    except KeyError:
+                        # We haven't seen this symbol before so create a new
+                        # one with a deferred interface (since we don't
+                        # currently know where it is declared).
+                        sym = DataSymbol(dim_name, "integer",
+                                         interface=UnresolvedInterface())
+                        symbol_table.add(sym)
                     shape.append(sym)
                 else:
                     _unsupported_type_error(dimensions)
@@ -516,7 +532,7 @@ class Fparser2Reader(object):
     def process_declarations(self, parent, nodes, arg_list):
         '''
         Transform the variable declarations in the fparser2 parse tree into
-        symbols in the PSyIR parent node symbol table.
+        symbols in the symbol table of the PSyIR parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -529,6 +545,8 @@ class Fparser2Reader(object):
                                      attributes which are not supported yet.
         :raises GenerationError: if the parse tree for a USE statement does \
                                  not have the expected structure.
+        :raises SymbolError: if a declaration is found for a Symbol that is \
+                    already in the symbol table with a defined interface.
         '''
         # Look at any USE statments
         for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
@@ -556,7 +574,7 @@ class Fparser2Reader(object):
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 for name in decl.items[4].items:
                     parent.symbol_table.add(
-                        DataSymbol(str(name), datatype='deferred',
+                        DataSymbol(str(name).lower(), datatype='deferred',
                                    interface=GlobalInterface(container)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
@@ -589,7 +607,7 @@ class Fparser2Reader(object):
             # 2) If no intent attribute is provided, it is provisionally
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
-            interface = None
+            interface = LocalInterface()
             # 3) Record initialized constant values
             has_constant_value = False
             if attr_specs:
@@ -660,16 +678,29 @@ class Fparser2Reader(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                parent.symbol_table.add(DataSymbol(str(name), datatype,
-                                                   shape=entity_shape,
-                                                   constant_value=ct_value,
-                                                   interface=interface,
-                                                   precision=precision))
+                sym_name = str(name).lower()
+
+                if sym_name not in parent.symbol_table:
+                    parent.symbol_table.add(DataSymbol(sym_name, datatype,
+                                                       shape=entity_shape,
+                                                       constant_value=ct_value,
+                                                       interface=interface,
+                                                       precision=precision))
+                else:
+                    # The symbol table already contains an entry with this name
+                    # so update its interface information.
+                    sym = parent.symbol_table.lookup(sym_name)
+                    if not sym.unresolved_interface:
+                        raise SymbolError(
+                            "Symbol '{0}' already present in SymbolTable with "
+                            "a defined interface ({1}).".format(
+                                sym_name, str(sym.interface)))
+                    sym.interface = interface
 
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
-            for arg_name in [x.string for x in arg_list]:
+            for arg_name in [x.string.lower() for x in arg_list]:
                 symbol = parent.symbol_table.lookup(arg_name)
                 if symbol.is_local:
                     # We didn't previously know that this Symbol was an
@@ -695,7 +726,7 @@ class Fparser2Reader(object):
         for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
-                symbol = parent.symbol_table.lookup(fn_name.string)
+                symbol = parent.symbol_table.lookup(fn_name.string.lower())
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
@@ -709,7 +740,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(array_name.string, parent=assignment)
+                    lhs = Array(array_name.string.lower(), parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript,
                                        nodes_parent=arg_list)
                     assignment.addchild(lhs)
@@ -824,23 +855,24 @@ class Fparser2Reader(object):
         :raises TypeError: if the Symbol Table already contains an entry for \
                        `name` and its datatype is not 'integer' or 'deferred'.
         '''
+        lower_name = name.lower()
         try:
-            kind_symbol = symbol_table.lookup(name)
-            if kind_symbol.datatype != "integer":
-                if kind_symbol.datatype != "deferred":
-                    raise TypeError(
-                        "SymbolTable already contains an entry for "
-                        "variable '{0}' used as a kind parameter but its "
-                        "type ('{1}') is not 'deferred' or 'integer'.".
-                        format(name, kind_symbol.datatype))
-                # Existing symbol had 'deferred' type
-                kind_symbol.datatype = "integer"
+            kind_symbol = symbol_table.lookup(lower_name)
+            if kind_symbol.datatype not in ["integer", "deferred"]:
+                raise TypeError(
+                    "SymbolTable already contains an entry for "
+                    "variable '{0}' used as a kind parameter but its "
+                    "type ('{1}') is not 'deferred' or 'integer'.".
+                    format(lower_name, kind_symbol.datatype))
+            # A KIND parameter must be of type integer so set it here (in case
+            # it was previously 'deferred')
+            kind_symbol.datatype = "integer"
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
-            # so create one.
-            # TODO: Issue #584, the statment below can cause double
-            # declarations.
-            kind_symbol = DataSymbol(name, "integer")
+            # so create one. We specify an UnresolvedInterface as we don't
+            # currently know how this symbol is brought into scope.
+            kind_symbol = DataSymbol(lower_name, "integer",
+                                     interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
 

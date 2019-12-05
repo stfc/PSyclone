@@ -46,7 +46,7 @@ from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule
+    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -420,7 +420,7 @@ class NemoInvokeSchedule(InvokeSchedule):
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
         result = "NemoInvokeSchedule():\n"
-        for entity in self._children:
+        for entity in self.children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
@@ -451,11 +451,22 @@ class NemoInvokeSchedule(InvokeSchedule):
         '''
         self._name_clashes_checked = value
 
+    def coded_kernels(self):
+        '''
+        Returns a list of all of the user-supplied kernels (as opposed to
+        builtins) that are beneath this node in the PSyIR. In the NEMO API
+        this means all instances of InlinedKern.
 
-class NemoKern(CodedKern):
+        :returns: all user-supplied kernel calls below this node.
+        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        '''
+        return self.walk(InlinedKern)
+
+
+class NemoKern(InlinedKern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the PSyIR. I.e. they have
-    no self._children but they do have a KernelSchedule.
+    NEMO code. As an inlined kernel it contains a Schedule as first
+    child.
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
@@ -469,26 +480,17 @@ class NemoKern(CodedKern):
     :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, psyir_nodes, parse_tree, parent=None):
-        # pylint: disable=super-init-not-called
-        from psyclone.psyGen import KernelSchedule
+        super(NemoKern, self).__init__(psyir_nodes)
         self._name = ""
         self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
-        # Create a kernel schedule
-        self._kern_schedule = KernelSchedule(self._name)
-        # Attach the PSyIR sub-tree to it
-        self._kern_schedule.children = psyir_nodes[:]
-        # Update the parent info for each node we've moved
-        for node in self._kern_schedule.children:
-            node.parent = self._kern_schedule
-        # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
-        # We therefore don't have any children.
-        self._children = []
+
         # Name and colour-code to use for displaying this node
-        self._text_name = "CodedKern"
-        self._colour_key = "CodedKern"
+        self._text_name = "InlinedKern"
+        self._colour_key = "InlinedKern"
         self._reduction = False
 
     @staticmethod
@@ -516,6 +518,16 @@ class NemoKern(CodedKern):
         # IO operations and routine calls) or loops. So if there is any
         # node in the result of the walk, this node can not be a kernel.
         return len(nodes) == 0
+
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the kernel code. The
+        kernel_schedule is created in the constructor and always exists.
+
+        :returns: the kernel schedule representing the inlined kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        '''
+        return self.children[0]
 
     def node_str(self, colour=True):
         '''
@@ -546,7 +558,7 @@ class NemoKern(CodedKern):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        self._kern_schedule.reference_accesses(var_accesses)
+        self.children[0].reference_accesses(var_accesses)
 
     @property
     def ast(self):
@@ -560,6 +572,19 @@ class NemoKern(CodedKern):
         :rtype: sub-class of :py:class:`fparser.two.utils.Base`
         '''
         return self._ast
+
+    def gen_code(self, parent):
+        '''This method must not be called for NEMO, since the actual
+        kernels are inlined.
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+
+        :raises InternalError: if this function is called.
+        '''
+        raise InternalError("NEMO kernels are assumed to be in-lined by "
+                            "default therefore the gen_code method should not "
+                            "have been called.")
 
 
 class NemoLoop(Loop):

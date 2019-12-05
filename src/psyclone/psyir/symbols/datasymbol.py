@@ -306,7 +306,7 @@ class DataSymbol(Symbol):
     @property
     def is_local(self):
         '''
-        :returns: wether the DataSymbol has a Local interface
+        :returns: whether the DataSymbol has a Local interface.
         :rtype: bool
 
         '''
@@ -315,7 +315,7 @@ class DataSymbol(Symbol):
     @property
     def is_global(self):
         '''
-        :returns: wether the DataSymbol has a Global interface
+        :returns: whether the DataSymbol has a Global interface.
         :rtype: bool
 
         '''
@@ -324,11 +324,20 @@ class DataSymbol(Symbol):
     @property
     def is_argument(self):
         '''
-        :returns: wether the DataSymbol has an Argument interface
+        :returns: whether the DataSymbol has an Argument interface.
         :rtype: bool
 
         '''
         return isinstance(self._interface, ArgumentInterface)
+
+    @property
+    def unresolved_interface(self):
+        '''
+        :returns: whether the DataSymbol has an unresolved interface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, UnresolvedInterface)
 
     @constant_value.setter
     def constant_value(self, new_value):
@@ -446,6 +455,13 @@ class LocalInterface(DataSymbolInterface):
 
     def __str__(self):
         return "Local"
+
+
+class UnresolvedInterface(DataSymbolInterface):
+    '''We have a data symbol but we don't know where it is declared.'''
+
+    def __str__(self):
+        return "Unresolved"
 
 
 class GlobalInterface(DataSymbolInterface):

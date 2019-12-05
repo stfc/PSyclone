@@ -47,7 +47,6 @@ from psyclone.psyGen import Container
 from psyclone.configuration import Config
 
 
-
 def create_dummy_module(path, filename="dummy_module.f90"):
     '''Utility to generate a simple Fortran module file with the given path
     and filename. The filename must be 'dummy_module.[f|F]90' (default) to
@@ -65,6 +64,7 @@ def create_dummy_module(path, filename="dummy_module.f90"):
     '''
     with open(os.path.join(path, filename), "w") as mfile:
         mfile.write(source)
+
 
 def test_containersymbol_initialisation():
     '''Test that a ContainerSymbol instance can be created when valid

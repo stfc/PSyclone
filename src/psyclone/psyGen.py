@@ -106,6 +106,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "HaloExchangeEnd": "yellow",
                        "BuiltIn": "magenta",
                        "CodedKern": "magenta",
+                       "InlinedKern": "magenta",
                        "Profile": "green",
                        "Extract": "green",
                        "If": "red",
@@ -1371,12 +1372,7 @@ class Node(object):
         :param int index: the position of this Node wrt its siblings or None.
 
         '''
-        # TODO #542 remove ProfileNode and ExtractNode from this check once
-        # they each have a Schedule.
-        from psyclone.profiler import ProfileNode
-        from psyclone.extractor import ExtractNode
-        if not isinstance(self.parent, (Schedule, ProfileNode, ExtractNode)) \
-           or index is None:
+        if not isinstance(self.parent, Schedule) or index is None:
             print("{0}{1}".format(self.indent(indent),
                                   self.node_str(colour=True)))
         else:
@@ -1502,15 +1498,23 @@ class Node(object):
             return True
         return False
 
-    def walk(self, my_type):
+    def walk(self, my_type, stop_type=None):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
-        instances of any classes in the tuple.
+        instances of any classes in the tuple. The recursion into the tree
+        is stopped if an instance of 'stop_type' (which is either a single
+        class or a tuple of classes) is found. This can be used to avoid
+        analysing e.g. inlined kernels, or as performance optimisation to
+        reduce the number of recursive calls.
 
         :param my_type: the class(es) for which the instances are collected.
-        :type my_type: either a single :py:class:`psyclone.Node` class\
-            or a tuple of such classes.
+        :type my_type: either a single :py:class:`psyclone.Node` class \
+            or a tuple of such classes
+        :param stop_type: class(es) at which recursion is halted (optional)."
+
+        :type stop_type: None or a single :py:class:`psyclone.Node` \
+            class or a tuple of such classes
 
         :returns: list with all nodes that are instances of my_type \
             starting at and including this node.
@@ -1519,33 +1523,58 @@ class Node(object):
         local_list = []
         if isinstance(self, my_type):
             local_list.append(self)
+
+        # Stop recursion further into the tree if an instance of a class
+        # listed in stop_type is found.
+        if stop_type and isinstance(self, stop_type):
+            return local_list
         for child in self.children:
-            local_list += child.walk(my_type)
+            local_list += child.walk(my_type, stop_type)
         return local_list
 
-    def ancestor(self, my_type, excluding=None):
+    def ancestor(self, my_type, excluding=None, include_self=False):
         '''
         Search back up tree and check whether we have an ancestor that is
         an instance of the supplied type. If we do then we return
-        it otherwise we return None. A list of (sub-) classes to ignore
-        may be provided via the `excluding` argument.
+        it otherwise we return None. An individual (or tuple of) (sub-)
+        class(es) to ignore may be provided via the `excluding` argument. If
+        include_self is True then the current node is included in the search.
 
-        :param type my_type: Class to search for.
-        :param list excluding: list of (sub-)classes to ignore or None.
-        :returns: First ancestor Node that is an instance of the requested \
-                  class or None if not found.
+        :param my_type: class(es) to search for.
+        :type my_type: type or tuple of types
+        :param tuple excluding: individual (or tuple of) (sub-)class(es) to \
+                                ignore or None.
+        :param bool include_self: whether or not to include this node in the \
+                                  search.
+
+        :returns: First ancestor Node that is an instance of any of the \
+                  requested classes or None if not found.
+        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+
+        :raises TypeError: if `excluding` is provided but is not a type or \
+                           tuple of types.
         '''
-        myparent = self.parent
+        if include_self:
+            myparent = self
+        else:
+            myparent = self.parent
+
+        if excluding is not None:
+            if isinstance(excluding, type):
+                excludes = (excluding, )
+            elif isinstance(excluding, tuple):
+                excludes = excluding
+            else:
+                raise TypeError(
+                    "The 'excluding' argument to ancestor() must be a type or "
+                    "a tuple of types but got: '{0}'".format(
+                        type(excluding).__name__))
+
         while myparent is not None:
             if isinstance(myparent, my_type):
-                matched = True
-                if excluding:
-                    # We have one or more sub-classes we must exclude
-                    for etype in excluding:
-                        if isinstance(myparent, etype):
-                            matched = False
-                            break
-                if matched:
+                if not (excluding and isinstance(myparent, excludes)):
+                    # This parent node is not an instance of an excluded
+                    # sub-class so return it
                     return myparent
             myparent = myparent.parent
         return None
@@ -1590,8 +1619,8 @@ class Node(object):
 
     def coded_kernels(self):
         '''
-        Returns a list of all of the user-supplied kernels that are beneath
-        this node in the PSyIR.
+        Returns a list of all of the user-supplied kernels (as opposed to
+        builtins) that are beneath this node in the PSyIR.
 
         :returns: all user-supplied kernel calls below this node.
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
@@ -1656,6 +1685,32 @@ class Node(object):
         '''
         for child in self._children:
             child.reference_accesses(var_accesses)
+
+    def _insert_schedule(self, children=None, ast=None):
+        '''
+        Utility method to insert a Schedule between this Node and the
+        supplied list of children.
+
+        :param children: nodes which will become children of the \
+                         new Schedule.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param ast: reference to fparser2 parse tree for associated \
+                    Fortran code.
+        :type ast: :py:class:`fparser.two.utils.Base`
+
+        :returns: the new Schedule node.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        '''
+        sched = Schedule(children=children, parent=self)
+        if children:
+            # If we have children then set the Schedule's AST pointer to
+            # point to the AST associated with them.
+            sched.ast = children[0].ast
+            for child in children:
+                child.parent = sched
+        else:
+            sched.ast = ast
+        return sched
 
 
 class Schedule(Node):
@@ -1952,15 +2007,7 @@ class Directive(Node):
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
-        sched = Schedule(children=children, parent=self)
-        if children:
-            # If we have children then set the Schedule's AST pointer to
-            # point to the AST associated with them.
-            sched.ast = children[0].ast
-            for child in children:
-                child.parent = sched
-        else:
-            sched.ast = ast
+        sched = self._insert_schedule(children, ast)
         super(Directive, self).__init__(ast, children=[sched], parent=parent)
         self._text_name = "Directive"
         self._colour_key = "Directive"
@@ -2675,7 +2722,28 @@ class OMPParallelDirective(OMPDirective):
             # We have at least two accesses. If the first one is a write,
             # assume the variable should be private:
             if accesses[0].access_type == AccessType.WRITE:
-                result.add(var_name.lower())
+                # Check if the write access is inside the parallel loop. If
+                # the write is outside of a loop, it is an assignment to
+                # a shared variable. Example where jpk is likely used
+                # outside of the parallel section later, so it must be
+                # declared as shared in order to have its value in other loops:
+                # !$omp parallel
+                # jpk = 100
+                # !omp do
+                # do ji = 1, jpk
+
+                # TODO #598: improve the handling of scalar variables.
+
+                # Go up the tree till we either find the InvokeSchedule,
+                # which is at the top, or a Loop statement (or no parent,
+                # which means we have reached the end of a called kernel).
+                parent = accesses[0].node.ancestor((Loop, InvokeSchedule),
+                                                   include_self=True)
+
+                if parent and isinstance(parent, Loop):
+                    # The assignment to the variable is inside a loop, so
+                    # declare it to be private
+                    result.add(var_name.lower())
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results
@@ -2802,7 +2870,7 @@ class OMPDoDirective(OMPDirective):
         # directive, we must have an OMPRegionDirective as an ancestor
         # somewhere back up the tree.
         if not self.ancestor(OMPParallelDirective,
-                             excluding=[OMPParallelDoDirective]):
+                             excluding=OMPParallelDoDirective):
             raise GenerationError("OMPOrphanLoopDirective must have an "
                                   "OMPRegionDirective as ancestor")
 
@@ -4390,6 +4458,36 @@ class CodedKern(Kern):
         self._modified = value
 
 
+class InlinedKern(Kern):
+    '''A class representing a kernel that is inlined. This is used by
+    the NEMO API, since the NEMO API has no function to call or parameters.
+    It has one child which stores the Schedule for the child nodes.
+
+    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+                        of this kernel.
+    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    '''
+
+    def __init__(self, psyir_nodes):
+        # pylint: disable=non-parent-init-called,super-init-not-called
+        schedule = Schedule(children=psyir_nodes, parent=self)
+        Node.__init__(self, children=[schedule])
+        # Update the parent info for each node we've moved
+        for node in schedule.children:
+            node.parent = schedule
+
+    def __str__(self):
+        return "inlined kern: " + self._name
+
+    @abc.abstractmethod
+    def local_vars(self):
+        '''
+        :returns: list of the variable (names) that are local to this kernel \
+                  (and must therefore be e.g. threadprivate if doing OpenMP)
+        :rtype: list of str
+        '''
+
+
 class BuiltIn(Kern):
     '''
     Parent class for all built-ins (field operations for which the user
@@ -5432,11 +5530,13 @@ class KernelSchedule(Schedule):
     '''
     A kernelSchedule is the parent node of the PSyIR for Kernel source code.
 
-    :param str name: Kernel subroutine name
+    :param str name: Kernel subroutine name.
+    :param parent: Parent of the KernelSchedule, defaults to None.
+    :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-    def __init__(self, name):
-        super(KernelSchedule, self).__init__(children=None, parent=None)
+    def __init__(self, name, parent=None):
+        super(KernelSchedule, self).__init__(children=None, parent=parent)
         self._name = name
 
     @property

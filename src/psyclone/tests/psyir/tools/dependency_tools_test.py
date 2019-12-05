@@ -70,7 +70,7 @@ def test_loop_parallelise_errors():
         # The loop object must be a Loop, not e.g. an int:
         loop = 1
         dep_tools.can_loop_be_parallelised(loop, "i")
-    assert "node must be an instance of class Loop but got" in str(err)
+    assert "node must be an instance of class Loop but got" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
