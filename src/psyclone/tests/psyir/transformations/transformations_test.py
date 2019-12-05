@@ -40,7 +40,7 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.psyGen import Node
+from psyclone.psyGen import Literal, Loop, Node, Reference, Schedule
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.transformations import ACCParallelTrans
@@ -105,7 +105,7 @@ def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
-    from psyclone.psyGen import IfBlock, Reference, Schedule
+    from psyclone.psyGen import IfBlock
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
     ifblock = IfBlock()
@@ -133,7 +133,7 @@ def test_ifblock_children_region():
 
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
-    from psyclone.psyGen import Loop, Schedule, Literal, Return
+    from psyclone.psyGen import Return
     from psyclone.transformations import LoopFuseTrans
     sch = Schedule()
     loop1 = Loop(variable_name="i", parent=sch)
@@ -174,7 +174,6 @@ def test_fusetrans_error_incomplete():
 def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
-    from psyclone.psyGen import Loop, Schedule, Literal
     from psyclone.transformations import LoopFuseTrans
 
     sch1 = Schedule()
@@ -207,7 +206,6 @@ def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if
         passed the wrong children of a Node. (e.g. those representing the
         bounds of a Loop.) '''
-    from psyclone.psyGen import Loop, Literal, Schedule
     # RegionTrans is abstract so use a concrete sub-class
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
@@ -273,7 +271,13 @@ def test_profile_trans_name(options):
 def test_profile_trans_invalid_name(value):
     '''Invalid name supplied to options argument.'''
     profile_trans = ProfileTrans()
+
+    # We need to have a schedule as parent, otherwise the node
+    # (with no parent) will not be allowed.
+    sched = Schedule()
+    node = Node(parent=sched)
+    sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
-        _ = profile_trans.apply(Node(), options={"profile_name": value})
+        _ = profile_trans.apply(node, options={"profile_name": value})
     assert ("User-supplied profile name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
