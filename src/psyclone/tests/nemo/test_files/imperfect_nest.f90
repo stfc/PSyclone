@@ -41,12 +41,12 @@
 program imperfect_nest
   USE dom_oce        ! ocean space and time domain
   implicit none
-  integer :: ji, jj, jk
+  integer :: ji, jj, jk, jn
   integer :: jpi, jpj, jpk, jpkm1
-  real, dimension(jpi,jpj,jpk) :: umask, vmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(in   ) ::   ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
-  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(in   ) ::   ptbb ! tracer (only used in kpass=2)
-  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(inout) ::   pta  ! tracer trend
+  real, dimension(jpi,jpj,jpk) :: umask, vmask, wmask
+  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
+  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptbb ! tracer (only used in kpass=2)
+  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: pta  ! tracer trend
   REAL(wp), DIMENSION(jpi,jpj)     ::   zdkt, zdk1t
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
   REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3   ! local scalars

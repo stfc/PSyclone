@@ -106,7 +106,7 @@ def test_profile_single_loop_named(parser):
     '''
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "use kind_mod, only: wp\n"
+                                      "integer :: ji, jpj\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
