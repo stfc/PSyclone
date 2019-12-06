@@ -44,6 +44,14 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyGen import Reference, BinaryOperation, Literal, \
     Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.psyir.symbols import DataType
+
+# Mapping from PSyIR data types to SIR types.
+# SIR does not seem to support the Character datatype. Boolean does
+# seem to be supported but there are no examples with the data value
+# so we don't include it here.
+TYPE_MAP_TO_SIR = {DataType.REAL: "BuiltinType.Float",
+                   DataType.INTEGER: "BuiltinType.Integer"}
 
 
 def gen_stencil(node):
@@ -403,10 +411,15 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         result = node.value
-        # There is an assumption here that the literal is a float (see
-        # #612).
-        return ("{0}make_literal_access_expr(\"{1}\", BuiltinType.Float)"
-                "".format(self._nindent, result))
+        try:
+            datatype = TYPE_MAP_TO_SIR[node.datatype]
+        except KeyError:
+            raise VisitorError(
+                "PSyIR type '{0}' has no representation in the SIR backend."
+                "".format(str(node.datatype)))
+        
+        return ("{0}make_literal_access_expr(\"{1}\", {2})"
+                "".format(self._nindent, result, datatype))
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
@@ -437,10 +450,16 @@ class SIRWriter(PSyIRVisitor):
                 isinstance(node.children[0], Literal)):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
-        result = node.children[0].value
-        # There is an assumption here that the literal is a float (see #612)
-        return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
-                "".format(self._nindent, oper, result))
+        literal = node.children[0]
+        if not literal.datatype in [DataType.REAL, DataType.INTEGER]:
+            # The '-' operator can only be applied to REAL and INTEGER datatypes
+            raise VisitorError(
+                "PSyIR type '{0}' does not work with the '-' operator."
+                "".format(str(literal.datatype)))
+        result = literal.value
+        datatype = TYPE_MAP_TO_SIR[literal.datatype]
+        return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
+                "".format(self._nindent, oper, result, datatype))
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in
