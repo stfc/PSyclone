@@ -64,6 +64,11 @@ class ContainerSymbol(Symbol):
         # always assign this interface to all ContainerSymbols, we may want
         # to pass the interface as a parameter when we have more than one.
         self._interface = FortranModuleInterface
+        # Set of data symbols that we know are accessed from this container.
+        self._datasymbols = set()
+        # Whether or not there is a wildcard import of all public symbols
+        # from this container (e.g. an unqualified USE of a module in Fortran).
+        self._has_wildcard_import = False
 
     @property
     def container(self):
@@ -85,6 +90,45 @@ class ContainerSymbol(Symbol):
             string += "not linked>"
         return string
 
+    def add_symbol_import(self, data_symbol):
+        ''' Add the supplied DataSymbol to the list of symbols accessed
+        from this Container.
+
+        :param data_symbol: the DataSymbol to add.
+        :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied object is not a DataSymbol.
+
+        '''
+        from psyclone.psyir.symbols.datasymbol import DataSymbol
+        if not isinstance(data_symbol, DataSymbol):
+            raise TypeError("Expected an argument of type DataSymbol but got:"
+                            " '{0}'".format(type(data_symbol).__name__))
+        self._datasymbols.add(data_symbol)
+
+    def add_wildcard_import(self):
+        ''' Adds a wildcard import to the list of symbols accessed from this
+        container. (i.e. all public symbols are imported into the current
+        scoping unit.)
+        '''
+        self._has_wildcard_import = True
+
+    @property
+    def imported_symbols(self):
+        '''
+        :returns: list of DataSymbols explicitly imported from this Container.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        return list(self._datasymbols)
+
+    @property
+    def has_wildcard_import(self):
+        '''
+        :returns: whether or not there is a wildcard import of all public
+                  symbols from this Container.
+        :rtype: bool
+        '''
+        return self._has_wildcard_import
 
 # Classes below are not exposed in the psyclone.psyir.symbols
 

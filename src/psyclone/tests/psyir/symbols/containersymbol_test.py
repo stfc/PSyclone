@@ -38,11 +38,15 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.containersymbols file '''
 
+from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError
-from psyclone.psyir.symbols.containersymbol import ContainerSymbolInterface, \
-    FortranModuleInterface
+from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
+    ContainerSymbolInterface, FortranModuleInterface
+from psyclone.psyir.symbols.datasymbol import DataSymbol
+from psyclone.psyir.symbols.datatypes import DataType
+
 from psyclone.psyGen import Container
 from psyclone.configuration import Config
 
@@ -73,10 +77,12 @@ def test_containersymbol_initialisation():
     sym = ContainerSymbol("my_mod")
     assert isinstance(sym, ContainerSymbol)
     assert sym.name == "my_mod"
-    assert not sym._reference  # Reference are not evaluated until told
+    assert not sym._reference  # References are not evaluated until told
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
     assert sym._interface == FortranModuleInterface
+    # Upon creation we have no associated datasymbols
+    assert sym._datasymbols == set()
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
@@ -164,3 +170,27 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     assert ("Error importing the Fortran module 'different_name_module' into "
             "a PSyIR container. The imported module has the unexpected name: "
             "'dummy_module'." in str(error.value))
+
+
+def test_containersymbol_importlist():
+    ''' Check the setters and getters for the imported-symbol list. '''
+    csym = ContainerSymbol("my_mod")
+    with pytest.raises(TypeError) as err:
+        csym.add_symbol_import(csym)
+    assert ("Expected an argument of type DataSymbol but got: "
+            "'ContainerSymbol'" in str(err.value))
+    assert csym.imported_symbols == []
+    assert not csym.has_wildcard_import
+    dsym1 = DataSymbol("var1", DataType.INTEGER)
+    csym.add_symbol_import(dsym1)
+    assert csym.imported_symbols == [dsym1]
+    dsym2 = DataSymbol("var2", DataType.REAL)
+    csym.add_symbol_import(dsym2)
+    assert dsym2 in csym.imported_symbols
+    # Try adding the same symbol again
+    csym.add_symbol_import(dsym2)
+    assert csym.imported_symbols.count(dsym2) == 1
+    assert len(csym.imported_symbols) == 2
+    assert not csym.has_wildcard_import
+    csym.add_wildcard_import()
+    assert csym.has_wildcard_import
