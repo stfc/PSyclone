@@ -101,13 +101,24 @@ def test_multi_use_stmt():
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
-                                 "use my_mod, only: var1, var2\n")
+                                 "use my_mod, only: var1, var2\n"
+                                 "use this_mod, only: var3\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     symtab = fake_parent.symbol_table
     csymbols = symtab.container_symbols
-    # Although there are 3 use statements, there are only 2 modules
+    # Although there are 4 use statements, there are only 2 modules
     assert len(csymbols) == 2
+    my_mod = symtab.lookup("my_mod")
+    assert not my_mod.has_wildcard_import
+    # Check that we have accumulated all imports
+    assert len(my_mod.imported_symbols) == 3
+    names = [sym.name for sym in my_mod.imported_symbols]
+    assert sorted(names) == ["some_var", "var1", "var2"]
+    this_mod = symtab.lookup("this_mod")
+    assert this_mod.has_wildcard_import
+    names = [sym.name for sym in this_mod.imported_symbols]
+    assert names == ["var3"]
 
 
 @pytest.mark.usefixtures("f2008_parser")

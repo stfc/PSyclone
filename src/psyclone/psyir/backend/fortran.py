@@ -44,7 +44,8 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
+    ContainerSymbol
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -238,26 +239,65 @@ class FortranWriter(PSyIRVisitor):
 
     '''
     def gen_use(self, symbol):
-        '''Create and return the Fortran use statement for this DataSymbol.
+        ''' Performs consistency checks and then creates and returns the
+        Fortran use statement(s) for this ContainerSymbol. If this symbol
+        has both a wildcard import and explicit imports then two use
+        statements are generated. (This means that when generating Fortran
+        from a PSyIR of existing Fortran code we replicate the structure of
+        the original.)
 
-        :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param symbol: the container symbol instance.
+        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-        :returns: the Fortran use statement as a string.
+        :returns: the Fortran use statement(s) as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol argument does not specify \
-        a use statement (its interface value is not a Global instance).
-
+        :raises VisitorError: if the symbol argument is not a ContainerSymbol.
+        :raises VisitorError: if a symbol listed as being imported from the \
+                    supplied container symbol does not have a GlobalInterface.
+        :raises VisitorError: if a symbol listed as being imported from the \
+                    supplied container has a GlobalInterface that references \
+                    a different container.
+        :raises VisitorError: if we fail to find a list of symbols to import \
+                    from the supplied container symbol and it is not marked \
+                    as having a wildcard import.
         '''
-        if not symbol.is_global:
-            raise VisitorError(
-                "gen_use() requires the symbol interface for symbol '{0}' to "
-                "be a Global instance but found '{1}'."
-                "".format(symbol.name, type(symbol.interface).__name__))
-
-        return "{0}use {1}, only : {2}\n".format(
-            self._nindent, symbol.interface.container_symbol.name, symbol.name)
+        if not isinstance(symbol, ContainerSymbol):
+            raise VisitorError("gen_use() expects a ContainerSymbol but got "
+                               "'{0}'".format(type(symbol).__name__))
+        # Construct the list of symbol names for the ONLY clause and perform
+        # consistency checks.
+        only_list = []
+        for dsym in symbol.imported_symbols:
+            if not dsym.is_global:
+                raise VisitorError(
+                    "Symbol '{0}' is marked as being imported from container "
+                    "'{1}' but has an interface of '{2}' rather than the "
+                    "expected Global interface.".format(
+                        dsym.name, symbol.name, type(dsym.interface).__name__))
+            if dsym.interface.container_symbol is not symbol:
+                raise VisitorError(
+                    "Container '{0}' lists symbol '{1}' among its imports but "
+                    "the global interface of that symbol refers to a different"
+                    " container ('{2}').".format(
+                        symbol.name, dsym.name,
+                        dsym.interface.container_symbol.name))
+            only_list.append(dsym.name)
+        # Another consistency check
+        if not only_list and not symbol.has_wildcard_import:
+            raise VisitorError("Failed to construct list of imported symbols "
+                               "for container '{0}' and yet it does not have "
+                               "a wildcard import.".format(symbol.name))
+        # Finally construct the use statements for this Container (module)
+        use_stmts = ""
+        if only_list:
+            use_stmts = "{0}use {1}, only : {2}\n".format(
+                self._nindent, symbol.name, ", ".join(sorted(only_list)))
+        # It's possible to have both explicit and wildcard imports from the
+        # same Fortran module.
+        if symbol.has_wildcard_import:
+            use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
+        return use_stmts
 
     def gen_vardecl(self, symbol):
         '''Create and return the Fortran variable declaration for this Symbol.
@@ -335,7 +375,7 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Use statements
-        for symbol in symbol_table.global_datasymbols:
+        for symbol in symbol_table.container_symbols:
             declarations += self.gen_use(symbol)
 
         # 2: Argument variable declarations

@@ -241,21 +241,61 @@ def test_gen_datatype_error(monkeypatch):
 def test_fw_gen_use(fort_writer):
     '''Check the FortranWriter class gen_use method produces the expected
     declaration. Also check that an exception is raised if the symbol
-    does not describe a use statement.
+    does not describe a Container.
 
     '''
+    container_symbol = ContainerSymbol("my_module")
     symbol = DataSymbol("dummy1", DataType.DEFERRED,
-                        interface=GlobalInterface(
-                            ContainerSymbol("my_module")))
-    result = fort_writer.gen_use(symbol)
+                        interface=GlobalInterface(container_symbol))
+    result = fort_writer.gen_use(container_symbol)
     assert result == "use my_module, only : dummy1\n"
 
-    symbol = DataSymbol("dummy1", DataType.INTEGER)
+    container_symbol.add_wildcard_import()
+    result = fort_writer.gen_use(container_symbol)
+    assert result == ("use my_module, only : dummy1\n"
+                      "use my_module\n")
+
+    symbol2 = DataSymbol("dummy2", DataType.DEFERRED,
+                         interface=GlobalInterface(container_symbol))
+    result = fort_writer.gen_use(container_symbol)
+    assert result == ("use my_module, only : dummy1, dummy2\n"
+                      "use my_module\n")
+
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer.gen_use(symbol)
-    assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
-            "be a Global instance but found 'LocalInterface'."
+        _ = fort_writer.gen_use(symbol2)
+    assert ("expects a ContainerSymbol but got 'DataSymbol'"
             in str(excinfo.value))
+
+
+def test_fw_gen_use_checks(fort_writer):
+    ''' Tests for the consistency checks within the FortranWriter.gen_use()
+    method. '''
+    from psyclone.psyir.symbols import LocalInterface
+    container = ContainerSymbol("my_module")
+    symbol = DataSymbol("dummy1", DataType.DEFERRED,
+                        interface=GlobalInterface(container))
+    # Make things inconsistent by changing the interface of the symbol
+    symbol._interface = LocalInterface()
+    with pytest.raises(VisitorError) as err:
+        _ = fort_writer.gen_use(container)
+    assert ("Symbol 'dummy1' is marked as being imported from container "
+            "'my_module' but has an interface of 'LocalInterface'"
+            in str(err.value))
+    container2 = ContainerSymbol("my_mod2")
+    # Change the interface of the symbol to point to the wrong container
+    symbol._interface = GlobalInterface(container2)
+    with pytest.raises(VisitorError) as err:
+        _ = fort_writer.gen_use(container)
+    assert ("Container 'my_module' lists symbol 'dummy1' among its imports "
+            "but the global interface of that symbol refers to a different "
+            "container ('my_mod2')" in str(err.value))
+    # container2 has no symbols associated with it and has not been marked
+    # as having a wildcard import
+    with pytest.raises(VisitorError) as err:
+        _ = fort_writer.gen_use(container2)
+    assert ("Failed to construct list of imported symbols for container "
+            "'my_mod2' and yet it does not have a wildcard import"
+            in str(err.value))
 
 
 def test_fw_gen_vardecl(fort_writer):
@@ -426,8 +466,7 @@ def test_fw_container_2(fort_writer):
 
     assert (
         "module test\n"
-        "  use test2_mod, only : a\n"
-        "  use test2_mod, only : b\n"
+        "  use test2_mod, only : a, b\n"
         "  real :: c\n"
         "  real :: d\n\n"
         "  contains\n"
