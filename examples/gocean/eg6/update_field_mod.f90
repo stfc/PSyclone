@@ -40,10 +40,10 @@ module update_field_mod
 
   type, extends(kernel_type) :: update_field
      type(go_arg), dimension(4) :: meta_args =             &
-          (/ go_arg(GO_WRITE, GO_CT,       GO_POINTWISE),  & ! field
-             go_arg(GO_READ,  GO_CT,       GO_POINTWISE),  & ! field
-             go_arg(GO_READ,  GO_CT,       GO_POINTWISE),  & ! field
-             go_arg(GO_READ,  GO_CT,       GO_POINTWISE)   & ! field
+          (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE),  & ! field
+             go_arg(GO_READ,      GO_CT, GO_POINTWISE),  & ! field
+             go_arg(GO_READ,      GO_CT, GO_POINTWISE),  & ! field
+             go_arg(GO_READ,      GO_CT, GO_POINTWISE)   & ! field
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
