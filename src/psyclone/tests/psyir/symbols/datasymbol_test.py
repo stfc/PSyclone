@@ -38,10 +38,12 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
+from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
+
+from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    SymbolError
+    DataType
 from psyclone.psyGen import InternalError, Container
 
 
@@ -50,122 +52,122 @@ def test_datasymbol_initialisation():
     given, otherwise raise relevant exceptions.'''
 
     # Test with valid arguments
-    assert isinstance(DataSymbol('a', 'real'), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real',
+    assert isinstance(DataSymbol('a', DataType.REAL), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL,
                                  precision=DataSymbol.Precision.DOUBLE),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', precision=4), DataSymbol)
-    kind = DataSymbol('r_def', 'integer')
-    assert isinstance(DataSymbol('a', 'real', precision=kind), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, precision=4), DataSymbol)
+    kind = DataSymbol('r_def', DataType.INTEGER)
+    assert isinstance(DataSymbol('a', DataType.REAL, precision=kind),
+                      DataSymbol)
     # real constants are not currently supported
-    assert isinstance(DataSymbol('a', 'integer'), DataSymbol)
-    assert isinstance(DataSymbol('a', 'integer', constant_value=0), DataSymbol)
-    assert isinstance(DataSymbol('a', 'integer', precision=4), DataSymbol)
-    assert isinstance(DataSymbol('a', 'character'), DataSymbol)
-    assert isinstance(DataSymbol('a', 'character', constant_value="hello"),
+    assert isinstance(DataSymbol('a', DataType.INTEGER), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.INTEGER, constant_value=0),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', 'boolean'), DataSymbol)
-    assert isinstance(DataSymbol('a', 'boolean', constant_value=False),
+    assert isinstance(DataSymbol('a', DataType.INTEGER, precision=4),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [None]), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [3]), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [3, None]), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', []), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [], precision=8), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [],
-                                 interface=ArgumentInterface()),
+    assert isinstance(DataSymbol('a', DataType.CHARACTER), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.CHARACTER,
+                                 constant_value="hello"), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.BOOLEAN), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.BOOLEAN, constant_value=False),
                       DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, [None]), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, [3]), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, [3, None]), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, []), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, [], precision=8),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, [],
+                                 interface=ArgumentInterface()), DataSymbol)
     assert isinstance(
-        DataSymbol('a', 'real', [],
+        DataSymbol('a', DataType.REAL, [],
                    interface=ArgumentInterface(
-                       ArgumentInterface.Access.READWRITE)),
-        DataSymbol)
+                       ArgumentInterface.Access.READWRITE)), DataSymbol)
     assert isinstance(
-        DataSymbol('a', 'real', [],
+        DataSymbol('a', DataType.REAL, [],
                    interface=ArgumentInterface(
-                       ArgumentInterface.Access.READ)),
-        DataSymbol)
+                       ArgumentInterface.Access.READ)), DataSymbol)
     my_mod = ContainerSymbol("my_mod")
     assert isinstance(
-        DataSymbol('a', 'deferred', interface=GlobalInterface(my_mod)),
+        DataSymbol('a', DataType.DEFERRED, interface=GlobalInterface(my_mod)),
         DataSymbol)
-    dim = DataSymbol('dim', 'integer', [])
-    assert isinstance(DataSymbol('a', 'real', [dim]), DataSymbol)
-    assert isinstance(DataSymbol('a', 'real', [3, dim, None]), DataSymbol)
+    dim = DataSymbol('dim', DataType.INTEGER, [])
+    assert isinstance(DataSymbol('a', DataType.REAL, [dim]), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, [3, dim, None]),
+                      DataSymbol)
 
 
 def test_datasymbol_init_errors():
     ''' Test that the Symbol constructor raises appropriate errors if supplied
     with invalid arguments. '''
     # Test with invalid arguments
-    with pytest.raises(NotImplementedError) as error:
+    with pytest.raises(TypeError) as error:
         DataSymbol('a', 'invalidtype', [], 'local')
-    assert (
-        "DataSymbol can only be initialised with {0} datatypes but found "
-        "'invalidtype'.".format(str(DataSymbol.valid_data_types))) in str(
-            error.value)
+    assert ("datatype of a DataSymbol must be specified using a DataType "
+            "but got: 'str'" in str(error.value))
 
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 3, [], 'local')
-    assert ("datatype of a DataSymbol must be specified using a str but got:"
-            in str(error.value))
+    assert ("datatype of a DataSymbol must be specified using a DataType "
+            "but got:" in str(error.value))
 
-    dim = DataSymbol('dim', 'integer', [])
+    dim = DataSymbol('dim', DataType.INTEGER, [])
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', 'real', shape=dim)
+        DataSymbol('a', DataType.REAL, shape=dim)
     assert "DataSymbol shape attribute must be a list." in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', 'real', ['invalidshape'])
+        DataSymbol('a', DataType.REAL, ['invalidshape'])
     assert ("DataSymbol shape list elements can only be 'DataSymbol', "
             "'integer' or 'None'.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        bad_dim = DataSymbol('dim', 'real', [])
-        DataSymbol('a', 'real', [bad_dim])
+        bad_dim = DataSymbol('dim', DataType.REAL, [])
+        DataSymbol('a', DataType.REAL, [bad_dim])
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        bad_dim = DataSymbol('dim', 'integer', [3])
-        DataSymbol('a', 'real', [bad_dim])
+        bad_dim = DataSymbol('dim', DataType.INTEGER, [3])
+        DataSymbol('a', DataType.REAL, [bad_dim])
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'integer', interface=ArgumentInterface(),
+        DataSymbol('a', DataType.INTEGER, interface=ArgumentInterface(),
                    constant_value=9)
     assert ("Error setting constant value for symbol 'a'. A DataSymbol with "
             "an ArgumentInterface can not have a constant value."
             in str(error.value))
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'integer', shape=[None], constant_value=9)
+        DataSymbol('a', DataType.INTEGER, shape=[None], constant_value=9)
     assert ("Error setting constant value for symbol 'a'. A DataSymbol with a"
             " constant value must be a scalar but a shape was found."
             in str(error.value))
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'integer', constant_value=9.81)
+        DataSymbol('a', DataType.INTEGER, constant_value=9.81)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'integer' which means the constant value is"
-            " expected to be") in str(error.value)
+            "instance datatype is 'DataType.INTEGER' which means the constant"
+            " value is expected to be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'character', constant_value=42)
+        DataSymbol('a', DataType.CHARACTER, constant_value=42)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'character' which means the constant value "
-            "is expected to be") in str(error.value)
+            "instance datatype is 'DataType.CHARACTER' which means the "
+            "constant value is expected to be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', 'boolean', constant_value="hello")
+        DataSymbol('a', DataType.BOOLEAN, constant_value="hello")
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'boolean' which means the constant value "
-            "is expected to be") in str(error.value)
+            "instance datatype is 'DataType.BOOLEAN' which means the constant"
+            " value is expected to be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
 
@@ -174,64 +176,51 @@ def test_datasymbol_precision_errors():
     ''' Check that invalid precision settings raise the appropriate errors in
     the DataSymbol constructor. '''
     with pytest.raises(ValueError) as err:
-        DataSymbol('a', 'integer', precision=0)
+        DataSymbol('a', DataType.INTEGER, precision=0)
     assert ("The precision of a DataSymbol when specified as an integer number"
             " of bytes must be > 0" in str(err.value))
     with pytest.raises(ValueError) as err:
-        DataSymbol('a', 'character', precision=1)
-    assert ("A DataSymbol of character type cannot have an associated "
+        DataSymbol('a', DataType.CHARACTER, precision=1)
+    assert ("A DataSymbol of DataType.CHARACTER type cannot have an associated"
+            " precision" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        DataSymbol('a', DataType.BOOLEAN, precision=1)
+    assert ("A DataSymbol of DataType.BOOLEAN type cannot have an associated "
             "precision" in str(err.value))
+    not_int = DataSymbol('b', DataType.REAL)
     with pytest.raises(ValueError) as err:
-        DataSymbol('a', 'boolean', precision=1)
-    assert ("A DataSymbol of boolean type cannot have an associated precision"
-            in str(err.value))
-    not_int = DataSymbol('b', 'real')
-    with pytest.raises(ValueError) as err:
-        DataSymbol('a', 'integer', precision=not_int)
+        DataSymbol('a', DataType.INTEGER, precision=not_int)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type "
             in str(err.value))
-    not_scalar = DataSymbol('b', 'integer', [2, 2])
+    not_scalar = DataSymbol('b', DataType.INTEGER, [2, 2])
     with pytest.raises(ValueError) as err:
-        DataSymbol('a', 'integer', precision=not_scalar)
+        DataSymbol('a', DataType.INTEGER, precision=not_scalar)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type but"
             in str(err.value))
     with pytest.raises(TypeError) as err:
-        DataSymbol('a', 'integer', precision="not-valid")
+        DataSymbol('a', DataType.INTEGER, precision="not-valid")
     assert ("DataSymbol precision must be one of integer, DataSymbol.Precision"
             " or DataSymbol but got" in str(err.value))
-
-
-def test_datasymbol_map():
-    '''Test the mapping variable in the DataSymbol class does not raise any
-    exceptions when it is used with the valid_data_types variable in
-    the DataSymbol class.
-
-    '''
-    # "deferred" is not supported in the mapping so we expect
-    # it to have 1 fewer entries than there are valid data types
-    assert len(DataSymbol.valid_data_types) == len(DataSymbol.mapping) + 1
-    for data_type in DataSymbol.valid_data_types:
-        if data_type not in ["deferred"]:
-            assert data_type in DataSymbol.mapping
 
 
 def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
-    symbol = DataSymbol("sname", "real")
-    assert "sname: <real, Scalar, Local>" in str(symbol)
+    symbol = DataSymbol("sname", DataType.REAL)
+    assert "sname: <DataType.REAL, Scalar, Local>" in str(symbol)
 
-    sym1 = DataSymbol("s1", "integer")
-    assert "s1: <integer, Scalar, Local>" in str(sym1)
+    sym1 = DataSymbol("s1", DataType.INTEGER)
+    assert "s1: <DataType.INTEGER, Scalar, Local>" in str(sym1)
 
-    sym2 = DataSymbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, Array['Unknown bound', 2, s1], Local>" in str(sym2)
+    sym2 = DataSymbol("s2", DataType.REAL, [None, 2, sym1])
+    assert "s2: <DataType.REAL, Array['Unknown bound', 2, s1], Local>" \
+        in str(sym2)
 
     my_mod = ContainerSymbol("my_mod")
-    sym3 = DataSymbol("s3", "real", interface=GlobalInterface(my_mod))
-    assert ("s3: <real, Scalar, Global(container='my_mod')"
+    sym3 = DataSymbol("s3", DataType.REAL, interface=GlobalInterface(my_mod))
+    assert ("s3: <DataType.REAL, Scalar, Global(container='my_mod')"
             in str(sym3))
 
     sym2._shape.append('invalid')
@@ -240,11 +229,12 @@ def test_datasymbol_can_be_printed():
     assert ("DataSymbol shape list elements can only be 'DataSymbol', "
             "'integer' or 'None', but found") in str(error.value)
 
-    sym3 = DataSymbol("s3", "integer", constant_value=12)
-    assert "s3: <integer, Scalar, Local, constant_value=12>" in str(sym3)
+    sym3 = DataSymbol("s3", DataType.INTEGER, constant_value=12)
+    assert "s3: <DataType.INTEGER, Scalar, Local, constant_value=12>" \
+        in str(sym3)
 
-    sym4 = DataSymbol("s4", "integer", interface=UnresolvedInterface())
-    assert "s4: <integer, Scalar, Unresolved>" in str(sym4)
+    sym4 = DataSymbol("s4", DataType.INTEGER, interface=UnresolvedInterface())
+    assert "s4: <DataType.INTEGER, Scalar, Unresolved>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():
@@ -254,21 +244,22 @@ def test_datasymbol_constant_value_setter():
     '''
 
     # Test with valid constant value
-    sym = DataSymbol('a', 'integer', constant_value=7)
+    sym = DataSymbol('a', DataType.INTEGER, constant_value=7)
     assert sym.constant_value == 7
     sym.constant_value = 9
     assert sym.constant_value == 9
 
-    sym = DataSymbol('a', 'real', constant_value=3.1415)
+    sym = DataSymbol('a', DataType.REAL, constant_value=3.1415)
     assert sym.constant_value == 3.1415
     sym.constant_value = 1.0
     assert sym.constant_value == 1.0
 
-    sym = DataSymbol('a', 'deferred')
+    sym = DataSymbol('a', DataType.DEFERRED)
     with pytest.raises(ValueError) as error:
         sym.constant_value = 1.0
     assert ("Error setting constant value for symbol 'a'. Constant values are"
-            " not supported for 'deferred' datatypes." in str(error.value))
+            " not supported for 'DataType.DEFERRED' datatypes."
+            in str(error.value))
 
 
 def test_datasymbol_is_constant():
@@ -276,7 +267,7 @@ def test_datasymbol_is_constant():
     constant value is set and False if it is not.
 
     '''
-    sym = DataSymbol('a', 'integer')
+    sym = DataSymbol('a', DataType.INTEGER)
     assert not sym.is_constant
     sym.constant_value = 9
     assert sym.is_constant
@@ -288,8 +279,8 @@ def test_datasymbol_scalar_array():
     is_array returns True if the DataSymbol is an array and False if not.
 
     '''
-    sym1 = DataSymbol("s1", "integer")
-    sym2 = DataSymbol("s2", "real", [None, 2, sym1])
+    sym1 = DataSymbol("s1", DataType.INTEGER)
+    sym2 = DataSymbol("s2", DataType.REAL, [None, 2, sym1])
     assert sym1.is_scalar
     assert not sym1.is_array
     assert not sym2.is_scalar
@@ -299,7 +290,7 @@ def test_datasymbol_scalar_array():
 def test_datasymbol_invalid_interface():
     ''' Check that the DataSymbol.interface setter rejects the supplied value
     if it is not a DataSymbolInterface. '''
-    sym = DataSymbol("some_var", "real")
+    sym = DataSymbol("some_var", DataType.REAL)
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
     assert "interface to a DataSymbol must be a DataSymbolInterface but" \
@@ -309,14 +300,14 @@ def test_datasymbol_invalid_interface():
 def test_datasymbol_interface():
     ''' Check the interface getter on a DataSymbol. '''
     my_mod = ContainerSymbol("my_mod")
-    symbol = DataSymbol("some_var", "real",
+    symbol = DataSymbol("some_var", DataType.REAL,
                         interface=GlobalInterface(my_mod))
     assert symbol.interface.container_symbol.name == "my_mod"
 
 
 def test_datasymbol_interface_access():
     ''' Tests for the DataSymbolInterface.access setter. '''
-    symbol = DataSymbol("some_var", "real",
+    symbol = DataSymbol("some_var", DataType.REAL,
                         interface=ArgumentInterface())
     symbol.interface.access = ArgumentInterface.Access.READ
     assert symbol.interface.access == ArgumentInterface.Access.READ
@@ -355,7 +346,8 @@ def test_datasymbol_copy():
     of the original symbol.
 
     '''
-    symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
+    symbol = DataSymbol("myname", DataType.REAL, shape=[1, 2],
+                        constant_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     new_symbol = symbol.copy()
@@ -371,13 +363,13 @@ def test_datasymbol_copy():
     # is not affected. Can't check constant_value yet as we have a
     # shape value
     new_symbol._name = "new"
-    new_symbol._datatype = "integer"
+    new_symbol._datatype = DataType.INTEGER
     new_symbol.shape[0] = 3
     new_symbol.shape[1] = 4
     new_symbol._interface = LocalInterface()
 
     assert symbol.name == "myname"
-    assert symbol.datatype == "real"
+    assert symbol.datatype == DataType.REAL
     assert symbol.shape == [1, 2]
     assert not symbol.constant_value
 
@@ -392,7 +384,8 @@ def test_datasymbol_copy():
 def test_datasymbol_copy_properties():
     '''Test that the DataSymbol copy_properties method works as expected.'''
 
-    symbol = DataSymbol("myname", "real", shape=[1, 2], constant_value=None,
+    symbol = DataSymbol("myname", DataType.REAL, shape=[1, 2],
+                        constant_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
 
@@ -402,13 +395,13 @@ def test_datasymbol_copy_properties():
     assert ("Argument should be of type 'DataSymbol' but found 'NoneType'."
             "") in str(excinfo.value)
 
-    new_symbol = DataSymbol("other_name", "integer", shape=[],
+    new_symbol = DataSymbol("other_name", DataType.INTEGER, shape=[],
                             constant_value=7)
 
     symbol.copy_properties(new_symbol)
 
     assert symbol.name == "myname"
-    assert symbol.datatype == "integer"
+    assert symbol.datatype == DataType.INTEGER
     assert symbol.shape == []
     assert symbol.is_local
     assert symbol.constant_value == 7
@@ -418,27 +411,32 @@ def test_datasymbol_resolve_deferred():
     ''' Test the datasymbol resolve_deferred method '''
 
     container = Container("dummy_module")
-    container.symbol_table.add(DataSymbol('a', 'integer'))
-    container.symbol_table.add(DataSymbol('b', 'real'))
-    container.symbol_table.add(DataSymbol('c', 'real', constant_value=3.14))
+    container.symbol_table.add(DataSymbol('a', DataType.INTEGER))
+    container.symbol_table.add(DataSymbol('b', DataType.REAL))
+    container.symbol_table.add(DataSymbol('c', DataType.REAL,
+                                          constant_value=3.14))
     module = ContainerSymbol("dummy_module")
     module._reference = container  # Manually linking the container
 
-    symbol = DataSymbol('a', 'deferred', interface=GlobalInterface(module))
+    symbol = DataSymbol('a', DataType.DEFERRED,
+                        interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype == "integer"
+    assert symbol.datatype == DataType.INTEGER
 
-    symbol = DataSymbol('b', 'deferred', interface=GlobalInterface(module))
+    symbol = DataSymbol('b', DataType.DEFERRED,
+                        interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype == "real"
+    assert symbol.datatype == DataType.REAL
 
-    symbol = DataSymbol('c', 'deferred', interface=GlobalInterface(module))
+    symbol = DataSymbol('c', DataType.DEFERRED,
+                        interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype == "real"
+    assert symbol.datatype == DataType.REAL
     assert symbol.constant_value == 3.14
 
     # Test with a symbol not defined in the linked container
-    symbol = DataSymbol('d', 'deferred', interface=GlobalInterface(module))
+    symbol = DataSymbol('d', DataType.DEFERRED,
+                        interface=GlobalInterface(module))
     with pytest.raises(SymbolError) as err:
         symbol.resolve_deferred()
     assert ("Error trying to resolve symbol 'd' properties. The interface "
@@ -446,7 +444,7 @@ def test_datasymbol_resolve_deferred():
             " of 'd' in that module." in str(err.value))
 
     # Test with a symbol which does not have a Global interface
-    symbol = DataSymbol('e', 'deferred', interface=LocalInterface())
+    symbol = DataSymbol('e', DataType.DEFERRED, interface=LocalInterface())
     with pytest.raises(NotImplementedError) as err:
         symbol.resolve_deferred()
     assert ("Error trying to resolve symbol 'e' properties, the lazy "
