@@ -236,22 +236,65 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        if self._module_name is None or self._region_name is None:
-            # Find the first kernel and use its name. In an untransformed
-            # Schedule there should be only one kernel, but if Profile is
-            # invoked after e.g. a loop merge more kernels might be there.
-            region_name = "unknown-kernel"
-            module_name = "unknown-module"
-            for kernel in self.walk(Kern):
-                region_name = kernel.name
-                if not isinstance(kernel, BuiltIn):
-                    # If the kernel is not a builtin then it has a module name.
-                    module_name = kernel.module_name
-                break
-            if self._region_name is None:
-                self._region_name = Profiler.create_unique_region(region_name)
-            if self._module_name is None:
-                self._module_name = module_name
+        module_name = self._module_name
+        if module_name is None:
+            # The user has not supplied a location name so return the
+            # psy-layer module name as this should be unique to each
+            # PSyclone algorithm file.
+            module_name = self.root.invoke.invokes.psy.name
+
+        region_name = self._region_name
+        if region_name is None:
+            # The user has not supplied a region name (to identify
+            # this particular invoke region).
+            invoke_name = self.root.invoke.name
+            # Determine whether this profile is nested within other
+            # profiles and if so, what depth.
+            parent_profile_nodes = 0
+            current = self
+            while current.parent:
+                if isinstance(current.parent, ProfileNode):
+                    parent_profile_nodes += 1
+                current = current.parent
+            # Determine whether there are nested profiles within this
+            # profile.
+            children_profile_nodes = self.children[0].walk(ProfileNode)
+            children_profile_nodes = len(children_profile_nodes)
+
+            from psyclone.psyGen import Kern
+            if self.parent is self.root and len(self.parent.children) == 1:
+                # This profile is for the whole invoke so return the
+                # invoke subroutine name.
+                region_name = invoke_name
+            elif len(self.walk(Kern)) == 1:
+                # This profile only has one kernel within it, so use
+                # kernel name.
+                my_kern = self.walk(Kern)[0]
+                my_kern_name = my_kern.name
+                if parent_profile_nodes:
+                    my_kern_name = "{0}[{1}]".format(my_kern_name,
+                                                     parent_profile_nodes)
+                elif children_profile_nodes:
+                    my_kern_name = "{0}[0]".format(my_kern_name)
+                kerns = self.root.walk(Kern)
+                same_kerns = [kern for kern in kerns if
+                              kern.name == my_kern_name]
+                if len(same_kerns) > 1:
+                    # The kernel is called more than once in this
+                    # invoke so add an index.
+                    idx = 0
+                    for kern in same_kerns:
+                        # Relies on each kern being its own instance
+                        # which is true at the moment but may not be
+                        # in the future.
+                        if kern is my_kern:
+                            break
+                        idx += 1
+                    my_kern_name = "{0}:{1}".format(my_kern_name, idx)
+                region_name = "{0}:{1}".format(invoke_name, my_kern_name)
+            else:
+                print ("Not implemented yet")
+                exit(1)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -264,8 +307,8 @@ class ProfileNode(Node):
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
-                             ["\"{0}\"".format(self._module_name),
-                              "\"{0}\"".format(self._region_name),
+                             ["\"{0}\"".format(module_name),
+                              "\"{0}\"".format(region_name),
                               self._var_name])
         parent.add(prof_start)
 

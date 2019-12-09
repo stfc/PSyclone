@@ -381,16 +381,21 @@ class Invokes(object):
     :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
 
     '''
-    def __init__(self, alg_calls, Invoke):
+    def __init__(self, alg_calls, Invoke, psy):
+        self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
-            my_invoke = Invoke(alg_invocation, idx)
+            my_invoke = Invoke(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
+
+    @property
+    def psy(self):
+        return self._psy
 
     @property
     def names(self):
@@ -601,7 +606,7 @@ class Invoke(object):
         return self._name+"("+", ".join([str(arg) for arg in
                                          self._alg_unique_args])+")"
 
-    def __init__(self, alg_invocation, idx, schedule_class,
+    def __init__(self, alg_invocation, idx, schedule_class, invokes,
                  reserved_names=None):
         '''Constructs an invoke object. Parameters:
 
@@ -618,6 +623,7 @@ class Invoke(object):
         :type reserved_names: List of strings.
         '''
 
+        self._invokes = invokes
         self._name = "invoke"
         self._alg_unique_args = []
 
@@ -684,6 +690,10 @@ class Invoke(object):
                     # need to change this logic at some point as we need to
                     # cope with writes determining the dofs that are used.
                     self._dofs[dof] = [kern_call, dofs[dof][0]]
+
+    @property
+    def invokes(self):
+        return self._invokes
 
     @property
     def name(self):

@@ -126,7 +126,7 @@ class GOPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = GOInvokes(invoke_info.calls)
+        self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -158,10 +158,10 @@ class GOInvokes(Invokes):
     :type alg_calls: OrderedDict of :py:class:`psyclone.parse.InvokeCall` \
                      objects.
     '''
-    def __init__(self, alg_calls):
+    def __init__(self, alg_calls, psy):
         if False:  # pylint: disable=using-constant-test
-            self._0_to_n = GOInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, GOInvoke)
+            self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
         # Loop over all of the kernels in all of the invoke() calls
@@ -208,10 +208,10 @@ class GOInvoke(Invoke):
                     contained in the Algorithm.
 
     '''
-    def __init__(self, alg_invocation, idx):
+    def __init__(self, alg_invocation, idx, invokes):
         if False:  # pylint: disable=using-constant-test
             self._schedule = GOInvokeSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
     @property
     def unique_args_arrays(self):

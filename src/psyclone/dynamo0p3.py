@@ -1437,7 +1437,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls)
+        self._invokes = DynamoInvokes(invoke_info.calls, self)
 
     @property
     def name(self):
@@ -1481,11 +1481,11 @@ class DynamoInvokes(Invokes):
     specific invoke class to the base class so it creates the one we
     require. '''
 
-    def __init__(self, alg_calls):
+    def __init__(self, alg_calls, psy):
         self._name_space_manager = NameSpaceFactory().create()
         if False:  # pylint: disable=using-constant-test
-            self._0_to_n = DynInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke)
+            self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
 class DynCollection(object):
@@ -4235,7 +4235,7 @@ class DynInvoke(Invoke):
     dynamo specific invocation code.
 
     '''
-    def __init__(self, alg_invocation, idx):
+    def __init__(self, alg_invocation, idx, invokes):
         '''
         :param alg_invocation: node in the AST describing the invoke call
         :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
@@ -4252,7 +4252,7 @@ class DynInvoke(Invoke):
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
-                        reserved_names=reserved_names_list)
+                        invokes, reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
         # list and stores it in the self._alg_unique_args
