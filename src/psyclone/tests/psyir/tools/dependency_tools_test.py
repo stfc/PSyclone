@@ -39,6 +39,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from psyclone.tests.utilities import get_invoke
 from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.psyGen import PSyFactory
 
@@ -326,3 +327,16 @@ def test_inout_parameters_nemo(parser):
 
     assert in_list1 == input_list
     assert out_list1 == output_list
+
+
+# -----------------------------------------------------------------------------
+def test_const_argument():
+    '''Check that using a const scalar as parameter works, i.e. is not
+    listed as input variable.'''
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           api="gocean1.0", idx=0)
+    dep_tools = DependencyTools()
+    input_list = dep_tools.get_input_parameters(invoke.schedule)
+    # Make sure the constant '0' is not listed
+    assert input_list == ['p_fld', 'p_fld%grid%subdomain%internal%xstop',
+                          'p_fld%grid%tmask']

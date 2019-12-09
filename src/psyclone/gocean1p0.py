@@ -957,7 +957,9 @@ class GOKern(CodedKern):
                 var_name = arg.name
 
             if arg.is_scalar():
-                var_accesses.add_access(var_name, arg.access, self)
+                # The argument is only a variable if it is not a constant:
+                if not arg.is_literal:
+                    var_accesses.add_access(var_name, arg.access, self)
             else:
                 # In case of an array for now add an arbitrary array
                 # reference so it is properly recognised as an array access
