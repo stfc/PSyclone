@@ -47,6 +47,7 @@
 '''
 
 from __future__ import print_function
+import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -57,7 +58,6 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
-import six
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
@@ -378,10 +378,9 @@ class GOInvokeSchedule(InvokeSchedule):
         '''
         if self._const_loop_bounds:
             return "istop"
-        else:
-            raise GenerationError(
-                "Refusing to supply name of inner loop upper bound "
-                "because constant loop bounds are not being used.")
+        raise GenerationError(
+            "Refusing to supply name of inner loop upper bound "
+            "because constant loop bounds are not being used.")
 
     @property
     def jloop_stop(self):
@@ -392,10 +391,9 @@ class GOInvokeSchedule(InvokeSchedule):
         '''
         if self._const_loop_bounds:
             return "jstop"
-        else:
-            raise GenerationError(
-                "Refusing to supply name of outer loop upper bound "
-                "because constant loop bounds are not being used.")
+        raise GenerationError(
+            "Refusing to supply name of outer loop upper bound "
+            "because constant loop bounds are not being used.")
 
     @property
     def const_loop_bounds(self):
@@ -869,7 +867,7 @@ class GOLoop(Loop):
 
 
 # pylint: disable=too-few-public-methods
-class GOBuiltInCallFactory(object):
+class GOBuiltInCallFactory():
     ''' A GOcean-specific built-in call factory. No built-ins
         are supported in GOcean at the moment. '''
 
@@ -883,7 +881,7 @@ class GOBuiltInCallFactory(object):
 
 
 # pylint: disable=too-few-public-methods
-class GOKernCallFactory(object):
+class GOKernCallFactory():
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
     the user-supplied kernel routine. '''
@@ -1575,7 +1573,7 @@ class GOKernelGridArgument(Argument):
         return None
 
 
-class GOStencil(object):
+class GOStencil():
     '''GOcean 1.0 stencil information for a kernel argument as obtained by
     parsing the kernel meta-data. The expected structure of the
     metadata and its meaning is provided in the description of the
@@ -2026,7 +2024,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                                          lhs=var+"%data_on_device",
                                          rhs=".true."))
                     obj_list.append(var)
-        return
 
 
 class GOSymbolTable(SymbolTable):
