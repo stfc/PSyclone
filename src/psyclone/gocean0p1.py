@@ -145,9 +145,7 @@ class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls, psy):
-        # pylint: disable=using-constant-test
-        if False:
-            self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
 

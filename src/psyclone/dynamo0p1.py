@@ -181,8 +181,7 @@ class DynamoInvokes(Invokes):
     ''' The Dynamo specific invokes class. This passes the Dynamo specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls, psy):
-        if False:
-            self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
@@ -192,7 +191,7 @@ class DynInvoke(Invoke):
         Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
     def __init__(self, alg_invocation, idx, invokes):
-        if False:
+        if True:
             self._schedule = DynInvokeSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule, invokes)
 

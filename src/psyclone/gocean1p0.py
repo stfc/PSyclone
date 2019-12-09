@@ -159,8 +159,7 @@ class GOInvokes(Invokes):
                      objects.
     '''
     def __init__(self, alg_calls, psy):
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
@@ -209,8 +208,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        self._schedule = GOInvokeSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
     @property
