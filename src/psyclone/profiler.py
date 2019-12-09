@@ -271,14 +271,15 @@ class ProfileNode(Node):
                 # kernel name.
                 my_kern = self.walk(Kern)[0]
                 my_kern_name = my_kern.name
-                if parent_profile_nodes:
-                    my_kern_name = "{0}[{1}]".format(my_kern_name,
-                                                     parent_profile_nodes)
-                elif children_profile_nodes:
-                    my_kern_name = "{0}[0]".format(my_kern_name)
                 kerns = self.root.walk(Kern)
                 same_kerns = [kern for kern in kerns if
                               kern.name == my_kern_name]
+
+                if parent_profile_nodes:
+                    my_kern_name = "{0}:d{1}".format(my_kern_name,
+                                                     parent_profile_nodes)
+                elif children_profile_nodes:
+                    my_kern_name = "{0}:d0".format(my_kern_name)
                 if len(same_kerns) > 1:
                     # The kernel is called more than once in this
                     # invoke so add an index.
@@ -290,11 +291,12 @@ class ProfileNode(Node):
                         if kern is my_kern:
                             break
                         idx += 1
-                    my_kern_name = "{0}:{1}".format(my_kern_name, idx)
+                    my_kern_name = "{0}:c{1}".format(my_kern_name, idx)
                 region_name = "{0}:{1}".format(invoke_name, my_kern_name)
             else:
-                print ("Not implemented yet")
-                exit(1)
+                start = self.profile_body[0].abs_position
+                end = self.profile_body[-1].abs_position
+                region_name = "{0}:{1}_{2}".format(invoke_name, start, end)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!

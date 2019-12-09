@@ -284,7 +284,7 @@ def test_unique_region_names():
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0:compute_cu_code:0\", profile\).*"
+                  r"\"invoke_0:compute_cu_code:c0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -292,7 +292,7 @@ def test_unique_region_names():
                   "end.*"
                   r"call ProfileEnd\(profile\).*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0:compute_cu_code:1\", profile_1\).*"
+                  r"\"invoke_0:compute_cu_code:c1\", profile_1\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -473,14 +473,14 @@ def test_profile_kernels_dynamo0p3():
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:testkern_code:0\", "
+                  r"\"invoke_0:testkern_code:c0\", "
                   r"(?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   r"call ProfileEnd\((?P=profile1)\).*"
                   r"call ProfileStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:testkern_code:1\", (?P<profile2>\w*)\).*"
+                  r"\"invoke_0:testkern_code:c1\", (?P<profile2>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -757,6 +757,40 @@ def test_transform_errors(capsys):
 
 
 # -----------------------------------------------------------------------------
+def test_region():
+    '''Tests that the profiling transform works correctly when a region of
+    code is specified that does not cover the full invoke and also
+    contains multiple kernels.
+
+    '''
+    _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
+                           "dynamo0.3", name="invoke_0")
+    schedule = invoke.schedule
+    prt = ProfileRegionTrans()
+    # Just halo exchanges.
+    _ = prt.apply(schedule[0:3])
+    # Two loops.
+    _ = prt.apply(schedule[1:3])
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:3_5\", profile)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:8_14\", profile_1)" in result)
+    # Make nested profiles.
+    _ = prt.apply(schedule[1].profile_body[1])
+    _ = prt.apply(schedule)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0\", profile_3)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:5_7\", profile)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:10_16\", profile_1)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:testkern_code:d2:c1\", profile_2)" in result)
+    
+
+# -----------------------------------------------------------------------------
 def test_omp_transform():
     '''Tests that the profiling transform works correctly with OMP
      parallelisation.'''
@@ -797,10 +831,10 @@ def test_omp_transform():
     code = str(invoke.gen())
 
     correct = '''      CALL ProfileStart("psy_test27_loop_swap", \
-"invoke_loop1:bc_ssh_code[0]", profile)
+"invoke_loop1:bc_ssh_code:d0", profile)
       !$omp parallel default(shared), private(i,j)
       CALL ProfileStart("psy_test27_loop_swap", \
-"invoke_loop1:bc_ssh_code[1]", profile_1)
+"invoke_loop1:bc_ssh_code:d1", profile_1)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop
