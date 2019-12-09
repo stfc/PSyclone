@@ -287,11 +287,24 @@ class FortranWriter(PSyIRVisitor):
             if not all(dim == DataSymbol.Extent.DEFERRED
                        for dim in symbol.shape):
                 raise VisitorError(
-                    "A Fortran array declaration must have all dimension "
-                    "extents defined or all deferred but symbol '{0}' has "
-                    "shape: '{1}'".format(symbol.name, symbol.shape))
+                    "A Fortran declaration of an allocatable array must have"
+                    " the extent of every dimension as 'DEFERRED' but "
+                    "symbol '{0}' has shape: {1}".format(symbol.name,
+                                                         symbol.shape))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
+        if DataSymbol.Extent.ATTRIBUTE in symbol.shape:
+            if not all(dim == DataSymbol.Extent.ATTRIBUTE
+                       for dim in symbol.shape):
+                # If we have an 'assumed-size' array then only the last
+                # dimension is permitted to have an 'ATTRIBUTE' extent
+                if symbol.shape.count(DataSymbol.Extent.ATTRIBUTE) != 1 or \
+                   symbol.shape[-1] != DataSymbol.Extent.ATTRIBUTE:
+                    raise VisitorError(
+                        "An assumed-size Fortran array must only have its "
+                        "last dimension unspecified (as 'ATTRIBUTE') but "
+                        "symbol '{0}' has shape: {1}".format(symbol.name,
+                                                             symbol.shape))
         dims = gen_dims(symbol)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
