@@ -54,9 +54,13 @@ class DataSymbol(Symbol):
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param list shape: shape of the symbol in column-major order (leftmost \
         index is contiguous in memory). Each entry represents an array \
-        dimension. If it is 'None' the extent of that dimension is unknown, \
-        otherwise it holds an integer literal or a reference to an integer \
-        symbol with the extent. If it is an empty list then the symbol \
+        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that \
+        dimension is unknown but can be obtained by querying the run-time \
+        system (e.g. using the SIZE intrinsic in Fortran). If it is \
+        DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
+        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
+        Fortran). Otherwise it holds an integer literal or a reference to an \
+        integer symbol with the extent. If it is an empty list then the symbol\
         represents a scalar.
     :param interface: object describing the interface to this symbol (i.e. \
         whether it is passed as a routine argument or accessed in some other \
@@ -80,11 +84,22 @@ class DataSymbol(Symbol):
     '''
     class Precision(Enum):
         '''
-        Enumeration for the different types of 'default' precision that may
+        Enumeration of the different types of 'default' precision that may
         be specified for a Symbol.
         '''
         SINGLE = 1
         DOUBLE = 2
+
+    class Extent(Enum):
+        '''
+        Enumeration of array shape extents that are unspecified at compile
+        time. When the extent must exist and is accessible via the run-time
+        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
+        current scope (e.g. the array may need to be allocated/malloc'd) it
+        is 'DEFERRED'.
+        '''
+        DEFERRED = 1
+        ATTRIBUTE = 2
 
     def __init__(self, name, datatype, shape=None, constant_value=None,
                  interface=None, precision=None):
@@ -133,9 +148,10 @@ class DataSymbol(Symbol):
                         "DataSymbols that are part of another symbol shape can"
                         " only be scalar integers, but found '{0}'."
                         "".format(str(dimension)))
-            elif not isinstance(dimension, (type(None), int)):
-                raise TypeError("DataSymbol shape list elements can only be "
-                                "'DataSymbol', 'integer' or 'None'.")
+            elif not isinstance(dimension, (self.Extent, int)):
+                raise TypeError(
+                    "DataSymbol shape list elements can only be "
+                    "'DataSymbol', 'integer' or DataSymbol.Extent.")
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
@@ -379,8 +395,8 @@ class DataSymbol(Symbol):
                     ret += dimension.name
                 elif isinstance(dimension, int):
                     ret += str(dimension)
-                elif dimension is None:
-                    ret += "'Unknown bound'"
+                elif isinstance(dimension, DataSymbol.Extent):
+                    ret += "'{0}'".format(dimension.name)
                 else:
                     raise InternalError(
                         "DataSymbol shape list elements can only be "
