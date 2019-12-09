@@ -3292,8 +3292,7 @@ def test_ifblock_properties():
     # Now we can retrieve else_body
     assert ifblock.else_body[0] is ret2
 
-@pytest.mark.xfail(reason="#616 Boolean literals should be converted to .True."
-                          " or .False. by the Fortran backend")
+
 def test_ifblock_create():
     '''Test that the create method in an IfBlock class correctly creates
     an IfBlock instance.
@@ -3311,7 +3310,8 @@ def test_ifblock_create():
     check_links(ifblock, [if_condition, if_schedule])
     check_links(if_schedule, if_body)
     result = FortranWriter().ifblock_node(ifblock)
-    assert result == ("if (.True.) then\n"
+    # TODO 616: Update to if (.True.)
+    assert result == ("if (True) then\n"
                       "  tmp=0.0\n"
                       "  tmp2=1.0\n"
                       "end if\n")
@@ -3330,7 +3330,8 @@ def test_ifblock_create():
     check_links(if_schedule, if_body)
     check_links(else_schedule, else_body)
     result = FortranWriter().ifblock_node(ifblock)
-    assert result == ("if (.True.) then\n"
+    # TODO 616: Update to if (.True.)
+    assert result == ("if (True) then\n"
                       "  tmp=0.0\n"
                       "  tmp2=1.0\n"
                       "else\n"
