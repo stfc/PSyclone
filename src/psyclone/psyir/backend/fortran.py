@@ -270,7 +270,8 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if the symbol does not specify a \
             variable declaration (it is not a local declaration or an \
             argument declaration).
-
+        :raises VisitorError: if the symbol has an array with a shape \
+            containing a mixture of DEFERRED and other extents.
         '''
         if not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
@@ -281,6 +282,12 @@ class FortranWriter(PSyIRVisitor):
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)
         if DataSymbol.Extent.DEFERRED in symbol.shape:
+            if not all(dim == DataSymbol.Extent.DEFERRED
+                       for dim in symbol.shape):
+                raise VisitorError(
+                    "A Fortran array declaration must have all dimension "
+                    "extents defined or all deferred but symbol '{0}' has "
+                    "shape: '{1}'".format(symbol.name, symbol.shape))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         dims = gen_dims(symbol)

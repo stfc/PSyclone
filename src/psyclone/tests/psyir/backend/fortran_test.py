@@ -316,6 +316,13 @@ def test_fw_gen_vardecl(fort_writer):
             "an Argument interface but found a 'UnresolvedInterface' "
             "interface." in str(excinfo.value))
 
+    # An array with a mixture of deferred and explicit extents
+    symbol = DataSymbol("dummy1", DataType.INTEGER,
+                        shape=[2, DataSymbol.Extent.DEFERRED])
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert "HOHo" in str(excinfo.value)
+
 
 def test_gen_decls(fort_writer):
     '''Check the FortranWriter class gen_decls method produces the
