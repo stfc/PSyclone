@@ -4601,18 +4601,18 @@ class Arguments(object):
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
 
-    def append(self, symbol):
-        ''' Append generic (non-api-specific) Arguments to the Argument list.
+    def append(self, argtype, name, access):
+        ''' Append generic (non-api-specific) KernelArguments to the Argument
+        list.
 
-        :param symbol: variable to be added at the end of the list.
-        :type symbol: :py:class:`psyclone.psyir.symbols.datasymol`
+        :param str argtype: specifies the appended Arg type.
+        :param str name: name of the appended argument.
+        :param access: specifies the appended Arg access.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
         '''
         from psyclone.parse.algorithm import Arg
-        from psyclone.parse.kernel import Descriptor
-        from psyclone.core.access_type import AccessType
-        arg = Arg("variable", symbol.name, symbol.name)
-        desc = Descriptor(AccessType.READWRITE, symbol.name)
-        argument = KernelArgument(desc, arg, self._parent_call)
+        arg = Arg(argtype, name, name)
+        argument = Argument(self._parent_call, arg, argtype)
         self.args.append(argument)
 
 

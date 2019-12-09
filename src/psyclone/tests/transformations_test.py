@@ -227,7 +227,7 @@ def test_kernelglobalstoarguments(monkeypatch):
     ''' Check the KernelGlobalsToArguments transformation '''
     from psyclone.tests.utilities import get_invoke
     from psyclone.transformations import KernelGlobalsToArguments
-    from psyclone.psyGen import KernelArgument
+    from psyclone.psyGen import Argument
     trans = KernelGlobalsToArguments()
     assert trans.name == "KernelGlobalsToArguments"
     assert str(trans) == "Convert the global variables used inside the " \
@@ -264,7 +264,7 @@ def test_kernelglobalstoarguments(monkeypatch):
     assert var.interface.container_symbol == container
 
     # 2) Has added the symbol as the last argument in the kernel call
-    assert isinstance(kernel.args[-1], KernelArgument)
+    assert isinstance(kernel.args[-1], Argument)
     assert kernel.args[-1].name == "rdt"
 
     # 3) Has converted the Kernel Schedule symbol into an argument which is
