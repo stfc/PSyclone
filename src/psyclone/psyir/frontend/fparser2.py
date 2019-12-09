@@ -600,6 +600,7 @@ class Fparser2Reader(object):
             interface = LocalInterface()
             # 3) Record initialized constant values
             has_constant_value = False
+            allocatable = False
             if attr_specs:
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
@@ -616,6 +617,8 @@ class Fparser2Reader(object):
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
+                        elif normalized_string == "allocatable":
+                            allocatable = True
                         else:
                             raise NotImplementedError(
                                 "Could not process {0}. Unrecognized "
@@ -642,6 +645,28 @@ class Fparser2Reader(object):
                         self._parse_dimensions(array_spec, parent.symbol_table)
                 else:
                     entity_shape = attribute_shape
+
+                if allocatable and not entity_shape:
+                    # We have an allocatable attribute on something that we
+                    # don't recognise as an array - this is not supported.
+                    raise NotImplementedError(
+                        "Could not process {0}. The 'allocatable' attribute is"
+                        " only supported on array declarations.".format(
+                            str(decl)))
+
+                for idx, extent in enumerate(entity_shape):
+                    if extent is None:
+                        if allocatable:
+                            entity_shape[idx] = DataSymbol.Extent.DEFERRED
+                        else:
+                            entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
+                    elif allocatable:
+                        # We have an allocatable array with a defined extent.
+                        # This is invalid Fortran.
+                        raise InternalError(
+                            "Invalid Fortran: '{0}'. An array with defined "
+                            "extent cannot have the ALLOCATABLE attribute.".
+                            format(str(decl)))
 
                 if initialisation:
                     if has_constant_value:

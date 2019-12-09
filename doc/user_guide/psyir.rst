@@ -176,17 +176,46 @@ The ``SymbolTable`` has the following interface:
 .. autoclass:: psyclone.psyir.symbols.SymbolTable
     :members:
 
-Where each element is a `Symbol` with an immutable name:
+Where each element is a ``Symbol`` with an immutable name:
 
 .. autoclass:: psyclone.psyir.symbols.Symbol
     :members:
 
-There are several `Symbol` sub-classes to represent different labeled entities
+There are several ``Symbol`` sub-classes to represent different labeled entities
 in the PSyIR. At the moment the available symbols are:
 
 - .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
+
+As described in the ``DataSymbol`` constructor, the ``shape``
+specification not only describes whether or not the ``Symbol`` is an
+array but also, if it is an array, captures what is known about how the extent
+(size) of each dimension is managed. This is necessary to distinguish
+between four cases:
+
+.. tabularcolumns:: |p{9cm}|L|
+
++--------------------------------------------+--------------------------------+
+|Description                                 | Entry in ``shape`` list        |
++============================================+================================+
+|An array has a static extent known at       | Integer ``Literal``            |
+|compile time.                               |                                |
++--------------------------------------------+--------------------------------+
+|An array has an extent defined by another   | ``Symbol``                     |
+|symbol.                                     |                                |
++--------------------------------------------+--------------------------------+
+|An array has a definite extent which is not | ``DataSymbol.Extent.ATTRIBUTE``|
+|known at compile time but can be queried    |                                |
+|at runtime.                                 |                                |
++--------------------------------------------+--------------------------------+
+|It is not known whether an array has memory | ``DataSymbol.Extent.DEFERRED`` |
+|allocated to it in the current scoping unit.|                                |
++--------------------------------------------+--------------------------------+
+
+(The distinction between the last two cases is necessary to allow the
+PSyIR Fortran backend to create correct code for a subroutine
+which is passed an allocatable array.)
 
 Creating PSyIR
 --------------

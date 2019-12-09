@@ -102,7 +102,8 @@ def test_gen_dims():
     arg = DataSymbol("arg", DataType.INTEGER,
                      interface=ArgumentInterface(
                          ArgumentInterface.Access.UNKNOWN))
-    symbol = DataSymbol("dummy", DataType.INTEGER, shape=[arg, 2, None],
+    symbol = DataSymbol("dummy", DataType.INTEGER,
+                        shape=[arg, 2, DataSymbol.Extent.ATTRIBUTE],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     assert gen_dims(symbol) == ["arg", "2", ":"]
@@ -261,7 +262,7 @@ def test_fw_gen_use(fort_writer):
 def test_fw_gen_vardecl(fort_writer):
     '''Check the FortranWriter class gen_vardecl method produces the
     expected declarations. Also check that an exception is raised if
-    the symbol does not describe a variable declaration statement.
+    the symbol does not describe a valid variable declaration statement.
 
     '''
     # Basic entry
@@ -269,19 +270,31 @@ def test_fw_gen_vardecl(fort_writer):
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer :: dummy1\n"
 
-    # Array with intent
-    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2],
+    # Assumed-size array with intent
+    symbol = DataSymbol("dummy2", DataType.INTEGER,
+                        shape=[2, 2, DataSymbol.Extent.ATTRIBUTE],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = fort_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,:,2), intent(in) :: dummy2\n"
+    assert result == "integer, dimension(2,2,:), intent(in) :: dummy2\n"
 
-    # Array with unknown intent
-    symbol = DataSymbol("dummy2", DataType.INTEGER, shape=[2, None, 2],
+    # Assumed-size array with unknown intent
+    symbol = DataSymbol("dummy2", DataType.INTEGER,
+                        shape=[2, 2, DataSymbol.Extent.ATTRIBUTE],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fort_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,:,2) :: dummy2\n"
+    assert result == "integer, dimension(2,2,:) :: dummy2\n"
+
+    # Allocatable array
+    symbol = DataSymbol("dummy2", DataType.REAL,
+                        shape=[DataSymbol.Extent.DEFERRED,
+                               DataSymbol.Extent.DEFERRED],
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
+    result = fort_writer.gen_vardecl(symbol)
+    assert result == \
+        "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n"
 
     # Constant
     symbol = DataSymbol("dummy3", DataType.INTEGER, constant_value=10)
@@ -306,6 +319,34 @@ def test_fw_gen_vardecl(fort_writer):
     assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
             "an Argument interface but found a 'UnresolvedInterface' "
             "interface." in str(excinfo.value))
+
+    # An array with a mixture of deferred and explicit extents
+    symbol = DataSymbol("dummy1", DataType.INTEGER,
+                        shape=[2, DataSymbol.Extent.DEFERRED])
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert ("Fortran declaration of an allocatable array must have the "
+            "extent of every dimension as 'DEFERRED' but symbol 'dummy1' "
+            "has shape: [2, " in str(excinfo.value))
+
+    # An assumed-size array must have only the extent of its outermost
+    # rank undefined
+    symbol = DataSymbol("dummy1", DataType.INTEGER,
+                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2])
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert ("assumed-size Fortran array must only have its last dimension "
+            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
+            in str(excinfo.value))
+    # With two dimensions unspecified, even though one is outermost
+    symbol = DataSymbol(
+        "dummy1", DataType.INTEGER,
+        shape=[2, DataSymbol.Extent.ATTRIBUTE, DataSymbol.Extent.ATTRIBUTE])
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_vardecl(symbol)
+    assert ("assumed-size Fortran array must only have its last dimension "
+            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
+            in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):
