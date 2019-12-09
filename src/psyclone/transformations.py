@@ -4449,3 +4449,4 @@ class KernelGlobalsToArguments(Transformation):
             symtab.specify_argument_list(current_arg_list)
 
             # Add the Global variable in the call argument list
+            node.arguments.append(globalvar)
