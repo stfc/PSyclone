@@ -1810,7 +1810,8 @@ class InvokeSchedule(Schedule):
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
         # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
-        # it would be better to merge them
+        # it would be better to merge them. The SymbolTable is only used
+        # for global variables extracted from the Kernels.
         self._name_space_manager = NameSpaceFactory().create()
         self._symbol_table = SymbolTable()
         self._text_name = "InvokeSchedule"
@@ -4600,6 +4601,19 @@ class Arguments(object):
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
 
+
+
+    def append(self, argument):
+        ''' Append generic (non-api-specific) Arguments to the Argument list.
+
+        '''
+        from psyclone.parse.algorithm import Arg
+        from psyclone.parse.kernel import Descriptor
+        from psyclone.core.access_type import AccessType
+        arg = Arg("variable", globalvar.name, globalvar.name)
+        desc = Descriptor(AccessType.READWRITE, globalvar.name)
+        argument = KernelArgument(desc, arg, node)
+        node.arguments.args.append(argument)
 
 class DataAccess(object):
     '''A helper class to simplify the determination of dependencies due to

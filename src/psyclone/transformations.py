@@ -4449,11 +4449,3 @@ class KernelGlobalsToArguments(Transformation):
             symtab.specify_argument_list(current_arg_list)
 
             # Add the Global variable in the call argument list
-            from psyclone.psyGen import KernelArgument
-            from psyclone.parse.algorithm import Arg
-            from psyclone.parse.kernel import Descriptor
-            from psyclone.core.access_type import AccessType
-            arg = Arg("variable", globalvar.name, globalvar.name)
-            desc = Descriptor(AccessType.READWRITE, globalvar.name)
-            argument = KernelArgument(desc, arg, node)
-            node.arguments.args.append(argument)
