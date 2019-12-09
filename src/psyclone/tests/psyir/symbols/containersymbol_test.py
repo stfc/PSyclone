@@ -44,7 +44,8 @@ import pytest
 from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
     ContainerSymbolInterface, FortranModuleInterface
-from psyclone.psyir.symbols.datasymbol import DataSymbol
+from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
+    GlobalInterface
 from psyclone.psyir.symbols.datatypes import DataType
 
 from psyclone.psyGen import Container
@@ -179,12 +180,20 @@ def test_containersymbol_importlist():
         csym.add_symbol_import(csym)
     assert ("Expected an argument of type DataSymbol but got: "
             "'ContainerSymbol'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        csym.add_symbol_import(DataSymbol("var1", DataType.INTEGER,
+                                          interface=LocalInterface()))
+    assert ("imported from a Container must have a GlobalInterface but symbol "
+            "'var1' has a 'LocalInterface'" in str(err.value))
     assert csym.imported_symbols == []
     assert not csym.has_wildcard_import
-    dsym1 = DataSymbol("var1", DataType.INTEGER)
+    dsym1 = DataSymbol("var1", DataType.INTEGER,
+                       interface=GlobalInterface(csym))
+    # The DataSymbol constructor actually calls add_symbol_import() but we
+    # do it again here to check that it doesn't break anything.
     csym.add_symbol_import(dsym1)
     assert csym.imported_symbols == [dsym1]
-    dsym2 = DataSymbol("var2", DataType.REAL)
+    dsym2 = DataSymbol("var2", DataType.REAL, interface=GlobalInterface(csym))
     csym.add_symbol_import(dsym2)
     assert dsym2 in csym.imported_symbols
     # Try adding the same symbol again

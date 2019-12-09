@@ -576,10 +576,10 @@ class Fparser2Reader(object):
                     # The DataSymbol adds itself to the list of symbols
                     # imported by the Container referenced in the
                     # GlobalInterface.
-                    dsymbol = DataSymbol(str(name).lower(),
-                                         datatype=DataType.DEFERRED,
-                                         interface=GlobalInterface(container))
-                    parent.symbol_table.add(dsymbol)
+                    parent.symbol_table.add(
+                        DataSymbol(str(name).lower(),
+                                   datatype=DataType.DEFERRED,
+                                   interface=GlobalInterface(container)))
             else:
                 # We have a USE statement without an ONLY clause.
                 container.add_wildcard_import()

@@ -98,18 +98,25 @@ class ContainerSymbol(Symbol):
         :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises TypeError: if the supplied object is not a DataSymbol.
-
+        :raises TypeError: if the supplied DataSymbol does not have a \
+                           Global interface.
         '''
-        from psyclone.psyir.symbols.datasymbol import DataSymbol
+        from psyclone.psyir.symbols.datasymbol import DataSymbol, \
+            GlobalInterface
         if not isinstance(data_symbol, DataSymbol):
             raise TypeError("Expected an argument of type DataSymbol but got:"
                             " '{0}'".format(type(data_symbol).__name__))
+        if not isinstance(data_symbol.interface, GlobalInterface):
+            raise TypeError(
+                "A DataSymbol imported from a Container must have a "
+                "GlobalInterface but symbol '{0}' has a '{1}'".
+                format(data_symbol.name, type(data_symbol.interface).__name__))
         self._datasymbols.add(data_symbol)
 
     def add_wildcard_import(self):
-        ''' Adds a wildcard import to the list of symbols accessed from this
-        container. (i.e. all public symbols are imported into the current
-        scoping unit.)
+        '''
+        Mark this container as having a 'wildcard' import, i.e. all public
+        symbols are imported into the current scoping unit.
         '''
         self._has_wildcard_import = True
 
