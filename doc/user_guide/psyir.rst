@@ -142,23 +142,23 @@ between four cases:
 
 .. tabularcolumns:: |p{9cm}|L|
 
-+-------------------------------------------+--------------------------------+
-|Description                                | Entry in ``shape`` list        |
-+===========================================+================================+
-|An array has a static extent known at      |  Integer ``Literal``           |
-|compile time                               |                                |
-+-------------------------------------------+--------------------------------+
-|An array has an extent defined by another  |  ``Symbol``                    |
-|symbol                                     |                                |
-+-------------------------------------------+--------------------------------+
-|An array has a definite extent which is not| ``DataSymbol.Extent.ATTRIBUTE``|
-|known at compile time but can be queried   |                                |
-|at runtime                                 |                                |
-+-------------------------------------------+--------------------------------+
-|It is not known whether an array has memory| ``DataSymbol.Extent.DEFERRED`` |
-|allocated to it in the current scoping unit|                                |
-+-------------------------------------------+--------------------------------+
++--------------------------------------------+--------------------------------+
+|Description                                 | Entry in ``shape`` list        |
++============================================+================================+
+|An array has a static extent known at       | Integer ``Literal``            |
+|compile time.                               |                                |
++--------------------------------------------+--------------------------------+
+|An array has an extent defined by another   | ``Symbol``                     |
+|symbol.                                     |                                |
++--------------------------------------------+--------------------------------+
+|An array has a definite extent which is not | ``DataSymbol.Extent.ATTRIBUTE``|
+|known at compile time but can be queried    |                                |
+|at runtime.                                 |                                |
++--------------------------------------------+--------------------------------+
+|It is not known whether an array has memory | ``DataSymbol.Extent.DEFERRED`` |
+|allocated to it in the current scoping unit.|                                |
++--------------------------------------------+--------------------------------+
 
 (The distinction between the last two cases is necessary to allow the
-Fortran backend to the PSyIR to create correct code for a subroutine
+PSyIR Fortran backend to create correct code for a subroutine
 which is passed an allocatable array.)
