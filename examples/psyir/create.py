@@ -48,24 +48,25 @@ from __future__ import print_function
 from psyclone.psyGen import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
     KernelSchedule, Container
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
+    ArgumentInterface, DataType
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
 # Symbol table and symbols
 SYMBOL_TABLE = SymbolTable()
-ARG1 = DataSymbol("tmp1", "real", interface=ArgumentInterface(
+ARG1 = DataSymbol("tmp1", DataType.REAL, interface=ArgumentInterface(
     ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(ARG1)
-SYMBOL_TABLE.add(DataSymbol("tmp2", "real"))
-SYMBOL_TABLE.add(DataSymbol("i", "integer"))
+SYMBOL_TABLE.add(DataSymbol("tmp2", DataType.REAL))
+SYMBOL_TABLE.add(DataSymbol("i", DataType.INTEGER))
 SYMBOL_TABLE.specify_argument_list([ARG1])
 
 # Nodes which do not have Nodes as children
-ZERO = Literal("0.0")
-ONE = Literal("1.0")
-INT_ZERO = Literal("0")
-INT_ONE = Literal("1")
+ZERO = Literal("0.0", DataType.REAL)
+ONE = Literal("1.0", DataType.REAL)
+INT_ZERO = Literal("0", DataType.INTEGER)
+INT_ONE = Literal("1", DataType.INTEGER)
 TMP1 = Reference("tmp1")
 TMP2 = Reference("tmp2")
 

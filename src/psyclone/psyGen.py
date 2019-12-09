@@ -42,14 +42,13 @@
 from __future__ import print_function, absolute_import
 from enum import Enum
 import abc
-from collections import OrderedDict
 import re
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, SymbolError
+from psyclone.psyir.symbols import SymbolTable, SymbolError, DataType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -6490,21 +6489,67 @@ class Array(Reference):
 
 class Literal(Node):
     '''
-    Node representing a Literal
+    Node representing a Literal. The value and datatype properties of
+    this node are immutable.
 
-    :param str value: String representing the literal value.
+    :param value: the value of the literal.
+    :type value: str (for numerical values) or bool
+    :param datatype: the datatype of this literal.
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
+
+    :raises TypeError: if the datatype is not an instance of \
+                       :py:class:`psyclone.psyir.symbols.DataType`.
+    :raises ValueError: if the datatype is not one of \
+                        self.VALID_DATA_TYPES.
+    :raises TypeError: if this Literal is of BOOLEAN type and the \
+                       supplied value is not a bool.
+    :raises TypeError: if this Literal is not of BOOLEAN type and the \
+                       supplied value is not a string.
     '''
-    def __init__(self, value, parent=None):
+    # A Literal cannot have DEFERRED type
+    VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
+                        DataType.CHARACTER, DataType.BOOLEAN]
+
+    def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
+
+        # Checks for the datatype
+        if not isinstance(datatype, DataType):
+            raise TypeError("The datatype of a Literal must be an instance of"
+                            " psyir.symbols.DataType but got '{0}'".format(
+                                type(datatype).__name__))
+        if datatype not in self.VALID_DATA_TYPES:
+            raise ValueError("The datatype of a Literal must be one of {0} "
+                             "but got '{1}'".format(self.VALID_DATA_TYPES,
+                                                    datatype))
+        self._datatype = datatype
+
+        # Checks for the value
+        if self.datatype is DataType.BOOLEAN:
+            if not isinstance(value, bool):
+                raise TypeError("A boolean Literal must be supplied with a "
+                                "value that is a bool but got: {0}".format(
+                                    type(value).__name__))
+        else:
+            if not isinstance(value, six.string_types):
+                raise TypeError("A non-boolean Literal must be supplied with "
+                                "a value encoded as a string but got: {0}".
+                                format(type(value).__name__))
         self._value = value
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the type of this Literal.
+        :rtype: :py:class:`psyclone.psyGen.DataType`
+        '''
+        return self._datatype
 
     @property
     def value(self):
         '''
-        Return the value of the literal.
-
         :returns: String representing the literal value.
         :rtype: str
         '''
@@ -6520,8 +6565,9 @@ class Literal(Node):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return "{0}[value:'{1}']".format(self.coloured_name(colour),
-                                         self._value)
+        return "{0}[value:'{1}', {2}]".format(
+            self.coloured_name(colour),
+            self._value, str(self.datatype))
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
