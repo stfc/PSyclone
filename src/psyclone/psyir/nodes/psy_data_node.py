@@ -172,7 +172,7 @@ class PSyDataNode(Node):
 
     # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-differ, too-many-branches
         '''Creates the profile start and end calls, surrounding the children
         of this node.
 
@@ -228,17 +228,28 @@ class PSyDataNode(Node):
                         len(pre_variable_list),
                         len(post_variable_list)])
         has_var = pre_variable_list or post_variable_list
+
+        # All variable names get a postfix of "-post" or "-pr".
+        # This enables the netcdf file to store variables that
+        # read read-write (i.e. pre and post), and also avoids
+        # potential name clashes (e.g. when using the PSyData
+        # interface to create a netcdf file), since a Fortran
+        # variable name cannot contain a "-".
         if has_var:
-            for var_name in pre_variable_list+post_variable_list:
+            for var_name in pre_variable_list:
                 self._add_call("PreDeclareVariable", parent,
-                               ["\"{0}\"".format(var_name),
+                               ["\"{0}-pre\"".format(var_name),
+                                "{0}".format(var_name)])
+            for var_name in post_variable_list:
+                self._add_call("PreDeclareVariable", parent,
+                               ["\"{0}-post\"".format(var_name),
                                 "{0}".format(var_name)])
 
             self._add_call("PreEndDeclaration", parent)
 
             for var_name in pre_variable_list:
                 self._add_call("WriteVariable", parent,
-                               ["\"{0}\"".format(var_name),
+                               ["\"{0}-pre\"".format(var_name),
                                 "{0}".format(var_name)])
 
             self._add_call("PreEnd", parent)
@@ -247,10 +258,11 @@ class PSyDataNode(Node):
             child.gen_code(parent)
 
         if has_var:
+            # Only add PostStart() if there is at least one variable.
             self._add_call("PostStart", parent)
             for var_name in post_variable_list:
                 self._add_call("WriteVariable", parent,
-                               ["\"{0}\"".format(var_name),
+                               ["\"{0}-post\"".format(var_name),
                                 "{0}".format(var_name)])
 
         self._add_call("PostEnd", parent)

@@ -465,17 +465,17 @@ def test_single_node_dynamo0p3():
     outpu1 = """      ! ExtractStart
       !
       CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
-      CALL psy_data%PreDeclareVariable("a", a)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("m1", m1)
-      CALL psy_data%PreDeclareVariable("m2", m2)
-      CALL psy_data%PreDeclareVariable("cell", cell)
-      CALL psy_data%PreDeclareVariable("f1", f1)
+      CALL psy_data%PreDeclareVariable("a-pre", a)
+      CALL psy_data%PreDeclareVariable("f2-pre", f2)
+      CALL psy_data%PreDeclareVariable("m1-pre", m1)
+      CALL psy_data%PreDeclareVariable("m2-pre", m2)
+      CALL psy_data%PreDeclareVariable("cell-post", cell)
+      CALL psy_data%PreDeclareVariable("f1-post", f1)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("a", a)
-      CALL psy_data%WriteVariable("f2", f2)
-      CALL psy_data%WriteVariable("m1", m1)
-      CALL psy_data%WriteVariable("m2", m2)
+      CALL psy_data%WriteVariable("a-pre", a)
+      CALL psy_data%WriteVariable("f2-pre", f2)
+      CALL psy_data%WriteVariable("m1-pre", m1)
+      CALL psy_data%WriteVariable("m2-pre", m2)
       CALL psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
@@ -485,8 +485,8 @@ def test_single_node_dynamo0p3():
         """undf_w3, map_w3(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell", cell)
-      CALL psy_data%WriteVariable("f1", f1)
+      CALL psy_data%WriteVariable("cell-post", cell)
+      CALL psy_data%WriteVariable("f1-post", f1)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -512,12 +512,12 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("cell", cell)
-      CALL psy_data%PreDeclareVariable("df", df)
-      CALL psy_data%PreDeclareVariable("f3", f3)
+      CALL psy_data%PreDeclareVariable("f2-pre", f2)
+      CALL psy_data%PreDeclareVariable("cell-post", cell)
+      CALL psy_data%PreDeclareVariable("df-post", df)
+      CALL psy_data%PreDeclareVariable("f3-post", f3)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%WriteVariable("f2-pre", f2)
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f5
         f5_proxy%data(df) = 0.0
@@ -531,9 +531,9 @@ def test_node_list_dynamo0p3():
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell", cell)
-      CALL psy_data%WriteVariable("df", df)
-      CALL psy_data%WriteVariable("f3", f3)
+      CALL psy_data%WriteVariable("cell-post", cell)
+      CALL psy_data%WriteVariable("df-post", df)
+      CALL psy_data%WriteVariable("f3-post", f3)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -567,14 +567,14 @@ def test_single_node_ompparalleldo_gocean1p0():
     output = """      ! ExtractStart
       !
       CALL psy_data%PreStart("compute_cv_mod", "compute_cv_code", 2, 3)
-      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
-      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
-      CALL psy_data%PreDeclareVariable("cv_fld", cv_fld)
-      CALL psy_data%PreDeclareVariable("i", i)
-      CALL psy_data%PreDeclareVariable("j", j)
+      CALL psy_data%PreDeclareVariable("p_fld-pre", p_fld)
+      CALL psy_data%PreDeclareVariable("v_fld-pre", v_fld)
+      CALL psy_data%PreDeclareVariable("cv_fld-post", cv_fld)
+      CALL psy_data%PreDeclareVariable("i-post", i)
+      CALL psy_data%PreDeclareVariable("j-post", j)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("p_fld", p_fld)
-      CALL psy_data%WriteVariable("v_fld", v_fld)
+      CALL psy_data%WriteVariable("p_fld-pre", p_fld)
+      CALL psy_data%WriteVariable("v_fld-pre", v_fld)
       CALL psy_data%PreEnd
       !$omp parallel do default(shared), private(i,j), schedule(static)
       DO j=2,jstop+1
@@ -584,9 +584,9 @@ def test_single_node_ompparalleldo_gocean1p0():
       END DO 
       !$omp end parallel do
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cv_fld", cv_fld)
-      CALL psy_data%WriteVariable("i", i)
-      CALL psy_data%WriteVariable("j", j)
+      CALL psy_data%WriteVariable("cv_fld-post", cv_fld)
+      CALL psy_data%WriteVariable("i-post", i)
+      CALL psy_data%WriteVariable("j-post", j)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -626,17 +626,17 @@ def test_node_list_ompparallel_gocean1p0():
       ! ExtractStart
       !
       CALL psy_data%PreStart("compute_cu_mod", "compute_cu_code", 3, 4)
-      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
-      CALL psy_data%PreDeclareVariable("u_fld", u_fld)
-      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
-      CALL psy_data%PreDeclareVariable("cu_fld", cu_fld)
-      CALL psy_data%PreDeclareVariable("cv_fld", cv_fld)
-      CALL psy_data%PreDeclareVariable("i", i)
-      CALL psy_data%PreDeclareVariable("j", j)
+      CALL psy_data%PreDeclareVariable("p_fld-pre", p_fld)
+      CALL psy_data%PreDeclareVariable("u_fld-pre", u_fld)
+      CALL psy_data%PreDeclareVariable("v_fld-pre", v_fld)
+      CALL psy_data%PreDeclareVariable("cu_fld-post", cu_fld)
+      CALL psy_data%PreDeclareVariable("cv_fld-post", cv_fld)
+      CALL psy_data%PreDeclareVariable("i-post", i)
+      CALL psy_data%PreDeclareVariable("j-post", j)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("p_fld", p_fld)
-      CALL psy_data%WriteVariable("u_fld", u_fld)
-      CALL psy_data%WriteVariable("v_fld", v_fld)
+      CALL psy_data%WriteVariable("p_fld-pre", p_fld)
+      CALL psy_data%WriteVariable("u_fld-pre", u_fld)
+      CALL psy_data%WriteVariable("v_fld-pre", v_fld)
       CALL psy_data%PreEnd
       !$omp parallel default(shared), private(i,j)
       !$omp do schedule(static)
@@ -655,10 +655,10 @@ def test_node_list_ompparallel_gocean1p0():
       !$omp end do
       !$omp end parallel
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cu_fld", cu_fld)
-      CALL psy_data%WriteVariable("cv_fld", cv_fld)
-      CALL psy_data%WriteVariable("i", i)
-      CALL psy_data%WriteVariable("j", j)
+      CALL psy_data%WriteVariable("cu_fld-post", cu_fld)
+      CALL psy_data%WriteVariable("cv_fld-post", cv_fld)
+      CALL psy_data%WriteVariable("i-post", i)
+      CALL psy_data%WriteVariable("j-post", j)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -688,14 +688,14 @@ def test_extract_single_builtin_dynamo0p3():
     output = """! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 0, 1)
-      CALL psy_data%PreDeclareVariable("df", df)
+      CALL psy_data%PreDeclareVariable("df-post", df)
       CALL psy_data%PreEndDeclaration
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("df", df)
+      CALL psy_data%WriteVariable("df-post", df)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -718,7 +718,7 @@ def test_extract_single_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "inc_ax_plus_y", 0, 1)
-      CALL psy_data%PreDeclareVariable("df", df)
+      CALL psy_data%PreDeclareVariable("df-post", df)
       CALL psy_data%PreEndDeclaration
       CALL psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
@@ -727,7 +727,7 @@ def test_extract_single_builtin_dynamo0p3():
       END DO 
       !$omp end parallel do
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("df", df)
+      CALL psy_data%WriteVariable("df-post", df)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -753,12 +753,12 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
       ! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("cell", cell)
-      CALL psy_data%PreDeclareVariable("df", df)
-      CALL psy_data%PreDeclareVariable("f3", f3)
+      CALL psy_data%PreDeclareVariable("f2-pre", f2)
+      CALL psy_data%PreDeclareVariable("cell-post", cell)
+      CALL psy_data%PreDeclareVariable("df-post", df)
+      CALL psy_data%PreDeclareVariable("f3-post", f3)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%WriteVariable("f2-pre", f2)
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
@@ -769,9 +769,9 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell", cell)
-      CALL psy_data%WriteVariable("df", df)
-      CALL psy_data%WriteVariable("f3", f3)
+      CALL psy_data%WriteVariable("cell-post", cell)
+      CALL psy_data%WriteVariable("df-post", df)
+      CALL psy_data%WriteVariable("f3-post", f3)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -826,22 +826,22 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
       ! ExtractStart
       !
       CALL psy_data%PreStart("ru_kernel_mod", "ru_code", 6, 3)
-      CALL psy_data%PreDeclareVariable("a", a)
-      CALL psy_data%PreDeclareVariable("b", b)
-      CALL psy_data%PreDeclareVariable("c", c)
-      CALL psy_data%PreDeclareVariable("e", e)
-      CALL psy_data%PreDeclareVariable("istp", istp)
-      CALL psy_data%PreDeclareVariable("rdt", rdt)
-      CALL psy_data%PreDeclareVariable("b", b)
-      CALL psy_data%PreDeclareVariable("cell", cell)
-      CALL psy_data%PreDeclareVariable("colour", colour)
+      CALL psy_data%PreDeclareVariable("a-pre", a)
+      CALL psy_data%PreDeclareVariable("b-pre", b)
+      CALL psy_data%PreDeclareVariable("c-pre", c)
+      CALL psy_data%PreDeclareVariable("e-pre", e)
+      CALL psy_data%PreDeclareVariable("istp-pre", istp)
+      CALL psy_data%PreDeclareVariable("rdt-pre", rdt)
+      CALL psy_data%PreDeclareVariable("b-post", b)
+      CALL psy_data%PreDeclareVariable("cell-post", cell)
+      CALL psy_data%PreDeclareVariable("colour-post", colour)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("a", a)
-      CALL psy_data%WriteVariable("b", b)
-      CALL psy_data%WriteVariable("c", c)
-      CALL psy_data%WriteVariable("e", e)
-      CALL psy_data%WriteVariable("istp", istp)
-      CALL psy_data%WriteVariable("rdt", rdt)
+      CALL psy_data%WriteVariable("a-pre", a)
+      CALL psy_data%WriteVariable("b-pre", b)
+      CALL psy_data%WriteVariable("c-pre", c)
+      CALL psy_data%WriteVariable("e-pre", e)
+      CALL psy_data%WriteVariable("istp-pre", istp)
+      CALL psy_data%WriteVariable("rdt-pre", rdt)
       CALL psy_data%PreEnd
       DO colour=1,ncolour
         !$omp parallel do default(shared), private(cell), schedule(static)
@@ -859,9 +859,9 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
         !$omp end parallel do
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("b", b)
-      CALL psy_data%WriteVariable("cell", cell)
-      CALL psy_data%WriteVariable("colour", colour)
+      CALL psy_data%WriteVariable("b-post", b)
+      CALL psy_data%WriteVariable("cell-post", cell)
+      CALL psy_data%WriteVariable("colour-post", colour)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd""")
