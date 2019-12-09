@@ -1890,10 +1890,21 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
+        # Global symbols promoted from Kernel Globals are in the SymbolTable
+        # instead of the name_space_manager.
+        # First aggregate all globals variables from the same module in a map
+        module_map = {}
         for globalvar in self.symbol_table.global_datasymbols:
-            parent.add(UseGen(parent,
-                              name=globalvar.interface.container_symbol.name,
-                              only=True, funcnames=[globalvar.name]))
+            module_name = globalvar.interface.container_symbol.name
+            if module_name in module_map:
+                module_map[module_name].append(globalvar.name)
+            else:
+                module_map[module_name] = [globalvar.name]
+        # Then we can produce the UseGen statements without repeating modules
+        for module_name, var_list in module_map.items():
+            parent.add(UseGen(parent, name=module_name, only=True,
+                              funcnames=var_list))
+
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
             parent.add(UseGen(parent, name="clfortran"))
