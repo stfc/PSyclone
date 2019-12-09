@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
+.. Modified by R. W. Ford, STFC Daresbury Lab
       
 .. _psyir-ug:
 
@@ -44,6 +45,59 @@ be constructed from scratch (in Python) or by processing exising
 source code using a frontend. Transformations act on the PSyIR and
 ultimately the generated code is produced by one of the PSyIR's
 backends.
+
+PSyIR Nodes
+-----------
+
+The PSyIR consists of classes whose instances can be connected
+together to form a tree which represent computation in a
+language-independent way. These classes all inherit from the ``Node``
+baseclass and, as a result, PSyIR instances are often referred to
+collectively as 'PSyIR nodes'.
+
+At the present time PSyIR classes can be essentially split into two
+types. PSy-layer classes and Kernel-layer classes. PSy-layer classes
+make use of a ``gen_code()`` or an ``update()`` method to create
+Fortran code whereas Kernel-layer classes make use of PSyIR backends
+to create code.
+
+.. note:: This separation will be removed in the future and eventually
+	  all PSyIR classes will make use of backends with the
+	  expectation that ``gen_code()`` and ``update()`` methods will
+	  be removed.
+
+PSy-layer nodes
+^^^^^^^^^^^^^^^
+
+PSy-layer PSyIR classes are primarily used to create the
+PSy-layer. These tend to be relatively descriptive and do not specify
+how a particular PSyclone frontend would implement them. With the
+exception of ``Loop``, these classes are currently not compatible with
+the PSyIR backends. The generic (non-api-specific) PSy-layer PSyIR
+nodes are: ``InvokeSchedule``, ``Directive``, ``GlobalSum``,
+``HaloExchange``, ``Loop`` and ``Kern``. The ``Directive`` class is
+subclassed into many directives associated with OpenMP and
+OpenACC. The ``Kern`` class is subclassed into ``CodedKern``,
+``InlinedKern`` and ``BuiltinKern``.
+
+
+Kernel-layer nodes
+^^^^^^^^^^^^^^^^^^
+
+Kernel-layer PSyIR classes are currently used to describe existing
+code in a language independent way. Consequently these nodes are more
+prescriptive and are independent of a particular PSyclone
+frontend. These nodes are designed to be used with PSyIR backends. Two
+PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
+Kernel-layer classes. Additionally, the ``Schedule`` class is further
+subclassed into a kernel-layer ``KernelSchedule``. In addition to
+``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
+``IfBlock``, ``CodeBlock``, ``Assignment``, ``Reference``,
+``Operation``, ``Literal``, ``Return`` and ``Container``. The
+``Reference`` class is further subclassed into ``Array`` and the
+``Operation`` class is further subclassed into ``UnaryOperation``,
+``BinaryOperation`` and ``NaryOperation``.
+
 
 Text Representation
 -------------------
@@ -162,3 +216,36 @@ between four cases:
 (The distinction between the last two cases is necessary to allow the
 PSyIR Fortran backend to create correct code for a subroutine
 which is passed an allocatable array.)
+
+Creating PSyIR
+--------------
+
+PSyIR nodes are connected together via parent and child methods
+provided by the ``Node`` baseclass.
+
+These nodes can be created in isolation and then connected
+together. For example::
+
+    assignment = Assignment()
+    literal = Literal("0.0")
+    reference = Reference("a")
+    literal.parent = assignment
+    reference.parent = assignment
+    assignment.children = [reference, literal]
+    
+However, as connections get more complicated, creating the correct
+connections can become difficult to manage and error prone. Further,
+in some cases children must be collected together within a
+``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+
+To simplify this complexity, each of the Kernel-layer nodes which
+contain other nodes have a static ``create`` method which helps
+construct the PSyIR using a bottom up approach. Using this method, the
+above example then becomes::
+  
+    literal = Literal("0.0")
+    reference = Reference("a")
+    assignment = Assignment.create(reference, literal)
+
+A more complete example of using this approach can be found in the
+PSyclone ``examples/psyir`` directory.

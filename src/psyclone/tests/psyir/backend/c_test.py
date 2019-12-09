@@ -46,7 +46,7 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyGen import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
 
 
 def test_cw_gen_declaration():
@@ -57,20 +57,20 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = DataSymbol("dummy1", "character")
+    symbol = DataSymbol("dummy1", DataType.CHARACTER)
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = DataSymbol("dummy1", "boolean")
+    symbol = DataSymbol("dummy1", DataType.BOOLEAN)
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = DataSymbol("dummy2", "real",
+    symbol = DataSymbol("dummy2", DataType.REAL,
                         shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
@@ -78,7 +78,7 @@ def test_cw_gen_declaration():
     assert result == "double * restrict dummy2"
 
     # Array with unknown access
-    symbol = DataSymbol("dummy2", "integer",
+    symbol = DataSymbol("dummy2", DataType.INTEGER,
                         shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
@@ -104,7 +104,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = DataSymbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", DataType.INTEGER)
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
@@ -137,17 +137,17 @@ def test_cw_literal():
 
     cwriter = CWriter()
 
-    lit = Literal('1')
+    lit = Literal('1', DataType.INTEGER)
     assert cwriter(lit) == '1'
 
     # Test that D scientific notation is replaced by 'e'
-    lit = Literal("3e5", None)
+    lit = Literal("3e5", DataType.REAL, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3d5", None)
+    lit = Literal("3d5", DataType.REAL, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3D5", None)
+    lit = Literal("3D5", DataType.REAL, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3D+5", None)
+    lit = Literal("3D+5", DataType.REAL, None)
     assert cwriter(lit) == '3e+5'
 
 
@@ -186,7 +186,7 @@ def test_cw_array():
 
     assignment = Assignment()
     arr = Array('a', parent=assignment)
-    lit = Literal('0.0', parent=assignment)
+    lit = Literal('0.0', DataType.REAL, parent=assignment)
     assignment.addchild(arr)
     assignment.addchild(lit)
 
@@ -198,9 +198,9 @@ def test_cw_array():
 
     # Dimensions can be references, literals or operations
     arr.addchild(Reference('b', parent=arr))
-    arr.addchild(Literal('1', parent=arr))
+    arr.addchild(Literal('1', DataType.INTEGER, parent=arr))
     uop = UnaryOperation(UnaryOperation.Operator.MINUS, parent=arr)
-    uop.addchild(Literal('2', parent=uop))
+    uop.addchild(Literal('2', DataType.INTEGER, parent=uop))
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -296,7 +296,7 @@ def test_cw_unaryoperator():
            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
-    ref1 = Literal("a", unary_operation)
+    ref1 = Literal("a", DataType.CHARACTER, unary_operation)
     unary_operation.addchild(ref1)
     assert cwriter(unary_operation) == '(-a)'
 
@@ -426,7 +426,7 @@ def test_cw_size():
     assignment.addchild(lhs)
     assignment.addchild(size)
     arr = Array('a', parent=size)
-    lit = Literal('1', parent=size)
+    lit = Literal('1', DataType.INTEGER, parent=size)
     size.addchild(arr)
     size.addchild(lit)
 

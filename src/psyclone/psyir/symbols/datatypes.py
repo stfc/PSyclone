@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,28 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Symbols package module '''
+''' This module contains the datatype definitions.'''
 
-from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface
-from psyclone.psyir.symbols.containersymbol import ContainerSymbol
-from psyclone.psyir.symbols.symboltable import SymbolTable
-from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
+from enum import Enum
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
-__all__ = ['TYPE_MAP_TO_PYTHON',
-           'Symbol',
-           'SymbolError',
-           'SymbolTable',
-           'DataSymbol',
-           'DataType',
-           'LocalInterface',
-           'GlobalInterface',
-           'ArgumentInterface',
-           'UnresolvedInterface',
-           'ContainerSymbol']
+
+class DataType(Enum):
+    '''
+    Enumeration of the different datatypes that are supported by the
+    PSyIR.
+    '''
+    INTEGER = 1
+    REAL = 2
+    BOOLEAN = 3
+    CHARACTER = 4
+    DEFERRED = 5
+
+
+# Mapping from PSyIR data types to intrinsic Python types
+TYPE_MAP_TO_PYTHON = {DataType.INTEGER: int,
+                      DataType.CHARACTER: str,
+                      DataType.BOOLEAN: bool,
+                      DataType.REAL: float}
