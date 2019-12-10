@@ -123,6 +123,7 @@ class GOPSy(PSy):
     :param invoke_info: An object containing the required invocation \
                         information for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
@@ -154,9 +155,13 @@ class GOInvokes(Invokes):
     '''
     The GOcean specific invokes class. This passes the GOcean specific
     invoke class to the base class so it creates the one we require.
+
     :param alg_calls: The Invoke calls discovered in the Algorithm layer.
     :type alg_calls: OrderedDict of :py:class:`psyclone.parse.InvokeCall` \
-                     objects.
+        objects.
+    :param psy: the PSy object containing this GOInvokes object.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
     '''
     def __init__(self, alg_calls, psy):
         self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
@@ -204,7 +209,10 @@ class GOInvoke(Invoke):
     :param alg_invocation: Node in the AST describing the invoke call.
     :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
     :param int idx: The position of the invoke in the list of invokes \
-                    contained in the Algorithm.
+        contained in the Algorithm.
+    :param invokes: the Invokes object containing this GOInvoke \
+        object.
+    :type invokes: :py:class:`psyclone.gocean1p0.GOInvokes`
 
     '''
     def __init__(self, alg_invocation, idx, invokes):

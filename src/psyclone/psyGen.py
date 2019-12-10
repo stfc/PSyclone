@@ -373,12 +373,14 @@ class PSy(object):
 class Invokes(object):
     '''Manage the invoke calls
 
-    :param alg_calls: A list of invoke metadata extracted by the \
-    parser.
+    :param alg_calls: a list of invoke metadata extracted by the \
+        parser.
     :type alg_calls: list of \
     :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param Invoke: An api-specific Invoke class
-    :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
+    :param Invoke: an api-specific Invoke class.
+    :type Invoke: subclass of :py:class:`psyclone.psyGen.Invoke`
+    :param psy: the PSy object containing this Invokes object.
+    :type psy: subclass of :py:class`psyclone.psyGen.PSy` 
 
     '''
     def __init__(self, alg_calls, Invoke, psy):
@@ -395,6 +397,11 @@ class Invokes(object):
 
     @property
     def psy(self):
+        '''
+        :returns: the psy object that contains this object.
+        :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        '''
         return self._psy
 
     @property
