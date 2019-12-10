@@ -3630,18 +3630,19 @@ class DynBasisFunctions(DynCollection):
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
 
-        if "gh_quadrature_xyoz" in self._qr_vars:
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                               intent="in", dimension="np_xy",
-                               entity_decls=["weights_xy"]))
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                               intent="in", dimension="np_z",
-                               entity_decls=["weights_z"]))
-        else:
-            raise GenerationError(
-                "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
-                "yet supported - got: {0}".format(
-                    [key for key in self._qr_vars.keys()]))
+        if self._qr_vars:
+            if "gh_quadrature_xyoz" in self._qr_vars:
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in", dimension="np_xy",
+                                   entity_decls=["weights_xy"]))
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in", dimension="np_z",
+                                   entity_decls=["weights_z"]))
+            else:
+                raise GenerationError(
+                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
+                    "yet supported - got: {0}".format(
+                        [key for key in self._qr_vars.keys()]))
 
     def _invoke_declarations(self, parent):
         '''
