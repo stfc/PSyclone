@@ -31,10 +31,10 @@
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-module testkern_qr
+module testkern_qr_edges_mod
   use argument_mod
   use kernel_mod
-  type, extends(kernel_type) :: testkern_qr_type
+  type, extends(kernel_type) :: testkern_qr_edges_type
      type(arg_type), dimension(6) :: meta_args =    &
           (/ arg_type(gh_field,  gh_write,w1), &
              arg_type(gh_field,  gh_read, w2), &
@@ -51,15 +51,15 @@ module testkern_qr
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_edge
    contains
-     procedure, nopass :: code => testkern_qr_code
-  end type testkern_qr_type
+     procedure, nopass :: code => testkern_qr_edges_code
+  end type testkern_qr_edges_type
 contains
 
-  subroutine testkern_qr_code(nlayers, f1, f2, f3, ascalar, f4, iscalar, &
-                              ndf_w1, undf_w1, map_w1, basis_w1, ndf_w2, &
-                              undf_w2, map_w2, diff_basis_w2, ndf_w3,    &
-                              undf_w3, map_w3, basis_w3, diff_basis_w3,  &
-                              nqp, wqp)
+  subroutine testkern_qr_edges_code(nlayers, f1, f2, f3, ascalar, f4, iscalar, &
+                                    ndf_w1, undf_w1, map_w1, basis_w1, ndf_w2, &
+                                    undf_w2, map_w2, diff_basis_w2, ndf_w3,    &
+                                    undf_w3, map_w3, basis_w3, diff_basis_w3,  &
+                                    nqp, wqp)
     use constants_mod, only: r_def
     implicit none
     integer :: nlayers, iscalar, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
@@ -70,5 +70,5 @@ contains
     real(kind=r_def), dimension(nqp,??) :: wqp
     real(kind=r_def), dimension(:,:,:,:) :: basis_w1, diff_basis_w2, &
                                             basis_w3, diff_basis_w3
-  end subroutine testkern_qr_code
-end module testkern_qr
+  end subroutine testkern_qr_edges_code
+end module testkern_qr_edges_mod

@@ -9,7 +9,7 @@
 program single_invoke
 
   ! Description: single function specified in an invoke call
-  use testkern_qr, only: testkern_qr_type
+  use testkern_qr_edges_mod, only: testkern_qr_edges_type
   use inf,         only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
@@ -17,8 +17,6 @@ program single_invoke
   real(r_def) :: a
   integer :: istp
 
-  call invoke(                   &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr)   &
-          )
+  call invoke( testkern_qr_edges_type(f1,f2,m1,a,m2,istp,qr) )
 
 end program single_invoke
