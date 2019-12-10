@@ -3380,9 +3380,12 @@ class DynBasisFunctions(DynCollection):
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
     '''
+    # Dimensioning vars for the basis function arrays required by each
+    # type of quadrature
     qr_dim_vars = {"xyoz": ["np_xy", "np_z"],
                    "edge": ["np_xyz", "nedges"],
                    "face": ["np_xyz", "nfaces"]}
+    # The different weights arrays required by each type of quadrature
     qr_weight_vars = {"xyoz": ["weights_xy", "weights_z"],
                       "edge": ["weights_xyz"],
                       "face": ["weights_xyz"]}
@@ -6610,7 +6613,6 @@ class DynKern(CodedKern):
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
-            # Currently only _xyoz is supported...
             # if self._eval_shape == "gh_quadrature_xyz":
             #     self._qr_args = ["np_xyz", "weights_xyz"]
             if self._eval_shape == "gh_quadrature_xyoz":
@@ -6619,9 +6621,9 @@ class DynKern(CodedKern):
             #     self._qr_args = ["np_x", "np_y", "np_z",
             #                      "weights_x", "weights_y", "weights_z"]
             elif self._eval_shape == "gh_quadrature_face":
-                self._qr_args = ["np_xyz", "nface", "weights"]
+                self._qr_args = ["np_xyz", "nfaces", "weights_xyz"]
             elif self._eval_shape == "gh_quadrature_edge":
-                self._qr_args = ["np_xyz", "nedge", "weights"]
+                self._qr_args = ["np_xyz", "nedges", "weights_xyz"]
             else:
                 raise InternalError("unsupported shape ({0}) found in "
                                     "DynKern._setup".format(self._eval_shape))

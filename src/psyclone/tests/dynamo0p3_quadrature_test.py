@@ -218,22 +218,34 @@ def test_edge_qr(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
+
     assert ("use quadrature_edge_mod, only: quadrature_edge_type, "
             "quadrature_edge_proxy_type\n" in gen_code)
     assert "type(quadrature_edge_type), intent(in) :: qr\n" in gen_code
     assert (
         "      qr_proxy = qr%get_quadrature_proxy()\n"
+        "      np_xyz_qr = qr_proxy%np_xyz\n"
         "      nedges_qr = qr_proxy%nedges\n"
-        "      np_xyz_qr  = qr_proxy%np_xyz\n"
         "      weights_xyz_qr => qr_proxy%weights_xyz\n" in gen_code)
 
     assert (
-        "      ! Evaluate the basis functions on the edges\n"
-        "\n"
-        "      allocate( edge_basis(dim_wx, ndf_wx, np_xyz_qr, nedges_qr))\n"
-        "      call qr_proxy%compute_function(BASIS, chi_proxy(1)%vspace, "
-        "dim_wx, ndf_wx, edge_basis)\n" in gen_code)
+        "      ! compute basis/diff-basis arrays\n"
+        "      !\n"
+        "      call qr%compute_function(basis, f1_proxy%vspace, dim_w1, "
+        "ndf_w1, basis_w1_qr)\n"
+        "      call qr%compute_function(diff_basis, f2_proxy%vspace, "
+        "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
+        "      call qr%compute_function(basis, m2_proxy%vspace, dim_w3, "
+        "ndf_w3, basis_w3_qr)\n"
+        "      call qr%compute_function(diff_basis, m2_proxy%vspace, "
+        "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
+
+    assert ("call testkern_qr_edges_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, "
+            "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
+            "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
+            "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xyz_qr, "
+            "nedges_qr, weights_xyz_qr)" in gen_code)
 
 
 @pytest.mark.xfail(reason="#150 reference element support not on master")
