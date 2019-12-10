@@ -3487,6 +3487,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    lit_uninit = lit + "[value:'NOT_INITIALISED', DataType.INTEGER]\n"
+    lit_one = lit + "[value:'1', DataType.INTEGER]\n"
     indent = "    "
 
     _, invoke = get_invoke("15.19.1_three_builtins_two_reductions.f90",
@@ -3514,9 +3516,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'1']\n" +
+            6*indent + lit_uninit +
+            6*indent + lit_uninit +
+            6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
@@ -3527,9 +3529,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
             "upper_bound='nannexed']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'1']\n" +
+            6*indent + lit_uninit +
+            6*indent + lit_uninit +
+            6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             indent + "3: " + directive + "[OMP parallel]\n" +
@@ -3539,9 +3541,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'1']\n" +
+            6*indent + lit_uninit +
+            6*indent + lit_uninit +
+            6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             indent + "4: " + gsum + "[scalar='bsum']\n")
@@ -3557,9 +3559,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'1']\n" +
+            6*indent + lit_uninit +
+            6*indent + lit_uninit +
+            6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             indent + "1: " + directive + "[OMP parallel]\n" +
@@ -3569,9 +3571,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'1']\n" +
+            6*indent + lit_uninit +
+            6*indent + lit_uninit +
+            6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             indent + "2: " + directive + "[OMP parallel]\n" +
@@ -3581,9 +3583,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dofs', "
             "field_space='any_space_1', it_space='dofs', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'NOT_INITIALISED']\n" +
-            6*indent + lit + "[value:'1']\n" +
+            6*indent + lit_uninit +
+            6*indent + lit_uninit +
+            6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n")
     if expected not in result:

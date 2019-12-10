@@ -42,6 +42,7 @@ from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     CodedKern, Arguments, KernelArgument, Literal, Schedule
+from psyclone.psyir.symbols import DataType
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -249,9 +250,11 @@ class GOLoop(Loop):
             self._variable_name = "j"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # stop
+        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def gen_code(self, parent):
@@ -264,7 +267,7 @@ class GOLoop(Loop):
             parent.add(dim_var)
 
             # Update start loop bound
-            self.start_expr = Literal("1", parent=self)
+            self.start_expr = Literal("1", DataType.INTEGER, parent=self)
 
             # Update stop loop bound
             if self._loop_type == "inner":
@@ -275,7 +278,8 @@ class GOLoop(Loop):
                                              parent=self)
             self.stop_expr.addchild(Reference(self.field_name,
                                               parent=self.stop_expr))
-            self.stop_expr.addchild(Literal(index, parent=self.stop_expr))
+            self.stop_expr.addchild(Literal(index, DataType.INTEGER,
+                                            parent=self.stop_expr))
 
         else:  # one of our spaces so use values provided by the infrastructure
 

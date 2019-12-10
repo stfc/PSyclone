@@ -57,7 +57,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
     ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
-from psyclone.psyir.symbols import DataSymbol, SymbolTable
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.psyGen import Kern, Arguments, CodedKern
@@ -82,6 +83,30 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+
+
+# Utility functions
+
+def check_links(parent, children):
+    '''Utilitiy routine to check that the parent node has children as its
+    children in the order specified and that the children have parent
+    as their parent. Also check that the parent does not have any
+    additional children that are not provided in the children
+    argument.
+
+    :param parent: the parent node that should have the child \
+        nodes as its children.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :param children: the child nodes that should have the parent \
+        node as their parent.
+    :type parent: list of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    assert len(parent.children) == len(children)
+    for index, child in enumerate(children):
+        assert child.parent is parent
+        assert parent.children[index] is child
+
 
 # Tests for utilities
 
@@ -636,6 +661,72 @@ def test_invokeschedule_can_be_printed():
     output = str(psy.invokes.invoke_list[0].schedule)
 
     assert "InvokeSchedule:\n" in output
+
+
+# Loop class test
+def test_loop_create():
+    '''Test that the create method in the Loop class correctly
+    creates a Loop instance.
+
+    '''
+    start = Literal("0", DataType.INTEGER)
+    stop = Literal("1", DataType.INTEGER)
+    step = Literal("1", DataType.INTEGER)
+    child_node = Assignment.create(Reference("tmp"), Reference("i"))
+    loop = Loop.create("i", start, stop, step, [child_node])
+    schedule = loop.children[3]
+    assert isinstance(schedule, Schedule)
+    check_links(loop, [start, stop, step, schedule])
+    check_links(schedule, [child_node])
+    result = FortranWriter().loop_node(loop)
+    assert result == "do i = 0, 1, 1\n  tmp=i\nenddo\n"
+
+
+def test_loop_create_invalid():
+    '''Test that the create method in a Loop class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    zero = Literal("0", DataType.INTEGER)
+    one = Literal("1", DataType.INTEGER)
+    children = [Assignment.create(Reference("x"), one)]
+
+    # var_name is not a string.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create(1, zero, one, one, children)
+    assert ("var_name argument in create method of Loop class "
+            "should be a string but found 'int'.") in str(excinfo.value)
+
+    # start not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", "invalid", one, one, children)
+    assert ("start argument in create method of Loop class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # stop not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, "invalid", one, children)
+    assert ("stop argument in create method of Loop class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # step not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, one, "invalid", children)
+    assert ("step argument in create method of Loop class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # children not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, one, one, "invalid")
+    assert ("children argument in create method of Loop class should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create("i", zero, one, one, ["invalid"])
+    assert (
+        "child of children argument in create method of Loop class "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 # Kern class test
@@ -2998,9 +3089,9 @@ def test_loop_navigation_properties():
     assert "Only PSyIR nodes can be assigned as the Loop step expression" \
         ", but found '" in str(err.value)
 
-    loop.addchild(Literal("start", parent=loop))
-    loop.addchild(Literal("stop", parent=loop))
-    loop.addchild(Literal("step", parent=loop))
+    loop.addchild(Literal("start", DataType.INTEGER, parent=loop))
+    loop.addchild(Literal("stop", DataType.INTEGER, parent=loop))
+    loop.addchild(Literal("step", DataType.INTEGER, parent=loop))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -3016,17 +3107,17 @@ def test_loop_navigation_properties():
         _ = loop.loop_body
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("invalid", parent=loop)
+        loop.start_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("invalid", parent=loop)
+        loop.stop_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("invalid", parent=loop)
+        loop.step_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
 
     # The fourth child has to be a Schedule
-    loop.addchild(Literal("loop_body", parent=loop))
+    loop.addchild(Literal("loop_body", DataType.INTEGER, parent=loop))
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
     assert "Loop malformed or incomplete. Fourth child should be a " \
@@ -3043,9 +3134,9 @@ def test_loop_navigation_properties():
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("newstart", parent=loop)
-    loop.stop_expr = Literal("newstop", parent=loop)
-    loop.step_expr = Literal("newstep", parent=loop)
+    loop.start_expr = Literal("newstart", DataType.INTEGER, parent=loop)
+    loop.stop_expr = Literal("newstop", DataType.INTEGER, parent=loop)
+    loop.step_expr = Literal("newstep", DataType.INTEGER, parent=loop)
 
     assert loop.start_expr.value == "newstart"
     assert loop.stop_expr.value == "newstop"
@@ -3077,7 +3168,7 @@ def test_loop_gen_code():
 
     # Change step to 2
     loop = psy.invokes.get('invoke_important_invoke').schedule[3]
-    loop.step_expr = Literal("2", parent=loop)
+    loop.step_expr = Literal("2", DataType.INTEGER, parent=loop)
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end
     gen = str(psy.gen)
@@ -3202,6 +3293,105 @@ def test_ifblock_properties():
     assert ifblock.else_body[0] is ret2
 
 
+def test_ifblock_create():
+    '''Test that the create method in an IfBlock class correctly creates
+    an IfBlock instance.
+
+    '''
+    # Without an else clause.
+    if_condition = Literal(True, DataType.BOOLEAN)
+    if_body = [Assignment.create(Reference("tmp"),
+                                 Literal("0.0", DataType.REAL)),
+               Assignment.create(Reference("tmp2"),
+                                 Literal("1.0", DataType.REAL))]
+    ifblock = IfBlock.create(if_condition, if_body)
+    if_schedule = ifblock.children[1]
+    assert isinstance(if_schedule, Schedule)
+    check_links(ifblock, [if_condition, if_schedule])
+    check_links(if_schedule, if_body)
+    result = FortranWriter().ifblock_node(ifblock)
+    # TODO 616: Update to if (.True.)
+    assert result == ("if (True) then\n"
+                      "  tmp=0.0\n"
+                      "  tmp2=1.0\n"
+                      "end if\n")
+
+    # With an else clause.
+    else_body = [Assignment.create(Reference("tmp"),
+                                   Literal("1.0", DataType.REAL)),
+                 Assignment.create(Reference("tmp2"),
+                                   Literal("0.0", DataType.REAL))]
+    ifblock = IfBlock.create(if_condition, if_body, else_body)
+    if_schedule = ifblock.children[1]
+    assert isinstance(if_schedule, Schedule)
+    else_schedule = ifblock.children[2]
+    assert isinstance(else_schedule, Schedule)
+    check_links(ifblock, [if_condition, if_schedule, else_schedule])
+    check_links(if_schedule, if_body)
+    check_links(else_schedule, else_body)
+    result = FortranWriter().ifblock_node(ifblock)
+    # TODO 616: Update to if (.True.)
+    assert result == ("if (True) then\n"
+                      "  tmp=0.0\n"
+                      "  tmp2=1.0\n"
+                      "else\n"
+                      "  tmp=1.0\n"
+                      "  tmp2=0.0\n"
+                      "end if\n")
+
+
+def test_ifblock_create_invalid():
+    '''Test that the create method in an IfBlock class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    if_condition = Literal(True, DataType.BOOLEAN)
+    if_body = [Assignment.create(Reference("tmp"),
+                                 Literal("0.0", DataType.REAL)),
+               Assignment.create(Reference("tmp2"),
+                                 Literal("1.0", DataType.REAL))]
+
+    # if_condition not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create("True", "invalid")
+    assert ("if_condition argument in create method of IfBlock class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # One of more if body not a Node.
+    if_body_err = [Assignment.create(Reference("tmp"),
+                                     Literal("0.0", DataType.REAL)),
+                   "invalid"]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, if_body_err)
+    assert ("if_body argument in create method of IfBlock class should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+    # If body not a list.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, "invalid")
+    assert ("if_body argument in create method of IfBlock class should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+    # One of more of else_body not a Node.
+    else_body_err = [Assignment.create(Reference("tmp"),
+                                       Literal("1.0", DataType.REAL)),
+                     "invalid"]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, if_body, else_body_err)
+    assert ("else_body argument in create method of IfBlock class should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+    # Else body not a list.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = IfBlock.create(if_condition, if_body, "invalid")
+    assert ("else_body argument in create method of IfBlock class should be a "
+            "list of PSyIR Nodes but it is either not a list or one of the "
+            "list's children is not a Node.") in str(excinfo.value)
+
+
 # Test Assignment class
 
 def test_assignment_node_str():
@@ -3240,10 +3430,41 @@ def test_assignment_semantic_navigation():
     assert " malformed or incomplete. It needs at least 2 children to have " \
         "a rhs." in str(err.value)
 
-    lit = Literal("1", assignment)
+    lit = Literal("1", DataType.INTEGER, assignment)
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]
+
+
+def test_assignment_create():
+    '''Test that the create method in the Assignment class correctly
+    creates an Assignment instance.
+
+    '''
+    lhs = Reference("tmp")
+    rhs = Literal("0.0", DataType.REAL)
+    assignment = Assignment.create(lhs, rhs)
+    check_links(assignment, [lhs, rhs])
+    result = FortranWriter().assignment_node(assignment)
+    assert result == "tmp=0.0\n"
+
+
+def test_assignment_create_invalid():
+    '''Test that the create method in an Assignment class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    # lhs not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Assignment.create("invalid", Literal("0.0", DataType.REAL))
+    assert ("lhs argument in create method of Assignment class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # rhs not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Assignment.create(Reference("tmp"), "invalid")
+    assert ("rhs argument in create method of Assignment class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
 # Test Reference class
@@ -3252,7 +3473,7 @@ def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3263,10 +3484,19 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']" in str(ref)
+
+
+def test_reference_optional_parent():
+    '''Test that the parent attribute is None if the optional parent
+    argument is not supplied.
+
+    '''
+    ref = Reference("rname")
+    assert ref.parent is None
 
 
 def test_reference_symbol(monkeypatch):
@@ -3334,7 +3564,8 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", "integer", [None]))
+    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER,
+                                          [DataSymbol.Extent.ATTRIBUTE]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3345,10 +3576,55 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", "integer"))
+    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
+
+
+def test_array_create():
+    '''Test that the create method in the Array class correctly
+    creates an Array instance.
+
+    '''
+    children = [Reference("i"), Reference("j"), Literal("1", DataType.REAL)]
+    array = Array.create("temp", children)
+    check_links(array, children)
+    result = FortranWriter().array_node(array)
+    assert result == "temp(i,j,1)"
+
+
+def test_array_create_invalid():
+    '''Test that the create method in an Array class raises the expected
+    exception if the provided input is invalid.
+
+    '''
+    # name is not a string
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create([], [])
+    assert ("name argument in create method of Array class should "
+            "be a string but found 'list'."
+            in str(excinfo.value))
+
+    # name is an empty string
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create("", [])
+    assert ("name argument in create method of Array class can't "
+            "be an empty string.")
+
+    # children not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create("temp", "invalid")
+    assert ("children argument in create method of Array class should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create("temp",
+                         [Reference("i"), "invalid"])
+    assert (
+        "child of children argument in create method of Array class "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 # Test Literal class
@@ -3356,23 +3632,23 @@ def test_literal_value():
     '''Test the value property returns the value of the Literal object.
 
     '''
-    literal = Literal("1")
+    literal = Literal("1", DataType.INTEGER)
     assert literal.value == "1"
 
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    literal = Literal("1")
+    literal = Literal("1", DataType.INTEGER)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert coloredtext+"[value:'1']" in literal.node_str()
+    assert coloredtext+"[value:'1', DataType.INTEGER]" in literal.node_str()
 
 
 def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
-    literal = Literal("1")
-    assert "Literal[value:'1']" in str(literal)
+    literal = Literal("1", DataType.INTEGER)
+    assert "Literal[value:'1', DataType.INTEGER]" in str(literal)
 
 
 # Test BinaryOperation class
@@ -3401,8 +3677,8 @@ def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    op1 = Literal("1", parent=binary_operation)
-    op2 = Literal("1", parent=binary_operation)
+    op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
+    op2 = Literal("1", DataType.INTEGER, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation",
@@ -3415,13 +3691,56 @@ def test_binaryoperation_can_be_printed():
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
-    op1 = Literal("1", parent=binary_operation)
-    op2 = Literal("2", parent=binary_operation)
+    op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
+    op2 = Literal("2", DataType.INTEGER, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(binary_operation)
-    assert "Literal[value:'2']" in str(binary_operation)
+    assert "Literal[value:'1', DataType.INTEGER]\n" in str(binary_operation)
+    assert "Literal[value:'2', DataType.INTEGER]" in str(binary_operation)
+
+
+def test_binaryoperation_create():
+    '''Test that the create method in the BinaryOperation class correctly
+    creates a BinaryOperation instance.
+
+    '''
+    lhs = Reference("tmp1")
+    rhs = Reference("tmp2")
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation = BinaryOperation.create(oper, lhs, rhs)
+    check_links(binaryoperation, [lhs, rhs])
+    result = FortranWriter().binaryoperation_node(binaryoperation)
+    assert result == "tmp1 + tmp2"
+
+
+def test_binaryoperation_create_invalid():
+    '''Test that the create method in a BinaryOperation class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    ref1 = Reference("tmp1")
+    ref2 = Reference("tmp2")
+    add = BinaryOperation.Operator.ADD
+
+    # oper not a BinaryOperation.Operator.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create("invalid", ref1, ref2)
+    assert ("oper argument in create method of BinaryOperation class should "
+            "be a PSyIR BinaryOperation Operator but found 'str'."
+            in str(excinfo.value))
+
+    # lhs not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create(add, "invalid", ref2)
+    assert ("lhs argument in create method of BinaryOperation class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+
+    # rhs not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create(add, ref1, "invalid")
+    assert ("rhs argument in create method of BinaryOperation class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
 # Test UnaryOperation class
@@ -3462,19 +3781,54 @@ def test_unaryoperation_can_be_printed():
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
-    op1 = Literal("1", parent=unary_operation)
+    op1 = Literal("1", DataType.INTEGER, parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert "Literal[value:'1']" in str(unary_operation)
+    assert "Literal[value:'1', DataType.INTEGER]" in str(unary_operation)
+
+
+def test_unaryoperation_create():
+    '''Test that the create method in the UnaryOperation class correctly
+    creates a UnaryOperation instance.
+
+    '''
+    child = Reference("tmp")
+    oper = UnaryOperation.Operator.SIN
+    unaryoperation = UnaryOperation.create(oper, child)
+    check_links(unaryoperation, [child])
+    result = FortranWriter().unaryoperation_node(unaryoperation)
+    assert result == "SIN(tmp)"
+
+
+def test_unaryoperation_create_invalid():
+    '''Test that the create method in a UnaryOperation class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    # oper not a UnaryOperator.Operator.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = UnaryOperation.create("invalid", Reference("tmp"))
+    assert ("oper argument in create method of UnaryOperation class should "
+            "be a PSyIR UnaryOperation Operator but found 'str'."
+            in str(excinfo.value))
+
+    # child not a Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
+    assert ("child argument in create method of UnaryOperation class should "
+            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
 
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    nary_operation.addchild(Literal("1", parent=nary_operation))
-    nary_operation.addchild(Literal("1", parent=nary_operation))
-    nary_operation.addchild(Literal("1", parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
 
     coloredtext = colored("NaryOperation",
                           SCHEDULE_COLOUR_MAP["Operation"])
@@ -3486,13 +3840,56 @@ def test_naryoperation_can_be_printed():
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     assert "NaryOperation[operator:'MAX']" in str(nary_operation)
-    nary_operation.addchild(Literal("1", parent=nary_operation))
-    nary_operation.addchild(Literal("2", parent=nary_operation))
-    nary_operation.addchild(Literal("3", parent=nary_operation))
+    nary_operation.addchild(Literal("1", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("2", DataType.INTEGER,
+                                    parent=nary_operation))
+    nary_operation.addchild(Literal("3", DataType.INTEGER,
+                                    parent=nary_operation))
     # Check the node children are also printed
-    assert "Literal[value:'1']\n" in str(nary_operation)
-    assert "Literal[value:'2']\n" in str(nary_operation)
-    assert "Literal[value:'3']" in str(nary_operation)
+    assert "Literal[value:'1', DataType.INTEGER]\n" in str(nary_operation)
+    assert "Literal[value:'2', DataType.INTEGER]\n" in str(nary_operation)
+    assert "Literal[value:'3', DataType.INTEGER]" in str(nary_operation)
+
+
+def test_naryoperation_create():
+    '''Test that the create method in the NaryOperation class correctly
+    creates an NaryOperation instance.
+
+    '''
+    children = [Reference("tmp1"), Reference("tmp2"), Reference("tmp3")]
+    oper = NaryOperation.Operator.MAX
+    naryoperation = NaryOperation.create(oper, children)
+    check_links(naryoperation, children)
+    result = FortranWriter().naryoperation_node(naryoperation)
+    assert result == "MAX(tmp1, tmp2, tmp3)"
+
+
+def test_naryoperation_create_invalid():
+    '''Test that the create method in an NaryOperation class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    # oper not an NaryOperation.Operator
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create("invalid", [])
+    assert ("oper argument in create method of NaryOperation class should "
+            "be a PSyIR NaryOperation Operator but found 'str'."
+            in str(excinfo.value))
+
+    # children not a list
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create(NaryOperation.Operator.SUM, "invalid")
+    assert ("children argument in create method of NaryOperation class should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create(NaryOperation.Operator.SUM,
+                                 [Reference("tmp1"), "invalid"])
+    assert (
+        "child of children argument in create method of NaryOperation class "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 # Test Return class
@@ -3560,17 +3957,78 @@ def test_container_can_be_printed():
     assert "Container[box]\n" in str(cont_stmt)
 
 
+def test_container_create():
+    '''Test that the create method in the Container class correctly
+    creates a Container instance.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("tmp", DataType.REAL))
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
+    container = Container.create("container_name", symbol_table,
+                                 [kernel1, kernel2])
+    check_links(container, [kernel1, kernel2])
+    assert container.symbol_table is symbol_table
+    result = FortranWriter().container_node(container)
+    assert result == (
+        "module container_name\n"
+        "  real :: tmp\n\n"
+        "  contains\n"
+        "  subroutine mod_1()\n\n\n"
+        "  end subroutine mod_1\n"
+        "  subroutine mod_2()\n\n\n"
+        "  end subroutine mod_2\n\n"
+        "end module container_name\n")
+
+
+def test_container_create_invalid():
+    '''Test that the create method in a Container class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("x", DataType.REAL))
+    children = [KernelSchedule.create("mod_1", SymbolTable(), [])]
+
+    # name is not a string.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Container.create(1, symbol_table, children)
+    assert ("name argument in create method of Container class "
+            "should be a string but found 'int'.") in str(excinfo.value)
+
+    # symbol_table not a SymbolTable.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Container.create("container", "invalid", children)
+    assert ("symbol_table argument in create method of Container class "
+            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
+
+    # children not a list.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Container.create("mod_name", symbol_table, "invalid")
+    assert ("children argument in create method of Container class should "
+            "be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Container or KernelSchedule.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Container.create("mod_name", symbol_table, ["invalid"])
+    assert (
+        "child of children argument in create method of Container class "
+        "should be a PSyIR KernelSchedule or Container but found 'str'."
+        in str(excinfo.value))
+
+
 # Test KernelSchedule Class
 
 def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", parent=assignment)
+    rhs = Literal("1", DataType.INTEGER, parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
     kschedule.view()
@@ -3585,11 +4043,11 @@ def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("x", "integer"))
+    kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", parent=assignment)
+    rhs = Literal("1", DataType.INTEGER, parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
@@ -3603,6 +4061,62 @@ def test_kernelschedule_name_setter():
     assert kschedule.name == "kname"
     kschedule.name = "newname"
     assert kschedule.name == "newname"
+
+
+def test_kernelschedule_create():
+    '''Test that the create method in the KernelSchedule class correctly
+    creates a KernelSchedule instance.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("tmp", DataType.REAL))
+    assignment = Assignment.create(Reference("tmp"),
+                                   Literal("0.0", DataType.REAL))
+    kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
+    check_links(kschedule, [assignment])
+    assert kschedule.symbol_table is symbol_table
+    result = FortranWriter().kernelschedule_node(kschedule)
+    assert result == (
+        "subroutine mod_name()\n"
+        "  real :: tmp\n\n"
+        "  tmp=0.0\n\n"
+        "end subroutine mod_name\n")
+
+
+def test_kernelschedule_create_invalid():
+    '''Test that the create method in a KernelSchedule class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("x", DataType.REAL))
+    children = [Assignment.create(Reference("x"),
+                                  Literal("1", DataType.REAL))]
+
+    # name is not a string.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = KernelSchedule.create(1, symbol_table, children)
+    assert ("name argument in create method of KernelSchedule class "
+            "should be a string but found 'int'.") in str(excinfo.value)
+
+    # symbol_table not a SymbolTable.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = KernelSchedule.create("mod_name", "invalid", children)
+    assert ("symbol_table argument in create method of KernelSchedule class "
+            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
+
+    # children not a list.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = KernelSchedule.create("mod_name", symbol_table, "invalid")
+    assert ("children argument in create method of KernelSchedule class "
+            "should be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = KernelSchedule.create("mod_name", symbol_table, ["invalid"])
+    assert (
+        "child of children argument in create method of KernelSchedule class "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 def test_modified_kern_line_length(kernel_outputdir, monkeypatch):

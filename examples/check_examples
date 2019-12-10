@@ -47,6 +47,11 @@ set -e
 export PSYCLONE=${PWD}/../bin/psyclone
 export KSTUBGEN=${PWD}/../bin/genkernelstub
 
+echo "Running examples psyir"
+cd psyir
+python create.py
+cd -
+
 echo "Running examples dynamo/eg1"
 cd dynamo/eg1
 python runme.py
