@@ -326,7 +326,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      qr_proxy = qr%get_quadrature_proxy()\n"
         "      np_xyz_qr = qr_proxy%np_xyz\n"
         # TODO #150 need to add support to get reference_element
-        "      nface_qr = reference_element%get_number_horizontal_faces()\n"
+        "      nfaces_qr = reference_element%get_number_horizontal_faces()\n"
         "      weights_xyz_qr => qr_proxy%weights_xyz\n")
     assert init_output in generated_code
     compute_output = (
@@ -334,18 +334,18 @@ def test_face_qr(tmpdir, dist_mem):
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xyz_qr, nface_qr))\n"
+        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xyz_qr, nfaces_qr))\n"
         "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xyz_qr, nface_qr))\n"
+        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xyz_qr, nfaces_qr))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xyz_qr, "
-        "nface_qr))\n"
+        "nfaces_qr))\n"
         "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w3_qr(diff_dim_w3, ndf_w3, np_xyz_qr, "
-        "nface_qr))\n"
+        "nfaces_qr))\n"
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
@@ -381,7 +381,7 @@ def test_face_qr(tmpdir, dist_mem):
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
-        "diff_basis_w3_qr, np_xyz_qr, nface_qr, weights_xyz_qr)\n"
+        "diff_basis_w3_qr, np_xyz_qr, nfaces_qr, weights_xyz_qr)\n"
         "      END DO \n"
         "      !\n")
     if dist_mem:

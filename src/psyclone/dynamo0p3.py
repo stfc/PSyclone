@@ -3756,7 +3756,7 @@ class DynBasisFunctions(DynCollection):
 
         var_dim_list = []
         for basis_fn in self._basis_fns:
-            # Get the extent of the first dimension of the basis array. and
+            # Get the extent of the first dimension of the basis array.
             if basis_fn['type'] == "basis":
                 first_dim = self.basis_first_dim_name(basis_fn["fspace"])
                 dim_space = "get_dim_space()"
@@ -3841,7 +3841,6 @@ class DynBasisFunctions(DynCollection):
                     raise InternalError("Require basis functions but do not "
                                         "have either a Kernel or an "
                                         "Invoke. Should be impossible.")
-                dim_space = "get_dim_space()"
                 is_diff_basis = False
             elif basis_fn['type'] == "diff-basis":
                 if self._invoke:
@@ -3854,7 +3853,6 @@ class DynBasisFunctions(DynCollection):
                     raise InternalError("Require differential basis functions "
                                         "but do not have either a Kernel or "
                                         "an Invoke. Should be impossible.")
-                dim_space = "get_dim_space_diff()"
                 is_diff_basis = True
             else:
                 raise InternalError(
