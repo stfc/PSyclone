@@ -417,7 +417,7 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "PSyIR type '{0}' has no representation in the SIR backend."
                 "".format(str(node.datatype)))
-        
+
         return ("{0}make_literal_access_expr(\"{1}\", {2})"
                 "".format(self._nindent, result, datatype))
 
@@ -451,8 +451,9 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
         literal = node.children[0]
-        if not literal.datatype in [DataType.REAL, DataType.INTEGER]:
-            # The '-' operator can only be applied to REAL and INTEGER datatypes
+        if literal.datatype not in [DataType.REAL, DataType.INTEGER]:
+            # The '-' operator can only be applied to REAL and INTEGER
+            # datatypes.
             raise VisitorError(
                 "PSyIR type '{0}' does not work with the '-' operator."
                 "".format(str(literal.datatype)))
