@@ -1483,8 +1483,7 @@ class DynamoInvokes(Invokes):
 
     def __init__(self, alg_calls, psy):
         self._name_space_manager = NameSpaceFactory().create()
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
@@ -4244,8 +4243,10 @@ class DynInvoke(Invoke):
         :raises GenerationError: if integer reductions are required in the \
                                  psy-layer
         '''
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        if not alg_invocation and not idx:
+            # This if test is added to support pyreverse.
+            return
+        self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
