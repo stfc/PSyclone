@@ -336,10 +336,10 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
         alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                      "np_xyz"+"_"+basis_fn["qr_var"], "nfaces"]        
+                      "np_xyz"+"_"+basis_fn["qr_var"], "nfaces"]
     elif basis_fn["shape"] == "gh_quadrature_edge":
         alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                      "np_xyz"+"_"+basis_fn["qr_var"], "nedges"]                
+                      "np_xyz"+"_"+basis_fn["qr_var"], "nedges"]
     else:
         raise NotImplementedError(
             "unrecognised shape ({0}) specified in "
@@ -3380,8 +3380,12 @@ class DynBasisFunctions(DynCollection):
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
     '''
-    qr_dim_vars = {"xyoz": ["np_xy", "np_z"]}
-    qr_weight_vars = {"xyoz": ["weights_xy", "weights_z"]}
+    qr_dim_vars = {"xyoz": ["np_xy", "np_z"],
+                   "edge": ["np_xyz", "nedges"],
+                   "face": ["np_xyz", "nfaces"]}
+    qr_weight_vars = {"xyoz": ["weights_xy", "weights_z"],
+                      "edge": ["weights_xyz"],
+                      "face": ["weights_xyz"]}
 
     def __init__(self, node):
         from psyclone.dynamo0p3_builtins import DynBuiltIn
@@ -3985,7 +3989,7 @@ class DynBasisFunctions(DynCollection):
     def _initialise_face_qr(self, parent):
         '''
         Add in the initialisation of variables needed for face
-        quadrature
+        quadrature.
 
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
@@ -4032,13 +4036,61 @@ class DynBasisFunctions(DynCollection):
 
     def _initialise_edge_qr(self, parent):
         '''
-        Add in the initialisation of variables needed for face
-        quadrature
+        Add in the initialisation of variables needed for edge
+        quadrature.
 
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
         '''
+        from psyclone.f2pygen import AssignGen, DeclGen
+
+        if "gh_quadrature_edge" not in self._qr_vars:
+            return
+
+        for qr_arg_name in self._qr_vars["gh_quadrature_edge"]:
+            # We generate unique names for the integers holding the numbers
+            # of quadrature points by appending the name of the quadrature
+            # argument
+            decl_list = []
+            for name in self.qr_dim_vars["edge"]:
+                decl_list.append(self._name_space_manager.create_name(
+                    root_name=name+"_"+qr_arg_name, context="PSyVars",
+                    label=name+"_"+qr_arg_name))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=decl_list))
+
+            decl_list = []
+            for name in self.qr_weight_vars["edge"]:
+                decl_list.append(self._name_space_manager.create_name(
+                    root_name=name+"_"+qr_arg_name, context="PSyVars",
+                    label=name+"_"+qr_arg_name))
+            parent.add(
+                DeclGen(parent, datatype="real", pointer=True,
+                        kind="r_def",
+                        entity_decls=[decl+"(:) => null()"
+                                      for decl in decl_list]))
+            # Get the quadrature proxy
+            proxy_name = self._name_space_manager.create_name(
+                root_name=qr_arg_name+"_proxy", context="PSyVars",
+                label=qr_arg_name+"_proxy")
+            parent.add(
+                AssignGen(parent, lhs=proxy_name,
+                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
+            # Number of edges
+            #parent.add(
+            #    AssignGen(parent, lhs=
+            # Number of points in each dimension
+            for qr_var in self.qr_dim_vars["edge"]:
+                parent.add(
+                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
+                              rhs=proxy_name+"%"+qr_var))
+            # Pointers to the weights arrays
+            for qr_var in self.qr_weight_vars["edge"]:
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=qr_var+"_"+qr_arg_name,
+                              rhs=proxy_name+"%"+qr_var))
 
     def _compute_basis_fns(self, parent):
         '''

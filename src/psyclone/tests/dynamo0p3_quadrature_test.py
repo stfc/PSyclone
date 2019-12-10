@@ -217,9 +217,23 @@ def test_edge_qr(tmpdir, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    print(generated_code)
-    #TODO
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
+    assert ("use quadrature_edge_mod, only: quadrature_edge_type, "
+            "quadrature_edge_proxy_type\n" in gen_code)
+    assert "type(quadrature_edge_type), intent(in) :: qr\n" in gen_code
+    assert (
+        "      qr_proxy = qr%get_quadrature_proxy()\n"
+        "      nedges_qr = qr_proxy%nedges\n"
+        "      np_xyz_qr  = qr_proxy%np_xyz\n"
+        "      weights_xyz_qr => qr_proxy%weights_xyz\n" in gen_code)
+
+    assert (
+        "      ! Evaluate the basis functions on the edges\n"
+        "\n"
+        "      allocate( edge_basis(dim_wx, ndf_wx, np_xyz_qr, nedges_qr))\n"
+        "      call qr_proxy%compute_function(BASIS, chi_proxy(1)%vspace, "
+        "dim_wx, ndf_wx, edge_basis)\n" in gen_code)
 
 
 @pytest.mark.xfail(reason="#150 reference element support not on master")
