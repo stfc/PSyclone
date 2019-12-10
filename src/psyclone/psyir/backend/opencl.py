@@ -41,6 +41,7 @@ OpenCL code from PSyIR nodes.
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.symbols import DataType
 
 
 class OpenCLWriter(CWriter):
@@ -98,7 +99,7 @@ class OpenCLWriter(CWriter):
 
         :raises VisitorError: if symbol is not a scalar integer
         '''
-        if symbol.shape or symbol.datatype != 'integer':
+        if symbol.shape or symbol.datatype != DataType.INTEGER:
             raise VisitorError(
                 "OpenCL work-item identifiers must be scalar integer symbols "
                 "but found {0}.".format(str(symbol)))
