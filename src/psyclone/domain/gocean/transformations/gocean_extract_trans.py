@@ -36,8 +36,7 @@
 '''This module contains the GOcean-specific extract transformation.
 '''
 
-from psyclone.psyir.transformations import ExtractTrans
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class GOceanExtractTrans(ExtractTrans):

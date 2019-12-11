@@ -42,10 +42,10 @@ from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone.psyGen import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface
+from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import TransformationError, \
-    OMPParallelTrans, \
+from psyclone.transformations import OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
     Dynamo0p3OMPLoopTrans, \
     DynamoOMPParallelLoopTrans, \
