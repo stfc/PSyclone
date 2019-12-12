@@ -379,8 +379,8 @@ class Invokes(object):
     :py:class:`psyclone.parse.algorithm.InvokeCall`
     :param Invoke: an api-specific Invoke class.
     :type Invoke: subclass of :py:class:`psyclone.psyGen.Invoke`
-    :param psy: the PSy object containing this Invokes object.
-    :type psy: subclass of :py:class`psyclone.psyGen.PSy` 
+    :param psy: the PSy instance containing this Invokes instance.
+    :type psy: subclass of :py:class`psyclone.psyGen.PSy`
 
     '''
     def __init__(self, alg_calls, Invoke, psy):
@@ -398,7 +398,7 @@ class Invokes(object):
     @property
     def psy(self):
         '''
-        :returns: the psy object that contains this object.
+        :returns: the PSy instance that contains this instance.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
 
         '''
@@ -607,28 +607,27 @@ class NameSpace(object):
 
 
 class Invoke(object):
-    ''' Manage an individual invoke call '''
+    '''Manage an individual invoke call.
 
-    def __str__(self):
-        return self._name+"("+", ".join([str(arg) for arg in
-                                         self._alg_unique_args])+")"
+    :param alg_invocation: metadata from the parsed code capturing \
+        information for this Invoke instance.
+    :type alg_invocation: :py:class`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: position/index of this invoke call in the subroutine.
+        If not None, this number is added to the name ("invoke_").
+    :param schedule_class: the schedule class to create for this invoke.
+    :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`
+    :param invokes: the Invokes instance that contains this Invoke \
+        instance.
+    :type invokes: :py:class:`psyclone.psyGen.invokes`
+    :param reserved_names: optional argument: list of reserved names,
+        i.e. names that should not be used e.g. as psyclone created
+        variable name.
+    :type reserved_names: list of str
 
+    '''
     def __init__(self, alg_invocation, idx, schedule_class, invokes,
                  reserved_names=None):
-        '''Constructs an invoke object. Parameters:
-
-        :param alg_invocation:
-        :type alg_invocation:
-        :param idx: Position/index of this invoke call in the subroutine.
-            If not None, this number is added to the name ("invoke_").
-        :type idx: Integer.
-        :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`.
-        :param reserved_names: Optional argument: list of reserved names,
-               i.e. names that should not be used e.g. as psyclone created
-               variable name.
-        :type reserved_names: List of strings.
-        '''
+        '''Construct an invoke object.'''
 
         self._invokes = invokes
         self._name = "invoke"
@@ -698,8 +697,17 @@ class Invoke(object):
                     # cope with writes determining the dofs that are used.
                     self._dofs[dof] = [kern_call, dofs[dof][0]]
 
+    def __str__(self):
+        return self._name+"("+", ".join([str(arg) for arg in
+                                         self._alg_unique_args])+")"
+
     @property
     def invokes(self):
+        '''
+        :returns: the Invokes instance that contains this instance.
+        :rtype: :py:class`psyclone.psyGen.Invokes`
+
+        '''
         return self._invokes
 
     @property
