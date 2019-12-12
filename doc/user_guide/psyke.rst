@@ -62,9 +62,9 @@ The code marked for extraction can be (subject to
 * The entire Invoke (extraction applied to all Nodes).
 
 The basic mechanism of code extraction is through applying the
-**ExtractRegionTrans** transformation to selected Nodes. This
+**ExtractTrans** transformation to selected Nodes. This
 transformation is further sub-classed into API-specific implementations,
-**DynamoExtractRegionTrans** and **GOceanExtractRegionTrans**. Both
+**DynamoExtractTrans** and **GOceanExtractTrans**. Both
 sub-classed transformations insert an instance of the **ExtractNode**
 object into the Schedule of a specific Invoke. All Nodes marked for
 extraction become children of the **ExtractNode**.
@@ -136,7 +136,7 @@ memory is enabled.
 Shared memory and API-specific
 ##############################
 
-The **ExtractRegionTrans** transformation cannot be applied to:
+The **ExtractTrans** transformation cannot be applied to:
 
 * A Loop without its parent Directive,
 
@@ -162,10 +162,10 @@ would be written as:
 
 .. code-block:: python
 
-  from psyclone.transformations import DynamoExtractRegionTrans
+  from psyclone.domain.lfric.transformations import DynamoExtractTrans
 
   # Get instance of the ExtractRegionTrans transformation
-  etrans = DynamoExtractRegionTrans()
+  etrans = DynamoExtractTrans()
 
   # Get Invoke and its Schedule
   invoke = psy.invokes.get("invoke_0")
@@ -243,7 +243,7 @@ to insert the extract region. As shown below, all children of an
 	  Schedule[]
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
-To extract multiple Nodes, **ExtractRegionTrans** can be applied to the list
+To extract multiple Nodes, **ExtractTrans** can be applied to the list
 of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
 
 .. code-block:: python
@@ -276,11 +276,11 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 
 .. code-block:: python
 
-  from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-      DynamoExtractRegionTrans
+  from psyclone.domain.lfric.transformations import DynamoExtractTrans
+  from psyclone.transformations import DynamoOMPParallelLoopTrans
 
   # Get instances of the transformations
-  etrans = DynamoExtractRegionTrans()
+  etrans = DynamoExtractTrans()
   otrans = DynamoOMPParallelLoopTrans()
 
   # Get Invoke and its Schedule

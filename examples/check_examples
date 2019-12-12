@@ -47,6 +47,11 @@ set -e
 export PSYCLONE=${PWD}/../bin/psyclone
 export KSTUBGEN=${PWD}/../bin/genkernelstub
 
+echo "Running examples psyir"
+cd psyir
+python create.py
+cd -
+
 echo "Running examples dynamo/eg1"
 cd dynamo/eg1
 python runme.py
@@ -157,6 +162,7 @@ cd gocean/eg2
 # We don't do the full compile because that requires a Fortran compiler
 # and the dl_esm_inf library
 ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+${PSYCLONE} -api "gocean1.0" -s ./acc_prof_transform.py alg.f90
 cd -
 
 echo "Running gocean/eg3"
