@@ -1,8 +1,13 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2019, Science and Technology Facilities
+! Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +44,7 @@ module reference_element_mod
   implicit none
   private
 
-  type, public :: reference_element_type
+  type, abstract, public :: reference_element_type
    contains
 
      procedure, public :: get_number_horizontal_faces
@@ -53,24 +58,48 @@ module reference_element_mod
 
 contains
 
-  integer function get_number_horizontal_faces(self)
-    return 0
+  integer function get_number_horizontal_faces(this)
+    implicit none
+    class(reference_element_type), intent(in)  :: this
+    get_number_horizontal_faces = 0
   end function get_number_horizontal_faces
 
-  integer function get_number_vertical_faces(self)
-    return 0
+  integer function get_number_vertical_faces(this)
+    implicit none
+    class(reference_element_type), intent(in)  :: this
+    get_number_vertical_faces = 0
   end function get_number_vertical_faces
   
-  subroutine get_normals_to_horizontal_faces(self)
+  subroutine get_normals_to_horizontal_faces(this, normals)
+    implicit none
+    class(reference_element_type), intent(in)  :: this
+    real(r_def), allocatable,      intent(out) :: normals(:,:)
+
+    allocate( normals(1,1) )
   end subroutine get_normals_to_horizontal_faces
   
-  subroutine get_out_normals_to_horizontal_faces(self)
+  subroutine get_out_normals_to_horizontal_faces(this, normals)
+    implicit none
+    class(reference_element_type), intent(in)  :: this
+    real(r_def), allocatable,      intent(out) :: normals(:,:)
+
+    allocate( normals(1,1) )
   end subroutine get_out_normals_to_horizontal_faces
   
-  subroutine get_normals_to_vertical_faces(self)
+  subroutine get_normals_to_vertical_faces(this, normals)
+    implicit none
+    class(reference_element_type), intent(in)  :: this
+    real(r_def), allocatable,      intent(out) :: normals(:,:)
+
+    allocate( normals(1,1) )
   end subroutine get_normals_to_vertical_faces
   
-  subroutine get_out_normals_to_vertical_faces(self)
+  subroutine get_out_normals_to_vertical_faces(this, normals)
+    implicit none
+    class(reference_element_type), intent(in)  :: this
+    real(r_def), allocatable,      intent(out) :: normals(:,:)
+
+    allocate( normals(1,1) )
   end subroutine get_out_normals_to_vertical_faces
   
 end module reference_element_mod

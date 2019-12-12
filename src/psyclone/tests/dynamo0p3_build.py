@@ -69,6 +69,7 @@ class Dynamo0p3Build(Compile):
                               "function_space_mod",
                               "field_mod",
                               "abstract_quadrature_mod",
+                              "reference_element_mod",
                               "quadrature_rule_mod",
                               "quadrature_xyz_mod",
                               "quadrature_xyoz_mod",

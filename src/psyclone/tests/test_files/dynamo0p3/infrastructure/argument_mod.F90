@@ -135,6 +135,14 @@ module argument_mod
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
 
+  ! Reference-element properties
+  integer, public, parameter :: number_horizontal_faces = 904
+  integer, public, parameter :: number_vertical_faces = 905
+  integer, public, parameter :: normals_to_horizontal_faces = 171
+  integer, public, parameter :: outward_normals_to_horizontal_faces = 007
+  integer, public, parameter :: normals_to_vertical_faces = 172
+  integer, public, parameter :: outward_normals_to_vertical_faces = 008
+
   type, public :: arg_type
      integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
      integer :: arg_intent       ! {GH_READ, GH_WRITE, GH_READWRITE, GH_INC, GH_SUM, GH_MIN, GH_MAX}
@@ -149,5 +157,10 @@ module argument_mod
      integer :: wproperties2 = -1 ! { " } optional and must be a distinct property
      integer :: wproperties3 = -1 ! { " } optional and must be a distinct property
   end type func_type
+
+  type, public :: reference_element_data_type
+    integer :: reference_element_data_item  ! {normals_to_faces, &
+                                            !  outward_normals_to_faces}
+  end type reference_element_data_type
 
 end module argument_mod
