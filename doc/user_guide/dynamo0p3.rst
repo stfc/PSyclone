@@ -2331,7 +2331,7 @@ all versions of the Dynamo0.3 API.
           to apply other transformation types will result in PSyclone raising
           an error.
 
-.. autoclass:: psyclone.transformations.DynamoExtractRegionTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicExtractTrans
     :members:
     :noindex:
 
