@@ -236,11 +236,13 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
+        from psyclone.psyGen import Kern
+
         module_name = self._module_name
         if module_name is None:
-            # The user has not supplied a location name so return the
-            # psy-layer module name as this should be unique to each
-            # PSyclone algorithm file.
+            # The user has not supplied a module (location) name so
+            # return the psy-layer module name as this will be unique
+            # for each PSyclone algorithm file.
             module_name = self.root.invoke.invokes.psy.name
 
         region_name = self._region_name
@@ -257,18 +259,15 @@ class ProfileNode(Node):
                     parent_profile_nodes += 1
                 current = current.parent
             # Determine whether there are nested profiles within this
-            # profile.
-            children_profile_nodes = self.children[0].walk(ProfileNode)
-            children_profile_nodes = len(children_profile_nodes)
-
-            from psyclone.psyGen import Kern
+            # profile and if so, what depth.
+            children_profile_nodes = len(self.walk(ProfileNode))-1
             if self.parent is self.root and len(self.parent.children) == 1:
                 # This profile is for the whole invoke so return the
                 # invoke subroutine name.
                 region_name = invoke_name
             elif len(self.walk(Kern)) == 1:
                 # This profile only has one kernel within it, so use
-                # kernel name.
+                # the kernel name.
                 my_kern = self.walk(Kern)[0]
                 my_kern_name = my_kern.name
                 kerns = self.root.walk(Kern)
@@ -276,27 +275,33 @@ class ProfileNode(Node):
                               kern.name == my_kern_name]
 
                 if parent_profile_nodes:
-                    my_kern_name = "{0}:d{1}".format(my_kern_name,
-                                                     parent_profile_nodes)
+                    # I am nested within other profiles so could end
+                    # up with the same name. Therefore add the depth
+                    # of nesting to the name to distinguish.
+                    my_kern_name += ":d{0}".format(parent_profile_nodes)
                 elif children_profile_nodes:
-                    my_kern_name = "{0}:d0".format(my_kern_name)
+                    # There are profiles within my region so add a
+                    # nesting depth of 0 to the name.
+                    my_kern_name += ":d0"
                 if len(same_kerns) > 1:
                     # The kernel is called more than once in this
-                    # invoke so add an index.
+                    # invoke so add an index to identify which kernel
+                    # this is.
                     idx = 0
                     for kern in same_kerns:
-                        # Relies on each kern being its own instance
-                        # which is true at the moment but may not be
-                        # in the future.
                         if kern is my_kern:
                             break
                         idx += 1
-                    my_kern_name = "{0}:c{1}".format(my_kern_name, idx)
+                    # Add a (call) index to distinguish between
+                    # different calls to the same kernel within an
+                    # invoke.
+                    my_kern_name += ":c{0}".format(idx)
                 region_name = "{0}:{1}".format(invoke_name, my_kern_name)
             else:
-                start = self.profile_body[0].abs_position
-                end = self.profile_body[-1].abs_position
-                region_name = "{0}:{1}_{2}".format(invoke_name, start, end)
+                # This is an arbitrary region so return the index of
+                # the profile node as this will distinguish between it
+                # and other regions.
+                region_name = "{0}:i{1}".format(invoke_name, self.abs_position)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!

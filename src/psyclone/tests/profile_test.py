@@ -773,9 +773,9 @@ def test_region():
     _ = prt.apply(schedule[1:3])
     result = str(invoke.gen())
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:3_5\", profile)" in result)
+            "\"invoke_0:i1\", profile)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:8_14\", profile_1)" in result)
+            "\"invoke_0:i6\", profile_1)" in result)
     # Make nested profiles.
     _ = prt.apply(schedule[1].profile_body[1])
     _ = prt.apply(schedule)
@@ -783,12 +783,12 @@ def test_region():
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
             "\"invoke_0\", profile_3)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:5_7\", profile)" in result)
+            "\"invoke_0:i3\", profile)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:10_16\", profile_1)" in result)
+            "\"invoke_0:i8\", profile_1)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
             "\"invoke_0:testkern_code:d2:c1\", profile_2)" in result)
-    
+
 
 # -----------------------------------------------------------------------------
 def test_omp_transform():
