@@ -52,6 +52,13 @@ Transformations can be imported directly, but the user needs to know
 what transformations are available. A helper class **TransInfo** is
 provided to show the available transformations
 
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet. Transformations
+          in the new locations can at the moment not be found using the
+          **TransInfo** approach, and need to be imported directly from
+          the path indicated in the documentation.
+
 .. autoclass:: psyclone.psyGen.TransInfo
     :members:
 
@@ -127,6 +134,10 @@ can be found in the API-specific sections).
 	  Kernels transformation is limited to the NEMO and Dynamo0.3
 	  APIs.
 
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet.
+
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
@@ -165,7 +176,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ExtractRegionTrans
+.. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
     :noindex:
 
@@ -229,7 +240,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ProfileRegionTrans
+.. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
 

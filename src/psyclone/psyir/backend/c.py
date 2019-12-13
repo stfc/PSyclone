@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified by: J. Henrichs, Bureau of Meteorology
+#              A. R. Porter, STFC Daresbury Lab
 
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.
@@ -42,6 +43,14 @@ it needs to be extended for generating pure C code.
 '''
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.symbols import DataType
+
+
+# Mapping from PSyIR types to C data types
+TYPE_MAP_TO_C = {DataType.INTEGER: "int",
+                 DataType.CHARACTER: "char",
+                 DataType.BOOLEAN: "bool",
+                 DataType.REAL: "double"}
 
 
 class CWriter(PSyIRVisitor):
@@ -66,15 +75,9 @@ class CWriter(PSyIRVisitor):
             which are not implemented yet.
         '''
         code = ""
-        if symbol.datatype == "real":
-            code = code + "double "
-        elif symbol.datatype == "integer":
-            code = code + "int "
-        elif symbol.datatype == "character":
-            code = code + "char "
-        elif symbol.datatype == "boolean":
-            code = code + "bool "
-        else:
+        try:
+            code = code + TYPE_MAP_TO_C[symbol.datatype] + " "
+        except KeyError:
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
                 "type '{1}' is currently not supported."
