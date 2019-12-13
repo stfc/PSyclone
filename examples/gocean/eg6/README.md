@@ -1,6 +1,6 @@
 # PSyclone GOcean Example 6
 
-**Authors:** J. Henrichs, Bureau of Meteorology
+**Authors** J. Henrichs, Bureau of Meteorology
 
 ## Introduction
 
@@ -14,16 +14,18 @@ and one of the extraction libraries in lib/extract.
 The documentation assumes that lib/extract/netcdf is used.
 Instructions for those are are given in the corresponding subdirectories.
 
-The makefile here will invoke psyclone with the ``--profile invokes``
-flag, which will add profiling around both invokes.
+PSyclone is invoked with the script ``extract_transform`` which will 
+add extract regions about its invokes.
 
 ## Running
 When running the program, you should see:
 ```
- ProfileInit called
- PreStart called for module 'init_field_mod' region 'init_field_code'
- PostEnd called for module 'init_field_mod' region 'init_field_code'
- PreStart called for module 'update_field_mod' region 'update_field_code'
- PostEnd called for module 'update_field_mod' region 'update_field_code'
+parallel_init: Not running with MPI
+go_decompose: using grid of   1x  1
+Tile width =    3, tile height =    3
+...
+Allocating C-T field with bounds: (1: 12,1:  6)
+Internal region is:(2:  4,2:  4)
+Grid has bounds:  (1: 12,1:  6)
    15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000     
 ```

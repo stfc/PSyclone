@@ -10,13 +10,24 @@ LIB_NAME = lib_kernel_data_netcdf.a
 
 KERNELS = init_field_mod.o update_field_mod.o
 EXEC = extract_test
-all:	$(EXEC)
+DRIVER_INIT = init_field_modinit_field_code
 
-$(EXEC):	$(KERNELS) alg.o psy.o
+all:	$(EXEC) $(DRIVER_INIT)
+
+test:	$(DRIVER_INIT)
+
+$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o init_field_mod.o $(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+	$(F90) $^ -o $(DRIVER_INIT)            \
+	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
+	-L /opt/local/lib64/ -lnetcdff -lnetcdf
+
+
+$(EXEC):	$(KERNELS) alg.o psy.o $(EXTRACT_DIR)/lib_kernel_data_netcdf.a
 	$(F90) $^ -o $(EXEC)                   \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	-L $(DL_DIR) -l_fd                     \
 	-L /opt/local/lib64/ -lnetcdff -lnetcdf
+	
 
 alg.f90 psy.f90: test.x90 extract_transform.py
 	psyclone -nodm -l -api "gocean1.0" -s ./extract_transform.py\
@@ -31,4 +42,4 @@ psy.o:	$(KERNELS)
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(EXTRACT_DIR) -c $<
 
 clean:
-	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC)
+	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC) $(DRiVER_INIT)

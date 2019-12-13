@@ -127,6 +127,19 @@ class PSyDataNode(Node):
         self._module_name = None
 
     # -------------------------------------------------------------------------
+    @property
+    def region_name(self):
+        ''':returns: the region name for this node.
+        :rtype str:'''
+        return self._region_name
+    # -------------------------------------------------------------------------
+    @property
+    def module_name(self):
+        ''':returns: the module name for this node.
+        :rtype str:'''
+        return self._module_name
+
+    # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         this node. '''
@@ -185,7 +198,11 @@ class PSyDataNode(Node):
         :type options["pre-var-list"]: list of str
         :param options["post-var-list"]: a list of variables to be extracted \
             after the last child.
-        :type options["poist-var-list"]: list of str
+        :type options["post-var-list"]: list of str
+        :type str options['pre-far-postfix]: an optional postfix that will \
+            be added to each variable name in the pre-var-list.
+        :type str options['post-var-postfix]: an optional postfix that will \
+            be added to each variable name in the post-var-list.
 
         '''
         if self._module_name is None or self._region_name is None:
@@ -211,6 +228,8 @@ class PSyDataNode(Node):
 
         pre_variable_list = options.get("pre-var-list", [])
         post_variable_list = options.get("post-var-list", [])
+        pre_suffix = options.get("pre-var-postfix", "")
+        post_suffix = options.get("post-var-postfix", "")
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -238,18 +257,18 @@ class PSyDataNode(Node):
         if has_var:
             for var_name in pre_variable_list:
                 self._add_call("PreDeclareVariable", parent,
-                               ["\"{0}-pre\"".format(var_name),
+                               ["\"{0}{1}\"".format(var_name, pre_suffix),
                                 "{0}".format(var_name)])
             for var_name in post_variable_list:
                 self._add_call("PreDeclareVariable", parent,
-                               ["\"{0}-post\"".format(var_name),
+                               ["\"{0}{1}\"".format(var_name, post_suffix),
                                 "{0}".format(var_name)])
 
             self._add_call("PreEndDeclaration", parent)
 
             for var_name in pre_variable_list:
                 self._add_call("WriteVariable", parent,
-                               ["\"{0}-pre\"".format(var_name),
+                               ["\"{0}{1}\"".format(var_name, pre_suffix),
                                 "{0}".format(var_name)])
 
             self._add_call("PreEnd", parent)
@@ -262,7 +281,7 @@ class PSyDataNode(Node):
             self._add_call("PostStart", parent)
             for var_name in post_variable_list:
                 self._add_call("WriteVariable", parent,
-                               ["\"{0}-post\"".format(var_name),
+                               ["\"{0}{1}\"".format(var_name, post_suffix),
                                 "{0}".format(var_name)])
 
         self._add_call("PostEnd", parent)

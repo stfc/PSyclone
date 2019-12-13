@@ -55,12 +55,16 @@ def trans(psy):
     from psyclone.psyir.transformations import ExtractRegion
     extract = ExtractRegion()
 
-    print(psy.invokes.names)
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+    _, _ = extract.apply(schedule.children)
+
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
 
     # Enclose everything in a profiling region
     newschedule, _ = extract.apply(schedule.children)
+
     invoke.schedule = newschedule
     newschedule.view()
     return psy

@@ -74,6 +74,11 @@ class ExtractNode(PSyDataNode):
         self._text_name = "Extract"
         self._colour_key = "Extract"
 
+        # Define two postfixes that will be added to variable names
+        # to make sure the names can be distinguished between pre-
+        # and post-variables (i.e. here input and output).
+        self._post_name = "_post"
+
     @property
     def extract_body(self):
         '''
@@ -113,7 +118,8 @@ class ExtractNode(PSyDataNode):
         dep = DependencyTools()
         input_list, output_list = dep.get_in_out_parameters(self)
         options = {'pre-var-list': input_list,
-                   'post-var-list': output_list}
+                   'post-var-list': output_list,
+                   'post-var-postfix': self._post_name}
 
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
@@ -123,3 +129,111 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
+
+        self.create_driver(input_list, output_list)
+
+    # -------------------------------------------------------------------------
+    def create_driver(self, input_list, output_list):
+        # Create output code:
+
+        from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
+            CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
+            TypeDeclGen
+
+        all_vars = list(set(input_list).union(set(output_list)))
+        all_vars.sort()
+
+        name = self.module_name + self.region_name
+        module = ModuleGen(name=name)
+        prog = SubroutineGen(parent=module, name=name+"_code")
+        module.add(prog)
+        use = UseGen(prog, "psy_data_mod", only=True,
+                     funcnames=["PSyDataType"])
+        prog.add(use)
+
+        var_decl = TypeDeclGen(prog, datatype="PSyDataType",
+                               entity_decls=["psy_data"])
+        prog.add(var_decl)
+
+        call = CallGen(prog,
+                       "psy_data%OpenRead(\"{0}\", \"{1}\")"
+                       .format(self.module_name, self.region_name))
+        prog.add(call)
+
+        post_suffix = self._post_name
+        for var_name in all_vars:
+            # TODO: we need to identify arrays!!
+            # Any variable used needs to be defined.
+            decl = DeclGen(prog, "real", [var_name], kind="8",
+                           dimension=":,:", allocatable=True)
+            prog.add(decl)
+            is_input = var_name in input_list
+            is_output = var_name in output_list
+
+            if is_input and not is_output:
+                # We only need the pre-variable, and we can read
+                # it from the file (and allocate its size)
+                call = CallGen(prog,
+                               "psy_data%ReadVariable(\"{0}\", {0})"
+                               .format(var_name))
+                prog.add(call)
+            elif is_input:
+                # Now must be input and output:
+                # First read the pre-variable
+                call = CallGen(prog,
+                               "psy_data%ReadVariable(\"{0}\", {0})"
+                               .format(var_name))
+                prog.add(call)
+                # Then declare the post variable, and allocate it using read
+                decl = DeclGen(prog, "real", [var_name+post_suffix],
+                               dimension=":,:", kind="8", allocatable=True)
+                prog.add(decl)
+                call = CallGen(prog,
+                               "psy_data%ReadVariable(\"{0}\", {0})"
+                               .format(var_name+post_suffix))
+                prog.add(call)
+            else:
+                # Now the variable is output only. We need to read the
+                # post variable in, and allocate the pre variable with
+                # the same size as the post
+                decl = DeclGen(prog, "real", [var_name+post_suffix],
+                               dimension=":,:", kind="8", allocatable=True)
+                prog.add(decl)
+                call = CallGen(prog,
+                               "psy_data%ReadVariable(\"{0}\", {0})"
+                               .format(var_name+post_suffix))
+                prog.add(call)
+                decl = DeclGen(prog, "real", [var_name], kind="8",
+                               dimension=":,:", allocatable=True)
+                prog.add(decl)
+                alloc = AllocateGen(prog, [var_name,
+                                           "mold={0}".format(var_name +
+                                                             post_suffix)])
+                prog.add(alloc)
+                # Initialise the variable with 0, since it might contain
+                # values that are not set at all (halo regions, or a
+                # kernel might not set all values). This way the array
+                # comparison with the post value works as expected
+                assign = AssignGen(prog, var_name, "0.0")
+                prog.add(assign)
+
+        # Now add the region that was extracted here:
+        prog.add(CommentGen(prog, ""))
+        prog.add(CommentGen(prog, " RegionStart"))
+        for child in self.psy_data_body:
+            child.gen_code(prog)
+        prog.add(CommentGen(prog, " RegionEnd"))
+        prog.add(CommentGen(prog, ""))
+
+        for var_name in output_list:
+            prog.add(CommentGen(prog, " Check {0}".format(var_name)))
+
+        # A really embarrasing hack: gen_code creates code accessing
+        # a field as field%data. Since the driver uses only normal
+        # Fortran arrays, we have to remove "%data" in the code
+        # everywhere. TODO: fix gen_code to avoid creation of %data.
+        code = str(module.root)
+        code = code.replace("%data", "")
+
+        with open(name+".f90", "w") as out:
+            out.write(code)

@@ -12,17 +12,23 @@ module psy_data_mod
     contains
         procedure :: DeclareScalarInteger, WriteScalarInteger
         procedure :: DeclareScalarReal,    WriteScalarReal
-        procedure :: DeclareFieldReal,     WriteFieldReal
+        procedure :: DeclareFieldDouble,     WriteFieldDouble
+        procedure :: ReadScalarInteger, ReadScalarReal, ReadFieldDouble
         procedure :: PreStart, PreEndDeclaration, PreEnd
         procedure :: PostStart, PostEnd
+        procedure :: OpenRead
 
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
                                                  DeclareScalarReal,    &
-                                                 DeclareFieldReal
+                                                 DeclareFieldDouble
 
         generic, public :: WriteVariable => WriteScalarInteger, &
                                             WriteScalarReal,    &
-                                            WriteFieldReal
+                                            WriteFieldDouble
+
+        generic, public :: ReadVariable => ReadScalarInteger, &
+                                           ReadScalarReal,    &
+                                           ReadFieldDouble 
     end type PSyDataType
 
 Contains
@@ -61,20 +67,31 @@ Contains
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
-    subroutine PreEndDeclaration(this)
-        use netcdf, only : nf90_close
+    subroutine OpenRead(this, module_name, kernel_name)
+        use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
         class(PSyDataType), intent(inout) :: this
+        character(*), intent(in) :: module_name, kernel_name
+        integer :: retval
+
+        retval = CheckError(nf90_open(module_name//kernel_name//".nc", &
+                                        NF90_NOWRITE, this%ncid))
+    end subroutine OpenRead
+    ! -------------------------------------------------------------------------
+    subroutine PreEndDeclaration(this)
+        use netcdf, only : nf90_enddef
+        implicit none
+        class(PSyDataType), intent(inout) :: this
+        integer :: retval
+        retval = CheckError(nf90_enddef(this%ncid))
     end subroutine PreEndDeclaration
     ! -------------------------------------------------------------------------
     subroutine PreEnd(this)
-        use netcdf, only : nf90_close
         implicit none
         class(PSyDataType), intent(inout) :: this
     end subroutine PreEnd
     ! -------------------------------------------------------------------------
     subroutine PostStart(this)
-        use netcdf, only : nf90_close
         implicit none
         class(PSyDataType), intent(inout) :: this
     end subroutine PostStart
@@ -96,7 +113,6 @@ Contains
         ! Test if this was the last declaration
         if (this%next_var_index > this%num_pre_vars+this%num_post_vars) then
             this%next_var_index = 1
-            retval = CheckError(nf90_enddef(this%ncid))
         endif   
     end subroutine CheckLastDeclaration
 
@@ -128,6 +144,19 @@ Contains
     end subroutine WriteScalarInteger
 
     ! -------------------------------------------------------------------------
+    subroutine ReadScalarInteger(this, name, value)
+        use netcdf
+        implicit none
+
+        class(PSyDataType), intent(inout) :: this
+        character(*), intent(in) :: name
+        integer :: value
+        integer :: retval, varid
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+    end subroutine ReadScalarInteger
+
+    ! -------------------------------------------------------------------------
     subroutine DeclareScalarReal(this, name, value)
         use netcdf
         implicit none
@@ -139,7 +168,6 @@ Contains
                                          this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
         call CheckLastDeclaration(this)
-        print *,"declared", name
     end subroutine DeclareScalarReal
 
     ! -------------------------------------------------------------------------
@@ -156,6 +184,19 @@ Contains
     end subroutine WriteScalarReal
 
     ! -------------------------------------------------------------------------
+    subroutine ReadScalarReal(this, name, value)
+        use netcdf
+        implicit none
+
+        class(PSyDataType), intent(inout) :: this
+        character(*), intent(in) :: name
+        real :: value
+        integer :: retval, varid
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+    end subroutine ReadScalarReal
+
+    ! -------------------------------------------------------------------------
     subroutine WriteScalarDoublePrecision(name, value)
         implicit none
         character(*), intent(in) :: name
@@ -163,30 +204,37 @@ Contains
     end subroutine WriteScalarDoublePrecision
     
     ! -------------------------------------------------------------------------
-    subroutine DeclareFieldReal(this, name, value)
+    subroutine DeclareFieldDouble(this, name, value, prefix)
         use netcdf
         use field_mod, only : r2d_field
         implicit none
         class(PSyDataType), intent(inout) :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
+        character(*), intent(in), optional :: prefix
         integer :: x_dimid, y_dimid, retval
         integer, dimension(2) :: dimids
+        character(128) :: real_prefix
 
+        if (present(prefix)) then
+            real_prefix = prefix
+        else
+            real_prefix = ""
+        endif
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
                                          value%grid%nx, x_dimid))
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
                                          value%grid%ny, y_dimid))
         dimids =  (/ x_dimid, y_dimid /)
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
+        retval = CheckError(nf90_def_var(this%ncid, trim(name//real_prefix), Nf90_REAL8,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
         call CheckLastDeclaration(this)
-    end subroutine DeclareFieldReal
+    end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
-    subroutine WriteFieldReal(this, name, value)
+    subroutine WriteFieldDouble(this, name, value)
         use netcdf
         use field_mod, only : r2d_field
         implicit none
@@ -196,10 +244,35 @@ Contains
         integer :: retval
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
                                          value%data(:,:)))
-
         this%next_var_index = this%next_var_index + 1
-    end subroutine WriteFieldReal
+    end subroutine WriteFieldDouble
 
+    ! -------------------------------------------------------------------------
+    subroutine ReadFieldDouble(this, name, value)
+        use netcdf
+        implicit none
+
+        class(PSyDataType), intent(inout) :: this
+        character(*), intent(in) :: name
+        double precision, dimension(:,:), allocatable :: value
+        integer :: retval, varid
+        integer :: dim1_id, dim1
+        integer :: dim2_id, dim2, i
+        character(100) :: x
+
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
+                                                   len=dim1))
+        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
+                                                   len=dim2))
+        allocate(value(dim1, dim2))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        value = 0
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+    end subroutine ReadFieldDouble
     ! -------------------------------------------------------------------------
 
 end module psy_data_mod
