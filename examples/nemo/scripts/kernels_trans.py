@@ -70,6 +70,7 @@ PGI_VERSION = 1940  # i.e. 19.4
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
+ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 
 # Whether or not to automatically add profiling calls around
@@ -77,7 +78,7 @@ PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
 _AUTO_PROFILE = True
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "ice_thd_pnd", "macho", "mpp_",
+                    "ice_thd_pnd", "macho", "mpp_", "nemo_gcm",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
@@ -122,6 +123,8 @@ class ExcludeSettings(object):
         self.ifs_1d_arrays = True
         # Whether we perform checks on the PSyIR within identified Kernels
         self.inside_kernels = True
+        # Whether or not to force the compiler to parallelise all loops
+        self.force_parallel = False
         # Override default settings if necessary
         if settings:
             if "ifs_scalars" in settings:
@@ -132,6 +135,8 @@ class ExcludeSettings(object):
                 self.inside_kernels = settings["inside_kernels"]
             if "ifs_real_scalars" in settings:
                 self.ifs_real_scalars = settings["ifs_real_scalars"]
+            if "force_parallel" in settings:
+                self.force_parallel = settings["force_parallel"]
 
 
 # Routines which we know contain structures that, by default, we would normally
@@ -144,6 +149,7 @@ EXCLUDING = {"default": ExcludeSettings(),
              "ice_alb": ExcludeSettings({"ifs_scalars": False,
                                          "ifs_real_scalars": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
+             "tab_3d_2d": ExcludeSettings({"force_parallel": True}),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
@@ -476,8 +482,8 @@ def add_kernels(children):
             elif isinstance(child, Loop) and \
                  not isinstance(child, NemoImplicitLoop):
                 # We may have rejected an implicit loop due to something in its
-                # 'body' but we can't proceed down to its 'children' as currently
-                # it doesn't have any.
+                # 'body' but we can't proceed down to its 'children' as
+                # currently it doesn't have any.
                 success = add_kernels(child.loop_body)
             else:
                 success = add_kernels(child.children)
@@ -593,6 +599,12 @@ def try_kernels_trans(nodes):
     else:
         return False
 
+    routine_name = nodes[0].root.invoke.name.lower()
+    try:
+        excluding = EXCLUDING[routine_name]
+    except KeyError:
+        excluding = EXCLUDING["default"]
+
     try:
         if len(nodes) == 1 and isinstance(nodes[0], IfBlock) and \
            "was_elseif" in nodes[0].annotations:
@@ -602,6 +614,12 @@ def try_kernels_trans(nodes):
             ACC_KERN_TRANS.apply(nodes[0].if_body, {"default_present": False})
         else:
             ACC_KERN_TRANS.apply(nodes, {"default_present": False})
+
+        if excluding.force_parallel:
+            for node in nodes:
+                loops = node.walk(Loop)
+                ACC_LOOP_TRANS.apply(loops[0], {"independent": True})
+
         return True
     except (TransformationError, InternalError) as err:
         print("Failed to transform nodes: {0}", nodes)
