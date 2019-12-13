@@ -2084,8 +2084,8 @@ class DynReferenceElement(DynCollection):
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element.
 
-        :param parent: TODO
-        :type parent:
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
@@ -2095,7 +2095,6 @@ class DynReferenceElement(DynCollection):
 
         parent.add(UseGen(parent, name="reference_element_mod", only=True,
                           funcnames=["reference_element_type"]))
-
         parent.add(
             TypeDeclGen(parent, pointer=True, is_class=True,
                         datatype="reference_element_type",
