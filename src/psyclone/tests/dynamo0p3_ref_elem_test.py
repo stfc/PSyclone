@@ -187,7 +187,7 @@ def test_refelem_gen(tmpdir):
     gen = str(psy.gen).lower()
     assert "use reference_element_mod, only: reference_element_type" in gen
     assert "integer nfaces_h, nfaces_v" in gen
-    assert ("integer, allocatable :: horiz_face_normals(:,:), "
+    assert ("real(kind=r_def), allocatable :: horiz_face_normals(:,:), "
             "vert_face_normals(:,:)" in gen)
     # We need a mesh object in order to get a reference_element object
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen
@@ -216,8 +216,8 @@ def test_duplicate_refelem_gen(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    assert gen.count("integer, allocatable :: horiz_face_normals(:,:), "
-                     "vert_face_normals(:,:)") == 1
+    assert gen.count("real(kind=r_def), allocatable :: horiz_face_normals(:,:)"
+                     ", vert_face_normals(:,:)") == 1
     assert gen.count(
         "reference_element => mesh%get_reference_element") == 1
     assert gen.count(

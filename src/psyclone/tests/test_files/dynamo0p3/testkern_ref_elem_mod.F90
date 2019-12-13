@@ -55,13 +55,16 @@ contains
 
   subroutine testkern_ref_elem_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
                            ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
+                           ndf_w3, undf_w3, map_w3, nfaces_h, nfaces_v, &
+                           horiz_face_normals, vert_face_normals)
     integer, intent(in) :: nlayers
     real(kind=r_def), intent(in) :: ascalar
     real(kind=r_def), dimension(:), intent(out) :: fld1
     real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
     integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer, intent(in) :: nfaces_h, nfaces_v
     integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
-
+    real(kind=r_def), intent(in) :: horiz_face_normals(nfaces_h, 3)
+    real(kind=r_def), intent(in) :: vert_face_normals(nfaces_v, 3)
   end subroutine testkern_ref_elem_code
 end module testkern_ref_elem_mod

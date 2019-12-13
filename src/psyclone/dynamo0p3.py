@@ -2123,8 +2123,8 @@ class DynReferenceElement(DynCollection):
         if self._vert_face_out_normals_name:
             ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
 
-        parent.add(DeclGen(parent, datatype="integer", allocatable=True,
-                           entity_decls=ref_element_arrays))
+        parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                           allocatable=True, entity_decls=ref_element_arrays))
 
     def initialise(self, parent):
         '''
