@@ -61,7 +61,7 @@ region.
 from __future__ import print_function
 import logging
 from psyclone.psyGen import TransInfo
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError, ProfileTrans
 
 # Which version of the PGI compiler we are targetting (different versions
 # have different bugs we have to workaround).
@@ -71,7 +71,7 @@ PGI_VERSION = 1940  # i.e. 19.4
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
-PROFILE_TRANS = TransInfo().get_trans_name('ProfileRegionTrans')
+PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to automatically add profiling calls around
 # un-accelerated regions

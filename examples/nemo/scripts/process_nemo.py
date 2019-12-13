@@ -34,7 +34,6 @@
 # -----------------------------------------------------------------------------
 from __future__ import print_function
 import os
-import sys
 
 '''
 Python driver script to run PSyclone on (pre-processed) NEMO source files, i.e.
@@ -52,14 +51,14 @@ Or, if you have Gnu 'parallel':
 # Files that we won't attempt to process with PSyclone
 EXCLUDED_FILES = ["bdyini.f90",
                   "diaobs.f90",
-                  "diawri.f90", # Unused & has Return in profile region
+                  "diawri.f90",  # Unused & has Return in profile region
                   "dommsk.f90",
                   "fldread.f90",
                   "icbclv.f90", "icbdyn.f90", "icblbc.f90", "icbrst.f90",
                   "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
                   "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
-                  "ice.f90", # lines are too long
-                  "icedyn_adv_pra.f90", # lines are too long
+                  "ice.f90",  # lines are too long
+                  "icedyn_adv_pra.f90",  # lines are too long
                   "iceforcing.f90",
                   "iceistate.f90",
                   "icethd_ent.f90", "icethd_zdf.f90",
@@ -71,7 +70,6 @@ EXCLUDED_FILES = ["bdyini.f90",
                   "tide_mod.f90", "timing.f90"]
 
 if __name__ == "__main__":
-    import glob
     import argparse
     from psyclone.generator import main
 
@@ -92,7 +90,7 @@ if __name__ == "__main__":
 
     # Keep a list of files for which PSyclone fails
     failed_files = []
-    
+
     for ffile in args.input_files:
 
         if not os.path.isfile(ffile):
