@@ -298,3 +298,41 @@ def test_loop_inside_kernels(parser):
             "  do ji = 1, jpj\n" in output)
     assert ("  end do\n"
             "  !$acc end kernels\n" in output)
+
+
+def test_two_loops_inside_kernels(parser):
+    ''' Check that we can mark-up one or both loops inside a KERNELS
+    region containing two loops. '''
+    reader = FortranStringReader("program two_loops\n"
+                                 "  integer :: ji\n"
+                                 "  real :: array(10)\n"
+                                 "  do ji = 1, 10\n"
+                                 "    array(ji) = 1.0\n"
+                                 "  end do\n"
+                                 "  do ji = 1, 5\n"
+                                 "    array(ji) = 2.0*array(ji)\n"
+                                 "  end do\n"
+                                 "end program two_loops\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # Enclose both loops within a KERNELS region
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans.apply(schedule[0:2])
+    # Apply a loop transformation to just the first loop
+    loop_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    loop_trans.apply(schedule[0].dir_body[0])
+    output = str(psy.gen).lower()
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, 10\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n"
+            "end program" in output)
+    loop_trans.apply(schedule[0].dir_body[1])
+    output = str(psy.gen).lower()
+    assert ("  !$acc loop independent\n"
+            "  do ji = 1, 5\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n"
+            "end program" in output)
