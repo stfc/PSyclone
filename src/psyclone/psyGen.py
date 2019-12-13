@@ -2097,8 +2097,19 @@ class Directive(Node):
                     ast_end_index = object_index(fp_parent.content,
                                                  last_child.ast_end)
                 else:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast)
+                    if last_child is first_child and \
+                       isinstance(last_child, Directive) and \
+                       isinstance(last_child.dir_body[0], Loop):
+                        # We have a directive applied to a loop and we know
+                        # that it doesn't have a corresponding end directive
+                        # because ast_end is None. We must therefore allow for
+                        # the fact that directives are siblings (rather than
+                        # parents) of the Loops to which they apply in the
+                        # fparser2 parse tree
+                        ast_end_index = ast_start_index+1
+                    else:
+                        ast_end_index = object_index(fp_parent.content,
+                                                     last_child.ast)
 
                 text = "!$" + self._PREFIX + " " + end_text
                 directive = Comment(FortranStringReader(text,
