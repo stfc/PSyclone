@@ -150,6 +150,12 @@ EXCLUDING = {"default": ExcludeSettings(),
                                          "ifs_real_scalars": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
              "tab_3d_2d": ExcludeSettings({"force_parallel": True}),
+             "tab_2d_3d": ExcludeSettings({"force_parallel": True}),
+             "tab_2d_1d": ExcludeSettings({"force_parallel": True}),
+             "tab_1d_2d": ExcludeSettings({"force_parallel": True}),
+             "ultimate_x": ExcludeSettings({"force_parallel": True}),
+             "ultimate_y": ExcludeSettings({"force_parallel": True}),
+             "ice_dyn_rhg_evp": ExcludeSettings({"force_parallel": True}),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
@@ -615,10 +621,13 @@ def try_kernels_trans(nodes):
         else:
             ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
+        # Force the compiler to parallelise the loops within this kernels
+        # region if required.
         if excluding.force_parallel:
             for node in nodes:
                 loops = node.walk(Loop)
-                ACC_LOOP_TRANS.apply(loops[0], {"independent": True})
+                if loops:
+                    ACC_LOOP_TRANS.apply(loops[0], {"independent": True})
 
         return True
     except (TransformationError, InternalError) as err:
