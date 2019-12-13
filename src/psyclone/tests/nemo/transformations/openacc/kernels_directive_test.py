@@ -279,3 +279,22 @@ def test_kernels_around_where_stmt(parser):
             "  WHERE (a(:, :) < flag) b(:, :) = 0.0\n"
             "  !$ACC END KERNELS\n"
             "  c(:, :) = 1.0\n" in new_code)
+
+
+def test_loop_inside_kernels(parser):
+    ''' Check that we can put an ACC LOOP directive inside a KERNELS
+    region. '''
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans.apply([schedule[0]])
+    loop_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    loop_trans.apply(schedule[0].dir_body[0])
+    output = str(psy.gen).lower()
+    print(output)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, jpj\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n" in output)
