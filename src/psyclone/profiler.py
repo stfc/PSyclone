@@ -42,10 +42,10 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn, InternalError
+     NameSpaceFactory, Node, InternalError
 
 
-class Profiler():
+class Profiler(object):
     ''' This class wraps all profiling related settings.'''
 
     # Command line option to use for the various profiling options
@@ -236,8 +236,6 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        from psyclone.psyGen import Kern
-
         module_name = self._module_name
         if module_name is None:
             # The user has not supplied a module (location) name so
@@ -259,6 +257,7 @@ class ProfileNode(Node):
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             profile_nodes = self.root.walk(ProfileNode)
+            idx = 0
             for idx, profile_node in enumerate(profile_nodes):
                 if profile_node is self:
                     break

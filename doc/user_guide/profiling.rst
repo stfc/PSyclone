@@ -336,34 +336,30 @@ this profile node and 2) `region_name`: a string identifying the
 invoke containing this profile node and its location within the invoke
 (where necessary).
 
-For the `nemo` api, the `module_name` is the name of the parent
-function/subroutine/program, which is unique.
+For the `nemo` api,
 
-For the `nemo` api, the `region_name` is an `r` followed by an integer
-uniquely identifying the profile within the parent
-function/subroutine/program (based on the profile node's position in
-the PSyIR representation.
+* the `module_name` string is set to the name of the parent
+  function/subroutine/program. This name is unique as Fortran requires
+  these names to be unique within a program.
 
-For the `dynamo` and `gocean` api's, `module_name` is the module name
-of the generated PSy-layer. This name is unique by design (otherwise
-module names would clash when compiling).
+* the `region_name` is set to an `r` (standing for region) followed by
+  an integer which uniquely identifies the profile within the parent
+  function/subroutine/program (based on the profile node's position in
+  the PSyIR representation relative to any other profile nodes).
 
-For the `dynamo` and `gocean` api's, the `region_name` is the name
-of the invoke in which it resides if the profile is for the whole of
-the invoke (i.e. the profile node has no parent nodes other than the
-invoke schedule). If this is not the case and the profile contains a
-single kernel then the `region_name` is the name of the invoke, then
-a ":" followed by the name of the kernel. In order to guarantee
-uniqueness when profiles are nested the `region_name` is further
-appended with a `:d` followed by an integer representing the nesting
-depth of the profile if the profile is nested. Further, if the invoke
-contains more than one call to the kernel in question the
-`region_name` is appended with a `:c` followed by an integer
-indicating the relevant kernel call. Finally, if the profile region
-does not contain a single kernel then the `region_name` is the name
-of the invoke followed by `:i` and an integer uniquely identifying the
-profile within the invoke (its location id in the tree). For
-example::
+For the `dynamo` and `gocean` api's,
+
+* the `module_name` string is set to the module name of the generated
+  PSy-layer. This name should be unique by design (otherwise module
+  names would clash when compiling).
+
+* the `region_name` is set to the name of the invoke in which it
+  resides, followed by a `:` and a kernel name if the
+  profile region contains a single invoke, and is completed by `:r`
+  (standing for region) followed by an integer which uniquely
+  identifies the profile within the invoke (based on the profile
+  node's position in the PSyIR representation relative to any other
+  profile nodes). For example::
 
   InvokeSchedule[invoke='invoke_0', dm=True]
     0: Profile[]
@@ -400,8 +396,8 @@ example::
     CONTAINS
     SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
       ...
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0", profile_3)
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:i3", profile)
+      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r0", profile_3)
+      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r1", profile)
       IF (f2_proxy%is_dirty(depth=1)) THEN
         CALL f2_proxy%halo_exchange(depth=1)
       END IF 
@@ -412,12 +408,12 @@ example::
         CALL m2_proxy%halo_exchange(depth=1)
       END IF 
       CALL ProfileEnd(profile)
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:i8", profile_1)
+      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r2", profile_1)
       DO cell=1,mesh%get_last_halo_cell(1)
         CALL testkern_code(...)
       END DO 
       ...
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:testkern_code:d2:c1", profile_2)
+      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:testkern_code:r3", profile_2)
       DO cell=1,mesh%get_last_halo_cell(1)
         CALL testkern_code(...)
       END DO 
