@@ -219,7 +219,7 @@ def test_profile_invokes_gocean1p0():
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"psy_single_invoke_different_iterates"
                   r"_over\", "
-                  r"\"invoke_0\", profile\).*"
+                  r"\"invoke_0:r0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -245,7 +245,7 @@ def test_profile_invokes_gocean1p0():
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0\", profile\).*"
+                  r"\"invoke_0:r0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -284,7 +284,7 @@ def test_unique_region_names():
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0:compute_cu_code:c0\", profile\).*"
+                  r"\"invoke_0:compute_cu_code:r0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -292,7 +292,7 @@ def test_unique_region_names():
                   "end.*"
                   r"call ProfileEnd\(profile\).*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0:compute_cu_code:c1\", profile_1\).*"
+                  r"\"invoke_0:compute_cu_code:r1\", profile_1\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -328,7 +328,7 @@ def test_profile_kernels_gocean1p0():
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0\:compute_cu_code\", (?P<profile1>\w*)\).*"
+                  r"\"invoke_0:compute_cu_code:r0\", (?P<profile1>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -336,7 +336,7 @@ def test_profile_kernels_gocean1p0():
                   "end.*"
                   r"call ProfileEnd\((?P=profile1)\).*"
                   r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
-                  r"\"invoke_0\:time_smooth_code\", (?P<profile2>\w*)\).*"
+                  r"\"invoke_0:time_smooth_code:r1\", (?P<profile2>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -391,7 +391,7 @@ def test_profile_invokes_dynamo0p3():
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"single_invoke_psy\", "
-                  r"\"invoke_0_testkern_type\", profile\).*"
+                  r"\"invoke_0_testkern_type:testkern_code:r0\", profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -410,7 +410,7 @@ def test_profile_invokes_dynamo0p3():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"multi_invoke_psy\", \"invoke_0\","
+                  r"call ProfileStart\(\"multi_invoke_psy\", \"invoke_0:r0\","
                   r" profile\).*"
                   "do cell.*"
                   "call.*"
@@ -428,8 +428,8 @@ def test_profile_invokes_dynamo0p3():
     assert "USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd" \
         in code
     assert "TYPE(ProfileData), save :: profile" in code
-    assert "CALL ProfileStart(\"single_invoke_psy\", \"invoke_0\", profile)" \
-        in code
+    assert ("CALL ProfileStart(\"single_invoke_psy\", "
+            "\"invoke_0:x_plus_y:r0\", profile)" in code)
     assert "CALL ProfileEnd(profile)" in code
 
     Profiler.set_options(None)
@@ -453,7 +453,7 @@ def test_profile_kernels_dynamo0p3():
                   "ProfileEnd.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"single_invoke_psy\", "
-                  r"\"invoke_0_testkern_type:testkern_code\", profile\).*"
+                  r"\"invoke_0_testkern_type:testkern_code:r0\", profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -473,14 +473,14 @@ def test_profile_kernels_dynamo0p3():
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:testkern_code:c0\", "
+                  r"\"invoke_0:testkern_code:r0\", "
                   r"(?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   r"call ProfileEnd\((?P=profile1)\).*"
                   r"call ProfileStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:testkern_code:c1\", (?P<profile2>\w*)\).*"
+                  r"\"invoke_0:testkern_code:r1\", (?P<profile2>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -773,21 +773,21 @@ def test_region():
     _ = prt.apply(schedule[1:3])
     result = str(invoke.gen())
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:i1\", profile)" in result)
+            "\"invoke_0:r0\", profile)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:i6\", profile_1)" in result)
+            "\"invoke_0:r1\", profile_1)" in result)
     # Make nested profiles.
     _ = prt.apply(schedule[1].profile_body[1])
     _ = prt.apply(schedule)
     result = str(invoke.gen())
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0\", profile_3)" in result)
+            "\"invoke_0:r0\", profile_3)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:i3\", profile)" in result)
+            "\"invoke_0:r1\", profile)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:i8\", profile_1)" in result)
+            "\"invoke_0:r2\", profile_1)" in result)
     assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
-            "\"invoke_0:testkern_code:d2:c1\", profile_2)" in result)
+            "\"invoke_0:testkern_code:r3\", profile_2)" in result)
 
 
 # -----------------------------------------------------------------------------
@@ -810,7 +810,7 @@ def test_omp_transform():
 
     correct = (
         "      CALL ProfileStart(\"psy_test27_loop_swap\", "
-        "\"invoke_loop1:bc_ssh_code\", profile)\n"
+        "\"invoke_loop1:bc_ssh_code:r0\", profile)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop\n"
@@ -831,10 +831,10 @@ def test_omp_transform():
     code = str(invoke.gen())
 
     correct = '''      CALL ProfileStart("psy_test27_loop_swap", \
-"invoke_loop1:bc_ssh_code:d0", profile)
+"invoke_loop1:bc_ssh_code:r0", profile)
       !$omp parallel default(shared), private(i,j)
       CALL ProfileStart("psy_test27_loop_swap", \
-"invoke_loop1:bc_ssh_code:d1", profile_1)
+"invoke_loop1:bc_ssh_code:r1", profile_1)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop

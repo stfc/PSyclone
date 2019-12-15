@@ -248,60 +248,21 @@ class ProfileNode(Node):
         region_name = self._region_name
         if region_name is None:
             # The user has not supplied a region name (to identify
-            # this particular invoke region).
-            invoke_name = self.root.invoke.name
-            # Determine whether this profile is nested within other
-            # profiles and if so, what depth.
-            parent_profile_nodes = 0
-            current = self
-            while current.parent:
-                if isinstance(current.parent, ProfileNode):
-                    parent_profile_nodes += 1
-                current = current.parent
-            # Determine whether there are nested profiles within this
-            # profile and if so, what depth.
-            children_profile_nodes = len(self.walk(ProfileNode))-1
-            if self.parent is self.root and len(self.parent.children) == 1:
-                # This profile is for the whole invoke so return the
-                # invoke subroutine name.
-                region_name = invoke_name
-            elif len(self.walk(Kern)) == 1:
-                # This profile only has one kernel within it, so use
+            # this particular invoke region). Use the invoke name as a
+            # starting point.
+            region_name = self.root.invoke.name
+            if len(self.walk(Kern)) == 1:
+                # This profile only has one kernel within it, so append
                 # the kernel name.
                 my_kern = self.walk(Kern)[0]
-                my_kern_name = my_kern.name
-                kerns = self.root.walk(Kern)
-                same_kerns = [kern for kern in kerns if
-                              kern.name == my_kern_name]
-
-                if parent_profile_nodes:
-                    # I am nested within other profiles so could end
-                    # up with the same name. Therefore add the depth
-                    # of nesting to the name to distinguish.
-                    my_kern_name += ":d{0}".format(parent_profile_nodes)
-                elif children_profile_nodes:
-                    # There are profiles within my region so add a
-                    # nesting depth of 0 to the name.
-                    my_kern_name += ":d0"
-                if len(same_kerns) > 1:
-                    # The kernel is called more than once in this
-                    # invoke so add an index to identify which kernel
-                    # this is.
-                    idx = 0
-                    for kern in same_kerns:
-                        if kern is my_kern:
-                            break
-                        idx += 1
-                    # Add a (call) index to distinguish between
-                    # different calls to the same kernel within an
-                    # invoke.
-                    my_kern_name += ":c{0}".format(idx)
-                region_name = "{0}:{1}".format(invoke_name, my_kern_name)
-            else:
-                # This is an arbitrary region so return the index of
-                # the profile node as this will distinguish between it
-                # and other regions.
-                region_name = "{0}:i{1}".format(invoke_name, self.abs_position)
+                region_name += ":{0}".format(my_kern.name)
+            # Add a region index to ensure uniqueness when there are
+            # multiple regions in an invoke.
+            profile_nodes = self.root.walk(ProfileNode)
+            for idx, profile_node in enumerate(profile_nodes):
+                if profile_node is self:
+                    break
+            region_name += ":r{0}".format(idx)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
