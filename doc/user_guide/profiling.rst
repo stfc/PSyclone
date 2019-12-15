@@ -152,29 +152,15 @@ this invoke subroutine will be included in the profiled region.
 
 The option ``--profile kernels`` will add a call to ``ProfileStart``
 before any loops created by PSyclone, and a ``ProfileEnd``
-call at the end of the loop.  Two caveats:
+call at the end of the loop.
 
-1. In some APIs (for example dynamo when using distributed
+.. note: In some APIs (for example dynamo when using distributed
    memory) additional minor code might get included in a
    profiled kernel section, for example setDirty() calls
    (expensive calls like HaloExchange are excluded). 
 
-2. If transformations are applied using a script, the profiling nodes
-   added to the PSyIR could be applied to the wrong location and cause
-   errors.
-
-In order to avoid the second issue, automatic profiling using
-``--profile`` is not allowed together with a transformation
-script. On the other hand, since it is possible to write scripts
-that are more flexible in handling a modified PSyIR, you can use the
-command line option ``--force-profile``. It takes the same
-parameters as ``--profile``, and will allow you to combine a
-transformation script together with automatic profiling. Use
-this option at your own risk!
-
-It is also the responsibility of the user to manually add
-the calls to ``ProfileInit`` and ``ProfileFinalise`` to
-the code base.
+.. note: It is also the responsibility of the user to manually add the
+   calls to ``ProfileInit`` and ``ProfileFinalise`` to the code base.
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created
