@@ -277,8 +277,8 @@ Both options can be specified at the same time::
 	                                        ...) [module_inline=False]
 
 
-Profiling in Scripts - ProfileRegionTransform
----------------------------------------------
+Profiling in Scripts - ProfileTrans
+-----------------------------------
 The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
 takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
@@ -287,9 +287,9 @@ specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
 As an example::
 
-    from psyclone.transformations import ProfileRegionTrans
+    from psyclone.psyir.transformations import ProfileTrans
 
-    p_trans = ProfileRegionTrans()
+    p_trans = ProfileTrans()
     schedule = psy.invokes.get('invoke_0').schedule
     schedule.view()
     
@@ -305,7 +305,7 @@ names). For example::
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    profile_trans = ProfileRegionTrans()
+    profile_trans = ProfileTrans()
     # Use the actual psy-layer module and subroutine names.
     options = {"profile_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)

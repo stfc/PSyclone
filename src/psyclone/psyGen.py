@@ -5210,6 +5210,8 @@ class TransInfo(object):
         if False:
             self._0_to_n = DummyTransformation()  # only here for pyreverse!
 
+        # TODO #620: This need to be improved to support the new
+        # layout, where transformations are in different directories and files
         if module is None:
             # default to the transformation module
             from psyclone import transformations

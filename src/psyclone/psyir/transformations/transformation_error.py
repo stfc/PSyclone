@@ -31,39 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. Transforms the invoke with the addition of
-OpenACC directives and then encloses the whole in a profiling region. '''
-
-from __future__ import print_function
-from acc_transform import trans as acc_trans
+'''This module provides the TransformationError class.
+'''
 
 
-def trans(psy):
-    '''
-    Take the supplied psy object, add OpenACC directives and then enclose
-    the whole schedule within a profiling region.
+class TransformationError(Exception):
+    ''' Provides a PSyclone-specific error class for errors found during
+        code transformation operations. '''
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Transformation Error: "+value
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    '''
-    from psyclone.psyir.transformations import ProfileTrans
-    proftrans = ProfileTrans()
-
-    # Use the trans() routine in acc_transform.py to add the OpenACC directives
-    psy = acc_trans(psy)
-
-    invoke = psy.invokes.get('invoke_0_inc_field')
-    schedule = invoke.schedule
-
-    # Enclose everything in a profiling region
-    newschedule, _ = proftrans.apply(schedule.children)
-    invoke.schedule = newschedule
-    newschedule.view()
-    return psy
+    def __str__(self):
+        return repr(self.value)
