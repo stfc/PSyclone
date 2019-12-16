@@ -3275,6 +3275,69 @@ class Loop(Node):
         self._variable_name = variable_name
         self._id = ""
 
+    @staticmethod
+    def create(var_name, start, stop, step, children):
+        '''Create a Loop instance given valid instances of a variable name,
+        start, stop and step nodes, and a list of child nodes for the
+        loop body.
+
+        :param str var_name: the PSyIR node containing the variable \
+            name of the loop iterator.
+        :param start: the PSyIR node determining the value for the \
+            start of the loop.
+        :type start: :py:class:`psyclone.psyGen.Node`
+        :param end: the PSyIR node determining the value for the end \
+            of the loop.
+        :type end: :py:class:`psyclone.psyGen.Node`
+        :param step: the PSyIR node determining the value for the loop \
+            step.
+        :type step: :py:class:`psyclone.psyGen.Node`
+        :param children: a list of PSyIR nodes contained in the \
+            loop.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: a Loop instance.
+        :rtype: :py:class:`psyclone.psyGen.Loop`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(var_name, str):
+            raise GenerationError(
+                "var_name argument in create method of Loop class "
+                "should be a string but found '{0}'."
+                "".format(type(var_name).__name__))
+        for name, instance in [("start", start), ("stop", stop),
+                               ("step", step)]:
+            if not isinstance(instance, Node):
+                raise GenerationError(
+                    "{0} argument in create method of Loop class should "
+                    "be a PSyIR Node but found '{1}'."
+                    "".format(name, type(instance).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of Loop class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of Loop "
+                    "class should be a PSyIR Node but found '{0}'."
+                    "".format(type(child).__name__))
+
+        loop = Loop()
+        start.parent = loop
+        stop.parent = loop
+        step.parent = loop
+        schedule = Schedule(parent=loop, children=children)
+        for child in children:
+            child.parent = schedule
+        loop.children = [start, stop, step, schedule]
+        loop._variable_name = var_name
+        return loop
+
     def _check_completeness(self):
         ''' Check that the Loop has 4 children and the 4th is a Schedule.
 
@@ -5122,6 +5185,8 @@ class TransInfo(object):
         if False:
             self._0_to_n = DummyTransformation()  # only here for pyreverse!
 
+        # TODO #620: This need to be improved to support the new
+        # layout, where transformations are in different directories and files
         if module is None:
             # default to the transformation module
             from psyclone import transformations
@@ -5350,6 +5415,64 @@ class IfBlock(Node):
             return self._children[2]
         return None
 
+    @staticmethod
+    def create(if_condition, if_body, else_body=None):
+        '''Create an IfBlock instance given valid instances of an
+        if_condition, an if_body and an optional else_body.
+
+        :param if_condition: the PSyIR node containing the if \
+            condition of the if block.
+        :type if_condition: :py:class:`psyclone.psyGen.Node`
+        :param if_body: the PSyIR nodes representing the if body of \
+            the if block.
+        :type if_body: list of :py:class:`psyclone.psyGen.Node`
+        :param else_body: PSyIR nodes representing the else body of the \
+            if block of None if there is no else body (defaults to None).
+        :type else_body: list of :py:class:`psyclone.psyGen.Node` or \
+            NoneType
+
+        :returns: an IfBlock instance.
+        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(if_condition, Node):
+            raise GenerationError(
+                "if_condition argument in create method of IfBlock class "
+                "should be a PSyIR Node but found '{0}'."
+                "".format(type(if_condition).__name__))
+        if not (isinstance(if_body, list) and all(isinstance(child, Node)
+                                                  for child in if_body)):
+            raise GenerationError(
+                "if_body argument in create method of IfBlock class should be "
+                "a list of PSyIR Nodes but it is either not a list or "
+                "one of the list's children is not a Node.")
+        if else_body and \
+           not (isinstance(if_body, list) and
+                all(isinstance(child, Node) for child in else_body)):
+            raise GenerationError(
+                "else_body argument in create method of IfBlock class should "
+                "be a list of PSyIR Nodes but it is either not a list or "
+                "one of the list's children is not a Node.")
+
+        if_stmt = IfBlock()
+        if_schedule = Schedule(parent=if_stmt)
+        for node in if_body:
+            node.parent = if_schedule
+        if_schedule.children = if_body
+        if else_body:
+            else_schedule = Schedule(parent=if_stmt)
+            for node in else_body:
+                node.parent = else_schedule
+            else_schedule.children = else_body
+            if_stmt.children = [if_condition, if_schedule, else_schedule]
+        else:
+            if_stmt.children = [if_condition, if_schedule]
+        if_condition.parent = if_stmt
+        return if_stmt
+
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
@@ -5524,6 +5647,56 @@ class KernelSchedule(Schedule):
         self._name = name
         self._symbol_table = SymbolTable(self)
 
+    @staticmethod
+    def create(name, symbol_table, children):
+        '''Create a KernelSchedule instance given a name, a symbol table and a
+        list of child nodes.
+
+        :param str name: the name of the KernelSchedule.
+        :param symbol_table: the symbol table associated with this \
+            KernelSchedule.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param children: a list of PSyIR nodes contained in the \
+            KernelSchedule.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: a KernelSchedule instance.
+        :rtype: :py:class:`psyclone.psyGen.KernelInstance`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument in create method of KernelSchedule class "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise GenerationError(
+                "symbol_table argument in create method of KernelSchedule "
+                "class should be a SymbolTable but found '{0}'."
+                "".format(type(symbol_table).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of KernelSchedule class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "KernelSchedule class should be a PSyIR Node but "
+                    "found '{0}'.".format(type(child).__name__))
+
+        kern = KernelSchedule(name)
+        kern._symbol_table = symbol_table
+        symbol_table._schedule = kern
+        for child in children:
+            child.parent = kern
+        kern.children = children
+        return kern
+
     @property
     def name(self):
         '''
@@ -5693,6 +5866,37 @@ class Assignment(Node):
 
         return self._children[1]
 
+    @staticmethod
+    def create(lhs, rhs):
+        '''Create an Assignment instance given lhs and rhs child instances.
+
+        :param lhs: the PSyIR node containing the left hand side of \
+            the assignment.
+        :type lhs: :py:class:`psyclone.psyGen.Node`
+        :param rhs: the PSyIR node containing the right hand side of \
+            the assignment.
+        :type rhs: :py:class:`psyclone.psyGen.Node`
+
+        :returns: an Assignment instance.
+        :rtype: :py:class:`psyclone.psyGen.Assignment`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
+            if not isinstance(instance, Node):
+                raise GenerationError(
+                    "{0} argument in create method of Assignment class "
+                    "should be a PSyIR Node but found '{1}'."
+                    "".format(name, type(instance).__name__))
+
+        new_assignment = Assignment()
+        lhs.parent = new_assignment
+        rhs.parent = new_assignment
+        new_assignment.children = [lhs, rhs]
+        return new_assignment
+
     def __str__(self):
         result = "Assignment[]\n"
         for entity in self._children:
@@ -5762,9 +5966,9 @@ class Reference(Node):
 
     :param str reference_name: the name of the symbol being referenced.
     :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
     '''
-    def __init__(self, reference_name, parent):
+    def __init__(self, reference_name, parent=None):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
 
@@ -6007,6 +6211,38 @@ class UnaryOperation(Operation):
         super(UnaryOperation, self).__init__(operation, parent)
         self._text_name = "UnaryOperation"
 
+    @staticmethod
+    def create(oper, child):
+        '''Create a UnaryOperation instance given oper and child instances.
+
+        :param oper: the specified operator.
+        :type oper: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
+        :param child: the PSyIR node that oper operates on.
+        :type child: :py:class:`psyclone.psyGen.Node`
+
+        :returns: a UnaryOperation instance.
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(oper, UnaryOperation.Operator):
+            raise GenerationError(
+                "oper argument in create method of UnaryOperation class "
+                "should be a PSyIR UnaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__))
+        if not isinstance(child, Node):
+            raise GenerationError(
+                "child argument in create method of UnaryOperation class "
+                "should be a PSyIR Node but found '{0}'."
+                "".format(type(child).__name__))
+
+        unary_op = UnaryOperation(oper)
+        child.parent = unary_op
+        unary_op.children = [child]
+        return unary_op
+
 
 class BinaryOperation(Operation):
     '''
@@ -6060,6 +6296,45 @@ class BinaryOperation(Operation):
                 self._children[1].math_equal(other.children[0])
         return self.operator == other.operator
 
+    @staticmethod
+    def create(oper, lhs, rhs):
+        '''Create a BinaryOperator instance given an operator and lhs and rhs
+        child instances.
+
+        :param operator: the operator used in the operation.
+        :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+        :param lhs: the PSyIR node containing the left hand side of \
+            the assignment.
+        :type lhs: :py:class:`psyclone.psyGen.Node`
+        :param rhs: the PSyIR node containing the right hand side of \
+            the assignment.
+        :type rhs: :py:class:`psyclone.psyGen.Node`
+
+        :returns: a BinaryOperator instance.
+        :rtype: :py:class:`psyclone.psyGen.BinaryOperator`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(oper, BinaryOperation.Operator):
+            raise GenerationError(
+                "oper argument in create method of BinaryOperation class "
+                "should be a PSyIR BinaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__))
+        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
+            if not isinstance(instance, Node):
+                raise GenerationError(
+                    "{0} argument in create method of BinaryOperation class "
+                    "should be a PSyIR Node but found '{1}'."
+                    "".format(name, type(instance).__name__))
+
+        binary_op = BinaryOperation(oper)
+        lhs.parent = binary_op
+        rhs.parent = binary_op
+        binary_op.children = [lhs, rhs]
+        return binary_op
+
 
 class NaryOperation(Operation):
     '''
@@ -6083,6 +6358,47 @@ class NaryOperation(Operation):
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
 
+    @staticmethod
+    def create(oper, children):
+        '''Create an NaryOperator instance given an operator and a list of
+        Node instances.
+
+        :param operator: the operator used in the operation.
+        :type operator: :py:class:`psyclone.psyGen.NaryOperation.Operator`
+        :param children: a list of PSyIR nodes that the operator \
+            operates on.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: an NaryOperator instance.
+        :rtype: :py:class:`psyclone.psyGen.NaryOperator`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(oper, NaryOperation.Operator):
+            raise GenerationError(
+                "oper argument in create method of NaryOperation class "
+                "should be a PSyIR NaryOperation Operator but found '{0}'."
+                "".format(type(oper).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of NaryOperation class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "NaryOperation class should be a PSyIR Node but "
+                    "found '{0}'.".format(type(child).__name__))
+
+        nary_op = NaryOperation(oper)
+        for child in children:
+            child.parent = nary_op
+        nary_op.children = children
+        return nary_op
+
 
 class Array(Reference):
     '''
@@ -6094,10 +6410,53 @@ class Array(Reference):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-    def __init__(self, reference_name, parent):
+    def __init__(self, reference_name, parent=None):
         super(Array, self).__init__(reference_name, parent=parent)
         self._text_name = "ArrayReference"
         self._colour_key = "Reference"
+
+    @staticmethod
+    def create(name, children):
+        '''Create an Array instance given an array name and a list of Node
+        array indices.
+
+        :param str name: the name of the array.
+        :param children: a list of Nodes describing the array indices.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+
+        :returns: an Array instance.
+        :rtype: :py:class:`psyclone.psyGen.Array`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument in create method of Array class "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not name:
+            raise GenerationError(
+                "name argument in create method of Array class "
+                "can't be an empty string.")
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of Array class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "Array class should be a PSyIR Node but found '{0}'."
+                    "".format(type(child).__name__))
+
+        array = Array(name)
+        for child in children:
+            child.parent = array
+        array.children = children
+        return array
 
     def __str__(self):
         result = "Array" + super(Array, self).__str__() + "\n"
@@ -6254,6 +6613,57 @@ class Container(Node):
         super(Container, self).__init__(parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
+
+    @staticmethod
+    def create(name, symbol_table, children):
+        '''Create a Container instance given a name, a symbol table and a
+        list of child nodes.
+
+        :param str name: the name of the Container.
+        :param symbol_table: the symbol table associated with this \
+            Container.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param children: a list of PSyIR nodes contained in the \
+            Container. These must be Containers or KernelSchedules.
+        :type children: list of :py:class:`psyclone.psyGen.Container` \
+            or :py:class:`psyclone.psyGen.KernelSchedule`
+
+        :returns: a Container instance.
+        :rtype: :py:class:`psyclone.psyGen.Container`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument in create method of Container class "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise GenerationError(
+                "symbol_table argument in create method of Container class "
+                "should be a SymbolTable but found '{0}'."
+                "".format(type(symbol_table).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of Container class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, (KernelSchedule, Container)):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "Container class should be a PSyIR KernelSchedule or "
+                    "Container but found '{0}'.".format(type(child).__name__))
+
+        container = Container(name)
+        container._symbol_table = symbol_table
+        symbol_table._schedule = container
+        for child in children:
+            child.parent = container
+        container.children = children
+        return container
 
     @property
     def name(self):

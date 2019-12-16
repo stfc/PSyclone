@@ -39,17 +39,16 @@
 
 from __future__ import absolute_import
 
-import os
 import re
 import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace, InternalError, PSyFactory
-from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
-    ProfileRegionTrans, TransformationError
+from psyclone.psyGen import InternalError, Loop, NameSpace
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
-from psyclone.parse.algorithm import parse
+from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
 
 # -----------------------------------------------------------------------------
@@ -124,7 +123,7 @@ def test_profile_basic(capsys):
         "it_space='go_internal_pts']\n")
     assert expected in out
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
 
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
@@ -369,16 +368,10 @@ def test_profile_named_gocean1p0():
     profile name is supplied by the user.
 
     '''
-    gocean_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                    "test_files", "gocean1p0")
-    _, info = parse(os.path.join(
-        gocean_base_path,
-        "test11_different_iterates_over_one_invoke.f90"),
-                    api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                             "gocean1.0", idx=0)
     schedule = invoke.schedule
-    profile_trans = ProfileRegionTrans()
+    profile_trans = ProfileTrans()
     options = {"profile_name": (psy.name, invoke.name)}
     _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
@@ -509,14 +502,9 @@ def test_profile_named_dynamo0p3():
     profile name is supplied by the user.
 
     '''
-    dynamo_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                    "test_files", "dynamo0p3")
-    _, info = parse(os.path.join(dynamo_base_path, "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     schedule = invoke.schedule
-    profile_trans = ProfileRegionTrans()
+    profile_trans = ProfileTrans()
     options = {"profile_name": (psy.name, invoke.name)}
     _, _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
@@ -532,9 +520,9 @@ def test_transform(capsys):
                            name="invoke_loop1")
     schedule = invoke.schedule
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
     assert str(prt) == "Insert a profile start and end call."
-    assert prt.name == "ProfileRegionTrans"
+    assert prt.name == "ProfileTrans"
 
     # Try applying it to a list
     sched1, _ = prt.apply(schedule.children)
@@ -687,7 +675,7 @@ def test_transform_errors(capsys):
                            name="invoke_loop1")
 
     schedule = invoke.schedule
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
 
     with pytest.raises(TransformationError) as excinfo:
         prt.apply([schedule.children[0].children[0], schedule.children[1]])
@@ -752,13 +740,13 @@ def test_transform_errors(capsys):
                            name="invoke_loop1")
     schedule = invoke.schedule
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
 
     # Parallelise the first loop:
     sched1, _ = omp_loop.apply(schedule[0])
 
-    # Inserting a ProfileRegion inside a omp do loop is syntactically
+    # Inserting a ProfileTrans inside a omp do loop is syntactically
     # incorrect, the inner part must be a do loop only:
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(sched1[0].dir_body[0])
@@ -776,7 +764,7 @@ def test_omp_transform():
                            name="invoke_loop1")
     schedule = invoke.schedule
 
-    prt = ProfileRegionTrans()
+    prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
     omp_par = OMPParallelTrans()
 

@@ -42,13 +42,12 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, Loop
-from psyclone.transformations import TransformationError, \
-    GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
-    OMPParallelTrans, GOceanOMPParallelLoopTrans, \
-    GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+from psyclone.psyGen import Loop
+from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import GOConstLoopBoundsTrans, \
+    LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
+    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
+    GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
@@ -1463,16 +1462,8 @@ def test_go_loop_swap_errors():
                      "have any statements inside.",
                      str(error.value)) is not None
 
-    # Check if a non gocean1p0 API raises an error
-    _, info = parse(os.path.
-                    join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "1.0.1_single_named_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(info)
-
-    invokes = psy.invokes
-    invoke = invokes.get(list(invokes.names)[0])
+    psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
+                             "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[3])
 

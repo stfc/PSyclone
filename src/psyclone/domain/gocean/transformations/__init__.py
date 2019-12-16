@@ -31,39 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. Transforms the invoke with the addition of
-OpenACC directives and then encloses the whole in a profiling region. '''
+'''This module contains the transformations for GOcean.
+'''
 
-from __future__ import print_function
-from acc_transform import trans as acc_trans
+from psyclone.domain.gocean.transformations.gocean_extract_trans \
+    import GOceanExtractTrans
 
+# The entities in the __all__ list are made available to import directly from
+# this package e.g.:
+# from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
-def trans(psy):
-    '''
-    Take the supplied psy object, add OpenACC directives and then enclose
-    the whole schedule within a profiling region.
-
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    '''
-    from psyclone.psyir.transformations import ProfileTrans
-    proftrans = ProfileTrans()
-
-    # Use the trans() routine in acc_transform.py to add the OpenACC directives
-    psy = acc_trans(psy)
-
-    invoke = psy.invokes.get('invoke_0_inc_field')
-    schedule = invoke.schedule
-
-    # Enclose everything in a profiling region
-    newschedule, _ = proftrans.apply(schedule.children)
-    invoke.schedule = newschedule
-    newschedule.view()
-    return psy
+__all__ = ['GOceanExtractTrans']

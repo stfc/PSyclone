@@ -9,14 +9,11 @@
 ''' Contains tests for transformations on the GOcean 0.1 API '''
 
 from __future__ import absolute_import
-import os
 import pytest
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.transformations import TransformationError,\
-    LoopFuseTrans,\
-    GOceanLoopFuseTrans,\
+from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import LoopFuseTrans, GOceanLoopFuseTrans, \
     GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"
@@ -32,13 +29,7 @@ def test_loop_fuse_with_not_a_loop():
     ''' Test that an appropriate error is raised by the LoopFuseTrans
     base class wen we attempt to fuse a loop with something that
     is not a loop '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "openmp_fuse_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invoke = psy.invokes.get('invoke_0')
+    _, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
     schedule = invoke.schedule
     # Use the bare LoopFuseTrans in order tests its error checking
     lftrans = LoopFuseTrans()
@@ -58,13 +49,7 @@ def test_loop_fuse_on_non_siblings():
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that do not share the same parent node in
     the schedule '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "openmp_fuse_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invoke = psy.invokes.get('invoke_0')
+    _, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
 
@@ -79,13 +64,7 @@ def test_loop_fuse_non_adjacent_nodes():
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that are not adjacent to one another in the
     schedule '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "openmp_fuse_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invoke = psy.invokes.get('invoke_0')
+    _, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
 
@@ -100,13 +79,7 @@ def test_gocean_loop_fuse_with_not_a_loop():
     ''' Test that an appropriate error is raised by the GOceanLoopFuseTrans
     class when we attempt to fuse a loop with something that
     is not a loop '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "openmp_fuse_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invoke = psy.invokes.get('invoke_0')
+    _, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
     schedule = invoke.schedule
     # Use the bare LoopFuseTrans in order tests its error checking
     lftrans = GOceanLoopFuseTrans()
@@ -122,13 +95,7 @@ def test_gocean_loop_fuse_with_not_a_loop():
 
 def test_openmp_loop_fuse_trans():
     ''' test of the OpenMP transformation of a fused loop '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "openmp_fuse_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invoke = psy.invokes.get('invoke_0')
+    psy, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
     schedule = invoke.schedule
     lftrans = GOceanLoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
@@ -172,14 +139,8 @@ def test_openmp_loop_fuse_trans():
 def test_loop_fuse_different_spaces():
     ''' Test that we raise an error if we attempt to fuse loops that are
     over different grid-point types '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "fuse_different_spaces_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invokes = psy.invokes
-    invoke = invokes.get('invoke_0')
+    _, invoke = get_invoke("fuse_different_spaces_test.f90", API,
+                           name="invoke_0")
     schedule = invoke.schedule
     lftrans = GOceanLoopFuseTrans()
     with pytest.raises(TransformationError):
@@ -189,14 +150,7 @@ def test_loop_fuse_different_spaces():
 
 def test_openmp_loop_trans():
     ''' test of the OpenMP transformation of an all-points loop '''
-    _, info = parse(os.path.join(os.path.
-                                 dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean0p1",
-                                 "openmp_fuse_test.f90"),
-                    api=API)
-    psy = PSyFactory(API).create(info)
-    invokes = psy.invokes
-    invoke = invokes.get('invoke_0')
+    psy, invoke = get_invoke("openmp_fuse_test.f90", API, name="invoke_0")
     schedule = invoke.schedule
     ompf = GOceanOMPParallelLoopTrans()
 
