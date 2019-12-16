@@ -2161,6 +2161,12 @@ class Directive(Node):
 
         self.ast = directive
         self.dir_body.ast = directive
+        # If this is a directive applied to a Loop then update the ast_end
+        # for this Node to point to the parse tree for the loop. We have to
+        # do this because the loop is a sibling (rather than a child) of the
+        # directive in the parse tree.
+        if not end_text and isinstance(first_child, Loop):
+            self.ast_end = fp_parent.content[ast_start_index+1]
 
 
 class ACCDirective(Directive):
