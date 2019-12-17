@@ -169,7 +169,7 @@ class Config(object):
         # The default stub API to use.
         self._default_stub_api = None
 
-        # True if distributed memory code should be created/
+        # True if distributed memory code should be created.
         self._distributed_mem = None
 
         # True if reproducible reductions should be used.
@@ -179,14 +179,17 @@ class Config(object):
         # reproducible reductions are created.
         self._reprod_pad_size = None
 
-        # Where to write transformed kernels - set at runtime
+        # Where to write transformed kernels - set at runtime.
         self._kernel_output_dir = None
 
-        # The naming scheme to use for transformed kernels
+        # The naming scheme to use for transformed kernels.
         self._kernel_naming = None
 
-        # The list of directories to search for Fortran include files
+        # The list of directories to search for Fortran include files.
         self._include_paths = []
+
+        # The root name to use when creating internal PSyIR names.
+        self._psyir_root_name = None
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -291,6 +294,14 @@ class Config(object):
         except ValueError as err:
             raise ConfigurationError(
                 "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
+                config=self)
+
+        try:
+            self._psyir_root_name = self._config['DEFAULT'].getstr(
+                'PSYIR_ROOT_NAME')
+        except ValueError as err:
+            raise ConfigurationError(
+                "error while parsing PSYIR_ROOT_NAME: {0}".format(str(err)),
                 config=self)
 
         # Now we deal with the API-specific sections of the config file. We
@@ -514,6 +525,16 @@ class Config(object):
         :rtype: int
         '''
         return self._reprod_pad_size
+
+    @property
+    def psyir_root_name(self):
+        '''
+        Getter for the root name to use when creating PSyIR names.
+
+        :returns: the PSyIR root name.
+        :rtype: str
+        '''
+        return self._psyir_root_name
 
     @property
     def filename(self):

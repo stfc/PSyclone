@@ -41,7 +41,7 @@
 from __future__ import print_function
 from collections import OrderedDict
 from psyclone.psyir.symbols import Symbol, DataSymbol
-
+from psyclone.configuration import Config
 
 class SymbolTable(object):
     '''
@@ -64,6 +64,26 @@ class SymbolTable(object):
         self._argument_list = []
         # Reference to Schedule to which this symbol table belongs.
         self._schedule = schedule
+
+    def new_symbol_name(self, root_name=None):
+        '''Create a symbol name that is not in the symbol table. If the
+        `root_name` argument is not supplied then the name is
+        generated internally, otherwise the `root_name` is used. If
+        required, an additional number is also added to avoid clashes.
+
+        :param str root_name: the name to use when creating a new \
+        symbol name. This will be appended with an integer if the name \
+        clashes with an existing symbol name.
+
+        '''
+        if not base_name:
+            base_name = Config.get().psyir_root_name
+        candidate_name = base_name
+        idx = 0
+        while candidate_name in self._symbols:
+            candidate_name = "{0}_{1}".format(root_name, idx)
+            idx += 1
+        return candidate_name
 
     def add(self, new_symbol):
         '''Add a new symbol to the symbol table.
