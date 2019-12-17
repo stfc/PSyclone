@@ -620,7 +620,7 @@ class Invoke(object):
         instance.
     :type invokes: :py:class:`psyclone.psyGen.invokes`
     :param reserved_names: optional argument: list of reserved names,
-        i.e. names that should not be used e.g. as psyclone created
+        i.e. names that should not be used e.g. as a PSyclone-created
         variable name.
     :type reserved_names: list of str
 

@@ -355,80 +355,96 @@ For the `dynamo` and `gocean` api's,
 
 * the `region_name` is set to the name of the invoke in which it
   resides, followed by a `:` and a kernel name if the
-  profile region contains a single invoke, and is completed by `:r`
+  profile region contains a single kernel, and is completed by `:r`
   (standing for region) followed by an integer which uniquely
   identifies the profile within the invoke (based on the profile
   node's position in the PSyIR representation relative to any other
   profile nodes). For example::
 
-  InvokeSchedule[invoke='invoke_0', dm=True]
-    0: Profile[]
-        Schedule[]
-            0: Profile[]
-                Schedule[]
-                    0: HaloExchange[field='f2', type='region', depth=1, check_dirty=True]
-                    1: HaloExchange[field='m1', type='region', depth=1, check_dirty=True]
-                    2: HaloExchange[field='m2', type='region', depth=1, check_dirty=True]
-            1: Profile[]
-                Schedule[]
-                    0: Loop[type='', field_space='w1', it_space='cells', upper_bound='cell_halo(1)']
-                        Literal[value:'1', DataType.INTEGER]
-                        Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
-                        Literal[value:'1', DataType.INTEGER]
-                        Schedule[]
-                            0: CodedKern testkern_code(a,f1,f2,m1,m2) [module_inline=False]
-                    1: Profile[]
-                        Schedule[]
-                            0: Loop[type='', field_space='w1', it_space='cells', upper_bound='cell_halo(1)']
-                                Literal[value:'1', DataType.INTEGER]
-                                Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
-                                Literal[value:'1', DataType.INTEGER]
-                                Schedule[]
-                                    0: CodedKern testkern_code(a,f1,f2,m1,m2) [module_inline=False]
-            2: Loop[type='', field_space='w1', it_space='cells', upper_bound='cell_halo(1)']
-                Literal[value:'1', DataType.INTEGER]
-                Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
-                Literal[value:'1', DataType.INTEGER]
-                Schedule[]
-                    0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp) [module_inline=False]
+    InvokeSchedule[invoke='invoke_0', dm=True]
+      0: Profile[]
+          Schedule[]
+              0: Profile[]
+                  Schedule[]
+                      0: HaloExchange[field='f2', type='region', depth=1,
+		                      check_dirty=True]
+                      1: HaloExchange[field='m1', type='region', depth=1,
+		                      check_dirty=True]
+                      2: HaloExchange[field='m2', type='region', depth=1,
+		                      check_dirty=True]
+              1: Profile[]
+                  Schedule[]
+                      0: Loop[type='', field_space='w1', it_space='cells',
+		              upper_bound='cell_halo(1)']
+                          Literal[value:'1', DataType.INTEGER]
+                          Literal[value:'mesh%get_last_halo_cell(1)',
+			          DataType.INTEGER]
+                          Literal[value:'1', DataType.INTEGER]
+                          Schedule[]
+                              0: CodedKern testkern_code(a,f1,f2,m1,m2)
+			         [module_inline=False]
+                      1: Profile[]
+                          Schedule[]
+                              0: Loop[type='', field_space='w1',
+			              it_space='cells',
+				      upper_bound='cell_halo(1)']
+                                  Literal[value:'1', DataType.INTEGER]
+                                  Literal[value:'mesh%get_last_halo_cell(1)',
+				          DataType.INTEGER]
+                                  Literal[value:'1', DataType.INTEGER]
+                                  Schedule[]
+                                      0: CodedKern testkern_code(a,f1,f2,m1,m2)
+				         [module_inline=False]
+              2: Loop[type='', field_space='w1', it_space='cells',
+	              upper_bound='cell_halo(1)']
+                  Literal[value:'1', DataType.INTEGER]
+                  Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
+                  Literal[value:'1', DataType.INTEGER]
+                  Schedule[]
+                      0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp)
+		         [module_inline=False]
 
-  MODULE container
-    CONTAINS
-    SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
-      ...
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r0", profile_3)
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r1", profile)
-      IF (f2_proxy%is_dirty(depth=1)) THEN
-        CALL f2_proxy%halo_exchange(depth=1)
-      END IF 
-      IF (m1_proxy%is_dirty(depth=1)) THEN
-        CALL m1_proxy%halo_exchange(depth=1)
-      END IF 
-      IF (m2_proxy%is_dirty(depth=1)) THEN
-        CALL m2_proxy%halo_exchange(depth=1)
-      END IF 
-      CALL ProfileEnd(profile)
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r2", profile_1)
-      DO cell=1,mesh%get_last_halo_cell(1)
-        CALL testkern_code(...)
-      END DO 
-      ...
-      CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:testkern_code:r3", profile_2)
-      DO cell=1,mesh%get_last_halo_cell(1)
-        CALL testkern_code(...)
-      END DO 
-      ...
-      CALL ProfileEnd(profile_2)
-      CALL ProfileEnd(profile_1)
-      ...
-      DO cell=1,mesh%get_last_halo_cell(1)
-        CALL testkern_qr_code(...)
-      END DO 
-      ...
-      CALL ProfileEnd(profile_3)
-      ...
-    END SUBROUTINE invoke_0
-  END MODULE container
+    MODULE container
+      CONTAINS
+      SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
+        ...
+        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
+	                  profile_3)
+        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r1", &
+	                  profile)
+        IF (f2_proxy%is_dirty(depth=1)) THEN
+          CALL f2_proxy%halo_exchange(depth=1)
+        END IF 
+        IF (m1_proxy%is_dirty(depth=1)) THEN
+          CALL m1_proxy%halo_exchange(depth=1)
+        END IF 
+        IF (m2_proxy%is_dirty(depth=1)) THEN
+          CALL m2_proxy%halo_exchange(depth=1)
+        END IF 
+        CALL ProfileEnd(profile)
+        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
+	                  profile_1)
+        DO cell=1,mesh%get_last_halo_cell(1)
+          CALL testkern_code(...)
+        END DO 
+        ...
+        CALL ProfileStart("multi_functions_multi_invokes_psy", &
+	                  "invoke_0:testkern_code:r3", profile_2)
+        DO cell=1,mesh%get_last_halo_cell(1)
+          CALL testkern_code(...)
+        END DO 
+        ...
+        CALL ProfileEnd(profile_2)
+        CALL ProfileEnd(profile_1)
+        ...
+        DO cell=1,mesh%get_last_halo_cell(1)
+          CALL testkern_qr_code(...)
+        END DO 
+        ...
+        CALL ProfileEnd(profile_3)
+        ...
+      END SUBROUTINE invoke_0
+    END MODULE container
 
 
 Interface to Third Party Profiling Tools 

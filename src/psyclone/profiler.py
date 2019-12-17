@@ -45,7 +45,7 @@ from psyclone.psyGen import GenerationError, Kern, NameSpace, \
      NameSpaceFactory, Node, InternalError
 
 
-class Profiler(object):
+class Profiler():
     ''' This class wraps all profiling related settings.'''
 
     # Command line option to use for the various profiling options
@@ -249,18 +249,15 @@ class ProfileNode(Node):
             # this particular invoke region). Use the invoke name as a
             # starting point.
             region_name = self.root.invoke.name
-            if len(self.walk(Kern)) == 1:
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
                 # This profile only has one kernel within it, so append
                 # the kernel name.
-                my_kern = self.walk(Kern)[0]
-                region_name += ":{0}".format(my_kern.name)
+                region_name += ":{0}".format(kerns[0].name)
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             profile_nodes = self.root.walk(ProfileNode)
-            idx = 0
-            for idx, profile_node in enumerate(profile_nodes):
-                if profile_node is self:
-                    break
+            idx = profile_nodes.index(profile_node)
             region_name += ":r{0}".format(idx)
 
         # Note that adding a use statement makes sure it is only

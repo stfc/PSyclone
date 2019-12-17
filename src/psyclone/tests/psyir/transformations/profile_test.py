@@ -276,8 +276,8 @@ def test_unique_region_names():
     code = str(invoke.gen()).replace("\n", "")
 
     # This regular expression puts the region names into groups.
-    # Make sure even though the kernels have the same name, that
-    # the created regions have different names.
+    # Make sure that the created regions have different names, even
+    # though the kernels have the same name.
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
