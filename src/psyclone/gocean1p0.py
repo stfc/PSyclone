@@ -55,7 +55,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, AccessType, Literal, ACCEnterDataDirective, Schedule
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -443,9 +443,11 @@ class GOLoop(Loop):
                 format(self._loop_type, VALID_LOOP_TYPES))
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # stop
+        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         if not GOLoop._bounds_lookup:
@@ -677,8 +679,8 @@ class GOLoop(Loop):
                 # but it helps to fix all of the test cases.
                 if stop == "2-1":
                     stop = "1"
-                return Literal(stop, self)
-            return Literal("not_yet_set", self)
+                return Literal(stop, DataType.INTEGER, self)
+            return Literal("not_yet_set", DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -689,11 +691,12 @@ class GOLoop(Loop):
                                    self)
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
-            stop.addchild(Literal(self.field_name+"%data", parent=stop))
+            stop.addchild(Literal(self.field_name+"%data", DataType.INTEGER,
+                                  parent=stop))
             if self._loop_type == "inner":
-                stop.addchild(Literal("1", parent=stop))
+                stop.addchild(Literal("1", DataType.INTEGER, parent=stop))
             elif self._loop_type == "outer":
-                stop.addchild(Literal("2", parent=stop))
+                stop.addchild(Literal("2", DataType.INTEGER, parent=stop))
             return stop
 
         # Loop bounds are pulled from the field object which
@@ -715,7 +718,7 @@ class GOLoop(Loop):
             stop += "%ystop"
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
-        return Literal(stop, self)
+        return Literal(stop, DataType.INTEGER, self)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -762,12 +765,12 @@ class GOLoop(Loop):
                 # but it helps with fixing all of the test cases.
                 if start == "2-1":
                     start = "1"
-                return Literal(start, self)
-            return Literal("not_yet_set", self)
+                return Literal(start, DataType.INTEGER, self)
+            return Literal("not_yet_set", DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", self)
+            return Literal("1", DataType.INTEGER, self)
 
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
@@ -786,7 +789,7 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             start += "%ystart"
         # TODO 363 - update once the PSyIR supports derived types
-        return Literal(start, self)
+        return Literal(start, DataType.INTEGER, self)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -2058,7 +2061,7 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if (dtype != "integer" or shape_len != 0):
+            if (dtype != DataType.INTEGER or shape_len != 0):
                 if shape_len == 0:
                     shape_str = "a scalar"
                 else:

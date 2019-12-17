@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import Kern, NameSpace, \
+from psyclone.psyGen import InternalError, Kern, NameSpace, \
      NameSpaceFactory, Node, BuiltIn
 
 
@@ -63,6 +63,11 @@ class PSyDataNode(Node):
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py::class::`psyclone.psyGen.Node`
+    :param (str, str) name: an optional name to use for this PSyDataNode, \
+        provided as a 2-tuple containing a module name followed by a \
+        local name. The pair of strings should uniquely identify a\
+        region unless aggregate information is required and supported
+        by the runtime library linked in.
 
     '''
     # PSyData interface Fortran module
@@ -80,7 +85,7 @@ class PSyDataNode(Node):
     # A namespace manager to make sure we get unique region names
     _namespace = NameSpace()
 
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None, name=None):
 
         # Store the name of the profile variable that is used for this
         # profile name. This allows to show the variable name in __str__
@@ -119,12 +124,26 @@ class PSyDataNode(Node):
         self._text_name = "PSyData"
         self._colour_key = "PSyData"
 
-        # Name of the region. In general at constructor time we might not
-        # have a parent subroutine or a child for the kernel, so we leave
-        # the name empty for now. The region and module names are set the
-        # first time gen() is called (and then remain unchanged).
-        self._region_name = None
+        # Name of the region. In general at constructor time we might
+        # not have a parent subroutine or a child for the kernel, so
+        # the name is left empty, unless explicitly provided by the
+        # user. If names are not provided here then the region and
+        # module names are set the first time gen() is called (and
+        # then remain unchanged).
         self._module_name = None
+        self._region_name = None
+        if name:
+            # pylint: disable=too-many-boolean-expressions
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise InternalError(
+                    "Error in PSyDataNode. The name must be a "
+                    "tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
+            # Valid profile names have been provided by the user.
+            self._module_name = name[0]
+            self._region_name = name[1]
 
     # -------------------------------------------------------------------------
     @property
@@ -158,7 +177,7 @@ class PSyDataNode(Node):
         :raises InternalError: if this PSyData node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule, InternalError
+        from psyclone.psyGen import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
@@ -325,7 +344,7 @@ class PSyDataNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index, Schedule, InternalError
+        from psyclone.psyGen import object_index
 
         # Ensure child nodes are up-to-date
         super(PSyDataNode, self).update()
@@ -342,13 +361,16 @@ class PSyDataNode(Node):
                                        Fortran2003.Specification_Part,
                                        Fortran2003.Use_Stmt,
                                        Fortran2003.Name])
-        for node in node_list:
-            if isinstance(node, (Fortran2003.Main_Program,
-                                 Fortran2003.Subroutine_Stmt,
-                                 Fortran2003.Function_Stmt)):
-                names = walk_ast([node], [Fortran2003.Name])
-                routine_name = str(names[0]).lower()
-                break
+        if self._module_name:
+            routine_name = self._module_name
+        else:
+            for node in node_list:
+                if isinstance(node, (Fortran2003.Main_Program,
+                                     Fortran2003.Subroutine_Stmt,
+                                     Fortran2003.Function_Stmt)):
+                    names = walk_ast([node], [Fortran2003.Name])
+                    routine_name = str(names[0]).lower()
+                    break
 
         for node in node_list:
             if isinstance(node, Fortran2003.Specification_Part):
@@ -434,7 +456,10 @@ class PSyDataNode(Node):
         sched = self.root
         pnodes = sched.walk(PSyDataNode)
         region_idx = pnodes.index(self)
-        region_name = "r{0}".format(region_idx)
+        if self._region_name:
+            region_name = self._region_name
+        else:
+            region_name = "r{0}".format(region_idx)
         var_name = "psy_data{0}".format(region_idx)
 
         # Create a variable for this profiling region

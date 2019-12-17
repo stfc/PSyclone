@@ -33,15 +33,15 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 
-'''This module contains the LFRic-specific implementation of the ExtractRegion
+'''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
 '''
 
-from psyclone.psyir.transformations import ExtractRegion, TransformationError
+from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
-class LFRicExtractRegion(ExtractRegion):
-    ''' Dynamo0.3 API application of ExtractRegion transformation \
+class LFRicExtractTrans(ExtractTrans):
+    ''' Dynamo0.3 API application of ExtractTrans transformation \
     to extract code into a stand-alone program. For example:
 
     >>> from psyclone.parse.algorithm import parse
@@ -53,10 +53,10 @@ class LFRicExtractRegion(ExtractRegion):
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>>
-    >>> from psyclone.domain.lfric.transformations import LFRicExtractRegion
-    >>> etrans = LFRicExtractRegion()
+    >>> from psyclone.domain.lfric.transformations import LFRicExtractTrans
+    >>> etrans = LFRicExtractTrans()
     >>>
-    >>> # Apply LFRicExtractRegion transformation to selected Nodes
+    >>> # Apply LFRicExtractTrans transformation to selected Nodes
     >>> newsched, _ = etrans.apply(schedule.children[0:3])
     >>> newsched.view()
     '''
@@ -64,7 +64,7 @@ class LFRicExtractRegion(ExtractRegion):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "LFRicExtractRegion"
+        return "LFRicExtractTrans"
 
     def validate(self, node_list, options=None):
         ''' Perform Dynamo0.3 API specific validation checks before applying
@@ -81,10 +81,10 @@ class LFRicExtractRegion(ExtractRegion):
         '''
 
         # First check constraints on Nodes in the node_list inherited from
-        # the parent classes (ExtractRegion and RegionTrans)
-        super(LFRicExtractRegion, self).validate(node_list, options)
+        # the parent classes (ExtractTrans and RegionTrans)
+        super(LFRicExtractTrans, self).validate(node_list, options)
 
-        # Check LFRicExtractRegion specific constraints
+        # Check LFRicExtractTrans specific constraints
         from psyclone.dynamo0p3 import DynLoop
         for node in node_list:
 

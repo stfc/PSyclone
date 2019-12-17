@@ -35,31 +35,24 @@
 # Modified by A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone LFRIcExtractRegion and
-GOceanExtractRegion transformations and ExtractNode.
+''' Module containing tests for PSyclone LFRicExtractTrans and
+GOceanExtractTrans transformations and ExtractNode.
 '''
 
 from __future__ import absolute_import
 
-import os
 import pytest
 
-from psyclone.domain.lfric.transformations import LFRicExtractRegion
-from psyclone.domain.gocean.transformations import GOceanExtractRegion
+from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import ExtractNode, PSyDataNode
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, Loop, NameSpace
+from psyclone.psyGen import Loop, NameSpace
 from psyclone.psyir.transformations import TransformationError
-
 from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.utilities import get_invoke
 
-# Paths to APIs
-DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "test_files", "dynamo0p3")
+# API names
 DYNAMO_API = "dynamo0.3"
-
-GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "test_files", "gocean1p0")
 GOCEAN_API = "gocean1.0"
 
 
@@ -75,6 +68,15 @@ def clear_psydata_namespace():
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
+
+
+def test_extract_trans():
+    '''Tests basic functions in ExtractTrans.'''
+    from psyclone.psyir.transformations import ExtractTrans
+    etrans = ExtractTrans()
+    assert str(etrans) == "Create a sub-tree of the PSyIR that has " \
+                          "ExtractNode at its root."
+    assert etrans.name == "ExtractTrans"
 
 
 def test_malformed_extract_node(monkeypatch):
@@ -97,19 +99,17 @@ def test_node_list_error(tmpdir):
     Nodes or a list of Nodes raises a TransformationError. Also raise
     transformation errors when the Nodes do not have the same parent
     if they are incorrectly ordered. '''
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
 
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "3.2_multi_functions_multi_named_invokes.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    # First test for f1 readwrite to read dependency
+    psy, _ = get_invoke("3.2_multi_functions_multi_named_invokes.f90",
+                        DYNAMO_API, idx=0, dist_mem=False)
     invoke0 = psy.invokes.invoke_list[0]
     invoke1 = psy.invokes.invoke_list[1]
     # Supply an object which is not a Node or a list of Nodes
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(invoke0)
-    assert ("Error in LFRicExtractRegion: Argument must be "
+    assert ("Error in LFRicExtractTrans: Argument must be "
             "a single Node in a Schedule or a list of Nodes in a Schedule "
             "but have been passed an object of type: "
             "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
@@ -140,62 +140,54 @@ def test_node_list_error(tmpdir):
 def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
     enabled raises a TransformationError. '''
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
 
     # Test Dynamo0.3 API with distributed memory
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "1_single_invoke.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
+                           idx=0, dist_mem=True)
     schedule = invoke.schedule
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[3])
-    assert ("Error in LFRicExtractRegion: Distributed memory is "
+    assert ("Error in LFRicExtractTrans: Distributed memory is "
             "not supported.") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
-            "cannot be enclosed by a LFRicExtractRegion "
+            "cannot be enclosed by a LFRicExtractTrans "
             "transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
+                           DYNAMO_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
-            "cannot be enclosed by a LFRicExtractRegion "
+            "cannot be enclosed by a LFRicExtractTrans "
             "transformation") in str(excinfo.value)
 
 
 def test_repeat_extract():
     ''' Test that applying Extract Transformation on Node(s) already
     containing an ExtractNode raises a TransformationError. '''
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
 
     # Test Dynamo0.3 API
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "1_single_invoke.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
+                           idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Apply Extract transformation
     schedule, _ = etrans.apply(schedule.children[0])
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
-    assert ("Nodes of type '<class 'psyclone.psyir.nodes.extract_node."
-            "ExtractNode'>' cannot be enclosed by a LFRicExtractRegion "
+    assert ("Nodes of type '<class "
+            "'psyclone.psyir.nodes.extract_node.ExtractNode'>' "
+            "cannot be enclosed by a LFRicExtractTrans "
             "transformation") in str(excinfo.value)
 
 
@@ -204,13 +196,9 @@ def test_kern_builtin_no_loop():
     call without its parent Loop raises a TransformationError. '''
 
     # Test Dynamo0.3 API for Built-in call error
-    dynetrans = LFRicExtractRegion()
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    dynetrans = LFRicExtractTrans()
+    _, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
+                           DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Test Built-in call
     builtin_call = schedule.children[1].loop_body[0]
@@ -220,12 +208,9 @@ def test_kern_builtin_no_loop():
             "parent Loop is not allowed.") in str(excinfo.value)
 
     # Test GOcean1.0 API for Kernel call error
-    gocetrans = GOceanExtractRegion()
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    gocetrans = GOceanExtractTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Test Kernel call
     kernel_call = schedule.children[0].loop_body[0].loop_body[0]
@@ -239,17 +224,13 @@ def test_loop_no_directive_dynamo0p3():
     ''' Test that applying Extract Transformation on a Loop without its
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
 
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "4.13_multikernel_invokes_w3_anyd.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
+                           DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Apply DynamoOMPParallelLoopTrans to the second Loop
     otrans = DynamoOMPParallelLoopTrans()
@@ -269,16 +250,13 @@ def test_no_parent_accdirective():
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans, \
         ACCLoopTrans
 
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
 
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # Apply the OpenACC Loop transformation to every loop in the Schedule
@@ -298,21 +276,18 @@ def test_no_parent_accdirective():
 
 
 def test_no_colours_loop_dynamo0p3():
-    ''' Test that applying LFRicExtractRegion on a Loop over cells
+    ''' Test that applying LFRicExtractTrans on a Loop over cells
     in a colour without its parent Loop over colours in Dynamo0.3 API
     raises a TransformationError. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
 
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "1_single_invoke.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
+                           idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # Colour first loop that calls testkern_code (loop is over cells and
@@ -332,15 +307,11 @@ def test_no_colours_loop_dynamo0p3():
 
 
 def test_no_outer_loop_gocean1p0():
-    ''' Test that applying GOceanExtractRegion on an inner Loop without
+    ''' Test that applying GOceanExtractTrans on an inner Loop without
     its parent outer Loop in GOcean1.0 API raises a TransformationError. '''
-    etrans = GOceanExtractRegion()
-
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    etrans = GOceanExtractTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # Try to extract the region between the outer and the inner Loop
@@ -361,12 +332,9 @@ def test_extract_node_position():
     marked for extraction. '''
 
     # Test GOcean1.0 API for extraction of a single Node
-    gocetrans = GOceanExtractRegion()
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    gocetrans = GOceanExtractTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Apply Extract transformation to the second Node and assert that
     # position and the absolute position of the ExtractNode are the same as
@@ -383,14 +351,9 @@ def test_extract_node_position():
     assert extract_node[0].depth == dpth
 
     # Test Dynamo0.3 API for extraction of a list of Nodes
-    dynetrans = LFRicExtractRegion()
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API,
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    dynetrans = LFRicExtractTrans()
+    _, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
+                           DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Apply Extract transformation to the first three Nodes and assert that
     # position and the absolute position of the ExtractNode are the same as
@@ -412,13 +375,9 @@ def test_extract_node_representation(capsys):
     class: view, dag_name and __str__ produce the correct results. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
-    etrans = LFRicExtractRegion()
-
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    etrans = LFRicExtractTrans()
+    _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
+                           idx=0, dist_mem=False)
     schedule = invoke.schedule
     children = schedule.children[1:3]
     schedule, _ = etrans.apply(children)
@@ -450,14 +409,10 @@ def test_extract_node_representation(capsys):
 def test_single_node_dynamo0p3():
     ''' Test that Extract Transformation on a single Node in a Schedule
     produces the correct result in Dynamo0.3 API. '''
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
 
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "1_single_invoke.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API,
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
+                             idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0])
@@ -465,17 +420,17 @@ def test_single_node_dynamo0p3():
     outpu1 = """      ! ExtractStart
       !
       CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
-      CALL psy_data%PreDeclareVariable("a-pre", a)
-      CALL psy_data%PreDeclareVariable("f2-pre", f2)
-      CALL psy_data%PreDeclareVariable("m1-pre", m1)
-      CALL psy_data%PreDeclareVariable("m2-pre", m2)
-      CALL psy_data%PreDeclareVariable("cell-post", cell)
-      CALL psy_data%PreDeclareVariable("f1-post", f1)
+      CALL psy_data%PreDeclareVariable("a", a)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("m1", m1)
+      CALL psy_data%PreDeclareVariable("m2", m2)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("f1_post", f1)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("a-pre", a)
-      CALL psy_data%WriteVariable("f2-pre", f2)
-      CALL psy_data%WriteVariable("m1-pre", m1)
-      CALL psy_data%WriteVariable("m2-pre", m2)
+      CALL psy_data%WriteVariable("a", a)
+      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%WriteVariable("m1", m1)
+      CALL psy_data%WriteVariable("m2", m2)
       CALL psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
@@ -485,8 +440,8 @@ def test_single_node_dynamo0p3():
         """undf_w3, map_w3(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell-post", cell)
-      CALL psy_data%WriteVariable("f1-post", f1)
+      CALL psy_data%WriteVariable("cell_post", cell)
+      CALL psy_data%WriteVariable("f1_post", f1)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -496,15 +451,9 @@ def test_single_node_dynamo0p3():
 def test_node_list_dynamo0p3():
     ''' Test that applying Extract Transformation on a list of Nodes
     produces the correct result in Dynamo0.3 API. '''
-    etrans = LFRicExtractRegion()
-
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API,
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    etrans = LFRicExtractTrans()
+    psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
+                             DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0:3])
@@ -512,12 +461,12 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL psy_data%PreDeclareVariable("f2-pre", f2)
-      CALL psy_data%PreDeclareVariable("cell-post", cell)
-      CALL psy_data%PreDeclareVariable("df-post", df)
-      CALL psy_data%PreDeclareVariable("f3-post", f3)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("df_post", df)
+      CALL psy_data%PreDeclareVariable("f3_post", f3)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("f2-pre", f2)
+      CALL psy_data%WriteVariable("f2", f2)
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f5
         f5_proxy%data(df) = 0.0
@@ -531,9 +480,9 @@ def test_node_list_dynamo0p3():
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell-post", cell)
-      CALL psy_data%WriteVariable("df-post", df)
-      CALL psy_data%WriteVariable("f3-post", f3)
+      CALL psy_data%WriteVariable("cell_post", cell)
+      CALL psy_data%WriteVariable("df_post", df)
+      CALL psy_data%WriteVariable("f3_post", f3)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -546,15 +495,12 @@ def test_single_node_ompparalleldo_gocean1p0():
     in GOcean1.0 API. '''
     from psyclone.transformations import GOceanOMPParallelLoopTrans
 
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractTrans()
     otrans = GOceanOMPParallelLoopTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
@@ -567,14 +513,14 @@ def test_single_node_ompparalleldo_gocean1p0():
     output = """      ! ExtractStart
       !
       CALL psy_data%PreStart("compute_cv_mod", "compute_cv_code", 2, 3)
-      CALL psy_data%PreDeclareVariable("p_fld-pre", p_fld)
-      CALL psy_data%PreDeclareVariable("v_fld-pre", v_fld)
-      CALL psy_data%PreDeclareVariable("cv_fld-post", cv_fld)
-      CALL psy_data%PreDeclareVariable("i-post", i)
-      CALL psy_data%PreDeclareVariable("j-post", j)
+      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
+      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
+      CALL psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
+      CALL psy_data%PreDeclareVariable("i_post", i)
+      CALL psy_data%PreDeclareVariable("j_post", j)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("p_fld-pre", p_fld)
-      CALL psy_data%WriteVariable("v_fld-pre", v_fld)
+      CALL psy_data%WriteVariable("p_fld", p_fld)
+      CALL psy_data%WriteVariable("v_fld", v_fld)
       CALL psy_data%PreEnd
       !$omp parallel do default(shared), private(i,j), schedule(static)
       DO j=2,jstop+1
@@ -584,9 +530,9 @@ def test_single_node_ompparalleldo_gocean1p0():
       END DO 
       !$omp end parallel do
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cv_fld-post", cv_fld)
-      CALL psy_data%WriteVariable("i-post", i)
-      CALL psy_data%WriteVariable("j-post", j)
+      CALL psy_data%WriteVariable("cv_fld_post", cv_fld)
+      CALL psy_data%WriteVariable("i_post", i)
+      CALL psy_data%WriteVariable("j_post", j)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -600,16 +546,13 @@ def test_node_list_ompparallel_gocean1p0():
     in GOcean1.0 API. '''
     from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
-    etrans = GOceanExtractRegion()
+    etrans = GOceanExtractTrans()
     ltrans = GOceanOMPLoopTrans()
     otrans = OMPParallelTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
@@ -626,17 +569,17 @@ def test_node_list_ompparallel_gocean1p0():
       ! ExtractStart
       !
       CALL psy_data%PreStart("compute_cu_mod", "compute_cu_code", 3, 4)
-      CALL psy_data%PreDeclareVariable("p_fld-pre", p_fld)
-      CALL psy_data%PreDeclareVariable("u_fld-pre", u_fld)
-      CALL psy_data%PreDeclareVariable("v_fld-pre", v_fld)
-      CALL psy_data%PreDeclareVariable("cu_fld-post", cu_fld)
-      CALL psy_data%PreDeclareVariable("cv_fld-post", cv_fld)
-      CALL psy_data%PreDeclareVariable("i-post", i)
-      CALL psy_data%PreDeclareVariable("j-post", j)
+      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
+      CALL psy_data%PreDeclareVariable("u_fld", u_fld)
+      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
+      CALL psy_data%PreDeclareVariable("cu_fld_post", cu_fld)
+      CALL psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
+      CALL psy_data%PreDeclareVariable("i_post", i)
+      CALL psy_data%PreDeclareVariable("j_post", j)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("p_fld-pre", p_fld)
-      CALL psy_data%WriteVariable("u_fld-pre", u_fld)
-      CALL psy_data%WriteVariable("v_fld-pre", v_fld)
+      CALL psy_data%WriteVariable("p_fld", p_fld)
+      CALL psy_data%WriteVariable("u_fld", u_fld)
+      CALL psy_data%WriteVariable("v_fld", v_fld)
       CALL psy_data%PreEnd
       !$omp parallel default(shared), private(i,j)
       !$omp do schedule(static)
@@ -655,10 +598,10 @@ def test_node_list_ompparallel_gocean1p0():
       !$omp end do
       !$omp end parallel
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cu_fld-post", cu_fld)
-      CALL psy_data%WriteVariable("cv_fld-post", cv_fld)
-      CALL psy_data%WriteVariable("i-post", i)
-      CALL psy_data%WriteVariable("j-post", j)
+      CALL psy_data%WriteVariable("cu_fld_post", cu_fld)
+      CALL psy_data%WriteVariable("cv_fld_post", cv_fld)
+      CALL psy_data%WriteVariable("i_post", i)
+      CALL psy_data%WriteVariable("j_post", j)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -671,16 +614,11 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations. '''
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    # Test extract without optimisations
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
+                             DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[1])
@@ -688,14 +626,14 @@ def test_extract_single_builtin_dynamo0p3():
     output = """! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 0, 1)
-      CALL psy_data%PreDeclareVariable("df-post", df)
+      CALL psy_data%PreDeclareVariable("df_post", df)
       CALL psy_data%PreEndDeclaration
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("df-post", df)
+      CALL psy_data%WriteVariable("df_post", df)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -703,12 +641,8 @@ def test_extract_single_builtin_dynamo0p3():
     assert output in code
 
     # Test extract with OMP Parallel optimisation
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                             DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     schedule, _ = otrans.apply(schedule.children[1])
@@ -718,7 +652,7 @@ def test_extract_single_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "inc_ax_plus_y", 0, 1)
-      CALL psy_data%PreDeclareVariable("df-post", df)
+      CALL psy_data%PreDeclareVariable("df_post", df)
       CALL psy_data%PreEndDeclaration
       CALL psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
@@ -727,7 +661,7 @@ def test_extract_single_builtin_dynamo0p3():
       END DO 
       !$omp end parallel do
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("df-post", df)
+      CALL psy_data%WriteVariable("df_post", df)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -737,14 +671,10 @@ def test_extract_single_builtin_dynamo0p3():
 def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     ''' Test that extraction of a Kernel and a BuiltIny in an Invoke
     produces the correct result in Dynamo0.3 API. '''
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
 
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
+                             DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[1:3])
@@ -753,12 +683,12 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
       ! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL psy_data%PreDeclareVariable("f2-pre", f2)
-      CALL psy_data%PreDeclareVariable("cell-post", cell)
-      CALL psy_data%PreDeclareVariable("df-post", df)
-      CALL psy_data%PreDeclareVariable("f3-post", f3)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("df_post", df)
+      CALL psy_data%PreDeclareVariable("f3_post", f3)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("f2-pre", f2)
+      CALL psy_data%WriteVariable("f2", f2)
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
@@ -769,9 +699,9 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell-post", cell)
-      CALL psy_data%WriteVariable("df-post", df)
-      CALL psy_data%WriteVariable("f3-post", f3)
+      CALL psy_data%WriteVariable("cell_post", cell)
+      CALL psy_data%WriteVariable("df_post", df)
+      CALL psy_data%WriteVariable("f3_post", f3)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -788,15 +718,12 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
         DynamoOMPParallelLoopTrans
     from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
-    etrans = LFRicExtractRegion()
+    etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("4.8_multikernel_invokes.f90",
+                             DYNAMO_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # First colour all of the loops over cells unless they are on
@@ -826,22 +753,22 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
       ! ExtractStart
       !
       CALL psy_data%PreStart("ru_kernel_mod", "ru_code", 6, 3)
-      CALL psy_data%PreDeclareVariable("a-pre", a)
-      CALL psy_data%PreDeclareVariable("b-pre", b)
-      CALL psy_data%PreDeclareVariable("c-pre", c)
-      CALL psy_data%PreDeclareVariable("e-pre", e)
-      CALL psy_data%PreDeclareVariable("istp-pre", istp)
-      CALL psy_data%PreDeclareVariable("rdt-pre", rdt)
-      CALL psy_data%PreDeclareVariable("b-post", b)
-      CALL psy_data%PreDeclareVariable("cell-post", cell)
-      CALL psy_data%PreDeclareVariable("colour-post", colour)
+      CALL psy_data%PreDeclareVariable("a", a)
+      CALL psy_data%PreDeclareVariable("b", b)
+      CALL psy_data%PreDeclareVariable("c", c)
+      CALL psy_data%PreDeclareVariable("e", e)
+      CALL psy_data%PreDeclareVariable("istp", istp)
+      CALL psy_data%PreDeclareVariable("rdt", rdt)
+      CALL psy_data%PreDeclareVariable("b_post", b)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("colour_post", colour)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("a-pre", a)
-      CALL psy_data%WriteVariable("b-pre", b)
-      CALL psy_data%WriteVariable("c-pre", c)
-      CALL psy_data%WriteVariable("e-pre", e)
-      CALL psy_data%WriteVariable("istp-pre", istp)
-      CALL psy_data%WriteVariable("rdt-pre", rdt)
+      CALL psy_data%WriteVariable("a", a)
+      CALL psy_data%WriteVariable("b", b)
+      CALL psy_data%WriteVariable("c", c)
+      CALL psy_data%WriteVariable("e", e)
+      CALL psy_data%WriteVariable("istp", istp)
+      CALL psy_data%WriteVariable("rdt", rdt)
       CALL psy_data%PreEnd
       DO colour=1,ncolour
         !$omp parallel do default(shared), private(cell), schedule(static)
@@ -859,9 +786,9 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
         !$omp end parallel do
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("b-post", b)
-      CALL psy_data%WriteVariable("cell-post", cell)
-      CALL psy_data%WriteVariable("colour-post", colour)
+      CALL psy_data%WriteVariable("b_post", b)
+      CALL psy_data%WriteVariable("cell_post", cell)
+      CALL psy_data%WriteVariable("colour_post", colour)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd""")

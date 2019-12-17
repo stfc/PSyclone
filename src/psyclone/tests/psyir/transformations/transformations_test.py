@@ -40,13 +40,17 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyGen import Literal, Loop, Node, Reference, Schedule
+from psyclone.psyir.symbols import DataType
+from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
+    TransformationError
+from psyclone.transformations import ACCParallelTrans
 
 
 def test_accloop():
     ''' Generic tests for the ACCLoopTrans transformation class '''
     from psyclone.transformations import ACCLoopTrans
-    from psyclone.psyGen import Node, ACCLoopDirective
+    from psyclone.psyGen import ACCLoopDirective
     trans = ACCLoopTrans()
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
@@ -59,7 +63,6 @@ def test_accloop():
 
 def test_accparallel():
     ''' Generic tests for the ACCParallelTrans class '''
-    from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     assert acct.name == "ACCParallelTrans"
 
@@ -89,7 +92,6 @@ def test_accenterdata_internalerr(monkeypatch):
 def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
     collapse argument '''
-    from psyclone.psyGen import Node
     from psyclone.transformations import OMPLoopTrans
     trans = OMPLoopTrans()
     pnode = Node()
@@ -104,8 +106,7 @@ def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
-    from psyclone.psyGen import IfBlock, Reference, Schedule
-    from psyclone.transformations import ACCParallelTrans
+    from psyclone.psyGen import IfBlock
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
     ifblock = IfBlock()
@@ -133,7 +134,7 @@ def test_ifblock_children_region():
 
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
-    from psyclone.psyGen import Loop, Schedule, Literal, Return
+    from psyclone.psyGen import Return
     from psyclone.transformations import LoopFuseTrans
     sch = Schedule()
     loop1 = Loop(variable_name="i", parent=sch)
@@ -149,9 +150,9 @@ def test_fusetrans_error_incomplete():
     assert "Error in LoopFuse transformation. The first loop does not have " \
         "4 children." in str(err.value)
 
-    loop1.addchild(Literal("start", parent=loop1))
-    loop1.addchild(Literal("stop", parent=loop1))
-    loop1.addchild(Literal("step", parent=loop1))
+    loop1.addchild(Literal("start", DataType.INTEGER, parent=loop1))
+    loop1.addchild(Literal("stop", DataType.INTEGER, parent=loop1))
+    loop1.addchild(Literal("step", DataType.INTEGER, parent=loop1))
     loop1.addchild(Schedule(parent=loop1))
     loop1.loop_body.addchild(Return(parent=loop1.loop_body))
 
@@ -161,9 +162,9 @@ def test_fusetrans_error_incomplete():
     assert "Error in LoopFuse transformation. The second loop does not have " \
         "4 children." in str(err.value)
 
-    loop2.addchild(Literal("start", parent=loop2))
-    loop2.addchild(Literal("stop", parent=loop2))
-    loop2.addchild(Literal("step", parent=loop2))
+    loop2.addchild(Literal("start", DataType.INTEGER, parent=loop2))
+    loop2.addchild(Literal("stop", DataType.INTEGER, parent=loop2))
+    loop2.addchild(Literal("step", DataType.INTEGER, parent=loop2))
     loop2.addchild(Schedule(parent=loop2))
     loop2.loop_body.addchild(Return(parent=loop2.loop_body))
 
@@ -174,7 +175,6 @@ def test_fusetrans_error_incomplete():
 def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
-    from psyclone.psyGen import Loop, Schedule, Literal
     from psyclone.transformations import LoopFuseTrans
 
     sch1 = Schedule()
@@ -184,14 +184,14 @@ def test_fusetrans_error_not_same_parent():
     sch1.addchild(loop1)
     sch2.addchild(loop2)
 
-    loop1.addchild(Literal("1", parent=loop1))  # start
-    loop1.addchild(Literal("10", parent=loop1))  # stop
-    loop1.addchild(Literal("1", parent=loop1))  # step
+    loop1.addchild(Literal("1", DataType.INTEGER, parent=loop1))  # start
+    loop1.addchild(Literal("10", DataType.INTEGER, parent=loop1))  # stop
+    loop1.addchild(Literal("1", DataType.INTEGER, parent=loop1))  # step
     loop1.addchild(Schedule(parent=loop1))  # loop body
 
-    loop2.addchild(Literal("1", parent=loop2))  # start
-    loop2.addchild(Literal("10", parent=loop2))  # stop
-    loop2.addchild(Literal("1", parent=loop2))  # step
+    loop2.addchild(Literal("1", DataType.INTEGER, parent=loop2))  # start
+    loop2.addchild(Literal("10", DataType.INTEGER, parent=loop2))  # stop
+    loop2.addchild(Literal("1", DataType.INTEGER, parent=loop2))  # step
     loop2.addchild(Schedule(parent=loop2))  # loop body
 
     fuse = LoopFuseTrans()
@@ -207,17 +207,78 @@ def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if
         passed the wrong children of a Node. (e.g. those representing the
         bounds of a Loop.) '''
-    from psyclone.psyGen import Loop, Literal, Schedule
     # RegionTrans is abstract so use a concrete sub-class
-    from psyclone.transformations import RegionTrans, ACCParallelTrans
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
     parent = Loop(parent=None)
-    parent.addchild(Literal("1", parent))
-    parent.addchild(Literal("10", parent))
-    parent.addchild(Literal("1", parent))
+    parent.addchild(Literal("1", DataType.INTEGER, parent))
+    parent.addchild(Literal("10", DataType.INTEGER, parent))
+    parent.addchild(Literal("1", DataType.INTEGER, parent))
     parent.addchild(Schedule(parent=parent))
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "
             "is a Schedule" in str(err.value))
+
+
+def test_regiontrans_wrong_options():
+    '''Check that the validate method raises the expected error if passed
+        options that are not contained in a dictionary.
+
+    '''
+    # RegionTrans is abstract so use a concrete sub-class
+    region_trans = ACCParallelTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        RegionTrans.validate(region_trans, None, options="invalid")
+    assert ("Transformation apply method options argument must be a "
+            "dictionary but found 'str'." in str(excinfo.value))
+
+# Tests for ProfileTrans
+
+
+@pytest.mark.parametrize("options", [None, {"invalid": "invalid"},
+                                     {"profile_name": ("mod", "reg")}])
+def test_profile_trans_name(options):
+    '''Check that providing no option or an option not associated with the
+    profile transformation does not result in anything being passed
+    into ProfileNode via the name argument and that providing an
+    option associated with the profile transformation does result in
+    the relevant names being passed into ProfileNode via the name
+    argument. This is checked by looking at the variables
+    '_module_name' and '_region_name' which are set to the name
+    argument values if they are provided, otherwise the variables are
+    set to None.
+
+    '''
+    from psyclone.tests.utilities import get_invoke
+    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    schedule = invoke.schedule
+    profile_trans = ProfileTrans()
+    if options:
+        _, _ = profile_trans.apply(schedule.children, options=options)
+    else:
+        _, _ = profile_trans.apply(schedule.children)
+    profile_node = schedule[0]
+    if options and "profile_name" in options:
+        assert profile_node._module_name == "mod"
+        assert profile_node._region_name == "reg"
+    else:
+        assert profile_node._module_name is None
+        assert profile_node._region_name is None
+
+
+@pytest.mark.parametrize("value", [None, ["a", "b"], (), ("a",),
+                                   ("a", "b", "c"), ("a", []), ([], "a")])
+def test_profile_trans_invalid_name(value):
+    '''Invalid name supplied to options argument.'''
+    profile_trans = ProfileTrans()
+
+    # We need to have a schedule as parent, otherwise the node
+    # (with no parent) will not be allowed.
+    sched = Schedule()
+    node = Node(parent=sched)
+    sched.addchild(node)
+    with pytest.raises(TransformationError) as excinfo:
+        _ = profile_trans.apply(node, options={"profile_name": value})
+    assert ("User-supplied profile name must be a tuple containing "
+            "two non-empty strings." in str(excinfo.value))

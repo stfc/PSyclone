@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by J. Henrichs, Bureau of Meteorology
 .. Modified by A. R. Porter, STFC Daresbury Lab
+.. Modified by R. W. Ford, STFC Daresbury Lab
 
 .. _profiling:
 
@@ -125,6 +126,17 @@ This is the code sequence which is created by PSyclone::
 PSyclone guarantees that different ProfileStart/End pairs have
 different ``ProfileData`` variables.
 
+By default PSyclone will generate appropriate names to specify a
+particular region (the "Module" and "Region" strings in the example
+above). Alternatively these names can be specified by the user when
+adding profiling via a transformation script.
+
+.. warning::
+
+   When profiling invoke regions using the dynamo0.3 and gocean1.0
+   APIs the transformation script approach is strongly recommended, as
+   the auto generation of names can lead to confusing results in the
+   current implementation, see #567.
 
 Profiling Command Line Options
 ------------------------------
@@ -284,8 +296,8 @@ Both options can be specified at the same time::
 	                                        ...) [module_inline=False]
 
 
-Profiling in Scripts - ProfileRegionTransform
----------------------------------------------
+Profiling in Scripts - ProfileTrans
+-----------------------------------
 The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
 takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
@@ -294,17 +306,39 @@ specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
 As an example::
 
-    from psyclone.transformations import ProfileRegionTrans
+    from psyclone.psyir.transformations import ProfileTrans
 
-    t=TransInfo()
-    p_trans= ProfileRegionTrans()
-    schedule=psy.invokes.get('invoke_0').schedule
+    p_trans = ProfileTrans()
+    schedule = psy.invokes.get('invoke_0').schedule
     schedule.view()
     
     # Enclose all children within a single profile region
     newschedule, _ = p_trans.apply(schedule.children[1:3])
     newschedule.view()
 
+The profiler transformation also allows the profile name to be set
+explicitly, rather than being automatically created. This allows for
+potentially more intuitive names or finer grain control over profiling
+(as particular regions could be provided with the same profile
+names). For example::
+
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileTrans()
+    # Use the actual psy-layer module and subroutine names.
+    options = {"profile_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    # Use own names and repeat for different regions to aggregate profile.
+    options = {"profile_name": ("my_location", "my_region")}
+    profile_trans.apply(schedule[0].children[1:2], options=options)
+    profile_trans.apply(schedule[0].children[5:7], options=options)
+
+.. warning::
+
+   If "profile_name" is misspelt in the options dictionary then the
+   option will be silently ignored. This is true for all
+   options. Issue #613 captures this problem.
+   
 .. warning::
  
     It is the responsibility of the user to make sure that a profile

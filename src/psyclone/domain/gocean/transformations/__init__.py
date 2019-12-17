@@ -36,11 +36,11 @@
 '''This module contains the transformations for GOcean.
 '''
 
-from psyclone.domain.gocean.transformations.gocean_extract_region \
-    import GOceanExtractRegion
+from psyclone.domain.gocean.transformations.gocean_extract_trans \
+    import GOceanExtractTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
-# from psyclone.domain.gocean.transformations import GOceanExtractRegion
+# from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
-__all__ = ['GOceanExtractRegion']
+__all__ = ['GOceanExtractTrans']

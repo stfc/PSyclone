@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 
-'''This module contains the base class for extracting kernel parameter
-from regions.
+'''This module contains the base class for extracting extracting a region
+of an Invoke into a stand-alone application."
 '''
 
 from psyclone.configuration import Config
@@ -45,11 +45,11 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.undoredo import Memento
 
 
-class ExtractRegion(RegionTrans):
+class ExtractTrans(RegionTrans):
     ''' Provides a transformation to extract code represented by a \
     subset of the Nodes in the PSyIR of a Schedule into a stand-alone \
     program. Examples are given in descriptions of children classes \
-    DynamoExtractRegion and GOceanExtractRegion.
+    DynamoExtractTrans and GOceanExtractTrans.
 
     After applying the transformation the Nodes marked for extraction are \
     children of the ExtractNode. \
@@ -69,7 +69,7 @@ class ExtractRegion(RegionTrans):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "ExtractRegion"
+        return "ExtractTrans"
 
     def validate(self, node_list, options=None):
         ''' Perform validation checks before applying the transformation
@@ -93,9 +93,9 @@ class ExtractRegion(RegionTrans):
 
         # First check constraints on Nodes in the node_list common to
         # all RegionTrans transformations.
-        super(ExtractRegion, self).validate(node_list, options)
+        super(ExtractTrans, self).validate(node_list, options)
 
-        # Now check ExtractRegion specific constraints.
+        # Now check ExtractTrans specific constraints.
 
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.
@@ -195,7 +195,6 @@ class ExtractRegion(RegionTrans):
         # Create a Memento of the Schedule and the proposed
         # transformation
         schedule = node_list[0].root
-
         keep = Memento(schedule, self)
 
         from psyclone.psyir.nodes import ExtractNode

@@ -42,13 +42,16 @@ from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
+from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
-__all__ = ['Symbol',
+__all__ = ['TYPE_MAP_TO_PYTHON',
+           'Symbol',
            'SymbolError',
            'SymbolTable',
            'DataSymbol',
+           'DataType',
            'LocalInterface',
            'GlobalInterface',
            'ArgumentInterface',

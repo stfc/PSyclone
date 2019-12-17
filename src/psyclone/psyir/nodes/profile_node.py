@@ -44,24 +44,27 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
 class ProfileNode(PSyDataNode):
-    '''
-    This class can be inserted into a schedule to create profiling code.
+    '''This class can be inserted into a schedule to create profiling code.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
+        this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: a list of child nodes for this node. These will be made \
-                     children of the child Schedule of this Profile Node.
+        children of the child Schedule of this Profile Node.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
-                    or derived classes
+        or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py::class::`psyclone.psyGen.Node`
+    :param (str, str) name: an optional name to use for this profile, \
+        provided as a 2-tuple containing a module name followed by a \
+        local name. The pair of strings should uniquely identify a\
+        region unless aggregate information is required.
 
     '''
 
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None, name=None):
         super(ProfileNode, self).__init__(ast=ast, children=children,
-                                          parent=parent)
+                                          parent=parent, name=name)
 
         # Name and colour to use for this node
         self._text_name = "Profile"
@@ -76,6 +79,7 @@ class ProfileNode(PSyDataNode):
             result += str(child)+"\n"
         return result+"ProfileEnd"
 
+    # -------------------------------------------------------------------------
     @property
     def profile_body(self):
         '''
@@ -94,6 +98,7 @@ class ProfileNode(PSyDataNode):
                     [type(child).__name__ for child in self.children]))
         return super(ProfileNode, self).psy_data_body
 
+    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''Creates the profile start and end calls, surrounding the children

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#        J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# Author J. Henrichs, Bureau of Meteorology
+# Modified by A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module contains the profile transformation.
+'''This module provides the Profile transformation.
 '''
 
 from psyclone.psyGen import Schedule
@@ -105,6 +105,22 @@ class ProfileTrans(RegionTrans):
 
         super(ProfileTrans, self).validate(nodes, options)
 
+        # pylint: disable=too-many-boolean-expressions
+        if options:
+            try:
+                name = options["profile_name"]
+                if not isinstance(name, tuple) or not len(name) == 2 or \
+                   not name[0] or not isinstance(name[0], str) or \
+                   not name[1] or not isinstance(name[1], str):
+                    raise TransformationError(
+                        "Error in {0}. User-supplied profile name must be a "
+                        "tuple containing two non-empty strings."
+                        "".format(str(self)))
+            except KeyError:
+                # profile name is not supplied
+                pass
+        # pylint: enable=too-many-boolean-expressions
+
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
         invoke = nodes[0].root.invoke
@@ -133,6 +149,9 @@ class ProfileTrans(RegionTrans):
                      :py:obj:`psyclone.psygen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str, str) options["profile_name"]: an optional name to \
+            use for this profile, provided as a 2-tuple containing a \
+            location name followed by a local name.
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
@@ -175,6 +194,13 @@ class ProfileTrans(RegionTrans):
         # Perform validation checks
         self.validate(node_list, options)
 
+        name = None
+        if options:
+            try:
+                name = options["profile_name"]
+            except KeyError:
+                pass
+
         # create a memento of the schedule and the proposed
         # transformation
         schedule = node_list[0].root
@@ -183,7 +209,8 @@ class ProfileTrans(RegionTrans):
 
         # Create the ProfileNode. All of the supplied child nodes will have
         # the Profile's Schedule as their parent.
+
         from psyclone.psyir.nodes import ProfileNode
-        ProfileNode(parent=node_parent, children=node_list[:])
+        ProfileNode(parent=node_parent, children=node_list[:], name=name)
 
         return schedule, keep

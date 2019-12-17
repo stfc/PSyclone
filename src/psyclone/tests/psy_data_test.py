@@ -90,15 +90,15 @@ def test_psy_data_basic(capsys):
 Constant loop bounds=True]:
 PSyDataStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2']
-Literal[value:'jstop-1']
-Literal[value:'1']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'jstop-1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 PSyDataStart[var=psy_data_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2']
-Literal[value:'istop']
-Literal[value:'1']
+Literal[value:'2', DataType.INTEGER]
+Literal[value:'istop', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: compute_cv_code
 End Schedule
@@ -107,14 +107,14 @@ PSyDataEnd[var=psy_data_1]
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1']
-Literal[value:'jstop+1']
-Literal[value:'1']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'jstop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1']
-Literal[value:'istop+1']
-Literal[value:'1']
+Literal[value:'1', DataType.INTEGER]
+Literal[value:'istop+1', DataType.INTEGER]
+Literal[value:'1', DataType.INTEGER]
 Schedule:
 kern call: bc_ssh_code
 End Schedule

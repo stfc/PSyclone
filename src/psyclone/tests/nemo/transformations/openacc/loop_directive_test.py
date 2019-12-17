@@ -42,7 +42,7 @@ from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError
 
 
 # The PSyclone API under test

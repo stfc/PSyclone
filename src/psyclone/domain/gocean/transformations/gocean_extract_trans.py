@@ -36,12 +36,11 @@
 '''This module contains the GOcean-specific extract transformation.
 '''
 
-from psyclone.psyir.transformations import ExtractRegion
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
-class GOceanExtractRegion(ExtractRegion):
-    ''' GOcean1.0 API application of ExtractRegion transformation \
+class GOceanExtractTrans(ExtractTrans):
+    ''' GOcean1.0 API application of ExtractTrans transformation \
     to extract code into a stand-alone program. For example:
 
     >>> from psyclone.parse.algorithm import parse
@@ -53,10 +52,10 @@ class GOceanExtractRegion(ExtractRegion):
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>>
-    >>> from psyclone.domain.gocean.transformations import GOceanExtractRegion
-    >>> etrans = GOceanExtractRegion()
+    >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
+    >>> etrans = GOceanExtractTrans()
     >>>
-    >>> # Apply GOceanExtractRegionTrans transformation to selected Nodes
+    >>> # Apply GOceanExtractTrans transformation to selected Nodes
     >>> newsched, _ = etrans.apply(schedule.children[0])
     >>> newsched.view()
     '''
@@ -64,7 +63,7 @@ class GOceanExtractRegion(ExtractRegion):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "GOceanExtractRegion"
+        return "GOceanExtractTrans"
 
     def validate(self, node_list, options=None):
         ''' Perform GOcean1.0 API specific validation checks before applying
@@ -81,10 +80,10 @@ class GOceanExtractRegion(ExtractRegion):
         '''
 
         # First check constraints on Nodes in the node_list inherited from
-        # the parent classes (ExtractRegionTrans and RegionTrans)
-        super(GOceanExtractRegion, self).validate(node_list, options)
+        # the parent classes (ExtractTrans and RegionTrans)
+        super(GOceanExtractTrans, self).validate(node_list, options)
 
-        # Check GOceanExtractRegionTrans specific constraints
+        # Check GOceanExtractTrans specific constraints
         from psyclone.gocean1p0 import GOLoop
         for node in node_list:
 

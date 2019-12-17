@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code to insert profiling calls.
@@ -40,10 +41,10 @@
 
 from __future__ import absolute_import, print_function
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import PSyDataNode
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
-from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.transformations import ProfileTrans, TransformationError
 
 # The transformation that most of these tests use
 PTRANS = ProfileTrans()
@@ -94,6 +95,27 @@ def test_profile_single_loop(parser):
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
         "  CALL psy_data0 % PostEnd\n" in code)
+
+
+def test_profile_single_loop_named(parser):
+    '''Check that the correct code is added to the generated Fortran when
+    profiling a single loop nest with the profile being named by the
+    user.
+
+    '''
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "use kind_mod, only: wp\n"
+                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+                                      "do ji = 1,jpj\n"
+                                      "  sto_tmp(ji) = 1.0d0\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
+    options = {"profile_name": ("my_routine", "my_region")}
+    schedule, _ = PTRANS.apply(schedule.children[0], options=options)
+    code = str(psy.gen)
+    assert ("CALL psy_data0 % PreStart('my_routine', 'my_region', 0, 0)"
+            in code)
 
 
 def test_profile_two_loops(parser):

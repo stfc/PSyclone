@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code

@@ -31,16 +31,28 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Transformation module for LFRic.
-'''
+''' This module contains the datatype definitions.'''
 
-from psyclone.domain.lfric.transformations.lfric_extract_trans \
-    import LFRicExtractTrans
+from enum import Enum
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
-__all__ = ['LFRicExtractTrans']
+class DataType(Enum):
+    '''
+    Enumeration of the different datatypes that are supported by the
+    PSyIR.
+    '''
+    INTEGER = 1
+    REAL = 2
+    BOOLEAN = 3
+    CHARACTER = 4
+    DEFERRED = 5
+
+
+# Mapping from PSyIR data types to intrinsic Python types
+TYPE_MAP_TO_PYTHON = {DataType.INTEGER: int,
+                      DataType.CHARACTER: str,
+                      DataType.BOOLEAN: bool,
+                      DataType.REAL: float}

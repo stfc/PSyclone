@@ -847,7 +847,7 @@ In this section we describe the transformations that are specific to
 the GOcean 1.0 API. For an overview of transformations in general see
 :ref:`transformations`.
 
-.. autoclass:: psyclone.transformations.GOceanExtractRegionTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOceanExtractTrans
     :members:
     :noindex:
 

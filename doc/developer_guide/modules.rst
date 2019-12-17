@@ -169,6 +169,10 @@ As one might expect, the transformations module holds the various
 transformation classes that may be used to modify the Schedule of an
 Invoke and/or the kernels called from within it.
 
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet.
+
 The base class for any transformation must be the class ``Transformation``:
 
 .. autoclass:: psyclone.psyGen.Transformation
@@ -179,7 +183,7 @@ Those transformations that work on a region of code (e.g. enclosing
 multiple kernel calls within an OpenMP region) must sub-class the
 ``RegionTrans`` class:
 
-.. autoclass:: psyclone.transformations.RegionTrans
+.. autoclass:: psyclone.psyir.transformations.RegionTrans
     :members:
     :private-members:
     :noindex:

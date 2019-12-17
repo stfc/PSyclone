@@ -51,7 +51,7 @@ class RegionTrans(Transformation):
     # pylint: disable=abstract-method,arguments-differ
     '''
     This abstract class is a base class for all transformations that act
-    on a list of nodes. It gives access to a _validate function that
+    on a list of nodes. It gives access to a validate function that
     makes sure that the nodes in the list are in the same order as in
     the original AST, no node is duplicated, and that all nodes have
     the same parent. We also check that all nodes to be enclosed are
@@ -64,8 +64,7 @@ class RegionTrans(Transformation):
     valid_node_types = ()
 
     def validate(self, node_list, options=None):
-        '''
-        Checks that the nodes in node_list are valid for a region
+        '''Checks that the nodes in node_list are valid for a region
         transformation.
 
         :param node_list: list of PSyIR nodes or a single Schedule.
@@ -83,10 +82,12 @@ class RegionTrans(Transformation):
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
         :raises TransformationError: if the parent of the supplied Nodes is \
-                                     not a Schedule or a Directive.
-        :raises TransformationError: if the nodes are in a NEMO Schedule and \
-                                     the transformation acts on the child of \
-                                     a single-line If or Where statment.
+                not a Schedule or a Directive.
+        :raises TransformationError: if the nodes are in a NEMO \
+                Schedule and the transformation acts on the child of a \
+                single-line If or Where statment.
+        :raises TransformationError: if the supplied options are not a \
+                dictionary.
 
         '''
         # pylint: disable=too-many-branches
@@ -95,6 +96,10 @@ class RegionTrans(Transformation):
         from psyclone.psyir.transformations import TransformationError
         if not options:
             options = {}
+        if not isinstance(options, dict):
+            raise TransformationError(
+                "Transformation apply method options argument must be a "
+                "dictionary but found '{0}'.".format(type(options).__name__))
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -138,12 +143,9 @@ class RegionTrans(Transformation):
 
         # Sanity check that we've not been passed the condition part of
         # an If statement or the bounds of a Loop. If the parent node is
-        # a Loop of IfBlock then we can only accept a single Schedule.
-        # TODO #542 Once everything has a Schedule we can tidy this up
-        # a little by requiring that either the parent be a Schedule or
-        # that the node-list consists of a single Schedule.
-        if isinstance(node_parent, (Loop, IfBlock)) and \
-           not isinstance(node_list[0], Schedule):
+        # a Loop or IfBlock then we can only accept a single Schedule.
+        if not isinstance(node_parent, Schedule) and \
+                not isinstance(node_list[0], Schedule):
             # We've already checked for lists with len > 1 that contain a
             # Schedule above so if the first item is a Schedule then that's
             # all the list contains.
