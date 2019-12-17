@@ -1478,6 +1478,26 @@ def test14_no_builtins():
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
 
 
+def test_kernelglobalstoarguments_wrongapi():
+    ''' Check the KernelGlobalsToArguments with an API other than GOcean1p0'''
+    from psyclone.transformations import KernelGlobalsToArguments, \
+        TransformationError
+
+    trans = KernelGlobalsToArguments()
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "test_files", "dynamo0p3")
+    _, invoke_info = parse(os.path.join(path, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(kernel)
+    assert "The KernelGlobalsToArguments generation is currently only " \
+           "supported for the GOcean API but got an InvokeSchedule of " \
+           "type:" in str(err.value)
+
+
 def test_kernelglobalstoarguments(monkeypatch, tmpdir):
     ''' Check the KernelGlobalsToArguments transformation '''
 

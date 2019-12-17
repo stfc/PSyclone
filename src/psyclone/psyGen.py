@@ -4675,7 +4675,7 @@ class Arguments(object):
             "Arguments.scalars must be implemented in sub-class")
 
     def append(self, argtype, name, access):
-        ''' Append generic (non-api-specific) KernelArguments to the Argument
+        ''' Abstract method to append KernelArguments to the Argument
         list.
 
         :param str argtype: specifies the appended Arg type.
@@ -4683,7 +4683,8 @@ class Arguments(object):
         :param access: specifies the appended Arg access.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
         '''
-        raise NotImplementedError("Abstract class")
+        raise NotImplementedError(
+            "Arguments.append must be implemented in sub-class")
 
 
 class DataAccess(object):

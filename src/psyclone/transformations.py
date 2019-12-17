@@ -3818,11 +3818,18 @@ class KernelGlobalsToArguments(Transformation):
         :raises TransformationError: if the supplied node is not a CodedKern.
         '''
         from psyclone.psyGen import CodedKern
+        from psyclone.gocean1p0 import GOInvokeSchedule
         if not isinstance(node, CodedKern):
             raise TransformationError(
-                "The KernelGlobalsToArguments transformation can "
-                "only be applied to CodedKern nodes but found '{0}' instead."
-                "".format(type(node).__name__))
+                "The {0} transformation can only be applied to CodedKern "
+                "nodes but found '{1}' instead.".
+                format(self.name, type(node).__name__))
+
+        if not isinstance(node.root, GOInvokeSchedule):
+            raise TransformationError(
+                "The {0} generation is currently only supported for the "
+                "GOcean API but got an InvokeSchedule of type: '{1}'".
+                format(self.name, type(node.root).__name__))
 
     def apply(self, node, options=None):
         '''
