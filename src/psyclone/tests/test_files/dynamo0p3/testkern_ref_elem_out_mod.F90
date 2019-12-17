@@ -68,7 +68,7 @@ contains
     integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
     real(kind=r_def), dimension(3, nfaces_h), intent(in) :: out_normals_h
     real(kind=r_def), dimension(3, nfaces_v), intent(in) :: out_normals_v
-    real(kind=r_def), dimension(nfaces_v, 3), intent(in) :: normals_v
+    real(kind=r_def), dimension(3, nfaces_v), intent(in) :: normals_v
 
   end subroutine testkern_ref_elem_out_code
 

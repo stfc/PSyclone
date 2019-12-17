@@ -64,7 +64,7 @@ contains
     integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
     integer, intent(in) :: nfaces_h, nfaces_v
     integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
-    real(kind=r_def), intent(in) :: horiz_face_normals(nfaces_h, 3)
-    real(kind=r_def), intent(in) :: vert_face_normals(nfaces_v, 3)
+    real(kind=r_def), intent(in) :: horiz_face_normals(3, nfaces_h)
+    real(kind=r_def), intent(in) :: vert_face_normals(3, nfaces_v)
   end subroutine testkern_ref_elem_code
 end module testkern_ref_elem_mod

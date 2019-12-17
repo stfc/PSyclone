@@ -1137,11 +1137,11 @@ Name                                 Description
 ===================================  ===========================================
 normals_to_horizontal_faces          Array of normals pointing in the positive
                                      (x, y, z) axis direction for each
-                                     horizontal face indexed as (face,
-                                     component).
+                                     horizontal face indexed as (component,
+				     face).
 normals_to_vertical_faces            Array of normals pointing in the positive
                                      (x, y, z) axis direction for each vertical
-                                     face indexed as (face, component).
+                                     face indexed as (component, face).
 outward_normals_to_horizontal_faces  Array of outward-pointing normals for each
                                      horizontal face indexed as (component,
                                      face).
@@ -1338,7 +1338,7 @@ rules, along with PSyclone's naming conventions, are:
    in the order specified in the ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
-      array with dimensions ``(nfaces_re_h/v, 3)``.
+      array with dimensions ``(3, nfaces_re_h/v)``.
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
       integer array with dimensions ``(3, nfaces_re_h/v)``.
 
