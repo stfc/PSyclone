@@ -110,7 +110,8 @@ def gen_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
-        elif index is None:
+        elif isinstance(index, DataSymbol.Extent):
+            # unknown extent
             dims.append(":")
         else:
             raise NotImplementedError(
@@ -271,7 +272,8 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if the symbol does not specify a \
             variable declaration (it is not a local declaration or an \
             argument declaration).
-
+        :raises VisitorError: if the symbol has an array with a shape \
+            containing a mixture of DEFERRED and other extents.
         '''
         if not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
@@ -281,6 +283,28 @@ class FortranWriter(PSyIRVisitor):
 
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)
+        if DataSymbol.Extent.DEFERRED in symbol.shape:
+            if not all(dim == DataSymbol.Extent.DEFERRED
+                       for dim in symbol.shape):
+                raise VisitorError(
+                    "A Fortran declaration of an allocatable array must have"
+                    " the extent of every dimension as 'DEFERRED' but "
+                    "symbol '{0}' has shape: {1}".format(symbol.name,
+                                                         symbol.shape))
+            # A 'deferred' array extent means this is an allocatable array
+            result += ", allocatable"
+        if DataSymbol.Extent.ATTRIBUTE in symbol.shape:
+            if not all(dim == DataSymbol.Extent.ATTRIBUTE
+                       for dim in symbol.shape):
+                # If we have an 'assumed-size' array then only the last
+                # dimension is permitted to have an 'ATTRIBUTE' extent
+                if symbol.shape.count(DataSymbol.Extent.ATTRIBUTE) != 1 or \
+                   symbol.shape[-1] != DataSymbol.Extent.ATTRIBUTE:
+                    raise VisitorError(
+                        "An assumed-size Fortran array must only have its "
+                        "last dimension unspecified (as 'ATTRIBUTE') but "
+                        "symbol '{0}' has shape: {1}".format(symbol.name,
+                                                             symbol.shape))
         dims = gen_dims(symbol)
         if dims:
             result += ", dimension({0})".format(",".join(dims))

@@ -151,7 +151,9 @@ def test_symboltable_lookup():
     '''Test that the lookup method retrieves symbols from the symbol table
     if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("var1", DataType.REAL, shape=[None, None]))
+    sym_table.add(DataSymbol("var1", DataType.REAL,
+                             shape=[DataSymbol.Extent.ATTRIBUTE,
+                                    DataSymbol.Extent.ATTRIBUTE]))
     sym_table.add(DataSymbol("var2", DataType.INTEGER, shape=[]))
     sym_table.add(DataSymbol("var3", DataType.REAL, shape=[]))
 
@@ -322,7 +324,8 @@ def test_symboltable_contains():
     sym_table = SymbolTable()
 
     sym_table.add(DataSymbol("var1", DataType.REAL, []))
-    sym_table.add(DataSymbol("var2", DataType.REAL, [None]))
+    sym_table.add(DataSymbol("var2", DataType.REAL,
+                             [DataSymbol.Extent.ATTRIBUTE]))
 
     assert "var1" in sym_table
     assert "var2" in sym_table
@@ -335,7 +338,8 @@ def test_symboltable_symbols():
     sym_table = SymbolTable()
     assert sym_table.symbols == []
     sym_table.add(DataSymbol("var1", DataType.REAL, []))
-    sym_table.add(DataSymbol("var2", DataType.REAL, [None]))
+    sym_table.add(DataSymbol("var2", DataType.REAL,
+                             [DataSymbol.Extent.ATTRIBUTE]))
     assert len(sym_table.symbols) == 2
     sym_table.add(DataSymbol("var3", DataType.REAL, [],
                              interface=GlobalInterface(
@@ -350,7 +354,8 @@ def test_symboltable_local_datasymbols():
     assert [] == sym_table.local_datasymbols
 
     sym_table.add(DataSymbol("var1", DataType.REAL, []))
-    sym_table.add(DataSymbol("var2", DataType.REAL, [None]))
+    sym_table.add(DataSymbol("var2", DataType.REAL,
+                             [DataSymbol.Extent.ATTRIBUTE]))
     sym_table.add(DataSymbol("var3", DataType.REAL, []))
 
     assert len(sym_table.local_datasymbols) == 3
@@ -381,7 +386,8 @@ def test_symboltable_global_datasymbols():
     assert sym_table.global_datasymbols == []
     # Add some local symbols
     sym_table.add(DataSymbol("var1", DataType.REAL, []))
-    sym_table.add(DataSymbol("var2", DataType.REAL, [None]))
+    sym_table.add(DataSymbol("var2", DataType.REAL,
+                             [DataSymbol.Extent.ATTRIBUTE]))
     assert sym_table.global_datasymbols == []
     # Add some global symbols
     sym_table.add(DataSymbol("gvar1", DataType.REAL, [],
