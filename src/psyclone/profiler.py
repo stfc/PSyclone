@@ -257,7 +257,7 @@ class ProfileNode(Node):
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             profile_nodes = self.root.walk(ProfileNode)
-            idx = profile_nodes.index(profile_node)
+            idx = profile_nodes.index(self)
             region_name += ":r{0}".format(idx)
 
         # Note that adding a use statement makes sure it is only
