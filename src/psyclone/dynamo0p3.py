@@ -7840,21 +7840,28 @@ class KernCallArgList(ArgOrdering):
 class KernStubArgList(ArgOrdering):
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
-    of the arguments is captured by the base class '''
+    of the arguments is captured by the base class.
+
+    :param kern: Kernel for which to create argument list.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises NotImplementedError: if the kernel is inter-grid.
+    :raises NotImplementedError: if the kernel requires properties of the \
+                                 reference element.
+    '''
     def __init__(self, kern):
-        '''
-        :param kern: Kernel for which to create argument list
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-
-        :raises NotImplementedError: if kernel is inter-grid
-        '''
-
         # We don't yet support inter-grid kernels (Issue #162)
         if kern.is_intergrid:
             raise NotImplementedError(
                 "Kernel {0} is an inter-grid kernel and stub generation "
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
+        # We don't support Kernels requiring properties of the reference
+        # element
+        if kern.reference_element.properties:
+            raise NotImplementedError(
+                "Kernel {0} requires properties of the reference element "
+                "which is not yet supported for stub generation.")
 
         self._first_arg = True
         self._first_arg_decl = None
