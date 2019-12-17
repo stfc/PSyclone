@@ -1476,3 +1476,116 @@ def test14_no_builtins():
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
+
+
+def test_kernelglobalstoarguments(monkeypatch, tmpdir):
+    ''' Check the KernelGlobalsToArguments transformation '''
+
+    from psyclone.tests.utilities import get_invoke
+    from psyclone.transformations import KernelGlobalsToArguments, \
+        TransformationError
+    from psyclone.psyGen import Argument
+
+    trans = KernelGlobalsToArguments()
+    assert trans.name == "KernelGlobalsToArguments"
+    assert str(trans) == "Convert the global variables used inside the " \
+        "kernel into arguments and modify the InvokeSchedule to pass them" \
+        " in the kernel call."
+
+    # Construct a testing InvokeSchedule
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_kern_with_use.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    notkernel = invoke.schedule.children[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+
+    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # in this test
+    for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
+        def set_to_real(variable):
+            variable._datatype = "real"
+        monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
+
+    # Test with invalid node
+    with pytest.raises(TransformationError) as err:
+        trans.apply(notkernel)
+    assert ("The KernelGlobalsToArguments transformation can only be applied"
+            " to CodedKern nodes but found 'GOLoop' instead."
+            in str(err.value))
+
+    # Test transforming a single kernel
+    trans.apply(kernel)
+
+    # The transformation;
+    # 1) Has imported the symbol into the InvokeSchedule
+    assert invoke.schedule.symbol_table.lookup("rdt")
+    assert invoke.schedule.symbol_table.lookup("model_mod")
+    var = invoke.schedule.symbol_table.lookup("rdt")
+    container = invoke.schedule.symbol_table.lookup("model_mod")
+    assert var.is_global
+    assert var.interface.container_symbol == container
+
+    # 2) Has added the symbol as the last argument in the kernel call
+    assert isinstance(kernel.args[-1], Argument)
+    assert kernel.args[-1].name == "rdt"
+
+    # 3) Has converted the Kernel Schedule symbol into an argument which is
+    # in also the last position
+    ksymbol = kernel.get_kernel_schedule().symbol_table.lookup("rdt")
+    assert ksymbol.is_argument
+    assert kernel.get_kernel_schedule().symbol_table.argument_list[-1] == \
+        ksymbol
+    assert len(kernel.get_kernel_schedule().symbol_table.argument_list) == \
+        len(kernel.args) + 2  # GOcean kernels have 2 implicit arguments
+
+    # Check that the PSy-layer generated code now contains the use statement
+    # and argument call
+    generated_code = str(psy.gen)
+    assert "USE model_mod, ONLY: rdt" in generated_code
+    assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
+           "cu_fld%grid%tmask, rdt)" in generated_code
+
+    # TODO: At the moment we can not use the test infrastructure to compile
+    # the code as this infrastructures does not copy and compile modules
+
+
+def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
+    ''' Check the KernelGlobalsToArguments transformation with an invoke with
+    three kernel calls, two of them duplicated and the third one sharing the
+    same imported module'''
+    from psyclone.transformations import KernelGlobalsToArguments
+
+    # Construct a testing InvokeSchedule
+    _, invoke_info = parse(os.path.
+                           join(os.path.dirname(os.path.abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "single_invoke_three_kernels_with_use.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    trans = KernelGlobalsToArguments()
+
+    for kernel in invoke.schedule.coded_kernels():
+        trans.apply(kernel)
+
+    generated_code = str(psy.gen)
+    print(generated_code)
+
+    # The following assert checks that globals from the same module are
+    # imported in a single use statement and that duplicated globals are
+    # just imported once
+    assert "SUBROUTINE invoke_0(oldu_fld, cu_fld)\n" \
+           "      USE kernel_with_use2_mod, ONLY: kernel_with_use2_code\n" \
+           "      USE kernel_with_use_mod, ONLY: kernel_with_use_code\n" \
+           "      USE model_mod, ONLY: rdt, cbfr\n" \
+           "      TYPE(r2d_field), intent(inout) :: cu_fld\n" in generated_code
+
+    # Check the kernel calls have the global passed as last argument
+    assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
+           "cu_fld%grid%tmask, rdt)" in generated_code
+    assert "CALL kernel_with_use2_code(i, j, oldu_fld, cu_fld%data, " \
+           "cu_fld%grid%tmask, cbfr, rdt)" in generated_code

@@ -4683,10 +4683,7 @@ class Arguments(object):
         :param access: specifies the appended Arg access.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
         '''
-        from psyclone.parse.algorithm import Arg
-        arg = Arg(argtype, name, name)
-        argument = Argument(self._parent_call, arg, argtype)
-        self.args.append(argument)
+        raise NotImplementedError("Abstract class")
 
 
 class DataAccess(object):

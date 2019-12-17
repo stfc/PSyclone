@@ -1462,6 +1462,22 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
+    def append(self, argtype, name, access):
+        ''' Append generic (non-api-specific) KernelArguments to the Argument
+        list.
+
+        :param str argtype: specifies the appended Arg type.
+        :param str name: name of the appended argument.
+        :param access: specifies the appended Arg access.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
+        '''
+        from psyclone.parse.algorithm import Arg
+        from psyclone.parse.kernel import Descriptor
+        descriptor = Descriptor(access, "")
+        arg = Arg(argtype, name, name)
+        argument = GOKernelArgument(descriptor, arg, self._parent_call)
+        self.args.append(argument)
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
@@ -1475,7 +1491,10 @@ class GOKernelArgument(KernelArgument):
     def type(self):
         ''' Return the type of this kernel argument - whether it is a field,
             a scalar or a grid_property (to be supplied by the PSy layer) '''
-        return self._arg.type
+        if hasattr(self._arg, 'type'):
+            return self._arg.type
+        else:
+            return "scalar"
 
     @property
     def function_space(self):
