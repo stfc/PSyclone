@@ -580,9 +580,17 @@ class Fparser2Reader(object):
                         DataSymbol(str(name).lower(),
                                    datatype=DataType.DEFERRED,
                                    interface=GlobalInterface(container)))
-            else:
+            elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
                 container.add_wildcard_import()
+            elif "only" in decl.items[3].lower():
+                # This use has an 'only: ' but no associated list of
+                # imported symbols. (It serves to keep a module in scope while
+                # not actually importing anything from it.)
+                pass
+            else:
+                raise NotImplementedError("Found unsupported USE statement: "
+                                          "'{0}'".format(str(decl)))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items

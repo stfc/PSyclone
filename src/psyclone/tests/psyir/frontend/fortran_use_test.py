@@ -134,3 +134,35 @@ def test_name_clash_use_stmt():
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert "Found a USE of module 'some_var' but the symbol" in str(err.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_use_no_only_list():
+    ''' Check that we create the correct Symbol Table entry for a use
+    statement that has an 'only' clause but no list of imported symbols. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use some_mod, only:\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    some_mod = fake_parent.symbol_table.lookup("some_mod")
+    assert not some_mod.has_wildcard_import
+    assert some_mod.imported_symbols == []
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_broken_use(monkeypatch):
+    ''' Check that we raise the expected error if we encounter an unrecognised
+    parse tree for a USE statement. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use some_mod, only:\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    # Break the parse tree so that instead of ", ONLY:" it has "hello"
+    monkeypatch.setattr(
+        fparser2spec.content[0], "items",
+        [None, None, Fortran2003.Name('my_mod'), 'hello', None])
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "unsupported USE statement: 'USE my_modhello'" in str(err.value)
