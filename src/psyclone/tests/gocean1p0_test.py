@@ -48,6 +48,7 @@ from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.psyir.symbols import DataType
 
 API = "gocean1.0"
 
@@ -1505,6 +1506,7 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
     from psyclone.transformations import KernelGlobalsToArguments, \
         TransformationError
     from psyclone.psyGen import Argument
+    from psyclone.psyir.backend.fortran import FortranWriter
 
     trans = KernelGlobalsToArguments()
     assert trans.name == "KernelGlobalsToArguments"
@@ -1524,10 +1526,10 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
     kernel = invoke.schedule.coded_kernels()[0]
 
     # Monckeypatch resolve_deferred to avoid module searching and importing
-    # in this test
+    # in this test. In this case we assume it is a REAL
     for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
         def set_to_real(variable):
-            variable._datatype = "real"
+            variable._datatype = DataType.REAL
         monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
 
     # Test with invalid node
@@ -1562,6 +1564,13 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
     assert len(kernel.get_kernel_schedule().symbol_table.argument_list) == \
         len(kernel.args) + 2  # GOcean kernels have 2 implicit arguments
 
+    # Check the kernel code is generated as expected
+    fwriter = FortranWriter()
+    kernel_code = fwriter(kernel.get_kernel_schedule())
+    assert "subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)" \
+        in kernel_code
+    assert "real, intent(inout) :: rdt" in kernel_code
+
     # Check that the PSy-layer generated code now contains the use statement
     # and argument call
     generated_code = str(psy.gen)
@@ -1578,6 +1587,8 @@ def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
     from psyclone.transformations import KernelGlobalsToArguments
+    from psyclone.psyir.backend.fortran import FortranWriter
+    fwriter = FortranWriter()
 
     # Construct a testing InvokeSchedule
     _, invoke_info = parse(os.path.
@@ -1589,11 +1600,31 @@ def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
     invoke = psy.invokes.invoke_list[0]
     trans = KernelGlobalsToArguments()
 
-    for kernel in invoke.schedule.coded_kernels():
+    expected = [
+        ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
+         "real, intent(inout) :: rdt"],
+        ["subroutine kernel_with_use2_code(ji,jj,istep,ssha,tmask,cbfr,rdt)",
+         "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
+        ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
+         "real, intent(inout) :: rdt"]]
+
+    for it, kernel in enumerate(invoke.schedule.coded_kernels()):
+        kschedule = kernel.get_kernel_schedule()
+
+        # We already tested that DEFERRED globals are resolved in last test,
+        # in this case we hardcode all them to REAL to avoid searching and
+        # importing of modules in this test.
+        for var in kschedule.symbol_table.global_datasymbols:
+            var._datatype = DataType.REAL
+
         trans.apply(kernel)
 
+        # Check the kernel code is generated as expected
+        kernel_code = fwriter(kschedule)
+        assert expected[it][0] in kernel_code
+        assert expected[it][1] in kernel_code
+
     generated_code = str(psy.gen)
-    print(generated_code)
 
     # The following assert checks that globals from the same module are
     # imported in a single use statement and that duplicated globals are

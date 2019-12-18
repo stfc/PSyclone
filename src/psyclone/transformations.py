@@ -3848,6 +3848,7 @@ class KernelGlobalsToArguments(Transformation):
                  :py:class:`psyclone.undoredo.Memento`).
         '''
         from psyclone.psyir.symbols import ArgumentInterface
+        from psyclone.psyir.symbols import DataType
 
         self.validate(node)
 
@@ -3859,7 +3860,7 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_datasymbols:
 
             # Resolve the data type information if it is not available
-            if globalvar.datatype == 'deferred':
+            if globalvar.datatype == DataType.DEFERRED:
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
