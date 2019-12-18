@@ -106,6 +106,10 @@ class Config(object):
     # is set in the Config.kernel_output_dir getter.
     _default_kernel_naming = "multiple"
 
+    # The default name to use when creating new names in the
+    # PSyIR symbol table.
+    _default_psyir_root_name = "psyir_tmp"
+
     @staticmethod
     def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
@@ -296,13 +300,12 @@ class Config(object):
                 "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
                 config=self)
 
-        try:
-            self._psyir_root_name = self._config['DEFAULT'].getstr(
-                'PSYIR_ROOT_NAME')
-        except ValueError as err:
-            raise ConfigurationError(
-                "error while parsing PSYIR_ROOT_NAME: {0}".format(str(err)),
-                config=self)
+        if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
+            # Use the default name if no default is specified for the
+            # root name.
+            self._psyir_root_name = Config._default_psyir_root_name
+        else:
+            self._psyir_root_name = self._config['DEFAULT']['PSYIR_ROOT_NAME']
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
