@@ -1579,11 +1579,51 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
     assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
 
-    # TODO 628: At the moment we can not use the test infrastructure to compile
-    # the code as this infrastructures does not copy and compile modules
-    # mfile = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    #                     "test_files", "gocean1p0", "model_mod.f90")
-    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+def test_kernelglobalstoarguments_constant(monkeypatch, tmpdir):
+    ''' Check the KernelGlobalsToArguments transformation '''
+
+    from psyclone.tests.utilities import get_invoke
+    from psyclone.transformations import KernelGlobalsToArguments, \
+        TransformationError
+    from psyclone.psyGen import Argument
+    from psyclone.psyir.backend.fortran import FortranWriter
+
+    trans = KernelGlobalsToArguments()
+    assert trans.name == "KernelGlobalsToArguments"
+    assert str(trans) == "Convert the global variables used inside the " \
+        "kernel into arguments and modify the InvokeSchedule to pass them" \
+        " in the kernel call."
+
+    # Construct a testing InvokeSchedule
+
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_kern_with_use.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    notkernel = invoke.schedule.children[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+
+    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # in this test. In this case we assume it is a constant INTEGER
+    for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
+        def set_to_real(variable):
+            variable._datatype = DataType.INTEGER
+            variable.constant_value = 1
+        monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
+
+    # Test transforming a single kernel
+    trans.apply(kernel)
+
+    fwriter = FortranWriter()
+    kernel_code = fwriter(kernel.get_kernel_schedule())
+
+    assert "subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)" \
+        in kernel_code
+    assert "integer, intent(in) :: rdt" in kernel_code
 
 
 def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
@@ -1644,9 +1684,3 @@ def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
            "cu_fld%grid%tmask, rdt)" in generated_code
     assert "CALL kernel_with_use2_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
-
-    # TODO 628: At the moment we can not use the test infrastructure to compile
-    # the code as this infrastructures does not copy and compile modules
-    # mfile = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    #                     "test_files", "gocean1p0", "model_mod.f90")
-    # assert GOcean1p0Build(tmpdir).code_compiles(psy)

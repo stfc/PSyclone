@@ -36,7 +36,7 @@ module model_mod
   
     use kind_params_mod
 
-    real(go_wp) :: rdt = 1.0
+    real(go_wp), parameter :: rdt = 1.0
     real(go_wp) :: cbfr
 
 end module model_mod

@@ -3868,8 +3868,14 @@ class KernelGlobalsToArguments(Transformation):
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            globalvar.interface = ArgumentInterface(
-                ArgumentInterface.Access.READWRITE)
+            if globalvar.is_constant:
+                # Global constants lose the constant value but are read-only
+                globalvar.constant_value = None
+                globalvar.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+            else:
+                globalvar.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READWRITE)
             current_arg_list.append(globalvar)
             symtab.specify_argument_list(current_arg_list)
 
