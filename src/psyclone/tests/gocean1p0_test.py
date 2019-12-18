@@ -1515,6 +1515,7 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
         " in the kernel call."
 
     # Construct a testing InvokeSchedule
+
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.abspath(__file__)),
                                         "test_files", "gocean1p0",
@@ -1578,8 +1579,11 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
     assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
 
-    # TODO: At the moment we can not use the test infrastructure to compile
+    # TODO 628: At the moment we can not use the test infrastructure to compile
     # the code as this infrastructures does not copy and compile modules
+    # mfile = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    #                     "test_files", "gocean1p0", "model_mod.f90")
+    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
@@ -1640,3 +1644,9 @@ def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
            "cu_fld%grid%tmask, rdt)" in generated_code
     assert "CALL kernel_with_use2_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
+
+    # TODO 628: At the moment we can not use the test infrastructure to compile
+    # the code as this infrastructures does not copy and compile modules
+    # mfile = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    #                     "test_files", "gocean1p0", "model_mod.f90")
+    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
