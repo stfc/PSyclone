@@ -377,18 +377,18 @@ class Invokes(object):
         parser.
     :type alg_calls: list of \
     :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param Invoke: an api-specific Invoke class.
-    :type Invoke: subclass of :py:class:`psyclone.psyGen.Invoke`
+    :param invoke_cls: an api-specific Invoke class.
+    :type invoke_cls: subclass of :py:class:`psyclone.psyGen.Invoke`
     :param psy: the PSy instance containing this Invokes instance.
     :type psy: subclass of :py:class`psyclone.psyGen.PSy`
 
     '''
-    def __init__(self, alg_calls, Invoke, psy):
+    def __init__(self, alg_calls, invoke_cls, psy):
         self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
-            my_invoke = Invoke(alg_invocation, idx, self)
+            my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
 
