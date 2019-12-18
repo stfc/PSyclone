@@ -293,7 +293,6 @@ def test_loop_inside_kernels(parser):
     loop_trans = ACCLoopTrans()
     loop_trans.apply(schedule[0].dir_body[0])
     output = str(psy.gen).lower()
-    print(output)
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
             "  do ji = 1, jpj\n" in output)
