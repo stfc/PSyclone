@@ -1470,7 +1470,6 @@ class GOKernelArguments(Arguments):
         :raises TypeError: if the given name is not a string.
         '''
         from psyclone.parse.algorithm import Arg
-        from psyclone.parse.kernel import Descriptor
 
         if not isinstance(name, str):
             raise TypeError(
@@ -1499,8 +1498,7 @@ class GOKernelArgument(KernelArgument):
             If it has no type it defaults to scalar.'''
         if hasattr(self._arg, 'type'):
             return self._arg.type
-        else:
-            return "scalar"
+        return "scalar"
 
     @property
     def function_space(self):

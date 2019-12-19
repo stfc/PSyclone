@@ -1556,10 +1556,8 @@ def test_globalstoargumentstrans_wrongapi():
            "type:" in str(err.value)
 
 
-def test_globalstoargumentstrans(monkeypatch, tmpdir):
+def test_globalstoargumentstrans(monkeypatch):
     ''' Check the KernelGlobalsToArguments transformation '''
-
-    from psyclone.tests.utilities import get_invoke
     from psyclone.transformations import KernelGlobalsToArguments, \
         TransformationError
     from psyclone.psyGen import Argument
@@ -1636,13 +1634,9 @@ def test_globalstoargumentstrans(monkeypatch, tmpdir):
            "cu_fld%grid%tmask, rdt)" in generated_code
 
 
-def test_globalstoargumentstrans_constant(monkeypatch, tmpdir):
+def test_globalstoargumentstrans_constant(monkeypatch):
     ''' Check the KernelGlobalsToArguments transformation '''
-
-    from psyclone.tests.utilities import get_invoke
-    from psyclone.transformations import KernelGlobalsToArguments, \
-        TransformationError
-    from psyclone.psyGen import Argument
+    from psyclone.transformations import KernelGlobalsToArguments
     from psyclone.psyir.backend.fortran import FortranWriter
 
     trans = KernelGlobalsToArguments()
@@ -1660,7 +1654,6 @@ def test_globalstoargumentstrans_constant(monkeypatch, tmpdir):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    notkernel = invoke.schedule.children[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
     # Monckeypatch resolve_deferred to avoid module searching and importing
@@ -1682,7 +1675,7 @@ def test_globalstoargumentstrans_constant(monkeypatch, tmpdir):
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
-def test_globalstoarguments_multiple_kernels(monkeypatch, tmpdir):
+def test_globalstoarguments_multiple_kernels():
     ''' Check the KernelGlobalsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -1708,7 +1701,7 @@ def test_globalstoarguments_multiple_kernels(monkeypatch, tmpdir):
         ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
          "real, intent(inout) :: rdt"]]
 
-    for it, kernel in enumerate(invoke.schedule.coded_kernels()):
+    for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()
 
         # We already tested that DEFERRED globals are resolved in last test,
@@ -1721,8 +1714,8 @@ def test_globalstoarguments_multiple_kernels(monkeypatch, tmpdir):
 
         # Check the kernel code is generated as expected
         kernel_code = fwriter(kschedule)
-        assert expected[it][0] in kernel_code
-        assert expected[it][1] in kernel_code
+        assert expected[num][0] in kernel_code
+        assert expected[num][1] in kernel_code
 
     generated_code = str(psy.gen)
 
