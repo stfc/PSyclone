@@ -557,11 +557,15 @@ class Fparser2Reader(object):
 
             mod_name = str(decl.items[2])
 
-            # Add the module symbol in the symbol table
+            # Add the module symbol in the symbol table. Keep a record of
+            # whether or not we've seen this module before for reporting
+            # purposes in the code below.
             if mod_name not in parent.symbol_table:
+                new_container = True
                 container = ContainerSymbol(mod_name)
                 parent.symbol_table.add(container)
             else:
+                new_container = False
                 container = parent.symbol_table.lookup(mod_name)
                 if not isinstance(container, ContainerSymbol):
                     raise SymbolError(
@@ -572,22 +576,51 @@ class Fparser2Reader(object):
 
             # Create a 'deferred' symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
+                if not new_container and not container.has_wildcard_import \
+                   and not container.imported_symbols:
+                    # TODO #11 Log the fact that this explicit symbol import
+                    # will replace a previous import with an empty only-list.
+                    pass
                 for name in decl.items[4].items:
                     # The DataSymbol adds itself to the list of symbols
                     # imported by the Container referenced in the
                     # GlobalInterface.
-                    parent.symbol_table.add(
-                        DataSymbol(str(name).lower(),
-                                   datatype=DataType.DEFERRED,
-                                   interface=GlobalInterface(container)))
+                    sym_name = str(name).lower()
+                    if sym_name not in parent.symbol_table:
+                        parent.symbol_table.add(
+                            DataSymbol(sym_name,
+                                       datatype=DataType.DEFERRED,
+                                       interface=GlobalInterface(container)))
+                    else:
+                        # There's already a symbol with this name
+                        existing_symbol = parent.symbol_table.lookup(sym_name)
+                        if not existing_symbol.is_global:
+                            raise SymbolError(
+                                "Symbol '{0}' is imported from module '{1}' "
+                                "but is already present in the symbol table as"
+                                " either an argument or a local ({2}).".
+                                format(sym_name, mod_name,
+                                       str(existing_symbol)))
+                        # TODO #11 Log the fact that we've already got an
+                        # import of this symbol and that will take precendence.
             elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
+                if not new_container and not container.has_wildcard_import \
+                   and not container.imported_symbols:
+                    # TODO #11 Log the fact that this explicit symbol import
+                    # will replace a previous import with an empty only-list.
+                    pass
                 container.add_wildcard_import()
-            elif "only" in decl.items[3].lower():
+            elif decl.items[3].lower().replace(" ", "") == ",only:":
                 # This use has an 'only: ' but no associated list of
                 # imported symbols. (It serves to keep a module in scope while
                 # not actually importing anything from it.)
-                pass
+                if not new_container and (container.has_wildcard_import
+                                          or container.imported_symbols):
+                    # TODO #11 Log the fact that this import with an empty
+                    # only-list is irrelevant because of existing 'use's of
+                    # the module.
+                    pass
             else:
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))

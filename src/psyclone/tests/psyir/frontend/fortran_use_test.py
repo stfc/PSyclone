@@ -166,3 +166,80 @@ def test_broken_use(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert "unsupported USE statement: 'USE my_modhello'" in str(err.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_redundant_empty_only_list():
+    ''' Check that we drop 'use's with an empty only list if they become
+    redundant. #TODO #11 Check for appropriate logging messages here once
+    logging is implemented. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    # Empty only-list followed by wildcard import
+    reader = FortranStringReader("use mod1, only:\n"
+                                 "use mod1\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym = fake_parent.symbol_table.lookup("mod1")
+    assert csym.has_wildcard_import
+    # Wildcard import followed by empty only-list
+    reader = FortranStringReader("use mod2\n",
+                                 "use mod2, only:\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym = fake_parent.symbol_table.lookup("mod2")
+    assert csym.has_wildcard_import
+    # Empty only-list followed by named import
+    reader = FortranStringReader("use mod3, only:\n"
+                                 "use mod3, only: fred\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym = fake_parent.symbol_table.lookup("mod3")
+    assert not csym.has_wildcard_import
+    assert csym.imported_symbols[0].name == "fred"
+    # Named import followed by empty only-list
+    reader = FortranStringReader("use mod4, only: bob\n",
+                                 "use mod4, only:\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym = fake_parent.symbol_table.lookup("mod4")
+    assert not csym.has_wildcard_import
+    assert csym.imported_symbols[0].name == "bob"
+
+
+def test_use_same_symbol():
+    ''' Check that we handle the case where the same symbol is imported from
+    different modules.
+    #TODO #11 Once logging is added, check that we log an appropriate
+    warning for this case.
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use mod2, only: fred\n"
+                                 "use mod3, only: fred\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym = fake_parent.symbol_table.lookup("mod2")
+    assert csym.imported_symbols[0].name == "fred"
+    csym = fake_parent.symbol_table.lookup("mod3")
+    # mod3 will have an empty list of symbols as 'fred' is already imported
+    # from mod2.
+    assert not csym.imported_symbols
+
+
+def test_use_local_symbol_error():
+    ''' Check that we raise the expected error if we encounter an import of
+    a symbol that is already declared to be local. '''
+    from psyclone.psyir.symbols import DataSymbol, DataType, LocalInterface
+    fake_parent = KernelSchedule("dummy_schedule")
+    # In practise this situation is hard to trigger as USE statements must
+    # come before local declarations. Therefore we manually add a symbol
+    # to the table first.
+    fake_parent.symbol_table.add(DataSymbol("fred", DataType.INTEGER,
+                                            interface=LocalInterface()))
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use mod2, only: fred\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "'fred' is imported from module 'mod2' but is" in str(err.value)
