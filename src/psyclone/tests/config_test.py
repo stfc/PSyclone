@@ -487,6 +487,36 @@ def test_default_api(tmpdir):
         assert config.api == "dynamo0.3"
 
 
+def test_root_name_init(tmpdir):
+    '''Check that the configuration class has the expected default
+    values.
+
+    '''
+    assert Config._default_psyir_root_name == "psyir_tmp"
+    config = Config()
+    assert config._psyir_root_name is None
+
+
+@pytest.mark.parametrize("content,result",
+                         [("[DEFAULT]\nAPI=dynamo0.3\n", "psyir_tmp") ,
+                          ("[DEFAULT]\nPSYIR_ROOT_NAME = random\n", "random")])
+def test_root_name_load(tmpdir, content, result):
+    '''Check that the config class returns appropriate values from a
+    config file when PSYIR_ROOT_NAME is and isn't provided. Note, an
+    empty `default` raises an exception so I've arbitrarily added API.
+
+    '''
+    config = Config()
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+    config.load(str(config_file))
+    assert config._psyir_root_name == result
+    assert config.psyir_root_name == result
+
+
 def test_kernel_naming_setter():
     ''' Check that the setter for the kernel-naming scheme rejects
     unrecognised values. '''
