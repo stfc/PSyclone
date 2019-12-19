@@ -42,7 +42,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn, InternalError
+     NameSpaceFactory, Node, InternalError
 
 
 class Profiler():
@@ -236,22 +236,29 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        if self._module_name is None or self._region_name is None:
-            # Find the first kernel and use its name. In an untransformed
-            # Schedule there should be only one kernel, but if Profile is
-            # invoked after e.g. a loop merge more kernels might be there.
-            region_name = "unknown-kernel"
-            module_name = "unknown-module"
-            for kernel in self.walk(Kern):
-                region_name = kernel.name
-                if not isinstance(kernel, BuiltIn):
-                    # If the kernel is not a builtin then it has a module name.
-                    module_name = kernel.module_name
-                break
-            if self._region_name is None:
-                self._region_name = Profiler.create_unique_region(region_name)
-            if self._module_name is None:
-                self._module_name = module_name
+        module_name = self._module_name
+        if module_name is None:
+            # The user has not supplied a module (location) name so
+            # return the psy-layer module name as this will be unique
+            # for each PSyclone algorithm file.
+            module_name = self.root.invoke.invokes.psy.name
+
+        region_name = self._region_name
+        if region_name is None:
+            # The user has not supplied a region name (to identify
+            # this particular invoke region). Use the invoke name as a
+            # starting point.
+            region_name = self.root.invoke.name
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This profile only has one kernel within it, so append
+                # the kernel name.
+                region_name += ":{0}".format(kerns[0].name)
+            # Add a region index to ensure uniqueness when there are
+            # multiple regions in an invoke.
+            profile_nodes = self.root.walk(ProfileNode)
+            idx = profile_nodes.index(self)
+            region_name += ":r{0}".format(idx)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -264,8 +271,8 @@ class ProfileNode(Node):
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
-                             ["\"{0}\"".format(self._module_name),
-                              "\"{0}\"".format(self._region_name),
+                             ["\"{0}\"".format(module_name),
+                              "\"{0}\"".format(region_name),
                               self._var_name])
         parent.add(prof_start)
 
