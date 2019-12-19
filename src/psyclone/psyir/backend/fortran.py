@@ -284,12 +284,11 @@ class FortranWriter(PSyIRVisitor):
                         symbol.name, dsym.name,
                         dsym.interface.container_symbol.name))
             only_list.append(dsym.name)
-        # Another consistency check
-        if not only_list and not symbol.has_wildcard_import:
-            raise VisitorError("Failed to construct list of imported symbols "
-                               "for container '{0}' and yet it does not have "
-                               "a wildcard import.".format(symbol.name))
+
         # Finally construct the use statements for this Container (module)
+        if not only_list and not symbol.has_wildcard_import:
+            # We have a "use xxx, only:" - i.e. an empty only list
+            return "{0}use {1}, only :\n".format(self._nindent, symbol.name)
         use_stmts = ""
         if only_list:
             use_stmts = "{0}use {1}, only : {2}\n".format(

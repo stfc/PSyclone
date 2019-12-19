@@ -262,6 +262,19 @@ def test_fw_gen_use(fort_writer):
     assert result == ("use my_module, only : dummy1, dummy2\n"
                       "use my_module\n")
 
+    # container2 has no symbols associated with it and has not been marked
+    # as having a wildcard import. It should therefore result in a USE
+    # with an empty 'ONLY' list (which serves to keep the module in scope
+    # while not accessing any data from it).
+    container2 = ContainerSymbol("my_mod2")
+    result = fort_writer.gen_use(container2)
+    assert result == "use my_mod2, only :\n"
+    # If we now add a wildcard import of this module then that's all we
+    # should get from the backend (as it makes the "only:" redundant)
+    container2.add_wildcard_import()
+    result = fort_writer.gen_use(container2)
+    assert result == "use my_mod2\n"
+
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_use(symbol2)
     assert ("expects a ContainerSymbol but got 'DataSymbol'"
@@ -290,13 +303,6 @@ def test_fw_gen_use_checks(fort_writer):
     assert ("Container 'my_module' lists symbol 'dummy1' among its imports "
             "but the global interface of that symbol refers to a different "
             "container ('my_mod2')" in str(err.value))
-    # container2 has no symbols associated with it and has not been marked
-    # as having a wildcard import
-    with pytest.raises(VisitorError) as err:
-        _ = fort_writer.gen_use(container2)
-    assert ("Failed to construct list of imported symbols for container "
-            "'my_mod2' and yet it does not have a wildcard import"
-            in str(err.value))
 
 
 def test_fw_gen_vardecl(fort_writer):
