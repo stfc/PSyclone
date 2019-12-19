@@ -373,24 +373,36 @@ class PSy(object):
 class Invokes(object):
     '''Manage the invoke calls
 
-    :param alg_calls: A list of invoke metadata extracted by the \
-    parser.
+    :param alg_calls: a list of invoke metadata extracted by the \
+        parser.
     :type alg_calls: list of \
     :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param Invoke: An api-specific Invoke class
-    :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
+    :param invoke_cls: an api-specific Invoke class.
+    :type invoke_cls: subclass of :py:class:`psyclone.psyGen.Invoke`
+    :param psy: the PSy instance containing this Invokes instance.
+    :type psy: subclass of :py:class`psyclone.psyGen.PSy`
 
     '''
-    def __init__(self, alg_calls, Invoke):
+    def __init__(self, alg_calls, invoke_cls, psy):
+        self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
-            my_invoke = Invoke(alg_invocation, idx)
+            my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
+
+    @property
+    def psy(self):
+        '''
+        :returns: the PSy instance that contains this instance.
+        :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        '''
+        return self._psy
 
     @property
     def names(self):
@@ -595,29 +607,29 @@ class NameSpace(object):
 
 
 class Invoke(object):
-    ''' Manage an individual invoke call '''
+    '''Manage an individual invoke call.
 
-    def __str__(self):
-        return self._name+"("+", ".join([str(arg) for arg in
-                                         self._alg_unique_args])+")"
+    :param alg_invocation: metadata from the parsed code capturing \
+        information for this Invoke instance.
+    :type alg_invocation: :py:class`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: position/index of this invoke call in the subroutine.
+        If not None, this number is added to the name ("invoke_").
+    :param schedule_class: the schedule class to create for this invoke.
+    :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`
+    :param invokes: the Invokes instance that contains this Invoke \
+        instance.
+    :type invokes: :py:class:`psyclone.psyGen.invokes`
+    :param reserved_names: optional argument: list of reserved names,
+        i.e. names that should not be used e.g. as a PSyclone-created
+        variable name.
+    :type reserved_names: list of str
 
-    def __init__(self, alg_invocation, idx, schedule_class,
+    '''
+    def __init__(self, alg_invocation, idx, schedule_class, invokes,
                  reserved_names=None):
-        '''Constructs an invoke object. Parameters:
+        '''Construct an invoke object.'''
 
-        :param alg_invocation:
-        :type alg_invocation:
-        :param idx: Position/index of this invoke call in the subroutine.
-            If not None, this number is added to the name ("invoke_").
-        :type idx: Integer.
-        :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`.
-        :param reserved_names: Optional argument: list of reserved names,
-               i.e. names that should not be used e.g. as psyclone created
-               variable name.
-        :type reserved_names: List of strings.
-        '''
-
+        self._invokes = invokes
         self._name = "invoke"
         self._alg_unique_args = []
 
@@ -684,6 +696,19 @@ class Invoke(object):
                     # need to change this logic at some point as we need to
                     # cope with writes determining the dofs that are used.
                     self._dofs[dof] = [kern_call, dofs[dof][0]]
+
+    def __str__(self):
+        return self._name+"("+", ".join([str(arg) for arg in
+                                         self._alg_unique_args])+")"
+
+    @property
+    def invokes(self):
+        '''
+        :returns: the Invokes instance that contains this instance.
+        :rtype: :py:class`psyclone.psyGen.Invokes`
+
+        '''
+        return self._invokes
 
     @property
     def name(self):
@@ -5185,6 +5210,8 @@ class TransInfo(object):
         if False:
             self._0_to_n = DummyTransformation()  # only here for pyreverse!
 
+        # TODO #620: This need to be improved to support the new
+        # layout, where transformations are in different directories and files
         if module is None:
             # default to the transformation module
             from psyclone import transformations

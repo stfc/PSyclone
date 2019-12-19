@@ -1437,7 +1437,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls)
+        self._invokes = DynamoInvokes(invoke_info.calls, self)
 
     @property
     def name(self):
@@ -1477,15 +1477,22 @@ class DynamoPSy(PSy):
 
 
 class DynamoInvokes(Invokes):
-    ''' The Dynamo specific invokes class. This passes the Dynamo
+    '''The Dynamo specific invokes class. This passes the Dynamo
     specific invoke class to the base class so it creates the one we
-    require. '''
+    require.
 
-    def __init__(self, alg_calls):
+    :param alg_calls: list of objects containing the parsed invoke \
+        information.
+    :type alg_calls: list of \
+        :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param psy: the PSy object containing this DynamoInvokes object.
+    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    def __init__(self, alg_calls, psy):
         self._name_space_manager = NameSpaceFactory().create()
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = DynInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke)
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
 class DynCollection(object):
@@ -4229,30 +4236,35 @@ class DynBoundaryConditions(DynCollection):
 
 
 class DynInvoke(Invoke):
-    '''The Dynamo specific invoke class. This passes the Dynamo
-    specific InvokeSchedule class to the base class so it creates the one we
+    '''The Dynamo specific invoke class. This passes the Dynamo specific
+    InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
+    :param alg_invocation: object containing the invoke call information.
+    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: the position of the invoke in the list of invokes \
+        contained in the Algorithm.
+    :param invokes: the Invokes object containing this DynInvoke \
+        object.
+    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
+
+    :raises GenerationError: if integer reductions are required in the \
+        psy-layer.
+
     '''
-    def __init__(self, alg_invocation, idx):
-        '''
-        :param alg_invocation: node in the AST describing the invoke call
-        :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-        :param int idx: the position of the invoke in the list of invokes \
-                        contained in the Algorithm
-        :raises GenerationError: if integer reductions are required in the \
-                                 psy-layer
-        '''
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = DynInvokeSchedule(None)  # for pyreverse
+    def __init__(self, alg_invocation, idx, invokes):
+        if not alg_invocation and not idx:
+            # This if test is added to support pyreverse.
+            return
+        self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
-                        reserved_names=reserved_names_list)
+                        invokes, reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
         # list and stores it in the self._alg_unique_args

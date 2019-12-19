@@ -389,16 +389,20 @@ class Compile(object):
 
 
 # =============================================================================
-def get_invoke(algfile, api, idx=None, name=None):
+def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
-    :param str algfile: name of the Algorithm source file (Fortran)
-    :param str api: which PSyclone API this Algorithm uses
+
+    :param str algfile: name of the Algorithm source file (Fortran).
+    :param str api: which PSyclone API this Algorithm uses.
     :param int idx: the index of the invoke from the Algorithm to return
-                    or None if name is specified
+                    or None if name is specified.
     :param str name: the name of the required invoke or None if an index
-                     is supplied
+                     is supplied.
+    :param bool dist_mem: if the psy instance should be created with or \
+                          without distributed memory support.
+
     :returns: (psy object, invoke object)
     :rtype: 2-tuple containing :py:class:`psyclone.psyGen.PSy` and
             :py:class:`psyclone.psyGen.Invoke` objects.
@@ -433,7 +437,7 @@ def get_invoke(algfile, api, idx=None, name=None):
                     join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", dir_name, algfile),
                     api=api)
-    psy = PSyFactory(api).create(info)
+    psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
         invoke = psy.invokes.get(name)
     else:
