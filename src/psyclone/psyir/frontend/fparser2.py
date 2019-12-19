@@ -391,7 +391,7 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Subroutine not found
 
-        new_schedule = self._create_schedule(name, None)
+        new_schedule = Fparser2Reader._create_schedule(name, None)
 
         # Generate the Container of the module enclosing the Kernel
         new_container = self.generate_container(module_ast)

@@ -42,7 +42,7 @@ program imperfect_nest
   USE dom_oce        ! ocean space and time domain
   implicit none
   integer :: ji, jj, jk, jn
-  integer :: jpi, jpj, jpk, jpkm1
+  integer :: jpi, jpj, jpk, jpim1, jpjm1, jpkm1
   real, dimension(jpi,jpj,jpk) :: umask, vmask, wmask
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptbb ! tracer (only used in kpass=2)
@@ -70,7 +70,7 @@ program imperfect_nest
        end do
     END IF
     DO jj = 1, jpjm1
-      DO ji = 1, fs_jpim1
+      DO ji = 1, jpim1
         zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * e3u_n(ji, jj, jk)
         zmsku = 1. / MAX(wmask(ji + 1, jj, jk) + wmask(ji, jj, jk + 1) + wmask(ji + 1, jj, jk + 1) + wmask(ji, jj, jk), 1.)
         zcof1 = - pahu(ji, jj, jk) * e2u(ji, jj) * uslp(ji, jj, jk) * zmsku
@@ -78,7 +78,7 @@ program imperfect_nest
       END DO
     END DO
     DO jj = 2, jpjm1
-      DO ji = fs_2, fs_jpim1
+      DO ji = 2, jpim1
         pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
       END DO
     END DO

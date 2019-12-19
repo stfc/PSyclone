@@ -6054,7 +6054,8 @@ class Reference(Node):
         a PSyIR fragment) then the check is skipped.
 
         raises SymbolError: if the name of this reference is not found in any \
-                        of the SymbolTables accessible from the current scope.
+                   of the SymbolTables accessible from the current scope \
+                   and there are no Containers from which it might be imported.
 
         '''
         test_node = self.ancestor(Schedule)
@@ -6064,16 +6065,26 @@ class Reference(Node):
             # we don't have a Symbol Table.
             return
 
+        # Keep a list of containers from which a symbol might possibly have
+        # been imported (i.e. they have wildcard imports into the current
+        # scope).
+        possible_containers = set()
+
         while test_node:
             symbol_table = test_node.symbol_table
             if self.name in symbol_table:
                 return
+
             # Do we have any Containers that might define the Symbol?
-            # TODO
-            # csymbols = symbol_table.container_symbols
+            possible_containers.update(
+                [cont for cont in symbol_table.container_symbols
+                 if cont.has_wildcard_import])
+
             test_node = test_node.ancestor(Schedule)
-        raise SymbolError(
-            "Undeclared reference '{0}' found.".format(self.name))
+
+        if not possible_containers:
+            raise SymbolError(
+                "Undeclared reference '{0}' found.".format(self.name))
 
     def symbol(self, scope_limit=None):
         '''Returns the symbol from a symbol table associated with this
