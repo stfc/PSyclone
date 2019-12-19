@@ -75,7 +75,7 @@ class ConfigurationError(Exception):
 
 
 # =============================================================================
-class Config(object):
+class Config():
     # pylint: disable=too-many-instance-attributes
     '''
     Handles all configuration management. It is implemented as a singleton
@@ -633,7 +633,7 @@ class Config(object):
 
 
 # =============================================================================
-class APISpecificConfig(object):
+class APISpecificConfig():
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
@@ -784,6 +784,13 @@ class GOceanConfig(APISpecificConfig):
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
         super(GOceanConfig, self).__init__(section)
+        # Setup the mapping for the field properties. This dictionary stores
+        # the name of the field property as grid (e.g. ) go_grid_dx_t),
+        # and the value is a pair specifying a format string to dereference
+        # a property, and the type (as string). Example value:
+        # ("{0}%%grid%%dx_t", "array")
+        # These values are taken from the psyclone config file.
+        self._field_properties = {}
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -802,10 +809,39 @@ class GOceanConfig(APISpecificConfig):
             elif key == "access_mapping":
                 # Handled in the base class APISpecificConfig
                 pass
+            elif key == "field-properties":
+                # Field properties have the format:
+                # go_grid_area_u: {0}%%grid%%area_u: array,
+                # First the name, then the Fortran code to access the property
+                # then the type ("array" or "scalar")
+                all_props = self.create_dict_from_string(section[key])
+                for field_prop in all_props:
+                    try:
+                        access, field_type = all_props[field_prop].split(":")
+                    except ValueError:
+                        # Raised when the string does not contain exactly
+                        # two values separated by ":"
+                        error = "Invalid property \"{0}\" found with value " \
+                                "\"{1}\" in \"{2}\". It must have exactly " \
+                                "two ':'' separated values." \
+                                .format(field_prop, all_props[field_prop],
+                                        config.filename)
+                        raise ConfigurationError(error)
+                    # Make sure to remove the spaces which the config
+                    # file might contain
+                    self._field_properties[field_prop] = \
+                        (access.strip(), field_type.strip())
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
                                                            config.filename))
+    # ---------------------------------------------------------------------
+    @property
+    def field_properties(self):
+        ''':returns: the dictionary containing the field properties.
+        :type: a dictionary with values of pairs (dereference-format, type)
+        '''
+        return self._field_properties
 
 
 # =============================================================================
