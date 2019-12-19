@@ -605,8 +605,8 @@ class Fparser2Reader(object):
                         # import of this symbol and that will take precendence.
             elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
-                if not new_container and not container.has_wildcard_import \
-                   and not container.imported_symbols:
+                if (not new_container) and (not container.has_wildcard_import) \
+                   and (not container.imported_symbols):
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import with an empty only-list.
                     pass
