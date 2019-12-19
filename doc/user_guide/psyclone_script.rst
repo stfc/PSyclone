@@ -30,8 +30,8 @@ by the script:
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
                   [--kernel-renaming {multiple,single}]
-		  [--profile {invokes,kernels}]
-		  [--force-profile {invokes,kernels}] [-v] filename
+		  [--profile {invokes,kernels}] [--config CONFIG] [-v]
+		  filename
 
   Run the PSyclone code generator on a particular file
 
@@ -61,11 +61,8 @@ by the script:
 			  kernels.
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
-    --force-profile {invokes,kernels}
-                          Add profiling hooks for either 'kernels' or 'invokes'
-                          even if a transformation script is used. Use at your
-                          own risk.
-    -v, --version         Display version information (1.6.0)
+    --config CONFIG       Config file with PSyclone specific options.
+    -v, --version         Display version information ( \ |release| \ )
 
 Basic Use
 ---------
