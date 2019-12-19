@@ -23,6 +23,9 @@
 	8) #618 for #567. Corrects the automatic generation of names for
 	profiled regions.
 
+	9) #624 for #566. Removes the 'force profile' option from the psyclone
+	script as it is no longer required.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
