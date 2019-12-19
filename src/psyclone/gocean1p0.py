@@ -1466,9 +1466,18 @@ class GOKernelArguments(Arguments):
         ''' Append a GOKernelArgument to the Argument list.
 
         :param str name: name of the appended argument.
+
+        :raises TypeError: if the given name is not a string.
         '''
         from psyclone.parse.algorithm import Arg
         from psyclone.parse.kernel import Descriptor
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "The name parameter given to GOKernelArguments.append method "
+                "should be a string, but found '{0}' instead.".
+                format(type(name).__name__))
+
         descriptor = Descriptor(None, "")  # Create a dummy descriptor
         arg = Arg("variable", name, name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
@@ -1486,7 +1495,8 @@ class GOKernelArgument(KernelArgument):
     @property
     def type(self):
         ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer) '''
+            a scalar or a grid_property (to be supplied by the PSy layer).
+            If it has no type it defaults to scalar.'''
         if hasattr(self._arg, 'type'):
             return self._arg.type
         else:
