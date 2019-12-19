@@ -633,7 +633,7 @@ class Config():
 
 
 # =============================================================================
-class APISpecificConfig():
+class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
