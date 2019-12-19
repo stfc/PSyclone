@@ -43,6 +43,7 @@ from collections import OrderedDict
 from psyclone.psyir.symbols import Symbol, DataSymbol
 from psyclone.configuration import Config
 
+
 class SymbolTable(object):
     '''
     Encapsulates the symbol table and provides methods to add new symbols

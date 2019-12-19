@@ -487,7 +487,7 @@ def test_default_api(tmpdir):
         assert config.api == "dynamo0.3"
 
 
-def test_root_name_init(tmpdir):
+def test_root_name_init():
     '''Check that the configuration class has the expected default
     values.
 
@@ -498,7 +498,7 @@ def test_root_name_init(tmpdir):
 
 
 @pytest.mark.parametrize("content,result",
-                         [("[DEFAULT]\nAPI=dynamo0.3\n", "psyir_tmp") ,
+                         [("[DEFAULT]\nAPI=dynamo0.3\n", "psyir_tmp"),
                           ("[DEFAULT]\nPSYIR_ROOT_NAME = random\n", "random")])
 def test_root_name_load(tmpdir, content, result):
     '''Check that the config class returns appropriate values from a
