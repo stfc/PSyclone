@@ -4674,14 +4674,11 @@ class Arguments(object):
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
 
-    def append(self, argtype, name, access):
+    def append(self, name):
         ''' Abstract method to append KernelArguments to the Argument
         list.
 
-        :param str argtype: specifies the appended Arg type.
         :param str name: name of the appended argument.
-        :param access: specifies the appended Arg access.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`
         '''
         raise NotImplementedError(
             "Arguments.append must be implemented in sub-class")
