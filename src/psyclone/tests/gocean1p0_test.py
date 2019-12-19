@@ -1733,3 +1733,25 @@ def test_globalstoarguments_multiple_kernels():
            "cu_fld%grid%tmask, rdt)" in generated_code
     assert "CALL kernel_with_use2_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
+
+
+def test_globalstoarguments_noglobals():
+    ''' Check the KernelGlobalsToArguments transformation can be applied to
+    a kernel that does not contain any global without any effect '''
+    from psyclone.transformations import KernelGlobalsToArguments
+
+    # Parse a file to get an initialised GOKernelsArguments object
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    trans = KernelGlobalsToArguments()
+    before_code = str(psy.gen)
+    trans.apply(kernel)
+    after_code = str(psy.gen)
+    assert before_code == after_code
