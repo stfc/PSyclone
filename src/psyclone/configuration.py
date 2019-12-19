@@ -75,7 +75,7 @@ class ConfigurationError(Exception):
 
 
 # =============================================================================
-class Config():
+class Config(object):
     # pylint: disable=too-many-instance-attributes
     '''
     Handles all configuration management. It is implemented as a singleton
