@@ -230,6 +230,20 @@ def test_invalid_config_files(tmpdir):
         assert "Invalid property \"a\" found with value \"b\"" \
                in str(err.value)
 
+    # Test missing required values
+    content = _CONFIG_CONTENT + "field-properties = a:b:c"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        # The config file {0} does not contain values for "..."
+        assert "does not contain values for \"go_grid_xstop\"" \
+            in str(err.value)
+
 
 # =============================================================================
 def test_valid_config_files():
@@ -246,8 +260,8 @@ def test_valid_config_files():
     psy, _ = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
 
     gen = str(psy.gen)
-    # "# nopep8" suppresses the pep8 warning about trailing white space at end of
-    # line (after the "END DO ")
+    # "# nopep8" suppresses the pep8 warning about trailing white space
+    # at end of line (after the "END DO ")
     new_loop1 = '''      DO j=1,2
         DO i=3,4
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)

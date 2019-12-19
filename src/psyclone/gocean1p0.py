@@ -232,6 +232,7 @@ class GOInvoke(Invoke):
         return result
 
     def gen_code(self, parent):
+        # pylint: disable=too-many-locals
         '''
         Generates GOcean specific invocation code (the subroutine called
         by the associated invoke call in the algorithm layer). This
@@ -287,17 +288,19 @@ class GOInvoke(Invoke):
 
             # Look-up the loop bounds using the first field object in the
             # list
-            sim_domain = self.unique_args_arrays[0] +\
-                "%grid%subdomain%internal%"
+            api_config = Config.get().api_conf("gocean1.0")
+            xstop = api_config.field_properties["go_grid_xstop"][0] \
+                .format(self.unique_args_arrays[0])
+            ystop = api_config.field_properties["go_grid_ystop"][0] \
+                .format(self.unique_args_arrays[0])
             position = invoke_sub.last_declaration()
-
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
             invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_stop,
-                                     rhs=sim_domain+"ystop"),
+                                     rhs=ystop),
                            position=["after", position])
             invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_stop,
-                                     rhs=sim_domain+"xstop"),
+                                     rhs=xstop),
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
                            position=["after", position])
@@ -507,6 +510,7 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     @staticmethod
     def add_bounds(bound_info):
+        # pylint: disable=too-many-locals
         '''
         Adds a new iteration space to PSyclone. An iteration space in the
         gocean1.0 API is for a certain offset type and field type. It defines
@@ -998,6 +1002,7 @@ class GOKern(CodedKern):
                               funcnames=[self._name]))
 
     def gen_ocl(self, parent):
+        # pylint: disable=too-many-locals
         '''
         Generates code for the OpenCL invocation of this kernel.
 
@@ -1153,6 +1158,7 @@ class GOKern(CodedKern):
             arg.set_kernel_arg(sub, index, self.name)
 
     def gen_data_on_ocl_device(self, parent):
+        # pylint: disable=too-many-locals
         '''
         Generate code to create data buffers on OpenCL device.
 

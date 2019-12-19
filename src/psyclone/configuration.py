@@ -807,6 +807,14 @@ class GOceanConfig(APISpecificConfig):
                     # file might contain
                     self._field_properties[field_prop] = \
                         (access.strip(), field_type.strip())
+                # Check that the required values for xstop and ystop
+                # are defined:
+                for required in ["go_grid_xstop", "go_grid_ystop"]:
+                    if required not in self._field_properties:
+                        error = "The config file {0} does not contain " \
+                                "values for \"{1}\".".format(config.filename,
+                                                             required)
+                        raise ConfigurationError(error)
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
