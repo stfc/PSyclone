@@ -1536,7 +1536,7 @@ def test_gokernelargument_type():
     assert argument.type == "descriptor_type"
 
 
-def test_kernelglobalstoarguments_wrongapi():
+def test_globalstoargumentstrans_wrongapi():
     ''' Check the KernelGlobalsToArguments with an API other than GOcean1p0'''
     from psyclone.transformations import KernelGlobalsToArguments, \
         TransformationError
@@ -1556,7 +1556,7 @@ def test_kernelglobalstoarguments_wrongapi():
            "type:" in str(err.value)
 
 
-def test_kernelglobalstoarguments(monkeypatch, tmpdir):
+def test_globalstoargumentstrans(monkeypatch, tmpdir):
     ''' Check the KernelGlobalsToArguments transformation '''
 
     from psyclone.tests.utilities import get_invoke
@@ -1636,7 +1636,7 @@ def test_kernelglobalstoarguments(monkeypatch, tmpdir):
            "cu_fld%grid%tmask, rdt)" in generated_code
 
 
-def test_kernelglobalstoarguments_constant(monkeypatch, tmpdir):
+def test_globalstoargumentstrans_constant(monkeypatch, tmpdir):
     ''' Check the KernelGlobalsToArguments transformation '''
 
     from psyclone.tests.utilities import get_invoke
@@ -1682,7 +1682,7 @@ def test_kernelglobalstoarguments_constant(monkeypatch, tmpdir):
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
-def test_kernelglobalstoarguments_complex(monkeypatch, tmpdir):
+def test_globalstoarguments_multiple_kernels(monkeypatch, tmpdir):
     ''' Check the KernelGlobalsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
