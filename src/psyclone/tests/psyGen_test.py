@@ -480,16 +480,16 @@ def test_reset():
 def test_invokes_can_always_be_printed():
     '''Test that an Invoke instance can always be printed (i.e. is
     initialised fully)'''
-    inv = Invoke(None, None, None)
+    inv = Invoke(None, None, None, None)
     assert inv.__str__() == "invoke()"
 
     invoke_call = InvokeCall([], "TestName")
-    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule, None)
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
     invoke_call._name = None
-    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule, None)
     assert inv.__str__() == "invoke_12()"
 
     # Last test case: one kernel call - to avoid constructing
@@ -500,7 +500,7 @@ def test_invokes_can_always_be_printed():
         api="dynamo0.3")
 
     alg_invocation = invoke.calls[0]
-    inv = Invoke(alg_invocation, 0, DynInvokeSchedule)
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
 
