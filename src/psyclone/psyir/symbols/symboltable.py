@@ -69,16 +69,16 @@ class SymbolTable(object):
         '''Create a symbol name that is not in the symbol table. If the
         `root_name` argument is not supplied then the name is
         generated internally, otherwise the `root_name` is used. If
-        required, an additional number is also added to avoid clashes.
+        required, an additional integer is appended to avoid clashes.
 
         :param str root_name: the name to use when creating a new \
         symbol name. This will be appended with an integer if the name \
         clashes with an existing symbol name.
 
         '''
-        if not base_name:
-            base_name = Config.get().psyir_root_name
-        candidate_name = base_name
+        if not root_name:
+            root_name = Config.get().psyir_root_name
+        candidate_name = root_name
         idx = 0
         while candidate_name in self._symbols:
             candidate_name = "{0}_{1}".format(root_name, idx)

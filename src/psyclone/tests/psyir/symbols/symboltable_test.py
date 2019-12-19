@@ -46,6 +46,40 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
 from psyclone.psyGen import InternalError
 
 
+def test_symboltable_new_symbol_name():
+    '''Test that the new_symbol_name method returns names that are not
+    already in the symbol table.
+
+    '''
+    # Create a symbol table containing a symbol
+    sym_table = SymbolTable()
+    sym_table.add(ContainerSymbol("my_mod"))
+
+    # Check we can generate a new symbol name (and add it to the symbol
+    # table as this is required for further testing).
+    name = sym_table.new_symbol_name()
+    assert name == "psyir_tmp"
+    sym_table.add(DataSymbol(name, DataType.REAL))
+    # Check we return the expected symbol name when there is a
+    # supplied root name.
+    assert sym_table.new_symbol_name(root_name="my_name") == "my_name"
+    # Check we return a new symbol by appending an integer index to
+    # the root name when the names clash.
+    name = sym_table.new_symbol_name(root_name="my_mod")
+    assert name == "my_mod_0"
+    sym_table.add(ContainerSymbol(name))
+    name = sym_table.new_symbol_name(root_name="my_mod")
+    assert name == "my_mod_1"
+    name = sym_table.new_symbol_name(root_name="my_mod_0")
+    assert name == "my_mod_0_0"
+    # Check we return a new symbol by appending an integer index to
+    # the default name when the names clash.
+    name = sym_table.new_symbol_name()
+    assert name == "psyir_tmp_0"
+    sym_table.add(DataSymbol(name, DataType.REAL))
+    assert sym_table.new_symbol_name() == "psyir_tmp_1"
+
+
 def test_symboltable_add():
     '''Test that the add method inserts new symbols in the symbol
     table, but raises appropiate errors when provided with wrong parameters
