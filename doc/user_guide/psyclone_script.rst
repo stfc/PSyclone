@@ -23,7 +23,7 @@ line, e.g.:
 The optional ``-h`` argument gives a description of the options provided
 by the script:
 
-.. code-block:: bash
+.. parsed-literal::
 		
   > psyclone -h
 
@@ -62,7 +62,7 @@ by the script:
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
-    -v, --version         Display version information ( \ |release| \ )
+    -v, --version         Display version information (\ |release|\ )
 
 Basic Use
 ---------
