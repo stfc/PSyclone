@@ -81,33 +81,6 @@ VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 # GOcean API altogether.
 VALID_STENCIL_NAMES = ["go_pointwise"]
 
-# A dictionary giving the mapping from meta-data names for
-# properties of the grid to their names and type in the Fortran grid_type.
-# i.e. they can be accessed in Fortran by doing grid%<name>,
-# e.g. grid%area_t or grid%subdomain%internal%xstart.
-GRID_PROPERTY_DICT = {"go_grid_area_t": ("area_t", "array"),
-                      "go_grid_area_u": ("area_u", "array"),
-                      "go_grid_area_v": ("area_v", "array"),
-                      "go_grid_mask_t": ("tmask", "array"),
-                      "go_grid_dx_t": ("dx_t", "array"),
-                      "go_grid_dx_u": ("dx_u", "array"),
-                      "go_grid_dx_v": ("dx_v", "array"),
-                      "go_grid_dy_t": ("dy_t", "array"),
-                      "go_grid_dy_u": ("dy_u", "array"),
-                      "go_grid_dy_v": ("dy_v", "array"),
-                      "go_grid_lat_u": ("gphiu", "array"),
-                      "go_grid_lat_v": ("gphiv", "array"),
-                      "go_grid_dx_const": ("dx", "scalar"),
-                      "go_grid_dy_const": ("dy", "scalar"),
-                      "go_grid_x_min_index": ("subdomain%internal%xstart",
-                                              "scalar"),
-                      "go_grid_x_max_index": ("subdomain%internal%xstop",
-                                              "scalar"),
-                      "go_grid_y_min_index": ("subdomain%internal%ystart",
-                                              "scalar"),
-                      "go_grid_y_max_index": ("subdomain%internal%ystop",
-                                              "scalar")}
-
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
 VALID_LOOP_TYPES = ["inner", "outer"]
@@ -952,8 +925,7 @@ class GOKern(CodedKern):
                 if not field_for_grid_property:
                     field_for_grid_property = \
                         self._arguments.find_grid_access()
-                var_name = field_for_grid_property.name + "%grid%" + \
-                    arg.dereference_name
+                var_name = arg.dereference(field_for_grid_property.name)
             else:
                 var_name = arg.name
 
@@ -1074,7 +1046,7 @@ class GOKern(CodedKern):
                 # "<grid-prop-name>_device" which is a bit hacky but
                 # works for now.
                 if arg.is_scalar():
-                    arguments.append(garg.name+"%grid%"+arg.dereference_name)
+                    arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
         sub_name = self._name_space_manager.create_name(
@@ -1363,7 +1335,7 @@ class GOKernelArguments(Arguments):
                         "Error: kernel {0} requires grid property {1} but "
                         "does not have any arguments that are fields".
                         format(self._parent_call.name, arg.name))
-                arguments.append(grid_arg.name+"%grid%"+arg.dereference_name)
+                arguments.append(arg.dereference(grid_arg.name))
             else:
                 raise InternalError("Kernel {0}, argument {1} has "
                                     "unrecognised type: '{2}'".
@@ -1503,16 +1475,21 @@ class GOKernelGridArgument(Argument):
     '''
     def __init__(self, arg):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
-        if arg.grid_prop not in GRID_PROPERTY_DICT:
+
+        api_config = Config.get().api_conf("gocean1.0")
+        try:
+            deref_name, _ = api_config.field_properties[arg.grid_prop]
+        except KeyError:
+            all_keys = str(api_config.field_properties.keys())
             raise GenerationError("Unrecognised grid property specified. "
                                   "Expected one of {0} but found '{1}'".
-                                  format(str(GRID_PROPERTY_DICT.keys()),
-                                         arg.grid_prop))
+                                  format(all_keys, arg.grid_prop))
+
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
-        self._name = GRID_PROPERTY_DICT[arg.grid_prop][0].split("%")[-1]
+        self._name = deref_name.split("%")[-1]
         # Store the full name used in dereferencing the grid properties.
-        self._dereference_name = GRID_PROPERTY_DICT[arg.grid_prop][0]
+        self._dereference_name = deref_name
         # Store the original property name for easy lookup in is_scalar()
         self._property_name = arg.grid_prop
 
@@ -1523,17 +1500,21 @@ class GOKernelGridArgument(Argument):
 
     @property
     def name(self):
-        ''' Returns the Fortran name of the grid property. This name is
-            used in the generated code like so: <fld>%grid%name '''
+        ''' Returns the Fortran name of the grid property, which is used
+        in error messages etc.'''
         return self._name
 
-    @property
-    def dereference_name(self):
-        ''':returns: the dereference string required to access a property in\
-        a dl_esm field (e.g. "subdomain%internal%xstart"). This name is\
-        used in the generated code like so: <fld>%grid%dereference_name
+    def dereference(self, fld_name):
+        '''Returns a Fortran string to dereference a property of the
+        specified field. E.g."name%grid%dx". The stored value of
+        self._dereference_name is a format string, where {0} represents
+        the field name.
+
+        :returns: the dereference string required to access a property in \
+            a dl_esm field (e.g. "subdomain%internal%xstart"). The name must \
+            contains a "{0}" which is replaced by the field name.
         :rtype: str'''
-        return self._dereference_name
+        return self._dereference_name.format(fld_name)
 
     @property
     def type(self):
@@ -1546,7 +1527,8 @@ class GOKernelGridArgument(Argument):
         ''':return: If this variable is a scalar variable or not.
         :rtype: bool'''
         # The constructur guarantees that _pro_name is a valid key!
-        return GRID_PROPERTY_DICT[self._property_name][1] == "scalar"
+        api_config = Config.get().api_conf("gocean1.0")
+        return api_config.field_properties[self._property_name][1] == "scalar"
 
     @property
     def text(self):
@@ -1856,14 +1838,14 @@ class GO1p0Descriptor(Descriptor):
 
             self._grid_prop = grid_var
             self._type = "grid_property"
+            api_config = Config.get().api_conf("gocean1.0")
 
-            if grid_var.lower() not in GRID_PROPERTY_DICT:
+            if grid_var.lower() not in api_config.field_properties:
+                valid_keys = str(api_config.field_properties.keys())
                 raise ParseError(
                     "Meta-data error in kernel {0}: un-recognised grid "
                     "property '{1}' requested. Must be one of {2}".
-                    format(kernel_name,
-                           grid_var,
-                           str(GRID_PROPERTY_DICT.keys())))
+                    format(kernel_name, grid_var, valid_keys))
         else:
             raise ParseError(
                 "Meta-data error in kernel {0}: 'arg' type expects 2 or 3 "

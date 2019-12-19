@@ -204,6 +204,32 @@ def test_invalid_config_files(tmpdir):
         GOLoop.add_bounds("offset:field:space:1:2:3:4+")
     assert "Expression '4+' is not a valid do loop boundary" in str(err.value)
 
+    # Test invalid field properties - too many fields
+    content = _CONFIG_CONTENT + "field-properties = a: {0}%%b:c:d"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "Invalid property \"a\" found with value \"{0}%b:c:d\"" \
+               in str(err.value)
+
+    # Test invalid field properties - not enough fields
+    content = _CONFIG_CONTENT + "field-properties = a:b"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "Invalid property \"a\" found with value \"b\"" \
+               in str(err.value)
+
 
 # =============================================================================
 def test_valid_config_files():
