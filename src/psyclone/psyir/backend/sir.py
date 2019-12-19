@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
@@ -403,7 +404,7 @@ class SIRWriter(PSyIRVisitor):
         '''
         result = node.value
         # There is an assumption here that the literal is a float (see
-        # #468).
+        # #612).
         return ("{0}make_literal_access_expr(\"{1}\", BuiltinType.Float)"
                 "".format(self._nindent, result))
 
@@ -437,7 +438,7 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
         result = node.children[0].value
-        # There is an assumption here that the literal is a float (see #468)
+        # There is an assumption here that the literal is a float (see #612)
         return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
                 "".format(self._nindent, oper, result))
 

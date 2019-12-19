@@ -60,7 +60,7 @@ be found using the 'find_kernel.py' script.
 '''
 
 from __future__ import print_function
-from psyclone.transformations import DynamoExtractRegionTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")
@@ -81,8 +81,8 @@ def trans(psy):
     ''' PSyclone transformation script for the Dynamo0.3 API to
     extract the specified Kernel after applying transformations. '''
 
-    # Get instance of the ExtractRegionTrans transformation
-    etrans = DynamoExtractRegionTrans()
+    # Get instance of the ExtractTrans transformation
+    etrans = LFRicExtractTrans()
 
     # Import transformation script and apply transformations
     import colouring_and_omp as transformation

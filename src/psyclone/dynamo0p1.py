@@ -42,7 +42,8 @@ from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
     CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
-    Schedule
+    Schedule, Array
+from psyclone.psyir.symbols import DataType
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -152,7 +153,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls)
+        self._invokes = DynamoInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -179,10 +180,9 @@ class DynamoPSy(PSy):
 class DynamoInvokes(Invokes):
     ''' The Dynamo specific invokes class. This passes the Dynamo specific
         invoke class to the base class so it creates the one we require. '''
-    def __init__(self, alg_calls):
-        if False:
-            self._0_to_n = DynInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke)
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
 class DynInvoke(Invoke):
@@ -190,10 +190,9 @@ class DynInvoke(Invoke):
         schedule class to the base class so it creates the one we require.
         Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
-    def __init__(self, alg_invocation, idx):
-        if False:
-            self._schedule = DynInvokeSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule)
+    def __init__(self, alg_invocation, idx, invokes):
+        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule, invokes)
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
@@ -241,9 +240,11 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # stop
+        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def load(self, kern):
@@ -257,11 +258,11 @@ class DynLoop(Loop):
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and then call the base
             class to generate the code '''
-        self.start_expr = Literal("1", parent=self)
+        self.start_expr = Literal("1", DataType.INTEGER, parent=self)
         if self._loop_type == "colours":
             self.stop_expr = Reference("ncolour", parent=self)
         elif self._loop_type == "colour":
-            self.stop_expr = ArrayReference("ncp_ncolour", parent=self)
+            self.stop_expr = Array("ncp_ncolour", parent=self)
             self.stop_expr.addchild(Reference("colour"), parent=self.stop_expr)
         else:
             self.stop_expr = Reference(self.field_name+"%get_ncell()",

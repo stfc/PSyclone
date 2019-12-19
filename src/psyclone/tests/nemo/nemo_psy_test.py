@@ -301,28 +301,29 @@ def test_schedule_view(capsys):
     sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    indent = "    "
 
     expected_sched = (
-        isched_str + "[invoke='io_in_loop']\n"
-        "    0: " + loop_str + "[type='levels', field_space='None', "
-        "it_space='None']\n"
-        "        " + lit_str + "[value:'1']\n"
-        "        " + ref_str + "[name:'jpk']\n"
-        "        " + lit_str + "[value:'1']\n"
-        "        " + sched_str + "[]\n"
-        "            0: " + loop_str + "[type='lat', field_space='None', "
-        "it_space='None']\n"
-        "                " + lit_str + "[value:'1']\n"
-        "                " + ref_str + "[name:'jpj']\n"
-        "                " + lit_str + "[value:'1']\n"
-        "                " + sched_str + "[]\n"
-        "                    0: " + loop_str + "[type='lon', "
-        "field_space='None', it_space='None']\n"
-        "                        " + lit_str + "[value:'1']\n"
-        "                        " + ref_str + "[name:'jpi']\n"
-        "                        " + lit_str + "[value:'1']\n"
-        "                        " + sched_str + "[]\n"
-        "                            0: " + kern_str + "[]\n")
+        isched_str + "[invoke='io_in_loop']\n" +
+        indent + "0: " + loop_str + "[type='levels', field_space='None', "
+        "it_space='None']\n" +
+        2*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        2*indent + ref_str + "[name:'jpk']\n" +
+        2*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        2*indent + sched_str + "[]\n" +
+        3*indent + "0: " + loop_str + "[type='lat', field_space='None', "
+        "it_space='None']\n" +
+        4*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        4*indent + ref_str + "[name:'jpj']\n" +
+        4*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        4*indent + sched_str + "[]\n" +
+        5*indent + "0: " + loop_str + "[type='lon', "
+        "field_space='None', it_space='None']\n" +
+        6*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        6*indent + ref_str + "[name:'jpi']\n" +
+        6*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        6*indent + sched_str + "[]\n" +
+        7*indent + "0: " + kern_str + "[]\n")
     assert expected_sched in output
 
 

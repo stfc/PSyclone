@@ -42,10 +42,10 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn, InternalError
+     NameSpaceFactory, Node, InternalError
 
 
-class Profiler(object):
+class Profiler():
     ''' This class wraps all profiling related settings.'''
 
     # Command line option to use for the various profiling options
@@ -115,8 +115,8 @@ class Profiler(object):
         :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
         '''
 
-        from psyclone.transformations import ProfileRegionTrans
-        profile_trans = ProfileRegionTrans()
+        from psyclone.psyir.transformations import ProfileTrans
+        profile_trans = ProfileTrans()
         if Profiler.profile_kernels():
             for i in schedule.children:
                 if isinstance(i, loop_class):
@@ -236,22 +236,29 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        if self._module_name is None or self._region_name is None:
-            # Find the first kernel and use its name. In an untransformed
-            # Schedule there should be only one kernel, but if Profile is
-            # invoked after e.g. a loop merge more kernels might be there.
-            region_name = "unknown-kernel"
-            module_name = "unknown-module"
-            for kernel in self.walk(Kern):
-                region_name = kernel.name
-                if not isinstance(kernel, BuiltIn):
-                    # If the kernel is not a builtin then it has a module name.
-                    module_name = kernel.module_name
-                break
-            if self._region_name is None:
-                self._region_name = Profiler.create_unique_region(region_name)
-            if self._module_name is None:
-                self._module_name = module_name
+        module_name = self._module_name
+        if module_name is None:
+            # The user has not supplied a module (location) name so
+            # return the psy-layer module name as this will be unique
+            # for each PSyclone algorithm file.
+            module_name = self.root.invoke.invokes.psy.name
+
+        region_name = self._region_name
+        if region_name is None:
+            # The user has not supplied a region name (to identify
+            # this particular invoke region). Use the invoke name as a
+            # starting point.
+            region_name = self.root.invoke.name
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This profile only has one kernel within it, so append
+                # the kernel name.
+                region_name += ":{0}".format(kerns[0].name)
+            # Add a region index to ensure uniqueness when there are
+            # multiple regions in an invoke.
+            profile_nodes = self.root.walk(ProfileNode)
+            idx = profile_nodes.index(self)
+            region_name += ":r{0}".format(idx)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -264,8 +271,8 @@ class ProfileNode(Node):
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
-                             ["\"{0}\"".format(self._module_name),
-                              "\"{0}\"".format(self._region_name),
+                             ["\"{0}\"".format(module_name),
+                              "\"{0}\"".format(region_name),
                               self._var_name])
         parent.add(prof_start)
 
@@ -289,6 +296,8 @@ class ProfileNode(Node):
                                   "for profiling")
 
     def update(self):
+        # pylint: disable=too-many-locals, too-many-branches
+        # pylint: disable=too-many-statements
         '''
         Update the underlying fparser2 parse tree to implement the profiling
         region represented by this Node. This involves adding the necessary
@@ -442,7 +451,9 @@ class ProfileNode(Node):
         # AST for the content of this region.
         content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
+        # pylint: disable=protected-access
         fp_parent = content_ast._parent
+        # pylint: enable=protected-access
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
@@ -466,8 +477,10 @@ class ProfileNode(Node):
             except ValueError:
                 # ast_end is not a child of fp_parent so go up to its parent
                 # and try again
+                # pylint: disable=protected-access
                 if hasattr(ast_end, "_parent") and ast_end._parent:
                     ast_end = ast_end._parent
+                    # pylint: enable=protected-access
                 else:
                     raise InternalError(
                         "Failed to find the location of '{0}' in the fparser2 "

@@ -43,10 +43,10 @@ from __future__ import absolute_import, print_function
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
-from psyclone.transformations import TransformationError, ProfileRegionTrans
+from psyclone.psyir.transformations import ProfileTrans, TransformationError
 
 # The transformation that most of these tests use
-PTRANS = ProfileRegionTrans()
+PTRANS = ProfileTrans()
 
 
 def get_nemo_schedule(parser, code):

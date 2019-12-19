@@ -118,6 +118,7 @@ def test_where_array_notation_rank(parser):
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
     '''
+    from psyclone.psyir.symbols import DataType
     my_array = Array("my_array", None)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
@@ -125,7 +126,7 @@ def test_where_array_notation_rank(parser):
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
     # Give the Array one child that is not a CodeBlock
-    my_array.addchild(Literal("2", my_array))
+    my_array.addchild(Literal("2", DataType.INTEGER, my_array))
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("that uses Fortran array notation is assumed to have at least "
