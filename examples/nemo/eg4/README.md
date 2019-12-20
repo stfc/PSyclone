@@ -73,14 +73,12 @@ To build Dawn with Python support:
    offset and loop ordering for the vertical.
 2. There are no checks that the loops conform to the NEMO lat.lon.levs
    convention.
-3. Literals are assumed to be floating point numbers (as the PSyIR
-   does not currently capture the type of a literal).
-4. Fortran literals such as `0.0d0` are output directly in the
+3. Fortran literals such as `0.0d0` are output directly in the
    generated cuda code.
-5. The only unary operator currently supported is '-'.
-6. The subject of the unary operator must be a literal.
-7. Loops must be triply nested.
-8. Loops must be perfectly nested (no computation between different
+4. The only unary operator currently supported is '-'.
+5. The subject of the unary operator must be a literal.
+6. Loops must be triply nested.
+7. Loops must be perfectly nested (no computation between different
    loop levels).
 
 ## Licence
