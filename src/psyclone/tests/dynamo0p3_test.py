@@ -60,7 +60,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 
 # constants
@@ -467,7 +467,7 @@ def test_field(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = psy.gen
     output = (
@@ -555,7 +555,7 @@ def test_field_deref(tmpdir, dist_mem):
         output = "      USE mesh_mod, ONLY: mesh_type\n"
         assert output in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
@@ -670,7 +670,7 @@ def test_field_fs(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
     output = (
@@ -861,7 +861,7 @@ def test_real_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
@@ -946,7 +946,7 @@ def test_int_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "    SUBROUTINE invoke_0_testkern_one_int_scalar_type"
@@ -1033,7 +1033,7 @@ def test_two_real_scalars(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
@@ -1117,7 +1117,7 @@ def test_two_int_scalars(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
@@ -1208,7 +1208,7 @@ def test_two_scalars(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
     expected = (
@@ -1322,7 +1322,7 @@ def test_vector_field_2(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # all references to chi_proxy should be chi_proxy(1)
     assert "chi_proxy%" not in generated_code
@@ -1370,7 +1370,7 @@ def test_any_space_1(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("INTEGER, pointer :: "
             "map_any_space_1_a(:,:) => null(), "
@@ -1441,7 +1441,7 @@ def test_op_any_space_different_space_2(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
     assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
         generated_code
@@ -1475,7 +1475,7 @@ def test_op_any_discontinuous_space_1(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
     assert ("INTEGER, pointer :: map_any_discontinuous_space_1_f1(:,:) => "
             "null()" in generated_code)
@@ -1515,7 +1515,7 @@ def test_op_any_discontinuous_space_2(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert ("ndf_any_discontinuous_space_4_f1 = f1_proxy%vspace%get_ndf()" in
             generated_code)
     assert ("undf_any_discontinuous_space_4_f1 = "
@@ -1741,7 +1741,7 @@ def test_kernel_specific(tmpdir):
         "boundary_dofs)")
     assert output6 not in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_multi_kernel_specific(tmpdir):
@@ -1804,7 +1804,7 @@ def test_multi_kernel_specific(tmpdir):
         "boundary_dofs_1)")
     assert output10 not in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_field_bc_kernel(tmpdir):
@@ -1826,7 +1826,7 @@ def test_field_bc_kernel(tmpdir):
             "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs_a)"
             in gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
@@ -2025,7 +2025,7 @@ def test_multikern_invoke_any_space(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
@@ -2068,7 +2068,7 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
             "dim_any_space_1_f1, ndf_any_space_1_f1, "
@@ -3014,7 +3014,7 @@ def test_halo_exchange_different_spaces(tmpdir):
     result = str(psy.gen)
     assert result.count("halo_exchange") == 12
     # Check compilation
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_halo_exchange_vectors_1(monkeypatch, annexed):
@@ -3239,7 +3239,7 @@ def test_no_mesh_mod(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     result = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "USE mesh_mod, ONLY: mesh_type" not in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" not in result
     assert "mesh => a_proxy%vspace%get_mesh()" not in result
@@ -3254,7 +3254,7 @@ def test_mesh_mod(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "USE mesh_mod, ONLY: mesh_type" in result
     assert "TYPE(mesh_type), pointer :: mesh => null()" in result
     output = ("      !\n"
@@ -4014,7 +4014,7 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
     assert output5 in result
 
     # Check compilation
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_multi_kerns_stencils_diff_fields(dist_mem):
@@ -4584,7 +4584,7 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     result = str(psy.gen)
 
     # Check compilation
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Use the same stencil dofmap
     output1 = (
@@ -4801,7 +4801,7 @@ def test_stencil_vector(dist_mem, tmpdir):
         "f2_proxy(4)%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell)") \
         in str(result)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_stencil_xory_vector(dist_mem, tmpdir):
@@ -4849,7 +4849,7 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         "f2_stencil_dofmap(:,:,cell)") \
         in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_dynloop_load_unexpected_func_space():
@@ -5099,7 +5099,7 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
             "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
         assert output in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_itn_space_fld_and_op_writers(tmpdir):
@@ -5127,7 +5127,7 @@ def test_itn_space_fld_and_op_writers(tmpdir):
                 "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
             assert output in generated_code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_itn_space_any_any_discontinuous(tmpdir):
@@ -5154,7 +5154,7 @@ def test_itn_space_any_any_discontinuous(tmpdir):
                 "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_itn_space_any_w2trace(dist_mem, tmpdir):
@@ -5183,7 +5183,7 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
             "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
         assert output in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_unexpected_type_error():
@@ -5468,7 +5468,7 @@ def test_no_halo_for_discontinuous(tmpdir):
     result = str(psy.gen)
     assert "halo_exchange" not in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_halo_for_discontinuous(tmpdir, monkeypatch, annexed):
@@ -5506,7 +5506,7 @@ def test_halo_for_discontinuous(tmpdir, monkeypatch, annexed):
         assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
@@ -5541,7 +5541,7 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
         assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_arg_discontinuous(monkeypatch, annexed):
@@ -5859,7 +5859,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
@@ -5880,7 +5880,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # First test compilation ...
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     # and then proceed to checks
     if annexed:
         # no halo exchanges generated
@@ -6056,7 +6056,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
     else:
