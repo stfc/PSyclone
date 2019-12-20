@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     DataType
-from psyclone.psyGen import InternalError, Container
+from psyclone.psyGen import InternalError, Container, Literal
 
 
 def test_datasymbol_initialisation():
@@ -237,8 +237,8 @@ def test_datasymbol_can_be_printed():
             "'integer' or 'None', but found") in str(error.value)
 
     sym3 = DataSymbol("s3", DataType.INTEGER, constant_value=12)
-    assert "s3: <DataType.INTEGER, Scalar, Local, constant_value=12>" \
-        in str(sym3)
+    assert "s3: <DataType.INTEGER, Scalar, Local, constant_value=Literal" \
+           "[value:'12', DataType.INTEGER]>" in str(sym3)
 
     sym4 = DataSymbol("s4", DataType.INTEGER, interface=UnresolvedInterface())
     assert "s4: <DataType.INTEGER, Scalar, Unresolved>" in str(sym4)
@@ -252,14 +252,18 @@ def test_datasymbol_constant_value_setter():
 
     # Test with valid constant value
     sym = DataSymbol('a', DataType.INTEGER, constant_value=7)
-    assert sym.constant_value == 7
+    assert sym.constant_value.datatype == DataType.INTEGER
+    assert sym.constant_value.value == "7"
     sym.constant_value = 9
-    assert sym.constant_value == 9
+    assert sym.constant_value.datatype == DataType.INTEGER
+    assert sym.constant_value.value == "9"
 
     sym = DataSymbol('a', DataType.REAL, constant_value=3.1415)
-    assert sym.constant_value == 3.1415
+    assert sym.constant_value.datatype == DataType.REAL
+    assert sym.constant_value.value == "3.1415"
     sym.constant_value = 1.0
-    assert sym.constant_value == 1.0
+    assert sym.constant_value.datatype == DataType.REAL
+    assert sym.constant_value.value == "1.0"
 
     sym = DataSymbol('a', DataType.DEFERRED)
     with pytest.raises(ValueError) as error:
@@ -382,7 +386,7 @@ def test_datasymbol_copy():
 
     # Now check constant_value
     new_symbol._shape = []
-    new_symbol.constant_value = True
+    new_symbol.constant_value = 3
 
     assert symbol.shape == [1, 2]
     assert not symbol.constant_value
@@ -411,7 +415,9 @@ def test_datasymbol_copy_properties():
     assert symbol.datatype == DataType.INTEGER
     assert symbol.shape == []
     assert symbol.is_local
-    assert symbol.constant_value == 7
+    assert isinstance(symbol.constant_value, Literal)
+    assert symbol.constant_value.value == "7"
+    assert symbol.constant_value.datatype == DataType.INTEGER
 
 
 def test_datasymbol_resolve_deferred():
@@ -439,7 +445,9 @@ def test_datasymbol_resolve_deferred():
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
     assert symbol.datatype == DataType.REAL
-    assert symbol.constant_value == 3.14
+    assert isinstance(symbol.constant_value, Literal)
+    assert symbol.constant_value.datatype == DataType.REAL
+    assert symbol.constant_value.value == "3.14"
 
     # Test with a symbol not defined in the linked container
     symbol = DataSymbol('d', DataType.DEFERRED,

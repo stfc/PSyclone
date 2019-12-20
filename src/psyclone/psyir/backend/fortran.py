@@ -315,7 +315,7 @@ class FortranWriter(PSyIRVisitor):
             result += ", parameter"
         result += " :: {0}".format(symbol.name)
         if symbol.is_constant:
-            result += " = {0}".format(symbol.constant_value)
+            result += " = {0}".format(self._visit(symbol.constant_value))
         result += "\n"
         return result
 

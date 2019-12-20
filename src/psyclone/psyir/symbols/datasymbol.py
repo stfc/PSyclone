@@ -370,9 +370,32 @@ class DataSymbol(Symbol):
                     "constant value must be a scalar but a shape was found."
                     "".format(self.name))
 
-            for node in new_value.walk(Node):
-                if not isinstance(node, (Literal, Operation, Reference)):
-                    raise SymbolError("")
+            if isinstance(new_value, Node):
+                for node in new_value.walk(Node):
+                    if not isinstance(node, (Literal, Operation, Reference)):
+                        raise SymbolError("")
+            else:
+                try:
+                    lookup = TYPE_MAP_TO_PYTHON[self.datatype]
+                except KeyError:
+                    raise ValueError(
+                        "Error setting '{0}' constant value. Constant values "
+                        "are not supported for '{1}' datatypes."
+                        "".format(self.name, self.datatype))
+                if not isinstance(new_value, lookup):
+                    raise ValueError(
+                        "Error setting '{0}' constant value. This DataSymbol "
+                        "instance datatype is '{1}' which means the constant "
+                        "value is expected to be '{2}' but found '{3}'."
+                        "".format(self.name, self.datatype,
+                                  TYPE_MAP_TO_PYTHON[self.datatype],
+                                  type(new_value)))
+
+                # All accepted types but booleans need to be passed as strings
+                if isinstance(new_value, bool):
+                    new_value = Literal(new_value, self.datatype)
+                else:
+                    new_value = Literal(str(new_value), self.datatype)
 
         self._constant_value = new_value
 
