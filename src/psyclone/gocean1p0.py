@@ -1414,7 +1414,6 @@ class GOKernelArguments(Arguments):
         api_config = Config.get().api_conf("gocean1.0")
         data_fmt = api_config.field_properties["go_grid_data"][0]
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
-        print("X1", arg_list)
         for arg in self._args:
             if arg.type == "scalar":
                 arg_list.append(arg.name)
@@ -1422,14 +1421,12 @@ class GOKernelArguments(Arguments):
                 # The remote device will need the reference to the field
                 # object *and* the reference to the array within that object.
                 arg_list.extend([arg.name, data_fmt.format(arg.name)])
-                print("X2", arg_list)
             elif arg.type == "grid_property":
                 if grid_ptr not in arg_list:
                     # This kernel needs a grid property and therefore the
                     # pointer to the grid object must be copied to the device.
                     arg_list.append(grid_ptr)
                 arg_list.append(grid_ptr+"%"+arg.name)
-                print("X2", arg_list)
         return arg_list
 
     @property
