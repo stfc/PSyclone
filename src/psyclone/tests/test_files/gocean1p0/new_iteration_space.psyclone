@@ -16,6 +16,7 @@ iteration-spaces=go_offset_sw:go_ct:internal_we_halo:1:2:3:4
 
 field-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
                    go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
+                   go_grid_data: {0}%%data: array,
                    go_grid_area_t: {0}%%grid%%area_t: array,
                    go_grid_area_u: {0}%%grid%%area_u: array,
                    go_grid_area_v: {0}%%grid%%area_v: array,
