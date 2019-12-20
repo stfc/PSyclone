@@ -346,7 +346,7 @@ class DataSymbol(Symbol):
         the constant for this DataSymbol. If the value is None then this \
         symbol does not have a fixed constant. The datatype of \
         new_value must be compatible with the datatype of the symbol.
-        :type constant_value: int, str or bool
+        :type constant_value: :py:class:`psyclone.psyGen.Node`
 
         :raises ValueError: If a non-None value is provided and 1) \
         this DataSymbol instance does not have local scope, or 2) this \
@@ -357,6 +357,7 @@ class DataSymbol(Symbol):
         instance.
 
         '''
+        from psyclone.psyGen import Node, Literal, Operation, Reference
         if new_value is not None:
             if not self.is_local:
                 raise ValueError(
@@ -368,21 +369,11 @@ class DataSymbol(Symbol):
                     "Error setting '{0}' constant value. A DataSymbol with a "
                     "constant value must be a scalar but a shape was found."
                     "".format(self.name))
-            try:
-                lookup = TYPE_MAP_TO_PYTHON[self.datatype]
-            except KeyError:
-                raise ValueError(
-                    "Error setting '{0}' constant value. Constant values are "
-                    "not supported for '{1}' datatypes."
-                    "".format(self.name, self.datatype))
-            if not isinstance(new_value, lookup):
-                raise ValueError(
-                    "Error setting '{0}' constant value. This DataSymbol "
-                    "instance datatype is '{1}' which means the constant "
-                    "value is expected to be '{2}' but found '{3}'."
-                    "".format(self.name, self.datatype,
-                              TYPE_MAP_TO_PYTHON[self.datatype],
-                              type(new_value)))
+
+            for node in new_value.walk(Node):
+                if not isinstance(node, (Literal, Operation, Reference)):
+                    raise SymbolError("")
+
         self._constant_value = new_value
 
     def __str__(self):

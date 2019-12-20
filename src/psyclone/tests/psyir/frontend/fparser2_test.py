@@ -45,7 +45,7 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, IfBlock, Reference, Array, KernelSchedule, \
-    Container, InternalError, GenerationError
+    Container, InternalError, GenerationError, Literal
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -343,22 +343,24 @@ def test_process_declarations(f2008_parser):
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i1").constant_value == 1
+    newsymbol = fake_parent.symbol_table.lookup("i1")
+    assert newsymbol.is_constant
+    assert isinstance(newsymbol.constant_value, Literal)
+    assert newsymbol.constant_value.value == "1"
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i2").constant_value == 2.2
-    assert fake_parent.symbol_table.lookup("i3").constant_value == 3.3
+    assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
+    assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
 
     # Static constant expresions are not supported
-    reader = FortranStringReader("real, parameter :: a = 1.1, b = a * 2")
+    reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Initialisations with static expressions are not supported." \
-        in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
+    assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
+                      BinaryOperation)
 
     # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
@@ -563,6 +565,19 @@ def test_process_declarations_kind_new_param(f2008_parser):
         processor.process_declarations(fake_parent, fp2spec, [])
     assert ("Failed to find valid Name in Fortran Kind Selector: "
             "'(KIND = blah)'" in str(err.value))
+
+
+def test_process_declarations_expression_param(f2008_parser):
+    ''' Test that process_declarations handles the kind attribute when
+    it specifies a previously-declared symbol.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real, parameter :: twopi = 2 * pi")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert isinstance(fake_parent.symbol_table.lookup("twopi"), DataSymbol)
 
 
 @pytest.mark.xfail(reason="Kind parameter declarations not supported - #585")
