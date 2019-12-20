@@ -1469,7 +1469,7 @@ class GOKernelArguments(Arguments):
         return [arg.name for arg in args]
 
     def append(self, name):
-        ''' Append a GOKernelArgument to the Argument list.
+        ''' Create and append a GOKernelArgument to the Argument list.
 
         :param str name: name of the appended argument.
 

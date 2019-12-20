@@ -3816,6 +3816,8 @@ class KernelGlobalsToArguments(Transformation):
         :type options: dictionary of string:values or None
 
         :raises TransformationError: if the supplied node is not a CodedKern.
+        :raises TransformationError: if this transformation is not applied to \
+            a Gocean API Invoke.
         '''
         from psyclone.psyGen import CodedKern
         from psyclone.gocean1p0 import GOInvokeSchedule
@@ -3827,7 +3829,7 @@ class KernelGlobalsToArguments(Transformation):
 
         if not isinstance(node.root, GOInvokeSchedule):
             raise TransformationError(
-                "The {0} generation is currently only supported for the "
+                "The {0} transformation is currently only supported for the "
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
                 format(self.name, type(node.root).__name__))
 

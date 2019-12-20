@@ -1551,7 +1551,7 @@ def test_globalstoargumentstrans_wrongapi():
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert "The KernelGlobalsToArguments generation is currently only " \
+    assert "The KernelGlobalsToArguments transformation is currently only " \
            "supported for the GOcean API but got an InvokeSchedule of " \
            "type:" in str(err.value)
 
