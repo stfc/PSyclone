@@ -3960,6 +3960,14 @@ class Kern(Node):
         '''
         return self.parent.parent.loop_type == "colour"
 
+    def clear_cached_data(self):
+        '''This function is called to remove all cached data (which
+        then forces all functions to recompute their results). At this
+        stage it supports gen_code by enforcing all arguments to
+        be recomputed.
+        '''
+        self.arguments.clear_cached_data()
+
     @property
     def iterates_over(self):
         return self._iterates_over
@@ -4596,6 +4604,11 @@ class Arguments(object):
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
                                   "implemented in sub-class")
+
+    def clear_cached_data(self):
+        '''This function is called to clean all cached data, which
+        enforces that raw_arg_list is recomputed.'''
+        self._raw_arg_list = []
 
     @property
     def names(self):

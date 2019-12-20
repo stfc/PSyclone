@@ -49,6 +49,8 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
+from psyclone.configuration import Config
+from psyclone.psygen import CodedKern
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -134,7 +136,18 @@ class ExtractNode(PSyDataNode):
 
     # -------------------------------------------------------------------------
     def create_driver(self, input_list, output_list):
-        # Create output code:
+        # pylint: disable=too-many-locals, too-many-statements
+        '''This function creates a driver that can read the
+        output created by the extractopm process. This is a stand-alone
+        program that will read the input data, calls the kernels/
+        instrumented region, and then compares the results with the
+        stored results in the file.
+
+        :param input_list: list of variables that are input parameters.
+        :type input_list: list of str
+        :param output_list: list of variables that are output parameters.
+        :type output_list: list or str
+        '''
 
         from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
             CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
@@ -220,20 +233,40 @@ class ExtractNode(PSyDataNode):
         # Now add the region that was extracted here:
         prog.add(CommentGen(prog, ""))
         prog.add(CommentGen(prog, " RegionStart"))
+
+        # For the driver we have to re-create the code, but
+        # the arguments are not fields anymore, but simple arrays.
+        # So we need to make sure that the field parameters
+        # are changed from "fld%data" to just "fld". This is
+        # achieved by temporary changing the value of the
+        # "go_grid_data" property from "{0}.%data" to just "{0}".
+        # But each kernel caches the argument code, so we also
+        # need to clear this cached data to make sure the new
+        # value for "go_grid_data" is actually used.
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.field_properties
+        old_data_property = props["go_grid_data"]
+        props["go_grid_data"] = ("{0}", "array")
+        for kernel in self.psy_data_body.walk(CodedKern):
+            # Clear cached data in all kernels, which will
+            # mean the new value for go_grid_data will be used:
+            kernel.clear_cached_data()
+
+        # Recreate the instrumented region:
         for child in self.psy_data_body:
             child.gen_code(prog)
+
+        # Reset the go_grid_data property back to its original value.q
+
+        props["go_grid_data"] = old_data_property
+
         prog.add(CommentGen(prog, " RegionEnd"))
         prog.add(CommentGen(prog, ""))
 
         for var_name in output_list:
             prog.add(CommentGen(prog, " Check {0}".format(var_name)))
 
-        # A really embarrasing hack: gen_code creates code accessing
-        # a field as field%data. Since the driver uses only normal
-        # Fortran arrays, we have to remove "%data" in the code
-        # everywhere. TODO: fix gen_code to avoid creation of %data.
         code = str(module.root)
-        code = code.replace("%data", "")
 
         with open(name+".f90", "w") as out:
             out.write(code)
