@@ -146,7 +146,7 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
     only compile OpenCL code.
     '''
 
-    def code_compiles(self, psy_ast):
+    def code_compiles(self, psy_ast, dependencies=None):
         '''Attempts to build the OpenCL Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         If no Fortran compiler is available then returns True. All files
@@ -154,15 +154,22 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
 
         :param psy_ast: the AST of the generated PSy layer
         :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
+        :param dependencies: Module- or file-names on which one or more
+                    of the kernels/PSy-layer depend (and that are not
+                    part of the GOcean infrastructure, dl_esm_inf).
+                    These dependencies will be built in the order they
+                    occur in this list.
+        :type dependencies: list of str
 
         :return: True if generated code compiles, False otherwise
         :rtype: bool
-        '''
 
+        '''
         if not Compile.TEST_COMPILE_OPENCL:
             return True
 
         # Don't call the base class code_compile() function, since it
         # will only work if --compile was specified. Call the internal
         # function instead that does the actual compilation.
-        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy_ast)
+        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy_ast,
+                                                                dependencies)
