@@ -668,8 +668,10 @@ class GOLoop(Loop):
                                    self)
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
-            stop.addchild(Literal(self.field_name+"%data", DataType.INTEGER,
-                                  parent=stop))
+            api_config = Config.get().api_conf("gocean1.0")
+            data = api_config.field_properties["go_grid_data"][0] \
+                .format(self.field_name)
+            stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
             if self._loop_type == "inner":
                 stop.addchild(Literal("1", DataType.INTEGER, parent=stop))
             elif self._loop_type == "outer":
@@ -1176,13 +1178,14 @@ class GOKern(CodedKern):
         for arg in self._arguments.args:
             if arg.type == "field" or \
                (arg.type == "grid_property" and not arg.is_scalar()):
-
+                api_config = Config.get().api_conf("gocean1.0")
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping
                     # track of whether they are on the device
                     condition = ".NOT. {0}%data_on_device".format(arg.name)
                     device_buff = "{0}%device_ptr".format(arg.name)
-                    host_buff = "{0}%data".format(arg.name)
+                    host_buff = api_config.field_properties["go_grid_data"][0]\
+                        .format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
                     # they are just arrays) so we check whether the device
@@ -1331,7 +1334,10 @@ class GOKernelArguments(Arguments):
                 arguments.append(arg.name)
             elif arg.type == "field":
                 # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
+                api_config = Config.get().api_conf("gocean1.0")
+                data = api_config.field_properties["go_grid_data"][0]\
+                    .format(arg.name)
+                arguments.append(data)
             elif arg.type == "grid_property":
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object.
@@ -1398,21 +1404,25 @@ class GOKernelArguments(Arguments):
         # access.
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
-        arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
-
+        api_config = Config.get().api_conf("gocean1.0")
+        data_fmt = api_config.field_properties["go_grid_data"][0]
+        arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
+        print("X1", arg_list)
         for arg in self._args:
             if arg.type == "scalar":
                 arg_list.append(arg.name)
             elif arg.type == "field" and arg != grid_fld:
                 # The remote device will need the reference to the field
                 # object *and* the reference to the array within that object.
-                arg_list.extend([arg.name, arg.name+"%data"])
+                arg_list.extend([arg.name, data_fmt.format(arg.name)])
+                print("X2", arg_list)
             elif arg.type == "grid_property":
                 if grid_ptr not in arg_list:
                     # This kernel needs a grid property and therefore the
                     # pointer to the grid object must be copied to the device.
                     arg_list.append(grid_ptr)
                 arg_list.append(grid_ptr+"%"+arg.name)
+                print("X2", arg_list)
         return arg_list
 
     @property
