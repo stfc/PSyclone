@@ -3859,6 +3859,8 @@ class KernelGlobalsToArguments(Transformation):
         invoke_symtab = node.root.symbol_table
 
         # Transform each global variable into an argument
+        # TODO #11: When support for logging is added, we could warn the user
+        # if no globals are found in the kernel.
         for globalvar in kernel.symbol_table.global_datasymbols:
 
             # Resolve the data type information if it is not available
@@ -3872,6 +3874,8 @@ class KernelGlobalsToArguments(Transformation):
             current_arg_list = symtab.argument_list
             if globalvar.is_constant:
                 # Global constants lose the constant value but are read-only
+                # TODO: When #633 and #11 are implemented, warn the user that
+                # it should transform the constants to literal values first.
                 globalvar.constant_value = None
                 globalvar.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)

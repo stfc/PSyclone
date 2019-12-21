@@ -254,3 +254,5 @@ def test_globalstoarguments_noglobals():
     trans.apply(kernel)
     after_code = str(psy.gen)
     assert before_code == after_code
+    # TODO #11: When support for logging is added, we could warn the user that
+    # no globals were found.
