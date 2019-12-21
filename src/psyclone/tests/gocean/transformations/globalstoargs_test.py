@@ -73,6 +73,7 @@ def test_globalstoargumentstrans(monkeypatch):
         TransformationError
     from psyclone.psyGen import Argument
     from psyclone.psyir.backend.fortran import FortranWriter
+    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     assert trans.name == "KernelGlobalsToArguments"
@@ -91,10 +92,9 @@ def test_globalstoargumentstrans(monkeypatch):
 
     # Monckeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
-    for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
-        def set_to_real(variable):
-            variable._datatype = DataType.REAL
-        monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
+    def set_to_real(variable):
+        variable._datatype = DataType.REAL
+    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
 
     # Test with invalid node
     with pytest.raises(TransformationError) as err:
@@ -147,6 +147,7 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     ''' Check the KernelGlobalsToArguments transformation '''
     from psyclone.transformations import KernelGlobalsToArguments
     from psyclone.psyir.backend.fortran import FortranWriter
+    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     assert trans.name == "KernelGlobalsToArguments"
@@ -165,11 +166,10 @@ def test_globalstoargumentstrans_constant(monkeypatch):
 
     # Monckeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
-    for var in kernel.get_kernel_schedule().symbol_table.global_datasymbols:
-        def set_to_real(variable):
-            variable._datatype = DataType.INTEGER
-            variable.constant_value = 1
-        monkeypatch.setattr(var, "resolve_deferred", lambda: set_to_real(var))
+    def set_to_const_int(variable):
+        variable._datatype = DataType.INTEGER
+        variable.constant_value = 1
+    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_const_int)
 
     # Test transforming a single kernel
     trans.apply(kernel)
