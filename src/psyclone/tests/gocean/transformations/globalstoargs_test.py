@@ -68,7 +68,8 @@ def test_globalstoargumentstrans_wrongapi():
 
 
 def test_globalstoargumentstrans(monkeypatch):
-    ''' Check the KernelGlobalsToArguments transformation '''
+    ''' Check the GlobalsToArguments transformation with a single kernel
+    invoke and a global variable.'''
     from psyclone.transformations import KernelGlobalsToArguments, \
         TransformationError
     from psyclone.psyGen import Argument
@@ -144,19 +145,15 @@ def test_globalstoargumentstrans(monkeypatch):
 
 
 def test_globalstoargumentstrans_constant(monkeypatch):
-    ''' Check the KernelGlobalsToArguments transformation '''
+    ''' Check the GlobalsToArguments transformation when the global is
+    also a constant value, in this case the argument should be read-only.'''
     from psyclone.transformations import KernelGlobalsToArguments
     from psyclone.psyir.backend.fortran import FortranWriter
     from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
-    assert trans.name == "KernelGlobalsToArguments"
-    assert str(trans) == "Convert the global variables used inside the " \
-        "kernel into arguments and modify the InvokeSchedule to pass them" \
-        " in the kernel call."
 
     # Construct a testing InvokeSchedule
-
     _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
                                         "single_invoke_kern_with_use.f90"),
                            api=API)
@@ -210,9 +207,8 @@ def test_globalstoarguments_multiple_kernels():
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()
 
-        # We already tested that DEFERRED globals are resolved in last test,
-        # in this case we hardcode all them to REAL to avoid searching and
-        # importing of modules in this test.
+        # In this case we hardcode all globals to REAL to avoid searching and
+        # importing of modules during this test.
         for var in kschedule.symbol_table.global_datasymbols:
             var._datatype = DataType.REAL
 
