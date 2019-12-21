@@ -1157,7 +1157,6 @@ def test_find_grid_access(monkeypatch):
     ''' Tests for the GOKernelArguments.find_grid_access method. This
     identifies the best kernel argument from which to access grid
     properties. '''
-    from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
     kern = schedule.children[0].loop_body[0].loop_body[0]
