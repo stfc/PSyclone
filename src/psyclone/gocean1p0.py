@@ -690,20 +690,24 @@ class GOLoop(Loop):
         # Loop bounds are pulled from the field object which
         # is more straightforward for us but provides the
         # Fortran compiler with less information.
-        stop = self.field_name
 
         if self._iteration_space.lower() == "go_internal_pts":
-            stop += "%internal"
+            key = "internal"
         elif self._iteration_space.lower() == "go_all_pts":
-            stop += "%whole"
+            key = "whole"
         else:
             raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
-        if self._loop_type == "inner":
-            stop += "%xstop"
-        elif self._loop_type == "outer":
-            stop += "%ystop"
+
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.field_properties
+        # key is 'internal' or 'whole', and _loop_type is either
+        # 'inner' or 'outer'. The four possible combinations are
+        # defined in the config file:
+        stop_format = props["go_grid_{0}_{1}_stop"\
+                            .format(key, self._loop_type)][0]
+        stop = stop_format.format(self.field_name)
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
         return Literal(stop, DataType.INTEGER, self)
@@ -763,19 +767,22 @@ class GOLoop(Loop):
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
         # with less information.
-        start = self.field_name
         if self._iteration_space.lower() == "go_internal_pts":
-            start += "%internal"
+            key = "internal"
         elif self._iteration_space.lower() == "go_all_pts":
-            start += "%whole"
+            key = "whole"
         else:
             raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
-        if self._loop_type == "inner":
-            start += "%xstart"
-        elif self._loop_type == "outer":
-            start += "%ystart"
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.field_properties
+        # key is 'internal' or 'whole', and _loop_type is either
+        # 'inner' or 'outer'. The four possible combinations are
+        # defined in the config file:
+        start_format = props["go_grid_{0}_{1}_start"\
+                             .format(key, self._loop_type)][0]
+        start = start_format.format(self.field_name)
         # TODO 363 - update once the PSyIR supports derived types
         return Literal(start, DataType.INTEGER, self)
 
