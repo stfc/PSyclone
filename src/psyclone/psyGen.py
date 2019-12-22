@@ -4606,7 +4606,7 @@ class Arguments(object):
                                   "implemented in sub-class")
 
     def clear_cached_data(self):
-        '''This function is called to clean all cached data, which
+        '''This function is called to clear all cached data, which
         enforces that raw_arg_list is recomputed.'''
         self._raw_arg_list = []
 

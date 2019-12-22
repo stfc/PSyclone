@@ -1018,9 +1018,11 @@ class GOKern(CodedKern):
             root_name="globalsize", context="PSyVars", label="globalsize")
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
-        parent.add(AssignGen(
-            parent, lhs=glob_size,
-            rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
+        api_config = Config.get().api_conf("gocean1.0")
+        num_x = api_config.field_properties["go_grid_nx"][0].format(garg.name)
+        num_y = api_config.field_properties["go_grid_ny"][0].format(garg.name)
+        parent.add(AssignGen(parent, lhs=glob_size,
+                             rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
         local_size = self._name_space_manager.create_name(
@@ -1209,11 +1211,15 @@ class GOKern(CodedKern):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", target=True,
                                    entity_decls=[wevent]))
+                api_config = Config.get().api_conf("gocean1.0")
+                props = api_config.field_properties
+                num_x = props["go_grid_nx"][0].format(grid_arg.name)
+                num_y = props["go_grid_ny"][0].format(grid_arg.name)
                 # Use c_sizeof() on first element of array to be copied over in
                 # order to cope with the fact that some grid properties are
                 # integer.
-                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*c_sizeof("
-                             "{1}(1,1))".format(grid_arg.name, host_buff))
+                size_expr = "int({0}*{1}, 8)*c_sizeof({2}(1,1))" \
+                            .format(num_x, num_y, host_buff)
                 ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
