@@ -178,8 +178,13 @@ Entry                   Description
 ======================= =======================================================
 iteration-spaces        This contains definitions of additional iteration spaces
                         used by PSyclone. A detailed description can be found
-                        in the :ref:`gocean1.0-configuration` section of the
-                        GOcean1.0 chapter.
+                        in the :ref:`gocean1.0-configuration-iteration-spaces`
+                        section of the GOcean1.0 chapter.
+
+field-properties        This key contains definitions to access various grid
+                        properties. A detailed description can be found
+                        in the :ref:`gocean1.0-configuration-grid-properties`
+                        section of the GOcean1.0 chapter.
 ======================= =======================================================
 
 ``NEMO`` Section
