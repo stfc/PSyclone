@@ -809,7 +809,16 @@ class GOceanConfig(APISpecificConfig):
                         (access.strip(), field_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
-                for required in ["go_grid_xstop", "go_grid_ystop"]:
+                for required in ["go_grid_xstop", "go_grid_ystop",
+                                 "go_grid_data",
+                                 "go_grid_internal_inner_start",
+                                 "go_grid_internal_inner_stop",
+                                 "go_grid_internal_outer_start",
+                                 "go_grid_internal_outer_stop",
+                                 "go_grid_whole_inner_start",
+                                 "go_grid_whole_inner_stop",
+                                 "go_grid_whole_outer_start",
+                                 "go_grid_whole_outer_stop"]:
                     if required not in self._field_properties:
                         error = "The config file {0} does not contain " \
                                 "values for \"{1}\".".format(config.filename,
