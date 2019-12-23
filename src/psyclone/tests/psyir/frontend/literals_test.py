@@ -59,7 +59,7 @@ def test_handling_literal(f2008_parser, code, dtype):
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [astmt], None)
+    processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)

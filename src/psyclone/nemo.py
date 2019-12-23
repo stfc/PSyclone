@@ -94,8 +94,7 @@ class NemoFparser2Reader(Fparser2Reader):
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
         fakeparent = Schedule()
-        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
-                           nodes_parent=node)
+        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
 
         if NemoKern.match(fakeparent):
             # Create a new kernel object and make it the only
@@ -311,7 +310,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
 
-        self.process_nodes(self, ast.content, ast)
+        self.process_nodes(self, ast.content)
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 

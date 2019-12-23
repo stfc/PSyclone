@@ -450,9 +450,7 @@ class ProfileNode(Node):
         # AST for the content of this region.
         content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
-        # pylint: disable=protected-access
-        fp_parent = content_ast._parent
-        # pylint: enable=protected-access
+        fp_parent = content_ast.parent
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
@@ -476,10 +474,8 @@ class ProfileNode(Node):
             except ValueError:
                 # ast_end is not a child of fp_parent so go up to its parent
                 # and try again
-                # pylint: disable=protected-access
-                if hasattr(ast_end, "_parent") and ast_end._parent:
-                    ast_end = ast_end._parent
-                    # pylint: enable=protected-access
+                if ast_end.parent:
+                    ast_end = ast_end.parent
                 else:
                     raise InternalError(
                         "Failed to find the location of '{0}' in the fparser2 "
@@ -492,6 +488,7 @@ class ProfileNode(Node):
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         pecall = Fortran2003.Call_Stmt(reader)
+        pecall.parent = fp_parent
         fp_parent.content.insert(ast_end_index+1, pecall)
 
         # Add the profiling-start call
@@ -500,4 +497,5 @@ class ProfileNode(Node):
                 routine_name, region_name, var_name))
         reader.set_format(FortranFormat(True, False))
         pscall = Fortran2003.Call_Stmt(reader)
+        pscall.parent = fp_parent
         fp_parent.content.insert(ast_start_index, pscall)

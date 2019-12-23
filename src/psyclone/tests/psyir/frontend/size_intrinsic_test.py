@@ -55,7 +55,7 @@ def test_size(expression, parser):
     processor = Fparser2Reader()
     reader = FortranStringReader(expression)
     fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic], None)
+    processor.process_nodes(fake_parent, [fp2intrinsic])
     assert isinstance(fake_parent[0], Assignment)
     assert isinstance(fake_parent[0].rhs, BinaryOperation)
     assert isinstance(fake_parent[0].rhs.children[0], Reference)

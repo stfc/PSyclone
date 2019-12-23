@@ -3703,7 +3703,7 @@ class NemoExplicitLoopTrans(Transformation):
                 spec = Fortran2003.Specification_Part(
                     FortranStringReader(
                         "integer :: {0}".format(loop_var)))
-                spec._parent = prog_unit
+                spec.parent = prog_unit
                 for idx, child in enumerate(prog_unit.content):
                     if isinstance(child, Fortran2003.Execution_Part):
                         prog_unit.content.insert(idx, spec)
@@ -3713,6 +3713,7 @@ class NemoExplicitLoopTrans(Transformation):
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader(
                         "integer :: {0}".format(loop_var)))
+                decln.parent = spec
                 spec.content.append(decln)
 
         # Modify the line containing the implicit do by replacing every
@@ -3743,16 +3744,19 @@ class NemoExplicitLoopTrans(Transformation):
                                   loop_step))
         new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
-
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
-        parent_index = loop.ast._parent.content.index(loop.ast)
-        loop.ast._parent.content.insert(parent_index, new_loop)
+        parent_index = loop.ast.parent.content.index(loop.ast)
+        loop.ast.parent.content.insert(parent_index, new_loop)
+        # Ensure it has the correct parent information
+        new_loop.parent = loop.ast.parent
         # Replace the content of the loop with the (modified) implicit
         # loop
         new_loop.content[1] = loop.ast
         # Remove the implicit loop from its original parent in the AST
-        loop.ast._parent.content.remove(loop.ast)
+        loop.ast.parent.content.remove(loop.ast)
+        # Now set its parent to be the new loop instead
+        new_loop.content[1].parent = new_loop
 
         # Now we must update the PSyIR to reflect the new AST
         # First we update the parent of the loop we have transformed
@@ -3761,7 +3765,7 @@ class NemoExplicitLoopTrans(Transformation):
         # Next, we simply process the transformed fparser2 AST to generate
         # the new PSyIR of it
         astprocessor = nemo.NemoFparser2Reader()
-        astprocessor.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
+        astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
         loop = None

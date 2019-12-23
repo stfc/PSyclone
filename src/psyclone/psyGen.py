@@ -2110,7 +2110,7 @@ class Directive(Node):
         first_child = self.children[0][0]
         last_child = self.children[0][-1]
         content_ast = first_child.ast
-        fp_parent = content_ast._parent
+        fp_parent = content_ast.parent
 
         try:
             # Find the location of the AST of our first child node in the
@@ -2128,11 +2128,8 @@ class Directive(Node):
                 text = "!$" + self._PREFIX + " " + end_text
                 directive = Comment(FortranStringReader(text,
                                                         ignore_comments=False))
+                directive.parent = fp_parent
                 fp_parent.content.insert(ast_end_index+1, directive)
-                # Retro-fit parent information. # TODO remove/modify this once
-                # fparser/#102 is done (i.e. probably supply parent info as
-                # option to the Comment() constructor).
-                directive._parent = fp_parent
                 # Ensure this end directive is included with the set of
                 # statements belonging to this PSyIR node.
                 self.ast_end = directive
@@ -2167,11 +2164,8 @@ class Directive(Node):
                                                       data_movement))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
+        directive.parent = fp_parent
         fp_parent.content.insert(ast_start_index, directive)
-        # Retro-fit parent information. # TODO remove/modify this once
-        # fparser/#102 is done (i.e. probably supply parent info as option
-        # to the Comment() constructor).
-        directive._parent = fp_parent
 
         self.ast = directive
         self.dir_body.ast = directive
