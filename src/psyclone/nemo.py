@@ -42,7 +42,7 @@
 '''
 
 from __future__ import print_function, absolute_import
-from fparser.two.utils import walk_ast, get_child
+from fparser.two.utils import walk_ast
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
@@ -155,14 +155,14 @@ class NemoInvoke(Invoke):
 
         # Find the section of the tree containing the execution part
         # of the code
-        exe_part = get_child(ast, Execution_Part)
+        exe_part = ast.get_child(Execution_Part)
         if not exe_part:
             # This subroutine has no execution part so we skip it
             # TODO log this event
             return
 
         # Store the root of this routine's specification in the AST
-        self._spec_part = get_child(ast, Specification_Part)
+        self._spec_part = ast.get_child(Specification_Part)
 
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo module.
@@ -203,7 +203,7 @@ class NemoInvokes(Invokes):
         # Add the main program as a routine to analyse - take care
         # here as the Fortran source file might not contain a
         # main program (might just be a subroutine in a module)
-        main_prog = get_child(ast, Main_Program)
+        main_prog = ast.get_child(Main_Program)
         if main_prog:
             routines.append(main_prog)
 
