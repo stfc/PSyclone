@@ -1075,7 +1075,6 @@ class Fparser2Reader(object):
         # Search for all the conditional clauses in the If_Construct
         clause_indices = []
         for idx, child in enumerate(node.content):
-            child._parent = node  # Retrofit parent info
             if isinstance(child, (Fortran2003.If_Then_Stmt,
                                   Fortran2003.Else_Stmt,
                                   Fortran2003.Else_If_Stmt,
@@ -1201,7 +1200,6 @@ class Fparser2Reader(object):
         # The position of the 'case default' clause, if any
         default_clause_idx = None
         for idx, child in enumerate(node.content):
-            child._parent = node  # Retrofit parent info
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
@@ -1365,8 +1363,6 @@ class Fparser2Reader(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
-        node._parent = node_parent  # Retrofit parent information
-
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
             if node.items[0] and node.items[1]:
@@ -1605,10 +1601,7 @@ class Fparser2Reader(object):
         # as we can before searching for all instances of Fortran2003.Name.
         # TODO #500 - replace this by using the SymbolTable instead.
         # pylint: disable=protected-access
-        fp2_parent = node
-        while hasattr(fp2_parent, "_parent") and fp2_parent._parent:
-            fp2_parent = fp2_parent._parent
-        name_list = walk_ast([fp2_parent], [Fortran2003.Name])
+        name_list = walk_ast([node.get_root()], [Fortran2003.Name])
         all_names = {str(name) for name in name_list}
         # pylint: enable=protected-access
 
