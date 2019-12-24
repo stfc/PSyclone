@@ -50,7 +50,7 @@ be added in Issue #298.
 
 from __future__ import absolute_import, print_function
 from psyclone.configuration import Config
-from psyclone.psygen import CodedKern
+from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
