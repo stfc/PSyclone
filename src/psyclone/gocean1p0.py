@@ -647,26 +647,27 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if not index_offset:
+                return Literal("not_yet_set", DataType.INTEGER, self)
+
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
             else:
                 stop = schedule.jloop_stop
 
-            if index_offset:
-                # This strange line splitting was the only way I could find
-                # to avoid pep8 warnings: using [..._space]\ keeps on
-                # complaining about a white space
-                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
-                    self._iteration_space][self._loop_type]
-                stop = bounds["stop"].format(start='2', stop=stop)
-                # Remove all white spaces
-                stop = "".join(stop.split())
-                # This common case is a bit of compile-time computation
-                # but it helps to fix all of the test cases.
-                if stop == "2-1":
-                    stop = "1"
-                return Literal(stop, DataType.INTEGER, self)
-            return Literal("not_yet_set", DataType.INTEGER, self)
+            # This strange line splitting was the only way I could find
+            # to avoid pep8 warnings: using [..._space]\ keeps on
+            # complaining about a white space
+            bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
+                self._iteration_space][self._loop_type]
+            stop = bounds["stop"].format(start='2', stop=stop)
+            # Remove all white spaces
+            stop = "".join(stop.split())
+            # This common case is a bit of compile-time computation
+            # but it helps to fix all of the test cases.
+            if stop == "2-1":
+                stop = "1"
+            return Literal(stop, DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -740,25 +741,26 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if not index_offset:
+                return Literal("not_yet_set", DataType.INTEGER, self)
+
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
             else:
                 stop = schedule.jloop_stop
-            if index_offset:
-                # This strange line splitting was the only way I could find
-                # to avoid pep8 warnings: using [..._space]\ keeps on
-                # complaining about a white space
-                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
-                    self._iteration_space][self._loop_type]
-                start = bounds["start"].format(start='2', stop=stop)
-                # Remove all white spaces
-                start = "".join(start.split())
-                # This common case is a bit of compile-time computation
-                # but it helps with fixing all of the test cases.
-                if start == "2-1":
-                    start = "1"
-                return Literal(start, DataType.INTEGER, self)
-            return Literal("not_yet_set", DataType.INTEGER, self)
+            # This strange line splitting was the only way I could find
+            # to avoid pep8 warnings: using [..._space]\ keeps on
+            # complaining about a white space
+            bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
+                self._iteration_space][self._loop_type]
+            start = bounds["start"].format(start='2', stop=stop)
+            # Remove all white spaces
+            start = "".join(start.split())
+            # This common case is a bit of compile-time computation
+            # but it helps with fixing all of the test cases.
+            if start == "2-1":
+                start = "1"
+            return Literal(start, DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
