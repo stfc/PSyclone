@@ -63,7 +63,7 @@ class PSyDataNode(Node):
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py::class::`psyclone.psyGen.Node`
-    :param (str, str) name: an optional name to use for this PSyDataNode, \
+    :param (str,str) name: an optional name to use for this PSyDataNode, \
         provided as a 2-tuple containing a module name followed by a \
         local name. The pair of strings should uniquely identify a\
         region unless aggregate information is required and supported

@@ -33,10 +33,10 @@
 # -----------------------------------------------------------------------------
 # Authors J. Henrichs, Bureau of Meteorology
 
-'''Contains th PSyData transformation.
+'''Contains the PSyData transformation.
 '''
 
-from psyclone.psyGen import Schedule
+from psyclone.psyGen import Node, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -67,10 +67,9 @@ class PSyDataTrans(RegionTrans):
     >>> newschedule.view()
 
     '''
-    from psyclone import psyGen
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
-    valid_node_types = (psyGen.Node,)
+    valid_node_types = (Node,)
 
     def __str__(self):
         return "Insert a PSyData node."
