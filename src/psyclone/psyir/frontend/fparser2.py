@@ -1245,9 +1245,8 @@ class Fparser2Reader(object):
                 ifblock.ast_end = node.content[end_idx - 1]
 
             # Process the logical expression
-            self._process_case_value_list(selector,
-                                          case.items[0].items,
-                                          case.items[0], ifblock)
+            self._process_case_value_list(selector, case.items[0].items,
+                                          ifblock)
 
             # Add If_body
             ifbody = Schedule(parent=ifblock)
@@ -1292,7 +1291,7 @@ class Fparser2Reader(object):
             elsebody.ast_end = node.content[end_idx - 1]
         return rootif
 
-    def _process_case_value_list(self, selector, nodes, nodes_parent, parent):
+    def _process_case_value_list(self, selector, nodes, parent):
         '''
         Processes the supplied list of fparser2 nodes representing case-value
         expressions and constructs the equivalent PSyIR representation.
@@ -1324,27 +1323,24 @@ class Fparser2Reader(object):
                       CASE() clause.
         :type nodes: list of :py:class:`fparser.two.Fortran2003.Name` or \
                      :py:class:`fparser.two.Fortran2003.Case_Value_Range`
-        :param nodes_parent: the parent in the fparser2 parse tree of the \
-                             nodes making up the label-list.
-        :type nodes_parent: sub-class of :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
         '''
         if len(nodes) == 1:
             # Only one item in list so process it
-            self._process_case_value(selector, nodes[0], nodes_parent, parent)
+            self._process_case_value(selector, nodes[0], parent)
             return
         # More than one item in list. Create an OR node with the first item
         # on the list as one arg then recurse down to handle the remainder
         # of the list.
         orop = BinaryOperation(BinaryOperation.Operator.OR,
                                parent=parent)
-        self._process_case_value(selector, nodes[0], nodes_parent, orop)
-        self._process_case_value_list(selector, nodes[1:], nodes_parent, orop)
+        self._process_case_value(selector, nodes[0], orop)
+        self._process_case_value_list(selector, nodes[1:], orop)
         parent.addchild(orop)
 
-    def _process_case_value(self, selector, node, node_parent, parent):
+    def _process_case_value(self, selector, node, parent):
         '''
         Handles an individual condition inside a CASE statement. This can
         be a single scalar expression (e.g. CASE(1)) or a range specification
@@ -1356,9 +1352,6 @@ class Fparser2Reader(object):
         :param node: the node representing the case-value expression in the \
                      fparser2 parse tree.
         :type node: sub-class of :py:class:`fparser.two.utils.Base`
-        :param node_parent: the parent in the fparser2 parse tree of the \
-                            node representing this case-value.
-        :type node_parent: sub-class of :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
