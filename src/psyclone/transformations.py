@@ -3663,15 +3663,6 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # TODO (fparser/#102) since the fparser2 AST does not have parent
-        # information (and no other way of getting to the root node), it is
-        # currently not possible to cleanly insert a declaration in the correct
-        # location.
-        # For the moment, we can work around the fparser2 AST limitation
-        # by using the fact that we *can* get hold of the PSyclone Invoke
-        # object and that contains a reference to the root of the fparser2
-        # AST...
-
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
         nsm = invoke._name_space_manager
@@ -3693,27 +3684,27 @@ class NemoExplicitLoopTrans(Transformation):
         # Invoke._loop_vars.
         if loop._variable_name not in invoke._loop_vars:
             invoke._loop_vars.append(loop_var)
-
-            prog_unit = loop.root.invoke._ast
+            prog_unit = loop.ast.get_root()
             spec_list = walk_ast(prog_unit.content,
                                  [Fortran2003.Specification_Part])
             if not spec_list:
                 # Routine has no specification part so create one and add it
-                # in to the AST
+                # in to the parse tree
+                from psyclone.psyGen import object_index
+                exe_part = walk_ast(prog_unit.content,
+                                    [Fortran2003.Execution_Part])[0]
+                idx = object_index(exe_part.parent.content, exe_part)
+
                 spec = Fortran2003.Specification_Part(
                     FortranStringReader(
-                        "integer :: {0}".format(loop_var)))
-                spec.parent = prog_unit
-                for idx, child in enumerate(prog_unit.content):
-                    if isinstance(child, Fortran2003.Execution_Part):
-                        prog_unit.content.insert(idx, spec)
-                        break
+                        "integer :: {0}".format(loop_var)),
+                    parent=exe_part.parent)
+                exe_part.parent.content.insert(idx, spec)
             else:
                 spec = spec_list[0]
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader(
-                        "integer :: {0}".format(loop_var)))
-                decln.parent = spec
+                        "integer :: {0}".format(loop_var)), parent=spec)
                 spec.content.append(decln)
 
         # Modify the line containing the implicit do by replacing every

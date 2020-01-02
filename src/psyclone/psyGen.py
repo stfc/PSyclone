@@ -2105,8 +2105,6 @@ class Directive(Node):
         # parse tree to find the node to which we will add directives as
         # children. (We do this because our parent PSyIR node may be a
         # directive which has no associated entry in the fparser2 parse tree.)
-        # TODO this should be simplified/improved once
-        # the fparser2 parse tree has parent information (fparser/#102).
         first_child = self.children[0][0]
         last_child = self.children[0][-1]
         content_ast = first_child.ast
