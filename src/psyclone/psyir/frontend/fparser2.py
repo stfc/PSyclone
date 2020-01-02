@@ -1372,29 +1372,23 @@ class Fparser2Reader(object):
                 # A lower limit is specified
                 geop = BinaryOperation(BinaryOperation.Operator.GE,
                                        parent=new_parent)
-                self.process_nodes(parent=geop,
-                                   nodes=[selector])
-                self.process_nodes(parent=geop,
-                                   nodes=[node.items[0]])
+                self.process_nodes(parent=geop, nodes=[selector])
+                self.process_nodes(parent=geop, nodes=[node.items[0]])
                 new_parent.addchild(geop)
             if node.items[1]:
                 # An upper limit is specified
                 leop = BinaryOperation(BinaryOperation.Operator.LE,
                                        parent=new_parent)
-                self.process_nodes(parent=leop,
-                                   nodes=[selector])
-                self.process_nodes(parent=leop,
-                                   nodes=[node.items[1]])
+                self.process_nodes(parent=leop, nodes=[selector])
+                self.process_nodes(parent=leop, nodes=[node.items[1]])
                 new_parent.addchild(leop)
         else:
             # The case value is some scalar initialisation expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
             parent.addchild(bop)
-            self.process_nodes(parent=bop,
-                               nodes=[selector])
-            self.process_nodes(parent=bop,
-                               nodes=[node])
+            self.process_nodes(parent=bop, nodes=[selector])
+            self.process_nodes(parent=bop, nodes=[node])
 
     @staticmethod
     def _array_notation_rank(array):

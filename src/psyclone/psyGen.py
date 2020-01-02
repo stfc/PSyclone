@@ -2125,8 +2125,8 @@ class Directive(Node):
 
                 text = "!$" + self._PREFIX + " " + end_text
                 directive = Comment(FortranStringReader(text,
-                                                        ignore_comments=False))
-                directive.parent = fp_parent
+                                                        ignore_comments=False),
+                                    parent=fp_parent)
                 fp_parent.content.insert(ast_end_index+1, directive)
                 # Ensure this end directive is included with the set of
                 # statements belonging to this PSyIR node.
@@ -2161,8 +2161,8 @@ class Directive(Node):
                     "one of {0} but got '{1}'".format(valid_data_movement,
                                                       data_movement))
         directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        directive.parent = fp_parent
+                                                ignore_comments=False),
+                            parent=fp_parent)
         fp_parent.content.insert(ast_start_index, directive)
 
         self.ast = directive
