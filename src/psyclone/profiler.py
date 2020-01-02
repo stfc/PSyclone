@@ -455,32 +455,18 @@ class ProfileNode(Node):
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
                                        content_ast)
-        # Finding the location of the end is harder as it might be the
-        # end of a clause within an If or Select block. We therefore
-        # work back up the fparser2 parse tree until we find a node that is
-        # a direct child of the parent node.
-        ast_end_index = None
+        # Do the same for our last child node
         if self.profile_body[-1].ast_end:
             ast_end = self.profile_body[-1].ast_end
         else:
             ast_end = self.profile_body[-1].ast
-        # Keep a copy of the pointer into the parse tree in case of errors
-        ast_end_copy = ast_end
 
-        while ast_end_index is None:
-            try:
-                ast_end_index = object_index(fp_parent.content,
-                                             ast_end)
-            except ValueError:
-                # ast_end is not a child of fp_parent so go up to its parent
-                # and try again
-                if ast_end.parent:
-                    ast_end = ast_end.parent
-                else:
-                    raise InternalError(
-                        "Failed to find the location of '{0}' in the fparser2 "
-                        "Parse Tree:\n{1}\n".format(str(ast_end_copy),
-                                                    str(fp_parent.content)))
+        if ast_end.parent is not fp_parent:
+            raise InternalError(
+                "The beginning ({0}) and end ({1}) nodes of the profiling "
+                "region in the fparser2 parse tree do not have the same "
+                "parent.".format(content_ast, ast_end))
+        ast_end_index = object_index(fp_parent.content, ast_end)
 
         # Add the profiling-end call
         reader = FortranStringReader(

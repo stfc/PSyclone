@@ -393,7 +393,8 @@ def test_profiling_missing_end(parser):
     loops[0]._ast_end = psy._ast
     with pytest.raises(InternalError) as err:
         _ = psy.gen
-    assert "Failed to find the location of 'PROGRAM do_loop" in str(err.value)
+    assert ("nodes of the profiling region in the fparser2 parse tree do not "
+            "have the same parent" in str(err.value))
 
 
 def test_profiling_mod_use_clash(parser):
