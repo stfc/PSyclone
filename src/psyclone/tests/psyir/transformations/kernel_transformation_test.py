@@ -41,7 +41,7 @@ import os
 import re
 import pytest
 
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
@@ -130,7 +130,7 @@ def test_accroutine():
     assert new_kern._fp2_ast
     assert isinstance(new_kern._fp2_ast, Fortran2003.Program)
     # Check AST contains directive
-    comments = walk_ast(new_kern._fp2_ast.content, [Fortran2003.Comment])
+    comments = walk(new_kern._fp2_ast.content, Fortran2003.Comment)
     assert len(comments) == 1
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
@@ -183,10 +183,10 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
     reader = FortranFileReader(filename)
     prog = f2003_parser(reader)
     # Check that the module has the right name
-    modules = walk_ast(prog.content, [Fortran2003.Module_Stmt])
+    modules = walk(prog.content, Fortran2003.Module_Stmt)
     assert str(modules[0].items[1]) == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
-    subs = walk_ast(prog.content, [Fortran2003.Subroutine_Stmt])
+    subs = walk(prog.content, Fortran2003.Subroutine_Stmt)
     found = False
     for sub in subs:
         if str(sub.items[1]) == "continuity{0}_code".format(tag):

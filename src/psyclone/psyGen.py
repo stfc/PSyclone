@@ -4447,7 +4447,7 @@ class CodedKern(Kern):
 
         :param str suffix: the string to insert into the quantity names.
         '''
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
 
         # Use the suffix we have determined to create a new kernel name.
         # This will conform to the PSyclone convention of ending in "_code"
@@ -4461,15 +4461,15 @@ class CodedKern(Kern):
         # contains the kernel subroutine as a type-bound procedure
         orig_type_name = ""
         new_type_name = ""
-        dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def])
+        dtypes = walk(self.ast.content, Fortran2003.Derived_Type_Def)
         for dtype in dtypes:
-            tbound_proc = walk_ast(dtype.content,
-                                   [Fortran2003.Type_Bound_Procedure_Part])
-            names = walk_ast(tbound_proc[0].content, [Fortran2003.Name])
+            tbound_proc = walk(dtype.content,
+                               Fortran2003.Type_Bound_Procedure_Part)
+            names = walk(tbound_proc[0].content, Fortran2003.Name)
             if str(names[-1]) == self.name:
                 # This is the derived type for this kernel. Now we need
                 # its name...
-                tnames = walk_ast(dtype.content, [Fortran2003.Type_Name])
+                tnames = walk(dtype.content, Fortran2003.Type_Name)
                 orig_type_name = str(tnames[0])
 
                 # The new name for the type containing kernel metadata will
@@ -4494,7 +4494,7 @@ class CodedKern(Kern):
                       orig_type_name: new_type_name}
 
         # Re-write the values in the AST
-        names = walk_ast(self.ast.content, [Fortran2003.Name])
+        names = walk(self.ast.content, Fortran2003.Name)
         for name in names:
             try:
                 new_value = rename_map[str(name)]

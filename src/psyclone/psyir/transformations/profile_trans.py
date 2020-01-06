@@ -100,7 +100,7 @@ class ProfileTrans(RegionTrans):
                                      target routine has no Specification_Part.
         '''
         from fparser.two import Fortran2003
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from psyclone.nemo import NemoInvoke
 
         super(ProfileTrans, self).validate(nodes, options)
@@ -131,7 +131,7 @@ class ProfileTrans(RegionTrans):
         ptree = invoke._ast
         # pylint: enable=protected-access
         # Search for the Specification_Part
-        if not walk_ast([ptree], [Fortran2003.Specification_Part]):
+        if not walk(ptree, Fortran2003.Specification_Part):
             raise TransformationError(
                 "For the NEMO API, profiling can only be added to routines "
                 "which contain existing variable declarations (i.e. a "

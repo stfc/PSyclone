@@ -46,7 +46,7 @@ import fparser
 
 from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 
 from fparser import one as fparser1
 from fparser import api as fpapi
@@ -846,7 +846,7 @@ class KernelType(object):
             # fparser only goes down to the statement level. We use fparser2 to
             # parse the statement itself.
             assign = Fortran2003.Assignment_Stmt(statement.entity_decls[0])
-            names = walk_ast(assign.items, [Fortran2003.Name])
+            names = walk(assign.items, Fortran2003.Name)
             if not names:
                 raise InternalError("Unsupported assignment statement: '{0}'".
                                     format(str(assign)))
@@ -861,7 +861,7 @@ class KernelType(object):
                 # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
                 #                                      Name('w1'))), ']')
                 # Construct a list of the names in the array constructor
-                names = walk_ast(assign.items[2].items, [Fortran2003.Name])
+                names = walk(assign.items[2].items, Fortran2003.Name)
                 if not names:
                     raise InternalError("Failed to parse array constructor: "
                                         "'{0}'".format(str(assign.items[2])))

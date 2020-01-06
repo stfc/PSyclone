@@ -3228,7 +3228,7 @@ class ACCRoutineTrans(KernelTrans):
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
 
         # Check that we can safely apply this transformation
@@ -3240,7 +3240,7 @@ class ACCRoutineTrans(KernelTrans):
         keep = Memento(kern, self)
         # Find the kernel subroutine in the fparser2 parse tree
         kern_sub = None
-        subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
+        subroutines = walk(ast.content, Subroutine_Subprogram)
         for sub in subroutines:
             for child in sub.content:
                 if isinstance(child, Subroutine_Stmt) and \
@@ -3250,7 +3250,7 @@ class ACCRoutineTrans(KernelTrans):
             if kern_sub:
                 break
         # Find the last declaration statement in the subroutine
-        spec = walk_ast(kern_sub.content, [Specification_Part])[0]
+        spec = walk(kern_sub.content, Specification_Part)[0]
         posn = -1
         for idx, node in enumerate(spec.content):
             if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
@@ -3623,7 +3623,7 @@ class NemoExplicitLoopTrans(Transformation):
 
         '''
         from fparser.two import Fortran2003
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
 
@@ -3633,8 +3633,7 @@ class NemoExplicitLoopTrans(Transformation):
         keep = Memento(loop, self)
 
         # Find all uses of array syntax in the statement
-        subsections = walk_ast(loop.ast.items,
-                               [Fortran2003.Section_Subscript_List])
+        subsections = walk(loop.ast.items, Fortran2003.Section_Subscript_List)
         # Create a list identifying which dimensions contain a range
         sliced_dimensions = []
         # A Section_Subscript_List is a tuple with each item the
@@ -3685,14 +3684,13 @@ class NemoExplicitLoopTrans(Transformation):
         if loop._variable_name not in invoke._loop_vars:
             invoke._loop_vars.append(loop_var)
             prog_unit = loop.ast.get_root()
-            spec_list = walk_ast(prog_unit.content,
-                                 [Fortran2003.Specification_Part])
+            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
             if not spec_list:
                 # Routine has no specification part so create one and add it
                 # in to the parse tree
                 from psyclone.psyGen import object_index
-                exe_part = walk_ast(prog_unit.content,
-                                    [Fortran2003.Execution_Part])[0]
+                exe_part = walk(prog_unit.content,
+                                Fortran2003.Execution_Part)[0]
                 idx = object_index(exe_part.parent.content, exe_part)
 
                 spec = Fortran2003.Specification_Part(

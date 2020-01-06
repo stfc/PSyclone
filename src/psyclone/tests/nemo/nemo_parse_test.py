@@ -38,7 +38,7 @@
 from __future__ import print_function, absolute_import
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 from fparser.two import Fortran2003
 
 # Constants
@@ -55,7 +55,7 @@ def test_identify_implicit_loop(parser):
                                  "end program test_prog\n")
     ast = parser(reader)
     assert not nemo.NemoImplicitLoop.match(ast)
-    stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
+    stmts = walk(ast.content, Fortran2003.Assignment_Stmt)
     assert not nemo.NemoImplicitLoop.match(stmts[1])
     assert nemo.NemoImplicitLoop.match(stmts[0])
 

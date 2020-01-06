@@ -863,14 +863,14 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
 
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
-        of the implemented handling in the walk_ast method caller.'''
+        of the implemented handling in the walk method caller.'''
         class Invalid(object):
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
         newobject = Invalid()
         return [newobject]
 
-    monkeypatch.setattr(fparser.two.utils, 'walk_ast', walk_ast_return)
+    monkeypatch.setattr(fparser.two.utils, 'walk', walk_ast_return)
 
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
@@ -1822,7 +1822,7 @@ def test_nodes_to_code_block_4(f2008_parser):
 def test_missing_loop_control(f2008_parser, monkeypatch):
     ''' Check that encountering a loop in the fparser parse tree that is
     missing a Loop_Control element raises an InternalError. '''
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     reader = FortranStringReader('''
         do while(a .gt. b)\n
             c = c + 1\n
@@ -1833,7 +1833,7 @@ def test_missing_loop_control(f2008_parser, monkeypatch):
 
     # We have to break the fparser2 parse tree in order to trigger the
     # internal error
-    ctrl = walk_ast(fparser2while.content[0].items, [Fortran2003.Loop_Control])
+    ctrl = walk(fparser2while.content[0].items, Fortran2003.Loop_Control)
     # 'items' is a tuple and therefore immutable so make a new list
     item_list = list(fparser2while.content[0].items)
     # Create a new tuple for the items member without the Loop_Control

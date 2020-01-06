@@ -318,7 +318,7 @@ class ProfileNode(Node):
         '''
         from fparser.common.sourceinfo import FortranFormat
         from fparser.common.readfortran import FortranStringReader
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.two import Fortran2003
         from psyclone.psyGen import object_index
 
@@ -331,12 +331,12 @@ class ProfileNode(Node):
         # pylint: enable=protected-access
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
-        node_list = walk_ast([ptree], [Fortran2003.Main_Program,
-                                       Fortran2003.Subroutine_Stmt,
-                                       Fortran2003.Function_Stmt,
-                                       Fortran2003.Specification_Part,
-                                       Fortran2003.Use_Stmt,
-                                       Fortran2003.Name])
+        node_list = walk(ptree, (Fortran2003.Main_Program,
+                                 Fortran2003.Subroutine_Stmt,
+                                 Fortran2003.Function_Stmt,
+                                 Fortran2003.Specification_Part,
+                                 Fortran2003.Use_Stmt,
+                                 Fortran2003.Name))
         if self._module_name:
             routine_name = self._module_name
         else:
@@ -344,7 +344,7 @@ class ProfileNode(Node):
                 if isinstance(node, (Fortran2003.Main_Program,
                                      Fortran2003.Subroutine_Stmt,
                                      Fortran2003.Function_Stmt)):
-                    names = walk_ast([node], [Fortran2003.Name])
+                    names = walk(node, Fortran2003.Name)
                     routine_name = str(names[0]).lower()
                     break
 
@@ -377,7 +377,7 @@ class ProfileNode(Node):
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
                 # list of nodes.
-                names = walk_ast([node], [Fortran2003.Name])
+                names = walk(node, Fortran2003.Name)
                 for name in names:
                     node_list.remove(name)
 

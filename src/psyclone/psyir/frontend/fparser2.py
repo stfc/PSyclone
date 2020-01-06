@@ -41,7 +41,7 @@
 
 from collections import OrderedDict
 from fparser.two import Fortran2003
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
@@ -209,7 +209,7 @@ class Fparser2Reader(object):
         all_array_refs = {}
 
         # Loop over a flat list of all the nodes in the supplied region
-        for node in walk_ast(nodes):
+        for node in walk(nodes):
 
             if isinstance(node, Assignment_Stmt):
                 # Found lhs = rhs
@@ -220,7 +220,7 @@ class Fparser2Reader(object):
                 # Do RHS first as we cull readers after writers but want to
                 # keep a = a + ... as the RHS is computed before assigning
                 # to the LHS
-                for node2 in walk_ast([rhs]):
+                for node2 in walk(rhs):
                     if isinstance(node2, Part_Ref):
                         name = node2.items[0].string
                         if name.upper() not in FORTRAN_INTRINSICS:
@@ -248,7 +248,7 @@ class Fparser2Reader(object):
                     writers.add(name_str)
             elif isinstance(node, If_Then_Stmt):
                 # Check for array accesses in IF statements
-                array_refs = walk_ast([node], [Part_Ref])
+                array_refs = walk(node, Part_Ref)
                 for ref in array_refs:
                     name = ref.items[0].string
                     if name.upper() not in FORTRAN_INTRINSICS:
@@ -456,9 +456,9 @@ class Fparser2Reader(object):
         shape = []
 
         # Traverse shape specs in Depth-first-search order
-        for dim in walk_ast([dimensions], [Fortran2003.Assumed_Shape_Spec,
-                                           Fortran2003.Explicit_Shape_Spec,
-                                           Fortran2003.Assumed_Size_Spec]):
+        for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
+                                     Fortran2003.Explicit_Shape_Spec,
+                                     Fortran2003.Assumed_Size_Spec)):
 
             if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
@@ -528,7 +528,7 @@ class Fparser2Reader(object):
                     already in the symbol table with a defined interface.
         '''
         # Look at any USE statments
-        for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
+        for decl in walk(nodes, Fortran2003.Use_Stmt):
 
             # Check that the parse tree is what we expect
             if len(decl.items) != 5:
@@ -557,7 +557,7 @@ class Fparser2Reader(object):
                                    datatype=DataType.DEFERRED,
                                    interface=GlobalInterface(container)))
 
-        for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
+        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
             (type_spec, attr_specs, entities) = decl.items
 
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
@@ -726,7 +726,7 @@ class Fparser2Reader(object):
         # loop checks for Stmt_Functions that should be an array statement
         # and recovers them, otherwise it raises an error as currently
         # Statement Functions are not supported in PSyIR.
-        for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
+        for stmtfn in walk(nodes, Fortran2003.Stmt_Function_Stmt):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
                 symbol = parent.symbol_table.lookup(fn_name.string.lower())
@@ -790,8 +790,8 @@ class Fparser2Reader(object):
         # representation in the PSyIR. We therefore can't use
         # self.process_nodes() here.
         kind_selector = type_spec.items[1]
-        intrinsics = walk_ast(kind_selector.items,
-                              [Fortran2003.Intrinsic_Function_Reference])
+        intrinsics = walk(kind_selector.items,
+                          Fortran2003.Intrinsic_Function_Reference)
         if intrinsics and isinstance(intrinsics[0].items[0],
                                      Fortran2003.Intrinsic_Name) and \
            str(intrinsics[0].items[0]).lower() == "kind":
@@ -827,7 +827,7 @@ class Fparser2Reader(object):
                 "{1}".format(type(kind_arg).__name__, str(kind_selector)))
 
         # We have kind=kind-param
-        kind_names = walk_ast(kind_selector.items, [Fortran2003.Name])
+        kind_names = walk(kind_selector.items, Fortran2003.Name)
         if not kind_names:
             raise NotImplementedError(
                 "Failed to find valid Name in Fortran Kind "
@@ -997,7 +997,7 @@ class Fparser2Reader(object):
         :raises InternalError: if the fparser2 tree has an unexpected \
             structure.
         '''
-        ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
+        ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
             raise InternalError(
                 "Unrecognised form of DO loop - failed to find Loop_Control "
@@ -1588,7 +1588,7 @@ class Fparser2Reader(object):
         # as we can before searching for all instances of Fortran2003.Name.
         # TODO #500 - replace this by using the SymbolTable instead.
         # pylint: disable=protected-access
-        name_list = walk_ast([node.get_root()], [Fortran2003.Name])
+        name_list = walk(node.get_root(), Fortran2003.Name)
         all_names = {str(name) for name in name_list}
         # pylint: enable=protected-access
 

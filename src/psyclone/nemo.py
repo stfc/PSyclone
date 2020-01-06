@@ -42,7 +42,7 @@
 '''
 
 from __future__ import print_function, absolute_import
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
@@ -197,8 +197,8 @@ class NemoInvokes(Invokes):
         self._ast = ast
 
         # Find all the subroutines contained in the file
-        routines = walk_ast(ast.content, [Subroutine_Subprogram,
-                                          Function_Subprogram])
+        routines = walk(ast.content, (Subroutine_Subprogram,
+                                      Function_Subprogram))
         # Add the main program as a routine to analyse - take care
         # here as the Fortran source file might not contain a
         # main program (might just be a subroutine in a module)
@@ -245,7 +245,7 @@ class NemoPSy(PSy):
     '''
     def __init__(self, ast):
         # pylint: disable=super-init-not-called
-        names = walk_ast(ast.content, [Fortran2003.Name])
+        names = walk(ast.content, Fortran2003.Name)
         # The name of the program unit will be the first in the list
         if not names:
             raise InternalError("Found no names in supplied Fortran - should "
@@ -572,14 +572,14 @@ class NemoImplicitLoop(NemoLoop):
         if not isinstance(lhs, Fortran2003.Part_Ref):
             # LHS is not an array reference
             return False
-        colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
+        colons = walk(lhs.items, Fortran2003.Subscript_Triplet)
         if not colons:
             # LHS does not use array syntax
             return False
         # Now check the right-hand side...
         rhs = node.items[2]
         try:
-            if not walk_ast(rhs.items, [Fortran2003.Subscript_Triplet]):
+            if not walk(rhs.items, Fortran2003.Subscript_Triplet):
                 # We don't have any array syntax on the RHS
                 return True
         except AttributeError:
@@ -593,18 +593,18 @@ class NemoImplicitLoop(NemoLoop):
         # As it is we have to walk down the tree rather than come back up
         # from each colon.
         # Find all array references
-        array_refs = []
-        if isinstance(rhs, Fortran2003.Part_Ref):
-            # Since walk_ast is slightly clunky we have to manually allow
-            # for the top-level "rhs" node being an array reference
-            array_refs.append(rhs)
-        array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
+        #array_refs = []
+        #if isinstance(rhs, Fortran2003.Part_Ref):
+        #    # Since walk_ast is slightly clunky we have to manually allow
+        #    # for the top-level "rhs" node being an array reference
+        #    array_refs.append(rhs)
+        #array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
+        array_refs = walk(rhs, Fortran2003.Part_Ref)
         for ref in array_refs:
-            nested_refs = walk_ast(ref.items, [Fortran2003.Part_Ref])
+            nested_refs = walk(ref.items, Fortran2003.Part_Ref)
             # Do any of these nested array references use array syntax?
             for nested_ref in nested_refs:
-                colons = walk_ast(nested_ref.items,
-                                  [Fortran2003.Subscript_Triplet])
+                colons = walk(nested_ref.items, Fortran2003.Subscript_Triplet)
                 if colons:
                     return False
         return True

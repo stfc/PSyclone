@@ -106,13 +106,13 @@ class Alg(object):
 
         '''
 
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         # pylint: disable=no-name-in-module
         from fparser.two.Fortran2003 import Call_Stmt, Section_Subscript_List
 
         idx = 0
         # Walk through all statements looking for procedure calls
-        for statement in walk_ast(self._ast.content, [Call_Stmt]):
+        for statement in walk(self._ast.content, Call_Stmt):
             # found a Fortran call statement
             call_name = str(statement.items[0])
             if call_name.lower() == self._invoke_name.lower():
