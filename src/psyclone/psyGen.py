@@ -1937,8 +1937,16 @@ class InvokeSchedule(Schedule):
         for module_name, var_list in module_map.items():
             self._name_space_manager.add_reserved_name(module_name)
             for var_name in var_list:
-                self._name_space_manager.create_name(
-                    root_name=var_name, context="AlgArgs", label=var_name)
+                newname = self._name_space_manager.create_name(
+                    root_name=var_name,
+                    context="AlgArgs",
+                    label=var_name)
+                # There is a name clash with this variable name and we can not
+                # accept indexed names for global variables.
+                if var_name != newname:
+                    raise KeyError(
+                        "The imported variable '{0}' is already defined in the"
+                        " NameSpaceManager of the Invoke.".format(var_name))
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
