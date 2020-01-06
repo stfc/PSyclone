@@ -45,7 +45,7 @@ import pytest
 
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyir.nodes import ExtractNode, PSyDataNode
-from psyclone.psyGen import NameSpace
+from psyclone.psyGen import Loop, NameSpace
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 
@@ -75,6 +75,22 @@ def test_gocean_extract_trans():
     assert etrans.name == "GOceanExtractTrans"
 
 
+def test_kern_builtin_no_loop():
+    ''' Test that applying Extract Transformation on a Kernel or Built-in
+    call without its parent Loop raises a TransformationError. '''
+
+    gocetrans = GOceanExtractTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Test Kernel call
+    kernel_call = schedule.children[0].loop_body[0].loop_body[0]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = gocetrans.apply(kernel_call)
+    assert ("Extraction of a Kernel or a Built-in call without its "
+            "parent Loop is not allowed.") in str(excinfo.value)
+
+
 def test_no_outer_loop_gocean1p0():
     ''' Test that applying GOceanExtractTrans on an inner Loop without
     its parent outer Loop in GOcean1.0 API raises a TransformationError. '''
@@ -89,6 +105,38 @@ def test_no_outer_loop_gocean1p0():
         _, _ = etrans.apply(inner_loop)
     assert ("GOcean1.0 API: Extraction of an inner Loop without its "
             "ancestor outer Loop is not allowed.") in str(excinfo.value)
+
+
+def test_no_parent_accdirective():
+    ''' Test that applying Extract Transformation on an orphaned
+    ACCLoopDirective without its ancestor ACCParallelDirective
+    when optimisations are applied raises a TransformationError. '''
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans, \
+        ACCLoopTrans
+
+    etrans = GOceanExtractTrans()
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply the OpenACC Loop transformation to every loop in the Schedule
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            schedule, _ = acclpt.apply(child)
+    # Enclose all of these loops within a single ACC Parallel region
+    schedule, _ = accpara.apply(schedule.children)
+    # Add a mandatory ACC enter-data directive
+    schedule, _ = accdata.apply(schedule)
+
+    orphaned_directive = schedule.children[1].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(orphaned_directive)
+    assert ("Extraction of Nodes enclosed within a thread-parallel "
+            "region is not allowed.") in str(excinfo.value)
 
 # --------------------------------------------------------------------------- #
 # ================== ExtractNode tests ====================================== #

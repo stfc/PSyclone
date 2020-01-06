@@ -43,7 +43,6 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import ExtractNode, PSyDataNode
 from psyclone.psyGen import Loop, NameSpace
@@ -53,7 +52,6 @@ from psyclone.tests.utilities import get_invoke
 
 # API names
 DYNAMO_API = "dynamo0.3"
-GOCEAN_API = "gocean1.0"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -207,18 +205,6 @@ def test_kern_builtin_no_loop():
     assert ("Extraction of a Kernel or a Built-in call without its "
             "parent Loop is not allowed.") in str(excinfo.value)
 
-    # Test GOcean1.0 API for Kernel call error
-    gocetrans = GOceanExtractTrans()
-    _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    # Test Kernel call
-    kernel_call = schedule.children[0].loop_body[0].loop_body[0]
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = gocetrans.apply(kernel_call)
-    assert ("Extraction of a Kernel or a Built-in call without its "
-            "parent Loop is not allowed.") in str(excinfo.value)
-
 
 def test_loop_no_directive_dynamo0p3():
     ''' Test that applying Extract Transformation on a Loop without its
@@ -241,38 +227,6 @@ def test_loop_no_directive_dynamo0p3():
         _, _ = etrans.apply(loop)
     assert ("Extraction of a Loop without its parent Directive is not "
             "allowed.") in str(excinfo.value)
-
-
-def test_no_parent_accdirective():
-    ''' Test that applying Extract Transformation on an orphaned
-    ACCLoopDirective without its ancestor ACCParallelDirective
-    when optimisations are applied raises a TransformationError. '''
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans, \
-        ACCLoopTrans
-
-    etrans = GOceanExtractTrans()
-    acclpt = ACCLoopTrans()
-    accpara = ACCParallelTrans()
-    accdata = ACCEnterDataTrans()
-
-    _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-
-    # Apply the OpenACC Loop transformation to every loop in the Schedule
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            schedule, _ = acclpt.apply(child)
-    # Enclose all of these loops within a single ACC Parallel region
-    schedule, _ = accpara.apply(schedule.children)
-    # Add a mandatory ACC enter-data directive
-    schedule, _ = accdata.apply(schedule)
-
-    orphaned_directive = schedule.children[1].children[0]
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(orphaned_directive)
-    assert ("Extraction of Nodes enclosed within a thread-parallel "
-            "region is not allowed.") in str(excinfo.value)
 
 
 def test_no_colours_loop_dynamo0p3():
