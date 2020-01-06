@@ -87,10 +87,10 @@ an example output for LFRic::
       CALL psy_data%PreDeclareVariable("cell_post", cell)
       CALL psy_data%PreDeclareVariable("f1_post", f1)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("a", a)
-      CALL psy_data%WriteVariable("f2", f2)
-      CALL psy_data%WriteVariable("m1", m1)
-      CALL psy_data%WriteVariable("m2", m2)
+      CALL psy_data%ProvideVariable("a", a)
+      CALL psy_data%ProvideVariable("f2", f2)
+      CALL psy_data%ProvideVariable("m1", m1)
+      CALL psy_data%ProvideVariable("m2", m2)
       CALL psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
@@ -100,14 +100,14 @@ an example output for LFRic::
         """undf_w3, map_w3(:,cell))
       END DO 
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell_post", cell)
-      CALL psy_data%WriteVariable("f1_post", f1)
+      CALL psy_data%ProvideVariable("cell_post", cell)
+      CALL psy_data%ProvideVariable("f1_post", f1)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd
 
 The PSyData API relies on generic Fortran interfaces to provide the 
-field-type-specific implementations of the WriteVariable for different
+field-type-specific implementations of the ProvideVariable for different
 types.
 
 .. _psyke-intro-restrictions:
@@ -323,7 +323,7 @@ The generated code is now:
       CALL psy_data%PreDeclareVariable("df_post", df)
       CALL psy_data%PreDeclareVariable("f3_post", f3)
       CALL psy_data%PreEndDeclaration
-      CALL psy_data%WriteVariable("f2", f2)
+      CALL psy_data%ProvideVariable("f2", f2)
       CALL psy_data%PreEnd
       !
       !$omp parallel do default(shared), private(df), schedule(static)
@@ -338,9 +338,9 @@ The generated code is now:
       END DO
       !$omp end parallel do
       CALL psy_data%PostStart
-      CALL psy_data%WriteVariable("cell_post", cell)
-      CALL psy_data%WriteVariable("df_post", df)
-      CALL psy_data%WriteVariable("f3_post", f3)
+      CALL psy_data%ProvideVariable("cell_post", cell)
+      CALL psy_data%ProvideVariable("df_post", df)
+      CALL psy_data%ProvideVariable("f3_post", f3)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd

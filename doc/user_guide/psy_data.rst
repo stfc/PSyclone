@@ -84,7 +84,7 @@ shows the code created by PSyclone::
     CALL psy_data%PreDeclareVariable("a_fld", a_fld)
     CALL psy_data%PreDeclareVariable("b_fld", b_fld)
     CALL psy_data%PreEndDeclaration
-    CALL psy_data%WriteVariable("a_fld", a_fld)
+    CALL psy_data%ProvideVariable("a_fld", a_fld)
     CALL psy_data%PreEnd
 
     ! Begin of PSY-layer kernel call:
@@ -96,7 +96,7 @@ shows the code created by PSyclone::
     ! End of PSY-layer kernel call
 
     CALL psy_data%PostStart
-    CALL psy_data%WriteVariable("b_fld", b_fld)
+    CALL psy_data%ProvideVariable("b_fld", b_fld)
     CALL psy_data%PostEnd
 
 The following code sequence will typically be created:
@@ -106,7 +106,7 @@ The following code sequence will typically be created:
 #. ``PreDeclareVariable`` is called for each variable that is written either
    before or after the instrumented region.
 #. ``PreEndDeclaration`` to indicate the end of the variable declarations.
-#. ``WriteVariable`` for each variable to be written before the instrumented
+#. ``ProvideVariable`` for each variable to be written before the instrumented
    region.
 #. ``PreEnd`` to declare that all variables before the instrumented region
    have been written.
@@ -115,7 +115,7 @@ The following code sequence will typically be created:
    is added to indicate that all further variables written will be
    after the user code.
 #. For each variable to be written after the user code a call to
-   ``WriteVariable`` is added.
+   ``ProvideVariable`` is added.
 #. A call to ``PostEnd`` is added once all variables have been written.
 
 .. note::
@@ -202,7 +202,7 @@ following declaration with dl_esm_inf::
 +++++++++++++++++++++++++++
 Called once all variables have been declared.
 
-``WriteVariable(this, name, value)``
+``ProvideVariable(this, name, value)``
 ++++++++++++++++++++++++++++++++++++
 This function is called for each variable to be provided to the
 runtime library. 
@@ -213,15 +213,15 @@ runtime library.
 ``value``:
   This is the actual content of the variable.
 
-The same function ``WriteVariable`` is called to provide variable
+The same function ``ProvideVariable`` is called to provide variable
 name and content before and after the user instrumented region.
 And again it is expected that a library using the API will provide
 a generic interface to distinguish between the various possible data
 types, which will be different for each infrastructure library::
 
-    generic, public :: WriteVariable => WriteScalarInteger, &
-                                        WriteScalarReal,    &
-                                        WriteFieldDouble
+    generic, public :: ProvideVariable => WriteScalarInteger, &
+                                          WriteScalarReal,    &
+                                          WriteFieldDouble
 
 ``PreEnd(this)``
 ++++++++++++++++
@@ -233,7 +233,7 @@ region have been provided.
 This is the first call after the instrumented region. It does not take
 any parameters, but the static ``PSyDataType`` instance can be used
 to store the name and number of variables if required. This will be
-followed by calls to ``WriteVariable``, which is described above.
+followed by calls to ``ProvideVariable``, which is described above.
 
 ``PostEnd(this)``
 +++++++++++++++++
@@ -281,7 +281,7 @@ then the ``PSyDataNode`` will only create a call to ``PreStart`` and
 ``PostEnd``. This is utilised by the profiling node to make the profiling
 API libraries (see :ref:`ProfilingAPI`) independent of the infrastructure
 library, which will contain API-specific parameters in any call to
-``WriteVariable``. It also reduces the number of calls required before
+``ProvideVariable``. It also reduces the number of calls required before
 and after the instrumented region which can affect overall
 performance and precision of any measurements, see :ref:`profiling`
 for more details.

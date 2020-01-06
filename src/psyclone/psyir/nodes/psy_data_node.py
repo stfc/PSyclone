@@ -286,7 +286,7 @@ class PSyDataNode(Node):
             self._add_call("PreEndDeclaration", parent)
 
             for var_name in pre_variable_list:
-                self._add_call("WriteVariable", parent,
+                self._add_call("ProvideVariable", parent,
                                ["\"{0}{1}\"".format(var_name, pre_suffix),
                                 "{0}".format(var_name)])
 
@@ -299,7 +299,7 @@ class PSyDataNode(Node):
             # Only add PostStart() if there is at least one variable.
             self._add_call("PostStart", parent)
             for var_name in post_variable_list:
-                self._add_call("WriteVariable", parent,
+                self._add_call("ProvideVariable", parent,
                                ["\"{0}{1}\"".format(var_name, post_suffix),
                                 "{0}".format(var_name)])
 

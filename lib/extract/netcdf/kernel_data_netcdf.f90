@@ -12,7 +12,7 @@ module psy_data_mod
     contains
         procedure :: DeclareScalarInteger, WriteScalarInteger
         procedure :: DeclareScalarReal,    WriteScalarReal
-        procedure :: DeclareFieldDouble,     WriteFieldDouble
+        procedure :: DeclareFieldDouble,   WriteFieldDouble
         procedure :: ReadScalarInteger, ReadScalarReal, ReadFieldDouble
         procedure :: PreStart, PreEndDeclaration, PreEnd
         procedure :: PostStart, PostEnd
@@ -22,9 +22,9 @@ module psy_data_mod
                                                  DeclareScalarReal,    &
                                                  DeclareFieldDouble
 
-        generic, public :: WriteVariable => WriteScalarInteger, &
-                                            WriteScalarReal,    &
-                                            WriteFieldDouble
+        generic, public :: ProvideVariable => WriteScalarInteger, &
+                                              WriteScalarReal,    &
+                                              WriteFieldDouble
 
         generic, public :: ReadVariable => ReadScalarInteger, &
                                            ReadScalarReal,    &

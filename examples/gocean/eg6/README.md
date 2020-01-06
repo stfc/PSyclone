@@ -13,9 +13,11 @@ You have to compile dl_esm_inf (which is included in external/dl_esm_inf)
 and one of the extraction libraries in lib/extract. 
 The documentation assumes that lib/extract/netcdf is used.
 Instructions for those are are given in the corresponding subdirectories.
+To create and compile the example, modify the Makefile if required
+and type ``make``.
 
 PSyclone is invoked with the script ``extract_transform`` which will 
-add extract regions about its invokes.
+add extract regions around its invokes.
 
 ## Running
 When running the program, you should see:
@@ -29,3 +31,6 @@ Internal region is:(2:  4,2:  4)
 Grid has bounds:  (1: 12,1:  6)
    15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000     
 ```
+
+Two netcdf files will be produced, one for each of the two invokes
+instrumented with an extract region.
