@@ -227,5 +227,6 @@ class GOceanExtractNode(ExtractNode):
 
         code = str(module.root)
 
-        with open(name+".f90", "w") as out:
+        with open("driver-{0}-{1}.f90".format(self.module_name, self.region_name),
+                  "w") as out:
             out.write(code)

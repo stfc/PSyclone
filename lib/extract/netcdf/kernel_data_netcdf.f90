@@ -58,7 +58,7 @@ Contains
         integer, intent(in)      :: num_pre_vars, num_post_vars
         integer :: retval
 
-        retval = CheckError(nf90_create(module_name//kernel_name//".nc", &
+        retval = CheckError(nf90_create(module_name//"-"//kernel_name//".nc", &
                                         NF90_CLOBBER, this%ncid))
         allocate(this%var_id(num_pre_vars+num_post_vars))
         this%num_pre_vars = num_pre_vars
@@ -74,7 +74,7 @@ Contains
         character(*), intent(in) :: module_name, kernel_name
         integer :: retval
 
-        retval = CheckError(nf90_open(module_name//kernel_name//".nc", &
+        retval = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
                                         NF90_NOWRITE, this%ncid))
     end subroutine OpenRead
     ! -------------------------------------------------------------------------
