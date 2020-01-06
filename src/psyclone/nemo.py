@@ -588,17 +588,8 @@ class NemoImplicitLoop(NemoLoop):
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
-        # Part_Ref nodes in the fparser2 AST. This would be easier to do
-        # if the fparser2 AST carried parent information with each node.
-        # As it is we have to walk down the tree rather than come back up
-        # from each colon.
+        # Part_Ref nodes in the fparser2 AST.
         # Find all array references
-        #array_refs = []
-        #if isinstance(rhs, Fortran2003.Part_Ref):
-        #    # Since walk_ast is slightly clunky we have to manually allow
-        #    # for the top-level "rhs" node being an array reference
-        #    array_refs.append(rhs)
-        #array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
         array_refs = walk(rhs, Fortran2003.Part_Ref)
         for ref in array_refs:
             nested_refs = walk(ref.items, Fortran2003.Part_Ref)
