@@ -1924,10 +1924,21 @@ class InvokeSchedule(Schedule):
                 module_map[module_name].append(globalvar.name)
             else:
                 module_map[module_name] = [globalvar.name]
+
         # Then we can produce the UseGen statements without repeating modules
         for module_name, var_list in module_map.items():
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
+
+        # Add the SymbolTable symbols used into the NameSpaceManager to prevent
+        # clashes. Note that the global variables names are going to be used as
+        # arguments and are declared with 'AlgArgs' context.
+        # TODO: After #312 this will not be necessary.
+        for module_name, var_list in module_map.items():
+            self._name_space_manager.add_reserved_name(module_name)
+            for var_name in var_list:
+                self._name_space_manager.create_name(
+                    root_name=var_name, context="AlgArgs", label=var_name)
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
