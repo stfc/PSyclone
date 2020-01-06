@@ -108,7 +108,8 @@ an example output for LFRic::
 
 The PSyData API relies on generic Fortran interfaces to provide the 
 field-type-specific implementations of the ProvideVariable for different
-types.
+types. This means that a different version of the external PSyData
+library that PSyKE uses must be supplied for each PSyclone API.
 
 .. _psyke-intro-restrictions:
 
@@ -349,7 +350,7 @@ The generated code is now:
 
     At this stage biultins are not fully supported, resulting in ``f2`` 
     being incorrectly detected as an input parameters, and not as an
-    output parameter. This issue is tracked in #XXXX.
+    output parameter. This issue is tracked in #637.
 
 
 Examples in ``examples/dynamo/eg12`` directory demonstrate how to
