@@ -675,6 +675,11 @@ class Fparser2Reader(object):
                         expr = initialisation.items[1]
                         self.process_nodes(tmp, [expr], initialisation)
                         ct_expr = tmp.children[0]
+                    else:
+                        raise NotImplementedError(
+                            "Could not process {0}. Initialisations on the"
+                            " declaration statements are only supported for "
+                            "parameter declarations.".format(decl.items))
 
                 if char_len is not None:
                     raise NotImplementedError(
