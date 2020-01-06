@@ -63,13 +63,17 @@ the application that incorporates the PSyclone-generated code.
 
 Profiling API
 -------------
-In order to be used with different profiling tools, PSyclone supports
-a simple profiling API. For each existing profiling tool a simple interface
-library needs to be implemented that maps the PSyclone profiling calls
+In order to be used with different profiling tools, PSyclone uses the
+PSyData API. For each existing profiling tool a simple interface
+library needs to be implemented that maps the PSyclone PSyData calls
 to the corresponding call for the profiling tool. 
 
-PSyclone utilises 4 profiling calls which are described in the following
-sub-sections.
+Since the profiling API does not need access to any fields or variables,
+the PSyData node will only create calls to ``PreStart`` and ``PostEnd``
+(see :ref:`psy_data_transformation`).
+
+PSyclone utilises 2 additional profiling calls which are described in
+the following sub-sections.
 
 ProfileInit()
 ~~~~~~~~~~~~~
@@ -90,8 +94,8 @@ a call to ``MPI_Init()``.
 ProfileFinalise()
 ~~~~~~~~~~~~~~~~~
 At the end of the program the function ``ProfileFinalise()`` must be called.
-It will make sure that the measurements are printed or written to file
-correctly, and that the profiling tool is closed correctly. Again at
+It will make sure that the measurements are printed, files are flushed,
+and that the profiling tool is closed correctly. Again at
 this stage it is necessary to manually insert the call at an appropriate
 location::
 
@@ -103,32 +107,11 @@ And again the appropriate location might depend on the profiling library
 used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
-ProfileStart()/ProfileEnd()
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``ProfileStart`` and ``ProfileEnd`` functions define the beginning and
-end of a region to be measured. 
-In general it is up to the user what exactly a region is, arbitrary code
-can be enclosed, as long as it is guaranteed that each call of
-``ProfileStart`` is matched with exactly one corresponding call to
-``ProfileEnd``. PSyclone supplies one saved (static) variable of type
-``ProfileData`` to each matching Start/End pair.
-
-This is the code sequence which is created by PSyclone::
-
-    use profile_mod, only : ProfileData, ProfileStart, ProfileEnd
-    ...
-    type(ProfileData), save :: profiler_data
-    ...
-    call ProfileStart("Module", "Region", profiler_data)
-    ...
-    call ProfileEnd(profiler_data)
-
-PSyclone guarantees that different ProfileStart/End pairs have
-different ``ProfileData`` variables.
-
+Naming Profiling Regions
+~~~~~~~~~~~~~~~~~~~~~~~~
 By default PSyclone will generate appropriate names to specify a
-particular region (the "Module" and "Region" strings in the example
-above). Alternatively these names can be specified by the user when
+particular region, based on the module name and the kernel call.
+Alternatively these names can be specified by the user when
 adding profiling via a transformation script.
 
 .. warning::
@@ -365,19 +348,13 @@ Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
 module. The four profiling calls described
 in the section about the ProfilingAPI_ must be implemented,
-and an opaque, user-defined type ``ProfileData`` needs to be 
+and an opaque, user-defined type ``PSyData`` needs to be 
 provided in the module.
-
-Note that the ``ProfileEnd`` call does not have the module
-or region name as an argument. If this is
-required by the profiling library, this data must
-be stored in the ``ProfileData`` object so that it is
-available in the ``ProfileEnd`` call.
 
 The examples in the lib/profiling directory show various ways
 in which the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
-an index used by the profiling tool in ``ProfileData``, or 
+an index used by the profiling tool in ``PSyData``, or 
 by storing pointers to the profiling data to be able to 
 print all results in a ProfileFinalise() subroutine.
 

@@ -149,13 +149,13 @@ class PSyDataNode(Node):
     @property
     def region_name(self):
         ''':returns: the region name for this node.
-        :rtype str:'''
+        :rtype: str'''
         return self._region_name
     # -------------------------------------------------------------------------
     @property
     def module_name(self):
         ''':returns: the module name for this node.
-        :rtype str:'''
+        :rtype: str'''
         return self._module_name
 
     # -------------------------------------------------------------------------

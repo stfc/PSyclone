@@ -96,7 +96,7 @@ shows the code created by PSyclone::
     ! End of PSY-layer kernel call
 
     CALL psy_data%PostStart
-    CALL psy_data%WriteVariable("b_fld", a_fld)
+    CALL psy_data%WriteVariable("b_fld", b_fld)
     CALL psy_data%PostEnd
 
 The following code sequence will typically be created:
@@ -244,6 +244,13 @@ An example of a library using PSyData is included in PSyclone in the
 directory ``.../lib/extract/netcdf``. This library is used to extract
 kernel input- and output-parameter and store them in a NetCDF file.
 
+.. note::
+
+    Note that only the ``PreDataStart`` call takes the module-
+    and region-name as parameters. If these names are required
+    by the profiling library in different calls, they must
+    be stored in the ``PSyData`` object so that they are
+    available when required.
 
 .. _psy_data_transformation:
 
@@ -257,7 +264,8 @@ The base transformation to create the PSyData callbacks is the
 
 It is very similar to the profile transformation and kernel extraction
 transformation. Those transforms insert a special node into the AST,
-which at code creation time will. Both profile and kernel extraction
+which at code creation time will generate the code to give access to
+the data fields. Both profile and kernel extraction
 nodes use ``PSyDataNode`` as a base class, which will create the 
 PSyData calls as described above. The difference is that those
 classes will provide different parameters to the ``PSyDataNode``,
@@ -270,9 +278,13 @@ The behaviour of the ``PSyDataNode`` is controlled using the ``option``
 dictionary, as documented above. If there is no variable to be provided
 (i.e both ``pre_variable_list`` and ``post_variable_list`` are empty),
 then the ``PSyDataNode`` will only create a call to ``PreStart`` and 
-``PostEnd``. This is used by the profiling node to reduce the number
-of calls required before the instrumented region (which can affect
-overall performance), see :ref:`profiling` for more details.
+``PostEnd``. This is utilised by the profiling node to make the profiling
+API libraries (see :ref:`ProfilingAPI`) independent of the infrastructure
+library, which will contain API-specific parameters in any call to
+``WriteVariable``. It also reduces the number of calls required before
+and after the instrumented region which can affect overall
+performance and precision of any measurements, see :ref:`profiling`
+for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameter,
