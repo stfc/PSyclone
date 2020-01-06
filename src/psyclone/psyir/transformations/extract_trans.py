@@ -39,6 +39,7 @@ of an Invoke into a stand-alone application."
 
 from psyclone.configuration import Config
 from psyclone.psyGen import Kern, Schedule
+from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -56,11 +57,20 @@ class ExtractTrans(RegionTrans):
     Nodes to extract can be individual constructs within an Invoke (e.g. \
     Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
     functionality does not support distributed memory.
+
+    :param node_class: The Node class of which an instance will be inserted \
+        into the tree (defaults to ExtractNode).
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode`
+
     '''
     from psyclone import psyGen
     # The types of node that this transformation can enclose
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, psyGen.Literal, psyGen.Reference)
+
+    def __init__(self, node_class=ExtractNode):
+        super(ExtractTrans, self).__init__()
+        self._node_class = node_class
 
     def __str__(self):
         return ("Create a sub-tree of the PSyIR that has ExtractNode "
@@ -197,7 +207,6 @@ class ExtractTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
-        from psyclone.psyir.nodes import ExtractNode
-        ExtractNode(parent=node_parent, children=node_list[:])
+        self._node_class(parent=node_parent, children=node_list[:])
 
         return schedule, keep
