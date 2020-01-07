@@ -342,19 +342,21 @@ class DataSymbol(Symbol):
     @constant_value.setter
     def constant_value(self, new_value):
         '''
-        :param constant_value: Set or change the fixed known value of \
-        the constant for this DataSymbol. If the value is None then this \
-        symbol does not have a fixed constant. The datatype of \
-        new_value must be compatible with the datatype of the symbol.
-        :type constant_value: :py:class:`psyclone.psyGen.Node`
+        :param constant_value: Set or change the fixed known value of the \
+            constant for this DataSymbol. If the value is None then this \
+            symbol does not have a fixed constant. Otherwise it can receive \
+            PSyIR expressions or Python intrinsic types available in the \
+            TYPE_MAP_TO_PYTHON map.
+        :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+            :py:class:`psyclone.psyGen.Node`
 
-        :raises ValueError: If a non-None value is provided and 1) \
-        this DataSymbol instance does not have local scope, or 2) this \
-        DataSymbol instance is not a scalar (as the shape attribute is not \
-        empty), or 3) a constant value is provided but the type of the \
-        value does not support this, or 4) the type of the value \
-        provided is not compatible with the datatype of this DataSymbol \
-        instance.
+        :raises ValueError: If a non-None value is provided and 1) this \
+            DataSymbol instance does not have local scope, or 2) this \
+            DataSymbol instance is not a scalar (as the shape attribute is \
+            not empty), or 3) a constant value is provided but the type of \
+            the value does is not supported, or 4) the type of the value \
+            provided is not compatible with the datatype of this DataSymbol \
+            instance, or 5) the provided PSyIR expression is too complex.
 
         '''
         from psyclone.psyGen import Node, Literal, Operation, Reference
