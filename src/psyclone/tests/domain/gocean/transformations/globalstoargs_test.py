@@ -92,7 +92,7 @@ def test_globalstoargumentstrans(monkeypatch):
     notkernel = invoke.schedule.children[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
         variable._datatype = DataType.REAL
@@ -164,7 +164,7 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
     def set_to_const_int(variable):
         variable._datatype = DataType.INTEGER
@@ -276,7 +276,7 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
         variable._datatype = DataType.REAL
@@ -308,7 +308,7 @@ def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
         variable._datatype = DataType.REAL
@@ -344,7 +344,7 @@ def test_globalstoargumentstrans_clash_namespace_before(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monckeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
         variable._datatype = DataType.REAL
