@@ -128,11 +128,11 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenCL transformations for
-	  the GOcean 1.0 API, the OpenACC Data transformation is
-	  limited to the NEMO and GOcean 1.0 APIs and the OpenACC
-	  Kernels transformation is limited to the NEMO and Dynamo0.3
-	  APIs.
+.. note:: PSyclone currently only supports OpenCL and KernelGlobalsToArguments
+          transformations for the GOcean 1.0 API, the OpenACC Data
+          transformation is limited to the NEMO and GOcean 1.0 APIs and the
+          OpenACC Kernels transformation is limited to the NEMO and Dynamo0.3
+          APIs.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -243,6 +243,20 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
+
+
+####
+
+.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+    :members: apply
+    :noindex:
+
+.. note:: This transformation modifies the PSyIR of both: the Invoke
+          Schedule where the transformed CodedKernel is located and its
+          associated Kernel Schedule.
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
+
 
 Kernels
 -------
