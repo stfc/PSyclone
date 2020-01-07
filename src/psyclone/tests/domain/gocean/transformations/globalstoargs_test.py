@@ -44,8 +44,9 @@ from psyclone.psyir.symbols import DataType
 
 API = "gocean1.0"
 
-BASEPATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "..", "..", "test_files")
+# Each os.path.dirname() move up in the folder hierarchy
+BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))), "test_files")
 
 
 def test_globalstoargumentstrans_wrongapi():
