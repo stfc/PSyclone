@@ -52,8 +52,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
-    extract = ExtractTrans()
+    from psyclone.domain.gocean.transformations import GOceanExtractTrans
+    extract = GOceanExtractTrans()
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
