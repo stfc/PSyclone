@@ -3875,7 +3875,7 @@ class KernelGlobalsToArguments(Transformation):
             if globalvar.is_constant:
                 # Global constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
-                # it should transform the constants to literal values first.
+                # they should transform the constants to literal values first.
                 globalvar.constant_value = None
                 globalvar.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
