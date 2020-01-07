@@ -580,7 +580,7 @@ def test_process_declarations_expression_param(f2008_parser):
     assert isinstance(fake_parent.symbol_table.lookup("twopi"), DataSymbol)
 
 
-@pytest.mark.xfail(reason="Kind parameter declarations not supported - #585")
+@pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
 def test_process_declarations_kind_param(f2008_parser):
     ''' Test that process_declarations handles the kind attribute when
     it specifies a previously-declared symbol.
