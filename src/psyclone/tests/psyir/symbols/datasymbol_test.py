@@ -44,7 +44,8 @@ import pytest
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     DataType
-from psyclone.psyGen import InternalError, Container, Literal
+from psyclone.psyGen import InternalError, Container, Literal, Reference, \
+    BinaryOperation, Return
 
 
 def test_datasymbol_initialisation():
@@ -250,7 +251,7 @@ def test_datasymbol_constant_value_setter():
 
     '''
 
-    # Test with valid constant value
+    # Test with valid constant values
     sym = DataSymbol('a', DataType.INTEGER, constant_value=7)
     assert sym.constant_value.datatype == DataType.INTEGER
     assert sym.constant_value.value == "7"
@@ -265,11 +266,26 @@ def test_datasymbol_constant_value_setter():
     assert sym.constant_value.datatype == DataType.REAL
     assert sym.constant_value.value == "1.0"
 
+    # Test with invalid constant values
     sym = DataSymbol('a', DataType.DEFERRED)
     with pytest.raises(ValueError) as error:
         sym.constant_value = 1.0
     assert ("Error setting 'a' constant value. Constant values are not "
             "supported for 'DataType.DEFERRED' datatypes." in str(error.value))
+
+    # Test with valid constant expressions
+    lhs = Literal('2', DataType.INTEGER)
+    rhs = Reference('constval')
+    ct_expr = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
+    sym = DataSymbol('a', DataType.INTEGER, constant_value=ct_expr)
+
+    # Test with invalid constant expressions
+    ct_expr = Return()
+    with pytest.raises(ValueError) as error:
+        sym = DataSymbol('a', DataType.INTEGER, constant_value=ct_expr)
+    assert "Error setting 'a' constant value. PSyIR static expressions can " \
+        "only contain PSyIR literal, operation or reference nodes but found:" \
+        in str(error.value)
 
 
 def test_datasymbol_is_constant():

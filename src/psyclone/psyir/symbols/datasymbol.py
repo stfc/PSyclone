@@ -373,7 +373,12 @@ class DataSymbol(Symbol):
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
                     if not isinstance(node, (Literal, Operation, Reference)):
-                        raise SymbolError("")
+                        raise ValueError(
+                            "Error setting '{0}' constant value. PSyIR "
+                            "static expressions can only contain PSyIR "
+                            "literal, operation or reference nodes but found:"
+                            " {1}".
+                            format(self.name, node))
             else:
                 try:
                     lookup = TYPE_MAP_TO_PYTHON[self.datatype]
