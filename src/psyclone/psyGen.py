@@ -1943,6 +1943,7 @@ class InvokeSchedule(Schedule):
                     label=var_name)
                 # There is a name clash with this variable name and we can not
                 # accept indexed names for global variables.
+                # TODO: #642 Improve global variables name clashes handling.
                 if var_name != newname:
                     raise KeyError(
                         "The imported variable '{0}' is already defined in the"
