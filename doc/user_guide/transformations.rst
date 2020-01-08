@@ -182,6 +182,18 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+    :members: apply
+    :noindex:
+
+.. note:: This transformation modifies the PSyIR of both: the Invoke
+          Schedule where the transformed CodedKernel is located and its
+          associated Kernel Schedule.
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
+
+####
+
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
@@ -243,19 +255,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
-
-
-####
-
-.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
-    :members: apply
-    :noindex:
-
-.. note:: This transformation modifies the PSyIR of both: the Invoke
-          Schedule where the transformed CodedKernel is located and its
-          associated Kernel Schedule.
-
-.. note:: This transformation is only supported by the GOcean 1.0 API.
 
 
 Kernels
