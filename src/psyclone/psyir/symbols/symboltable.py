@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,15 +69,24 @@ class SymbolTable(object):
 
     def new_symbol_name(self, root_name=None):
         '''Create a symbol name that is not in the symbol table. If the
-        `root_name` argument is not supplied then the name is
-        generated internally, otherwise the `root_name` is used. If
-        required, an additional integer is appended to avoid clashes.
+        `root_name` argument is not supplied or if it is an empty
+        string then the name is generated internally, otherwise the
+        `root_name` is used. If required, an additional integer is
+        appended to avoid clashes.
 
-        :param str root_name: the name to use when creating a new \
+        :param root_name: optional name to use when creating a new \
         symbol name. This will be appended with an integer if the name \
         clashes with an existing symbol name.
+        :type root_name: str or NoneType
+
+        :raises TypeError: if the root_name argument is not a string \
+        or None.
 
         '''
+        if root_name is not None and not isinstance(root_name, str):
+            raise TypeError(
+                "Argument root_name should be of type str or NoneType but "
+                "found '{0}'.".format(type(root_name).__name__))
         if not root_name:
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
