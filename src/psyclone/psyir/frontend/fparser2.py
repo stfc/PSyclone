@@ -48,7 +48,7 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     GenerationError, Node, Operation
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, TYPE_MAP_TO_PYTHON
+    DataType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from

@@ -278,6 +278,8 @@ def test_datasymbol_constant_value_setter():
     rhs = Reference('constval')
     ct_expr = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
     sym = DataSymbol('a', DataType.INTEGER, constant_value=ct_expr)
+    assert isinstance(sym.constant_value, BinaryOperation)
+    assert sym.constant_value is ct_expr
 
     # Test with invalid constant expressions
     ct_expr = Return()

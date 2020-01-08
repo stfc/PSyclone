@@ -67,11 +67,13 @@ class DataSymbol(Symbol):
         way).
     :type interface: \
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
-    :param constant_value: sets a fixed known value for this DataSymbol. If \
-        the value is None (the default) then this symbol is not a constant. \
-        The datatype of the constant value must be compatible with the \
-        datatype of the symbol.
-    :type constant_value: int, str or bool
+    :param constant_value: sets a fixed known expression as a permanent \
+        value for this DataSymbol. If the value is None then this \
+        symbol does not have a fixed constant. Otherwise it can receive \
+        PSyIR expressions or Python intrinsic types available in the \
+        TYPE_MAP_TO_PYTHON map. By default it is None.
+    :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+        :py:class:`psyclone.psyGen.Node`
     :param precision: the amount of storage required by the datatype (bytes) \
             or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
@@ -342,15 +344,15 @@ class DataSymbol(Symbol):
     @constant_value.setter
     def constant_value(self, new_value):
         '''
-        :param constant_value: Set or change the fixed known value of the \
+        :param new_value: set or change the fixed known value of the \
             constant for this DataSymbol. If the value is None then this \
             symbol does not have a fixed constant. Otherwise it can receive \
             PSyIR expressions or Python intrinsic types available in the \
             TYPE_MAP_TO_PYTHON map.
-        :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+        :type new_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
             :py:class:`psyclone.psyGen.Node`
 
-        :raises ValueError: If a non-None value is provided and 1) this \
+        :raises ValueError: if a non-None value is provided and 1) this \
             DataSymbol instance does not have local scope, or 2) this \
             DataSymbol instance is not a scalar (as the shape attribute is \
             not empty), or 3) a constant value is provided but the type of \
@@ -394,8 +396,7 @@ class DataSymbol(Symbol):
                         "Error setting '{0}' constant value. This DataSymbol "
                         "instance datatype is '{1}' which means the constant "
                         "value is expected to be '{2}' but found '{3}'."
-                        "".format(self.name, self.datatype,
-                                  TYPE_MAP_TO_PYTHON[self.datatype],
+                        "".format(self.name, self.datatype, lookup,
                                   type(new_value)))
 
                 # All accepted types but booleans need to be passed as strings

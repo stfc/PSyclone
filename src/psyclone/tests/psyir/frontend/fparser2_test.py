@@ -354,7 +354,7 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
     assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
 
-    # Static constant expresions are not supported
+    # Initialisation with constant expresions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -565,19 +565,6 @@ def test_process_declarations_kind_new_param(f2008_parser):
         processor.process_declarations(fake_parent, fp2spec, [])
     assert ("Failed to find valid Name in Fortran Kind Selector: "
             "'(KIND = blah)'" in str(err.value))
-
-
-def test_process_declarations_expression_param(f2008_parser):
-    ''' Test that process_declarations handles the kind attribute when
-    it specifies a previously-declared symbol.
-
-    '''
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("real, parameter :: twopi = 2 * pi")
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert isinstance(fake_parent.symbol_table.lookup("twopi"), DataSymbol)
 
 
 @pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
