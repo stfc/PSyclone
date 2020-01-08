@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -36,18 +36,19 @@
       
 .. _psyir-ug:
 
-The PSyclone Internal Representation (PSyIR)
-============================================
+==============================================
+ The PSyclone Internal Representation (PSyIR)
+==============================================
 
 The PSyIR is at the heart of PSyclone, representing code (at both the
 PSy- and kernel-layer levels) in a language-agnostic form. A PSyIR may
-be constructed from scratch (in Python) or by processing exising
+be constructed from scratch (in Python) or by processing existing
 source code using a frontend. Transformations act on the PSyIR and
 ultimately the generated code is produced by one of the PSyIR's
 backends.
 
 PSyIR Nodes
------------
+===========
 
 The PSyIR consists of classes whose instances can be connected
 together to form a tree which represent computation in a
@@ -67,7 +68,7 @@ to create code.
 	  be removed.
 
 PSy-layer nodes
-^^^^^^^^^^^^^^^
+---------------
 
 PSy-layer PSyIR classes are primarily used to create the
 PSy-layer. These tend to be relatively descriptive and do not specify
@@ -82,7 +83,7 @@ OpenACC. The ``Kern`` class is subclassed into ``CodedKern``,
 
 
 Kernel-layer nodes
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Kernel-layer PSyIR classes are currently used to describe existing
 code in a language independent way. Consequently these nodes are more
@@ -100,7 +101,7 @@ subclassed into a kernel-layer ``KernelSchedule``. In addition to
 
 
 Text Representation
--------------------
+===================
 
 When developing a transformation script it is often necessary to examine
 the structure of the PSyIR. All nodes in the PSyIR have the ``view`` method
@@ -123,7 +124,7 @@ notation (see below), ``schedule[6].if_body[1]`` where ``schedule`` is
 the overall parent Schedule node (omitted from the above image).
 
 Tree Navigation
----------------
+===============
 
 Each PSyIR node provides several ways to navigate the AST:
 
@@ -166,7 +167,7 @@ information about the exact location.
 .. _symbol-label:
 
 Symbols and Symbol Tables
--------------------------
+=========================
 
 Some PSyIR nodes have an associated Symbol Table
 (`psyclone.psyir.symbols.SymbolTable`) which keeps a record of the
@@ -218,7 +219,47 @@ PSyIR Fortran backend to create correct code for a subroutine
 which is passed an allocatable array.)
 
 Creating PSyIR
---------------
+==============
+
+Symbol names
+------------
+
+PSyIR symbol names can be managed explicitely by the user. For
+example::
+
+   > var_name = "my_name"
+   > symbol_table = SymbolTable()
+   > data = DataSymbol(var_name, DataType.REAL)
+   > symbol_table.add(data)
+   > reference = Reference(var_name)
+
+Whilst the SymbolTable will reject the addition of a smybol if the
+associated name is already contained in the symbol table, it is still
+the responsibility of the user to determine names that are unique.
+
+To avoid this problem the SymbolTable includes the `new_symbol_name()`
+method (see section :ref:`symbol-label` for more details). This method
+will provide a name that is unique within the symbol table each time
+it is called. The name returned will be the name specified in the
+config file followed by an optional "_" and integer value. For
+example, the following code::
+
+  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
+  > symbol_table = SymbolTable()
+  > for i in range(0, 3):
+  >     var_name = symbol_table.new_symbol_name()
+  >     symbol_table.add(DataSymbol(var_name, DataType.REAL))
+  >     print (var_name)
+
+gives the following output::
+  
+  psyir_tmp
+  psyir_tmp_0
+  psyir_tmp_1
+
+
+Nodes
+-----
 
 PSyIR nodes are connected together via parent and child methods
 provided by the ``Node`` baseclass.
