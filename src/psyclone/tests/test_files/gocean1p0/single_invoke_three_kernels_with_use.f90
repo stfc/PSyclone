@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,33 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: J.Henrichs, Bureau of Meteorology
 ! Author: S. Siso, STFC Daresbury Lab
 
-module model_mod
-  
-    use kind_params_mod
+program single_invoke_test
 
-    real(go_wp), parameter :: rdt = 1.0
-    real(go_wp) :: cbfr
+  ! Fake Fortran program for testing the use of PSyclone with a kernel
+  ! that accesses a variable via a use statement.
+  use kind_params_mod
+  use grid_mod
+  use field_mod
+  use kernel_with_use_mod, only: kernel_with_use
+  use kernel_with_use2_mod, only: kernel_with_use2
+  implicit none
 
-end module model_mod
+  type(grid_type), target :: model_grid
+  type(r2d_field) :: oldu_fld, u_fld, cu_fld
+
+  ! Create the model grid
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
+
+  ! Create fields on this grid
+  oldu_fld = r2d_field(model_grid, GO_T_POINTS)
+  u_fld = r2d_field(model_grid, GO_U_POINTS)
+  cu_fld = r2d_field(model_grid, GO_U_POINTS)
+
+  call invoke(kernel_with_use(oldu_fld, cu_fld, u_fld), &
+              kernel_with_use2(oldu_fld, cu_fld, u_fld), &
+              kernel_with_use(oldu_fld, cu_fld, u_fld))
+
+end program single_invoke_test

@@ -436,3 +436,67 @@ def test_symboltable_unresolved():
     assert sym_table.get_unresolved_datasymbols() == ["r_def"]
     # But not if we request that precision symbols be ignored
     assert sym_table.get_unresolved_datasymbols(ignore_precision=True) == []
+
+
+def test_symboltable_copy_external_global():
+    ''' Tests the SymbolTable copy_external_global method. '''
+
+    symtab = SymbolTable()
+
+    # Test input argument type checking
+    with pytest.raises(TypeError) as error:
+        symtab.copy_external_global("invalid_type")
+    assert "The globalvar argument of SymbolTable.copy_external_global " \
+        "method should be a DataSymbol, but found " \
+        in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        symtab.copy_external_global(DataSymbol("var1", DataType.REAL))
+    assert "The globalvar argument of SymbolTable.copy_external_global " \
+        "method should have a GlobalInterface interface, but found " \
+        "'LocalInterface'." \
+        in str(error.value)
+
+    # Copy a globalvar
+    container = ContainerSymbol("my_mod")
+    var = DataSymbol("a", DataType.DEFERRED,
+                     interface=GlobalInterface(container))
+    symtab.copy_external_global(var)
+    assert "a" in symtab
+    assert "my_mod" in symtab
+    assert var.interface.container_symbol.name == "my_mod"
+    # The symtab items should be new copies not connected to the original
+    assert symtab.lookup("a") != var
+    assert symtab.lookup("my_mod") != container
+    assert symtab.lookup("a").interface.container_symbol != container
+
+    # Copy a second globalvar with a reference to the same external Container
+    container2 = ContainerSymbol("my_mod")
+    var2 = DataSymbol("b", DataType.DEFERRED,
+                      interface=GlobalInterface(container2))
+    symtab.copy_external_global(var2)
+    assert "b" in symtab
+    assert "my_mod" in symtab
+    assert var2.interface.container_symbol.name == "my_mod"
+    assert symtab.lookup("b") != var2
+    assert symtab.lookup("my_mod") != container2
+    assert symtab.lookup("b").interface.container_symbol != container2
+    # The new globalvar should reuse the available container reference
+    assert symtab.lookup("a").interface.container_symbol == \
+        symtab.lookup("b").interface.container_symbol
+
+    # The copy of globalvars that already exist is supported
+    var3 = DataSymbol("b", DataType.DEFERRED,
+                      interface=GlobalInterface(container2))
+    symtab.copy_external_global(var3)
+
+    # But if the symbol is different (e.g. points to a different container),
+    # it should fail
+    container3 = ContainerSymbol("my_other")
+    var4 = DataSymbol("b", DataType.DEFERRED,
+                      interface=GlobalInterface(container3))
+    with pytest.raises(KeyError) as error:
+        symtab.copy_external_global(var4)
+    assert "Couldn't copy 'b: <DataType.DEFERRED, Scalar, Global(container=" \
+           "'my_other')>' into the SymbolTable. The name 'b' is already used" \
+           " by another symbol." in str(error.value)
