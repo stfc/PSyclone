@@ -362,44 +362,43 @@ class DataSymbol(Symbol):
         '''
         from psyclone.psyGen import Node, Literal, Operation, Reference
         if new_value is not None:
-            if not self.is_local:
+            if self.is_argument:
                 raise ValueError(
-                    "Error setting '{0}' constant value. A DataSymbol with a "
-                    "constant value is currently limited to Local interfaces "
-                    "but found '{1}'.".format(self.name, self.interface))
+                    "Error setting constant value for symbol '{0}'. A "
+                    "DataSymbol with an ArgumentInterface can not have a "
+                    "constant value.".format(self.name))
             if self.is_array:
                 raise ValueError(
-                    "Error setting '{0}' constant value. A DataSymbol with a "
-                    "constant value must be a scalar but a shape was found."
-                    "".format(self.name))
+                    "Error setting constant value for symbol '{0}'. A "
+                    "DataSymbol with a constant value must be a scalar but "
+                    "a shape was found.".format(self.name))
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
                     if not isinstance(node, (Literal, Operation, Reference)):
                         raise ValueError(
-                            "Error setting '{0}' constant value. PSyIR "
-                            "static expressions can only contain PSyIR "
+                            "Error setting constant value for symbol '{0}'. "
+                            "PSyIR static expressions can only contain PSyIR "
                             "literal, operation or reference nodes but found:"
-                            " {1}".
-                            format(self.name, node))
+                            " {1}".format(self.name, node))
                 self._constant_value = new_value
             else:
                 try:
                     lookup = TYPE_MAP_TO_PYTHON[self.datatype]
                 except KeyError:
                     raise ValueError(
-                        "Error setting '{0}' constant value. Constant values "
-                        "are not supported for '{1}' datatypes."
-                        "".format(self.name, self.datatype))
+                        "Error setting constant value for symbol '{0}'. "
+                        "Constant values are not supported for '{1}' "
+                        "datatypes.".format(self.name, self.datatype))
                 if not isinstance(new_value, lookup):
                     raise ValueError(
-                        "Error setting '{0}' constant value. This DataSymbol "
-                        "instance datatype is '{1}' which means the constant "
-                        "value is expected to be '{2}' but found '{3}'."
-                        "".format(self.name, self.datatype, lookup,
-                                  type(new_value)))
+                        "Error setting constant value for symbol '{0}'. This "
+                        "DataSymbol instance datatype is '{1}' which means the"
+                        " constant value is expected to be '{2}' but found "
+                        "'{3}'.".format(self.name, self.datatype, lookup,
+                                        type(new_value)))
                 if self.datatype == DataType.BOOLEAN:
-                    new_value = str(new_value).lower() 
+                    new_value = str(new_value).lower()
 
                 self._constant_value = Literal(str(new_value), self.datatype)
         else:

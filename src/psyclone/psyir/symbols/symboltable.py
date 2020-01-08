@@ -40,7 +40,8 @@
 
 from __future__ import print_function
 from collections import OrderedDict
-from psyclone.psyir.symbols import Symbol, DataSymbol
+from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
+    ContainerSymbol
 
 
 class SymbolTable(object):
@@ -336,6 +337,53 @@ class SymbolTable(object):
         raise NotImplementedError(
             "Abstract property. Which symbols are data arguments is"
             " API-specific.")
+
+    def copy_external_global(self, globalvar):
+        '''
+        Copy the given global variable (and its referenced ContainerSymbol if
+        needed) into the SymbolTable.
+
+        :param globalvar: the variable to be copied in.
+        :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the given variable is not a global variable.
+        :raises KeyError: if the given variable name already exists in the \
+            symbol table.
+        '''
+        if not isinstance(globalvar, DataSymbol):
+            raise TypeError(
+                "The globalvar argument of SymbolTable.copy_external_global"
+                " method should be a DataSymbol, but found '{0}'."
+                "".format(type(globalvar).__name__))
+
+        if not globalvar.is_global:
+            raise TypeError(
+                "The globalvar argument of SymbolTable.copy_external_"
+                "global method should have a GlobalInterface interface, "
+                "but found '{0}'.".format(type(globalvar.interface).__name__))
+
+        external_container_name = globalvar.interface.container_symbol.name
+
+        # If the Container is not yet in the SymbolTable we need to
+        # create one and add it.
+        if external_container_name not in self:
+            self.add(ContainerSymbol(external_container_name))
+
+        # Copy the variable into the SymbolTable with the appropriate interface
+        if globalvar.name not in self:
+            new_symbol = globalvar.copy()
+            container_ref = self.lookup(external_container_name)
+            new_symbol.interface = GlobalInterface(container_ref)
+            self.add(new_symbol)
+        else:
+            # If it already exists it must refer to the same Container
+            if not (self.lookup(globalvar.name).is_global and
+                    self.lookup(globalvar.name).interface
+                    .container_symbol.name == external_container_name):
+                raise KeyError(
+                    "Couldn't copy '{0}' into the SymbolTable. The"
+                    " name '{1}' is already used by another symbol."
+                    "".format(globalvar, globalvar.name))
 
     def view(self):
         '''

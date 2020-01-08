@@ -143,38 +143,38 @@ def test_datasymbol_init_errors():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', DataType.INTEGER, interface=ArgumentInterface(),
                    constant_value=9)
-    assert ("Error setting 'a' constant value. A DataSymbol with a constant "
-            "value is currently limited to Local interfaces but found"
-            " 'Argument(pass-by-value=False)'." in str(error.value))
+    assert ("Error setting constant value for symbol 'a'. A DataSymbol with "
+            "an ArgumentInterface can not have a constant value."
+            in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', DataType.INTEGER, shape=[DataSymbol.Extent.ATTRIBUTE],
                    constant_value=9)
-    assert ("Error setting 'a' constant value. A DataSymbol with a constant "
-            "value must be a scalar but a shape was found."
+    assert ("Error setting constant value for symbol 'a'. A DataSymbol with a"
+            " constant value must be a scalar but a shape was found."
             in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', DataType.INTEGER, constant_value=9.81)
-    assert ("Error setting 'a' constant value. This DataSymbol instance "
-            "datatype is 'DataType.INTEGER' which means the constant value is "
-            "expected to be") in str(error.value)
+    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+            "instance datatype is 'DataType.INTEGER' which means the constant"
+            " value is expected to be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', DataType.CHARACTER, constant_value=42)
-    assert ("Error setting 'a' constant value. This DataSymbol instance "
-            "datatype is 'DataType.CHARACTER' which means the constant value "
-            "is expected to be") in str(error.value)
+    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+            "instance datatype is 'DataType.CHARACTER' which means the "
+            "constant value is expected to be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', DataType.BOOLEAN, constant_value="hello")
-    assert ("Error setting 'a' constant value. This DataSymbol instance "
-            "datatype is 'DataType.BOOLEAN' which means the constant value is "
-            "expected to be") in str(error.value)
+    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+            "instance datatype is 'DataType.BOOLEAN' which means the constant"
+            " value is expected to be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
 
@@ -270,8 +270,9 @@ def test_datasymbol_constant_value_setter():
     sym = DataSymbol('a', DataType.DEFERRED)
     with pytest.raises(ValueError) as error:
         sym.constant_value = 1.0
-    assert ("Error setting 'a' constant value. Constant values are not "
-            "supported for 'DataType.DEFERRED' datatypes." in str(error.value))
+    assert ("Error setting constant value for symbol 'a'. Constant values are"
+            " not supported for 'DataType.DEFERRED' datatypes."
+            in str(error.value))
 
     # Test with valid constant expressions
     lhs = Literal('2', DataType.INTEGER)
@@ -285,9 +286,9 @@ def test_datasymbol_constant_value_setter():
     ct_expr = Return()
     with pytest.raises(ValueError) as error:
         sym = DataSymbol('a', DataType.INTEGER, constant_value=ct_expr)
-    assert "Error setting 'a' constant value. PSyIR static expressions can " \
-        "only contain PSyIR literal, operation or reference nodes but found:" \
-        in str(error.value)
+    assert "Error setting constant value for symbol 'a'. PSyIR static " \
+        "expressions can only contain PSyIR literal, operation or reference" \
+        " nodes but found:" in str(error.value)
 
 
 def test_datasymbol_is_constant():
