@@ -3840,7 +3840,7 @@ class KernelGlobalsToArguments(Transformation):
         kernel call.
 
         :param node: a kernel call.
-        :type nodes: :py:class:`psyclone.psyGen.CodedKern`
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
