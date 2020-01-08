@@ -2048,7 +2048,8 @@ class Fparser2Reader(object):
         Transforms an fparser2 logical literal into a PSyIR literal.
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Logical_Literal_Constant`
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -2057,5 +2058,11 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        value = str(node.items[0]).lower() == ".true."
-        return Literal(value, DataType.BOOLEAN, parent=parent)
+        value = str(node.items[0]).lower()
+        if value == ".true.":
+            return Literal("true", DataType.BOOLEAN, parent=parent)
+        if value == ".false.":
+            return Literal("false", DataType.BOOLEAN, parent=parent)
+        raise GenerationError(
+            "Exptected to find '.true.' or '.false' as fparser2 logical "
+            "literal, but found {0} instead".format(value))

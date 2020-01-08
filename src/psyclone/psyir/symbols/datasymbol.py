@@ -298,9 +298,8 @@ class DataSymbol(Symbol):
     @property
     def constant_value(self):
         '''
-        :returns: The fixed known value for this symbol if one has \
-        been set or None if not.
-        :rtype: int, str, bool or NoneType
+        :returns: the fixed known value of this symbol.
+        :rtype: :py:class:`psyclone.psyGen.Node`
 
         '''
         return self._constant_value
@@ -383,6 +382,7 @@ class DataSymbol(Symbol):
                             "literal, operation or reference nodes but found:"
                             " {1}".
                             format(self.name, node))
+                self._constant_value = new_value
             else:
                 try:
                     lookup = TYPE_MAP_TO_PYTHON[self.datatype]
@@ -398,14 +398,13 @@ class DataSymbol(Symbol):
                         "value is expected to be '{2}' but found '{3}'."
                         "".format(self.name, self.datatype, lookup,
                                   type(new_value)))
+                if self.datatype == DataType.BOOLEAN:
+                    new_value = str(new_value).lower() 
 
-                # All accepted types but booleans need to be passed as strings
-                if isinstance(new_value, bool):
-                    new_value = Literal(new_value, self.datatype)
-                else:
-                    new_value = Literal(str(new_value), self.datatype)
+                self._constant_value = Literal(str(new_value), self.datatype)
+        else:
+            self._constant_value = None
 
-        self._constant_value = new_value
 
     def __str__(self):
         from psyclone.psyGen import InternalError

@@ -67,7 +67,15 @@ def test_handling_literal(f2008_parser, code, dtype):
     if dtype != DataType.BOOLEAN:
         assert literal.value == code
     else:
-        assert literal.value == ("true" in code.lower())
+        assert literal.value == code.lower()[1:-1] # Remove wrapping dots
+
+
+def test_boolean_with_invalid_string(f2008_parser):
+    ''' '''
+    with pytest.raises(ValueError) as err:
+        Literal("invalid", DataType.BOOLEAN)
+    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
+        "but got 'invalid' instead." in str(err.value)
 
 
 def test_literal_datatype():
@@ -80,16 +88,8 @@ def test_literal_datatype():
     with pytest.raises(ValueError) as err:
         Literal("1", DataType.DEFERRED)
     assert "datatype of a Literal must be one of" in str(err.value)
-    lval = Literal(False, DataType.BOOLEAN)
-    assert lval.value is False
-    with pytest.raises(TypeError) as err:
-        Literal("true", DataType.BOOLEAN)
-    assert ("boolean Literal must be supplied with a value that is a bool "
-            "but got" in str(err.value))
-    with pytest.raises(TypeError) as err:
-        Literal(True, DataType.INTEGER)
-    assert ("non-boolean Literal must be supplied with a value encoded as a "
-            "string but got" in str(err.value))
+    lval = Literal('false', DataType.BOOLEAN)
+    assert lval.value == "false"
 
 
 def test_number_handler():

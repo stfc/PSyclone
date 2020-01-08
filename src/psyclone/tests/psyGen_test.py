@@ -3299,7 +3299,7 @@ def test_ifblock_create():
 
     '''
     # Without an else clause.
-    if_condition = Literal(True, DataType.BOOLEAN)
+    if_condition = Literal('true', DataType.BOOLEAN)
     if_body = [Assignment.create(Reference("tmp"),
                                  Literal("0.0", DataType.REAL)),
                Assignment.create(Reference("tmp2"),
@@ -3310,8 +3310,7 @@ def test_ifblock_create():
     check_links(ifblock, [if_condition, if_schedule])
     check_links(if_schedule, if_body)
     result = FortranWriter().ifblock_node(ifblock)
-    # TODO 616: Update to if (.True.)
-    assert result == ("if (True) then\n"
+    assert result == ("if (.true.) then\n"
                       "  tmp=0.0\n"
                       "  tmp2=1.0\n"
                       "end if\n")
@@ -3330,8 +3329,7 @@ def test_ifblock_create():
     check_links(if_schedule, if_body)
     check_links(else_schedule, else_body)
     result = FortranWriter().ifblock_node(ifblock)
-    # TODO 616: Update to if (.True.)
-    assert result == ("if (True) then\n"
+    assert result == ("if (.true.) then\n"
                       "  tmp=0.0\n"
                       "  tmp2=1.0\n"
                       "else\n"
@@ -3345,7 +3343,7 @@ def test_ifblock_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    if_condition = Literal(True, DataType.BOOLEAN)
+    if_condition = Literal('true', DataType.BOOLEAN)
     if_body = [Assignment.create(Reference("tmp"),
                                  Literal("0.0", DataType.REAL)),
                Assignment.create(Reference("tmp2"),
