@@ -37,7 +37,7 @@
 .. _psyir-ug:
 
 ==============================================
- The PSyclone Internal Representation (PSyIR)
+ PSyIR : The PSyclone Internal Representation
 ==============================================
 
 The PSyIR is at the heart of PSyclone, representing code (at both the
@@ -224,8 +224,7 @@ Creating PSyIR
 Symbol names
 ------------
 
-PSyIR symbol names can be managed explicitely by the user. For
-example::
+PSyIR symbol names can be specified by a user. For example::
 
    > var_name = "my_name"
    > symbol_table = SymbolTable()
@@ -233,16 +232,18 @@ example::
    > symbol_table.add(data)
    > reference = Reference(var_name)
 
-Whilst the SymbolTable will reject the addition of a smybol if the
-associated name is already contained in the symbol table, it is still
-the responsibility of the user to determine names that are unique.
+However, the ``SymbolTable add()`` method will raise an exception if a
+user tries to add a symbol with the same name as an existing
+symbol. Therefore it is the responsibility of the user to determine
+unique names when manually specifying them.
 
-To avoid this problem the SymbolTable includes the `new_symbol_name()`
-method (see section :ref:`symbol-label` for more details). This method
-will provide a name that is unique within the symbol table each time
-it is called. The name returned will be the name specified in the
-config file followed by an optional "_" and integer value. For
-example, the following code::
+The ``SymbolTable`` class provides the ``new_symbol_name()`` method (see
+Section :ref:`symbol-label` for more details) to avoid this
+problem. The method provides a name that is guaranteed to be distinct
+from any existing names in the symbol table. The name returned is the
+value of the ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
+section of the PSyclone config file, followed by an optional "_" and
+an integer. For example, the following code::
 
   > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
   > symbol_table = SymbolTable()
@@ -257,6 +258,35 @@ gives the following output::
   psyir_tmp_0
   psyir_tmp_1
 
+As the root name (``psyir_tmp`` in the example above) is specified in
+PSyclone's config file it can be set to whatever the user wants.
+
+.. note:: The particular format used to create a unique name is the
+  responsibility of the SymbolTable class and is may change in the
+  future.
+
+A user might want to create a name that has some meaning in the
+context in which it is used e.g. ``idx`` for an index, ``i`` for an
+iterator, or ``temp`` for a temperature field. To support more
+readable names, the ``new_symbol_name()`` method allows the user to specify a
+root name as an argument to the method which then takes the place of
+the default root name. For example, the following code::
+  
+  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
+  > symbol_table = SymbolTable()
+  > for i in range(0, 3):
+  >     var_name = symbol_table.new_symbol_name(root_name="something")
+  >     symbol_table.add(DataSymbol(var_name, DataType.REAL))
+  >     print (var_name)
+
+gives the following output::
+  
+  something
+  something_0
+  something_1
+
+An example of using the ``new_symbol_name()`` method can be found in the
+PSyclone ``examples/psyir`` directory.
 
 Nodes
 -----
@@ -267,12 +297,13 @@ provided by the ``Node`` baseclass.
 These nodes can be created in isolation and then connected
 together. For example::
 
-    assignment = Assignment()
-    literal = Literal("0.0")
-    reference = Reference("a")
-    literal.parent = assignment
-    reference.parent = assignment
-    assignment.children = [reference, literal]
+    > ...
+    > assignment = Assignment()
+    > literal = Literal("0.0")
+    > reference = Reference(var_name)
+    > literal.parent = assignment
+    > reference.parent = assignment
+    > assignment.children = [reference, literal]
     
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
@@ -283,10 +314,11 @@ To simplify this complexity, each of the Kernel-layer nodes which
 contain other nodes have a static ``create`` method which helps
 construct the PSyIR using a bottom up approach. Using this method, the
 above example then becomes::
-  
-    literal = Literal("0.0")
-    reference = Reference("a")
-    assignment = Assignment.create(reference, literal)
+
+    > ...
+    > literal = Literal("0.0")
+    > reference = Reference(var_name)
+    > assignment = Assignment.create(reference, literal)
 
 A more complete example of using this approach can be found in the
 PSyclone ``examples/psyir`` directory.
