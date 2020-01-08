@@ -1833,8 +1833,20 @@ class InvokeSchedule(Schedule):
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
+        # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
+        # it would be better to merge them. The SymbolTable is only used
+        # for global variables extracted from the Kernels.
         self._name_space_manager = NameSpaceFactory().create()
+        self._symbol_table = SymbolTable()
         self._text_name = "InvokeSchedule"
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the schedule.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        return self._symbol_table
 
     def set_opencl_options(self, options):
         '''
@@ -1901,6 +1913,41 @@ class InvokeSchedule(Schedule):
         '''
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
+
+        # Global symbols promoted from Kernel Globals are in the SymbolTable
+        # instead of the name_space_manager.
+        # First aggregate all globals variables from the same module in a map
+        module_map = {}
+        for globalvar in self.symbol_table.global_datasymbols:
+            module_name = globalvar.interface.container_symbol.name
+            if module_name in module_map:
+                module_map[module_name].append(globalvar.name)
+            else:
+                module_map[module_name] = [globalvar.name]
+
+        # Then we can produce the UseGen statements without repeating modules
+        for module_name, var_list in module_map.items():
+            parent.add(UseGen(parent, name=module_name, only=True,
+                              funcnames=var_list))
+
+        # Add the SymbolTable symbols used into the NameSpaceManager to prevent
+        # clashes. Note that the global variables names are going to be used as
+        # arguments and are declared with 'AlgArgs' context.
+        # TODO: After #312 this will not be necessary.
+        for module_name, var_list in module_map.items():
+            self._name_space_manager.add_reserved_name(module_name)
+            for var_name in var_list:
+                newname = self._name_space_manager.create_name(
+                    root_name=var_name,
+                    context="AlgArgs",
+                    label=var_name)
+                # There is a name clash with this variable name and we can not
+                # accept indexed names for global variables.
+                # TODO: #642 Improve global variables name clashes handling.
+                if var_name != newname:
+                    raise KeyError(
+                        "The imported variable '{0}' is already defined in the"
+                        " NameSpaceManager of the Invoke.".format(var_name))
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
@@ -4671,6 +4718,15 @@ class Arguments(object):
         '''
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
+
+    def append(self, name):
+        ''' Abstract method to append KernelArguments to the Argument
+        list.
+
+        :param str name: name of the appended argument.
+        '''
+        raise NotImplementedError(
+            "Arguments.append must be implemented in sub-class")
 
 
 class DataAccess(object):
