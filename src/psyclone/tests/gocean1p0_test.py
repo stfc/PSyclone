@@ -45,7 +45,8 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
+from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+    GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
@@ -1156,7 +1157,6 @@ def test_find_grid_access(monkeypatch):
     ''' Tests for the GOKernelArguments.find_grid_access method. This
     identifies the best kernel argument from which to access grid
     properties. '''
-    from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
     kern = schedule.children[0].loop_body[0].loop_body[0]
@@ -1476,3 +1476,59 @@ def test14_no_builtins():
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
+
+
+def test_gokernelarguments_append():
+    ''' Check the GOcean specialisation of KernelArguments append method'''
+
+    # Parse a file to get an initialised GOKernelsArguments object
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+    assert isinstance(argument_list, GOKernelArguments)
+
+    # Try append a non-string value
+    with pytest.raises(TypeError) as err:
+        argument_list.append(3)
+    assert "The name parameter given to GOKernelArguments.append method " \
+           "should be a string, but found 'int' instead." in str(err.value)
+
+    # Append strings
+    argument_list.append("var1")
+    argument_list.append("var2")
+
+    assert isinstance(kernelcall.args[-1], GOKernelArgument)
+    assert isinstance(kernelcall.args[-2], GOKernelArgument)
+    assert kernelcall.args[-1].name == "var2"
+    assert kernelcall.args[-2].name == "var1"
+
+    # And the generated code looks as expected
+    generated_code = str(psy.gen)
+    assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
+           " var1, var2)" in generated_code
+
+
+def test_gokernelargument_type():
+    ''' Check the type property of the GOKernelArgument'''
+    from psyclone.parse.algorithm import Arg
+    from psyclone.parse.kernel import Descriptor
+    from psyclone.psyGen import Node
+
+    # Create a dummy GOKernelArgument
+    descriptor = Descriptor(None, "")
+    arg = Arg("variable", "arg", "arg")
+    argument = GOKernelArgument(descriptor, arg, Node())
+
+    # If the descriptor does not have a type it defaults to 'scalar'
+    assert argument.type == "scalar"
+
+    # Otherwise it return the descriptor type
+    argument._arg.type = "descriptor_type"  # Mock the descriptor type method
+    assert argument.type == "descriptor_type"
