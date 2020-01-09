@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by J. Henrichs, Bureau of Meteorology
 .. Modified by A. R. Porter, STFC Daresbury Lab
+.. Modified by R. W. Ford, STFC Daresbury Lab
 
 .. _profiling:
 
@@ -125,6 +126,11 @@ This is the code sequence which is created by PSyclone::
 PSyclone guarantees that different ProfileStart/End pairs have
 different ``ProfileData`` variables.
 
+By default PSyclone will generate appropriate names to uniquely
+determine a particular region (the "Module" and "Region" strings in the
+example above). Alternatively these names can be specified by the user
+when adding profiling via a transformation script.
+
 
 Profiling Command Line Options
 ------------------------------
@@ -139,30 +145,17 @@ invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
 The option ``--profile kernels`` will add a call to ``ProfileStart``
-before any loops created by PSyclone, and a ``ProfileEnd``
-call at the end of the loop.  Two caveats:
+before each loop created by PSyclone, and a ``ProfileEnd`` call at the
+end of each loop.
 
-1. In some APIs (for example dynamo when using distributed
-   memory) additional minor code might get included in a
-   profiled kernel section, for example setDirty() calls
-   (expensive calls like HaloExchange are excluded). 
+.. note:: In some APIs (for example dynamo when using distributed
+	  memory) additional minor code might get included in a
+	  profiled kernel section, for example setDirty() calls
+	  (expensive calls like HaloExchange are excluded).
 
-2. If transformations are applied using a script, the profiling nodes
-   added to the PSyIR could be applied to the wrong location and cause
-   errors.
-
-In order to avoid the second issue, automatic profiling using
-``--profile`` is not allowed together with a transformation
-script. On the other hand, since it is possible to write scripts
-that are more flexible in handling a modified PSyIR, you can use the
-command line option ``--force-profile``. It takes the same
-parameters as ``--profile``, and will allow you to combine a
-transformation script together with automatic profiling. Use
-this option at your own risk!
-
-It is also the responsibility of the user to manually add
-the calls to ``ProfileInit`` and ``ProfileFinalise`` to
-the code base.
+.. note:: It is the responsibility of the user to manually add the
+	  calls to ``ProfileInit`` and ``ProfileFinalise`` to the code
+	  base.
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created
@@ -284,8 +277,8 @@ Both options can be specified at the same time::
 	                                        ...) [module_inline=False]
 
 
-Profiling in Scripts - ProfileRegionTransform
----------------------------------------------
+Profiling in Scripts - ProfileTrans
+-----------------------------------
 The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
 takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
@@ -294,22 +287,164 @@ specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
 As an example::
 
-    from psyclone.transformations import ProfileRegionTrans
+    from psyclone.psyir.transformations import ProfileTrans
 
-    t=TransInfo()
-    p_trans= ProfileRegionTrans()
-    schedule=psy.invokes.get('invoke_0').schedule
+    p_trans = ProfileTrans()
+    schedule = psy.invokes.get('invoke_0').schedule
     schedule.view()
     
     # Enclose all children within a single profile region
     newschedule, _ = p_trans.apply(schedule.children[1:3])
     newschedule.view()
 
+The profiler transformation also allows the profile name to be set
+explicitly, rather than being automatically created. This allows for
+potentially more intuitive names or finer grain control over profiling
+(as particular regions could be provided with the same profile
+names). For example::
+
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    profile_trans = ProfileTrans()
+    # Use the actual psy-layer module and subroutine names.
+    options = {"profile_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    # Use own names and repeat for different regions to aggregate profile.
+    options = {"profile_name": ("my_location", "my_region")}
+    profile_trans.apply(schedule[0].children[1:2], options=options)
+    profile_trans.apply(schedule[0].children[5:7], options=options)
+
+.. warning::
+
+   If "profile_name" is misspelt in the options dictionary then the
+   option will be silently ignored. This is true for all
+   options. Issue #613 captures this problem.
+   
 .. warning::
  
     It is the responsibility of the user to make sure that a profile
     region is only created inside a multi-threaded region if the
     profiling library used is thread-safe!
+
+Profile Names
+-------------
+
+If profile names are not supplied by the user then these names are
+automatically generated by PSyclone. The names are split into two
+parts, 1) `module_name`: a string identifying the psy-layer containing
+this profile node and 2) `region_name`: a string identifying the
+invoke containing this profile node and its location within the invoke
+(where necessary).
+
+For the `nemo` api,
+
+* the `module_name` string is set to the name of the parent
+  function/subroutine/program. This name is unique as Fortran requires
+  these names to be unique within a program.
+
+* the `region_name` is set to an `r` (standing for region) followed by
+  an integer which uniquely identifies the profile within the parent
+  function/subroutine/program (based on the profile node's position in
+  the PSyIR representation relative to any other profile nodes).
+
+For the `dynamo` and `gocean` api's,
+
+* the `module_name` string is set to the module name of the generated
+  PSy-layer. This name should be unique by design (otherwise module
+  names would clash when compiling).
+
+* the `region_name` is set to the name of the invoke in which it
+  resides, followed by a `:` and a kernel name if the
+  profile region contains a single kernel, and is completed by `:r`
+  (standing for region) followed by an integer which uniquely
+  identifies the profile within the invoke (based on the profile
+  node's position in the PSyIR representation relative to any other
+  profile nodes). For example::
+
+    InvokeSchedule[invoke='invoke_0', dm=True]
+      0: Profile[]
+          Schedule[]
+              0: Profile[]
+                  Schedule[]
+                      0: HaloExchange[field='f2', type='region', depth=1,
+		                      check_dirty=True]
+                      1: HaloExchange[field='m1', type='region', depth=1,
+		                      check_dirty=True]
+                      2: HaloExchange[field='m2', type='region', depth=1,
+		                      check_dirty=True]
+              1: Profile[]
+                  Schedule[]
+                      0: Loop[type='', field_space='w1', it_space='cells',
+		              upper_bound='cell_halo(1)']
+                          Literal[value:'1', DataType.INTEGER]
+                          Literal[value:'mesh%get_last_halo_cell(1)',
+			          DataType.INTEGER]
+                          Literal[value:'1', DataType.INTEGER]
+                          Schedule[]
+                              0: CodedKern testkern_code(a,f1,f2,m1,m2)
+			         [module_inline=False]
+                      1: Profile[]
+                          Schedule[]
+                              0: Loop[type='', field_space='w1',
+			              it_space='cells',
+				      upper_bound='cell_halo(1)']
+                                  Literal[value:'1', DataType.INTEGER]
+                                  Literal[value:'mesh%get_last_halo_cell(1)',
+				          DataType.INTEGER]
+                                  Literal[value:'1', DataType.INTEGER]
+                                  Schedule[]
+                                      0: CodedKern testkern_code(a,f1,f2,m1,m2)
+				         [module_inline=False]
+              2: Loop[type='', field_space='w1', it_space='cells',
+	              upper_bound='cell_halo(1)']
+                  Literal[value:'1', DataType.INTEGER]
+                  Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
+                  Literal[value:'1', DataType.INTEGER]
+                  Schedule[]
+                      0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp)
+		         [module_inline=False]
+
+    MODULE container
+      CONTAINS
+      SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
+        ...
+        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
+	                  profile_3)
+        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r1", &
+	                  profile)
+        IF (f2_proxy%is_dirty(depth=1)) THEN
+          CALL f2_proxy%halo_exchange(depth=1)
+        END IF 
+        IF (m1_proxy%is_dirty(depth=1)) THEN
+          CALL m1_proxy%halo_exchange(depth=1)
+        END IF 
+        IF (m2_proxy%is_dirty(depth=1)) THEN
+          CALL m2_proxy%halo_exchange(depth=1)
+        END IF 
+        CALL ProfileEnd(profile)
+        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
+	                  profile_1)
+        DO cell=1,mesh%get_last_halo_cell(1)
+          CALL testkern_code(...)
+        END DO 
+        ...
+        CALL ProfileStart("multi_functions_multi_invokes_psy", &
+	                  "invoke_0:testkern_code:r3", profile_2)
+        DO cell=1,mesh%get_last_halo_cell(1)
+          CALL testkern_code(...)
+        END DO 
+        ...
+        CALL ProfileEnd(profile_2)
+        CALL ProfileEnd(profile_1)
+        ...
+        DO cell=1,mesh%get_last_halo_cell(1)
+          CALL testkern_qr_code(...)
+        END DO 
+        ...
+        CALL ProfileEnd(profile_3)
+        ...
+      END SUBROUTINE invoke_0
+    END MODULE container
 
 
 Interface to Third Party Profiling Tools 

@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, S. Siso STFC Daresbury Lab.
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. R. Porter, STFC Daresbury Lab.
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel and NemoInvoke schedules as
@@ -41,7 +42,8 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
@@ -49,6 +51,12 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
+
+# Mapping from PSyIR types to Fortran data types - simply reverse the map
+# from the frontend.
+TYPE_MAP_TO_FORTRAN = {}
+for key, item in TYPE_MAP_FROM_FORTRAN.items():
+    TYPE_MAP_TO_FORTRAN[item] = key
 
 
 def gen_intent(symbol):
@@ -102,7 +110,8 @@ def gen_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
-        elif index is None:
+        elif isinstance(index, DataSymbol.Extent):
+            # unknown extent
             dims.append(":")
         else:
             raise NotImplementedError(
@@ -118,7 +127,7 @@ def gen_datatype(symbol):
     :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the Fortran representation of the symbol's datatype \
-    including any precision properties.
+              including any precision properties.
     :rtype: str
 
     :raises NotImplementedError: if the symbol has an unsupported \
@@ -134,17 +143,12 @@ def gen_datatype(symbol):
     is an unsupported type.
 
     '''
-    if symbol.datatype not in ["real", "integer", "character", "boolean"]:
+    try:
+        datatype = TYPE_MAP_TO_FORTRAN[symbol.datatype]
+    except KeyError:
         raise NotImplementedError(
             "unsupported datatype '{0}' for symbol '{1}' found in "
             "gen_datatype().".format(symbol.datatype, symbol.name))
-
-    if symbol.datatype == "boolean":
-        # boolean is the only datatype name that does not directly
-        # match the Fortran datatype name
-        datatype = "logical"
-    else:
-        datatype = symbol.datatype
 
     if not symbol.precision:
         # This symbol has no precision information so simply return
@@ -266,9 +270,10 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if the symbol does not specify a \
-        variable declaration (it is not a local declaration or an \
-        argument declaration).
-
+            variable declaration (it is not a local declaration or an \
+            argument declaration).
+        :raises VisitorError: if the symbol has an array with a shape \
+            containing a mixture of DEFERRED and other extents.
         '''
         if not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
@@ -278,6 +283,28 @@ class FortranWriter(PSyIRVisitor):
 
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)
+        if DataSymbol.Extent.DEFERRED in symbol.shape:
+            if not all(dim == DataSymbol.Extent.DEFERRED
+                       for dim in symbol.shape):
+                raise VisitorError(
+                    "A Fortran declaration of an allocatable array must have"
+                    " the extent of every dimension as 'DEFERRED' but "
+                    "symbol '{0}' has shape: {1}".format(symbol.name,
+                                                         symbol.shape))
+            # A 'deferred' array extent means this is an allocatable array
+            result += ", allocatable"
+        if DataSymbol.Extent.ATTRIBUTE in symbol.shape:
+            if not all(dim == DataSymbol.Extent.ATTRIBUTE
+                       for dim in symbol.shape):
+                # If we have an 'assumed-size' array then only the last
+                # dimension is permitted to have an 'ATTRIBUTE' extent
+                if symbol.shape.count(DataSymbol.Extent.ATTRIBUTE) != 1 or \
+                   symbol.shape[-1] != DataSymbol.Extent.ATTRIBUTE:
+                    raise VisitorError(
+                        "An assumed-size Fortran array must only have its "
+                        "last dimension unspecified (as 'ATTRIBUTE') but "
+                        "symbol '{0}' has shape: {1}".format(symbol.name,
+                                                             symbol.shape))
         dims = gen_dims(symbol)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
@@ -306,10 +333,27 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if args_allowed is False and one or more \
-        argument declarations exist in symbol_table.
+                              argument declarations exist in symbol_table.
+        :raises VisitorError: if any symbols representing variables (i.e. \
+            not kind parameters) without an explicit declaration or 'use' \
+            are encountered.
 
         '''
         declarations = ""
+
+        # Does the symbol table contain any symbols with a deferred
+        # interface (i.e. we don't know how they are brought into scope) that
+        # are not KIND parameters?
+        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols(
+            ignore_precision=True)
+        if unresolved_datasymbols:
+            symbols_txt = ", ".join(
+                ["'" + sym + "'" for sym in unresolved_datasymbols])
+            raise VisitorError(
+                "The following symbols are not explicitly declared or imported"
+                " from a module (in the local scope) and are not KIND "
+                "parameters: {0}".format(symbols_txt))
+
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.

@@ -1,4 +1,45 @@
 
+        1) #602 for #597. Modify Node.ancestor() to optionally include
+	self.
+
+        2) #607 for #457. Add fixtures documentation to the developer
+	guide and split guide into smaller files.
+
+	3) #610 towards #567. Extends the Profile transformation so that
+	a user can supply name and location strings rather than rely
+	on the automatic generation of suitable names.
+
+	4) #600 for #468. Adds a datatype to literals in the PSyIR.
+
+	5) #601 for #599. Add create methods to assist bottom up PSyIR node
+	creation.
+
+	6) #608 for #594. Add 'DEFERRED' and 'ATTRIBUTE' as PSyIR array extents.
+
+	7) #606 towards #474. Moves Profile and Extract transformations into
+	new directory structure (psyir/transformations/). Begin putting
+	domain-specific transformations into domain/ directory.
+
+	8) #618 for #567. Corrects the automatic generation of names for
+	profiled regions.
+
+	9) #624 for #566. Removes the 'force profile' option from the psyclone
+	script as it is no longer required.
+
+	10) #614 for #612. Use the datatype of the Literal node in the SIR
+	backend rather than assuming all literals are real.
+
+	11) #555 for #190. Adds a GlobalsToArguments transformation that
+	converts kernel accesses to global data into arguments.
+
+	12) #627 for 625. Adds SymbolTable.new_symbol_name() method to generate
+	names that don't clash with existing symbols.
+
+	13) #623 for #622. Bug fix for adding loop directives inside
+	region directives for the nemo api.
+
+release 1.8.1 29th November 2019
+
         1) #579 for #509. Improves the structuring of the html version
 	of the User Guide.
 
@@ -32,6 +73,10 @@
 
 	10) PR #416 for #408. Adds support for non-ascii chars in Fortran
 	strings.
+
+	11) PR #591 for #584. Adds the concept of a deferred interface to
+	PSyIR symbols. This allows declarations to appear in any order and
+	helps to deal with kind symbols scoped via module use statements.
 
 release 1.8.0 8th November 2019
 

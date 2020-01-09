@@ -296,11 +296,6 @@ def main(args):
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
-    parser.add_argument(
-        '--force-profile', action="append",
-        choices=Profiler.SUPPORTED_OPTIONS,
-        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
-             "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
     parser.add_argument("--config", help="Config file with "
@@ -314,24 +309,8 @@ def main(args):
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
 
-    if args.script is not None and args.profile is not None:
-        print("Error: use of automatic profiling in combination with an\n"
-              "optimisation script is not recommended since it may not work\n"
-              "as expected.\n"
-              "You can use --force-profile instead of --profile if you \n"
-              "really want to use both options at the same time.",
-              file=sys.stderr)
-        exit(1)
-
-    if args.profile is not None and args.force_profile is not None:
-        print("Specify only one of --profile and --force-profile.",
-              file=sys.stderr)
-        exit(1)
-
     if args.profile:
         Profiler.set_options(args.profile)
-    elif args.force_profile:
-        Profiler.set_options(args.force_profile)
 
     # If an output directory has been specified for transformed kernels
     # then check that it is valid

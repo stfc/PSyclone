@@ -45,7 +45,8 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
+from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+    GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
@@ -868,30 +869,30 @@ def test_goschedule_view(capsys):
         isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
         "    0: " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "        " + lit + "[value:'2']\n"
-        "        " + lit + "[value:'jstop']\n"
-        "        " + lit + "[value:'1']\n"
+        "        " + lit + "[value:'2', DataType.INTEGER]\n"
+        "        " + lit + "[value:'jstop', DataType.INTEGER]\n"
+        "        " + lit + "[value:'1', DataType.INTEGER]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'2']\n"
-        "                " + lit + "[value:'istop+1']\n"
-        "                " + lit + "[value:'1']\n"
+        "                " + lit + "[value:'2', DataType.INTEGER]\n"
+        "                " + lit + "[value:'istop+1', DataType.INTEGER]\n"
+        "                " + lit + "[value:'1', DataType.INTEGER]\n"
         "                " + sched + "[]\n"
         "                    0: " + call +
         " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
         "    1: " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "        " + lit + "[value:'1']\n"
-        "        " + lit + "[value:'jstop+1']\n"
-        "        " + lit + "[value:'1']\n"
+        "        " + lit + "[value:'1', DataType.INTEGER]\n"
+        "        " + lit + "[value:'jstop+1', DataType.INTEGER]\n"
+        "        " + lit + "[value:'1', DataType.INTEGER]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'1']\n"
-        "                " + lit + "[value:'istop+1']\n"
-        "                " + lit + "[value:'1']\n"
+        "                " + lit + "[value:'1', DataType.INTEGER]\n"
+        "                " + lit + "[value:'istop+1', DataType.INTEGER]\n"
+        "                " + lit + "[value:'1', DataType.INTEGER]\n"
         "                " + sched + "[]\n"
         "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
         "uold_fld) [module_inline=False]")
@@ -913,14 +914,14 @@ def test_goschedule_str():
     expected_sched = (
         "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'jstop']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'2', DataType.INTEGER]\n"
+        "Literal[value:'jstop', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'istop+1']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'2', DataType.INTEGER]\n"
+        "Literal[value:'istop+1', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -928,14 +929,14 @@ def test_goschedule_str():
         "End Schedule\n"
         "End GOLoop\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'jstop+1']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
+        "Literal[value:'jstop+1', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'istop+1']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
+        "Literal[value:'istop+1', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "kern call: time_smooth_code\n"
         "End Schedule\n"
@@ -953,14 +954,14 @@ def test_goschedule_str():
     expected_sched = (
         "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'cu_fld%internal%ystart']\n"
-        "Literal[value:'cu_fld%internal%ystop']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'cu_fld%internal%ystart', DataType.INTEGER]\n"
+        "Literal[value:'cu_fld%internal%ystop', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'cu_fld%internal%xstart']\n"
-        "Literal[value:'cu_fld%internal%xstop']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'cu_fld%internal%xstart', DataType.INTEGER]\n"
+        "Literal[value:'cu_fld%internal%xstop', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -968,18 +969,18 @@ def test_goschedule_str():
         "End Schedule\n"
         "End GOLoop\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'uold_fld%data', DataType.INTEGER]\n"
+        "Literal[value:'2', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'uold_fld%data', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "kern call: time_smooth_code\n"
         "End Schedule\n"
@@ -1156,7 +1157,6 @@ def test_find_grid_access(monkeypatch):
     ''' Tests for the GOKernelArguments.find_grid_access method. This
     identifies the best kernel argument from which to access grid
     properties. '''
-    from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
     kern = schedule.children[0].loop_body[0].loop_body[0]
@@ -1368,14 +1368,14 @@ def test05p1_kernel_add_iteration_spaces():
         "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
         "Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
+        "Literal[value:'2', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'3']\n"
-        "Literal[value:'istop']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'3', DataType.INTEGER]\n"
+        "Literal[value:'istop', DataType.INTEGER]\n"
+        "Literal[value:'1', DataType.INTEGER]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -1476,3 +1476,59 @@ def test14_no_builtins():
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
+
+
+def test_gokernelarguments_append():
+    ''' Check the GOcean specialisation of KernelArguments append method'''
+
+    # Parse a file to get an initialised GOKernelsArguments object
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+    assert isinstance(argument_list, GOKernelArguments)
+
+    # Try append a non-string value
+    with pytest.raises(TypeError) as err:
+        argument_list.append(3)
+    assert "The name parameter given to GOKernelArguments.append method " \
+           "should be a string, but found 'int' instead." in str(err.value)
+
+    # Append strings
+    argument_list.append("var1")
+    argument_list.append("var2")
+
+    assert isinstance(kernelcall.args[-1], GOKernelArgument)
+    assert isinstance(kernelcall.args[-2], GOKernelArgument)
+    assert kernelcall.args[-1].name == "var2"
+    assert kernelcall.args[-2].name == "var1"
+
+    # And the generated code looks as expected
+    generated_code = str(psy.gen)
+    assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
+           " var1, var2)" in generated_code
+
+
+def test_gokernelargument_type():
+    ''' Check the type property of the GOKernelArgument'''
+    from psyclone.parse.algorithm import Arg
+    from psyclone.parse.kernel import Descriptor
+    from psyclone.psyGen import Node
+
+    # Create a dummy GOKernelArgument
+    descriptor = Descriptor(None, "")
+    arg = Arg("variable", "arg", "arg")
+    argument = GOKernelArgument(descriptor, arg, Node())
+
+    # If the descriptor does not have a type it defaults to 'scalar'
+    assert argument.type == "scalar"
+
+    # Otherwise it return the descriptor type
+    argument._arg.type = "descriptor_type"  # Mock the descriptor type method
+    assert argument.type == "descriptor_type"

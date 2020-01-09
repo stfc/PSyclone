@@ -52,6 +52,13 @@ Transformations can be imported directly, but the user needs to know
 what transformations are available. A helper class **TransInfo** is
 provided to show the available transformations
 
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet. Transformations
+          in the new locations can at the moment not be found using the
+          **TransInfo** approach, and need to be imported directly from
+          the path indicated in the documentation.
+
 .. autoclass:: psyclone.psyGen.TransInfo
     :members:
 
@@ -121,11 +128,15 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenCL transformations for
-	  the GOcean 1.0 API, the OpenACC Data transformation is
-	  limited to the NEMO and GOcean 1.0 APIs and the OpenACC
-	  Kernels transformation is limited to the NEMO and Dynamo0.3
-	  APIs.
+.. note:: PSyclone currently only supports OpenCL and KernelGlobalsToArguments
+          transformations for the GOcean 1.0 API, the OpenACC Data
+          transformation is limited to the NEMO and GOcean 1.0 APIs and the
+          OpenACC Kernels transformation is limited to the NEMO and Dynamo0.3
+          APIs.
+
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet.
 
 ####
 
@@ -165,9 +176,21 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ExtractRegionTrans
+.. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+    :members: apply
+    :noindex:
+
+.. note:: This transformation modifies the PSyIR of both: the Invoke
+          Schedule where the transformed CodedKernel is located and its
+          associated Kernel Schedule.
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
 
 ####
 
@@ -229,9 +252,10 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ProfileRegionTrans
+.. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
+
 
 Kernels
 -------

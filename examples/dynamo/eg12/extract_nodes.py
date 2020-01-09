@@ -51,12 +51,12 @@ INVOKE_NAME - name of the Invoke containing the Nodes to extract,
 LBOUND - lower index in the list of Nodes to extract,
 UBOUND - upper index in the list of Nodes to extract.
 
-Please note that ExtractRegionTrans works for consecutive Nodes in an
+Please note that ExtractTrans works for consecutive Nodes in an
 Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
 from __future__ import print_function
-from psyclone.transformations import DynamoExtractRegionTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
 # Specify the name of the Invoke containing the Nodes to extract.
@@ -74,8 +74,8 @@ def trans(psy):
     ''' PSyclone transformation script for the Dynamo0.3 API to extract
     the specified Nodes in an Invoke. '''
 
-    # Get instance of the ExtractRegionTrans transformation
-    etrans = DynamoExtractRegionTrans()
+    # Get instance of the ExtractTrans transformation
+    etrans = LFRicExtractTrans()
 
     # Get Invoke and its Schedule
     invoke = psy.invokes.get(INVOKE_NAME)

@@ -47,6 +47,7 @@
 '''
 
 from __future__ import print_function
+import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -54,10 +55,9 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, AccessType, Literal, ACCEnterDataDirective, Schedule
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
-import six
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
@@ -123,10 +123,11 @@ class GOPSy(PSy):
     :param invoke_info: An object containing the required invocation \
                         information for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = GOInvokes(invoke_info.calls)
+        self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -154,14 +155,17 @@ class GOInvokes(Invokes):
     '''
     The GOcean specific invokes class. This passes the GOcean specific
     invoke class to the base class so it creates the one we require.
+
     :param alg_calls: The Invoke calls discovered in the Algorithm layer.
     :type alg_calls: OrderedDict of :py:class:`psyclone.parse.InvokeCall` \
-                     objects.
+        objects.
+    :param psy: the PSy object containing this GOInvokes object.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
     '''
-    def __init__(self, alg_calls):
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = GOInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, GOInvoke)
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
         # Loop over all of the kernels in all of the invoke() calls
@@ -205,13 +209,15 @@ class GOInvoke(Invoke):
     :param alg_invocation: Node in the AST describing the invoke call.
     :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
     :param int idx: The position of the invoke in the list of invokes \
-                    contained in the Algorithm.
+        contained in the Algorithm.
+    :param invokes: the Invokes object containing this GOInvoke \
+        object.
+    :type invokes: :py:class:`psyclone.gocean1p0.GOInvokes`
 
     '''
-    def __init__(self, alg_invocation, idx):
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = GOInvokeSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
+    def __init__(self, alg_invocation, idx, invokes):
+        self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
     @property
     def unique_args_arrays(self):
@@ -445,9 +451,11 @@ class GOLoop(Loop):
                 format(self._loop_type, VALID_LOOP_TYPES))
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+                              parent=self))  # stop
+        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         if not GOLoop._bounds_lookup:
@@ -679,8 +687,8 @@ class GOLoop(Loop):
                 # but it helps to fix all of the test cases.
                 if stop == "2-1":
                     stop = "1"
-                return Literal(stop, self)
-            return Literal("not_yet_set", self)
+                return Literal(stop, DataType.INTEGER, self)
+            return Literal("not_yet_set", DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -691,11 +699,12 @@ class GOLoop(Loop):
                                    self)
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
-            stop.addchild(Literal(self.field_name+"%data", parent=stop))
+            stop.addchild(Literal(self.field_name+"%data", DataType.INTEGER,
+                                  parent=stop))
             if self._loop_type == "inner":
-                stop.addchild(Literal("1", parent=stop))
+                stop.addchild(Literal("1", DataType.INTEGER, parent=stop))
             elif self._loop_type == "outer":
-                stop.addchild(Literal("2", parent=stop))
+                stop.addchild(Literal("2", DataType.INTEGER, parent=stop))
             return stop
 
         # Loop bounds are pulled from the field object which
@@ -717,7 +726,7 @@ class GOLoop(Loop):
             stop += "%ystop"
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
-        return Literal(stop, self)
+        return Literal(stop, DataType.INTEGER, self)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -764,12 +773,12 @@ class GOLoop(Loop):
                 # but it helps with fixing all of the test cases.
                 if start == "2-1":
                     start = "1"
-                return Literal(start, self)
-            return Literal("not_yet_set", self)
+                return Literal(start, DataType.INTEGER, self)
+            return Literal("not_yet_set", DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", self)
+            return Literal("1", DataType.INTEGER, self)
 
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
@@ -788,7 +797,7 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             start += "%ystart"
         # TODO 363 - update once the PSyIR supports derived types
-        return Literal(start, self)
+        return Literal(start, DataType.INTEGER, self)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -1459,6 +1468,26 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
+    def append(self, name):
+        ''' Create and append a GOKernelArgument to the Argument list.
+
+        :param str name: name of the appended argument.
+
+        :raises TypeError: if the given name is not a string.
+        '''
+        from psyclone.parse.algorithm import Arg
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "The name parameter given to GOKernelArguments.append method "
+                "should be a string, but found '{0}' instead.".
+                format(type(name).__name__))
+
+        descriptor = Descriptor(None, "")  # Create a dummy descriptor
+        arg = Arg("variable", name, name)
+        argument = GOKernelArgument(descriptor, arg, self._parent_call)
+        self.args.append(argument)
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
@@ -1471,8 +1500,11 @@ class GOKernelArgument(KernelArgument):
     @property
     def type(self):
         ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer) '''
-        return self._arg.type
+            a scalar or a grid_property (to be supplied by the PSy layer).
+            If it has no type it defaults to scalar.'''
+        if hasattr(self._arg, 'type'):
+            return self._arg.type
+        return "scalar"
 
     @property
     def function_space(self):
@@ -2059,7 +2091,7 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if (dtype != "integer" or shape_len != 0):
+            if (dtype != DataType.INTEGER or shape_len != 0):
                 if shape_len == 0:
                     shape_str = "a scalar"
                 else:

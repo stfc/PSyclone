@@ -249,7 +249,6 @@ within an OpenACC Parallel directive and 4) there are no checks on
 whether loops are parallel or not, it is just assumed they are -
 i.e. support for colouring or locking is not yet implemented.
 
-
 NEMO
 ----
 
@@ -285,3 +284,16 @@ NEMO API can be transformed to the Stencil Intermediate Representation
 optimised cuda, or gridtools code. Thus these simple Fortran examples
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
+
+PSyIR
+-----
+
+Examples may all be found in the ``example/psyir`` directory. Read the
+``README.md`` file in this directory for details.
+
+create.py: Constructing PSyIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A Python script that demonstrates the use of ``create`` methods to
+build a PSyIR tree from scratch.
+

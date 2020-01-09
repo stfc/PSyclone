@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
@@ -645,7 +646,7 @@ def test_sirwriter_array_node(parser, sir_writer):
             "make_field_access_expr(\"a\", [0, 0, 0])")
 
 
-# (1/2) Method literal_node
+# (1/3) Method literal_node
 def test_sirwriter_literal_node_1(parser, sir_writer):
     '''Check the array_node method of the SIRWriter class outputs the
     expected SIR when given a PSyIR Literal node with a 'real' value.
@@ -656,8 +657,7 @@ def test_sirwriter_literal_node_1(parser, sir_writer):
             "make_literal_access_expr(\"1.0\", BuiltinType.Float)")
 
 
-# (2/2) Method literal_node
-@pytest.mark.xfail(reason="#468 PSyIR does not capture the type of literals")
+# (2/3) Method literal_node
 def test_sirwriter_literal_node_2(parser, sir_writer):
     '''Check the array_node method of the SIRWriter class outputs the
     expected SIR when given a PSyIR Literal node with an 'integer'
@@ -670,7 +670,25 @@ def test_sirwriter_literal_node_2(parser, sir_writer):
             "make_literal_access_expr(\"1\", BuiltinType.Integer)")
 
 
-# (1/4) Method unaryoperation_node
+# (3/3) Method literal_node
+@pytest.mark.parametrize("value,datatype", [(".true.", "BOOLEAN"),
+                                            ("'hello'", "CHARACTER")])
+def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
+    '''Check the array_node method of the SIRWriter class raises the
+    expected exception when given a PSyIR Literal node with an
+    unsupported value.
+
+    '''
+    code = CODE.replace("1.0", value)
+    rhs = get_rhs(parser, code)
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.literal_node(rhs)
+    assert (
+        "PSyIR type 'DataType.{0}' has no representation in the SIR backend."
+        "".format(datatype) in str(excinfo.value))
+
+
+# (1/5) Method unaryoperation_node
 def test_sirwriter_unaryoperation_node_1(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class outputs
     the expected SIR code. Check all supported mappings - currently
@@ -685,7 +703,7 @@ def test_sirwriter_unaryoperation_node_1(parser, sir_writer):
                 in result)
 
 
-# (2/4) Method unaryoperation_node
+# (2/5) Method unaryoperation_node
 def test_sirwriter_unary_node_2(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class raises
     the expected exception if an unsupported unary operator is found.
@@ -700,7 +718,7 @@ def test_sirwriter_unary_node_2(parser, sir_writer):
     assert "unsupported operator 'Operator.SIN' found" in str(excinfo.value)
 
 
-# (3/4) Method unaryoperation_node
+# (3/5) Method unaryoperation_node
 def test_sirwriter_unary_node_3(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class raises
     the expected exception if the subject of the unary operator is not
@@ -716,18 +734,32 @@ def test_sirwriter_unary_node_3(parser, sir_writer):
             in str(excinfo.value))
 
 
-# (4/4) Method unaryoperation_node
-@pytest.mark.xfail(reason="#468 PSyIR does not capture the type of literals")
+# (4/5) Method unaryoperation_node
 def test_sirwriter_unary_node_4(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class outputs
     the expected SIR when the subject of the unary operator is an
     integer literal.
 
     '''
-    code = CODE.replace("1.0", "1")
+    code = CODE.replace("1.0", "-1")
     rhs = get_rhs(parser, code)
     result = sir_writer.unaryoperation_node(rhs)
     assert "make_literal_access_expr(\"-1\", BuiltinType.Integer)" in result
+
+
+# (5/5) Method unaryoperation_node
+def test_sirwriter_unary_node_5(parser, sir_writer):
+    '''Check the unaryoperation_node method of the SIRWriter class raises
+    the expected Exception when the subject of the '-' unary operator
+    is not of type REAL or INTEGER.
+
+    '''
+    code = CODE.replace("1.0", "-.false.")
+    rhs = get_rhs(parser, code)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer.unaryoperation_node(rhs)
+    assert ("PSyIR type 'DataType.BOOLEAN' does not work with the '-' "
+            "operator." in str(excinfo.value))
 
 
 # (1/4) Method ifblock_node
