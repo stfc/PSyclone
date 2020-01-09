@@ -3870,6 +3870,15 @@ class KernelGlobalsToArguments(Transformation):
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(globalvar)
 
+            # SUGGESTION FOR FIXING BROKEN CODE 1/2
+            # 1) Remove symbol from use statement if it is qualified
+            # 2) name = globalvar.***
+            # 3) module_name = globalvar.***
+            # 4) find use statement
+            # 5) remove name from use statement if it is qualified (and is the local symbol table)
+            # 6) remove use statement if it has no more names
+            # 7) What about non-local symbol tables? I think do nothing, but there should be a test.
+
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
             if globalvar.is_constant:
@@ -3887,3 +3896,16 @@ class KernelGlobalsToArguments(Transformation):
 
             # Add the global variable in the call argument list
             node.arguments.append(globalvar.name)
+
+        # SUGGESTION FOR FIXING BROKEN CODE 2/2
+        # 1) All remaining use statements should be unqualified. Check
+        # and if not raise exception.
+        # 2) It should be safe to leave any unqualified use statements
+        # (but not for accelerators so we need to remove them
+        # eventually) and should also be safe to remove them (as there
+        # are no longer any globals). This could be another issue or
+        # fixed here.
+        # 3) This logic assumes that variables from unqualified use
+        # statements are marked as globals. A test would need to be
+        # added for this (and xfail with an issue, or fix, if it does
+        # not work).
