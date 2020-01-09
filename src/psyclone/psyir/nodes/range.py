@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
+''' Module containing definitions of the various Range nodes. '''
+
 from psyclone.psyGen import Node, Literal, InternalError
 
 
@@ -67,8 +69,7 @@ class ExplicitRange(Range):
     :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
 
     '''
-    def __init__(self, ast=None, children=None, parent=None, annotations=None,
-                 start=None, stop=None, step=None):
+    def __init__(self, ast=None, children=None, parent=None, annotations=None):
 
         if len(children) not in [2, 3]:
             raise InternalError(
@@ -80,7 +81,7 @@ class ExplicitRange(Range):
             raise TypeError(
                 "All children of an ExplicitRange must be sub-classes of Node "
                 "but got: {0}".format(
-                    [type(child).__name__ for child in children])
+                    [type(child).__name__ for child in children]))
 
         super(ExplicitRange, self).__init__(ast, children, parent, annotations)
 
