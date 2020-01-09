@@ -67,29 +67,22 @@ def test_handling_literal(f2008_parser, code, dtype):
     if dtype != DataType.BOOLEAN:
         assert literal.value == code
     else:
-        assert literal.value == code.lower()[1:-1] # Remove wrapping dots
+        assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
 
 
-def test_boolean_with_invalid_string(f2008_parser):
-    ''' '''
-    with pytest.raises(ValueError) as err:
-        Literal("invalid", DataType.BOOLEAN)
-    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
-        "but got 'invalid' instead." in str(err.value)
-
-
-def test_literal_datatype():
-    ''' Tests for the setting (via constructor) and getter of the
-    Literal.datatype property. '''
-    with pytest.raises(TypeError) as err:
-        Literal("1", 1)
-    assert ("datatype of a Literal must be an instance of psyir.symbols."
-            "DataType but got" in str(err.value))
-    with pytest.raises(ValueError) as err:
-        Literal("1", DataType.DEFERRED)
-    assert "datatype of a Literal must be one of" in str(err.value)
-    lval = Literal('false', DataType.BOOLEAN)
-    assert lval.value == "false"
+def test_handling_invalid_logic_literal(f2008_parser):
+    ''' Test that a logic fparser2 literal with an invalid value produces
+    an error.'''
+    from psyclone.psyGen import GenerationError
+    reader = FortranStringReader("x = .true.")
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    astmt.items[2].items = ('invalid', None)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [astmt], None)
+    assert "Exptected to find '.true.' or '.false' as fparser2 logical " \
+        "literal, but found invalid instead." in str(error.value)
 
 
 def test_number_handler():

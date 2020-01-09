@@ -3630,10 +3630,42 @@ def test_array_create_invalid():
 
 
 # Test Literal class
-def test_literal_value():
-    '''Test the value property returns the value of the Literal object.
+def test_literal_init():
+    '''Test the initialisation Literal object.'''
+    literal = Literal("1", DataType.INTEGER)
+    assert literal._value == "1"
+    assert literal._datatype == DataType.INTEGER
 
-    '''
+
+def test_literal_init_invalid():
+    '''Test the initialisation of a Literal object with invalid parameters.'''
+
+    # Test invalid datatype type
+    with pytest.raises(TypeError) as err:
+        Literal("1", 1)
+    assert ("The datatype of a Literal must be an instance of psyir.symbols."
+            "DataType but got" in str(err.value))
+
+    # Test invalid datatype
+    with pytest.raises(ValueError) as err:
+        Literal("1", DataType.DEFERRED)
+    assert "The datatype of a Literal must be one of" in str(err.value)
+
+    # Test invalid value type
+    with pytest.raises(TypeError) as err:
+        Literal(1, DataType.INTEGER)
+    assert "Literals must be supplied with a value encoded as a string but " \
+        "got: " in str(err.value)
+
+    # Test invalid boolean value
+    with pytest.raises(ValueError) as err:
+        Literal("invalid", DataType.BOOLEAN)
+    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
+        "but got 'invalid' instead." in str(err.value)
+
+
+def test_literal_value():
+    '''Test the value property returns the value of the Literal object.'''
     literal = Literal("1", DataType.INTEGER)
     assert literal.value == "1"
 

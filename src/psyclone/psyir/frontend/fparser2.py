@@ -2065,4 +2065,4 @@ class Fparser2Reader(object):
             return Literal("false", DataType.BOOLEAN, parent=parent)
         raise GenerationError(
             "Exptected to find '.true.' or '.false' as fparser2 logical "
-            "literal, but found {0} instead".format(value))
+            "literal, but found '{0}' instead.".format(value))
