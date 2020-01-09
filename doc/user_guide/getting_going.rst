@@ -9,8 +9,8 @@ Download
 The following instructions are intended for a PSyclone user who wants
 to work with a released version of the code. If you are a developer or
 wish to test a specific branch of PSyclone from the GitHub repository
-please see Developer's Set-up section in the
-`Developer's Guide <https://psyclone-dev.readthedocs.io/>`_.
+please see :ref:`dev-installation` in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 PSyclone is available on the Python Package Index (pypi.org) and is
 hosted on GitHub:
@@ -292,8 +292,8 @@ Test
 PSyclone contains an extensive test suite, but this test suite is not
 part of a standard installation. If you want to run the full test 
 suite, you need to install PSyclone from source, see 
-the Developer's Set-up section in the
-`Developer's Guide <https://psyclone-dev.readthedocs.io/>`_.
+:ref:`dev-installation` in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 .. _getting-going-run:
 
