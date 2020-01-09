@@ -36,12 +36,12 @@
 ''' pytest tests for the various Range sub-classes of Node. '''
 
 import pytest
-from psyclone.psyir.nodes.range import ExplicitRange
+from psyclone.psyir.nodes.ranges import ExplicitRange
 from psyclone.psyGen import InternalError
 
 
 def test_explicit_range_errors():
-    ''' Basic tests for incorrect creation of an ExplicitRange node. '''
+    ''' Tests for incorrect arguments to the ExplicitRange constructor. '''
 
     # Too few children
     with pytest.raises(InternalError) as err:
@@ -65,3 +65,8 @@ def test_explicit_range_errors():
         ExplicitRange(ast=None, children=[1, 2], parent=None)
     assert ("must be sub-classes of Node but got: ['int', "
             in str(err.value))
+
+
+def test_explicit_range_props():
+    ''' Test that the properties of an ExplicitRange return what we expect. '''
+    
