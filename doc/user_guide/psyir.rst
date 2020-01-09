@@ -232,12 +232,12 @@ PSyIR symbol names can be specified by a user. For example::
    > symbol_table.add(data)
    > reference = Reference(var_name)
 
-However, the ``SymbolTable add()`` method will raise an exception if a
-user tries to add a symbol with the same name as an existing
-symbol. Therefore it is the responsibility of the user to determine
-unique names when manually specifying them.
+However, the ``SymbolTable`` ``add()`` method will raise an exception if a
+user tries to add a symbol with the same name as a symbol already existing
+in the symbol table. Therefore it is the responsibility of the user to
+determine unique names when manually specifying them.
 
-The ``SymbolTable`` class provides the ``new_symbol_name()`` method (see
+The ``SymbolTable`` class also provides the ``new_symbol_name()`` method (see
 Section :ref:`symbol-label` for more details) to avoid this
 problem. The method provides a name that is guaranteed to be distinct
 from any existing names in the symbol table. The name returned is the

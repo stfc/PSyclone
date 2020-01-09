@@ -498,12 +498,13 @@ def test_root_name_init():
 
 
 @pytest.mark.parametrize("content,result",
+                         # An empty `default` raises an exception so I've
+                         # arbitrarily added API.
                          [("[DEFAULT]\nAPI=dynamo0.3\n", "psyir_tmp"),
                           ("[DEFAULT]\nPSYIR_ROOT_NAME = random\n", "random")])
 def test_root_name_load(tmpdir, content, result):
     '''Check that the config class returns appropriate values from a
-    config file when PSYIR_ROOT_NAME is and isn't provided. Note, an
-    empty `default` raises an exception so I've arbitrarily added API.
+    config file when PSYIR_ROOT_NAME is and isn't provided.
 
     '''
     config = Config()
