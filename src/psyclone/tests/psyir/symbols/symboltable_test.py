@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,73 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
 from psyclone.psyGen import InternalError
 
 
-def test_symboltable_add():
+def test_new_symbol_name_1():
+    '''Test that the new_symbol_name method returns names that are not
+    already in the symbol table.
+
+    '''
+    # Create a symbol table containing a symbol
+    sym_table = SymbolTable()
+    sym_table.add(ContainerSymbol("my_mod"))
+
+    # Check we can generate a new symbol name (and add it to the symbol
+    # table as this is required for further testing).
+    name = sym_table.new_symbol_name()
+    assert name == "psyir_tmp"
+    sym_table.add(DataSymbol(name, DataType.REAL))
+    # Check we return the expected symbol name when there is a
+    # supplied root name.
+    assert sym_table.new_symbol_name(root_name="my_name") == "my_name"
+    # Check we return a new symbol by appending an integer index to
+    # the root name when the names clash.
+    name = sym_table.new_symbol_name(root_name="my_mod")
+    assert name == "my_mod_0"
+    sym_table.add(ContainerSymbol(name))
+    name = sym_table.new_symbol_name(root_name="my_mod")
+    assert name == "my_mod_1"
+    name = sym_table.new_symbol_name(root_name="my_mod_0")
+    assert name == "my_mod_0_0"
+    # Check we return a new symbol by appending an integer index to
+    # the default name when the names clash.
+    name = sym_table.new_symbol_name()
+    assert name == "psyir_tmp_0"
+    sym_table.add(DataSymbol(name, DataType.REAL))
+    assert sym_table.new_symbol_name() == "psyir_tmp_1"
+
+
+def test_new_symbol_name_2():
+    '''Test that the new_symbol_name method returns an internal name if
+    the supplied root_name argument is an empty string.
+
+    '''
+    sym_table = SymbolTable()
+    name = sym_table.new_symbol_name(root_name="")
+    assert name == "psyir_tmp"
+
+
+def test_new_symbol_name_3():
+    '''Test that the new_symbol_name method returns an internal name if
+    the supplied root_name argument is None.
+
+    '''
+    sym_table = SymbolTable()
+    name = sym_table.new_symbol_name(root_name=None)
+    assert name == "psyir_tmp"
+
+
+def test_new_symbol_name_4():
+    '''Test that the new_symbol_name method raises the expected exception
+    if the root_name argument has the wrong type.
+
+    '''
+    sym_table = SymbolTable()
+    with pytest.raises(TypeError) as excinfo:
+        _ = sym_table.new_symbol_name(root_name=7)
+    assert ("Argument root_name should be of type str or NoneType but found "
+            "'int'." in str(excinfo.value))
+
+
+def test_add():
     '''Test that the add method inserts new symbols in the symbol
     table, but raises appropiate errors when provided with wrong parameters
     or duplicate declarations.'''
@@ -70,7 +136,7 @@ def test_symboltable_add():
             "'var1'.") in str(error.value)
 
 
-def test_symboltable_swap_symbol_properties():
+def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
     symbol1 = DataSymbol("var1", DataType.INTEGER, shape=[], constant_value=7)
@@ -147,7 +213,7 @@ def test_symboltable_swap_symbol_properties():
     assert sym_table.argument_list[2].name == "var1"
 
 
-def test_symboltable_lookup():
+def test_lookup():
     '''Test that the lookup method retrieves symbols from the symbol table
     if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
@@ -170,7 +236,7 @@ def test_symboltable_lookup():
         str(error.value)
 
 
-def test_symboltable_view(capsys):
+def test_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable.'''
     sym_table = SymbolTable()
@@ -183,7 +249,7 @@ def test_symboltable_view(capsys):
     assert "var2" in output
 
 
-def test_symboltable_can_be_printed():
+def test_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
@@ -201,7 +267,7 @@ def test_symboltable_can_be_printed():
     assert "Global(container='my_mod')" in sym_table_text
 
 
-def test_symboltable_specify_argument_list():
+def test_specify_argument_list():
     '''Test that the specify argument list method sets the argument_list
     with references to each DataSymbol and updates the DataSymbol attributes
     when needed.'''
@@ -231,7 +297,7 @@ def test_symboltable_specify_argument_list():
         ArgumentInterface.Access.READWRITE
 
 
-def test_symboltable_specify_argument_list_errors():
+def test_specify_arg_list_errors():
     ''' Check that supplying specify_argument_list() with DataSymbols that
     don't have the correct Interface information raises the expected
     errors. '''
@@ -253,7 +319,7 @@ def test_symboltable_specify_argument_list_errors():
     assert "has an interface of type '" in str(err.value)
 
 
-def test_symboltable_argument_list_errors():
+def test_argument_list_errors():
     ''' Tests the internal sanity checks of the SymbolTable.argument_list
     property. '''
     sym_table = SymbolTable()
@@ -295,7 +361,7 @@ def test_symboltable_argument_list_errors():
         in str(err.value)
 
 
-def test_symboltable_validate_non_args():
+def test_validate_non_args():
     ''' Checks for the validation of non-argument entries in the
     SymbolTable. '''
     sym_table = SymbolTable()
@@ -318,7 +384,7 @@ def test_symboltable_validate_non_args():
     assert re.search(pattern, str(err.value)) is not None
 
 
-def test_symboltable_contains():
+def test_contains():
     '''Test that the __contains__ method returns True if the given name
     is in the SymbolTable, otherwise returns False.'''
     sym_table = SymbolTable()
@@ -332,7 +398,7 @@ def test_symboltable_contains():
     assert "var3" not in sym_table
 
 
-def test_symboltable_symbols():
+def test_symbols():
     '''Test that the symbols property returns a list of the symbols in the
     SymbolTable.'''
     sym_table = SymbolTable()
@@ -347,7 +413,7 @@ def test_symboltable_symbols():
     assert len(sym_table.symbols) == 3
 
 
-def test_symboltable_local_datasymbols():
+def test_local_datasymbols():
     '''Test that the local_datasymbols property returns a list with the
     symbols with local scope.'''
     sym_table = SymbolTable()
@@ -378,7 +444,7 @@ def test_symboltable_local_datasymbols():
     assert sym_table.lookup("var4") not in sym_table.local_datasymbols
 
 
-def test_symboltable_global_datasymbols():
+def test_global_datasymbols():
     '''Test that the global_datasymbols property returns those DataSymbols with
     'global' scope (i.e. that represent data that exists outside the current
     scoping unit) but are not routine arguments. '''
@@ -403,7 +469,7 @@ def test_symboltable_global_datasymbols():
     assert sym_table.lookup("gvar2") not in gsymbols
 
 
-def test_symboltable_abstract_properties():
+def test_abstract_properties():
     '''Test that the SymbolTable abstract properties raise the appropriate
     error.'''
     sym_table = SymbolTable()
@@ -419,7 +485,7 @@ def test_symboltable_abstract_properties():
         "API-specific." in str(error.value)
 
 
-def test_symboltable_unresolved():
+def test_unresolved():
     ''' Tests for the get_unresolved_datasymbols method. '''
     sym_table = SymbolTable()
     sym_table.add(DataSymbol("s1", DataType.INTEGER, []))
@@ -438,7 +504,7 @@ def test_symboltable_unresolved():
     assert sym_table.get_unresolved_datasymbols(ignore_precision=True) == []
 
 
-def test_symboltable_copy_external_global():
+def test_copy_external_global():
     ''' Tests the SymbolTable copy_external_global method. '''
 
     symtab = SymbolTable()
