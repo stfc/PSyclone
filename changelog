@@ -35,6 +35,9 @@
 	12) #627 for 625. Adds SymbolTable.new_symbol_name() method to generate
 	names that don't clash with existing symbols.
 
+	13) #623 for #622. Bug fix for adding loop directives inside
+	region directives for the nemo api.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
