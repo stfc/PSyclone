@@ -47,18 +47,19 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference, Literal, IfBlock, Schedule
 import copy
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
 
 
-def replace_abs(oper, key):
+def replace_abs(oper, symbol_table):
     ''' xxx '''
     # R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X 
     # TODO: There is an assumption that operation is child of assignment
     oper_parent = oper.parent
     assignment = oper.ancestor(Assignment)
-
-    res_var = "res_abs_{0}".format(key)
-    tmp_var = "tmp_abs_{0}".format(key)
+    res_var = symbol_table.new_symbol_name("res_abs")
+    symbol_table.add(DataSymbol(res_var, DataType.REAL))
+    tmp_var = symbol_table.new_symbol_name("tmp_abs")
+    symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
     # Replace operation with a temporary (res_X).
     oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
@@ -90,15 +91,17 @@ def replace_abs(oper, key):
     assignment.parent.children.insert(assignment.position, if_stmt)
 
 
-def replace_sign(oper, key):
+def replace_sign(oper, symbol_table):
     ''' xxx '''
     # R=SIGN(A,B) if A<0 then (if B<0 R=B else R=B*-1) else ((if B>0 R=B else R=B*-1))
     # [USE THIS ONE] R=SIGN(A,B) => R=ABS(B); if A<0.0 R=R*-1.0
     oper_parent = oper.parent
     assignment = oper.ancestor(Assignment)
 
-    res_var = "res_sign_{0}".format(key)
-    tmp_var = "tmp_sign_{0}".format(key)
+    res_var = symbol_table.new_symbol_name("res_sign")
+    symbol_table.add(DataSymbol(res_var, DataType.REAL))
+    tmp_var = symbol_table.new_symbol_name("tmp_sign")
+    symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
     # Replace operation with a temporary (res_X).
     oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
@@ -111,7 +114,7 @@ def replace_sign(oper, key):
     assignment.parent.children.insert(assignment.position, new_assignment)
 
     # Replace the ABS intrinsic
-    replace_abs(rhs, key+1)
+    replace_abs(rhs, symbol_table)
 
     # Assign the 1st argument to a temporary in case it is a complex expression.
     lhs = Reference(tmp_var)
@@ -134,14 +137,16 @@ def replace_sign(oper, key):
     if_stmt.parent = assignment.parent
     assignment.parent.children.insert(assignment.position, if_stmt)
 
-def replace_min(oper, key):
+def replace_min(oper, symbol_table):
     ''' xxx '''
     # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
     oper_parent = oper.parent
     assignment = oper.ancestor(Assignment)
 
-    res_var = "res_min_{0}".format(key)
-    tmp_var = "tmp_min_{0}".format(key)
+    res_var = symbol_table.new_symbol_name("res_min")
+    symbol_table.add(DataSymbol(res_var, DataType.REAL))
+    tmp_var = symbol_table.new_symbol_name("tmp_min")
+    symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
     # Replace operation with a temporary (res_X).
     oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
@@ -154,8 +159,9 @@ def replace_min(oper, key):
 
     # For each of the remaining min values
     for expression in oper.children[1:]:
-        tmp_var = "tmp_min_{0}".format(key)
-        key += 1
+        tmp_var = symbol_table.new_symbol_name("tmp_min")
+        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+
         lhs = Reference(tmp_var)
         new_assignment = Assignment.create(lhs, expression)
         new_assignment.parent = assignment.parent
@@ -189,34 +195,30 @@ def trans(psy):
     # schedule. Note, there is no algorithm layer in the NEMO API so
     # the invokes represent all of the original code.
     for invoke in psy.invokes.invoke_list:
-        key = 0
         sched = invoke.schedule
         for kernel in sched.walk(NemoKern):
 
-            #kern = fortran_writer(sched)
-            # print(kern)
+            # The NEMO api currently has no symbol table so create one
+            # to allow the generation of new variables.
+            symbol_table = SymbolTable()
 
             kernel_schedule = kernel.get_kernel_schedule()
             for oper in kernel_schedule.walk(UnaryOperation):
                 if oper.operator == UnaryOperation.Operator.ABS:
                     #print ("FOUND ABS")
-                    replace_abs(oper, key)
-                    key += 1
+                    replace_abs(oper, symbol_table)
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.SIGN:
                     #print ("FOUND SIGN")
-                    replace_sign(oper, key)
-                    key += 2
+                    replace_sign(oper, symbol_table)
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.MIN:
                     #print ("FOUND BINARY MIN")
-                    replace_min(oper, key)
-                    key += 1
+                    replace_min(oper, symbol_table)
             for oper in kernel_schedule.walk(NaryOperation):
                 if oper.operator == NaryOperation.Operator.MIN:
                     #print ("FOUND NARY MIN")
-                    replace_min(oper, key)
-                    key += len(oper.children)-1
+                    replace_min(oper, symbol_table)
         kern = sir_writer(sched)
         # kern = fortran_writer(sched)
         print(kern)
