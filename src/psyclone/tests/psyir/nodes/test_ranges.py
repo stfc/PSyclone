@@ -36,8 +36,9 @@
 ''' pytest tests for the various Range sub-classes of Node. '''
 
 import pytest
+from psyclone.psyir.symbols import DataType
 from psyclone.psyir.nodes.ranges import ExplicitRange
-from psyclone.psyGen import InternalError
+from psyclone.psyGen import InternalError, Literal
 
 
 def test_explicit_range_errors():
@@ -69,4 +70,13 @@ def test_explicit_range_errors():
 
 def test_explicit_range_props():
     ''' Test that the properties of an ExplicitRange return what we expect. '''
-    
+    start = Literal("10", DataType.INTEGER)
+    stop = Literal("20", DataType.INTEGER)
+    erange = ExplicitRange(children=[start, stop], parent=None)
+    assert erange.children[0] is start
+    assert erange.children[1] is stop
+    # We didn't supply an increment so check that one was created
+    assert isinstance(erange.children[2], Literal)
+    assert erange.children[2].datatype == DataType.INTEGER
+    assert erange.children[2].value == "1"
+

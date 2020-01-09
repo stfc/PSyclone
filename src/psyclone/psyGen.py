@@ -96,7 +96,8 @@ REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "white",
+SCHEDULE_COLOUR_MAP = {"Assignment": "blue",
+                       "Schedule": "white",
                        "Loop": "red",
                        "GlobalSum": "cyan",
                        "Directive": "green",
@@ -109,7 +110,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Profile": "green",
                        "Extract": "green",
                        "If": "red",
-                       "Assignment": "blue",
+                       "Range": "white",
                        "Reference": "yellow",
                        "Operation": "blue",
                        "Literal": "yellow",
