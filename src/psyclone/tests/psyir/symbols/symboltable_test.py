@@ -136,6 +136,52 @@ def test_add():
             "'var1'.") in str(error.value)
 
 
+def test_remove():
+    '''Test that the remove method removes symbols from the symbol
+    table, but raises appropiate errors when provided with wrong
+    parameters. '''
+    from psyclone.psyir.symbols import SymbolError
+    sym_table = SymbolTable()
+
+    # Declare a symbol
+    my_mod = ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    sym_table.add(DataSymbol("var1", DataType.REAL, shape=[5, 1],
+                             interface=GlobalInterface(my_mod)))
+    var1 = sym_table.lookup("var1")
+    assert var1
+    assert my_mod.imported_symbols == [var1]
+    # We should not be able to remove a Container if it is referenced
+    # by an existing Symbol
+    with pytest.raises(ValueError) as err:
+        sym_table.remove("my_mod")
+    assert ("Cannot remove ContainerSymbol 'my_mod' because symbols "
+            "['var1'] are imported from it" in str(err.value))
+    # Remove the data symbol
+    sym_table.remove("var1")
+    with pytest.raises(KeyError) as err:
+        sym_table.lookup("var1")
+    assert "Could not find 'var1'" in str(err.value)
+    # It should no longer be listed as being imported from my_mod
+    assert my_mod.imported_symbols == []
+    # Attempting to remove it a second time is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.remove("var1")
+    assert "Cannot remove symbol 'var1'" in str(err.value)
+    # We should now be able to remove the ContainerSymbol
+    sym_table.remove("my_mod")
+    with pytest.raises(KeyError) as err:
+        sym_table.lookup("my_mod")
+    assert "Could not find 'my_mod'" in str(err.value)
+    # Force an invalid entry into the symbol table
+    sym_table._symbols["bad_apple"] = "NotASymbol"
+    # Attempting to remove it should trigger an error
+    with pytest.raises(TypeError) as err:
+        sym_table.remove("bad_apple")
+    assert ("Container or Data Symbols but symbol 'bad_apple' is of type "
+            "'str'" in str(err.value))
+
+
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 

@@ -201,11 +201,35 @@ class SymbolTable(object):
         :param str key: name of symbol to remove.
 
         :raises KeyError: if the supplied name is not in the symbol table.
+        :raises ValueError: if the supplied name corresponds to a \
+            ContainerSymbol which is referenced by one or more DataSymbols.
+        :raises TypeError: if the symbol corresponding to the supplied name \
+            is not a DataSymbol or a ContainerSymbol.
         '''
         if key not in self._symbols:
             raise KeyError("Cannot remove symbol '{0}' from symbol table "
                            "because it does not exist.".format(key))
-        self._symbols.pop(key)
+        symbol = self._symbols[key]
+        if isinstance(symbol, DataSymbol):
+            self._symbols.pop(key)
+            # If this is a global symbol then remove it from the list of
+            # symbols associated with the container from which it is imported
+            if symbol.is_global:
+                symbol.interface.container_symbol.rm_symbol_import(symbol)
+        elif isinstance(symbol, ContainerSymbol):
+            # We can only remove a ContainerSymbol if no DataSymbols are
+            # being imported from it
+            if symbol.imported_symbols:
+                raise ValueError(
+                    "Cannot remove ContainerSymbol '{0}' because symbols "
+                    "{1} are imported from it - remove them first.".format(
+                        symbol.name,
+                        [sym.name for sym in symbol.imported_symbols]))
+            self._symbols.pop(key)
+        else:
+            raise TypeError("Can only remove Container or Data Symbols but "
+                            "symbol '{0}' is of type '{1}'".format(
+                                key, type(symbol).__name__))
 
     @property
     def argument_list(self):
