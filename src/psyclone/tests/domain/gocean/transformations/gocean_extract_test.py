@@ -315,13 +315,12 @@ def test_driver_generation_flag(tmpdir, create_driver):
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
-    from os.path import isfile
     driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
                          "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
-    assert isfile(driver) == (create_driver or False)
+    assert driver.isfile() == (create_driver or False)
 
 
 def test_driver_creation(tmpdir):
@@ -342,15 +341,14 @@ def test_driver_creation(tmpdir):
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    from os.path import isfile
     driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
                          "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
-    assert isfile(driver)
+    assert driver.isfile()
 
-    with open(driver, "r") as driver_file:
+    with driver.open("r") as driver_file:
         driver_code = driver_file.read()
 
     # This is an excerpt of the code that should get created.
