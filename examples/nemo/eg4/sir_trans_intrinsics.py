@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,41 +34,97 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 
 '''Module providing a transformation script that converts the supplied
-PSyIR to the Stencil intermediate representation (SIR). Translation to
+PSyIR to the Stencil intermediate representation (SIR), modifying any
+PSyIR min, abs and sign intrinsics to PSyIR code beforehand using
+transformations, as SIR does not support intrinsics. Translation to
 the SIR is limited to the NEMO API. The NEMO API has no algorithm
 layer so all of the original code is captured in the invoke
 objects. Therefore by translating all of the invoke objects, all of
 the original code is translated.
+
+The min, abs and sign transformations are currently maintained within
+this script as the NEMO API does not yet support a symbol table and
+therefore the transformations are non-standard (requiring a symbol
+table object to be provided to each transformation).
 
 '''
 from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
-from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference, Literal, IfBlock, Schedule
+from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
+    Assignment, Reference, Literal, IfBlock, Schedule
 import copy
 from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
 
 
-class AbsTransformation():
+class NemoAbsTrans():
+    '''Provides a NEMO-api-specific transformation from an abs operator
+    node to equivalent code in the PSyIR of a Schedule. The supplied
+    arguments are also checked for validity.
 
-    def apply(self, oper, symbol_table):
-        ''' xxx '''
+    the translation performed for `R=ABS(X)` is
+    `IF (X<0.0) R=X*-1.0 ELSE R=X` 
+
+    '''
+    def __str__(self):
+        return "Convert the PSyIR abs intrinsic to equivalent PSyIR code"
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string.'''
+        return "NemoAbsTrans"
+
+    def validate(self, node, symbol_table):
+        '''Perform various checks to ensure that it is valid to apply
+        the NemoAbsTrans transformation to the supplied Node.
+
+        :param node: the node that is being checked.
+        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :param symbol_table: the symbol table that is being checked.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises TransformationError: if the node argument is not a \
+            :py:class:`psyclone.psyGen.UnaryOperation` with the ABS \
+            operator.
+        :raises TransformationError: if the symbol_table argument is not a \
+            :py:class:`psyclone.psyir.symbols.SymbolTable`.
+
+        '''
+        # Check that the node is a PSyIR abs unary operation
+        if not isinstance(node, UnaryOperation) or \
+           not node.operator is UnaryOperation.Operator.ABS:
+            raise TransformationError(
+                "Error in {0} transformation. The supplied node argument is "
+                "not an abs operator, found '{1}'."
+                "".format(self.name, type(node).__name__))
+        # Check that symbol_table is a PSyIR symbol table
+        if not isinstance(symbol_table, SymbolTable):
+            raise TransformationError(
+                "Error in {0} transformation. The supplied symbol_table "
+                "argument is not an a SymbolTable, found '{1}'."
+                "".format(self.name, type(symbol_table).__name__))
+
+    def apply(self, node, symbol_table):
+        ''' xxx
         # R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X 
         # TODO: There is an assumption that operation is child of assignment
-        oper_parent = oper.parent
-        assignment = oper.ancestor(Assignment)
+        '''
+        self.validate(node, symbol_table)
+        
+        oper_parent = node.parent
+        assignment = node.ancestor(Assignment)
         res_var = symbol_table.new_symbol_name("res_abs")
         symbol_table.add(DataSymbol(res_var, DataType.REAL))
         tmp_var = symbol_table.new_symbol_name("tmp_abs")
         symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
         # Replace operation with a temporary (res_X).
-        oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
+        oper_parent.children[node.position] = Reference(res_var, parent=oper_parent)
 
         # Assign content of operation to a temporary (tmp_X)
         lhs = Reference(tmp_var)
-        rhs = oper.children[0]
+        rhs = node.children[0]
         new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -118,7 +174,7 @@ class SignTransformation():
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # Replace the ABS intrinsic
-        abs_trans = AbsTransformation()
+        abs_trans = NemoAbsTrans()
         abs_trans.apply(rhs, symbol_table)
 
         # Assign the 1st argument to a temporary in case it is a complex expression.
@@ -198,7 +254,7 @@ def trans(psy):
 
     '''
 
-    abs_trans = AbsTransformation()
+    abs_trans = NemoAbsTrans()
     sign_trans = SignTransformation()
     min_trans = MinTransformation()
 
