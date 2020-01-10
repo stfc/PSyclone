@@ -257,6 +257,10 @@ class DataSymbol(Symbol):
             raise TypeError("The interface to a DataSymbol must be a "
                             "DataSymbolInterface but got '{0}'".
                             format(type(value)))
+        # If this Symbol already has a global interface then, since we are
+        # about to change it, remove this Symbol from associated Container
+        if isinstance(self._interface, GlobalInterface):
+            self._interface.container_symbol.rm_symbol_import(self)
         self._interface = value
         # If this Symbol has a global interface then update the associated
         # Container to flag that it imports this symbol
