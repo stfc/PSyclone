@@ -162,7 +162,7 @@ class ProfileTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node.
         from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
+        if isinstance(nodes, list) and list and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):
             # We've been passed a Schedule so default to enclosing its
