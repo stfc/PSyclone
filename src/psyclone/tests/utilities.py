@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -206,19 +206,19 @@ class Compile(object):
 
     @staticmethod
     def find_fortran_file(search_paths, root_name):
-        ''' Returns the full path to a Fortran source file. Searches for
+        '''Returns the full path to a Fortran source file. Searches for
         files with suffixes defined in FORTRAN_SUFFIXES.
 
         :param search_paths: List of locations to search for Fortran file.
         :type search_paths: list of str
-        :param str root_name: Base name of the Fortran file to look for. If
-            it ends with a recognised Fortran suffix then this is stripped
-            before performing the search.
-
+        :param str root_name: Base name of the Fortran file to look \
+            for. If it ends with a recognised Fortran suffix then this \
+            is stripped before performing the search.
         :return: Full path to a Fortran source file.
         :rtype: str
 
         :raises IOError: Raises IOError if no matching file is found.
+
         '''
         base_name = root_name[:]
         for suffix in FORTRAN_SUFFIXES:
@@ -291,16 +291,16 @@ class Compile(object):
         called when compilation is actually enabled (use code_compiles
         otherwse). All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
+        :param psy_ast: The AST of the generated PSy layer.
         :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
-        :param dependencies: Module- or file-names on which one or more
-                    of the kernels/PSy-layer depend (and that are not
-                    part of e.g. the GOcean or LFRic infrastructure).
-                    These dependencies will be built in the order they
-                    occur in this list.
+        :param dependencies: optional module- or file-names on which \
+                    one or more of the kernels/PSy-layer depend (and \
+                    that are not part of e.g. the GOcean or LFRic \
+                    infrastructure).  These dependencies will be built \
+                    in the order they occur in this list.
         :type dependencies: list of str
 
-        :return: True if generated code compiles, False otherwise
+        :return: True if generated code compiles, False otherwise.
         :rtype: bool
 
         '''
@@ -364,17 +364,18 @@ class Compile(object):
         If compilation is not enabled returns true. Uses _code_compiles
         for the actual compilation. All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
+        :param psy_ast: The AST of the generated PSy layer.
         :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
-        :param dependencies: Module- or file-names on which one or more
-                    of the kernels/PSy-layer depend (and that are not
-                    part of e.g. the GOcean or LFRic infrastructure).
-                    These dependencies will be built in the order they
-                    occur in this list.
+        :param dependencies: optional module- or file-names on which \
+                    one or more of the kernels/PSy-layer depend (and \
+                    that are not part of e.g. the GOcean or LFRic \
+                    infrastructure).  These dependencies will be built \
+                    in the order they occur in this list.
         :type dependencies: list of str
 
         :return: True if generated code compiles, False otherwise
         :rtype: bool
+
         '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled

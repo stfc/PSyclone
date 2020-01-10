@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -152,16 +152,17 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         If no Fortran compiler is available then returns True. All files
         produced are deleted.
 
-        :param psy_ast: the AST of the generated PSy layer
+        :param psy_ast: the AST of the generated PSy layer.
         :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
-        :param dependencies: Module- or file-names on which one or more
-                    of the kernels/PSy-layer depend (and that are not
-                    part of the GOcean infrastructure, dl_esm_inf).
-                    These dependencies will be built in the order they
-                    occur in this list.
-        :type dependencies: list of str
 
-        :return: True if generated code compiles, False otherwise
+        :param dependencies: optional module- or file-names on which \
+                    one or more of the kernels/PSy-layer depend (and \
+                    that are not part of the GOcean infrastructure, \
+                    dl_esm_inf).  These dependencies will be built in \
+                    the order they occur in this list.
+        :type dependencies: list of str or NoneType
+
+        :return: True if generated code compiles, False otherwise.
         :rtype: bool
 
         '''
