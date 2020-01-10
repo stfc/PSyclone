@@ -50,132 +50,140 @@ import copy
 from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
 
 
-def replace_abs(oper, symbol_table):
-    ''' xxx '''
-    # R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X 
-    # TODO: There is an assumption that operation is child of assignment
-    oper_parent = oper.parent
-    assignment = oper.ancestor(Assignment)
-    res_var = symbol_table.new_symbol_name("res_abs")
-    symbol_table.add(DataSymbol(res_var, DataType.REAL))
-    tmp_var = symbol_table.new_symbol_name("tmp_abs")
-    symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+class AbsTransformation():
 
-    # Replace operation with a temporary (res_X).
-    oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
-
-    # Assign content of operation to a temporary (tmp_X)
-    lhs = Reference(tmp_var)
-    rhs = oper.children[0]
-    new_assignment = Assignment.create(lhs, rhs)
-    new_assignment.parent = assignment.parent
-    assignment.parent.children.insert(assignment.position, new_assignment)
-
-    # Set res_X to the absolute value of tmp_X
-    lhs = Reference(tmp_var)
-    rhs = Literal("0.0", DataType.REAL)
-    if_condition = BinaryOperation.create(BinaryOperation.Operator.GT, lhs, rhs)
-
-    lhs = Reference(res_var)
-    rhs = Reference(tmp_var)
-    then_body = [Assignment.create(lhs, rhs)]
-
-    lhs = Reference(res_var)
-    lhs_child = Reference(tmp_var)
-    rhs_child = Literal("-1.0", DataType.REAL)
-    rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
-    else_body = [Assignment.create(lhs, rhs)]
-
-    if_stmt = IfBlock.create(if_condition, then_body, else_body)
-    if_stmt.parent = assignment.parent
-    assignment.parent.children.insert(assignment.position, if_stmt)
-
-
-def replace_sign(oper, symbol_table):
-    ''' xxx '''
-    # R=SIGN(A,B) if A<0 then (if B<0 R=B else R=B*-1) else ((if B>0 R=B else R=B*-1))
-    # [USE THIS ONE] R=SIGN(A,B) => R=ABS(B); if A<0.0 R=R*-1.0
-    oper_parent = oper.parent
-    assignment = oper.ancestor(Assignment)
-
-    res_var = symbol_table.new_symbol_name("res_sign")
-    symbol_table.add(DataSymbol(res_var, DataType.REAL))
-    tmp_var = symbol_table.new_symbol_name("tmp_sign")
-    symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
-
-    # Replace operation with a temporary (res_X).
-    oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
-
-    # Set the result to the ABS value of the second argument of SIGN
-    lhs = Reference(res_var)
-    rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, oper.children[1])
-    new_assignment = Assignment.create(lhs, rhs)
-    new_assignment.parent = assignment.parent
-    assignment.parent.children.insert(assignment.position, new_assignment)
-
-    # Replace the ABS intrinsic
-    replace_abs(rhs, symbol_table)
-
-    # Assign the 1st argument to a temporary in case it is a complex expression.
-    lhs = Reference(tmp_var)
-    new_assignment = Assignment.create(lhs, oper.children[0])
-    new_assignment.parent = assignment.parent
-    assignment.parent.children.insert(assignment.position, new_assignment)
-
-    # Negate the result if the first argument is negative, otherwise do nothing
-    lhs = Reference(tmp_var)
-    rhs = Literal("0.0", DataType.REAL)
-    if_condition= BinaryOperation.create(BinaryOperation.Operator.LT, lhs, rhs)
-    
-    lhs = Reference(res_var)
-    lhs_child = Reference(res_var)
-    rhs_child = Literal("-1.0", DataType.REAL)
-    rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
-    then_body = [Assignment.create(lhs, rhs)]
-
-    if_stmt = IfBlock.create(if_condition, then_body)
-    if_stmt.parent = assignment.parent
-    assignment.parent.children.insert(assignment.position, if_stmt)
-
-def replace_min(oper, symbol_table):
-    ''' xxx '''
-    # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
-    oper_parent = oper.parent
-    assignment = oper.ancestor(Assignment)
-
-    res_var = symbol_table.new_symbol_name("res_min")
-    symbol_table.add(DataSymbol(res_var, DataType.REAL))
-    tmp_var = symbol_table.new_symbol_name("tmp_min")
-    symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
-
-    # Replace operation with a temporary (res_X).
-    oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
-
-    # Set the result to the first min value
-    lhs = Reference(res_var)
-    new_assignment = Assignment.create(lhs, oper.children[0])
-    new_assignment.parent = assignment.parent
-    assignment.parent.children.insert(assignment.position, new_assignment)
-
-    # For each of the remaining min values
-    for expression in oper.children[1:]:
-        tmp_var = symbol_table.new_symbol_name("tmp_min")
+    def apply(self, oper, symbol_table):
+        ''' xxx '''
+        # R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X 
+        # TODO: There is an assumption that operation is child of assignment
+        oper_parent = oper.parent
+        assignment = oper.ancestor(Assignment)
+        res_var = symbol_table.new_symbol_name("res_abs")
+        symbol_table.add(DataSymbol(res_var, DataType.REAL))
+        tmp_var = symbol_table.new_symbol_name("tmp_abs")
         symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
+        # Replace operation with a temporary (res_X).
+        oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
+
+        # Assign content of operation to a temporary (tmp_X)
         lhs = Reference(tmp_var)
-        new_assignment = Assignment.create(lhs, expression)
+        rhs = oper.children[0]
+        new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
-        
+
+        # Set res_X to the absolute value of tmp_X
         lhs = Reference(tmp_var)
-        rhs = Reference(res_var)
-        if_condition = BinaryOperation.create(BinaryOperation.Operator.LT, lhs, rhs)
+        rhs = Literal("0.0", DataType.REAL)
+        if_condition = BinaryOperation.create(BinaryOperation.Operator.GT, lhs, rhs)
+
         lhs = Reference(res_var)
         rhs = Reference(tmp_var)
         then_body = [Assignment.create(lhs, rhs)]
+
+        lhs = Reference(res_var)
+        lhs_child = Reference(tmp_var)
+        rhs_child = Literal("-1.0", DataType.REAL)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
+        else_body = [Assignment.create(lhs, rhs)]
+
+        if_stmt = IfBlock.create(if_condition, then_body, else_body)
+        if_stmt.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+class SignTransformation():
+
+    def apply(self, oper, symbol_table):
+        ''' xxx '''
+        # R=SIGN(A,B) if A<0 then (if B<0 R=B else R=B*-1) else ((if B>0 R=B else R=B*-1))
+        # [USE THIS ONE] R=SIGN(A,B) => R=ABS(B); if A<0.0 R=R*-1.0
+        oper_parent = oper.parent
+        assignment = oper.ancestor(Assignment)
+
+        res_var = symbol_table.new_symbol_name("res_sign")
+        symbol_table.add(DataSymbol(res_var, DataType.REAL))
+        tmp_var = symbol_table.new_symbol_name("tmp_sign")
+        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+
+        # Replace operation with a temporary (res_X).
+        oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
+
+        # Set the result to the ABS value of the second argument of SIGN
+        lhs = Reference(res_var)
+        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, oper.children[1])
+        new_assignment = Assignment.create(lhs, rhs)
+        new_assignment.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, new_assignment)
+
+        # Replace the ABS intrinsic
+        abs_trans = AbsTransformation()
+        abs_trans.apply(rhs, symbol_table)
+
+        # Assign the 1st argument to a temporary in case it is a complex expression.
+        lhs = Reference(tmp_var)
+        new_assignment = Assignment.create(lhs, oper.children[0])
+        new_assignment.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, new_assignment)
+
+        # Negate the result if the first argument is negative, otherwise do nothing
+        lhs = Reference(tmp_var)
+        rhs = Literal("0.0", DataType.REAL)
+        if_condition= BinaryOperation.create(BinaryOperation.Operator.LT, lhs, rhs)
+
+        lhs = Reference(res_var)
+        lhs_child = Reference(res_var)
+        rhs_child = Literal("-1.0", DataType.REAL)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
+        then_body = [Assignment.create(lhs, rhs)]
+
         if_stmt = IfBlock.create(if_condition, then_body)
         if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+class MinTransformation():
+
+    def apply(self, oper, symbol_table):
+        ''' xxx '''
+        # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
+        oper_parent = oper.parent
+        assignment = oper.ancestor(Assignment)
+
+        res_var = symbol_table.new_symbol_name("res_min")
+        symbol_table.add(DataSymbol(res_var, DataType.REAL))
+        tmp_var = symbol_table.new_symbol_name("tmp_min")
+        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+
+        # Replace operation with a temporary (res_X).
+        oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
+
+        # Set the result to the first min value
+        lhs = Reference(res_var)
+        new_assignment = Assignment.create(lhs, oper.children[0])
+        new_assignment.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, new_assignment)
+
+        # For each of the remaining min values
+        for expression in oper.children[1:]:
+            tmp_var = symbol_table.new_symbol_name("tmp_min")
+            symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+
+            lhs = Reference(tmp_var)
+            new_assignment = Assignment.create(lhs, expression)
+            new_assignment.parent = assignment.parent
+            assignment.parent.children.insert(assignment.position, new_assignment)
+
+            lhs = Reference(tmp_var)
+            rhs = Reference(res_var)
+            if_condition = BinaryOperation.create(BinaryOperation.Operator.LT, lhs, rhs)
+            lhs = Reference(res_var)
+            rhs = Reference(tmp_var)
+            then_body = [Assignment.create(lhs, rhs)]
+            if_stmt = IfBlock.create(if_condition, then_body)
+            if_stmt.parent = assignment.parent
+            assignment.parent.children.insert(assignment.position, if_stmt)
 
 
 def trans(psy):
@@ -189,6 +197,11 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
+
+    abs_trans = AbsTransformation()
+    sign_trans = SignTransformation()
+    min_trans = MinTransformation()
+
     sir_writer = SIRWriter(skip_nodes=True)
     fortran_writer = FortranWriter()
     # For each Invoke write out the SIR representation of the
@@ -199,26 +212,28 @@ def trans(psy):
         for kernel in sched.walk(NemoKern):
 
             # The NEMO api currently has no symbol table so create one
-            # to allow the generation of new variables.
+            # to allow the generation of new variables. Note, this
+            # does not guarantee unique names as we don't know any of
+            # the existing names (so they could clash).
             symbol_table = SymbolTable()
 
             kernel_schedule = kernel.get_kernel_schedule()
             for oper in kernel_schedule.walk(UnaryOperation):
                 if oper.operator == UnaryOperation.Operator.ABS:
                     #print ("FOUND ABS")
-                    replace_abs(oper, symbol_table)
+                    abs_trans.apply(oper, symbol_table)
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.SIGN:
                     #print ("FOUND SIGN")
-                    replace_sign(oper, symbol_table)
+                    sign_trans.apply(oper, symbol_table)
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.MIN:
                     #print ("FOUND BINARY MIN")
-                    replace_min(oper, symbol_table)
+                    min_trans.apply(oper, symbol_table)
             for oper in kernel_schedule.walk(NaryOperation):
                 if oper.operator == NaryOperation.Operator.MIN:
                     #print ("FOUND NARY MIN")
-                    replace_min(oper, symbol_table)
+                    min_trans.apply(oper, symbol_table)
         kern = sir_writer(sched)
         # kern = fortran_writer(sched)
         print(kern)
