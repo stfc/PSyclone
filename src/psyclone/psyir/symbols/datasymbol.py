@@ -260,7 +260,7 @@ class DataSymbol(Symbol):
         if not isinstance(value, DataSymbolInterface):
             raise TypeError("The interface to a DataSymbol must be a "
                             "DataSymbolInterface but got '{0}'".
-                            format(type(value)))
+                            format(type(value).__name__))
         # If this Symbol already has a global interface then, since we are
         # about to change it, remove this Symbol from associated Container
         if isinstance(self._interface, GlobalInterface):

@@ -96,6 +96,7 @@ def test_datasymbol_initialisation():
     assert isinstance(
         DataSymbol('a', DataType.DEFERRED, interface=GlobalInterface(my_mod)),
         DataSymbol)
+    assert my_mod.imported_symbols[0].name == 'a'
     dim = DataSymbol('dim', DataType.INTEGER, [])
     assert isinstance(DataSymbol('a', DataType.REAL, [dim]), DataSymbol)
     assert isinstance(DataSymbol('a', DataType.REAL,
@@ -311,6 +312,26 @@ def test_datasymbol_interface():
     symbol = DataSymbol("some_var", DataType.REAL,
                         interface=GlobalInterface(my_mod))
     assert symbol.interface.container_symbol.name == "my_mod"
+
+
+def test_datasymbol_interface_setter():
+    ''' Check the interface setter on a DataSymbol. '''
+    my_mod = ContainerSymbol("my_mod")
+    my_mod2 = ContainerSymbol("my_mod2")
+    symbol = DataSymbol("some_var", DataType.REAL,
+                        interface=GlobalInterface(my_mod))
+    assert symbol.interface.container_symbol.name == "my_mod"
+    assert my_mod.imported_symbols == [symbol]
+    with pytest.raises(TypeError) as err:
+        symbol.interface = "not valid"
+    assert ("interface to a DataSymbol must be a DataSymbolInterface but "
+            "got 'str'" in str(err.value))
+    # Changing the interface should update both the old Container and
+    # the new one
+    symbol.interface = GlobalInterface(my_mod2)
+    assert my_mod.imported_symbols == []
+    assert my_mod2.imported_symbols == [symbol]
+    assert symbol.interface.container_symbol.name == "my_mod2"
 
 
 def test_datasymbol_interface_access():
