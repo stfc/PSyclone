@@ -96,10 +96,11 @@ class GOPSy(PSy):
     :param invoke_info: An object containing the required invocation \
                         information for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = GOInvokes(invoke_info.calls)
+        self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -127,14 +128,17 @@ class GOInvokes(Invokes):
     '''
     The GOcean specific invokes class. This passes the GOcean specific
     invoke class to the base class so it creates the one we require.
+
     :param alg_calls: The Invoke calls discovered in the Algorithm layer.
     :type alg_calls: OrderedDict of :py:class:`psyclone.parse.InvokeCall` \
-                     objects.
+        objects.
+    :param psy: the PSy object containing this GOInvokes object.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
     '''
-    def __init__(self, alg_calls):
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = GOInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, GOInvoke)
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
         # Loop over all of the kernels in all of the invoke() calls
@@ -178,13 +182,15 @@ class GOInvoke(Invoke):
     :param alg_invocation: Node in the AST describing the invoke call.
     :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
     :param int idx: The position of the invoke in the list of invokes \
-                    contained in the Algorithm.
+        contained in the Algorithm.
+    :param invokes: the Invokes object containing this GOInvoke \
+        object.
+    :type invokes: :py:class:`psyclone.gocean1p0.GOInvokes`
 
     '''
-    def __init__(self, alg_invocation, idx):
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = GOInvokeSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
+    def __init__(self, alg_invocation, idx, invokes):
+        self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
     @property
     def unique_args_arrays(self):
@@ -1462,6 +1468,26 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
+    def append(self, name):
+        ''' Create and append a GOKernelArgument to the Argument list.
+
+        :param str name: name of the appended argument.
+
+        :raises TypeError: if the given name is not a string.
+        '''
+        from psyclone.parse.algorithm import Arg
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "The name parameter given to GOKernelArguments.append method "
+                "should be a string, but found '{0}' instead.".
+                format(type(name).__name__))
+
+        descriptor = Descriptor(None, "")  # Create a dummy descriptor
+        arg = Arg("variable", name, name)
+        argument = GOKernelArgument(descriptor, arg, self._parent_call)
+        self.args.append(argument)
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
@@ -1474,8 +1500,11 @@ class GOKernelArgument(KernelArgument):
     @property
     def type(self):
         ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer) '''
-        return self._arg.type
+            a scalar or a grid_property (to be supplied by the PSy layer).
+            If it has no type it defaults to scalar.'''
+        if hasattr(self._arg, 'type'):
+            return self._arg.type
+        return "scalar"
 
     @property
     def function_space(self):

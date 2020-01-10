@@ -39,7 +39,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import InternalError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn
+     NameSpaceFactory, Node
 
 
 # =============================================================================
@@ -58,7 +58,7 @@ class PSyDataNode(Node):
                 this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: a list of child nodes for this node. These will be made \
-                     children of the child Schedule of this Profile Node.
+                     children of the child Schedule of this PSyDataNode.
     :type children: list of :py::class::`psyclone.psyGen.Node` \
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
@@ -72,14 +72,14 @@ class PSyDataNode(Node):
     '''
     # PSyData interface Fortran module
     fortran_module = "psy_data_mod"
-    # The symbols we import from the profiling Fortran module
+    # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
     # The use statement that we will insert. Any use of a module of the
     # same name that doesn't match this will result in a NotImplementedError
     # at code-generation time.
     use_stmt = "use psy_data_mod, only: " + ", ".join(symbols)
 
-    # Root of the name to use for variables associated with profiling regions
+    # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
 
     # A namespace manager to make sure we get unique region names
@@ -87,8 +87,8 @@ class PSyDataNode(Node):
 
     def __init__(self, ast=None, children=None, parent=None, name=None):
 
-        # Store the name of the profile variable that is used for this
-        # profile name. This allows to show the variable name in __str__
+        # Store the name of the PSyData variable that is used for this
+        # PSyData name. This allows to show the variable name in __str__
         # (and also if we would call create_name in gen(), the name would
         # change every time gen() is called).
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
@@ -141,7 +141,7 @@ class PSyDataNode(Node):
                     "Error in PSyDataNode. The name must be a "
                     "tuple containing two non-empty strings.")
             # pylint: enable=too-many-boolean-expressions
-            # Valid profile names have been provided by the user.
+            # Valid PSyData names have been provided by the user.
             self._module_name = name[0]
             self._region_name = name[1]
 
@@ -205,7 +205,7 @@ class PSyDataNode(Node):
     # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ, too-many-branches
-        '''Creates the profile start and end calls, surrounding the children
+        '''Creates the PSyData code before and after the surrounded children
         of this node.
 
         :param parent: the parent of this node.
@@ -224,23 +224,29 @@ class PSyDataNode(Node):
             be added to each variable name in the post-var-list.
 
         '''
-        if self._module_name is None or self._region_name is None:
-            # Find the first kernel and use its name. In an untransformed
-            # Schedule there should be only one kernel, but if Profile is
-            # invoked after e.g. a loop merge more kernels might be there.
-            region_name = "unknown-kernel"
-            module_name = "unknown-module"
-            for kernel in self.walk(Kern):
-                region_name = kernel.name
-                if not isinstance(kernel, BuiltIn):
-                    # If the kernel is not a builtin then it has a module name.
-                    module_name = kernel.module_name
-                break
-            if self._region_name is None:
-                self._region_name = PSyDataNode._namespace\
-                                               .create_name(region_name)
-            if self._module_name is None:
-                self._module_name = module_name
+        module_name = self._module_name
+        if module_name is None:
+            # The user has not supplied a module (location) name so
+            # return the psy-layer module name as this will be unique
+            # for each PSyclone algorithm file.
+            module_name = self.root.invoke.invokes.psy.name
+
+        region_name = self._region_name
+        if region_name is None:
+            # The user has not supplied a region name (to identify
+            # this particular invoke region). Use the invoke name as a
+            # starting point.
+            region_name = self.root.invoke.name
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This PSyData region only has one kernel within it,
+                # so append the kernel name.
+                region_name += ":{0}".format(kerns[0].name)
+            # Add a region index to ensure uniqueness when there are
+            # multiple regions in an invoke.
+            psy_data_nodes = self.root.walk(PSyDataNode)
+            idx = psy_data_nodes.index(self)
+            region_name += ":r{0}".format(idx)
 
         if not options:
             options = {}
@@ -261,8 +267,8 @@ class PSyDataNode(Node):
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
-                       ["\"{0}\"".format(self._module_name),
-                        "\"{0}\"".format(self._region_name),
+                       ["\"{0}\"".format(module_name),
+                        "\"{0}\"".format(region_name),
                         len(pre_variable_list),
                         len(post_variable_list)])
         has_var = pre_variable_list or post_variable_list
@@ -312,7 +318,7 @@ class PSyDataNode(Node):
         (currently not supported).
 
         :param int indent: Depth of indent for the output string.
-        :raises NotImplementedError: Not yet supported for profiling.
+        :raises NotImplementedError: Not yet supported for PSyData nodes.
         '''
         raise NotImplementedError("Generation of C code is not supported "
                                   "for PSyDataNode.")
@@ -323,21 +329,21 @@ class PSyDataNode(Node):
         # pylint: disable=too-many-branches, too-many-statements
         # pylint: disable=too-many-locals
         '''
-        Update the underlying fparser2 parse tree to implement the profiling
+        Update the underlying fparser2 parse tree to implement the PSyData
         region represented by this Node. This involves adding the necessary
-        module use statement as well as the calls to the profiling API.
+        module use statement as well as the calls to the PSyData API.
 
         TODO #435 - remove this whole method once the NEMO API uses the
         Fortran backend of the PSyIR.
 
         :raises NotImplementedError: if the routine which is to have \
-                             profiling added to it does not already have a \
-                             Specification Part (i.e. some declarations).
+                             PSyData calls added to it does not already have \
+                             a Specification Part (i.e. some declarations).
         :raises NotImplementedError: if there would be a name clash with \
                              existing variable/module names in the code to \
                              be transformed.
         :raises InternalError: if we fail to find the node in the parse tree \
-                             corresponding to the end of the profiling region.
+                             corresponding to the end of the PSyData region.
 
         '''
         from fparser.common.sourceinfo import FortranFormat
@@ -380,7 +386,7 @@ class PSyDataNode(Node):
             # This limitation will be removed when we use the Fortran
             # backend of the PSyIR (#435)
             raise NotImplementedError(
-                "Addition of profiling regions to routines without any "
+                "Addition of PSyData regions to routines without any "
                 "existing declarations is not supported and '{0}' has no "
                 "Specification-Part".format(routine_name))
 
@@ -391,11 +397,11 @@ class PSyDataNode(Node):
                self.fortran_module == str(node.items[2]).lower():
                 # Check that the use statement matches the one we would
                 # insert (i.e. the code doesn't already contain a module
-                # with the same name as that used by the profiling API)
+                # with the same name as that used by the PSyData API)
                 if str(node).lower() != self.use_stmt.lower():
                     raise NotImplementedError(
-                        "Cannot add profiling to '{0}' because it already "
-                        "'uses' a module named '{1}'".format(
+                        "Cannot add PSyData calls to '{0}' because it "
+                        "already 'uses' a module named '{1}'".format(
                             routine_name, self.fortran_module))
                 found = True
                 # To make our check on name clashes below easier, remove
@@ -406,7 +412,7 @@ class PSyDataNode(Node):
                     node_list.remove(name)
 
         if not found:
-            # We don't already have a use for the profiling module so
+            # We don't already have a use for the PSyData module so
             # add one.
             reader = FortranStringReader(
                 "use psy_data_mod, only: PSyDataType")
@@ -416,43 +422,45 @@ class PSyDataNode(Node):
             spec_part.content.insert(0, use)
 
         # Check that we won't have any name-clashes when we insert the
-        # symbols required for profiling. This check uses the list of symbols
-        # that we created before adding the `use profile_mod...` statement.
-        if not self.root.profiling_name_clashes_checked:
+        # symbols required for the PSyData API. This check uses the list of
+        # symbols that we created before adding the `use psy_data_mod...`
+        # statement.
+        if not self.root.psy_data_name_clashes_checked:
             for node in node_list:
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
-                    # Check for the symbols we import from the profiling module
+                    # Check for the symbols we import from the PSyData module
                     for symbol in self.symbols:
                         if text == symbol.lower():
                             raise NotImplementedError(
-                                "Cannot add profiling to '{0}' because it "
+                                "Cannot add PSyData calls to '{0}' because it "
                                 "already contains a symbol that clashes with "
                                 "one of those ('{1}') that must be imported "
-                                "from the PSyclone profiling module.".
+                                "from the PSyclone PSyData module.".
                                 format(routine_name, symbol))
-                    # Check for the name of the profiling module itself
+                    # Check for the name of the PSyData module itself
                     if text == self.fortran_module:
                         raise NotImplementedError(
-                            "Cannot add profiling to '{0}' because it already "
-                            "contains a symbol that clashes with the name of "
-                            "the PSyclone profiling module ('profile_mod')".
-                            format(routine_name))
-                    # Check for the names of profiling variables
+                            "Cannot add PSyData calls to '{0}' because it "
+                            "already contains a symbol that clashes with the "
+                            "name of the PSyclone PSyData module "
+                            "('{1}')". format(routine_name,
+                                              self.fortran_module))
+                    # Check for the names of PSyData variables
                     if text.startswith(self.psy_data_var):
                         raise NotImplementedError(
-                            "Cannot add profiling to '{0}' because it already"
-                            " contains symbols that potentially clash with "
-                            "the variables we will insert for each profiling "
-                            "region ('{1}*').".format(routine_name,
-                                                      self.psy_data_var))
+                            "Cannot add PSyData calls to '{0}' because it "
+                            "already contains symbols that potentially clash "
+                            "with the variables we will insert for each "
+                            "PSyData region ('{1}*').".
+                            format(routine_name, self.psy_data_var))
         # Flag that we have now checked for name clashes so that if there's
-        # more than one profiling node we don't fall over on the symbols
+        # more than one PSyData node we don't fall over on the symbols
         # we've previous inserted.
-        self.root.profiling_name_clashes_checked = True
+        self.root.psy_data_name_clashes_checked = True
 
-        # Create a name for this region by finding where this profiling
-        # node is in the list of profiling nodes in this Invoke.
+        # Create a name for this region by finding where this PSyDataNode
+        # is in the list of PSyDataNodes in this Invoke.
         sched = self.root
         pnodes = sched.walk(PSyDataNode)
         region_idx = pnodes.index(self)
@@ -462,7 +470,7 @@ class PSyDataNode(Node):
             region_name = "r{0}".format(region_idx)
         var_name = "psy_data{0}".format(region_idx)
 
-        # Create a variable for this profiling region
+        # Create a variable for this PSyData region
         reader = FortranStringReader(
             "type(PSyDataType), save :: {0}".format(var_name))
         # Tell the reader that the source is free format
@@ -510,7 +518,7 @@ class PSyDataNode(Node):
                         "Parse Tree:\n{1}\n".format(str(ast_end_copy),
                                                     str(fp_parent.content)))
 
-        # Add the profiling-end call
+        # Add the PSyData end call
         reader = FortranStringReader(
             "CALL {0}%PostEnd".format(var_name))
         # Tell the reader that the source is free format
@@ -518,7 +526,7 @@ class PSyDataNode(Node):
         pecall = Fortran2003.Call_Stmt(reader)
         fp_parent.content.insert(ast_end_index+1, pecall)
 
-        # Add the profiling-start call
+        # Add the PSyData start call
         reader = FortranStringReader(
             "CALL {2}%PreStart('{0}', '{1}', 0, 0)".format(
                 routine_name, region_name, var_name))

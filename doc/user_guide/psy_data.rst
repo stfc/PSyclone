@@ -125,6 +125,8 @@ The following code sequence will typically be created:
 
 The following sections will describe the API in detail.
 
+.. _psy_data_type:
+
 ``PSyDataType``
 +++++++++++++++
 The library using the PSyData API must provide a user-defined data type

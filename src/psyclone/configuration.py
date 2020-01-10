@@ -106,6 +106,10 @@ class Config(object):
     # is set in the Config.kernel_output_dir getter.
     _default_kernel_naming = "multiple"
 
+    # The default name to use when creating new names in the
+    # PSyIR symbol table.
+    _default_psyir_root_name = "psyir_tmp"
+
     @staticmethod
     def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
@@ -169,7 +173,7 @@ class Config(object):
         # The default stub API to use.
         self._default_stub_api = None
 
-        # True if distributed memory code should be created/
+        # True if distributed memory code should be created.
         self._distributed_mem = None
 
         # True if reproducible reductions should be used.
@@ -179,14 +183,17 @@ class Config(object):
         # reproducible reductions are created.
         self._reprod_pad_size = None
 
-        # Where to write transformed kernels - set at runtime
+        # Where to write transformed kernels - set at runtime.
         self._kernel_output_dir = None
 
-        # The naming scheme to use for transformed kernels
+        # The naming scheme to use for transformed kernels.
         self._kernel_naming = None
 
-        # The list of directories to search for Fortran include files
+        # The list of directories to search for Fortran include files.
         self._include_paths = []
+
+        # The root name to use when creating internal PSyIR names.
+        self._psyir_root_name = None
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -292,6 +299,13 @@ class Config(object):
             raise ConfigurationError(
                 "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
                 config=self)
+
+        if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
+            # Use the default name if no default is specified for the
+            # root name.
+            self._psyir_root_name = Config._default_psyir_root_name
+        else:
+            self._psyir_root_name = self._config['DEFAULT']['PSYIR_ROOT_NAME']
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
@@ -514,6 +528,16 @@ class Config(object):
         :rtype: int
         '''
         return self._reprod_pad_size
+
+    @property
+    def psyir_root_name(self):
+        '''
+        Getter for the root name to use when creating PSyIR names.
+
+        :returns: the PSyIR root name.
+        :rtype: str
+        '''
+        return self._psyir_root_name
 
     @property
     def filename(self):

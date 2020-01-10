@@ -374,24 +374,36 @@ class PSy(object):
 class Invokes(object):
     '''Manage the invoke calls
 
-    :param alg_calls: A list of invoke metadata extracted by the \
-    parser.
+    :param alg_calls: a list of invoke metadata extracted by the \
+        parser.
     :type alg_calls: list of \
     :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param Invoke: An api-specific Invoke class
-    :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
+    :param invoke_cls: an api-specific Invoke class.
+    :type invoke_cls: subclass of :py:class:`psyclone.psyGen.Invoke`
+    :param psy: the PSy instance containing this Invokes instance.
+    :type psy: subclass of :py:class`psyclone.psyGen.PSy`
 
     '''
-    def __init__(self, alg_calls, Invoke):
+    def __init__(self, alg_calls, invoke_cls, psy):
+        self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
-            my_invoke = Invoke(alg_invocation, idx)
+            my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
+
+    @property
+    def psy(self):
+        '''
+        :returns: the PSy instance that contains this instance.
+        :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        '''
+        return self._psy
 
     @property
     def names(self):
@@ -596,29 +608,29 @@ class NameSpace(object):
 
 
 class Invoke(object):
-    ''' Manage an individual invoke call '''
+    '''Manage an individual invoke call.
 
-    def __str__(self):
-        return self._name+"("+", ".join([str(arg) for arg in
-                                         self._alg_unique_args])+")"
+    :param alg_invocation: metadata from the parsed code capturing \
+        information for this Invoke instance.
+    :type alg_invocation: :py:class`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: position/index of this invoke call in the subroutine.
+        If not None, this number is added to the name ("invoke_").
+    :param schedule_class: the schedule class to create for this invoke.
+    :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`
+    :param invokes: the Invokes instance that contains this Invoke \
+        instance.
+    :type invokes: :py:class:`psyclone.psyGen.invokes`
+    :param reserved_names: optional argument: list of reserved names,
+        i.e. names that should not be used e.g. as a PSyclone-created
+        variable name.
+    :type reserved_names: list of str
 
-    def __init__(self, alg_invocation, idx, schedule_class,
+    '''
+    def __init__(self, alg_invocation, idx, schedule_class, invokes,
                  reserved_names=None):
-        '''Constructs an invoke object. Parameters:
+        '''Construct an invoke object.'''
 
-        :param alg_invocation:
-        :type alg_invocation:
-        :param idx: Position/index of this invoke call in the subroutine.
-            If not None, this number is added to the name ("invoke_").
-        :type idx: Integer.
-        :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`.
-        :param reserved_names: Optional argument: list of reserved names,
-               i.e. names that should not be used e.g. as psyclone created
-               variable name.
-        :type reserved_names: List of strings.
-        '''
-
+        self._invokes = invokes
         self._name = "invoke"
         self._alg_unique_args = []
 
@@ -685,6 +697,19 @@ class Invoke(object):
                     # need to change this logic at some point as we need to
                     # cope with writes determining the dofs that are used.
                     self._dofs[dof] = [kern_call, dofs[dof][0]]
+
+    def __str__(self):
+        return self._name+"("+", ".join([str(arg) for arg in
+                                         self._alg_unique_args])+")"
+
+    @property
+    def invokes(self):
+        '''
+        :returns: the Invokes instance that contains this instance.
+        :rtype: :py:class`psyclone.psyGen.Invokes`
+
+        '''
+        return self._invokes
 
     @property
     def name(self):
@@ -1809,8 +1834,20 @@ class InvokeSchedule(Schedule):
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
+        # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
+        # it would be better to merge them. The SymbolTable is only used
+        # for global variables extracted from the Kernels.
         self._name_space_manager = NameSpaceFactory().create()
+        self._symbol_table = SymbolTable()
         self._text_name = "InvokeSchedule"
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the schedule.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        return self._symbol_table
 
     def set_opencl_options(self, options):
         '''
@@ -1877,6 +1914,41 @@ class InvokeSchedule(Schedule):
         '''
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
+
+        # Global symbols promoted from Kernel Globals are in the SymbolTable
+        # instead of the name_space_manager.
+        # First aggregate all globals variables from the same module in a map
+        module_map = {}
+        for globalvar in self.symbol_table.global_datasymbols:
+            module_name = globalvar.interface.container_symbol.name
+            if module_name in module_map:
+                module_map[module_name].append(globalvar.name)
+            else:
+                module_map[module_name] = [globalvar.name]
+
+        # Then we can produce the UseGen statements without repeating modules
+        for module_name, var_list in module_map.items():
+            parent.add(UseGen(parent, name=module_name, only=True,
+                              funcnames=var_list))
+
+        # Add the SymbolTable symbols used into the NameSpaceManager to prevent
+        # clashes. Note that the global variables names are going to be used as
+        # arguments and are declared with 'AlgArgs' context.
+        # TODO: After #312 this will not be necessary.
+        for module_name, var_list in module_map.items():
+            self._name_space_manager.add_reserved_name(module_name)
+            for var_name in var_list:
+                newname = self._name_space_manager.create_name(
+                    root_name=var_name,
+                    context="AlgArgs",
+                    label=var_name)
+                # There is a name clash with this variable name and we can not
+                # accept indexed names for global variables.
+                # TODO: #642 Improve global variables name clashes handling.
+                if var_name != newname:
+                    raise KeyError(
+                        "The imported variable '{0}' is already defined in the"
+                        " NameSpaceManager of the Invoke.".format(var_name))
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
@@ -2151,6 +2223,12 @@ class Directive(Node):
 
         self.ast = directive
         self.dir_body.ast = directive
+        # If this is a directive applied to a Loop then update the ast_end
+        # for this Node to point to the parse tree for the loop. We have to
+        # do this because the loop is a sibling (rather than a child) of the
+        # directive in the parse tree.
+        if not end_text and isinstance(first_child, Loop):
+            self.ast_end = fp_parent.content[ast_start_index+1]
 
 
 class ACCDirective(Directive):
@@ -4660,6 +4738,15 @@ class Arguments(object):
         '''
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
+
+    def append(self, name):
+        ''' Abstract method to append KernelArguments to the Argument
+        list.
+
+        :param str name: name of the appended argument.
+        '''
+        raise NotImplementedError(
+            "Arguments.append must be implemented in sub-class")
 
 
 class DataAccess(object):

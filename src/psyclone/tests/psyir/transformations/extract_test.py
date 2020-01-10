@@ -336,9 +336,10 @@ def test_single_node_dynamo0p3():
 
     schedule, _ = etrans.apply(schedule.children[0])
     code = str(psy.gen)
-    outpu1 = """      ! ExtractStart
+    output = """      ! ExtractStart
       !
-      CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL psy_data%PreStart("single_invoke_psy", "invoke_0_testkern""" \
+      """_type:testkern_code:r0", 4, 2)
       CALL psy_data%PreDeclareVariable("a", a)
       CALL psy_data%PreDeclareVariable("f2", f2)
       CALL psy_data%PreDeclareVariable("m1", m1)
@@ -364,7 +365,7 @@ def test_single_node_dynamo0p3():
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
-    assert outpu1 in code
+    assert output in code
 
 
 def test_node_list_dynamo0p3():
@@ -381,7 +382,8 @@ def test_node_list_dynamo0p3():
     # adjusted once this is fixed.
     output = """! ExtractStart
       !
-      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
+      """"invoke_0:r0", 1, 3)
       CALL psy_data%PreDeclareVariable("f2", f2)
       CALL psy_data%PreDeclareVariable("cell_post", cell)
       CALL psy_data%PreDeclareVariable("df_post", df)
@@ -424,7 +426,8 @@ def test_dynamo0p3_builtin():
     # adjustment to how the missing variables are actually stored.
     output = """! ExtractStart
       !
-      CALL psy_data%PreStart("unknown-module", "setval_c", 4, 5)
+      CALL psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
+      """"invoke_0:setval_c:r0", 4, 5)
       CALL psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL psy_data%PreDeclareVariable("nlayers", nlayers)
@@ -479,7 +482,8 @@ def test_extract_single_builtin_dynamo0p3():
     code = str(psy.gen)
     output = """! ExtractStart
       !
-      CALL psy_data%PreStart("unknown-module", "setval_c", 0, 1)
+      CALL psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
+      """"invoke_0:setval_c:r0", 0, 1)
       CALL psy_data%PreDeclareVariable("df_post", df)
       CALL psy_data%PreEndDeclaration
       CALL psy_data%PreEnd
@@ -505,7 +509,8 @@ def test_extract_single_builtin_dynamo0p3():
     output = """
       ! ExtractStart
       !
-      CALL psy_data%PreStart("unknown-module", "inc_ax_plus_y", 0, 1)
+      CALL psy_data%PreStart("single_invoke_psy", """ \
+      """"invoke_0:inc_ax_plus_y:r0", 0, 1)
       CALL psy_data%PreDeclareVariable("df_post", df)
       CALL psy_data%PreEndDeclaration
       CALL psy_data%PreEnd
@@ -536,7 +541,8 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     output = """
       ! ExtractStart
       !
-      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
+      """"invoke_0:r0", 1, 3)
       CALL psy_data%PreDeclareVariable("f2", f2)
       CALL psy_data%PreDeclareVariable("cell_post", cell)
       CALL psy_data%PreDeclareVariable("df_post", df)
@@ -559,6 +565,7 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
+    print("code\n", code)
     assert output in code
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
@@ -606,7 +613,8 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     output = ("""
       ! ExtractStart
       !
-      CALL psy_data%PreStart("ru_kernel_mod", "ru_code", 6, 3)
+      CALL psy_data%PreStart("multikernel_invokes_7_psy", """
+              """"invoke_0:ru_code:r0", 6, 3)
       CALL psy_data%PreDeclareVariable("a", a)
       CALL psy_data%PreDeclareVariable("b", b)
       CALL psy_data%PreDeclareVariable("c", c)

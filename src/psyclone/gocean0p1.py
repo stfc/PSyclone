@@ -113,7 +113,7 @@ class GOPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = GOInvokes(invoke_info.calls)
+        self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -144,11 +144,9 @@ class GOPSy(PSy):
 class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
-    def __init__(self, alg_calls):
-        # pylint: disable=using-constant-test
-        if False:
-            self._0_to_n = GOInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, GOInvoke)
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
 
 class GOInvoke(Invoke):
@@ -159,12 +157,12 @@ class GOInvoke(Invoke):
         method so that we generate GOcean specific invocation code and
         provides to methods which separate arguments that are arrays from
         arguments that are scalars. '''
-    def __init__(self, alg_invocation, idx):
+    def __init__(self, alg_invocation, idx, invokes):
         # pylint: disable=using-constant-test
         if False:
             self._schedule = GOInvokeSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule,
-                        reserved_names=["cf", "ct", "cu", "cv"])
+                        invokes, reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
     def unique_args_arrays(self):
