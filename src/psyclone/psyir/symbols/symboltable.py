@@ -195,6 +195,18 @@ class SymbolTable(object):
         '''
         return key in self._symbols
 
+    def remove(self, key):
+        ''' Remove the named symbol from the Symbol Table.
+
+        :param str key: name of symbol to remove.
+
+        :raises KeyError: if the supplied name is not in the symbol table.
+        '''
+        if key not in self._symbols:
+            raise KeyError("Cannot remove symbol '{0}' from symbol table "
+                           "because it does not exist.".format(key))
+        self._symbols.pop(key)
+
     @property
     def argument_list(self):
         '''
@@ -350,7 +362,6 @@ class SymbolTable(object):
         :returns: a list of the ContainerSymbols present in the Symbol Table.
         :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
         '''
-        from psyclone.psyir.symbols import ContainerSymbol
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
 
@@ -408,18 +419,21 @@ class SymbolTable(object):
         # create one and add it.
         if external_container_name not in self:
             self.add(ContainerSymbol(external_container_name))
+        container_ref = self.lookup(external_container_name)
 
         # Copy the variable into the SymbolTable with the appropriate interface
         if globalvar.name not in self:
             new_symbol = globalvar.copy()
-            container_ref = self.lookup(external_container_name)
+            # Update the interface of this new symbol. This also removes the
+            # symbol from its original Container and adds it to the new one.
             new_symbol.interface = GlobalInterface(container_ref)
             self.add(new_symbol)
         else:
             # If it already exists it must refer to the same Container
-            if not (self.lookup(globalvar.name).is_global and
-                    self.lookup(globalvar.name).interface
-                    .container_symbol.name == external_container_name):
+            local_instance = self.lookup(globalvar.name)
+            if not (local_instance.is_global and
+                    local_instance.interface.container_symbol.name ==
+                    external_container_name):
                 raise KeyError(
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " name '{1}' is already used by another symbol."
