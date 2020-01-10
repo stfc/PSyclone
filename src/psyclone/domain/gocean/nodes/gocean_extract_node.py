@@ -54,17 +54,29 @@ class GOceanExtractNode(ExtractNode):
     stand-alone driver program that can read the created output files.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
+        this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param options: a dictionary with options for transformations.
+    :type options: dictionary of string:values or None
+    :param bool options["create_driver"]: If at code creation time a driver \
+        program should be created. If set, the driver will be created in the \
+        current working directory with the name "driver-MODULE-REGION.f90" \
+        where MODULE and REGION will be the corresponding values for this \
+        region.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None,
+                 options=None):
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
                                                 parent=parent)
+        if options:
+            self._create_driver = options.get("create-driver", False)
+        else:
+            self._create_driver = False
 
     @property
     def dag_name(self):
@@ -91,7 +103,8 @@ class GOceanExtractNode(ExtractNode):
 
         input_list, output_list = \
             super(GOceanExtractNode, self).gen_code(parent)
-        self.create_driver(input_list, output_list)
+        if self._create_driver:
+            self.create_driver(input_list, output_list)
 
     # -------------------------------------------------------------------------
     def create_driver(self, input_list, output_list):
@@ -156,7 +169,8 @@ class GOceanExtractNode(ExtractNode):
                                "psy_data%ReadVariable(\"{0}\", {0})"
                                .format(var_name))
                 prog.add(call)
-                # Then declare the post variable, and allocate it using read
+                # Then declare the post variable, and and read its values
+                # (ReadVariable will also allocate it)
                 decl = DeclGen(prog, "real", [var_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
@@ -227,6 +241,6 @@ class GOceanExtractNode(ExtractNode):
 
         code = str(module.root)
 
-        with open("driver-{0}-{1}.f90".format(self.module_name, self.region_name),
-                  "w") as out:
+        with open("driver-{0}-{1}.f90".
+                  format(self.module_name, self.region_name), "w") as out:
             out.write(code)

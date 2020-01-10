@@ -377,6 +377,8 @@ def test_node_list_dynamo0p3():
 
     schedule, _ = etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
+    # This output is affected by #637 (builtin support), and needs to be
+    # adjusted once this is fixed.
     output = """! ExtractStart
       !
       CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
@@ -402,6 +404,59 @@ def test_node_list_dynamo0p3():
       CALL psy_data%ProvideVariable("cell_post", cell)
       CALL psy_data%ProvideVariable("df_post", df)
       CALL psy_data%ProvideVariable("f3_post", f3)
+      CALL psy_data%PostEnd
+      !
+      ! ExtractEnd"""
+    assert output in code
+
+@pytest.mark.xfail(reason="Builtins not working (#637) and not all "
+                          "parameters saved (#646)")
+def test_dynamo0p3_builtin():
+    ''' Tests the handling of builtins'''
+    etrans = LFRicExtractTrans()
+    psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
+                             DYNAMO_API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
+
+    schedule, _ = etrans.apply(schedule.children[0:3])
+    code = str(psy.gen)
+    # Node that this code was manually created (see #646), and might need
+    # adjustment to how the missing variables are actually stored.
+    output = """! ExtractStart
+      !
+      CALL psy_data%PreStart("unknown-module", "setval_c", 4, 5)
+      CALL psy_data%PreDeclareVariable("map_w2", map_w2)
+      CALL psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
+      CALL psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL psy_data%PreDeclareVariable("undf_w2", undf_w2)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("df_post", df)
+      CALL psy_data%PreDeclareVariable("f2_post", f2)
+      CALL psy_data%PreDeclareVariable("f3_post", f3)
+      CALL psy_data%PreDeclareVariable("f5_post", f5)
+      CALL psy_data%PreEndDeclaration
+      CALL psy_data%ProvideVariable("map_w2", map_w2)
+      CALL psy_data%ProvideVariable("ndf_w2", ndf_w2)
+      CALL psy_data%ProvideVariable("nlayers", nlayers)
+      CALL psy_data%ProvideVariable("undf_w2", undf_w2)
+      CALL psy_data%PreEnd
+      DO df=1,undf_any_space_1_f5
+        f5_proxy%data(df) = 0.0
+      END DO 
+      DO df=1,undf_any_space_1_f2
+        f2_proxy%data(df) = 0.0
+      END DO 
+      DO cell=1,f3_proxy%vspace%get_ncell()
+        !
+        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
+      END DO 
+      CALL psy_data%PostStart
+      CALL psy_data%ProvideVariable("cell_post", cell)
+      CALL psy_data%ProvideVariable("df_post", df)
+      CALL psy_data%ProvideVariable("f2_post", f2)
+      CALL psy_data%ProvideVariable("f3_post", f3)
+      CALL psy_data%ProvideVariable("f5_post", f5)
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""

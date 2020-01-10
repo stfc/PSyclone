@@ -66,9 +66,13 @@ class ExtractNode(PSyDataNode):
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param options: a dictionary with options for transformations.
+    :type options: dictionary of string:values or None
 
     '''
-    def __init__(self, ast=None, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
+        # At this stage options is only used in the GOceanExtractNode
+        # pylint: disable=unused-argument
         super(ExtractNode, self).__init__(ast=ast, children=children,
                                           parent=parent)
         self._text_name = "Extract"

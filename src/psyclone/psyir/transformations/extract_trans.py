@@ -37,6 +37,7 @@
 of an Invoke into a stand-alone application."
 '''
 
+from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import Kern, Schedule
 from psyclone.psyir.nodes import ExtractNode
@@ -162,7 +163,11 @@ class ExtractTrans(RegionTrans):
 
         :param nodes: a single Node or a list of Nodes.
         :type nodes: (list of) :py:class:`psyclone.psyGen.Node`
-        :param options: a dictionary with options for transformations.
+        :param options: a dictionary with options for transformations. \
+            This dictionary is passed on to the validate function and also \
+            to the constructor of the node that is being inserted. This way \
+            the derived API-specific extract transformation can pass on \
+            parameters to the API-specific node.
         :type options: dictionary of string:values or None
 
         :raises TransformationError: if the `nodes` argument is not of \
@@ -207,6 +212,9 @@ class ExtractTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
-        self._node_class(parent=node_parent, children=node_list[:])
+        # Pass the options to the constructor, used e.g. for the
+        # 'create_driver' flag.
+        self._node_class(parent=node_parent, children=node_list[:],
+                         options=options)
 
         return schedule, keep
