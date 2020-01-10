@@ -31,7 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 
-module profile_mod
+module psy_data_mod
   use iso_c_binding, only: C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
        C_NULL_CHAR, C_LOC
   implicit none
@@ -41,14 +41,17 @@ module profile_mod
   !> The derived type passed to us from the profiled application. Required for
   !! consistency with the PSyclone Profiling interface and used here to
   !! prevent repeated string operations.
-  type, public :: ProfileData
+  type, public :: PSyDataType
      !> Whether or not we've seen this region before
      logical :: initialised = .false.
      !> The colour assigned to this region
      integer :: colour_index = 1
      !> Name assigned to the region
      character(kind=C_CHAR, len=256) :: name = ""
-  end type ProfileData
+  contains
+      ! The profiling API uses only the two following calls:
+      procedure :: PreStart, PostEnd
+  end type PSyDataType
 
   ! The colour index of the last region created.
   integer, save :: last_colour = 0
@@ -100,7 +103,7 @@ module profile_mod
   end interface nvtxRangePop
 
   ! Only the routines making up the PSyclone profiling API are public
-  public ProfileInit, ProfileFinalise, ProfileStart, ProfileEnd
+  public ProfileInit, ProfileFinalise
 
 contains
 
@@ -114,22 +117,23 @@ contains
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
   !! Parameters: 
+  !! this:         This PSyData instance - holds the selected colour and
+  !!               name of this region.
   !! module_name:  Name of the module in which the region is
   !! region_name:  Name of the region (could be name of an invoke, or
   !!               subroutine name).
-  !! profile_data: Persistent data - holds the selected colour and name of
-  !!               this region.
-  subroutine ProfileStart(module_name, region_name, profile_data)
+  !! this: Persistent data 
+  subroutine PreStart(this, module_name, region_name)
     implicit none
+    class(PSyDataType), intent(inout) :: this
     character*(*), intent(in) :: module_name, region_name
-    type(ProfileData), target, intent(inout) :: profile_data
     ! Locals
     type(nvtxEventAttributes) :: event
 
-    if(.not. profile_data%initialised)then
+    if(.not. this%initialised)then
        ! This is the first time we've seen this region. Construct and
        ! save its name to save on future string operations.
-       profile_data%initialised = .true.
+       this%initialised = .true.
 
        ! Round-robin the colour of each region created.
        if (last_colour < NUM_COLOURS) then
@@ -137,28 +141,28 @@ contains
        else
           last_colour = 1
        end if
-       profile_data%colour_index = last_colour
+       this%colour_index = last_colour
 
-       profile_data%name = trim(module_name)//":"//trim(region_name) &
+       this%name = trim(module_name)//":"//trim(region_name) &
                            &   //C_NULL_CHAR
     end if
     
-    event%color = col(profile_data%colour_index)
-    event%message = c_loc(profile_data%name)
+    event%color = col(this%colour_index)
+    event%message = c_loc(this%name)
     
     call nvtxRangePushEx(event)
 
-  end subroutine ProfileStart
+  end subroutine PreStart
 
   !> Ends a profiling area.
-  !! profile_data: Persistent data, not used in this case.
-  subroutine ProfileEnd(profile_data)
+  !! this: Persistent data, not used in this case.
+  subroutine PostEnd(this)
     implicit none
-    type(ProfileData) :: profile_data
+    class(PSyDataType) :: this
     
     call nvtxRangePop()
     
-  end subroutine ProfileEnd
+  end subroutine PostEnd
 
   !> The finalise function would normally print the results. However, this
   !> is unnecessary for the NVTX library so we do nothing.
@@ -167,4 +171,4 @@ contains
     return
   end subroutine ProfileFinalise
 
-end module profile_mod
+end module psy_data_mod

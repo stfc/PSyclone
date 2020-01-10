@@ -32,15 +32,19 @@
 ! Authors J. Henrichs, Bureau of Meteorology
 
 
-!> An implemention of profile_mod which wraps the use of the dl_timer
-!> library (https://bitbucket.org/apeg/dl_timer).
-module profile_mod
-  type :: ProfileData
+!> An implemention of the PSyData API for profiling, which wraps the use
+!> of the dl_timer library (https://bitbucket.org/apeg/dl_timer).
+
+module psy_data_mod
+  type :: PSyDataType
      character(:), allocatable :: module_name
      character(:), allocatable :: region_name
      integer                   :: timer_index
      logical                   :: registered = .false.
-  end type ProfileData
+  contains
+      ! The profiling API uses only the two following calls:
+      procedure :: PreStart, PostEnd
+  end type PSyDataType
 
 
 contains
@@ -61,38 +65,38 @@ contains
   ! Starts a profiling area. The module and region name can be used to create
   ! a unique name for each region.
   ! Parameters: 
-  ! module_name:  Name of the module in which the region is
-  ! region_name:  Name of the region (could be name of an invoke, or
-  !               subroutine name).
-  ! profile_data: Persistent data used by the profiling library.
-  subroutine ProfileStart(module_name, region_name, profile_data)
+  ! this:       This PSyData instance.
+  ! module_name: Name of the module in which the region is
+  ! region_name: Name of the region (could be name of an invoke, or
+  !              subroutine name).
+  subroutine PreStart(this, module_name, region_name)
     use dl_timer, only : timer_register, timer_start
     implicit none
 
+    class(PSyDataType), intent(inout) :: this
     character*(*) :: module_name, region_name
-    type(ProfileData) :: profile_data
 
-    if( .not. profile_data%registered) then
-       call timer_register(profile_data%timer_index, &
+    if( .not. this%registered) then
+       call timer_register(this%timer_index, &
                            label=module_name//":"//region_name)
-       profile_data%registered = .true.
+       this%registered = .true.
     endif
-    call timer_start(profile_data%timer_index)
-  end subroutine ProfileStart
+    call timer_start(this%timer_index)
+  end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a ProfileData type that corresponds to
-  ! to the ProfileStart call.
-  ! profile_data: Persistent data used by the profiling library.
+  ! Ends a profiling area. It takes a PSyDataType type that corresponds to
+  ! to the PreStart call.
+  ! this: This PSyData instance.
   ! 
-  subroutine ProfileEnd(profile_data)
+  subroutine PostEnd(this)
     use dl_timer, only : timer_stop
     implicit none
 
-    type(ProfileData) :: profile_data
+    class(PSyDataType), intent(inout) :: this
     
-    call timer_stop(profile_data%timer_index)
-  end subroutine ProfileEnd
+    call timer_stop(this%timer_index)
+  end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
   subroutine ProfileFinalise()
@@ -102,4 +106,4 @@ contains
 
   end subroutine ProfileFinalise
 
-end module profile_mod
+end module psy_data_mod

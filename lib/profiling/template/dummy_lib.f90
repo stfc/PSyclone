@@ -26,10 +26,10 @@ contains
   !> Starts a profiling area. The module and region name can be used to create
   !> a unique name for each region.
   !> Parameters: 
-  !> module_name:  Name of the module in which the region is
-  !> region_name:  Name of the region (could be name of an invoke, or
-  !>               subroutine name).
-  !> profile_data: Persistent data used by the profiling library.
+  !> this:        PSyData instance.
+  !> module_name: Name of the module in which the region is
+  !> region_name: Name of the region (could be name of an invoke, or
+  !>              subroutine name).
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                           num_post_vars)
     implicit none
@@ -49,7 +49,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> Ends a profiling area. It takes a ProfileData type that corresponds to
   !> to the ProfileStart call.
-  !> profile_data: Persistent data used by the profiling library.
+  !> this: PSyData instance.
   ! 
   subroutine PostEnd(this)
     implicit none
