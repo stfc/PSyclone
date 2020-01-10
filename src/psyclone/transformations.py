@@ -3818,6 +3818,9 @@ class KernelGlobalsToArguments(Transformation):
         :raises TransformationError: if the supplied node is not a CodedKern.
         :raises TransformationError: if this transformation is not applied to \
             a Gocean API Invoke.
+        :raises TransformationError: if the supplied kernel contains wildcard \
+            imports of symbols from one or more containers (e.g. a USE without\
+            an ONLY clause in Fortran).
         '''
         from psyclone.psyGen import CodedKern
         from psyclone.gocean1p0 import GOInvokeSchedule
@@ -3832,6 +3835,16 @@ class KernelGlobalsToArguments(Transformation):
                 "The {0} transformation is currently only supported for the "
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
                 format(self.name, type(node.root).__name__))
+
+        # Check that there are no unqualified imports
+        kernel = node.get_kernel_schedule()
+        symtab = kernel.symbol_table
+        for container in symtab.container_symbols:
+            if container.has_wildcard_import:
+                raise TransformationError(
+                    "Kernel {0} has a wildcard import of symbols from "
+                    "container {1}. This is not supported.".format(
+                        node.name, container.name))
 
     def apply(self, node, options=None):
         '''
@@ -3870,14 +3883,9 @@ class KernelGlobalsToArguments(Transformation):
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(globalvar)
 
-            # SUGGESTION FOR FIXING BROKEN CODE 1/2
-            # 1) Remove symbol from use statement if it is qualified
-            # 2) name = globalvar.***
-            # 3) module_name = globalvar.***
-            # 4) find use statement
-            # 5) remove name from use statement if it is qualified (and is the local symbol table)
-            # 6) remove use statement if it has no more names
-            # 7) What about non-local symbol tables? I think do nothing, but there should be a test.
+            # Keep a reference to the original container so that we can
+            # update it after the interface has been updated.
+            container = globalvar.interface.container_symbol
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
@@ -3896,6 +3904,12 @@ class KernelGlobalsToArguments(Transformation):
 
             # Add the global variable in the call argument list
             node.arguments.append(globalvar.name)
+
+            # Check whether we still need the Container symbol from which
+            # this global was originally accessed
+            if not container.imported_symbols and \
+               not container.has_wildcard_import:
+                kernel.symbol_table.remove(container.name)
 
         # SUGGESTION FOR FIXING BROKEN CODE 2/2
         # 1) All remaining use statements should be unqualified. Check
