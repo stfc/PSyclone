@@ -113,6 +113,28 @@ class ContainerSymbol(Symbol):
                 format(data_symbol.name, type(data_symbol.interface).__name__))
         self._datasymbols.add(data_symbol)
 
+    def rm_symbol_import(self, data_symbol):
+        '''
+        Remove the specified DataSymbol from the list of Symbols imported from
+        this Container.
+
+        :param data_symbol: the DataSymbol to remove.
+        :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied data_symbol is not a DataSymbol.
+        :raises KeyError: if the supplied data_symbol is not in the list of \
+                          symbols imported from this Container.
+
+        '''
+        from psyclone.psyir.symbols.datasymbol import DataSymbol
+        if not isinstance(data_symbol, DataSymbol):
+            raise TypeError("Expected an argument of type DataSymbol but got:"
+                            " '{0}'".format(type(data_symbol).__name__))
+        if data_symbol not in self._datasymbols:
+            raise KeyError("DataSymbol {0} is not imported from Container "
+                           "{1}".format(data_symbol.name, self.name))
+        self._datasymbols.remove(data_symbol)
+
     def add_wildcard_import(self):
         '''
         Mark this container as having a 'wildcard' import, i.e. all public
