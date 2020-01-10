@@ -2636,16 +2636,14 @@ class OCLTrans(Transformation):
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
-            # TODO: While we are not able to capture the value of 'use'
-            # parameters (issue 323) we have to bypass this validation and
-            # provide them manually for the OpenCL kernels to compile.
-            continue
             global_variables = ksched.symbol_table.global_datasymbols
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
-                    "symbols with 'global' scope: {1}. PSyclone cannot "
-                    "currently transform such a kernel into OpenCL.".
+                    "symbols with 'global' scope: {1}. All data accessed by "
+                    "an OpenCL kernel must be passed by argument. Use the "
+                    "KernelGlobalsToArgumentsTrans transformation to convert "
+                    "such symbols to kernel arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
 
@@ -3824,6 +3822,8 @@ class KernelGlobalsToArguments(Transformation):
         '''
         from psyclone.psyGen import CodedKern
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.psyir.symbols import SymbolError
+
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 "The {0} transformation can only be applied to CodedKern "
@@ -3836,15 +3836,24 @@ class KernelGlobalsToArguments(Transformation):
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
                 format(self.name, type(node.root).__name__))
 
-        # Check that there are no unqualified imports
-        kernel = node.get_kernel_schedule()
+        # Check that there are no unqualified imports or undeclared symbols
+        try:
+            kernel = node.get_kernel_schedule()
+        except SymbolError as err:
+            raise TransformationError(
+                "Kernel '{0}' contains undeclared symbol: {1}".format(
+                    node.name, str(err.value)))
+
         symtab = kernel.symbol_table
         for container in symtab.container_symbols:
             if container.has_wildcard_import:
                 raise TransformationError(
-                    "Kernel {0} has a wildcard import of symbols from "
-                    "container {1}. This is not supported.".format(
+                    "Kernel '{0}' has a wildcard import of symbols from "
+                    "container '{1}'. This is not supported.".format(
                         node.name, container.name))
+
+        # TODO #649. Check for variables accessed by the kernel but declared
+        # in an outer scope.
 
     def apply(self, node, options=None):
         '''
@@ -3910,16 +3919,3 @@ class KernelGlobalsToArguments(Transformation):
             if not container.imported_symbols and \
                not container.has_wildcard_import:
                 kernel.symbol_table.remove(container.name)
-
-        # SUGGESTION FOR FIXING BROKEN CODE 2/2
-        # 1) All remaining use statements should be unqualified. Check
-        # and if not raise exception.
-        # 2) It should be safe to leave any unqualified use statements
-        # (but not for accelerators so we need to remove them
-        # eventually) and should also be safe to remove them (as there
-        # are no longer any globals). This could be another issue or
-        # fixed here.
-        # 3) This logic assumes that variables from unqualified use
-        # statements are marked as globals. A test would need to be
-        # added for this (and xfail with an issue, or fix, if it does
-        # not work).
