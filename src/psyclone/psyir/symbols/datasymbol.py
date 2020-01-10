@@ -358,28 +358,28 @@ class DataSymbol(Symbol):
 
         '''
         if new_value is not None:
-            if not self.is_local:
+            if self.is_argument:
                 raise ValueError(
-                    "Error setting '{0}' constant value. A DataSymbol with a "
-                    "constant value is currently limited to Local interfaces "
-                    "but found '{1}'.".format(self.name, self.interface))
+                    "Error setting constant value for symbol '{0}'. A "
+                    "DataSymbol with an ArgumentInterface can not have a "
+                    "constant value.".format(self.name))
             if self.is_array:
                 raise ValueError(
-                    "Error setting '{0}' constant value. A DataSymbol with a "
-                    "constant value must be a scalar but a shape was found."
-                    "".format(self.name))
+                    "Error setting constant value for symbol '{0}'. A "
+                    "DataSymbol with a constant value must be a scalar but "
+                    "a shape was found.".format(self.name))
             try:
                 lookup = TYPE_MAP_TO_PYTHON[self.datatype]
             except KeyError:
                 raise ValueError(
-                    "Error setting '{0}' constant value. Constant values are "
-                    "not supported for '{1}' datatypes."
+                    "Error setting constant value for symbol '{0}'. "
+                    "Constant values are not supported for '{1}' datatypes."
                     "".format(self.name, self.datatype))
             if not isinstance(new_value, lookup):
                 raise ValueError(
-                    "Error setting '{0}' constant value. This DataSymbol "
-                    "instance datatype is '{1}' which means the constant "
-                    "value is expected to be '{2}' but found '{3}'."
+                    "Error setting constant value for symbol '{0}'. This "
+                    "DataSymbol instance datatype is '{1}' which means the "
+                    "constant value is expected to be '{2}' but found '{3}'."
                     "".format(self.name, self.datatype,
                               TYPE_MAP_TO_PYTHON[self.datatype],
                               type(new_value)))

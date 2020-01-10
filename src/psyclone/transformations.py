@@ -3785,3 +3785,105 @@ class NemoExplicitLoopTrans(Transformation):
             raise TransformationError(
                 "Cannot apply NemoExplicitLoopTrans to something that is "
                 "not a NemoImplicitLoop (got {0})".format(type(loop)))
+
+
+class KernelGlobalsToArguments(Transformation):
+    '''
+    Transformation that removes any accesses of global data from the supplied
+    kernel and places them in the caller. The values/references are then passed
+    by argument into the kernel.
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
+        return "KernelGlobalsToArguments"
+
+    def __str__(self):
+        return ("Convert the global variables used inside the kernel "
+                "into arguments and modify the InvokeSchedule to pass them"
+                " in the kernel call.")
+
+    def validate(self, node, options=None):
+        '''
+        Check that the supplied node is a valid target for this transformation.
+
+        :param node: the PSyIR node to validate.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the supplied node is not a CodedKern.
+        :raises TransformationError: if this transformation is not applied to \
+            a Gocean API Invoke.
+        '''
+        from psyclone.psyGen import CodedKern
+        from psyclone.gocean1p0 import GOInvokeSchedule
+        if not isinstance(node, CodedKern):
+            raise TransformationError(
+                "The {0} transformation can only be applied to CodedKern "
+                "nodes but found '{1}' instead.".
+                format(self.name, type(node).__name__))
+
+        if not isinstance(node.root, GOInvokeSchedule):
+            raise TransformationError(
+                "The {0} transformation is currently only supported for the "
+                "GOcean API but got an InvokeSchedule of type: '{1}'".
+                format(self.name, type(node.root).__name__))
+
+    def apply(self, node, options=None):
+        '''
+        Convert the global variables used inside the kernel into arguments and
+        modify the InvokeSchedule to pass the same global variables to the
+        kernel call.
+
+        :param node: a kernel call.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: tuple of the modified Schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                 :py:class:`psyclone.undoredo.Memento`).
+        '''
+        from psyclone.psyir.symbols import ArgumentInterface
+        from psyclone.psyir.symbols import DataType
+
+        self.validate(node)
+
+        kernel = node.get_kernel_schedule()
+        symtab = kernel.symbol_table
+        invoke_symtab = node.root.symbol_table
+
+        # Transform each global variable into an argument
+        # TODO #11: When support for logging is added, we could warn the user
+        # if no globals are found in the kernel.
+        for globalvar in kernel.symbol_table.global_datasymbols:
+
+            # Resolve the data type information if it is not available
+            if globalvar.datatype == DataType.DEFERRED:
+                globalvar.resolve_deferred()
+
+            # Copy the global into the InvokeSchedule SymbolTable
+            invoke_symtab.copy_external_global(globalvar)
+
+            # Convert the symbol to an argument and add it to the argument list
+            current_arg_list = symtab.argument_list
+            if globalvar.is_constant:
+                # Global constants lose the constant value but are read-only
+                # TODO: When #633 and #11 are implemented, warn the user that
+                # they should transform the constants to literal values first.
+                globalvar.constant_value = None
+                globalvar.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+            else:
+                globalvar.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READWRITE)
+            current_arg_list.append(globalvar)
+            symtab.specify_argument_list(current_arg_list)
+
+            # Add the global variable in the call argument list
+            node.arguments.append(globalvar.name)
