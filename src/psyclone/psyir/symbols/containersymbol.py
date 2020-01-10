@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -131,8 +131,8 @@ class ContainerSymbol(Symbol):
             raise TypeError("Expected an argument of type DataSymbol but got:"
                             " '{0}'".format(type(data_symbol).__name__))
         if data_symbol not in self._datasymbols:
-            raise KeyError("DataSymbol {0} is not imported from Container "
-                           "{1}".format(data_symbol.name, self.name))
+            raise KeyError("DataSymbol '{0}' is not imported from Container "
+                           "'{1}'".format(data_symbol.name, self.name))
         self._datasymbols.remove(data_symbol)
 
     def add_wildcard_import(self):

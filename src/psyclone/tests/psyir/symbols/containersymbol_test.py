@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -203,3 +203,21 @@ def test_containersymbol_importlist():
     assert not csym.has_wildcard_import
     csym.add_wildcard_import()
     assert csym.has_wildcard_import
+
+
+def test_containersymbol_rm_import():
+    ''' Check the functionality of the rm_symbol_import method. '''
+    csym = ContainerSymbol("my_mod")
+    with pytest.raises(TypeError) as err:
+        csym.rm_symbol_import("missing")
+    assert ("Expected an argument of type DataSymbol but got: 'str'" in
+            str(err.value))
+    dsym1 = DataSymbol("var1", DataType.REAL)
+    with pytest.raises(KeyError) as err:
+        csym.rm_symbol_import(dsym1)
+    assert ("DataSymbol 'var1' is not imported from Container 'my_mod'" in
+            str(err.value))
+    dsym2 = DataSymbol("var2", DataType.REAL, interface=GlobalInterface(csym))
+    assert csym.imported_symbols == [dsym2]
+    csym.rm_symbol_import(dsym2)
+    assert csym.imported_symbols == []
