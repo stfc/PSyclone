@@ -176,14 +176,17 @@ def test_psy_data_invokes_gocean1p0():
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
                   r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"call psy_data%PreStart\(\"kernel_ne_offset_mod\", "
-                  r"\"compute_cv_code\", 0, 0\).*"
+                  r"call psy_data%PreStart\(\"psy_single_invoke_different"
+                  r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
+                  r" 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
                   r"call psy_data%PostEnd")
+    print("code\n", code)
+
     assert re.search(correct_re, code, re.I) is not None
 
     # Check that if gen() is called more than once the same PSyDataNode

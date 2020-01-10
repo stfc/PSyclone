@@ -372,7 +372,7 @@ def test_profiling_no_spec_part(parser, monkeypatch):
 
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
-    assert ("Addition of profiling regions to routines without any "
+    assert ("Addition of PSyData regions to routines without any "
             "existing declarations is not supported" in str(err.value))
 
 
@@ -409,8 +409,8 @@ def test_profiling_mod_use_clash(parser):
     schedule.view()
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
-    assert ("Cannot add profiling to 'the_clash' because it already 'uses' "
-            "a module named 'psy_data_mod'" in str(err.value))
+    assert ("Cannot add PSyData calls to 'the_clash' because it already "
+            "'uses' a module named 'psy_data_mod'" in str(err.value))
 
 
 def test_profiling_mod_name_clash(parser):
@@ -424,9 +424,9 @@ def test_profiling_mod_name_clash(parser):
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
-    assert ("Cannot add profiling to 'psy_data_mod' because it already "
+    assert ("Cannot add PSyData calls to 'psy_data_mod' because it already "
             "contains a symbol that clashes with the name of the PSyclone "
-            "profiling " in str(err.value))
+            "PSyData module" in str(err.value))
 
 
 def test_profiling_symbol_clash(parser):
@@ -443,7 +443,7 @@ def test_profiling_symbol_clash(parser):
         PTRANS.apply(schedule.children[0])
         with pytest.raises(NotImplementedError) as err:
             _ = psy.gen
-        assert ("Cannot add profiling to 'my_test' because it already "
+        assert ("Cannot add PSyData calls to 'my_test' because it already "
                 "contains a symbol that clashes with one of those ('{0}')"
                 " that must be".format(var_name) in str(err.value))
 
@@ -462,6 +462,6 @@ def test_profiling_var_clash(parser):
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
-    assert ("Cannot add profiling to 'my_test' because it already contains "
-            "symbols that potentially clash with the variables we will "
-            in str(err.value))
+    assert ("Cannot add PSyData calls to 'my_test' because it already "
+            "contains symbols that potentially clash with the variables "
+            "we will "in str(err.value))

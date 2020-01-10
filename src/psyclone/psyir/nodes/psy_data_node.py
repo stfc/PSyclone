@@ -224,29 +224,27 @@ class PSyDataNode(Node):
             be added to each variable name in the post-var-list.
 
         '''
-        module_name = self._module_name
-        if module_name is None:
+        if self.module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            module_name = self.root.invoke.invokes.psy.name
+            self._module_name = self.root.invoke.invokes.psy.name
 
-        region_name = self._region_name
-        if region_name is None:
+        if self.region_name is None:
             # The user has not supplied a region name (to identify
             # this particular invoke region). Use the invoke name as a
             # starting point.
-            region_name = self.root.invoke.name
+            self._region_name = self.root.invoke.name
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
                 # so append the kernel name.
-                region_name += ":{0}".format(kerns[0].name)
+                self._region_name += ":{0}".format(kerns[0].name)
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
             idx = psy_data_nodes.index(self)
-            region_name += ":r{0}".format(idx)
+            self._region_name += ":r{0}".format(idx)
 
         if not options:
             options = {}
@@ -267,8 +265,8 @@ class PSyDataNode(Node):
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
-                       ["\"{0}\"".format(module_name),
-                        "\"{0}\"".format(region_name),
+                       ["\"{0}\"".format(self.module_name),
+                        "\"{0}\"".format(self.region_name),
                         len(pre_variable_list),
                         len(post_variable_list)])
         has_var = pre_variable_list or post_variable_list
@@ -367,8 +365,8 @@ class PSyDataNode(Node):
                                        Fortran2003.Specification_Part,
                                        Fortran2003.Use_Stmt,
                                        Fortran2003.Name])
-        if self._module_name:
-            routine_name = self._module_name
+        if self.module_name:
+            routine_name = self.module_name
         else:
             for node in node_list:
                 if isinstance(node, (Fortran2003.Main_Program,
@@ -464,8 +462,8 @@ class PSyDataNode(Node):
         sched = self.root
         pnodes = sched.walk(PSyDataNode)
         region_idx = pnodes.index(self)
-        if self._region_name:
-            region_name = self._region_name
+        if self.region_name:
+            region_name = self.region_name
         else:
             region_name = "r{0}".format(region_idx)
         var_name = "psy_data{0}".format(region_idx)

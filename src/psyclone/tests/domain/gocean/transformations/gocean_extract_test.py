@@ -191,7 +191,8 @@ def test_single_node_ompparalleldo_gocean1p0():
     code = str(psy.gen)
     output = """      ! ExtractStart
       !
-      CALL psy_data%PreStart("compute_cv_mod", "compute_cv_code", 2, 3)
+      CALL psy_data%PreStart("psy_single_invoke_three_kernels", """ \
+      """"invoke_0:compute_cv_code:r0", 2, 3)
       CALL psy_data%PreDeclareVariable("p_fld", p_fld)
       CALL psy_data%PreDeclareVariable("v_fld", v_fld)
       CALL psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
@@ -247,7 +248,8 @@ def test_node_list_ompparallel_gocean1p0():
     output = """
       ! ExtractStart
       !
-      CALL psy_data%PreStart("compute_cu_mod", "compute_cu_code", 3, 4)
+      CALL psy_data%PreStart("psy_single_invoke_three_kernels", """ \
+      """"invoke_0:r0", 3, 4)
       CALL psy_data%PreDeclareVariable("p_fld", p_fld)
       CALL psy_data%PreDeclareVariable("u_fld", u_fld)
       CALL psy_data%PreDeclareVariable("v_fld", v_fld)
@@ -284,7 +286,6 @@ def test_node_list_ompparallel_gocean1p0():
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
-
     assert output in code
 
 
@@ -315,7 +316,8 @@ def test_driver_generation_flag(tmpdir, create_driver):
     str(psy.gen)
 
     from os.path import isfile
-    driver = tmpdir.join("driver-kernel_driver_test-compute_kernel_code.f90")
+    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
+                         "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -341,7 +343,8 @@ def test_driver_creation(tmpdir):
     str(psy.gen)
 
     from os.path import isfile
-    driver = tmpdir.join("driver-kernel_driver_test-compute_kernel_code.f90")
+    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
+                         "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -359,7 +362,8 @@ def test_driver_creation(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld_post
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld
       TYPE(PSyDataType) psy_data
-      CALL psy_data%OpenRead("kernel_driver_test", "compute_kernel_code")
+      CALL psy_data%OpenRead("psy_single_invoke_three_kernels", ''' \
+      '''"invoke_0_compute_kernel:compute_kernel_code:r0")
       CALL psy_data%ReadVariable("cu_fld_post", cu_fld_post)
       ALLOCATE (cu_fld, mold=cu_fld_post)
       cu_fld = 0.0
