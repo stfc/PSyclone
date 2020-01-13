@@ -45,7 +45,7 @@ from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
-    GenerationError, Node, Operation
+    GenerationError, Node
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType
@@ -2064,5 +2064,5 @@ class Fparser2Reader(object):
         if value == ".false.":
             return Literal("false", DataType.BOOLEAN, parent=parent)
         raise GenerationError(
-            "Exptected to find '.true.' or '.false' as fparser2 logical "
+            "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))

@@ -81,7 +81,7 @@ def test_handling_invalid_logic_literal(f2008_parser):
     processor = Fparser2Reader()
     with pytest.raises(GenerationError) as error:
         processor.process_nodes(fake_parent, [astmt], None)
-    assert "Exptected to find '.true.' or '.false' as fparser2 logical " \
+    assert "Expected to find '.true.' or '.false.' as fparser2 logical " \
         "literal, but found 'invalid' instead." in str(error.value)
 
 
