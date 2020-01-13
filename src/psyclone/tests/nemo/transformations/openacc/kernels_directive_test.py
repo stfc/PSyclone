@@ -40,8 +40,9 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
 from fparser.common.readfortran import FortranStringReader
 
 
@@ -61,7 +62,7 @@ def test_kernels_view(parser, capsys):
     code = parser(FortranStringReader(EXPLICIT_LOOP))
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     schedule, _ = acc_trans.apply(schedule.children[0:2],
                                   {"default_present": True})
     schedule.view()
@@ -75,7 +76,7 @@ def test_kernels_dag_name(parser):
     code = parser(FortranStringReader(EXPLICIT_LOOP))
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     schedule, _ = acc_trans.apply(schedule.children[0:2],
                                   {"default_present": True})
     assert schedule.children[0].dag_name == "ACC_kernels_1"
@@ -96,7 +97,7 @@ def test_no_kernels_error(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:2],
                                {"default_present": True})
@@ -114,7 +115,7 @@ def test_no_loops(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:1],
                                {"default_present": True})
@@ -132,7 +133,7 @@ def test_implicit_loop(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     schedule, _ = acc_trans.apply(schedule.children[0:1],
                                   {"default_present": True})
     gen_code = str(psy.gen)
@@ -159,7 +160,7 @@ def test_multikern_if(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     schedule, _ = acc_trans.apply(schedule.children[0:1],
                                   {"default_present": True})
     gen_code = str(psy.gen).lower()
@@ -186,7 +187,7 @@ def test_kernels_within_if(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
 
     schedule, _ = acc_trans.apply(schedule.children[0].if_body,
                                   {"default_present": True})
@@ -217,7 +218,7 @@ def test_no_code_block_kernels(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert ("CodeBlock'>' cannot be enclosed by a ACCKernelsTrans "
@@ -231,7 +232,7 @@ def test_no_default_present(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     _, _ = acc_trans.apply(schedule.children, {"default_present": False})
     gen_code = str(psy.gen)
     assert "!$ACC KERNELS\n" in gen_code
@@ -249,7 +250,7 @@ def test_kernels_around_where_construct(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     sched, _ = acc_trans.apply(schedule)
     assert isinstance(sched[0], ACCKernelsDirective)
     assert isinstance(sched[0].dir_body[0], Loop)
@@ -271,7 +272,7 @@ def test_kernels_around_where_stmt(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     acc_trans.apply([schedule[1]])
     new_code = str(psy.gen)
     assert ("  a(:, :) = 1.0\n"
@@ -279,3 +280,87 @@ def test_kernels_around_where_stmt(parser):
             "  WHERE (a(:, :) < flag) b(:, :) = 0.0\n"
             "  !$ACC END KERNELS\n"
             "  c(:, :) = 1.0\n" in new_code)
+
+
+def test_loop_inside_kernels(parser):
+    ''' Check that we can put an ACC LOOP directive inside a KERNELS
+    region. '''
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = ACCKernelsTrans()
+    acc_trans.apply([schedule[0]])
+    loop_trans = ACCLoopTrans()
+    loop_trans.apply(schedule[0].dir_body[0])
+    output = str(psy.gen).lower()
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, jpj\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n" in output)
+
+
+def test_two_loops_inside_kernels(parser):
+    ''' Check that we can mark-up one or both loops inside a KERNELS
+    region containing two loops. '''
+    reader = FortranStringReader("program two_loops\n"
+                                 "  integer :: ji\n"
+                                 "  real :: array(10)\n"
+                                 "  do ji = 1, 10\n"
+                                 "    array(ji) = 1.0\n"
+                                 "  end do\n"
+                                 "  do ji = 1, 5\n"
+                                 "    array(ji) = 2.0*array(ji)\n"
+                                 "  end do\n"
+                                 "end program two_loops\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # Enclose both loops within a KERNELS region
+    acc_trans = ACCKernelsTrans()
+    acc_trans.apply(schedule[0:2])
+    # Apply a loop transformation to just the first loop
+    loop_trans = ACCLoopTrans()
+    loop_trans.apply(schedule[0].dir_body[0])
+    output = str(psy.gen).lower()
+    assert ("  !$acc kernels\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, 10\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n"
+            "end program" in output)
+    loop_trans.apply(schedule[0].dir_body[1])
+    output = str(psy.gen).lower()
+    assert ("  !$acc loop independent\n"
+            "  do ji = 1, 5\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n"
+            "end program" in output)
+
+
+def test_loop_after_implicit_kernels(parser):
+    ''' Test the addition of a loop directive after some implicit loops
+    within a kernels region. '''
+    reader = FortranStringReader("program two_loops\n"
+                                 "  integer :: ji\n"
+                                 "  real :: array(10,10)\n"
+                                 "  array(:,:) = -1.0\n"
+                                 "  do ji = 1, 5\n"
+                                 "    array(ji,1) = 2.0*array(ji,2)\n"
+                                 "  end do\n"
+                                 "end program two_loops\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = ACCKernelsTrans()
+    loop_trans = ACCLoopTrans()
+    acc_trans.apply(schedule[0:2])
+    loop_trans.apply(schedule[0].dir_body[1])
+    output = str(psy.gen).lower()
+    assert ("  !$acc kernels\n"
+            "  array(:, :) = - 1.0\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, 5\n" in output)
+    assert ("  end do\n"
+            "  !$acc end kernels\n"
+            "end program" in output)
