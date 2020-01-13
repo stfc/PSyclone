@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
 
 
 class NemoAbsTrans():
-    '''Provides a NEMO-api-specific transformation from a PSyIR abs
+    '''Provides a NEMO-api-specific transformation from a PSyIR ABS
     Operator node to equivalent code in a PSyIR tree. Validity checks
     are also performed.
 
@@ -69,7 +69,7 @@ class NemoAbsTrans():
 
     '''
     def __str__(self):
-        return "Convert the PSyIR abs intrinsic to equivalent PSyIR code"
+        return "Convert the PSyIR ABS intrinsic to equivalent PSyIR code"
 
     @property
     def name(self):
@@ -95,16 +95,16 @@ class NemoAbsTrans():
         :raises TransformationError: if the symbol_table argument is not a \
             :py:class:`psyclone.psyir.symbols.SymbolTable`.
         :raises TransformationError: if the api is not nemo.
-        :raises TransformationError: if the Abs Operation node does \
+        :raises TransformationError: if the ABS Operation node does \
         not have an Assignement Node as an ancestor.
 
         '''
-        # Check that the node is a PSyIR abs unary operation
+        # Check that the node is a PSyIR ABS unary operation
         if not isinstance(node, UnaryOperation) or \
            not node.operator is UnaryOperation.Operator.ABS:
             raise TransformationError(
                 "Error in {0} transformation. The supplied node argument is "
-                "not an abs operator, found '{1}'."
+                "not an ABS operator, found '{1}'."
                 "".format(self.name, type(node).__name__))
         # Check that symbol_table is a PSyIR symbol table
         if not isinstance(symbol_table, SymbolTable):
@@ -120,16 +120,16 @@ class NemoAbsTrans():
                 "works for the nemo api, but found '{1}'."
                 "".format(self.name, Config.get().api))
         # Check that there is an Assignment node that is an ancestor
-        # of this Abs UnaryOperation.
+        # of this ABS UnaryOperation.
         if not node.ancestor(Assignment):
             raise TransformationError(
                 "Error in {0} transformation. This transformation requires "
-                "the Abs operator to be part of an assignment statement, "
+                "the ABS operator to be part of an assignment statement, "
                 "but no such assignment was found.".format(self.name))
 
     def apply(self, node, symbol_table):
-        '''Apply the Abs intrinsic conversion transformation to the specified
-        node. This loop must be an Abs UnaryOperation. The Abs
+        '''Apply the ABS intrinsic conversion transformation to the specified
+        node. This loop must be an ABS UnaryOperation. The ABS
         UnaryOperation is converted to the equivalent inline code:
 
         R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X
@@ -156,7 +156,7 @@ class NemoAbsTrans():
         descendent of an assignment and will raise an exception if
         this is not the case.
 
-        :param node: an Abs UnaryOperation node.
+        :param node: an ABS UnaryOperation node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -208,7 +208,77 @@ class NemoAbsTrans():
         assignment.parent.children.insert(assignment.position, if_stmt)
 
 
-class SignTransformation():
+class NemoSignTrans():
+    '''Provides a NEMO-api-specific transformation from a PSyIR SIGN
+    Operator node to equivalent code in a PSyIR tree. Validity checks
+    are also performed.
+
+    The transformation replaces `R=SIGN(A,B)` with the following logic:
+
+    `R=ABS(B); if A<0.0 R=R*-1.0`
+
+     Note, an alternative would be:
+     `if A<0 then (if B<0 R=B else R=B*-1) else ((if B>0 R=B else R=B*-1))`
+
+    '''
+    def __str__(self):
+        return "Convert the PSyIR SIGN intrinsic to equivalent PSyIR code"
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype:str
+
+        '''
+        return "NemoSignTrans"
+
+    def validate(self, node, symbol_table):
+        '''Perform various checks to ensure that it is valid to apply
+        the NemoSignTrans transformation to the supplied Node.
+
+        :param node: the node that is being checked.
+        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :param symbol_table: the symbol table that is being checked.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises TransformationError: if the node argument is not a \
+            :py:class:`psyclone.psyGen.BinaryOperation` with the SIGN \
+            operator.
+        :raises TransformationError: if the symbol_table argument is not a \
+            :py:class:`psyclone.psyir.symbols.SymbolTable`.
+        :raises TransformationError: if the api is not nemo.
+        :raises TransformationError: if the Abs Operation node does \
+        not have an Assignement Node as an ancestor.
+
+        '''
+        # Check that the node is a PSyIR SIGN binnary operation
+        if not isinstance(node, BinaryOperation) or \
+           not node.operator is BinaryOperation.Operator.SIGN:
+            raise TransformationError(
+                "Error in {0} transformation. The supplied node argument is "
+                "not a SIGN operator, found '{1}'."
+                "".format(self.name, type(node).__name__))
+        # Check that symbol_table is a PSyIR symbol table
+        if not isinstance(symbol_table, SymbolTable):
+            raise TransformationError(
+                "Error in {0} transformation. The supplied symbol_table "
+                "argument is not an a SymbolTable, found '{1}'."
+                "".format(self.name, type(symbol_table).__name__))
+        # Check that this is the nemo api.
+        from psyclone.configuration import Config
+        if not Config.get().api == "nemo":
+            raise TransformationError(
+                "Error in {0} transformation. This transformation only "
+                "works for the nemo api, but found '{1}'."
+                "".format(self.name, Config.get().api))
+        # Check that there is an Assignment node that is an ancestor
+        # of this BinaryOperation.
+        if not node.ancestor(Assignment):
+            raise TransformationError(
+                "Error in {0} transformation. This transformation requires "
+                "the SIGN operator to be part of an assignment statement, "
+                "but no such assignment was found.".format(self.name))
 
     def apply(self, oper, symbol_table):
         ''' xxx '''
@@ -314,7 +384,7 @@ def trans(psy):
     '''
 
     abs_trans = NemoAbsTrans()
-    sign_trans = SignTransformation()
+    sign_trans = NemoSignTrans()
     min_trans = MinTransformation()
 
     sir_writer = SIRWriter(skip_nodes=True)
