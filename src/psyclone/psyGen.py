@@ -5380,8 +5380,8 @@ class Transformation(object):
         '''
         # pylint: disable=no-self-use
         schedule = None
-        momento = None
-        return schedule, momento
+        memento = None
+        return schedule, memento
 
     def validate(self, node, options=None):
         '''Method that validates that the input data is correct.
