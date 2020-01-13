@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -168,6 +168,23 @@ Iteration construct
 .. autoclass:: psyclone.psyGen.Loop
     :members:
 
+Ranges
+======
+
+Ranges in the PSyIR are used in both iteration and array-slicing
+constructs.  For the latter, an array slice or section will consist of
+a parent `Array` object with one or more index expressions represented
+by a `Range`.  For the former, a `Loop` has two children, the first of
+which is a `Range` and the second a `Schedule` (containing the loop
+body).  Should this `Loop` have originated from e.g. an expression
+using Fortran array syntax, then the `Range` may be an `EntireRange`
+and contain a reference to the `ArrayReference` appearing on the LHS.
+
+.. autoclass:: psyclone.psyir.nodes.ranges.ExplicitRange
+    :members:
+
+.. autoclass:: psyclone.psyir.nodes.ranges.EntireRange
+    :members:
 
 Operation Nodes
 ===============

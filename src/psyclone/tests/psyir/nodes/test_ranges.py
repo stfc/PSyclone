@@ -40,43 +40,51 @@ from psyclone.psyir.symbols import DataType
 from psyclone.psyir.nodes.ranges import ExplicitRange
 from psyclone.psyGen import InternalError, Literal
 
-
-def test_explicit_range_errors():
-    ''' Tests for incorrect arguments to the ExplicitRange constructor. '''
-
-    # Too few children
+@pytest.mark.parametrize("prop", ["start", "stop", "step"])
+def test_explicit_range_getter_errors(prop):
+    ''' Test that attempting to get any of the start/stop/step properties for
+    an invalid ExplicitRange object raises the expected errors. '''
+    # pylint:disable=eval-used
+    erange = ExplicitRange()
+    # Manually break the list of children
+    erange._children = []
     with pytest.raises(InternalError) as err:
-        ExplicitRange(ast=None, children=[], parent=None)
-    assert ("must have exactly 2 or 3 children (for start, stop and "
-            "optional step) but got 0" in str(err.value))
-
-    # Too many children
-    with pytest.raises(InternalError) as err:
-        ExplicitRange(ast=None, children=[None, None, None, None], parent=None)
-    assert ("must have exactly 2 or 3 children (for start, stop and "
-            "optional step) but got 4" in str(err.value))
-
-    # Correct number of children but wrong type
-    with pytest.raises(TypeError) as err:
-        ExplicitRange(ast=None, children=[None, None, None], parent=None)
-    assert ("must be sub-classes of Node but got: ['NoneType', "
+        _ = eval("erange." + prop)
+    assert ("Malformed ExplicitRange: should have three children but found 0"
             in str(err.value))
 
+    # Correct number of children but wrong type (as initialised to None)
+    erange = ExplicitRange()
+    with pytest.raises(InternalError) as err:
+        _ = eval("erange." + prop)
+    assert ("Malformed ExplicitRange: all children must be sub-classes of "
+            "Node" in str(err.value))
+
+
+@pytest.mark.parametrize("prop", ["start", "stop", "step"])
+def test_explicit_range_setter_errors(prop):
+    ''' Check that the various setters reject values that are not sub-classes
+    of Node. '''
+    # pylint:disable=exec-used
+    erange = ExplicitRange()
     with pytest.raises(TypeError) as err:
-        ExplicitRange(ast=None, children=[1, 2], parent=None)
-    assert ("must be sub-classes of Node but got: ['int', "
-            in str(err.value))
+        exec("erange." + prop + " = 1")
+    assert "must be a sub-class of Node but got" in str(err.value)
+    val = Literal("1.0", DataType.REAL)
+    with pytest.raises(TypeError) as err:
+        exec("erange." + prop + " = val")
+    assert ("value of an ExplicitRange is a Literal then it must be of type "
+            "INTEGER but got DataType.REAL" in str(err.value))
 
 
 def test_explicit_range_props():
     ''' Test that the properties of an ExplicitRange return what we expect. '''
     start = Literal("10", DataType.INTEGER)
     stop = Literal("20", DataType.INTEGER)
-    erange = ExplicitRange(children=[start, stop], parent=None)
+    erange = ExplicitRange.create(start, stop)
     assert erange.children[0] is start
     assert erange.children[1] is stop
     # We didn't supply an increment so check that one was created
     assert isinstance(erange.children[2], Literal)
     assert erange.children[2].datatype == DataType.INTEGER
     assert erange.children[2].value == "1"
-
