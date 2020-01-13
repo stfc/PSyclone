@@ -6593,7 +6593,7 @@ class Literal(Node):
                         self.VALID_DATA_TYPES.
     :raises TypeError: if the supplied value is not a string.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
-                        True or False.
+                        'true' or 'false'.
     '''
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,

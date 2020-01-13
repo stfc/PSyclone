@@ -357,7 +357,7 @@ class DataSymbol(Symbol):
             not empty), or 3) a constant value is provided but the type of \
             the value does is not supported, or 4) the type of the value \
             provided is not compatible with the datatype of this DataSymbol \
-            instance, or 5) the provided PSyIR expression is too complex.
+            instance, or 5) the provided PSyIR expression is unsupported.
 
         '''
         from psyclone.psyGen import Node, Literal, Operation, Reference
