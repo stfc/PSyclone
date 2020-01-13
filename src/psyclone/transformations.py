@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3694,15 +3694,14 @@ class NemoExplicitLoopTrans(Transformation):
                 idx = object_index(exe_part.parent.content, exe_part)
 
                 spec = Fortran2003.Specification_Part(
-                    FortranStringReader(
-                        "integer :: {0}".format(loop_var)),
-                    parent=exe_part.parent)
+                    FortranStringReader("integer :: {0}".format(loop_var)))
+                spec.parent = exe_part.parent
                 exe_part.parent.content.insert(idx, spec)
             else:
                 spec = spec_list[0]
                 decln = Fortran2003.Type_Declaration_Stmt(
-                    FortranStringReader(
-                        "integer :: {0}".format(loop_var)), parent=spec)
+                    FortranStringReader("integer :: {0}".format(loop_var)))
+                decln.parent = spec
                 spec.content.append(decln)
 
         # Modify the line containing the implicit do by replacing every

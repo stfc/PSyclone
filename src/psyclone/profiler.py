@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -473,7 +473,8 @@ class ProfileNode(Node):
             "CALL ProfileEnd({0})".format(var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
-        pecall = Fortran2003.Call_Stmt(reader, parent=fp_parent)
+        pecall = Fortran2003.Call_Stmt(reader)
+        pecall.parent = fp_parent
         fp_parent.content.insert(ast_end_index+1, pecall)
 
         # Add the profiling-start call
@@ -481,5 +482,6 @@ class ProfileNode(Node):
             "CALL ProfileStart('{0}', '{1}', {2})".format(
                 routine_name, region_name, var_name))
         reader.set_format(FortranFormat(True, False))
-        pscall = Fortran2003.Call_Stmt(reader, parent=fp_parent)
+        pscall = Fortran2003.Call_Stmt(reader)
+        pscall.parent = fp_parent
         fp_parent.content.insert(ast_start_index, pscall)

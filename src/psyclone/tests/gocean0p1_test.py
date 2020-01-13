@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2016-2019, Science and Technology Facilities Council
+# Copyright (c) 2016-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,18 +71,18 @@ def test_loop_bounds_gen_multiple_loops():
         "      DO j=1,SIZE(uold, 2)\n"
         "        DO i=1,SIZE(uold, 1)\n"
         "          CALL time_smooth_code(i, j, u, unew, uold)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO j=1,SIZE(vold, 2)\n"
         "        DO i=1,SIZE(vold, 1)\n"
         "          CALL time_smooth_code(i, j, v, vnew, vold)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO j=1,SIZE(pold, 2)\n"
         "        DO i=1,SIZE(pold, 1)\n"
         "          CALL time_smooth_code(i, j, p, pnew, pold)\n"
-        "        END DO \n"
-        "      END DO ")
+        "        END DO\n"
+        "      END DO")
     assert expected in gen
 
 

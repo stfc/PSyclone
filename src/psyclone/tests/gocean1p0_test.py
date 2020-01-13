@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,8 +90,8 @@ def test_field(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_cu\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -135,14 +135,14 @@ def test_two_kernels(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
         "uold_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
 
@@ -184,14 +184,14 @@ def test_grid_property(tmpdir):
         "        DO i=2,istop-1\n"
         "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop-1\n"
         "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
         "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
@@ -233,8 +233,8 @@ def test_scalar_int_arg(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
         "ssh_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_int_test")
 
@@ -276,8 +276,8 @@ def test_scalar_float_arg(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
         "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
     assert generated_code.find(expected_output) != -1
@@ -319,8 +319,8 @@ def test_ne_offset_cf_points(tmpdir):
         "        DO i=1,istop-1\n"
         "          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -362,8 +362,8 @@ def test_ne_offset_ct_points(tmpdir):
         "        DO i=2,istop\n"
         "          CALL compute_vort_code(i, j, p_fld%data, u_fld%data, "
         "v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -404,8 +404,8 @@ def test_ne_offset_all_cu_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop\n"
         "          CALL bc_solid_u_code(i, j, u_fld%data, u_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -446,8 +446,8 @@ def test_ne_offset_all_cv_points(tmpdir):
         "      DO j=1,jstop\n"
         "        DO i=1,istop+1\n"
         "          CALL bc_solid_v_code(i, j, v_fld%data, v_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_v\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -488,8 +488,8 @@ def test_ne_offset_all_cf_points(tmpdir):
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
         "          CALL bc_solid_f_code(i, j, f_fld%data, f_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_f\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -529,8 +529,8 @@ def test_sw_offset_cf_points(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_z_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data, p_fld%grid%dx, p_fld%grid%dy)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
@@ -572,8 +572,8 @@ def test_sw_offset_all_cf_points(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_f_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_f\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -615,8 +615,8 @@ def test_sw_offset_ct_points(tmpdir):
         "        DO i=2,istop\n"
         "          CALL compute_h_code(i, j, h_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_h\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -659,8 +659,8 @@ def test_sw_offset_all_ct_points(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, "
         "ufld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_h\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -702,8 +702,8 @@ def test_sw_offset_all_cu_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -745,8 +745,8 @@ def test_sw_offset_all_cv_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_v_code(i, j, vfld%data, ufld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_v\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -789,8 +789,8 @@ def test_offset_any_all_cu_points(tmpdir):
         "        DO i=1,istop\n"
         "          CALL compute_u_code(i, j, ufld%data, vfld%data, "
         "hfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -832,8 +832,8 @@ def test_offset_any_all_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL field_copy_code(i, j, voldfld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
