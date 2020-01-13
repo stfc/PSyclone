@@ -140,44 +140,6 @@ def test_datasymbol_init_errors():
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
-    with pytest.raises(ValueError) as error:
-        DataSymbol('a', DataType.INTEGER, interface=ArgumentInterface(),
-                   constant_value=9)
-    assert ("Error setting constant value for symbol 'a'. A DataSymbol with "
-            "an ArgumentInterface can not have a constant value."
-            in str(error.value))
-
-    with pytest.raises(ValueError) as error:
-        DataSymbol('a', DataType.INTEGER, shape=[DataSymbol.Extent.ATTRIBUTE],
-                   constant_value=9)
-    assert ("Error setting constant value for symbol 'a'. A DataSymbol with a"
-            " constant value must be a scalar but a shape was found."
-            in str(error.value))
-
-    with pytest.raises(ValueError) as error:
-        DataSymbol('a', DataType.INTEGER, constant_value=9.81)
-    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'DataType.INTEGER' which means the constant"
-            " value is expected to be") in str(error.value)
-    assert "'int'>' but found " in str(error.value)
-    assert "'float'>'." in str(error.value)
-
-    with pytest.raises(ValueError) as error:
-        DataSymbol('a', DataType.CHARACTER, constant_value=42)
-    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'DataType.CHARACTER' which means the "
-            "constant value is expected to be") in str(error.value)
-    assert "'str'>' but found " in str(error.value)
-    assert "'int'>'." in str(error.value)
-
-    with pytest.raises(ValueError) as error:
-        DataSymbol('a', DataType.BOOLEAN, constant_value="hello")
-    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'DataType.BOOLEAN' which means the constant"
-            " value is expected to be") in str(error.value)
-    assert "'bool'>' but found " in str(error.value)
-    assert "'str'>'." in str(error.value)
-
 
 def test_datasymbol_precision_errors():
     ''' Check that invalid precision settings raise the appropriate errors in
@@ -247,9 +209,7 @@ def test_datasymbol_can_be_printed():
 
 def test_datasymbol_constant_value_setter():
     '''Test that a DataSymbol constant value can be set if given a new valid
-    constant value. Also test that is_constant returns True
-
-    '''
+    constant value.'''
 
     # Test with valid constant values
     sym = DataSymbol('a', DataType.INTEGER, constant_value=7)
@@ -266,13 +226,12 @@ def test_datasymbol_constant_value_setter():
     assert sym.constant_value.datatype == DataType.REAL
     assert sym.constant_value.value == "1.0"
 
-    # Test with invalid constant values
-    sym = DataSymbol('a', DataType.DEFERRED)
-    with pytest.raises(ValueError) as error:
-        sym.constant_value = 1.0
-    assert ("Error setting constant value for symbol 'a'. Constant values are"
-            " not supported for 'DataType.DEFERRED' datatypes."
-            in str(error.value))
+    sym = DataSymbol('a', DataType.BOOLEAN, constant_value=True)
+    assert sym.constant_value.datatype == DataType.BOOLEAN
+    assert sym.constant_value.value == "true"
+    sym.constant_value = False
+    assert sym.constant_value.datatype == DataType.BOOLEAN
+    assert sym.constant_value.value == "false"
 
     # Test with valid constant expressions
     lhs = Literal('2', DataType.INTEGER)
@@ -282,6 +241,19 @@ def test_datasymbol_constant_value_setter():
     assert isinstance(sym.constant_value, BinaryOperation)
     assert sym.constant_value is ct_expr
 
+
+def test_datasymbol_constant_value_setter_invalid():
+    '''Test that a DataSymbol constant value setter raises the appropriate
+    error if an invalid value and/or datatype are given.'''
+
+    # Test with invalid constant values
+    sym = DataSymbol('a', DataType.DEFERRED)
+    with pytest.raises(ValueError) as error:
+        sym.constant_value = 1.0
+    assert ("Error setting constant value for symbol 'a'. Constant values are"
+            " not supported for 'DataType.DEFERRED' datatypes."
+            in str(error.value))
+
     # Test with invalid constant expressions
     ct_expr = Return()
     with pytest.raises(ValueError) as error:
@@ -289,6 +261,44 @@ def test_datasymbol_constant_value_setter():
     assert "Error setting constant value for symbol 'a'. PSyIR static " \
         "expressions can only contain PSyIR literal, operation or reference" \
         " nodes but found:" in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        DataSymbol('a', DataType.INTEGER, interface=ArgumentInterface(),
+                   constant_value=9)
+    assert ("Error setting constant value for symbol 'a'. A DataSymbol with "
+            "an ArgumentInterface can not have a constant value."
+            in str(error.value))
+
+    with pytest.raises(ValueError) as error:
+        DataSymbol('a', DataType.INTEGER, shape=[DataSymbol.Extent.ATTRIBUTE],
+                   constant_value=9)
+    assert ("Error setting constant value for symbol 'a'. A DataSymbol with a"
+            " constant value must be a scalar but a shape was found."
+            in str(error.value))
+
+    with pytest.raises(ValueError) as error:
+        DataSymbol('a', DataType.INTEGER, constant_value=9.81)
+    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+            "instance datatype is 'DataType.INTEGER' which means the constant"
+            " value is expected to be") in str(error.value)
+    assert "'int'>' but found " in str(error.value)
+    assert "'float'>'." in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        DataSymbol('a', DataType.CHARACTER, constant_value=42)
+    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+            "instance datatype is 'DataType.CHARACTER' which means the "
+            "constant value is expected to be") in str(error.value)
+    assert "'str'>' but found " in str(error.value)
+    assert "'int'>'." in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        DataSymbol('a', DataType.BOOLEAN, constant_value="hello")
+    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+            "instance datatype is 'DataType.BOOLEAN' which means the constant"
+            " value is expected to be") in str(error.value)
+    assert "'bool'>' but found " in str(error.value)
+    assert "'str'>'." in str(error.value)
 
 
 def test_datasymbol_is_constant():
