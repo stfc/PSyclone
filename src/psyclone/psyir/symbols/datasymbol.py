@@ -398,9 +398,17 @@ class DataSymbol(Symbol):
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
                 if self.datatype == DataType.BOOLEAN:
-                    new_value = str(new_value).lower()
-
-                self._constant_value = Literal(str(new_value), self.datatype)
+                    # In this case we know new_value is a Python boolean as it
+                    # has passed the isinstance(new_value, lookup) check.
+                    if new_value:
+                        self._constant_value = Literal('true', self.datatype)
+                    else:
+                        self._constant_value = Literal('false', self.datatype)
+                else:
+                    # Otherwise we convert the Python intrinsic to a PSyIR
+                    # Literal using its string representation.
+                    self._constant_value = Literal(str(new_value),
+                                                   self.datatype)
         else:
             self._constant_value = None
 
