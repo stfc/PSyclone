@@ -59,12 +59,13 @@ from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
 
 
 class NemoAbsTrans():
-    '''Provides a NEMO-api-specific transformation from an abs operator
-    node to equivalent code in the PSyIR of a Schedule. The supplied
-    arguments are also checked for validity.
+    '''Provides a NEMO-api-specific transformation from a PSyIR abs
+    Operator node to equivalent code in a PSyIR tree. Validity checks
+    are also performed.
 
-    the translation performed for `R=ABS(X)` is
-    `IF (X<0.0) R=X*-1.0 ELSE R=X` 
+    The transformation replaces `R=ABS(X)` with the following logic:
+
+    `IF (X<0.0) R=X*-1.0 ELSE R=X`
 
     '''
     def __str__(self):
@@ -72,7 +73,11 @@ class NemoAbsTrans():
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string.'''
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype:str
+
+        '''
         return "NemoAbsTrans"
 
     def validate(self, node, symbol_table):
@@ -89,6 +94,9 @@ class NemoAbsTrans():
             operator.
         :raises TransformationError: if the symbol_table argument is not a \
             :py:class:`psyclone.psyir.symbols.SymbolTable`.
+        :raises TransformationError: if the api is not nemo.
+        :raises TransformationError: if the Abs Operation node does \
+        not have an Assignement Node as an ancestor.
 
         '''
         # Check that the node is a PSyIR abs unary operation
@@ -104,46 +112,97 @@ class NemoAbsTrans():
                 "Error in {0} transformation. The supplied symbol_table "
                 "argument is not an a SymbolTable, found '{1}'."
                 "".format(self.name, type(symbol_table).__name__))
+        # Check that this is the nemo api.
+        from psyclone.configuration import Config
+        if not Config.get().api == "nemo":
+            raise TransformationError(
+                "Error in {0} transformation. This transformation only "
+                "works for the nemo api, but found '{1}'."
+                "".format(self.name, Config.get().api))
+        # Check that there is an Assignment node that is an ancestor
+        # of this Abs UnaryOperation.
+        if not node.ancestor(Assignment):
+            raise TransformationError(
+                "Error in {0} transformation. This transformation requires "
+                "the Abs operator to be part of an assignment statement, "
+                "but no such assignment was found.".format(self.name))
 
     def apply(self, node, symbol_table):
-        ''' xxx
-        # R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X 
-        # TODO: There is an assumption that operation is child of assignment
+        '''Apply the Abs intrinsic conversion transformation to the specified
+        node. This loop must be an Abs UnaryOperation. The Abs
+        UnaryOperation is converted to the equivalent inline code:
+
+        R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X
+
+        In the PSyIR this is implemented as a transform from:
+
+        R= ... ABS(X) ...
+
+        to:
+
+        tmp_x=X
+        IF (tmp_x<0.0) res_x=tmp_x*-1.0 ELSE res_x=tmp_x
+        R= ... res_x ...
+
+        where X could be an arbitrarily complex expression.
+        
+        A symbol table is required as the NEMO api does not currently
+        contain a symbol table and one is required in order to create
+        temporary variables whose names do not clash with existing
+        code. This non-standard argument is also the reason why this
+        transformation is currently limited to the NEMO api.
+
+        This transformation requires the operation node to be a
+        descendent of an assignment and will raise an exception if
+        this is not the case.
+
+        :param node: an Abs UnaryOperation node.
+        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :param symbol_table: the symbol table.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         self.validate(node, symbol_table)
         
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
+        # Create two temporary variables.
         res_var = symbol_table.new_symbol_name("res_abs")
         symbol_table.add(DataSymbol(res_var, DataType.REAL))
         tmp_var = symbol_table.new_symbol_name("tmp_abs")
         symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
         # Replace operation with a temporary (res_X).
-        oper_parent.children[node.position] = Reference(res_var, parent=oper_parent)
+        oper_parent.children[node.position] = Reference(res_var,
+                                                        parent=oper_parent)
 
-        # Assign content of operation to a temporary (tmp_X)
+        # tmp_var=X
         lhs = Reference(tmp_var)
         rhs = node.children[0]
         new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
-        # Set res_X to the absolute value of tmp_X
+        # if_condition: tmp_var>0.0
         lhs = Reference(tmp_var)
         rhs = Literal("0.0", DataType.REAL)
-        if_condition = BinaryOperation.create(BinaryOperation.Operator.GT, lhs, rhs)
+        if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
+                                              lhs, rhs)
 
+        # then_body: res_var=tmp_var
         lhs = Reference(res_var)
         rhs = Reference(tmp_var)
         then_body = [Assignment.create(lhs, rhs)]
 
+        # else_body: res_var=-1.0*tmp_var
         lhs = Reference(res_var)
         lhs_child = Reference(tmp_var)
         rhs_child = Literal("-1.0", DataType.REAL)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child, rhs_child)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child,
+                                     rhs_child)
         else_body = [Assignment.create(lhs, rhs)]
 
+        # if [if_condition] then [then_body] else [else_body]
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
         if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)
