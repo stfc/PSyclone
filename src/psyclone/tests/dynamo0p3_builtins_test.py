@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -418,7 +418,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
@@ -1675,7 +1675,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -2089,7 +2089,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output_seq = (

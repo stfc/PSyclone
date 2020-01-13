@@ -1468,6 +1468,26 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
+    def append(self, name):
+        ''' Create and append a GOKernelArgument to the Argument list.
+
+        :param str name: name of the appended argument.
+
+        :raises TypeError: if the given name is not a string.
+        '''
+        from psyclone.parse.algorithm import Arg
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "The name parameter given to GOKernelArguments.append method "
+                "should be a string, but found '{0}' instead.".
+                format(type(name).__name__))
+
+        descriptor = Descriptor(None, "")  # Create a dummy descriptor
+        arg = Arg("variable", name, name)
+        argument = GOKernelArgument(descriptor, arg, self._parent_call)
+        self.args.append(argument)
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
@@ -1480,8 +1500,11 @@ class GOKernelArgument(KernelArgument):
     @property
     def type(self):
         ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer) '''
-        return self._arg.type
+            a scalar or a grid_property (to be supplied by the PSy layer).
+            If it has no type it defaults to scalar.'''
+        if hasattr(self._arg, 'type'):
+            return self._arg.type
+        return "scalar"
 
     @property
     def function_space(self):

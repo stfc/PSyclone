@@ -47,7 +47,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
 
 # constants
@@ -187,7 +187,7 @@ def test_single_kern_eval(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # First, check the declarations
     expected_decl = (
@@ -291,7 +291,7 @@ def test_single_kern_eval_op(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
@@ -361,7 +361,7 @@ def test_two_qr(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -496,7 +496,7 @@ def test_two_identical_qr(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_init = (
         "      ! Look-up quadrature variables\n"
@@ -570,7 +570,7 @@ def test_anyw2(tmpdir):
         generated_code = str(psy.gen)
         print(generated_code)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         output = (
             "      ! Initialise number of DoFs for any_w2\n"
@@ -614,7 +614,7 @@ def test_qr_plus_eval(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
@@ -740,7 +740,7 @@ def test_two_eval_same_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_init = (
         "      !\n"
@@ -801,7 +801,7 @@ def test_two_eval_diff_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
@@ -886,7 +886,7 @@ def test_two_eval_same_var_same_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # We should only get one set of basis and diff-basis functions in the
     # generated code
@@ -924,7 +924,7 @@ def test_two_eval_op_to_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # testkern_eval writes to W0. testkern_eval_op_to writes to W3.
     # testkern_eval requires basis fns on W0 and eval_op_to requires basis
@@ -1031,7 +1031,7 @@ def test_eval_diff_nodal_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_alloc = (
         "      nodes_w3 => f1_proxy%vspace%get_nodes()\n"
@@ -1140,7 +1140,7 @@ def test_eval_2fs(tmpdir):
             "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_2eval_2fs(tmpdir):
@@ -1170,7 +1170,7 @@ def test_2eval_2fs(tmpdir):
             "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
             "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
             format(idx)) == 1
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_2eval_1qr_2fs(tmpdir):
@@ -1280,7 +1280,7 @@ def test_2eval_1qr_2fs(tmpdir):
         "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, "
         "diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_eval_agglomerate(tmpdir):
@@ -1295,7 +1295,7 @@ def test_eval_agglomerate(tmpdir):
     # W0 and W1.
     assert gen_code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
     assert gen_code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 BASIS_EVAL = '''

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -114,14 +114,15 @@ class Compile(object):
     test function.
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
+
     :param tmpdir: py.test-supplied temporary directory
     :type tmpdir: :py:class:`LocalPath`
-    '''
 
-    # Class variable to store if compilation is enabled (--compile).
+    '''
+    # Class variable to store whether compilation is enabled (--compile).
     TEST_COMPILE = False
 
-    # Class variable to store if opencl compilation is enabled
+    # Class variable to store whether opencl compilation is enabled
     # (--compileopencl).
     TEST_COMPILE_OPENCL = False
 
@@ -136,7 +137,8 @@ class Compile(object):
     def store_compilation_flags(config):
         '''This function is called from the conftest session fixture
         infra_compile. It sets the class variables related to
-        compilation based on the command line option.
+        compilation based on the command-line options.
+
         :param config: The config object from pytest.
         :type config: Instance of :py:class:`pytest.config.
         '''
@@ -204,25 +206,33 @@ class Compile(object):
 
     @staticmethod
     def find_fortran_file(search_paths, root_name):
-        ''' Returns the full path to a Fortran source file. Searches for
+        '''Returns the full path to a Fortran source file. Searches for
         files with suffixes defined in FORTRAN_SUFFIXES.
 
-        :param search_paths: List of locations to search for Fortran file
+        :param search_paths: List of locations to search for Fortran file.
         :type search_paths: list of str
-        :param str root_name: Base name of the Fortran file to look for
-        :return: Full path to a Fortran source file
+        :param str root_name: Base name of the Fortran file to look \
+            for. If it ends with a recognised Fortran suffix then this \
+            is stripped before performing the search.
+        :return: Full path to a Fortran source file.
         :rtype: str
-        :raises IOError: Raises IOError if no matching file is found.
-        '''
 
+        :raises IOError: Raises IOError if no matching file is found.
+
+        '''
+        base_name = root_name[:]
+        for suffix in FORTRAN_SUFFIXES:
+            if root_name.endswith("."+suffix):
+                base_name = base_name[:-(len(suffix)+1)]
+                break
         for path in search_paths:
-            name = os.path.join(path, root_name)
+            name = os.path.join(path, base_name)
             for suffix in FORTRAN_SUFFIXES:
                 if os.path.isfile(str(name)+"."+suffix):
                     name += "." + suffix
                     return name
         raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
-                      format(name, FORTRAN_SUFFIXES))
+                      format(base_name, FORTRAN_SUFFIXES))
 
     def compile_file(self, filename, link=False):
         ''' Compiles the specified Fortran file into an object file (in
@@ -274,19 +284,26 @@ class Compile(object):
                 print(error, file=sys.stderr)
             raise CompileError(output)
 
-    def _code_compiles(self, psy_ast):
+    def _code_compiles(self, psy_ast, dependencies=None):
         '''Attempts to build the Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
         called when compilation is actually enabled (use code_compiles
         otherwse). All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
+        :param psy_ast: The AST of the generated PSy layer.
         :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
-        :return: True if generated code compiles, False otherwise
-        :rtype: bool
-        '''
+        :param dependencies: optional module- or file-names on which \
+                    one or more of the kernels/PSy-layer depend (and \
+                    that are not part of e.g. the GOcean or LFRic \
+                    infrastructure).  These dependencies will be built \
+                    in the order they occur in this list.
+        :type dependencies: list of str
 
+        :return: True if generated code compiles, False otherwise.
+        :rtype: bool
+
+        '''
         kernel_modules = set()
         # Get the names of the modules associated with the kernels.
         # By definition, built-ins do not have associated Fortran modules.
@@ -309,10 +326,18 @@ class Compile(object):
 
         success = True
 
+        if dependencies:
+            # We must ensure that we build any dependencies first and in
+            # the order supplied.
+            build_list = dependencies + list(kernel_modules)
+        else:
+            build_list = list(kernel_modules)
+
         try:
-            # Build the kernels. We allow kernels to also be located in
-            # the temporary directory that we have been passed.
-            for fort_file in kernel_modules:
+            # Build the dependencies and then the kernels. We allow kernels
+            # to also be located in the temporary directory that we have
+            # been passed.
+            for fort_file in build_list:
 
                 # Skip file if it is not Fortran. TODO #372: Add support
                 # for C/OpenCL compiling as part of the test suite.
@@ -333,22 +358,30 @@ class Compile(object):
 
         return success
 
-    def code_compiles(self, psy_ast):
+    def code_compiles(self, psy_ast, dependencies=None):
         '''Attempts to build the Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
         for the actual compilation. All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer
+        :param psy_ast: The AST of the generated PSy layer.
         :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :param dependencies: optional module- or file-names on which \
+                    one or more of the kernels/PSy-layer depend (and \
+                    that are not part of e.g. the GOcean or LFRic \
+                    infrastructure).  These dependencies will be built \
+                    in the order they occur in this list.
+        :type dependencies: list of str
+
         :return: True if generated code compiles, False otherwise
         :rtype: bool
+
         '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
             return True
 
-        return self._code_compiles(psy_ast)
+        return self._code_compiles(psy_ast, dependencies)
 
     def string_compiles(self, code):
         '''

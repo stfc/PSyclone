@@ -43,7 +43,7 @@ from psyclone import psyGen
 from psyclone.psyGen import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface
 from psyclone.psyir.transformations import TransformationError
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -101,7 +101,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     assert "integer ncolour" in gen
     assert "integer colour" in gen
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colour_trans(tmpdir, dist_mem):
@@ -165,7 +165,7 @@ def test_colour_trans(tmpdir, dist_mem):
         assert dirty_str in gen
         assert gen.count("set_dirty()") == 1
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colour_trans_operator(tmpdir, dist_mem):
@@ -195,7 +195,7 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     # check the first argument is a colourmap lookup
     assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colour_trans_cma_operator(tmpdir, dist_mem):
@@ -247,7 +247,7 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "        END DO\n"
         "      END DO\n") in gen
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colour_trans_stencil(dist_mem):
@@ -420,7 +420,7 @@ def test_omp_colour_trans(tmpdir, dist_mem):
         "        DO cell=1,mesh%{0}\n".format(lookup))
     assert output in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_colour_orient_trans(monkeypatch, annexed, dist_mem):
@@ -606,7 +606,7 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
 
     # This test checks the code without OpenMP as this
     # transformation fails
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colouring_after_openmp(dist_mem):
@@ -898,7 +898,7 @@ def test_multi_different_kernel_omp(
 
     assert "private(cell)" in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_invalid_space(monkeypatch):
@@ -1166,7 +1166,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     assert cell_enddo_idx > call2_idx
     assert omp_endpara_idx - cell_enddo_idx == 1
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1268,7 +1268,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         assert set_dirty_str in code
         assert code.count("set_dirty()") == 2
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_cma(dist_mem):
@@ -3951,7 +3951,7 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     assert ("      CALL m2_proxy%set_dirty()\n"
             "      CALL m2_proxy%set_clean(3)") in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_discontinuous_no_depth(monkeypatch, annexed):
@@ -4011,7 +4011,7 @@ def test_rc_all_discontinuous_depth(tmpdir):
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_discontinuous_no_depth(tmpdir):
@@ -4036,7 +4036,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_discontinuous_vector_depth(tmpdir):
@@ -4064,7 +4064,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_discontinuous_vector_no_depth(tmpdir):
@@ -4092,7 +4092,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
         assert ("CALL f1_proxy({0})%set_clean(mesh%get_halo_"
                 "depth())".format(idx)) in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_disc_prev_depend_depth(tmpdir):
@@ -4120,7 +4120,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     assert "CALL f3_proxy%set_dirty()" in result
     assert "CALL f3_proxy%set_clean(3)" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_disc_prev_depend_no_depth():
@@ -4176,7 +4176,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
         assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
@@ -4205,7 +4205,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
@@ -4240,7 +4240,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_dofs_depth():
@@ -4606,7 +4606,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     #
     invoke = psy.invokes.invoke_list[0]
@@ -4672,7 +4672,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     # bother as that is not relevant to this test.
     assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_continuous_halo_remove():
@@ -5328,7 +5328,7 @@ def test_rc_colour(tmpdir):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(1)" in result)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_max_colour(tmpdir):
@@ -5372,7 +5372,7 @@ def test_rc_max_colour(tmpdir):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colour_discontinuous():
@@ -5448,7 +5448,7 @@ def test_rc_then_colour(tmpdir):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(2)" in result)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_then_colour2(tmpdir):
@@ -5498,7 +5498,7 @@ def test_rc_then_colour2(tmpdir):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_then_rc(tmpdir):
@@ -5552,7 +5552,7 @@ def test_loop_fuse_then_rc(tmpdir):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_haloex_colouring(tmpdir, monkeypatch, annexed):
@@ -5626,7 +5626,7 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         halo_exchange = schedule.children[halo_idx]
         check_halo_exchange(halo_exchange)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -5719,7 +5719,7 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
             halo_exchange = schedule.children[4]
         check_halo_exchange(halo_exchange)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -5812,7 +5812,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         halo_exchange = schedule.children[index]
         check_halo_exchange(halo_exchange)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -5903,7 +5903,7 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         halo_exchange = schedule.children[index]
         check_halo_exchange(halo_exchange)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -5990,7 +5990,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
         assert isinstance(schedule.children[index], DynHaloExchange)
         assert schedule.children[index].field.name == "f1"
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -6106,7 +6106,7 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     else:
         assert ("        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
                 "colour)\n" in gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_intergrid_omp_para_region1(dist_mem, tmpdir):
@@ -6146,7 +6146,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             "        !$omp end do\n"
             "        !$omp end parallel\n"
             "      END DO\n".format(upper_bound) in gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 @pytest.mark.xfail(reason="Loop-fusion not yet supported for inter-grid "
@@ -6167,7 +6167,7 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     loops = schedule.walk(psyGen.Loop)
     _, _ = ftrans.apply(loops[0], loops[2])
     schedule.view()
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_intergrid_err(dist_mem):
@@ -6378,7 +6378,7 @@ def test_async_hex(tmpdir):
         "      END IF\n"
         "      !\n") in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_async_hex_move_1(tmpdir):
@@ -6419,7 +6419,7 @@ def test_async_hex_move_1(tmpdir):
         "        CALL m1_proxy%halo_exchange_finish(depth=1)\n"
         "      END IF\n") in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_async_hex_preserve_properties():
@@ -6514,7 +6514,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "      END DO\n"
         "      CALL f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_async_hex_move_error_1():
@@ -6625,7 +6625,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
@@ -6711,7 +6711,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      CALL m2_proxy%set_dirty()\n"
         "      CALL m2_proxy%set_clean(3)\n") in result
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 @pytest.mark.xfail(reason="dependence analysis thinks independent vectors "
@@ -6821,7 +6821,7 @@ def test_vector_async_halo_exchange(tmpdir):
     assert isinstance(schedule.children[6], DynLoop)
     assert isinstance(schedule.children[7], DynLoop)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_async_halo_exchange_nomatch1():

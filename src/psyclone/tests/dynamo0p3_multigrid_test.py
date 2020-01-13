@@ -53,7 +53,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.configuration import Config
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -251,7 +251,7 @@ def test_field_prolong(tmpdir):
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         gen_code = str(psy.gen)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         expected = (
             "      USE prolong_test_kernel_mod, "
@@ -340,7 +340,7 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
         output = str(psy.gen)
         print(output)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         defs = (
             "      USE restrict_test_kernel_mod, "
@@ -451,7 +451,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     output = str(psy.gen)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     expected = (
         "      ! Look-up mesh objects and loop limits for inter-grid "
         "kernels\n"
@@ -627,7 +627,7 @@ def test_prolong_vector(tmpdir):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     output = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "TYPE(field_type), intent(inout) :: field1(3)" in output
     assert "TYPE(field_proxy_type) field1_proxy(3)" in output
@@ -719,7 +719,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     assert "DO cell=1,mesh_fld_c%get_last_halo_cell(1)" in output
     assert "DO cell=1,mesh_fld_m%get_last_halo_cell(1)" in output
     # Check compilation
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Now do some transformations
     from psyclone.transformations import Dynamo0p3ColourTrans, \

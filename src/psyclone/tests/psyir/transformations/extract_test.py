@@ -49,7 +49,7 @@ from psyclone.extractor import ExtractNode
 from psyclone.psyGen import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # API names
 DYNAMO_API = "dynamo0.3"
@@ -124,7 +124,7 @@ def test_node_list_error(tmpdir):
     assert ("supplied nodes are not children of the same "
             "parent.") in str(excinfo.value)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_distmem_error():
@@ -615,7 +615,7 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
         "      ! ExtractEnd\n")
     assert output in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_extract_colouring_omp_dynamo0p3(tmpdir):
@@ -680,4 +680,4 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
         "      ! ExtractEnd\n")
     assert output in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
