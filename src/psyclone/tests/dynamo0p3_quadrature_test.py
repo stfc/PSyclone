@@ -46,7 +46,7 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -70,7 +70,7 @@ def test_field_xyoz(tmpdir):
     generated_code = str(psy.gen)
     print(generated_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -221,7 +221,7 @@ def test_field_qr_deref(tmpdir):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
         gen = str(psy.gen)
         print(gen)
         assert (

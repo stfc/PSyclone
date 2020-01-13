@@ -46,7 +46,7 @@ from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import Config
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 API = "dynamo0.3"
@@ -104,7 +104,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over dofs to the level 1 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -158,7 +158,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over dofs to the level 1 halo and check
     # output. There should be no halo exchange for field "f1"
@@ -230,7 +230,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -337,7 +337,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -416,7 +416,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     rc_trans.apply(schedule.children[loop1idx])
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]

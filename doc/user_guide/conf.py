@@ -139,7 +139,13 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+html_static_path = ['_static']
+
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css',  # override wide tables in RTD theme
+        ],
+     }
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -204,7 +210,8 @@ latex_elements = {
 #  documentclass [howto/manual]).
 latex_documents = [
     ('index', 'psyclone.tex', u'PSyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and Sergi Siso', 'manual'),
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and'
+     'Sergi Siso', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -234,7 +241,8 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'], 1)
+     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi '
+      'Siso'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -248,7 +256,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone', u'psyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso', 'psyclone',
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
+     'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
 ]
@@ -267,9 +276,11 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
-epub_copyright = u'2017-2019, STFC'
+epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
+    'Sergi Siso'
+epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
+    'and Sergi Siso'
+epub_copyright = u'2017-2020, STFC'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

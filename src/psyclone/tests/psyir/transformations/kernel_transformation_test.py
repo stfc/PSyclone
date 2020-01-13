@@ -49,7 +49,7 @@ from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 
@@ -374,7 +374,7 @@ def test_1kern_trans(kernel_outputdir):
     first = code.find("call testkern_code(")
     second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
-    assert Dynamo0p3Build(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_2kern_trans(kernel_outputdir):
@@ -402,7 +402,7 @@ def test_2kern_trans(kernel_outputdir):
         assert "nlayers = 100" in open(filepath).read()
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
-    assert Dynamo0p3Build(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_builtin_no_trans():

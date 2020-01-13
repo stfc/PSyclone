@@ -40,10 +40,7 @@ module kernel_with_use_mod
 
   private
 
-  public bc_ssh
-  public bc_ssh_code
-
-  !=======================================
+  public kernel_with_use, kernel_with_use_code
 
   type, extends(kernel_type) :: kernel_with_use
      type(go_arg), dimension(3) :: meta_args =                 &
