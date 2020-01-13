@@ -51,6 +51,8 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "gocean1p0")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -1218,6 +1220,16 @@ def test_invalid_access_type():
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
                      str(err.value))
+
+
+def test_compile_with_dependency(tmpdir):
+    ''' Check that we can do test compilation for an invoke of a kernel
+    that has a dependency on a non-infrastructure module. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
+        api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
