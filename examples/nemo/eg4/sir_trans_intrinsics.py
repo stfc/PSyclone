@@ -301,7 +301,7 @@ class NemoSignTrans(NemoOperatorTrans):
         tmp_var = symbol_table.new_symbol_name("tmp_sign")
         symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
-        # Replace operator with a temporary (res_sign).
+        # Replace operator with a temporary (res_var).
         oper_parent.children[node.position] = Reference(res_var,
                                                         parent=oper_parent)
 
@@ -337,50 +337,111 @@ class NemoSignTrans(NemoOperatorTrans):
                                      lhs_child, rhs_child)
         then_body = [Assignment.create(lhs, rhs)]
 
-        # if [if_condition] then [then_body]
+        # if [if condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
         if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)
 
 
-class MinTransformation():
+class NemoMinTrans(NemoOperatorTrans):
+    '''Provides a NEMO-api-specific transformation from a PSyIR MIN
+    Operator node to equivalent code in a PSyIR tree. Validity checks
+    are also performed.
 
-    def apply(self, oper, symbol_table):
-        ''' xxx '''
-        # R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...
-        oper_parent = oper.parent
-        assignment = oper.ancestor(Assignment)
+    The transformation replaces `R=MIN(A,B,C...)` with the following logic:
 
+    `R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...`
+
+    '''
+    def __init__(self):
+        super(NemoMinTrans, self).__init__()
+        self._operator_name = "MIN"
+        self._class = NaryOperation
+        self._operator = NaryOperation.Operator.MIN
+
+    def apply(self, node, symbol_table):
+        '''Apply the MIN intrinsic conversion transformation to the specified
+        node. This node must be an MIN NaryOperation. The MIN
+        NaryOperation is converted to the following equivalent inline code:
+
+        R=MIN(A,B,C,..) => R=A; if B<R R=B; if C<R R=C; ...
+
+        In the PSyIR this is implemented as a transform from:
+
+        R= ... MIN(A,B,C...) ...
+
+        to:
+
+        res_min=A
+        tmp_min=B
+        IF (tmp_min<res_min) res_min=tmp_min
+        tmp_min=C
+        IF (tmp_min<res_min) res_min=tmp_min
+        ...
+        R= ... res_min ...
+
+        where A,B,C... could be arbitrarily complex expressions.
+        
+        A symbol table is required as the NEMO api does not currently
+        contain a symbol table and one is required in order to create
+        temporary variables whose names do not clash with existing
+        code. This non-standard argument is also the reason why this
+        transformation is currently limited to the NEMO api.
+
+        This transformation requires the operation node to be a
+        descendent of an assignment and will raise an exception if
+        this is not the case.
+
+        :param node: a MIN NaryOperation node.
+        :type node: :py:class:`psyclone.psyGen.NaryOperation`
+        :param symbol_table: the symbol table.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        self.validate(node, symbol_table)
+
+        oper_parent = node.parent
+        assignment = node.ancestor(Assignment)
+
+        # Create a temporary result variable.
         res_var = symbol_table.new_symbol_name("res_min")
         symbol_table.add(DataSymbol(res_var, DataType.REAL))
-        tmp_var = symbol_table.new_symbol_name("tmp_min")
-        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
-        # Replace operation with a temporary (res_X).
-        oper_parent.children[oper.position] = Reference(res_var, parent=oper_parent)
+        # Replace operation with a temporary (res_var).
+        oper_parent.children[node.position] = Reference(res_var,
+                                                        parent=oper_parent)
 
-        # Set the result to the first min value
+        # res_var=A
         lhs = Reference(res_var)
-        new_assignment = Assignment.create(lhs, oper.children[0])
+        new_assignment = Assignment.create(lhs, node.children[0])
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
-        # For each of the remaining min values
-        for expression in oper.children[1:]:
+        # For each of the remaining min arguments (B,C...)
+        for expression in node.children[1:]:
+            # Create a temporary variable.
             tmp_var = symbol_table.new_symbol_name("tmp_min")
             symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
 
+            # tmp_var=(B or C or ...)
             lhs = Reference(tmp_var)
             new_assignment = Assignment.create(lhs, expression)
             new_assignment.parent = assignment.parent
-            assignment.parent.children.insert(assignment.position, new_assignment)
+            assignment.parent.children.insert(assignment.position,
+                                              new_assignment)
 
+            # if_condition: tmp_var<res_var
             lhs = Reference(tmp_var)
             rhs = Reference(res_var)
-            if_condition = BinaryOperation.create(BinaryOperation.Operator.LT, lhs, rhs)
+            if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
+                                                  lhs, rhs)
+
+            # then_body: res_var=tmp_var
             lhs = Reference(res_var)
             rhs = Reference(tmp_var)
             then_body = [Assignment.create(lhs, rhs)]
+
+            # if [if_condition] then [then_body]
             if_stmt = IfBlock.create(if_condition, then_body)
             if_stmt.parent = assignment.parent
             assignment.parent.children.insert(assignment.position, if_stmt)
@@ -388,8 +449,11 @@ class MinTransformation():
 
 def trans(psy):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
-    transform to the supplied invokes. This transformation is limited
-    the NEMO API.
+    transform to the supplied invokes after replacing any ABS, SIGN or
+    MIN intrinsics with equivalent code. This is done because the SIR
+    does not support intrinsics. This script is limited to the
+    NEMO API becuase the NEMO API does not yet support symbol tables
+    (so the transformations are written to cope with that).
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -400,10 +464,9 @@ def trans(psy):
 
     abs_trans = NemoAbsTrans()
     sign_trans = NemoSignTrans()
-    min_trans = MinTransformation()
+    min_trans = NemoMinTrans()
 
-    sir_writer = SIRWriter(skip_nodes=True)
-    fortran_writer = FortranWriter()
+    sir_writer = SIRWriter()
     # For each Invoke write out the SIR representation of the
     # schedule. Note, there is no algorithm layer in the NEMO API so
     # the invokes represent all of the original code.
@@ -414,29 +477,28 @@ def trans(psy):
             # The NEMO api currently has no symbol table so create one
             # to allow the generation of new variables. Note, this
             # does not guarantee unique names as we don't know any of
-            # the existing names (so they could clash).
+            # the existing names (so generated names could clash).
             symbol_table = SymbolTable()
 
             kernel_schedule = kernel.get_kernel_schedule()
             for oper in kernel_schedule.walk(UnaryOperation):
                 if oper.operator == UnaryOperation.Operator.ABS:
-                    #print ("FOUND ABS")
+                    # Apply ABS transformation
                     abs_trans.apply(oper, symbol_table)
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.SIGN:
-                    #print ("FOUND SIGN")
+                    # Apply SIGN transformation
                     sign_trans.apply(oper, symbol_table)
             for oper in kernel_schedule.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.MIN:
-                    #print ("FOUND BINARY MIN")
+                    # Apply (2-arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
             for oper in kernel_schedule.walk(NaryOperation):
                 if oper.operator == NaryOperation.Operator.MIN:
-                    #print ("FOUND NARY MIN")
+                    # Apply (n-arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
         kern = sir_writer(sched)
-        # kern = fortran_writer(sched)
         print(kern)
-        exit(1)
+
     return psy
 
