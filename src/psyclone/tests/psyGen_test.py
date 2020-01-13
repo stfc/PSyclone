@@ -3629,62 +3629,6 @@ def test_array_create_invalid():
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
-# Test Literal class
-def test_literal_init():
-    '''Test the initialisation Literal object.'''
-    literal = Literal("1", DataType.INTEGER)
-    assert literal._value == "1"
-    assert literal._datatype == DataType.INTEGER
-
-
-def test_literal_init_invalid():
-    '''Test the initialisation of a Literal object with invalid parameters.'''
-
-    # Test invalid datatype type
-    with pytest.raises(TypeError) as err:
-        Literal("1", 1)
-    assert ("The datatype of a Literal must be an instance of psyir.symbols."
-            "DataType but got" in str(err.value))
-
-    # Test invalid datatype
-    with pytest.raises(ValueError) as err:
-        Literal("1", DataType.DEFERRED)
-    assert "The datatype of a Literal must be one of" in str(err.value)
-
-    # Test invalid value type
-    with pytest.raises(TypeError) as err:
-        Literal(1, DataType.INTEGER)
-    assert "Literals must be supplied with a value encoded as a string but " \
-        "got: " in str(err.value)
-
-    # Test invalid boolean value
-    with pytest.raises(ValueError) as err:
-        Literal("invalid", DataType.BOOLEAN)
-    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
-        "but got 'invalid' instead." in str(err.value)
-
-
-def test_literal_value():
-    '''Test the value property returns the value of the Literal object.'''
-    literal = Literal("1", DataType.INTEGER)
-    assert literal.value == "1"
-
-
-def test_literal_node_str():
-    ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    literal = Literal("1", DataType.INTEGER)
-    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert coloredtext+"[value:'1', DataType.INTEGER]" in literal.node_str()
-
-
-def test_literal_can_be_printed():
-    '''Test that an Literal instance can always be printed (i.e. is
-    initialised fully)'''
-    literal = Literal("1", DataType.INTEGER)
-    assert "Literal[value:'1', DataType.INTEGER]" in str(literal)
-
-
 # Test BinaryOperation class
 def test_binaryoperation_initialization():
     ''' Check the initialization method of the BinaryOperation class works
