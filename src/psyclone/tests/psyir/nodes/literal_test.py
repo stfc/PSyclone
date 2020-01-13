@@ -47,6 +47,14 @@ def test_literal_init():
     assert literal._value == "1"
     assert literal._datatype == DataType.INTEGER
 
+    literal = Literal("true", DataType.BOOLEAN)
+    assert literal._value == "true"
+    assert literal._datatype == DataType.BOOLEAN
+
+    literal = Literal("false", DataType.BOOLEAN)
+    assert literal._value == "false"
+    assert literal._datatype == DataType.BOOLEAN
+
 
 def test_literal_init_invalid():
     '''Test the initialisation of a Literal object with invalid parameters.'''
@@ -73,6 +81,16 @@ def test_literal_init_invalid():
         Literal("invalid", DataType.BOOLEAN)
     assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
         "but got 'invalid' instead." in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        Literal("TRUE", DataType.BOOLEAN)
+    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
+        "but got 'TRUE' instead." in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        Literal("False", DataType.BOOLEAN)
+    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
+        "but got 'False' instead." in str(err.value)
 
 
 def test_literal_value():
