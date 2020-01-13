@@ -56,55 +56,60 @@ from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Assignment, Reference, Literal, IfBlock, Schedule
 import copy
 from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
+import six
+import abc
+from psyclone.psyGen import Transformation
 
 
-class NemoAbsTrans():
-    '''Provides a NEMO-api-specific transformation from a PSyIR ABS
-    Operator node to equivalent code in a PSyIR tree. Validity checks
-    are also performed.
-
-    The transformation replaces `R=ABS(X)` with the following logic:
-
-    `IF (X<0.0) R=X*-1.0 ELSE R=X`
+@six.add_metaclass(abc.ABCMeta)
+class NemoOperatorTrans(Transformation):
+    '''Provides NEMO-api-specific support for transformations from PSyIR
+    intrinsic Operator nodes to equivalent PSyIR code in a PSyIR
+    tree. Such transformations can be useful when the intrinsic is not
+    supported or if it is more efficient to have explicit code.
 
     '''
+    def __init__(self):
+        super(NemoOperatorTrans, self).__init__()
+        self._operator_name = None
+        
     def __str__(self):
-        return "Convert the PSyIR ABS intrinsic to equivalent PSyIR code"
+        return ("Convert the PSyIR {0} intrinsic to equivalent PSyIR "
+                "code".format(self._operator_name.upper()))
 
     @property
     def name(self):
         '''
-        :returns: the name of this transformation as a string.
+        :returns: the name of the parent transformation as a string.
         :rtype:str
 
         '''
-        return "NemoAbsTrans"
+        return "Nemo{0}Trans".format(self._operator_name.title())
 
     def validate(self, node, symbol_table):
         '''Perform various checks to ensure that it is valid to apply
-        the NemoAbsTrans transformation to the supplied Node.
+        an intrinsic transformation to the supplied Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyGen.Operation`
         :param symbol_table: the symbol table that is being checked.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :raises TransformationError: if the node argument is not a \
-            :py:class:`psyclone.psyGen.UnaryOperation` with the ABS \
-            operator.
+            :py:class:`psyclone.psyGen.Operation`.
         :raises TransformationError: if the symbol_table argument is not a \
             :py:class:`psyclone.psyir.symbols.SymbolTable`.
         :raises TransformationError: if the api is not nemo.
-        :raises TransformationError: if the ABS Operation node does \
+        :raises TransformationError: if the Operation node does \
         not have an Assignement Node as an ancestor.
 
         '''
-        # Check that the node is a PSyIR ABS unary operation
-        if not isinstance(node, UnaryOperation) or \
-           not node.operator is UnaryOperation.Operator.ABS:
+        # Check that the node is an Operation
+        from psyclone.psyGen import Operation
+        if not isinstance(node, Operation):
             raise TransformationError(
                 "Error in {0} transformation. The supplied node argument is "
-                "not an ABS operator, found '{1}'."
+                "not an operator, found '{1}'."
                 "".format(self.name, type(node).__name__))
         # Check that symbol_table is a PSyIR symbol table
         if not isinstance(symbol_table, SymbolTable):
@@ -120,12 +125,51 @@ class NemoAbsTrans():
                 "works for the nemo api, but found '{1}'."
                 "".format(self.name, Config.get().api))
         # Check that there is an Assignment node that is an ancestor
-        # of this ABS UnaryOperation.
+        # of this Operation.
         if not node.ancestor(Assignment):
             raise TransformationError(
                 "Error in {0} transformation. This transformation requires "
-                "the ABS operator to be part of an assignment statement, "
+                "the operator to be part of an assignment statement, "
                 "but no such assignment was found.".format(self.name))
+
+
+class NemoAbsTrans(NemoOperatorTrans):
+    '''Provides a NEMO-api-specific transformation from a PSyIR ABS
+    Operator node to equivalent code in a PSyIR tree. Validity checks
+    are also performed.
+
+    The transformation replaces `R=ABS(X)` with the following logic:
+
+    `IF (X<0.0) R=X*-1.0 ELSE R=X`
+
+    '''
+    def __init__(self):
+        super(NemoAbsTrans, self).__init__()
+        self._operator_name = "ABS"
+
+    def validate(self, node, symbol_table):
+        '''Perform various checks to ensure that it is valid to apply
+        the NemoAbsTrans transformation to the supplied Node.
+
+        :param node: the node that is being checked.
+        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :param symbol_table: the symbol table that is being checked.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises TransformationError: if the node argument is not a \
+            :py:class:`psyclone.psyGen.UnaryOperation` with the ABS \
+            operator.
+
+        '''
+        super(NemoAbsTrans, self).validate(node, symbol_table)
+        
+        # Check that the node is a PSyIR ABS unary operation
+        if not isinstance(node, UnaryOperation) or \
+           not node.operator is UnaryOperation.Operator.ABS:
+            raise TransformationError(
+                "Error in {0} transformation. The supplied node argument is "
+                "not an ABS operator, found '{1}'."
+                "".format(self.name, type(node).__name__))
 
     def apply(self, node, symbol_table):
         '''Apply the ABS intrinsic conversion transformation to the specified
