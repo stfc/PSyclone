@@ -132,6 +132,10 @@ class PSyDataNode(Node):
         # then remain unchanged).
         self._module_name = None
         self._region_name = None
+        # The region identifier caches the computed module- and
+        # region-name as a tuple of strings
+        self._region_identifier = ("", "")
+
         if name:
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
@@ -144,19 +148,27 @@ class PSyDataNode(Node):
             # Valid PSyData names have been provided by the user.
             self._module_name = name[0]
             self._region_name = name[1]
+            self.set_region_identifier(self._module_name, self._region_name)
 
     # -------------------------------------------------------------------------
     @property
-    def region_name(self):
-        ''':returns: the region name for this node.
-        :rtype: str'''
-        return self._region_name
+    def region_identifier(self):
+        ''':returns" the unique region identifier, which is a tuple \
+            consisting of the module name and region name.
+        :rtype: 2-tuple (str, str)'''
+        return self._region_identifier
+
     # -------------------------------------------------------------------------
-    @property
-    def module_name(self):
-        ''':returns: the module name for this node.
-        :rtype: str'''
-        return self._module_name
+    def set_region_identifier(self, module_name, region_name):
+        '''Defines a unique region identifier based on module- and region-name
+        by simply concatenating these two strings with a "-". The region-name
+        is unique in the module, so concatenating the strings will result
+        in a unique region name.
+
+        :param str module_name: name of the module.
+        :param str region_name: name of the region.
+        '''
+        self._region_identifier = (module_name, region_name)
 
     # -------------------------------------------------------------------------
     def __str__(self):
@@ -224,27 +236,29 @@ class PSyDataNode(Node):
             be added to each variable name in the post-var-list.
 
         '''
-        if self.module_name is None:
+        module_name = self._module_name
+        if module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            self._module_name = self.root.invoke.invokes.psy.name
+            module_name = self.root.invoke.invokes.psy.name
 
-        if self.region_name is None:
+        region_name = self._region_name
+        if region_name is None:
             # The user has not supplied a region name (to identify
             # this particular invoke region). Use the invoke name as a
             # starting point.
-            self._region_name = self.root.invoke.name
+            region_name = self.root.invoke.name
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
                 # so append the kernel name.
-                self._region_name += ":{0}".format(kerns[0].name)
+                region_name += ":{0}".format(kerns[0].name)
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
             idx = psy_data_nodes.index(self)
-            self._region_name += ":r{0}".format(idx)
+            region_name += ":r{0}".format(idx)
 
         if not options:
             options = {}
@@ -265,10 +279,11 @@ class PSyDataNode(Node):
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
-                       ["\"{0}\"".format(self.module_name),
-                        "\"{0}\"".format(self.region_name),
+                       ["\"{0}\"".format(module_name),
+                        "\"{0}\"".format(region_name),
                         len(pre_variable_list),
                         len(post_variable_list)])
+        self.set_region_identifier(module_name, region_name)
         has_var = pre_variable_list or post_variable_list
 
         # All variable names get a postfix of "-post" or "-pr".
@@ -365,8 +380,8 @@ class PSyDataNode(Node):
                                        Fortran2003.Specification_Part,
                                        Fortran2003.Use_Stmt,
                                        Fortran2003.Name])
-        if self.module_name:
-            routine_name = self.module_name
+        if self._module_name:
+            routine_name = self._module_name
         else:
             for node in node_list:
                 if isinstance(node, (Fortran2003.Main_Program,
@@ -462,8 +477,8 @@ class PSyDataNode(Node):
         sched = self.root
         pnodes = sched.walk(PSyDataNode)
         region_idx = pnodes.index(self)
-        if self.region_name:
-            region_name = self.region_name
+        if self._region_name:
+            region_name = self._region_name
         else:
             region_name = "r{0}".format(region_idx)
         var_name = "psy_data{0}".format(region_idx)
@@ -531,3 +546,4 @@ class PSyDataNode(Node):
         reader.set_format(FortranFormat(True, False))
         pscall = Fortran2003.Call_Stmt(reader)
         fp_parent.content.insert(ast_start_index, pscall)
+        self.set_region_identifier(routine_name, region_name)

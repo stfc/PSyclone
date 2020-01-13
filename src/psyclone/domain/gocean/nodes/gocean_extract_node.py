@@ -128,9 +128,9 @@ class GOceanExtractNode(ExtractNode):
         all_vars = list(set(input_list).union(set(output_list)))
         all_vars.sort()
 
-        name = self.module_name + self.region_name
-        module = ModuleGen(name=name)
-        prog = SubroutineGen(parent=module, name=name+"_code")
+        module_name, region_name = self.region_identifier
+        module = ModuleGen(name=module_name)
+        prog = SubroutineGen(parent=module, name=module_name+"_code")
         module.add(prog)
         use = UseGen(prog, "psy_data_mod", only=True,
                      funcnames=["PSyDataType"])
@@ -142,7 +142,7 @@ class GOceanExtractNode(ExtractNode):
 
         call = CallGen(prog,
                        "psy_data%OpenRead(\"{0}\", \"{1}\")"
-                       .format(self.module_name, self.region_name))
+                       .format(module_name, region_name))
         prog.add(call)
 
         post_suffix = self._post_name
@@ -242,5 +242,5 @@ class GOceanExtractNode(ExtractNode):
         code = str(module.root)
 
         with open("driver-{0}-{1}.f90".
-                  format(self.module_name, self.region_name), "w") as out:
+                  format(module_name, region_name), "w") as out:
             out.write(code)
