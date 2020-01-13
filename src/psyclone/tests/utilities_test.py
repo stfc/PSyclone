@@ -118,6 +118,9 @@ def test_find_fortran_file(tmpdir):
             ffile.write(HELLO_CODE)
         name = Compile.find_fortran_file([str(tmpdir)], "hello_world")
         assert name.endswith("hello_world.f90")
+        # Check that we also succeed if the file suffix is included
+        name = Compile.find_fortran_file([str(tmpdir)], "hello_world.f90")
+        assert name.endswith("hello_world.f90")
     finally:
         old_pwd.chdir()
 
