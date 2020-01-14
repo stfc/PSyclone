@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -520,7 +520,7 @@ Metadata
 
 The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
-4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
+4) 'gh_shape', 5) 'iterates_over', 6) 'data_layout' and 7) 'procedure'.
 
 ::
 
@@ -530,11 +530,12 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
+    integer :: data_layout = layout_z_column
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These six metadata elements are discussed in order in the following
+These seven metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -1189,15 +1190,39 @@ does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 iterates over
 #############
 
-The fourth type of metadata provided is ``ITERATES_OVER``. This
+The fifth type of metadata provided is ``ITERATES_OVER``. This
 specifies that the Kernel has been written with the assumption that it
 is iterating over the specified entity. For user-supplied kernels this
 currently only has one valid value which is ``CELLS``.
 
+data_layout
+###########
+
+This metadata specifies the data layout that fields passed to this Kernel
+are assumed to conform to. PSyclone supports the following options:
+
++-------------------+--------------------------------------------------+
+| Data Layout       | Definition                                       |
++===================+==================================================+
+| LAYOUT_Z_COLUMN   | Fields are laid out (in a 1D array) such that the|
+|                   | vertical levels for any                          |
+|                   | given column are contiguous in memory. The       |
+|                   | location of the start of each column must be     |
+|                   | looked-up from the dofmap for the function space |
+|                   | of the field.                                    |
++-------------------+--------------------------------------------------+
+| LAYOUT_XY_Z       | Contiguous in horizontal location but longitude/ |
+|                   | latitude are not separately identified.          |
+|                   | Rank-2 array?                                    |
++-------------------+--------------------------------------------------+
+| LAYOUT_X_Y_Z      | Contiguous in longitude. Rank-3 array?           |
++-------------------+--------------------------------------------------+
+
+
 Procedure
 #########
 
-The fifth and final type of metadata is ``procedure`` metadata. This
+The seventh and final type of metadata is ``procedure`` metadata. This
 specifies the name of the Kernel subroutine that this metadata
 describes.
 
