@@ -62,7 +62,7 @@ class NemoOperatorTrans(Transformation):
 
     def __str__(self):
         return ("Convert the PSyIR {0} intrinsic to equivalent PSyIR "
-                "code".format(self._operator_name.upper()))
+                "code.".format(self._operator_name.upper()))
 
     @property
     def name(self):
