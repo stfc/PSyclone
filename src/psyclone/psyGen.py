@@ -6573,8 +6573,7 @@ class Literal(Node):
     Node representing a Literal. The value and datatype properties of
     this node are immutable.
 
-    :param value: the value of the literal.
-    :type value: str (for numerical values) or bool
+    :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
@@ -6584,10 +6583,9 @@ class Literal(Node):
                        :py:class:`psyclone.psyir.symbols.DataType`.
     :raises ValueError: if the datatype is not one of \
                         self.VALID_DATA_TYPES.
-    :raises TypeError: if this Literal is of BOOLEAN type and the \
-                       supplied value is not a bool.
-    :raises TypeError: if this Literal is not of BOOLEAN type and the \
-                       supplied value is not a string.
+    :raises TypeError: if the supplied value is not a string.
+    :raises ValueError: if the Literal is a BOOLEAN and the value is not \
+                        'true' or 'false'.
     '''
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
@@ -6605,19 +6603,18 @@ class Literal(Node):
             raise ValueError("The datatype of a Literal must be one of {0} "
                              "but got '{1}'".format(self.VALID_DATA_TYPES,
                                                     datatype))
-        self._datatype = datatype
+        if not isinstance(value, six.string_types):
+            raise TypeError("Literals must be supplied with "
+                            "a value encoded as a string but got: {0}".
+                            format(type(value).__name__))
 
-        # Checks for the value
-        if self.datatype is DataType.BOOLEAN:
-            if not isinstance(value, bool):
-                raise TypeError("A boolean Literal must be supplied with a "
-                                "value that is a bool but got: {0}".format(
-                                    type(value).__name__))
-        else:
-            if not isinstance(value, six.string_types):
-                raise TypeError("A non-boolean Literal must be supplied with "
-                                "a value encoded as a string but got: {0}".
-                                format(type(value).__name__))
+        if datatype is DataType.BOOLEAN:
+            if value not in ("true", "false"):
+                raise ValueError(
+                    "A DataType.BOOLEAN Literal can only be: 'true' or "
+                    "'false' but got '{0}' instead.".format(value))
+
+        self._datatype = datatype
         self._value = value
 
     @property
