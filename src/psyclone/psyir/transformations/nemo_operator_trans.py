@@ -57,8 +57,8 @@ class NemoOperatorTrans(Transformation):
     def __init__(self):
         super(NemoOperatorTrans, self).__init__()
         self._operator_name = None
-        self._class = None
-        self._operator = None
+        self._classes = None
+        self._operators = None
 
     def __str__(self):
         return ("Convert the PSyIR {0} intrinsic to equivalent PSyIR "
@@ -93,14 +93,18 @@ class NemoOperatorTrans(Transformation):
             not have an Assignement Node as an ancestor.
 
         '''
-        # Check that the node is the expected type.
-        if not isinstance(node, self._class) or \
-           node.operator is not self._operator:
+        # Check that the node is one of the expected types.
+        if not isinstance(node, self._classes):
             raise TransformationError(
                 "Error in {0} transformation. The supplied node argument is "
-                "not an {1} operator, found '{2}'."
+                "not a {1} operator, found '{2}'."
                 "".format(self.name, self._operator_name,
                           type(node).__name__))
+        if node.operator not in self._operators:
+            raise TransformationError(
+                "Error in {0} transformation. The supplied node operator is "
+                "invalid, found '{1}'."
+                "".format(self.name, str(node.operator)))
         # Check that symbol_table is a PSyIR symbol table
         if not isinstance(symbol_table, SymbolTable):
             raise TransformationError(
