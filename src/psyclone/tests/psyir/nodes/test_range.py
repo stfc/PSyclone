@@ -68,7 +68,7 @@ def test_range_setter_errors(prop):
     of Node. '''
     # We use exec() so that we can use the pytest parameterisation of the
     # various properties we want to test
-    # pylint:disable=exec-used
+    # pylint:disable=exec-used,unused-variable
     erange = Range()
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = 1")
@@ -76,12 +76,12 @@ def test_range_setter_errors(prop):
     val = Literal("1.0", DataType.REAL)
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = val")
-    assert ("value of an Range is a Literal then it must be of type "
+    assert ("value of a Range is a Literal then it must be of type "
             "INTEGER but got DataType.REAL" in str(err.value))
 
 
 def test_range_literals_props():
-    ''' Test that the properties of an Range return what we expect
+    ''' Test that the properties of a Range return what we expect
     when the start, stop and step are Literals. '''
     start = Literal("10", DataType.INTEGER)
     stop = Literal("20", DataType.INTEGER)
@@ -92,10 +92,15 @@ def test_range_literals_props():
     assert isinstance(erange.children[2], Literal)
     assert erange.children[2].datatype == DataType.INTEGER
     assert erange.children[2].value == "1"
+    # Create another one with a specified step
+    erange2 = Range.create(start, stop, Literal("5", DataType.INTEGER))
+    assert erange2.children[0] is start
+    assert erange2.children[1] is stop
+    assert erange2.step.value == "5"
 
 
 def test_range_references_props():
-    ''' Test that the properties of an Range return what we expect
+    ''' Test that the properties of a Range return what we expect
     when the start, stop and step are references or expressions. '''
     from psyclone.psyGen import KernelSchedule, BinaryOperation
     from psyclone.psyir.symbols import DataSymbol
@@ -120,3 +125,41 @@ def test_range_references_props():
     assert erange.children[0] is start
     assert erange.children[1] is stop
     assert erange.children[2] is step
+
+
+def test_range_str():
+    ''' Check that node_str and str work correctly for a Range node. '''
+    erange = Range()
+    with pytest.raises(InternalError) as err:
+        str(erange)
+    assert "Malformed Range: all children must be sub-" in str(err.value)
+    erange2 = Range.create(Literal("1", DataType.INTEGER),
+                           Literal("10", DataType.INTEGER))
+    assert 'Range[]' in erange2.node_str(colour=False)
+    assert 'Range' in erange2.node_str(colour=True)
+    assert erange2.node_str(colour=False) == str(erange2)
+
+
+def test_range_view(capsys):
+    ''' Check that calling view() on an array with a child Range works
+    as expected. '''
+    from psyclone.psyGen import Array, colored, SCHEDULE_COLOUR_MAP
+    # Create the PSyIR for 'my_array(1, 1:10)'
+    erange = Range.create(Literal("1", DataType.INTEGER),
+                          Literal("10", DataType.INTEGER))
+    array = Array.create("my_array", [Literal("1", DataType.INTEGER),
+                                      erange])
+    array.view()
+    stdout, _ = capsys.readouterr()
+    arrayref = colored("ArrayReference",
+                       SCHEDULE_COLOUR_MAP[array._colour_key])
+    literal = colored("Literal",
+                      SCHEDULE_COLOUR_MAP[array.children[0]._colour_key])
+    rangestr = colored("Range", SCHEDULE_COLOUR_MAP[erange._colour_key])
+    indent = "    "
+    assert (arrayref + "[name:'my_array']\n" +
+            indent + literal + "[value:'1', DataType.INTEGER]\n" +
+            indent + rangestr + "[]\n" +
+            2*indent + literal + "[value:'1', DataType.INTEGER]\n" +
+            2*indent + literal + "[value:'10', DataType.INTEGER]\n" +
+            2*indent + literal + "[value:'1', DataType.INTEGER]\n" in stdout)

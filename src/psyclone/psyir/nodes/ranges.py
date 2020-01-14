@@ -105,11 +105,11 @@ class Range(Node):
         '''
         if not isinstance(value, Node):
             raise TypeError(
-                "The {0} value of an Range must be a sub-class of "
+                "The {0} value of a Range must be a sub-class of "
                 "Node but got: {1}".format(name, type(value).__name__))
         if isinstance(value, Literal) and value.datatype != DataType.INTEGER:
             raise TypeError(
-                "If the {0} value of an Range is a Literal then it "
+                "If the {0} value of a Range is a Literal then it "
                 "must be of type INTEGER but got {1}".format(
                     name, value.datatype))
 
@@ -210,6 +210,7 @@ class Range(Node):
         :rtype: str
         '''
         self._check_completeness()
-        return ("{0}[start='{1}', stop='{2}', step='{3}']".
-                format(colored("Range", SCHEDULE_COLOUR_MAP["Range"]),
-                       self.start, self.stop, self.step))
+        return super(Range, self).node_str(colour)
+
+    def __str__(self):
+        return self.node_str(colour=False)
