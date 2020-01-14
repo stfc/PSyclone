@@ -6383,13 +6383,11 @@ class BinaryOperation(Operation):
         '''Create a BinaryOperator instance given an operator and lhs and rhs
         child instances.
 
-        :param operator: the operator used in the operation.
-        :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
-        :param lhs: the PSyIR node containing the left hand side of \
-            the assignment.
+        :param oper: the operator used in the operation.
+        :type oper: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+        :param lhs: the PSyIR node containing the left hand side operand.
         :type lhs: :py:class:`psyclone.psyGen.Node`
-        :param rhs: the PSyIR node containing the right hand side of \
-            the assignment.
+        :param rhs: the PSyIR node containing the right hand side operand.
         :type rhs: :py:class:`psyclone.psyGen.Node`
 
         :returns: a BinaryOperator instance.
