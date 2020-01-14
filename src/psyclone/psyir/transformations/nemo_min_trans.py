@@ -38,6 +38,10 @@ MIN operator to PSyIR code. This could be useful if the MIN operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
 
+The implementation is NEMO-specific as NEMO code generation does not
+currently create a symbol table, see issue #500. Once this has been
+implemented the transformation can be modified to work for all APIs.
+
 '''
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
@@ -96,8 +100,9 @@ class NemoMinTrans(NemoOperatorTrans):
         descendent of an assignment and will raise an exception if
         this is not the case.
 
-        :param node: a MIN NaryOperation node.
-        :type node: :py:class:`psyclone.psyGen.NaryOperation`
+        :param node: a MIN Binary- or Nary-Operation node.
+        :type node: :py:class:`psyclone.psyGen.BinaryOperation` or \
+        :py:class:`psyclone.psyGen.NaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.

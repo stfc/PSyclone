@@ -38,6 +38,10 @@ ABS operator to PSyIR code. This could be useful if the ABS operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
 
+The implementation is NEMO-specific as NEMO code generation does not
+currently create a symbol table, see issue #500. Once this has been
+implemented the transformation can be modified to work for all APIs.
+
 '''
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
