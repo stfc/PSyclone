@@ -64,8 +64,8 @@ class NemoSignTrans(NemoOperatorTrans):
     def __init__(self):
         super(NemoSignTrans, self).__init__()
         self._operator_name = "SIGN"
-        self._class = BinaryOperation
-        self._operator = BinaryOperation.Operator.SIGN
+        self._classes = (BinaryOperation,)
+        self._operators = (BinaryOperation.Operator.SIGN,)
 
     def apply(self, node, symbol_table, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified

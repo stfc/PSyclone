@@ -60,8 +60,9 @@ class NemoMinTrans(NemoOperatorTrans):
     def __init__(self):
         super(NemoMinTrans, self).__init__()
         self._operator_name = "MIN"
-        self._class = NaryOperation
-        self._operator = NaryOperation.Operator.MIN
+        self._classes = (BinaryOperation, NaryOperation)
+        self._operators = (BinaryOperation.Operator.MIN,
+                           NaryOperation.Operator.MIN)
 
     def apply(self, node, symbol_table, options=None):
         '''Apply the MIN intrinsic conversion transformation to the specified

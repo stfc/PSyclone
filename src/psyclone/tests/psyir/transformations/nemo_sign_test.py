@@ -35,9 +35,9 @@
 
 '''Module containing tests for the nemo abs transformation.'''
 
-from psyclone.psyir.transformations import NemoAbsTrans, TransformationError
+from psyclone.psyir.transformations import NemoSignTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, ArgumentInterface
-from psyclone.psyGen import Reference, UnaryOperation, Assignment, KernelSchedule
+from psyclone.psyGen import Reference, BinaryOperation, Assignment, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.configuration import Config
 import pytest
@@ -48,20 +48,20 @@ def test_initialise():
     class is created and that the str and name methods work as expected.
 
     '''
-    trans = NemoAbsTrans()
-    assert trans._operator_name == "ABS"
-    assert trans._classes == (UnaryOperation,)
-    assert trans._operators == (UnaryOperation.Operator.ABS,)
-    assert str(trans) == "Convert the PSyIR ABS intrinsic to equivalent PSyIR code."
-    assert trans.name == "NemoAbsTrans"
+    trans = NemoSignTrans()
+    assert trans._operator_name == "SIGN"
+    assert trans._classes == (BinaryOperation,)
+    assert trans._operators == (BinaryOperation.Operator.SIGN,)
+    assert str(trans) == "Convert the PSyIR SIGN intrinsic to equivalent PSyIR code."
+    assert trans.name == "NemoSignTrans"
 
 
 def example_psyir():
-    '''Utility function that creates a PSyIR tree containing an ABS
+    '''Utility function that creates a PSyIR tree containing a SIGN
     intrinsic operator and returns the operator.
 
-    :returns: PSyIR ABS operator instance.
-    :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+    :returns: PSyIR SIGN operator instance.
+    :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
 
     '''
     symbol_table = SymbolTable()
@@ -69,15 +69,20 @@ def example_psyir():
     arg1 = DataSymbol(name1, DataType.REAL, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg1)
-    name2 = symbol_table.new_symbol_name()
-    symbol_table.add(DataSymbol(name2, DataType.REAL))
-    symbol_table.specify_argument_list([arg1])
+    name2 = symbol_table.new_symbol_name("arg")
+    arg2 = DataSymbol(name2, DataType.REAL, interface=ArgumentInterface(
+        ArgumentInterface.Access.READWRITE))
+    symbol_table.add(arg2)
+    name3 = symbol_table.new_symbol_name()
+    symbol_table.add(DataSymbol(name3, DataType.REAL))
+    symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(name1)
     var2 = Reference(name2)
-    oper = UnaryOperation.Operator.ABS
-    operation = UnaryOperation.create(oper, var1)
-    assign = Assignment.create(var2, operation)
-    kernel_schedule = KernelSchedule.create("abs_example", symbol_table, [assign])
+    var3 = Reference(name3)
+    oper = BinaryOperation.Operator.SIGN
+    operation = BinaryOperation.create(oper, var1, var2)
+    assign = Assignment.create(var3, operation)
+    kernel_schedule = KernelSchedule.create("sign_example", symbol_table, [assign])
     return operation
 
 
@@ -89,28 +94,37 @@ def test_correct():
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine abs_example(arg)\n"
+        "subroutine sign_example(arg,arg_0)\n"
         "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=ABS(arg)\n\n"
-        "end subroutine abs_example\n") in result
-    trans = NemoAbsTrans()
+        "  psyir_tmp=SIGN(arg, arg_0)\n\n"
+        "end subroutine sign_example\n") in result
+    trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine abs_example(arg)\n"
+        "subroutine sign_example(arg,arg_0)\n"
         "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
         "  real :: psyir_tmp\n"
+        "  real :: res_sign\n"
+        "  real :: tmp_sign\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs=arg\n"
+        "  tmp_abs=arg_0\n"
         "  if (tmp_abs > 0.0) then\n"
         "    res_abs=tmp_abs\n"
         "  else\n"
         "    res_abs=tmp_abs * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=res_abs\n\n"
-        "end subroutine abs_example\n") in result
+        "  res_sign=res_abs\n"
+        "  tmp_sign=arg\n"
+        "  if (tmp_sign < 0.0) then\n"
+        "    res_sign=res_sign * -1.0\n"
+        "  end if\n"
+        "  psyir_tmp=res_sign\n\n"
+        "end subroutine sign_example\n") in result
     # Remove the created config instance
     Config._instance = None
 
@@ -120,12 +134,11 @@ def test_invalid():
     called.'''
     Config.get().api = "dynamo0.3"
     operation = example_psyir()
-    trans = NemoAbsTrans()
+    trans = NemoSignTrans()
     with pytest.raises(TransformationError) as excinfo:
         _, _ = trans.apply(operation, operation.root.symbol_table)
     assert (
-        "Error in NemoAbsTrans transformation. This transformation only works "
+        "Error in NemoSignTrans transformation. This transformation only works "
         "for the nemo api, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
     Config._instance = None
-

@@ -60,8 +60,8 @@ class NemoAbsTrans(NemoOperatorTrans):
     def __init__(self):
         super(NemoAbsTrans, self).__init__()
         self._operator_name = "ABS"
-        self._class = UnaryOperation
-        self._operator = UnaryOperation.Operator.ABS
+        self._classes = (UnaryOperation,)
+        self._operators = (UnaryOperation.Operator.ABS,)
 
     def apply(self, node, symbol_table, options=None):
         '''Apply the ABS intrinsic conversion transformation to the specified
