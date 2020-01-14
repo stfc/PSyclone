@@ -45,10 +45,10 @@ from fparser.two.utils import walk_ast
 from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
     Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
     KernelSchedule, Container, Assignment, Return, Array, InternalError, \
-    GenerationError
+    GenerationError, Node
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, TYPE_MAP_TO_PYTHON
+    DataType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -636,7 +636,7 @@ class Fparser2Reader(object):
             # parent symbol table for each entity found.
             for entity in entities.items:
                 (name, array_spec, char_len, initialisation) = entity.items
-                ct_value = None
+                ct_expr = None
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
@@ -670,17 +670,11 @@ class Fparser2Reader(object):
 
                 if initialisation:
                     if has_constant_value:
-                        # If it is a parameter, get the initialization value
+                        # If it is a parameter parse its initialization
+                        tmp = Node()
                         expr = initialisation.items[1]
-                        if isinstance(expr, Fortran2003.NumberBase):
-                            value_str = expr.items[0]
-                            # Convert string literal to the Symbol datatype
-                            ct_value = TYPE_MAP_TO_PYTHON[datatype](value_str)
-                        else:
-                            raise NotImplementedError(
-                                "Could not process {0}. Initialisations with "
-                                "static expressions are not supported."
-                                "".format(decl.items))
+                        self.process_nodes(tmp, [expr], initialisation)
+                        ct_expr = tmp.children[0]
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Initialisations on the"
@@ -698,7 +692,7 @@ class Fparser2Reader(object):
                 if sym_name not in parent.symbol_table:
                     parent.symbol_table.add(DataSymbol(sym_name, datatype,
                                                        shape=entity_shape,
-                                                       constant_value=ct_value,
+                                                       constant_value=ct_expr,
                                                        interface=interface,
                                                        precision=precision))
                 else:
@@ -2054,7 +2048,8 @@ class Fparser2Reader(object):
         Transforms an fparser2 logical literal into a PSyIR literal.
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Logical_Literal_Constant`
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -2063,5 +2058,11 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        value = str(node.items[0]).lower() == ".true."
-        return Literal(value, DataType.BOOLEAN, parent=parent)
+        value = str(node.items[0]).lower()
+        if value == ".true.":
+            return Literal("true", DataType.BOOLEAN, parent=parent)
+        if value == ".false.":
+            return Literal("false", DataType.BOOLEAN, parent=parent)
+        raise GenerationError(
+            "Expected to find '.true.' or '.false.' as fparser2 logical "
+            "literal, but found '{0}' instead.".format(value))
