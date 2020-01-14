@@ -67,8 +67,8 @@ class EntireRange(Range):
     '''
     def __init__(self, ast=None, parent=None, annotations=None):
 
-        super(ExplicitRange, self).__init__(ast, parent=parent,
-                                            annotations=annotations)
+        super(EntireRange, self).__init__(ast, parent=parent,
+                                          annotations=annotations)
         self._array = None
         self._index = None
         self._step = None
@@ -90,9 +90,25 @@ class EntireRange(Range):
         erange.index = index
         erange.step = step
 
+    def _check_completeness(self):
+        ''' Checks that this EntireRange is fully initialised.
+
+        :raises InternalError:
+        :raises InternalError:
+
+        '''
+        if self._index is None:
+            raise InternalError("The array index to which this EntireRange "
+                                "applies has not been set.")
+        if self._index < 0:
+            raise InternalError("Invalid array index in EntireRange. It must "
+                                "be >=0 but found {0}".format(self._index))
+
     @property
     def array(self):
         ''' Returns the ArrayReference to which this entire range applies.
+        :returns:
+        :rtype:
         '''
         return self._array
 
@@ -102,10 +118,22 @@ class EntireRange(Range):
 
     @property
     def index(self):
+        ''' Returns which array index this range applies to.
+
+        :returns: the array index that this range is for.
+        :rtype: int
+        '''
+        self._check_completeness()
         return self._index
 
     @index.setter
     def index(self, value):
+        if not isinstance(value, int):
+            raise TypeError("EntireRange.index must be an int but got '{0}'".
+                            format(type(value).__name__))
+        if value < 0:
+            raise ValueError("EntireRange.index must be a non-negative "
+                             "integer but got '{0}'".format(value))
         self._index = value
 
 

@@ -32,13 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
+''' pytest tests for the ExplicitRange class. '''
 
-''' pytest tests for the various Range sub-classes of Node. '''
-
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType
 from psyclone.psyir.nodes.ranges import ExplicitRange
-from psyclone.psyGen import InternalError, Literal
+from psyclone.psyGen import InternalError, Literal, Reference
+
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
 def test_explicit_range_getter_errors(prop):
@@ -65,6 +66,8 @@ def test_explicit_range_getter_errors(prop):
 def test_explicit_range_setter_errors(prop):
     ''' Check that the various setters reject values that are not sub-classes
     of Node. '''
+    # We use exec() so that we can use the pytest parameterisation of the
+    # various properties we want to test
     # pylint:disable=exec-used
     erange = ExplicitRange()
     with pytest.raises(TypeError) as err:
@@ -77,8 +80,9 @@ def test_explicit_range_setter_errors(prop):
             "INTEGER but got DataType.REAL" in str(err.value))
 
 
-def test_explicit_range_props():
-    ''' Test that the properties of an ExplicitRange return what we expect. '''
+def test_explicit_range_literals_props():
+    ''' Test that the properties of an ExplicitRange return what we expect
+    when the start, stop and step are Literals. '''
     start = Literal("10", DataType.INTEGER)
     stop = Literal("20", DataType.INTEGER)
     erange = ExplicitRange.create(start, stop)
@@ -88,3 +92,31 @@ def test_explicit_range_props():
     assert isinstance(erange.children[2], Literal)
     assert erange.children[2].datatype == DataType.INTEGER
     assert erange.children[2].value == "1"
+
+
+def test_explicit_range_references_props():
+    ''' Test that the properties of an ExplicitRange return what we expect
+    when the start, stop and step are references or expressions. '''
+    from psyclone.psyGen import KernelSchedule, BinaryOperation
+    from psyclone.psyir.symbols import DataSymbol
+    sched = KernelSchedule("test_sched")
+    sym_table = sched.symbol_table
+    sym_table.add(DataSymbol("istart", DataType.INTEGER))
+    sym_table.add(DataSymbol("istop", DataType.INTEGER))
+    sym_table.add(DataSymbol("istep", DataType.INTEGER))
+    # TODO #603 References do not yet refer to entries in the Symbol Table but
+    # they should.
+    startvar = Reference("istart")
+    stopvar = Reference("istop")
+    start = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                   startvar, Literal("1", DataType.INTEGER))
+    stop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                  stopvar, Literal("1", DataType.INTEGER))
+    step = Reference("istep")
+    erange = ExplicitRange.create(start, stop, step)
+    assert erange.start is start
+    assert erange.stop is stop
+    assert erange.step is step
+    assert erange.children[0] is start
+    assert erange.children[1] is stop
+    assert erange.children[2] is step

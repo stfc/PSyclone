@@ -171,10 +171,36 @@ Iteration construct
 Ranges
 ======
 
-Ranges in the PSyIR are used in both iteration and array-slicing
-constructs.  For the latter, an array slice or section will consist of
-a parent `Array` object with one or more index expressions represented
-by a `Range`.  For the former, a `Loop` has two children, the first of
+The PSyIR supports two different sub-classes of `Range`; `EntireRange`
+and `ExplicitRange`. Both of these represent a range of integer values
+with associated start, stop and step properties. e.g. the list of
+values [4, 6, 8, 10] would be represented by a Range with a start
+value of 4, a stop value of 10 and a step of 2.  The `ExplicitRange`
+class is intended to represent ranges such as this where the start and
+stop values are explicit.
+
+The `EntireRange` stems from the need to support array-slicing
+constructs where a user may wish to represent the entire range of
+possible index values for a given dimension of an array. e.g. in the
+following Fortran::
+
+    real, dimension(10, 5) :: my_array
+    call some_routine(my_array(1, :))
+
+the argument to `some_routine` is specified using array syntax where
+the lone colon means every element in that dimension. In the PSyIR
+this argument would be represented by an `Array` with the first entry
+in its `shape` being an integer Literal (with value 1) and the second
+entry being an `EntireRange`.
+
+(The problem with this is that, as currently implemented, the
+`EntireRange` will contain a reference to its parent `Array` as it
+will need to reference it when generating the `start` and `stop`
+values. e.g. in Fortran the `start` value for dimension 1 will be
+``LBOUND(array, 1)``.)
+
+Ranges in the PSyIR are used in both array-slicing and iteration
+constructs.  For the latter, a `Loop` has two children, the first of
 which is a `Range` and the second a `Schedule` (containing the loop
 body).  Should this `Loop` have originated from e.g. an expression
 using Fortran array syntax, then the `Range` may be an `EntireRange`
