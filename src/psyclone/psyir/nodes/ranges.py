@@ -32,115 +32,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-''' Module containing definitions of the various Range nodes. '''
+''' Module containing definition of the Range node. '''
 
-import abc
-import six
 from psyclone.psyGen import Node, Literal, InternalError
 from psyclone.psyir.symbols import DataType
 
 
-@six.add_metaclass(abc.ABCMeta)
 class Range(Node):
-    '''
-    Represents an index range.
-
-    '''
-    @property
-    def start(self):
-        ''' '''
-
-    @property
-    def stop(self):
-        ''' '''
-
-    @property
-    def step(self):
-        ''' '''
-
-
-class EntireRange(Range):
-    '''
-    Represents an index range that encompasses the entire extent of a
-    particular array dimension.
-
-    '''
-    def __init__(self, ast=None, parent=None, annotations=None):
-
-        super(EntireRange, self).__init__(ast, parent=parent,
-                                          annotations=annotations)
-        self._array = None
-        self._index = None
-        self._step = None
-
-    @staticmethod
-    def create(array, index, step=None, parent=None):
-        ''' Create a fully-populated EntireRange object.
-
-        :param array: the ArrayReference that this range is for.
-        :type array:
-        :param int index: the rank of the array that this range is for.
-        :param step:
-        :type step:
-        :param parent:
-        :type parent:
-        '''
-        erange = EntireRange(parent=parent)
-        erange.array = array
-        erange.index = index
-        erange.step = step
-
-    def _check_completeness(self):
-        ''' Checks that this EntireRange is fully initialised.
-
-        :raises InternalError:
-        :raises InternalError:
-
-        '''
-        if self._index is None:
-            raise InternalError("The array index to which this EntireRange "
-                                "applies has not been set.")
-        if self._index < 0:
-            raise InternalError("Invalid array index in EntireRange. It must "
-                                "be >=0 but found {0}".format(self._index))
-
-    @property
-    def array(self):
-        ''' Returns the ArrayReference to which this entire range applies.
-        :returns:
-        :rtype:
-        '''
-        return self._array
-
-    @array.setter
-    def array(self, value):
-        self._array = value
-
-    @property
-    def index(self):
-        ''' Returns which array index this range applies to.
-
-        :returns: the array index that this range is for.
-        :rtype: int
-        '''
-        self._check_completeness()
-        return self._index
-
-    @index.setter
-    def index(self, value):
-        if not isinstance(value, int):
-            raise TypeError("EntireRange.index must be an int but got '{0}'".
-                            format(type(value).__name__))
-        if value < 0:
-            raise ValueError("EntireRange.index must be a non-negative "
-                             "integer but got '{0}'".format(value))
-        self._index = value
-
-
-class ExplicitRange(Range):
-    '''
-    Represents an explicit index range with an (optional) increment. As such
-    it has three children representing the start, stop and step expressions.
+    '''Represents an integer, index range with an increment. As such it
+    has three children representing the start, stop and step
+    expressions.
 
     :param ast: the entry in the fparser2 parse tree representing the code \
                 contained within this directive or None.
@@ -151,8 +52,8 @@ class ExplicitRange(Range):
     '''
     def __init__(self, ast=None, parent=None, annotations=None):
 
-        super(ExplicitRange, self).__init__(ast, parent=parent,
-                                            annotations=annotations)
+        super(Range, self).__init__(ast, parent=parent,
+                                    annotations=annotations)
         # Initialise the list of children so that the start/stop/step setters
         # can be called in any order
         self._children = [None, None, None]
@@ -160,7 +61,7 @@ class ExplicitRange(Range):
     @staticmethod
     def create(start, stop, step=None, parent=None):
         '''
-        Create an internally-consistent ExplicitRange object. If no step
+        Create an internally-consistent Range object. If no step
         is provided then it defaults to an integer Literal with value 1.
 
         :param start: the PSyIR for the start value.
@@ -171,11 +72,11 @@ class ExplicitRange(Range):
         :type step: :py:class:`psyclone.psyGen.Node` or NoneType
         :param parent: the parent node of this Range in the PSyIR.
 
-        :returns: a fully-populated ExplicitRange object.
-        :rtype: :py:class:`psyclone.psyir.nodes.ranges.ExplicitRange`
+        :returns: a fully-populated Range object.
+        :rtype: :py:class:`psyclone.psyir.nodes.ranges.Range`
 
         '''
-        erange = ExplicitRange(parent=parent)
+        erange = Range(parent=parent)
         erange.start = start
         start.parent = erange
         erange.stop = stop
@@ -184,6 +85,7 @@ class ExplicitRange(Range):
             erange.step = step
             step.parent = erange
         else:
+            # No step supplied so default to a value of 1
             erange.step = Literal("1", DataType.INTEGER, parent=erange)
         return erange
 
@@ -191,7 +93,7 @@ class ExplicitRange(Range):
     def _check_valid_input(value, name):
         '''
         Perform checks that the supplied value is valid as a child of an
-        ExplicitRange.
+        Range.
 
         :param object value: entity to check.
         :param str name: the name of the quantity for which this value has \
@@ -203,16 +105,16 @@ class ExplicitRange(Range):
         '''
         if not isinstance(value, Node):
             raise TypeError(
-                "The {0} value of an ExplicitRange must be a sub-class of "
+                "The {0} value of an Range must be a sub-class of "
                 "Node but got: {1}".format(name, type(value).__name__))
         if isinstance(value, Literal) and value.datatype != DataType.INTEGER:
             raise TypeError(
-                "If the {0} value of an ExplicitRange is a Literal then it "
+                "If the {0} value of an Range is a Literal then it "
                 "must be of type INTEGER but got {1}".format(
                     name, value.datatype))
 
     def _check_completeness(self):
-        ''' Perform internal consistency checks for this ExplicitRange.
+        ''' Perform internal consistency checks for this Range.
 
         :raises InternalError: if there is not exactly three children.
         :raises InternalError: if any of the children are not sub-classes \
@@ -220,19 +122,19 @@ class ExplicitRange(Range):
         '''
         if len(self._children) != 3:
             raise InternalError(
-                "Malformed ExplicitRange: should have three children but "
+                "Malformed Range: should have three children but "
                 "found {0}: {1}".format(len(self._children), self._children))
 
         if any(not isinstance(child, Node) for child in self._children):
             raise InternalError(
-                "Malformed ExplicitRange: all children must be sub-classes of "
+                "Malformed Range: all children must be sub-classes of "
                 "Node but found: {0}".format(
                     [type(child).__name__ for child in self._children]))
 
     @property
     def start(self):
         '''
-        Checks that this ExplicitRange is valid and then returns the PSyIR
+        Checks that this Range is valid and then returns the PSyIR
         for the starting value of the range.
 
         :returns: the starting value of this range.
@@ -256,7 +158,7 @@ class ExplicitRange(Range):
     @property
     def stop(self):
         '''
-        Checks that this ExplicitRange is valid and then returns the end
+        Checks that this Range is valid and then returns the end
         value/expression.
 
         :returns: the end value of this range.
@@ -267,7 +169,7 @@ class ExplicitRange(Range):
 
     @stop.setter
     def stop(self, value):
-        ''' Set the stop value/expression of this ExplicitRange.
+        ''' Set the stop value/expression of this Range.
 
         :param value: the PSyIR node representing the stop value.
         :type value: :py:class:`psyclone.psyGen.Node`
@@ -278,7 +180,7 @@ class ExplicitRange(Range):
     @property
     def step(self):
         '''
-        Checks that this ExplicitRange is valid and then returns the step
+        Checks that this Range is valid and then returns the step
         (increment) value/expression.
 
         :returns: the increment used in this range.
@@ -289,7 +191,7 @@ class ExplicitRange(Range):
 
     @step.setter
     def step(self, value):
-        ''' Set the step value/expression of this ExplicitRange.
+        ''' Set the step value/expression of this Range.
 
         :param value: the PSyIR node representing the step value.
         :type value: :py:class:`psyclone.psyGen.Node`
@@ -298,7 +200,7 @@ class ExplicitRange(Range):
         self._children[2] = value
 
     def node_str(self, colour=True):
-        ''' Checks that this ExplictRange is valid and then returns the name
+        ''' Checks that this Range is valid and then returns the name
         of this node with (optional) control codes to generate
         coloured output in a terminal that supports it.
 
@@ -309,5 +211,5 @@ class ExplicitRange(Range):
         '''
         self._check_completeness()
         return ("{0}[start='{1}', stop='{2}', step='{3}']".
-                format(colored("ExplicitRange", SCHEDULE_COLOUR_MAP["Range"]),
+                format(colored("Range", SCHEDULE_COLOUR_MAP["Range"]),
                        self.start, self.stop, self.step))
