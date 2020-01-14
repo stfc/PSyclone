@@ -36,8 +36,10 @@
 '''Module containing tests for the nemo abs transformation.'''
 
 from psyclone.psyir.transformations import NemoAbsTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, ArgumentInterface
-from psyclone.psyGen import Reference, UnaryOperation, Assignment, KernelSchedule
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
+    ArgumentInterface
+from psyclone.psyGen import Reference, UnaryOperation, Assignment, \
+    KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.configuration import Config
 import pytest
@@ -49,10 +51,13 @@ def test_initialise():
 
     '''
     trans = NemoAbsTrans()
+    # pylint: disable=protected-access
     assert trans._operator_name == "ABS"
     assert trans._classes == (UnaryOperation,)
     assert trans._operators == (UnaryOperation.Operator.ABS,)
-    assert str(trans) == "Convert the PSyIR ABS intrinsic to equivalent PSyIR code."
+    # pylint: enable=protected-access
+    assert (str(trans) == "Convert the PSyIR ABS intrinsic to equivalent "
+            "PSyIR code.")
     assert trans.name == "NemoAbsTrans"
 
 
@@ -77,7 +82,7 @@ def example_psyir():
     oper = UnaryOperation.Operator.ABS
     operation = UnaryOperation.create(oper, var1)
     assign = Assignment.create(var2, operation)
-    kernel_schedule = KernelSchedule.create("abs_example", symbol_table, [assign])
+    _ = KernelSchedule.create("abs_example", symbol_table, [assign])
     return operation
 
 
@@ -112,7 +117,9 @@ def test_correct():
         "  psyir_tmp=res_abs\n\n"
         "end subroutine abs_example\n") in result
     # Remove the created config instance
+    # pylint: disable=protected-access
     Config._instance = None
+    # pylint: enable=protected-access
 
 
 def test_invalid():
@@ -127,5 +134,6 @@ def test_invalid():
         "Error in NemoAbsTrans transformation. This transformation only works "
         "for the nemo api, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
+    # pylint: disable=protected-access
     Config._instance = None
-
+    # pylint: enable=protected-access

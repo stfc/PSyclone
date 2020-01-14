@@ -36,8 +36,10 @@
 '''Module containing tests for the nemo abs transformation.'''
 
 from psyclone.psyir.transformations import NemoSignTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, ArgumentInterface
-from psyclone.psyGen import Reference, BinaryOperation, Assignment, KernelSchedule
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
+    ArgumentInterface
+from psyclone.psyGen import Reference, BinaryOperation, Assignment, \
+    KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.configuration import Config
 import pytest
@@ -49,10 +51,13 @@ def test_initialise():
 
     '''
     trans = NemoSignTrans()
+    # pylint: disable=protected-access
     assert trans._operator_name == "SIGN"
     assert trans._classes == (BinaryOperation,)
     assert trans._operators == (BinaryOperation.Operator.SIGN,)
-    assert str(trans) == "Convert the PSyIR SIGN intrinsic to equivalent PSyIR code."
+    # pylint: enable=protected-access
+    assert (str(trans) == "Convert the PSyIR SIGN intrinsic to equivalent "
+            "PSyIR code.")
     assert trans.name == "NemoSignTrans"
 
 
@@ -82,7 +87,7 @@ def example_psyir():
     oper = BinaryOperation.Operator.SIGN
     operation = BinaryOperation.create(oper, var1, var2)
     assign = Assignment.create(var3, operation)
-    kernel_schedule = KernelSchedule.create("sign_example", symbol_table, [assign])
+    _ = KernelSchedule.create("sign_example", symbol_table, [assign])
     return operation
 
 
@@ -126,7 +131,9 @@ def test_correct():
         "  psyir_tmp=res_sign\n\n"
         "end subroutine sign_example\n") in result
     # Remove the created config instance
+    # pylint: disable=protected-access
     Config._instance = None
+    # pylint: enable=protected-access
 
 
 def test_invalid():
@@ -138,7 +145,10 @@ def test_invalid():
     with pytest.raises(TransformationError) as excinfo:
         _, _ = trans.apply(operation, operation.root.symbol_table)
     assert (
-        "Error in NemoSignTrans transformation. This transformation only works "
-        "for the nemo api, but found 'dynamo0.3'" in str(excinfo.value))
+        "Error in NemoSignTrans transformation. This transformation only "
+        "works for the nemo api, but found 'dynamo0.3'"
+        in str(excinfo.value))
     # Remove the created config instance
+    # pylint: disable=protected-access
     Config._instance = None
+    # pylint: enable=protected-access
