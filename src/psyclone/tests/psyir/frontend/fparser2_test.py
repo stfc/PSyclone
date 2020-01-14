@@ -45,7 +45,7 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, IfBlock, Reference, Array, KernelSchedule, \
-    Container, InternalError, GenerationError
+    Container, InternalError, GenerationError, Literal
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -343,22 +343,24 @@ def test_process_declarations(f2008_parser):
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i1").constant_value == 1
+    newsymbol = fake_parent.symbol_table.lookup("i1")
+    assert newsymbol.is_constant
+    assert isinstance(newsymbol.constant_value, Literal)
+    assert newsymbol.constant_value.value == "1"
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i2").constant_value == 2.2
-    assert fake_parent.symbol_table.lookup("i3").constant_value == 3.3
+    assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
+    assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
 
-    # Static constant expresions are not supported
-    reader = FortranStringReader("real, parameter :: a = 1.1, b = a * 2")
+    # Initialisation with constant expresions
+    reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Initialisations with static expressions are not supported." \
-        in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
+    assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
+                      BinaryOperation)
 
     # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
@@ -407,7 +409,8 @@ def test_process_declarations(f2008_parser):
             "supported.") in str(error.value)
 
 
-def test_process_array_declarations(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_array_declarations():
     ''' Test that Fparser2Reader.process_declarations() handles various forms
     of array declaration.
     '''
@@ -462,7 +465,8 @@ def test_process_array_declarations(f2008_parser):
                             DataSymbol.Extent.ATTRIBUTE]
 
 
-def test_process_not_supported_declarations(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_not_supported_declarations():
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
     '''
@@ -501,7 +505,8 @@ def test_process_not_supported_declarations(f2008_parser):
         in str(err.value)
 
 
-def test_process_declarations_intent(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_intent():
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
@@ -537,7 +542,8 @@ def test_process_declarations_intent(f2008_parser):
         ArgumentInterface.Access.READWRITE
 
 
-def test_process_declarations_kind_new_param(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_kind_new_param():
     ''' Test that process_declarations handles variables declared with
     an explicit KIND parameter that has not already been declared. Also
     check that the matching on the variable name is not case sensitive.
@@ -565,8 +571,9 @@ def test_process_declarations_kind_new_param(f2008_parser):
             "'(KIND = blah)'" in str(err.value))
 
 
-@pytest.mark.xfail(reason="Kind parameter declarations not supported - #585")
-def test_process_declarations_kind_param(f2008_parser):
+@pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_kind_param():
     ''' Test that process_declarations handles the kind attribute when
     it specifies a previously-declared symbol.
 
@@ -581,7 +588,8 @@ def test_process_declarations_kind_param(f2008_parser):
                       DataSymbol)
 
 
-def test_process_declarations_kind_use(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_kind_use():
     ''' Test that process_declarations handles the kind attribute when
     it specifies a symbol accessed via a USE.
 
@@ -594,7 +602,8 @@ def test_process_declarations_kind_use(f2008_parser):
         fake_parent.symbol_table.lookup("var2").precision
 
 
-def test_wrong_type_kind_param(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_wrong_type_kind_param():
     ''' Check that we raise the expected error if a variable used as a KIND
     specifier has already been declared with non-integer type.
 
@@ -615,8 +624,8 @@ def test_wrong_type_kind_param(f2008_parser):
                           ("integer", "1", DataSymbol.Precision.SINGLE),
                           # 64-bit integer
                           ("integer", str(1 << 31 + 4)+"_t_def", None)])
-def test_process_declarations_kind_literals(f2008_parser,
-                                            vartype, kind, precision):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_kind_literals(vartype, kind, precision):
     ''' Test that process_declarations handles variables declared with
     an explicit KIND specified using a literal constant.
 
@@ -635,7 +644,8 @@ def test_process_declarations_kind_literals(f2008_parser,
                           ("real", "-1.0D7"),
                           ("real", "kvar"),
                           ("real", "kvar(1)")])
-def test_unsupported_kind(f2008_parser, vartype, kind):
+@pytest.mark.usefixtures("f2008_parser")
+def test_unsupported_kind(vartype, kind):
     ''' Check that we raise an error for an unsupported kind specifier.
         TODO #569 - add support for some/all of these.
 
@@ -647,7 +657,8 @@ def test_unsupported_kind(f2008_parser, vartype, kind):
             in str(err.value))
 
 
-def test_process_declarations_stmt_functions(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_stmt_functions():
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
@@ -701,7 +712,8 @@ def test_process_declarations_stmt_functions(f2008_parser):
         in str(error.value)
 
 
-def test_parse_array_dimensions_attributes(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
@@ -774,7 +786,8 @@ def test_parse_array_dimensions_attributes(f2008_parser):
         ArgumentInterface.Access.READ
 
 
-def test_deferred_array_size(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_deferred_array_size():
     ''' Check that we handle the case of an array being declared with an
     extent specified by a variable that is declared after it. '''
     from fparser.two.Fortran2003 import Name
@@ -790,7 +803,8 @@ def test_deferred_array_size(f2008_parser):
     assert dim_sym.datatype == DataType.INTEGER
 
 
-def test_unresolved_array_size(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_unresolved_array_size():
     ''' Check that we handle the case where we do not find an explicit
     declaration of a symbol used in the definition of an array extent. '''
     from psyclone.psyir.symbols import UnresolvedInterface
@@ -809,7 +823,8 @@ def test_unresolved_array_size(f2008_parser):
     assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
 
 
-def test_use_stmt(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_use_stmt():
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -837,7 +852,8 @@ def test_use_stmt(f2008_parser):
         == symtab.lookup("other_mod")
 
 
-def test_use_stmt_error(f2008_parser, monkeypatch):
+@pytest.mark.usefixtures("f2008_parser")
+def test_use_stmt_error(monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
     a USE statement doesn't have the expected structure. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -854,7 +870,8 @@ def test_use_stmt_error(f2008_parser, monkeypatch):
             "but found 3 for 'hello'" in str(err.value))
 
 
-def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
+@pytest.mark.usefixtures("f2008_parser")
+def test_parse_array_dimensions_unhandled(monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
@@ -881,7 +898,8 @@ def test_parse_array_dimensions_unhandled(f2008_parser, monkeypatch):
     assert " has not been handled." in str(error.value)
 
 
-def test_handling_assignment_stmt(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_assignment_stmt():
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
@@ -899,7 +917,8 @@ def test_handling_assignment_stmt(f2008_parser):
     assert len(new_node.children) == 2
 
 
-def test_handling_name(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_name():
     ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
@@ -924,7 +943,8 @@ def test_handling_name(f2008_parser):
     assert new_node._reference == "x"
 
 
-def test_handling_parenthesis(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_parenthesis():
     ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
@@ -942,7 +962,8 @@ def test_handling_parenthesis(f2008_parser):
     assert isinstance(new_node, BinaryOperation)
 
 
-def test_handling_part_ref(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_part_ref():
     ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
@@ -982,7 +1003,8 @@ def test_handling_part_ref(f2008_parser):
     assert len(new_node.children) == 3  # Array dimensions
 
 
-def test_handling_intrinsics(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_intrinsics():
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
     '''
@@ -1032,7 +1054,8 @@ def test_handling_intrinsics(f2008_parser):
                 "Fails when parsing '" + code + "'"
 
 
-def test_intrinsic_no_args(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_intrinsic_no_args():
     ''' Check that an intrinsic with no arguments results in a
     NotImplementedError. '''
     from fparser.two.Fortran2003 import Execution_Part
@@ -1047,7 +1070,8 @@ def test_intrinsic_no_args(f2008_parser):
     assert "SUM" in str(err.value)
 
 
-def test_unary_op_handler_error(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_unary_op_handler_error():
     ''' Check that the unary op handler raises the expected error if the
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
@@ -1069,7 +1093,8 @@ def test_unary_op_handler_error(f2008_parser):
             "therefore not unary" in str(err.value))
 
 
-def test_binary_op_handler_error(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_binary_op_handler_error():
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
     from fparser.two.Fortran2003 import Execution_Part, Name
@@ -1091,7 +1116,8 @@ def test_binary_op_handler_error(f2008_parser):
             "to be Actual_Arg_Spec_List" in str(err.value))
 
 
-def test_nary_op_handler_error(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_nary_op_handler_error():
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
     from fparser.two.Fortran2003 import Execution_Part, Name
@@ -1113,7 +1139,8 @@ def test_nary_op_handler_error(f2008_parser):
             " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
 
 
-def test_handling_nested_intrinsic(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_nested_intrinsic():
     ''' Check that we correctly handle nested intrinsic functions. '''
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
@@ -1138,7 +1165,8 @@ def test_handling_nested_intrinsic(f2008_parser):
 
 @pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
                    "non-NEMO PSyIR")
-def test_handling_array_product(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_array_product():
     ''' Check that we correctly handle array products. '''
     from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
@@ -1151,7 +1179,8 @@ def test_handling_array_product(f2008_parser):
     assert not fake_parent.walk(CodeBlock)
 
 
-def test_handling_if_stmt(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_if_stmt():
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
@@ -1169,7 +1198,8 @@ def test_handling_if_stmt(f2008_parser):
     assert len(new_node.children) == 2
 
 
-def test_handling_if_construct(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_if_construct():
     ''' Test that fparser2 If_Construct is converted to the expected PSyIR
     tree structure.
     '''
@@ -1220,7 +1250,8 @@ def test_handling_if_construct(f2008_parser):
     assert elsebody.ast is fparser2if_construct.content[6]
 
 
-def test_handling_if_construct_errors(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_if_construct_errors():
     ''' Test that unsupported If_Construct structures raise the proper
     errors.
     '''
@@ -1284,7 +1315,8 @@ def test_handling_if_construct_errors(f2008_parser):
             "expected, but found") in str(error.value)
 
 
-def test_handling_complex_if_construct(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_complex_if_construct():
     ''' Test that nested If_Construct structures and empty bodies are
     handled properly.
     '''
@@ -1316,7 +1348,8 @@ def test_handling_complex_if_construct(f2008_parser):
     assert nested_if2.children[1].children[0].children[0].name == 'found'
 
 
-def test_handling_case_construct(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_case_construct():
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
@@ -1356,7 +1389,8 @@ def test_handling_case_construct(f2008_parser):
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
-def test_case_default(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_case_default():
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause. '''
     from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
@@ -1392,7 +1426,8 @@ def test_case_default(f2008_parser):
                           Assignment)
 
 
-def test_handling_case_list(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_case_list():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of conditions. '''
     from fparser.two.Fortran2003 import Execution_Part
@@ -1423,7 +1458,8 @@ def test_handling_case_list(f2008_parser):
     assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
 
 
-def test_handling_case_range(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_case_range():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a range. '''
     from fparser.two.Fortran2003 import Execution_Part
@@ -1447,7 +1483,8 @@ def test_handling_case_range(f2008_parser):
     assert "branch3" in str(ifnode.if_body[0].lhs)
 
 
-def test_handling_case_range_list(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_case_range_list():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of ranges. '''
     from fparser.two.Fortran2003 import Execution_Part
@@ -1479,7 +1516,8 @@ def test_handling_case_range_list(f2008_parser):
     assert "branch4" in str(ifnode.if_body[0].lhs)
 
 
-def test_handling_invalid_case_construct(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_invalid_case_construct():
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
@@ -1541,7 +1579,8 @@ def test_handling_invalid_case_construct(f2008_parser):
     assert "to be a Case_Selector but got" in str(error.value)
 
 
-def test_handling_binaryopbase(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
@@ -1604,7 +1643,8 @@ def test_handling_binaryopbase(f2008_parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-def test_handling_unaryopbase(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_unaryopbase():
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
@@ -1652,7 +1692,8 @@ def test_handling_unaryopbase(f2008_parser):
     assert isinstance(new_node, CodeBlock)
 
 
-def test_handling_return_stmt(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
@@ -1671,7 +1712,8 @@ def test_handling_return_stmt(f2008_parser):
     assert not new_node.children
 
 
-def test_handling_end_do_stmt(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_end_do_stmt():
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
@@ -1687,7 +1729,8 @@ def test_handling_end_do_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-def test_handling_end_subroutine_stmt(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
     from fparser.two.Fortran2003 import Subroutine_Subprogram
     reader = FortranStringReader('''
@@ -1702,7 +1745,8 @@ def test_handling_end_subroutine_stmt(f2008_parser):
     assert not fake_parent.children  # No new children created
 
 
-def test_do_construct(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_do_construct():
     ''' Check that do loop constructs are converted to the expected
     PSyIR node'''
     from fparser.two.Fortran2003 import Execution_Part
@@ -1727,7 +1771,8 @@ def test_do_construct(f2008_parser):
     assert isinstance(new_loop.loop_body[0], Assignment)
 
 
-def test_do_construct_while(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_do_construct_while():
     ''' Check that do while constructs are placed in Codeblocks '''
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
@@ -1808,7 +1853,8 @@ def test_nodes_to_code_block_3(f2008_parser):
 
 
 # (4/4) fparser2reader::nodes_to_code_block
-def test_nodes_to_code_block_4(f2008_parser):
+@pytest.mark.usefixtures("f2008_parser")
+def test_nodes_to_code_block_4():
     '''Check that a codeblock that has a directive as a parent causes the
     expected exception.
 
@@ -1819,7 +1865,8 @@ def test_nodes_to_code_block_4(f2008_parser):
             in str(excinfo.value))
 
 
-def test_missing_loop_control(f2008_parser, monkeypatch):
+@pytest.mark.usefixtures("f2008_parser")
+def test_missing_loop_control(monkeypatch):
     ''' Check that encountering a loop in the fparser parse tree that is
     missing a Loop_Control element raises an InternalError. '''
     from fparser.two.utils import walk_ast

@@ -3303,7 +3303,7 @@ def test_ifblock_create():
 
     '''
     # Without an else clause.
-    if_condition = Literal(True, DataType.BOOLEAN)
+    if_condition = Literal('true', DataType.BOOLEAN)
     if_body = [Assignment.create(Reference("tmp"),
                                  Literal("0.0", DataType.REAL)),
                Assignment.create(Reference("tmp2"),
@@ -3314,8 +3314,7 @@ def test_ifblock_create():
     check_links(ifblock, [if_condition, if_schedule])
     check_links(if_schedule, if_body)
     result = FortranWriter().ifblock_node(ifblock)
-    # TODO 616: Update to if (.True.)
-    assert result == ("if (True) then\n"
+    assert result == ("if (.true.) then\n"
                       "  tmp=0.0\n"
                       "  tmp2=1.0\n"
                       "end if\n")
@@ -3334,8 +3333,7 @@ def test_ifblock_create():
     check_links(if_schedule, if_body)
     check_links(else_schedule, else_body)
     result = FortranWriter().ifblock_node(ifblock)
-    # TODO 616: Update to if (.True.)
-    assert result == ("if (True) then\n"
+    assert result == ("if (.true.) then\n"
                       "  tmp=0.0\n"
                       "  tmp2=1.0\n"
                       "else\n"
@@ -3349,7 +3347,7 @@ def test_ifblock_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    if_condition = Literal(True, DataType.BOOLEAN)
+    if_condition = Literal('true', DataType.BOOLEAN)
     if_body = [Assignment.create(Reference("tmp"),
                                  Literal("0.0", DataType.REAL)),
                Assignment.create(Reference("tmp2"),
@@ -3629,30 +3627,6 @@ def test_array_create_invalid():
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
-
-
-# Test Literal class
-def test_literal_value():
-    '''Test the value property returns the value of the Literal object.
-
-    '''
-    literal = Literal("1", DataType.INTEGER)
-    assert literal.value == "1"
-
-
-def test_literal_node_str():
-    ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    literal = Literal("1", DataType.INTEGER)
-    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert coloredtext+"[value:'1', DataType.INTEGER]" in literal.node_str()
-
-
-def test_literal_can_be_printed():
-    '''Test that an Literal instance can always be printed (i.e. is
-    initialised fully)'''
-    literal = Literal("1", DataType.INTEGER)
-    assert "Literal[value:'1', DataType.INTEGER]" in str(literal)
 
 
 # Test BinaryOperation class
