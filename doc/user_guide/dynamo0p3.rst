@@ -520,9 +520,8 @@ Metadata
 
 The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
-4) 'gh_shape', 5) 'iterates_over', 6) 'data_layout' and 7) 'procedure'.
-
-::
+4) 'gh_shape', 5) 'iterates_over', 6) 'data_layout'/'data_addressing'
+and 7) 'procedure'::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
@@ -530,7 +529,8 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
-    integer :: data_layout = layout_z_column
+    integer :: data_layout = layout_z_xy
+    integer :: data_addressing = indirect_xy
   contains
     procedure, nopass :: my_kernel_code
   end type
@@ -1187,7 +1187,7 @@ Note that it is an error for kernel metadata to specify a value for
 It is also an error to specify ``gh_evaluator_targets`` if the kernel
 does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 
-iterates over
+iterates_over
 #############
 
 The fifth type of metadata provided is ``ITERATES_OVER``. This
@@ -1195,29 +1195,66 @@ specifies that the Kernel has been written with the assumption that it
 is iterating over the specified entity. For user-supplied kernels this
 currently only has one valid value which is ``CELLS``.
 
-data_layout
-###########
+data_layout and data_addressing
+###############################
 
-This metadata specifies the data layout that fields passed to this Kernel
-are assumed to conform to. PSyclone supports the following options:
+This metadata specifies the data layout that fields passed to this
+Kernel are assumed to conform to and how data within that layout is
+addressed.  For the dynamo0.3 API, PSyclone supports the following
+layouts:
 
-+-------------------+--------------------------------------------------+
-| Data Layout       | Definition                                       |
-+===================+==================================================+
-| LAYOUT_Z_COLUMN   | Fields are laid out (in a 1D array) such that the|
-|                   | vertical levels for any                          |
-|                   | given column are contiguous in memory. The       |
-|                   | location of the start of each column must be     |
-|                   | looked-up from the dofmap for the function space |
-|                   | of the field.                                    |
-+-------------------+--------------------------------------------------+
-| LAYOUT_XY_Z       | Contiguous in horizontal location but longitude/ |
-|                   | latitude are not separately identified.          |
-|                   | Rank-2 array?                                    |
-+-------------------+--------------------------------------------------+
-| LAYOUT_X_Y_Z      | Contiguous in longitude. Rank-3 array?           |
-+-------------------+--------------------------------------------------+
++-----------------+--------------------------------------------------+
+| Data Layout     | Definition                                       |
++=================+==================================================+
+| LAYOUT_ZXY      | Rank-1 array laid out such that the              |
+|                 | vertical levels for any given horizontal location|
+|                 | are contiguous in memory.                        |
++-----------------+--------------------------------------------------+
+| LAYOUT_XY_Z     | Rank-2 array with the first dimension running    |
+|                 | over horizontal location (longitude/latitude not |
+|                 | separately identfied) and the second running over|
+|                 | vertical levels.                                 |
++-----------------+--------------------------------------------------+
+| LAYOUT_X_Y_Z    | Contiguous in longitude. Rank-3 array.           |
++-----------------+--------------------------------------------------+
 
+where the rank of the associated data array is one more than the
+number of underscores in the name of the layout (excluding the
+"LAYOUT\_" prefix).
+
+Separately to layout, the metadata must also capture the way in which
+data is indexed within an array. This may be 'direct' in which
+adjacent physical locations are stored in adjacent array elements or
+'indirect' where a look-up must be performed to find the array element
+associated with a given physical location. This information must be
+supplied for each of the quantities over which a field is indexed.
+For the Dynamo0.3 API this is X, Y and Z. Note however that these
+quantities can be combined so that e.g. INDIRECT_XY means that
+horizontal locations are accessed by a look-up (a location `[x, y]`
+maps to a single array index).
+
+For the dynamo0.3 API, PSyclone supports the following indexing schemes:
+
++-----------------+--------------------------------------------------+
+| Data Addressing | Definition                                       |
++=================+==================================================+
+| DIRECT_XY       | Horizontal locations are directly indexed.       |
++-----------------+--------------------------------------------------+
+| DIRECT_Z        | Vertical levels are directly indexed.            |
++-----------------+--------------------------------------------------+
+| INDIRECT_XY     | Horizontal locations are accessed by a look-up.  |
++-----------------+--------------------------------------------------+
+
+A 'standard' LFRic dynamics kernel working with finite-element fields
+therefore requires the following metadata entries::
+
+  data_layout = LAYOUT_ZXY
+  data_addressing = (/ DIRECT_Z, INDIRECT_XY /)
+
+Since this is obviously a common use case, these are the default
+values and are set in the PSyclone configuration file (see the
+:ref:`configuration` section). Kernel meta-data therefore need only
+explicitly set these quantities if they differ from the defaults.
 
 Procedure
 #########
