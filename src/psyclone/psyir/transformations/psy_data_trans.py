@@ -37,6 +37,7 @@
 '''
 
 from psyclone.psyGen import Node, Schedule
+from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -66,10 +67,18 @@ class PSyDataTrans(RegionTrans):
     >>> newschedule, _ = data_trans.apply(schedule.children)
     >>> newschedule.view()
 
+    :param node_class: The Node class of which an instance will be inserted \
+        into the tree (defaults to PSyDataNode).
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode`
+
     '''
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
     valid_node_types = (Node,)
+
+    def __init__(self, node_class=PSyDataNode):
+        super(PSyDataTrans, self).__init__()
+        self._node_class = node_class
 
     def __str__(self):
         return "Insert a PSyData node."
@@ -148,26 +157,8 @@ class PSyDataTrans(RegionTrans):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        # Check whether we've been passed a list of nodes or just a
-        # single node.
-        from psyclone.psyGen import Node
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Schedule):
-            # We've been passed a Schedule so default to enclosing its
-            # children.
-            node_list = nodes.children
-        elif isinstance(nodes, Node):
-            # Single node that's not a Schedule
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {1}. "
-                                      "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {0}".
-                                      format(arg_type, str(self)))
+
+        node_list = self._get_node_list(nodes)
 
         # Perform validation checks
         self.validate(node_list, options)
@@ -177,16 +168,9 @@ class PSyDataTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
-        # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a profile region. Also keep the index of
-        # the first child to be enclosed as that will become the
-        # position of the new Profile node
-        node_parent = node_list[0].parent
-
-        # Create the PSyData node. All of the supplied child nodes will have
-        # the PSyData's Schedule as their parent.
-        from psyclone.psyir.nodes import PSyDataNode
-
-        _ = PSyDataNode(parent=node_parent, children=node_list[:])
+        # Pass the options to the constructor, used e.g. for the
+        # 'create_driver' flag.
+        self._node_class(parent=node_list[0].parent, children=node_list[:],
+                         options=options)
 
         return schedule, keep

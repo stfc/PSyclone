@@ -76,6 +76,9 @@ def test_extract_trans():
                           "ExtractNode at its root."
     assert etrans.name == "ExtractTrans"
 
+    ltrans = LFRicExtractTrans()
+    assert str(ltrans) == "Inserts an ExtractNode in an LFRic-based tree."
+
 
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
@@ -151,19 +154,29 @@ def test_distmem_error():
             "not supported.") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
+    # We have to disable distributed memory, otherwise an earlier test
+    # will be triggered
+    from psyclone.configuration import Config
+    config = Config.get()
+    config.distributed_memory = False
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
             "cannot be enclosed by a LFRicExtractTrans "
             "transformation") in str(excinfo.value)
+    config.distributed_memory = True
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            DYNAMO_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
+    # We have to disable distributed memory, otherwise an earlier test
+    # will be triggered
+    config.distributed_memory = False
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
+    config.distributed_memory = True
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
             "cannot be enclosed by a LFRicExtractTrans "
             "transformation") in str(excinfo.value)
@@ -225,6 +238,7 @@ def test_loop_no_directive_dynamo0p3():
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)
+    print(str(excinfo.value))
     assert ("Extraction of a Loop without its parent Directive is not "
             "allowed.") in str(excinfo.value)
 

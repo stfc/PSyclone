@@ -41,7 +41,9 @@
 import abc
 import six
 
-from psyclone.psyGen import Kern, Schedule, Transformation
+from psyclone.psyGen import Kern, Node, Schedule, Transformation
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -62,6 +64,42 @@ class RegionTrans(Transformation):
     # The types of Node that we support within this region. Must be
     # populated by sub-class.
     valid_node_types = ()
+
+    def _get_node_list(self, nodes):
+        '''The parameter is either a single node , a schedule, or a list of
+        nodes. This function convers this into a list of nodes according to
+        the parameter type. Note that the list might be a copy of the
+        argument or the list of children of a schedule, so the result list
+        should not be modified.
+
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        :type nodes: :py:obj:`psyclone.psygen.Node` or  \
+            :py:obj:`psyclone.psygen.Schedule or a list of \
+            :py:obj:`psyclone.psygen.Node`
+
+        :returns: a list of nodes.
+        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :raises TransformationError: if the supplied parameter is neither a \
+            single Node, nor a Schedule, nor a list of Nodes.
+
+        '''
+        if isinstance(nodes, list) and isinstance(nodes[0], Node):
+            return nodes
+        if isinstance(nodes, Schedule):
+            # We've been passed a Schedule so default to enclosing its
+            # children.
+            return nodes.children
+        if isinstance(nodes, Node):
+            # Single node that's not a Schedule
+            return [nodes]
+
+        arg_type = str(type(nodes))
+        raise TransformationError("Error in {1}: "
+                                  "Argument must be a single Node in a "
+                                  "Schedule or a list of Nodes in a "
+                                  "Schedule but have been passed an "
+                                  "object of type: {0}".
+                                  format(arg_type, self.name))
 
     def validate(self, node_list, options=None):
         '''Checks that the nodes in node_list are valid for a region
@@ -93,7 +131,7 @@ class RegionTrans(Transformation):
         # pylint: disable=too-many-branches
         from psyclone.psyGen import IfBlock, Loop
         from psyclone.nemo import NemoInvokeSchedule
-        from psyclone.psyir.transformations import TransformationError
+
         if not options:
             options = {}
         if not isinstance(options, dict):

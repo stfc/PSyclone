@@ -38,7 +38,7 @@
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyGen import Schedule
+from psyclone.psyGen import Schedule, OMPDoDirective, ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -161,24 +161,7 @@ class ProfileTrans(RegionTrans):
         '''
         # Check whether we've been passed a list of nodes or just a
         # single node.
-        from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Schedule):
-            # We've been passed a Schedule so default to enclosing its
-            # children.
-            node_list = nodes.children
-        elif isinstance(nodes, Node):
-            # Single node that's not a Schedule
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {1}. "
-                                      "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {0}".
-                                      format(arg_type, str(self)))
+        node_list = self._get_node_list(nodes)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a profile region. Also keep the index of

@@ -502,6 +502,7 @@ def test_profile_named_dynamo0p3():
 def test_transform(capsys):
     '''Tests normal behaviour of profile region transformation.'''
 
+    # pylint: disable=too-many-locals
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1")
     schedule = invoke.schedule
@@ -671,8 +672,8 @@ def test_transform_errors(capsys):
     # Supply not a node object:
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(5)
-    assert "Argument must be a single Node in a schedule or a list of Nodes " \
-           "in a schedule but have been passed an object of type: " \
+    assert "Argument must be a single Node in a Schedule or a list of Nodes " \
+           "in a Schedule but have been passed an object of type: " \
            in str(excinfo.value)
     # Python 3 reports 'class', python 2 'type' - so just check for both
     assert ("<type 'int'>" in str(excinfo.value) or "<class 'int'>"
