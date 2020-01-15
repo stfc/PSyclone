@@ -1747,7 +1747,7 @@ class ParallelRegionTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        from psyclone.psyGen import Node
+        from psyclone.psyir.nodes import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Node):
@@ -2076,7 +2076,7 @@ class MoveTrans(Transformation):
         '''
 
         # Check that the first argument is a Node
-        from psyclone.psyGen import Node
+        from psyclone.psyir.nodes import Node
         if not isinstance(node, Node):
             raise TransformationError(
                 "In the Move transformation apply method the first argument "

@@ -89,7 +89,7 @@ def setup():
 def test_check_intergrid():
     ''' Test that the check_intergrid utility does not raise an error if the
     supplied node has no children. '''
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
     from psyclone.transformations import check_intergrid
     tnode = Node()
     check_intergrid(tnode)

@@ -40,7 +40,7 @@ back ends.
 
 '''
 
-from psyclone.psyGen import Node
+from psyclone.psyir.nodes import Node
 
 
 class VisitorError(Exception):

@@ -111,7 +111,8 @@ class ExtractTrans(RegionTrans):
 
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyGen import Loop, BuiltIn, Directive, \
+        from psyclone.psyir.nodes import Loop
+        from psyclone.psyGen import BuiltIn, Directive, \
             OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
@@ -169,7 +170,7 @@ class ExtractTrans(RegionTrans):
         # Check whether we've been passed a list of Nodes or just a
         # single Node. If the latter then we create ourselves a list
         # containing just that Node.
-        from psyclone.psyGen import Node
+        from psyclone.psyir.nodes import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):

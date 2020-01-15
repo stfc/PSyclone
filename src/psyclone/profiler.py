@@ -42,7 +42,8 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, InternalError
+     NameSpaceFactory, InternalError
+from psyclone.psyir.nodes import Node
 
 
 class Profiler():
@@ -112,7 +113,8 @@ class Profiler():
         :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or \
                         derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
-        :type loop_class: :py::class::`psyclone.psyir.nodes.Loop` or derived class.
+        :type loop_class: :py::class::`psyclone.psyir.nodes.Loop` or \
+                          derived class.
         '''
 
         from psyclone.psyir.transformations import ProfileTrans
@@ -218,7 +220,7 @@ class ProfileNode(Node):
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule
+        from psyclone.psyir.nodes import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(

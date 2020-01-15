@@ -38,7 +38,7 @@
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyGen import Schedule
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -69,7 +69,7 @@ class ProfileTrans(RegionTrans):
     >>> newschedule.view()
 
     '''
-    from psyclone import psyGen, profiler
+    from psyclone import psyGen, profiler, psyir
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
     valid_node_types = (psyir.nodes.Node,)
@@ -161,7 +161,8 @@ class ProfileTrans(RegionTrans):
         '''
         # Check whether we've been passed a list of nodes or just a
         # single node.
-        from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
+        from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
+        from psyclone.psyir.nodes import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):

@@ -1531,7 +1531,7 @@ def test_gokernelargument_type():
     ''' Check the type property of the GOKernelArgument'''
     from psyclone.parse.algorithm import Arg
     from psyclone.parse.kernel import Descriptor
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
 
     # Create a dummy GOKernelArgument
     descriptor = Descriptor(None, "")

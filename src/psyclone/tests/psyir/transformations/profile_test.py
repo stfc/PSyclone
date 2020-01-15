@@ -69,7 +69,7 @@ def teardown_function():
 def test_malformed_profile_node(monkeypatch):
     ''' Check that we raise the expected error if a ProfileNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
     pnode = ProfileNode()
     monkeypatch.setattr(pnode, "_children", [])
     with pytest.raises(InternalError) as err:

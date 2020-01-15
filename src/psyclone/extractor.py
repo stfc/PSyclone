@@ -49,7 +49,7 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyGen import Node
+from psyclone.psyir.nodes import Node
 
 
 class ExtractNode(Node):
@@ -97,7 +97,8 @@ class ExtractNode(Node):
         :raises InternalError: if this node does not have a single Schedule as\
                                its child.
         '''
-        from psyclone.psyGen import Schedule, InternalError
+        from psyclone.psyir.nodes import Schedule
+        from psyclone.psyGen import InternalError
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(

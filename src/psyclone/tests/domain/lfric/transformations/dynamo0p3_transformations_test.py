@@ -40,6 +40,7 @@ from __future__ import absolute_import, print_function
 import pytest
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
+from psyclone import psyir
 from psyclone.psyGen import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface
 from psyclone.psyir.transformations import TransformationError
