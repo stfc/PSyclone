@@ -504,3 +504,25 @@ def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
     schedule = processor.generate_schedule(routine_name, parse_tree)
 
     return schedule
+
+
+# =============================================================================
+def check_links(parent, children):
+    '''Utilitiy routine to check that the parent node has children as its
+    children in the order specified and that the children have parent
+    as their parent. Also check that the parent does not have any
+    additional children that are not provided in the children
+    argument.
+
+    :param parent: the parent node that should have the child \
+        nodes as its children.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :param children: the child nodes that should have the parent \
+        node as their parent.
+    :type parent: list of :py:class:`psyclone.psyGen.Node`
+
+    '''
+    assert len(parent.children) == len(children)
+    for index, child in enumerate(children):
+        assert child.parent is parent
+        assert parent.children[index] is child
