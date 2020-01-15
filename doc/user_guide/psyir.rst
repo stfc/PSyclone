@@ -142,14 +142,14 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    subscript operator for indexing the statements (children) inside the
    Schedule, e.g. ``sched[3]`` or ``sched[2:4]``.
 - ``Assignment``:
-   .. automethod:: psyclone.psyGen.Assignment.lhs()
-   .. automethod:: psyclone.psyGen.Assignment.rhs()
+   .. automethod:: psyclone.psyir.nodes.Assignment.lhs()
+   .. automethod:: psyclone.psyir.nodes.Assignment.rhs()
 - ``IfBlock``:
-   .. automethod:: psyclone.psyGen.IfBlock.condition()
+   .. automethod:: psyclone.psyir.nodes.IfBlock.condition()
 		
-   .. automethod:: psyclone.psyGen.IfBlock.if_body()
+   .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
 
-   .. automethod:: psyclone.psyGen.IfBlock.else_body()
+   .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
 - ``Directive``:
    .. automethod:: psyclone.psyGen.Directive.dir_body()
 
