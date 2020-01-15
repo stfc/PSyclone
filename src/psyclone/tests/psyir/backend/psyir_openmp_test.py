@@ -106,7 +106,7 @@ def replace_child_with_assignment(node):
     compile, e.g. assignment as child of an OMP DO directive)
     # TODO #440 tracks this
     :param node: the node whose child is replaced.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
     '''
 
     # Create a simple 'a=b' assignment statement for all tests

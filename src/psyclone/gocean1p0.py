@@ -655,7 +655,7 @@ class GOLoop(Loop):
         loop type).
 
         :returns: the PSyIR for the upper bound of this loop.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         from psyclone.psyir.nodes import BinaryOperation
@@ -743,7 +743,7 @@ class GOLoop(Loop):
         loop type).
 
         :returns: root of PSyIR sub-tree describing this lower bound.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         schedule = self.ancestor(GOInvokeSchedule)

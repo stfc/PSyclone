@@ -58,7 +58,7 @@ def process_where(code, fparser_cls):
 
     :returns: 2-tuple of a parent PSyIR Schedule and the created instance of \
               the requested fparser2 class.
-    :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+    :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
              :py:class:`fparser.two.utils.Base`)
     '''
     sched = Schedule()

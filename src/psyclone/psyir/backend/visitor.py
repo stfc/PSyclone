@@ -106,7 +106,7 @@ class PSyIRVisitor(object):
         PSyIR tree.
 
         :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -136,7 +136,7 @@ class PSyIRVisitor(object):
         main method - the `visit` method.
 
         :param node: A PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return self._visit(node)
@@ -152,7 +152,7 @@ class PSyIRVisitor(object):
         `return` is a Python keyword.
 
         :param node: A PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises VisitorError: if a node is found that does not have \
         associated call back methods (and skip_nodes is not set).

@@ -50,7 +50,7 @@ class Container(Node):
 
     :param str name: the name of the container.
     :param parent: optional parent node of this Container in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, name, parent=None):
@@ -69,11 +69,11 @@ class Container(Node):
         :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or KernelSchedules.
-        :type children: list of :py:class:`psyclone.psyGen.Container` \
+        :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
             or :py:class:`psyclone.psyGen.KernelSchedule`
 
         :returns: a Container instance.
-        :rtype: :py:class:`psyclone.psyGen.Container`
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.

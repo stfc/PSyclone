@@ -305,7 +305,7 @@ class PSy(object):
     def gen(self):
         '''Abstract base class for code generation function.
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
         '''
 
     def inline(self, module):
@@ -1168,9 +1168,9 @@ class Directive(Node):
     :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
     :param children: list of PSyIR nodes that will be children of this \
                      Directive node or None.
-    :type children: list of :py:class:`psyclone.psyGen.Node` or NoneType
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
     :param parent: PSyIR node that is the parent of this Directive or None.
-    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
     '''
     # The prefix to use when constructing this directive in Fortran
@@ -1188,7 +1188,7 @@ class Directive(Node):
     def dir_body(self):
         '''
         :returns: the Schedule associated with this directive.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises InternalError: if this node does not have a single Schedule as\
                                its child.
@@ -1365,10 +1365,10 @@ class ACCEnterDataDirective(ACCDirective):
 
     :param children: list of nodes which this directive should \
                      have as children.
-    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
-    :type parent: :py:class:`psyclone.psyGen.Node`.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
     '''
     def __init__(self, children=None, parent=None):
         super(ACCEnterDataDirective, self).__init__(children=children,
@@ -1447,7 +1447,7 @@ class ACCEnterDataDirective(ACCDirective):
         kernels in the data region is now on the device.
 
         :param parent: the node in the InvokeSchedule to which to add nodes
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
 
 
@@ -1584,9 +1584,9 @@ class ACCLoopDirective(ACCDirective):
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
     :param children: list of nodes that will be children of this directive.
-    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
     :param parent: the node in the Schedule to which to add this directive.
-    :type parent: :py:class:`psyclone.psyGen.Node`.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
     :param int collapse: Number of nested loops to collapse into a single \
                          iteration space or None.
     :param bool independent: Whether or not to add the `independent` clause \
@@ -1964,7 +1964,7 @@ class OMPDoDirective(OMPDirective):
 
     :param list children: list of Nodes that are children of this Node.
     :param parent: the Node in the AST that has this directive as a child.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str omp_schedule: the OpenMP schedule to use.
     :param bool reprod: whether or not to generate code for run-reproducible \
                         OpenMP reductions.
@@ -2405,7 +2405,7 @@ class Kern(Node):
     PSy layer.
 
     :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param call: information on the call itself, as obtained by parsing \
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
@@ -2528,7 +2528,7 @@ class Kern(Node):
         reductions, if specified.
 
         :param parent: the Node in the AST to which to add new code.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str position: where to position the new code in the AST.
         :raises GenerationError: if the variable to zero is not of type \
                                  gh_real or gh_integer.
@@ -2686,7 +2686,7 @@ class CodedKern(Kern):
     :param call: Details of the call to this kernel in the Algorithm layer.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`.
     :param parent: the parent of this Node (kernel call) in the Schedule.
-    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`.
     :param bool check: Whether or not to check that the number of arguments \
                        specified in the kernel meta-data matches the number \
                        provided by the call in the Algorithm layer.
@@ -3213,7 +3213,7 @@ class InlinedKern(Kern):
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
-    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
 
     def __init__(self, psyir_nodes):
@@ -3698,7 +3698,7 @@ class Argument(object):
         dependency with self. If one is not found return None
 
         :param: the list of nodes that this method examines
-        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :type: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
         :returns: An argument object or None
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -3717,7 +3717,7 @@ class Argument(object):
         list. If self is not a writer then return an empty list.
 
         :param: the list of nodes that this method examines
-        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :type: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
         :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
@@ -3754,7 +3754,7 @@ class Argument(object):
         list. If self is not a reader then return an empty list.
 
         :param: the list of nodes that this method examines
-        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :type: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
         :returns: a list of arguments that this argument has a dependence with
@@ -4053,9 +4053,9 @@ class ACCKernelsDirective(ACCDirective):
 
     :param children: the PSyIR nodes to be enclosed in the Kernels region \
                      and which are therefore children of this node.
-    :type children: list of sub-classes of :py:class:`psyclone.psyGen.Node`
+    :type children: list of sub-classes of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param bool default_present: whether or not to add the "default(present)" \
                                  clause to the kernels directive.
 
@@ -4169,7 +4169,7 @@ class KernelSchedule(Schedule):
 
     :param str name: Kernel subroutine name.
     :param parent: Parent of the KernelSchedule, defaults to None.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, name, parent=None):
@@ -4188,7 +4188,7 @@ class KernelSchedule(Schedule):
         :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
             KernelSchedule.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a KernelSchedule instance.
         :rtype: :py:class:`psyclone.psyGen.KernelInstance`

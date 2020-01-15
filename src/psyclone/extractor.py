@@ -63,9 +63,9 @@ class ExtractNode(Node):
                 this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, ast=None, children=None, parent=None):
@@ -92,7 +92,7 @@ class ExtractNode(Node):
     def extract_body(self):
         '''
         :returns: the Schedule associated with this ExtractNode.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises InternalError: if this node does not have a single Schedule as\
                                its child.
@@ -125,7 +125,7 @@ class ExtractNode(Node):
         Kernel(s) in Issue #234.
 
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
         '''
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))

@@ -49,11 +49,11 @@ class Operation(Node):
     Abstract base class for PSyIR nodes representing operators.
 
     :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
-                    :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
-                    :py:class:`psyclone.psyGen.NaryOperation.Operator`
+    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator` or \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` or \
+                    :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
     :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises TypeError: if the supplied operator is not an instance of \
                        self.Operator.
@@ -81,9 +81,9 @@ class Operation(Node):
         Return the operator.
 
         :returns: Enumerated type capturing the operator.
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation.Operator` or \
-                :py:class:`psyclone.psyGen.BinaryOperation.Operator` or \
-                :py:class:`psyclone.psyGen.NaryOperation.Operator`
+        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator` or \
+                :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` or \
+                :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
 
         '''
         return self._operator
@@ -118,9 +118,9 @@ class UnaryOperation(Operation):
     as child 0, and an attribute with the operator type.
 
     :param operator: Enumerated type capturing the unary operator.
-    :type operator: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
+    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
     :param parent: the parent node of this UnaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     Operator = Enum('Operator', [
@@ -145,12 +145,12 @@ class UnaryOperation(Operation):
         '''Create a UnaryOperation instance given oper and child instances.
 
         :param oper: the specified operator.
-        :type oper: :py:class:`psyclone.psyGen.UnaryOperation.Operator`
+        :type oper: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
         :param child: the PSyIR node that oper operates on.
-        :type child: :py:class:`psyclone.psyGen.Node`
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a UnaryOperation instance.
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
@@ -180,9 +180,9 @@ class BinaryOperation(Operation):
     as children 0 and 1, and an attribute with the operator type.
 
     :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+    :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
     :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     Operator = Enum('Operator', [
@@ -204,7 +204,7 @@ class BinaryOperation(Operation):
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyGen.Node`
+        :type other: py:class:`psyclone.psyir.nodes.Node`
         :returns: True if the self has the same results as other.
         :rtype: bool
         '''
@@ -232,13 +232,13 @@ class BinaryOperation(Operation):
         child instances.
 
         :param operator: the operator used in the operation.
-        :type operator: :py:class:`psyclone.psyGen.BinaryOperation.Operator`
+        :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
         :param lhs: the PSyIR node containing the left hand side of \
             the assignment.
-        :type lhs: :py:class:`psyclone.psyGen.Node`
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
         :param rhs: the PSyIR node containing the right hand side of \
             the assignment.
-        :type rhs: :py:class:`psyclone.psyGen.Node`
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyGen.BinaryOperator`
@@ -275,9 +275,9 @@ class NaryOperation(Operation):
 
 
     :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyGen.NaryOperation.Operator`
+    :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
     :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     Operator = Enum('Operator', [
@@ -295,10 +295,10 @@ class NaryOperation(Operation):
         Node instances.
 
         :param operator: the operator used in the operation.
-        :type operator: :py:class:`psyclone.psyGen.NaryOperation.Operator`
+        :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
         :param children: a list of PSyIR nodes that the operator \
             operates on.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an NaryOperator instance.
         :rtype: :py:class:`psyclone.psyGen.NaryOperator`

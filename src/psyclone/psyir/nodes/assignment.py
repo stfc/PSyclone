@@ -52,7 +52,7 @@ class Assignment(Node):
     :param ast: node in the fparser2 AST representing the assignment.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
     :param parent: the parent node of this Assignment in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
     def __init__(self, ast=None, parent=None):
         super(Assignment, self).__init__(ast=ast, parent=parent)
@@ -62,7 +62,7 @@ class Assignment(Node):
         '''
         :returns: the child node representing the Left-Hand Side of the \
             assignment.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: Node has fewer children than expected.
         '''
@@ -79,7 +79,7 @@ class Assignment(Node):
         '''
         :returns: the child node representing the Right-Hand Side of the \
             assignment.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: Node has fewer children than expected.
         '''
@@ -97,13 +97,13 @@ class Assignment(Node):
 
         :param lhs: the PSyIR node containing the left hand side of \
             the assignment.
-        :type lhs: :py:class:`psyclone.psyGen.Node`
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
         :param rhs: the PSyIR node containing the right hand side of \
             the assignment.
-        :type rhs: :py:class:`psyclone.psyGen.Node`
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an Assignment instance.
-        :rtype: :py:class:`psyclone.psyGen.Assignment`
+        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.

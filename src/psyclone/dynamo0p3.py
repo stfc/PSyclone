@@ -1452,7 +1452,7 @@ class DynamoPSy(PSy):
         Generate PSy code for the Dynamo0.3 api.
 
         :return: Root node of generated Fortran AST
-        :rtype: :py:class:`psyGen.Node`
+        :rtype: :py:class:`psyir.nodes.Node`
 
         '''
         from psyclone.f2pygen import ModuleGen, UseGen
@@ -4195,7 +4195,7 @@ class DynBoundaryConditions(DynCollection):
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
         for dofs in self._boundary_dofs:
@@ -4208,7 +4208,7 @@ class DynBoundaryConditions(DynCollection):
         Add declarations for any boundary-dofs arrays required by a kernel.
 
         :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
         for dofs in self._boundary_dofs:
@@ -4223,7 +4223,7 @@ class DynBoundaryConditions(DynCollection):
         Initialise any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import AssignGen
         for dofs in self._boundary_dofs:
@@ -4551,7 +4551,7 @@ class DynGlobalSum(GlobalSum):
     :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the PSyIR
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises GenerationError: if distributed memory is not enabled.
     :raises GenerationError: if the scalar is not of type gh_real.

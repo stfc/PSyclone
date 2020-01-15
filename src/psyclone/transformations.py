@@ -64,7 +64,7 @@ def check_intergrid(node):
     rejected (since support for those is not yet implemented).
 
     :param node: the PSyIR node to check.
-    :type node: :py:class:`psyGen.Node`
+    :type node: :py:class:`psyir.nodes.Node`
 
     :raises TransformationError: if the supplied node has an inter-grid \
                                  kernel as a descendant.
@@ -163,14 +163,14 @@ class LoopFuseTrans(Transformation):
         the LoopFuseTrans transformation to the supplied Nodes.
 
         :param node1: the first Node that is being checked.
-        :type node1: :py:class:`psyclone.psyGen.Node`
+        :type node1: :py:class:`psyclone.psyir.nodes.Node`
         :param node2: the second Node that is being checked.
-        :type node2: :py:class:`psyclone.psyGen.Node`
+        :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
         :raises TransformationError: if one or both of the Nodes is/are \
-                                     not a :py:class:`psyclone.psyGen.Loop`.
+                                     not a :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if one or both Nodes are not fully-formed.
         :raises TransformationError: if the Nodes do not have the same parent.
         :raises TransformationError: if the Nodes are not next to each \
@@ -216,19 +216,19 @@ class LoopFuseTrans(Transformation):
 
     def apply(self, node1, node2, options=None):
         # pylint: disable=arguments-differ
-        ''' Fuses two loops represented by `psyclone.psyGen.Node` objects
+        ''' Fuses two loops represented by `psyclone.psyir.nodes.Node` objects
         after performing validity checks.
 
         :param node1: the first Node that is being checked.
-        :type node1: :py:class:`psyclone.psyGen.Node`
+        :type node1: :py:class:`psyclone.psyir.nodes.Node`
         :param node2: the second Node that is being checked.
-        :type node2: :py:class:`psyclone.psyGen.Node`
+        :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`).
         '''
 
@@ -334,7 +334,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
         :raises TransformationError: if the supplied loops are over \
@@ -592,7 +592,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
         :returns: two-tuple of the modified Schedule and a record of \
                   the transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
 
@@ -631,9 +631,9 @@ class ParallelLoopTrans(Transformation):
         Must be implemented by sub-class.
 
         :param parent: the parent of this Directive in the Schedule.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param children: list of nodes that will be children of this Directive.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: the number of tightly-nested loops to which \
                              this directive applies or None.
 
@@ -646,7 +646,7 @@ class ParallelLoopTrans(Transformation):
         Perform validation checks before applying the transformation
 
         :param node: the node we are checking.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.\
                         This transform supports "collapse", which is the\
                         number of nested loops to collapse.
@@ -655,9 +655,9 @@ class ParallelLoopTrans(Transformation):
                                         or None.
 
         :raises TransformationError: if the node is not a \
-                :py:class:`psyclone.psyGen.Loop`.
+                :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if the \
-                :py:class:`psyclone.psyGen.Loop` loop iterates over colours.
+                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over colours.
 
         '''
         # Check that the supplied node is a Loop
@@ -719,13 +719,13 @@ class ParallelLoopTrans(Transformation):
 
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations. \
         :type options: dictionary of string:values or None
         :param int options["collapse"]: the number of loops to collapse into \
                 single iteration space or None.
 
-        :returns: (:py:class:`psyclone.psyGen.Schedule`, \
+        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                    :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -873,7 +873,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                        directive Node.
         :param children: list of Nodes that will be the children of \
                          the created directive.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: currently un-used but required to keep \
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST
@@ -918,7 +918,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         :param node: the supplied node to which we will apply the \
                      OMPLoopTrans transformation
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
         :type options: dictionary of string:values or None
@@ -926,7 +926,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.
 
-        :returns: (:py:class:`psyclone.psyGen.Schedule`, \
+        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -996,9 +996,9 @@ class ACCLoopTrans(ParallelLoopTrans):
         transformation.
 
         :param parent: the parent Node of the new directive Node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param children: list of child nodes of the new directive Node.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: number of nested loops to collapse or None if \
                              no collapse attribute is required.
         '''
@@ -1029,7 +1029,7 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         :param node: the supplied node to which we will apply the \
                      Loop transformation.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param int options["collapse"]: number of nested loops to collapse.
@@ -1085,7 +1085,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         '''Validity checks for input arguments.
 
         :param node: the PSyIR node to validate.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -1127,7 +1127,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         :returns: two-tuple of transformed schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
         self.validate(node, options)
@@ -1183,7 +1183,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:class:`base class <OMPParallelLoopTrans>`.
 
         :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -1237,7 +1237,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:meth:`OMPParallelLoopTrans.apply`.
 
         :param node: a Loop node from an AST.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations\
                         and validation.
         :type options: dictionary of string:values or None
@@ -1282,7 +1282,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         :py:meth:`OMPLoopTrans.apply`.
 
         :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations \
                         and validation.
         :type options: dictionary of string:values or None
@@ -1341,7 +1341,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         :py:meth:`OMPLoopTrans.apply`.
 
         :param node: the loop to parallelise using OMP Do.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -1395,12 +1395,12 @@ class ColourTrans(Transformation):
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
         :returns: Tuple of modified schedule and record of transformation
-        :rtype: (:py:class:`psyclone.psyGen.Schedule, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
         schedule = node.root
@@ -1494,7 +1494,7 @@ class KernelModuleInlineTrans(KernelTrans):
         Kernel is marked to be inlined.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["inline"]: whether the kernel should be module\
@@ -1531,7 +1531,7 @@ class KernelModuleInlineTrans(KernelTrans):
         Check that the supplied kernel is eligible to be module inlined.
 
         :param node: the node in the PSyIR that is to be module inlined.
-        :type node: sub-class of :py:class:`psyclone.psyGen.Node`
+        :type node: sub-class of :py:class:`psyclone.psyir.nodes.Node`
         :param bool inline: whether or not the kernel is to be inlined.
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -1729,7 +1729,7 @@ class ParallelRegionTrans(RegionTrans):
         schedule within a single parallel region.
 
         :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`
+        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -1867,7 +1867,7 @@ class OMPParallelTrans(ParallelRegionTrans):
         Perform OpenMP-specific validation checks.
 
         :param node_list: list of Nodes to put within parallel region.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -2062,16 +2062,16 @@ class MoveTrans(Transformation):
         ''' validity checks for input arguments.
 
         :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param location: node before or after which the given node\
             should be moved.
-        :type location: :py:class:`psyclone.psyGen.Node`
+        :type location: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param str options["position"]: either 'before' or 'after'.
 
         :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyGen.Node`
+            of :py:class:`psyclone.psyir.nodes.Node`
         :raises TransformationError: if the location is not valid.
         '''
 
@@ -2098,16 +2098,16 @@ class MoveTrans(Transformation):
         if the optional `position` argument is set to 'after'.
 
         :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param location: node before or after which the given node\
             should be moved.
-        :type location: :py:class:`psyclone.psyGen.Node`
+        :type location: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param str options["position"]: either 'before' or 'after'.
 
         :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyGen.Node`
+            of :py:class:`psyclone.psyir.nodes.Node`
         :raises TransformationError: if the location is not valid.
 
         :returns: 2-tuple of new schedule and memento of transform.
@@ -2177,27 +2177,27 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         :param node: the supplied node on which we are performing\
                      validity checks
-        :type node: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param int options["depth"]: the depth of the stencil if the value \
                      is provided and None if not.
 
         :raises GenerationError: if the node is not a\
-            :py:class:`psyclone.psyGen.Loop`.
+            :py:class:`psyclone.psyir.nodes.Loop`.
         :raises GenerationError: if the parent of the loop is a\
             :py:class:`psyclone.psyGen.Directive`.
         :raises GenerationError: if the parent of the loop is not a\
-            :py:class:`psyclone.psyGen.Loop` or a\
+            :py:class:`psyclone.psyir.nodes.Loop` or a\
             :py:class:`psyclone.psyGen.DynInvokeSchedule`.
         :raises GenerationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyGen.Loop` but the original loop does\
+            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
             not iterate over 'colour'.
         :raises GenerationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyGen.Loop` but the parent does not
+            :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
         :raises GenerationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyGen.Loop` but the parent's parent is\
+            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
             not a :py:class:`psyclone.psyGen.DynInvokeSchedule`.
         :raises GenerationError: if this transformation is applied\
             when distributed memory is not switched on.
@@ -2436,7 +2436,7 @@ class GOLoopSwapTrans(Transformation):
         a loop, and it must have exactly one child that is also a loop.
 
         :param node_outer: a Loop node from an AST.
-        :type node_outer: py:class:`psyclone.psyGen.Loop`
+        :type node_outer: py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -2490,7 +2490,7 @@ class GOLoopSwapTrans(Transformation):
         one inner loop. This transform then swaps the outer and inner loop.
 
         :param outer: the node representing the outer loop.
-        :type outer: :py:class:`psyclone.psyGen.Loop`
+        :type outer: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -2696,7 +2696,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         :returns: tuple of the modified schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -2841,7 +2841,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         :returns: tuple of the modified schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -3102,13 +3102,13 @@ class ACCEnterDataTrans(Transformation):
         order to ensure they remain on the target device.
 
         :param sched: schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`
+        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
         :returns: tuple of the modified schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
@@ -3146,13 +3146,13 @@ class ACCEnterDataTrans(Transformation):
         to the supplied Schedule.
 
         :param sched: Schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`
+        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
         :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
-                         (subclass of) :py:class:`psyclone.psyGen.Schedule`.
+                         (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
         from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
@@ -3368,7 +3368,7 @@ class ACCKernelsTrans(RegionTrans):
         Kernels region.
 
         :param node_list: the list of nodes in the PSyIR to enclose.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
@@ -3377,7 +3377,7 @@ class ACCKernelsTrans(RegionTrans):
             memory this option should be False.
 
         :returns: (transformed schedule, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`,
+        :rtype: 2-tuple of (:py:class:`psyclone.psyir.nodes.Schedule`,
                             :py:class:`psyclone.undoredo.Memento`).
 
         '''
@@ -3417,7 +3417,7 @@ class ACCKernelsTrans(RegionTrans):
 
         :param node_list: the proposed list of PSyIR nodes to enclose in the \
                           kernels region.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3494,12 +3494,12 @@ class ACCDataTrans(RegionTrans):
 
         :param node_list: the list of PSyIR nodes to enclose in the data \
                           region.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
         :returns: (transformed schedule, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: 2-tuple of (:py:class:`psyclone.psyir.nodes.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`).
 
         '''
@@ -3534,7 +3534,7 @@ class ACCDataTrans(RegionTrans):
 
         :param node_list: the proposed list of nodes to enclose in a data \
                           region.
-        :type node_list: list of subclasses of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of subclasses of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3853,7 +3853,7 @@ class KernelGlobalsToArguments(Transformation):
 
         :returns: tuple of the modified Schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`).
         '''
         from psyclone.psyir.symbols import ArgumentInterface

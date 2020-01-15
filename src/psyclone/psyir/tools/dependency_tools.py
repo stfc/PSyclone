@@ -118,7 +118,7 @@ class DependencyTools(object):
         overwritten by the user to implement different suitability criteria.
 
         :param loop: the loop to test.
-        :type loop: :py:class:`psyclone.psyGen.Loop`
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
         :param bool only_nested_loops: true (default) if only nested loops\
                                         should be considered.
 
@@ -299,7 +299,7 @@ class DependencyTools(object):
         it can be safely parallelised over the specified variable.
 
         :param loop: the loop node to be analysed.
-        :type loop: :py:class:`psyclone.psyGen.Loop`
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
         :param str loop_variable: Optional name of the variable that is\
                                   parallelised. If not specified, the loop\
                                   variable of the loop is used.

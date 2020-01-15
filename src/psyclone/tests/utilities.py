@@ -492,7 +492,7 @@ def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
 
 
     :returns: PSyIR tree representing the Fortran code.
-    :rtype: Subclass of :py:class:`psyclone.psyGen.Node`
+    :rtype: Subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     reader = FortranStringReader(code)
@@ -516,10 +516,10 @@ def check_links(parent, children):
 
     :param parent: the parent node that should have the child \
         nodes as its children.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param children: the child nodes that should have the parent \
         node as their parent.
-    :type parent: list of :py:class:`psyclone.psyGen.Node`
+    :type parent: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     assert len(parent.children) == len(children)

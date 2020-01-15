@@ -52,7 +52,7 @@ class Literal(Node):
     :param datatype: the datatype of this literal.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises TypeError: if the datatype is not an instance of \
                        :py:class:`psyclone.psyir.symbols.DataType`.
@@ -124,7 +124,7 @@ class Literal(Node):
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyGen.Node`
+        :type other: py:class:`psyclone.psyir.nodes.Node`
 
         :return: if the self has the same results as other.
         :type: bool

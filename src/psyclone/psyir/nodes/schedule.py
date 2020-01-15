@@ -45,9 +45,9 @@ class Schedule(Node):
     as a list of children).
 
     :param children: the sequence of PSyIR nodes that make up the Schedule.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: that parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, children=None, parent=None):
@@ -70,7 +70,7 @@ class Schedule(Node):
 
         :param int index: index of the statement to access.
         :returns: statement in a given position in the Schedule sequence.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         return self._children[index]
 

@@ -99,9 +99,9 @@ class Node(object):
     :param ast: reference into the fparser2 AST corresponding to this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: that parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param annotations: Tags that provide additional information about \
         the node. The node should still be functionally correct when \
         ignoring these tags.
@@ -190,7 +190,7 @@ class Node(object):
         same, and the number of children as well.
 
         :param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyGen.Node`.
+        :type other: py:class:`psyclone.psyir.nodes.Node`.
 
         :returns: whether self has the same result as other.
         :rtype: bool
@@ -445,11 +445,11 @@ class Node(object):
         otherwise return False.
 
         :param new_node: Node to which this node should be moved.
-        :type new_node: :py:class:`psyclone.psyGen.Node`
+        :type new_node: :py:class:`psyclone.psyir.nodes.Node`
         :param str position: either 'before' or 'after'.
 
         :raises GenerationError: if new_node is not an\
-                instance of :py:class:`psyclone.psyGen.Node`.
+                instance of :py:class:`psyclone.psyir.nodes.Node`.
         :raises GenerationError: if position is not 'before' or 'after'.
         :raises GenerationError: if self and new_node do not have the same\
                 parent.
@@ -464,7 +464,7 @@ class Node(object):
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
             raise GenerationError(
-                "In the psyGen.Node.is_valid_location() method the "
+                "In the psyir.nodes.Node.is_valid_location() method the "
                 "supplied argument is not a Node, it is a '{0}'.".
                 format(type(new_node).__name__))
 
@@ -479,7 +479,7 @@ class Node(object):
         # 3: check self and new_node have the same parent
         if not self.sameParent(new_node):
             raise GenerationError(
-                "In the psyGen.Node.is_valid_location() method "
+                "In the psyir.nodes.Node.is_valid_location() method "
                 "the node and the location do not have the same parent")
 
         # 4: check proposed new position is not the same as current position
@@ -491,7 +491,7 @@ class Node(object):
 
         if self.position == new_position:
             raise GenerationError(
-                "In the psyGen.Node.is_valid_location() method, the "
+                "In the psyir.nodes.Node.is_valid_location() method, the "
                 "node and the location are the same so this transformation "
                 "would have no effect.")
 
@@ -631,7 +631,7 @@ class Node(object):
         Recurse through the tree depth first returning position of
         a Node if found.
         :param children: list of Nodes which are children of this Node
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :returns: position of the Node in the tree
         :rtype: int
         :raises InternalError: if the starting position is < 0
@@ -721,7 +721,7 @@ class Node(object):
 
         :returns: First ancestor Node that is an instance of any of the \
                   requested classes or None if not found.
-        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
         :raises TypeError: if `excluding` is provided but is not a type or \
                            tuple of types.
@@ -760,11 +760,11 @@ class Node(object):
         return self.walk(Kern)
 
     def following(self):
-        '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in the
         schedule. Ordering is depth first.
 
         :returns: a list of nodes
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         all_nodes = self.root.walk(Node)
@@ -772,7 +772,7 @@ class Node(object):
         return all_nodes[position+1:]
 
     def preceding(self, reverse=None):
-        '''Return all :py:class:`psyclone.psyGen.Node` nodes before me in the
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me in the
         schedule. Ordering is depth first. If the `reverse` argument
         is set to `True` then the node ordering is reversed
         i.e. returning the nodes closest to me first
@@ -780,7 +780,7 @@ class Node(object):
         :param: reverse: An optional, default `False`, boolean flag
         :type: reverse: bool
         :returns: A list of nodes
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         all_nodes = self.root.walk(Node)
@@ -841,7 +841,7 @@ class Node(object):
         '''Abstract base class for code generation function.
 
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         raise NotImplementedError("Please implement me")
 
@@ -870,13 +870,13 @@ class Node(object):
 
         :param children: nodes which will become children of the \
                          new Schedule.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param ast: reference to fparser2 parse tree for associated \
                     Fortran code.
         :type ast: :py:class:`fparser.two.utils.Base`
 
         :returns: the new Schedule node.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
         '''
         from psyclone.psyir.nodes import Schedule
         sched = Schedule(children=children, parent=self)

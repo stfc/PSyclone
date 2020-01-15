@@ -49,7 +49,7 @@ class Reference(Node):
 
     :param str reference_name: the name of the symbol being referenced.
     :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
     '''
     def __init__(self, reference_name, parent=None):
         super(Reference, self).__init__(parent=parent)
@@ -80,7 +80,7 @@ class Reference(Node):
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyGen.Node`
+        :type other: py:class:`psyclone.psyir.nodes.Node`
 
         :returns: True if the self has the same results as other.
         :rtype: bool
@@ -137,7 +137,7 @@ class Reference(Node):
         search space to the symbol tables of the nodes within the \
         given scope. If it is None (the default), the whole scope (all \
         symbol tables in ancestor nodes) is searched.
-        :type scope_limit: :py:class:`psyclone.psyGen.Node` or `None`
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or `None`
 
         :returns: the Symbol associated with this reference if one is \
         found or None if not.
@@ -205,7 +205,7 @@ class Array(Reference):
 
     :param str reference_name: name of the array symbol.
     :param parent: the parent node of this Array in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, reference_name, parent=None):
@@ -220,10 +220,10 @@ class Array(Reference):
 
         :param str name: the name of the array.
         :param children: a list of Nodes describing the array indices.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an Array instance.
-        :rtype: :py:class:`psyclone.psyGen.Array`
+        :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.

@@ -55,7 +55,7 @@ class Loop(Node):
     evaluated before the loop starts.)
 
     :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
     :param valid_loop_types: a list of loop types that are specific \
@@ -119,19 +119,19 @@ class Loop(Node):
             name of the loop iterator.
         :param start: the PSyIR node determining the value for the \
             start of the loop.
-        :type start: :py:class:`psyclone.psyGen.Node`
+        :type start: :py:class:`psyclone.psyir.nodes.Node`
         :param end: the PSyIR node determining the value for the end \
             of the loop.
-        :type end: :py:class:`psyclone.psyGen.Node`
+        :type end: :py:class:`psyclone.psyir.nodes.Node`
         :param step: the PSyIR node determining the value for the loop \
             step.
-        :type step: :py:class:`psyclone.psyGen.Node`
+        :type step: :py:class:`psyclone.psyir.nodes.Node`
         :param children: a list of PSyIR nodes contained in the \
             loop.
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a Loop instance.
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
@@ -199,7 +199,7 @@ class Loop(Node):
     def start_expr(self):
         '''
         :returns: the PSyIR Node representing the Loop start expression.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._check_completeness()
@@ -210,7 +210,7 @@ class Loop(Node):
         ''' Setter for Loop start_expr attribute.
 
         :param expr: New PSyIR start expression.
-        :type expr: :py:class:`psyclone.psyGen.Node`
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if expr is not a PSyIR node.
 
@@ -226,7 +226,7 @@ class Loop(Node):
     def stop_expr(self):
         '''
         :returns: the PSyIR Node representing the Loop stop expression.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._check_completeness()
@@ -237,7 +237,7 @@ class Loop(Node):
         ''' Setter for Loop stop_expr attribute.
 
         :param expr: New PSyIR stop expression.
-        :type expr: :py:class:`psyclone.psyGen.Node`
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if expr is not a PSyIR node.
 
@@ -253,7 +253,7 @@ class Loop(Node):
     def step_expr(self):
         '''
         :returns: the PSyIR Node representing the Loop step expression.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._check_completeness()
@@ -264,7 +264,7 @@ class Loop(Node):
         ''' Setter for Loop step_expr attribute.
 
         :param expr: New PSyIR step expression.
-        :type expr: :py:class:`psyclone.psyGen.Node`
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if expr is not a PSyIR node.
 
@@ -280,7 +280,7 @@ class Loop(Node):
     def loop_body(self):
         '''
         :returns: the PSyIR Schedule with the loop body statements.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
         self._check_completeness()
@@ -496,7 +496,7 @@ class Loop(Node):
             ''' Check if the given expression is equal to the literal '1'.
 
             :param expr: a PSyIR expression.
-            :type expr: :py:class:`psyclone.psyGen.Node`
+            :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
             :returns: True if it is equal to the literal '1', false otherwise.
             '''

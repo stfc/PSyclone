@@ -72,7 +72,7 @@ class ProfileTrans(RegionTrans):
     from psyclone import psyGen, profiler
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
-    valid_node_types = (psyGen.Node,)
+    valid_node_types = (psyir.nodes.Node,)
 
     def __str__(self):
         return "Insert a profile start and end call."
@@ -91,7 +91,7 @@ class ProfileTrans(RegionTrans):
         implemented the necessary support if it doesn't).
 
         :param nodes: a list of nodes to be profiled.
-        :type nodes: :py:class:`psyclone.psyGen.Loop`
+        :type nodes: :py:class:`psyclone.psyir.nodes.Loop`
 
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -155,7 +155,7 @@ class ProfileTrans(RegionTrans):
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''

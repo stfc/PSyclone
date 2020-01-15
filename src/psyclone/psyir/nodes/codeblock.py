@@ -52,9 +52,9 @@ class CodeBlock(Node):
     :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
     :param structure: argument indicating whether this code block is a \
     statement or an expression.
-    :type structure: :py:class:`psyclone.psyGen.CodeBlock.Structure`
+    :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     class Structure(Enum):
@@ -90,7 +90,7 @@ class CodeBlock(Node):
     def structure(self):
         '''
         :returns: whether this code block is a statement or an expression.
-        :rtype: :py:class:`psyclone.psyGen.CodeBlock.Structure`
+        :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
 
         '''
         return self._structure

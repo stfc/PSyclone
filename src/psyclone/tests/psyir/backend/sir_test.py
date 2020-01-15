@@ -120,7 +120,7 @@ def get_assignment(parser, code):
     :param str code: the code as a string.
 
     :returns: an assignment node from the supplied code.
-    :rtype: :py:class:`psyclone.psyGen.Assignment`
+    :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
     from psyclone.psyir.nodes import Assignment
@@ -140,7 +140,7 @@ def get_lhs(parser, code):
     :param str code: the code as a string.
 
     :returns: an array node from the supplied code.
-    :rtype: subclass of :py:class:`psyclone.psyGen.Node`
+    :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     assignment = get_assignment(parser, code)
@@ -157,7 +157,7 @@ def get_rhs(parser, code):
 
     :returns: the right hand side of an assignment from the supplied \
     code.
-    :rtype: subclass of :py:class:`psyclone.psyGen.Node`
+    :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     assignment = get_assignment(parser, code)

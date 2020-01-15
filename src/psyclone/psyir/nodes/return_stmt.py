@@ -46,7 +46,7 @@ class Return(Node):
     value).
 
     :param parent: the parent node of this Return in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)

@@ -112,7 +112,7 @@ class Profiler():
         :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or \
                         derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
-        :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
+        :type loop_class: :py::class::`psyclone.psyir.nodes.Loop` or derived class.
         '''
 
         from psyclone.psyir.transformations import ProfileTrans
@@ -141,10 +141,10 @@ class ProfileNode(Node):
 
     :param children: a list of child nodes for this node. These will be made \
         children of the child Schedule of this Profile Node.
-    :type children: list of :py::class::`psyclone.psyGen.Node` \
+    :type children: list of :py::class::`psyclone.psyir.nodes.Node` \
         or derived classes
     :param parent: the parent of this node in the PSyIR.
-    :type parent: :py::class::`psyclone.psyGen.Node`
+    :type parent: :py::class::`psyclone.psyir.nodes.Node`
     :param str region_name: the name to call this profile region. This \
         name should be unique within this invoke unless aggregate \
         information is required.
@@ -213,7 +213,7 @@ class ProfileNode(Node):
     def profile_body(self):
         '''
         :returns: the Schedule associated with this Profiling region.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
@@ -233,7 +233,7 @@ class ProfileNode(Node):
         of this node.
 
         :param parent: the parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         module_name = self._module_name

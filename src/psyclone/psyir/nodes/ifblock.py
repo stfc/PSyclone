@@ -81,7 +81,7 @@ class IfBlock(Node):
         of this IfBlock.
 
         :returns: IfBlock conditional expression.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
         '''
@@ -97,7 +97,7 @@ class IfBlock(Node):
         ''' Return the Schedule executed when the IfBlock evaluates to True.
 
         :returns: Schedule to be executed when IfBlock evaluates to True.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
         '''
@@ -116,7 +116,7 @@ class IfBlock(Node):
 
         :returns: Schedule to be executed when IfBlock evaluates \
             to False, if it doesn't exist returns None.
-        :rtype: :py:class:`psyclone.psyGen.Schedule` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule` or NoneType
         '''
         if len(self._children) == 3:
             return self._children[2]
@@ -129,17 +129,17 @@ class IfBlock(Node):
 
         :param if_condition: the PSyIR node containing the if \
             condition of the if block.
-        :type if_condition: :py:class:`psyclone.psyGen.Node`
+        :type if_condition: :py:class:`psyclone.psyir.nodes.Node`
         :param if_body: the PSyIR nodes representing the if body of \
             the if block.
-        :type if_body: list of :py:class:`psyclone.psyGen.Node`
+        :type if_body: list of :py:class:`psyclone.psyir.nodes.Node`
         :param else_body: PSyIR nodes representing the else body of the \
             if block of None if there is no else body (defaults to None).
-        :type else_body: list of :py:class:`psyclone.psyGen.Node` or \
+        :type else_body: list of :py:class:`psyclone.psyir.nodes.Node` or \
             NoneType
 
         :returns: an IfBlock instance.
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
