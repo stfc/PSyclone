@@ -29,9 +29,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
+! Author: S. Siso, STFC Daresbury Lab
 
-module kernel_with_use_mod
+module kernel_with_use2_mod
   use argument_mod
   use grid_mod
   use kernel_mod
@@ -40,9 +40,12 @@ module kernel_with_use_mod
 
   private
 
-  public kernel_with_use, kernel_with_use_code
+  public bc_ssh
+  public bc_ssh_code
 
-  type, extends(kernel_type) :: kernel_with_use
+  !=======================================
+
+  type, extends(kernel_type) :: kernel_with_use2
      type(go_arg), dimension(3) :: meta_args =                 &
           (/ go_arg(GO_READ,      GO_I_SCALAR, GO_POINTWISE),  &
              go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
@@ -56,36 +59,24 @@ module kernel_with_use_mod
      integer :: index_offset = GO_OFFSET_NE
 
   contains
-    procedure, nopass :: code => kernel_with_use_code
- end type kernel_with_use
+    procedure, nopass :: code => kernel_with_use2_code
+ end type kernel_with_use2
 
 contains
  
-  subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask)
-    use model_mod, only: rdt
+  subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask)
+    use model_mod, only: cbfr, rdt
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
     integer,                  intent(in)    :: istep
     real(go_wp), dimension(:,:), intent(inout) :: ssha
-    ! Locals
-    real(go_wp) :: amp_tide, omega_tide, rtime
 
-    amp_tide   = 0.2_go_wp
-    omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
-    rtime = real(istep) * rdt
 
-    if(tmask(ji,jj) <= 0) return
-    IF     (tmask(ji,jj-1) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    ELSE IF(tmask(ji,jj+1) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    ELSE IF(tmask(ji+1,jj) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    ELSE IF(tmask(ji-1,jj) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
+    if(tmask(ji,jj) > 0) then
+       ssha(ji,jj) = ssha(ji,jj) * cbfr * rdt
     END IF
 
-  end subroutine kernel_with_use_code
+  end subroutine kernel_with_use2_code
 
-end module kernel_with_use_mod
+end module kernel_with_use2_mod

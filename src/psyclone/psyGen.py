@@ -1843,8 +1843,20 @@ class InvokeSchedule(Schedule):
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
+        # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
+        # it would be better to merge them. The SymbolTable is only used
+        # for global variables extracted from the Kernels.
         self._name_space_manager = NameSpaceFactory().create()
+        self._symbol_table = SymbolTable()
         self._text_name = "InvokeSchedule"
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the schedule.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        return self._symbol_table
 
     def set_opencl_options(self, options):
         '''
@@ -1911,6 +1923,41 @@ class InvokeSchedule(Schedule):
         '''
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
+
+        # Global symbols promoted from Kernel Globals are in the SymbolTable
+        # instead of the name_space_manager.
+        # First aggregate all globals variables from the same module in a map
+        module_map = {}
+        for globalvar in self.symbol_table.global_datasymbols:
+            module_name = globalvar.interface.container_symbol.name
+            if module_name in module_map:
+                module_map[module_name].append(globalvar.name)
+            else:
+                module_map[module_name] = [globalvar.name]
+
+        # Then we can produce the UseGen statements without repeating modules
+        for module_name, var_list in module_map.items():
+            parent.add(UseGen(parent, name=module_name, only=True,
+                              funcnames=var_list))
+
+        # Add the SymbolTable symbols used into the NameSpaceManager to prevent
+        # clashes. Note that the global variables names are going to be used as
+        # arguments and are declared with 'AlgArgs' context.
+        # TODO: After #312 this will not be necessary.
+        for module_name, var_list in module_map.items():
+            self._name_space_manager.add_reserved_name(module_name)
+            for var_name in var_list:
+                newname = self._name_space_manager.create_name(
+                    root_name=var_name,
+                    context="AlgArgs",
+                    label=var_name)
+                # There is a name clash with this variable name and we can not
+                # accept indexed names for global variables.
+                # TODO: #642 Improve global variables name clashes handling.
+                if var_name != newname:
+                    raise KeyError(
+                        "The imported variable '{0}' is already defined in the"
+                        " NameSpaceManager of the Invoke.".format(var_name))
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
@@ -2191,6 +2238,12 @@ class Directive(Node):
 
         self.ast = directive
         self.dir_body.ast = directive
+        # If this is a directive applied to a Loop then update the ast_end
+        # for this Node to point to the parse tree for the loop. We have to
+        # do this because the loop is a sibling (rather than a child) of the
+        # directive in the parse tree.
+        if not end_text and isinstance(first_child, Loop):
+            self.ast_end = fp_parent.content[ast_start_index+1]
 
 
 class ACCDirective(Directive):
@@ -4688,6 +4741,15 @@ class Arguments(object):
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
 
+    def append(self, name):
+        ''' Abstract method to append KernelArguments to the Argument
+        list.
+
+        :param str name: name of the appended argument.
+        '''
+        raise NotImplementedError(
+            "Arguments.append must be implemented in sub-class")
+
 
 class DataAccess(object):
     '''A helper class to simplify the determination of dependencies due to
@@ -6535,8 +6597,7 @@ class Literal(Node):
     Node representing a Literal. The value and datatype properties of
     this node are immutable.
 
-    :param value: the value of the literal.
-    :type value: str (for numerical values) or bool
+    :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
@@ -6546,10 +6607,9 @@ class Literal(Node):
                        :py:class:`psyclone.psyir.symbols.DataType`.
     :raises ValueError: if the datatype is not one of \
                         self.VALID_DATA_TYPES.
-    :raises TypeError: if this Literal is of BOOLEAN type and the \
-                       supplied value is not a bool.
-    :raises TypeError: if this Literal is not of BOOLEAN type and the \
-                       supplied value is not a string.
+    :raises TypeError: if the supplied value is not a string.
+    :raises ValueError: if the Literal is a BOOLEAN and the value is not \
+                        'true' or 'false'.
     '''
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
@@ -6567,19 +6627,18 @@ class Literal(Node):
             raise ValueError("The datatype of a Literal must be one of {0} "
                              "but got '{1}'".format(self.VALID_DATA_TYPES,
                                                     datatype))
-        self._datatype = datatype
+        if not isinstance(value, six.string_types):
+            raise TypeError("Literals must be supplied with "
+                            "a value encoded as a string but got: {0}".
+                            format(type(value).__name__))
 
-        # Checks for the value
-        if self.datatype is DataType.BOOLEAN:
-            if not isinstance(value, bool):
-                raise TypeError("A boolean Literal must be supplied with a "
-                                "value that is a bool but got: {0}".format(
-                                    type(value).__name__))
-        else:
-            if not isinstance(value, six.string_types):
-                raise TypeError("A non-boolean Literal must be supplied with "
-                                "a value encoded as a string but got: {0}".
-                                format(type(value).__name__))
+        if datatype is DataType.BOOLEAN:
+            if value not in ("true", "false"):
+                raise ValueError(
+                    "A DataType.BOOLEAN Literal can only be: 'true' or "
+                    "'false' but got '{0}' instead.".format(value))
+
+        self._datatype = datatype
         self._value = value
 
     @property

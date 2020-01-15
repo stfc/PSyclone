@@ -29,63 +29,33 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
+! Author: S. Siso, STFC Daresbury Lab
 
-module kernel_with_use_mod
-  use argument_mod
-  use grid_mod
-  use kernel_mod
+program single_invoke_test
+
+  ! Fake Fortran program for testing the use of PSyclone with a kernel
+  ! that accesses a variable via a use statement.
   use kind_params_mod
+  use grid_mod
+  use field_mod
+  use kernel_with_use_mod, only: kernel_with_use
+  use kernel_with_use2_mod, only: kernel_with_use2
   implicit none
 
-  private
+  type(grid_type), target :: model_grid
+  type(r2d_field) :: oldu_fld, u_fld, cu_fld
 
-  public kernel_with_use, kernel_with_use_code
+  ! Create the model grid
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
-  type, extends(kernel_type) :: kernel_with_use
-     type(go_arg), dimension(3) :: meta_args =                 &
-          (/ go_arg(GO_READ,      GO_I_SCALAR, GO_POINTWISE),  &
-             go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
-             go_arg(GO_READ,                   GO_GRID_MASK_T) &
-           /)
+  ! Create fields on this grid
+  oldu_fld = r2d_field(model_grid, GO_T_POINTS)
+  u_fld = r2d_field(model_grid, GO_U_POINTS)
+  cu_fld = r2d_field(model_grid, GO_U_POINTS)
 
-     !> Although this is a boundary-conditions kernel, it only
-     !! acts on the internal points of the domain
-     integer :: ITERATES_OVER = GO_INTERNAL_PTS
+  call invoke(kernel_with_use(oldu_fld, cu_fld, u_fld), &
+              kernel_with_use2(oldu_fld, cu_fld, u_fld), &
+              kernel_with_use(oldu_fld, cu_fld, u_fld))
 
-     integer :: index_offset = GO_OFFSET_NE
-
-  contains
-    procedure, nopass :: code => kernel_with_use_code
- end type kernel_with_use
-
-contains
- 
-  subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask)
-    use model_mod, only: rdt
-    implicit none
-    integer, intent(in)  :: ji, jj
-    integer, dimension(:,:),  intent(in)    :: tmask
-    integer,                  intent(in)    :: istep
-    real(go_wp), dimension(:,:), intent(inout) :: ssha
-    ! Locals
-    real(go_wp) :: amp_tide, omega_tide, rtime
-
-    amp_tide   = 0.2_go_wp
-    omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
-    rtime = real(istep) * rdt
-
-    if(tmask(ji,jj) <= 0) return
-    IF     (tmask(ji,jj-1) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    ELSE IF(tmask(ji,jj+1) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    ELSE IF(tmask(ji+1,jj) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    ELSE IF(tmask(ji-1,jj) < 0) THEN
-       ssha(ji,jj) = amp_tide * sin(omega_tide * rtime)
-    END IF
-
-  end subroutine kernel_with_use_code
-
-end module kernel_with_use_mod
+end program single_invoke_test
