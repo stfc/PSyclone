@@ -661,7 +661,7 @@ class Fparser2Reader(object):
                         # If it is a parameter parse its initialization
                         tmp = Node()
                         expr = initialisation.items[1]
-                        self.process_nodes(tmp, [expr], initialisation)
+                        self.process_nodes(parent=tmp, nodes=[expr])
                         ct_expr = tmp.children[0]
                     else:
                         raise NotImplementedError(
