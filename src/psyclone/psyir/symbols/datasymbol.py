@@ -360,7 +360,7 @@ class DataSymbol(Symbol):
             instance, or 5) the provided PSyIR expression is unsupported.
 
         '''
-        from psyclone.psyGen import Node, Literal, Operation, Reference
+        from psyclone.psyir.nodes import Node, Literal, Operation, Reference
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,32 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-''' Module containing pytest tests for the handling of the SIZE intrinsic
-in the PSyIR. '''
+''' PSyIR nodes package module '''
 
-from __future__ import absolute_import
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.return_stmt import Return
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
+    BinaryOperation, NaryOperation
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.reference import Reference, Array
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.codeblock import CodeBlock
 
-import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-
-
-@pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
-                                        "n = SIZE(a(:,:,:), 3)"])
-def test_size(expression, parser):
-    ''' Basic test that the SIZE intrinsic is recognised and represented
-    in the PSyIR. '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(expression)
-    fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic], None)
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1], Literal)
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.psyir.nodes import Literal'
+__all__ = [
+        'Node',
+        'Schedule',
+        'Return',
+        'Assignment',
+        'Operation',
+        'UnaryOperation',
+        'BinaryOperation',
+        'NaryOperation',
+        'Reference',
+        'Array',
+        'IfBlock',
+        'Loop',
+        'CodeBlock',
+        'Container',
+        'Literal']

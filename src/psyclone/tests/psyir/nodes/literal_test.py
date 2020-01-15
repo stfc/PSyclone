@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyGen import Literal
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import DataType
 
 def test_literal_init():
@@ -101,7 +101,7 @@ def test_literal_value():
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     literal = Literal("1", DataType.INTEGER)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert coloredtext+"[value:'1', DataType.INTEGER]" in literal.node_str()

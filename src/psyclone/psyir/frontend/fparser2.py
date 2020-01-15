@@ -42,10 +42,11 @@
 from collections import OrderedDict
 from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
-from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
-    Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    KernelSchedule, Container, Assignment, Return, Array, InternalError, \
-    GenerationError, Node
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
+    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
+    Container, Assignment, Return, Array, Node
+from psyclone.psyGen import Directive, KernelSchedule, InternalError, \
+    GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType

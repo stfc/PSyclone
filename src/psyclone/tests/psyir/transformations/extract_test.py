@@ -46,7 +46,7 @@ import pytest
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.extractor import ExtractNode
-from psyclone.psyGen import Loop
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
@@ -362,7 +362,7 @@ def test_extract_node_position():
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
     class: view, dag_name and __str__ produce the correct results. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,

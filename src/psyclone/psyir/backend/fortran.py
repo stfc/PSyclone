@@ -710,7 +710,7 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        from psyclone.psyGen import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock
         result = ""
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required

@@ -54,11 +54,11 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
+from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
-    CodedKern, ACCEnterDataDirective
+    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType
 
 # --------------------------------------------------------------------------- #

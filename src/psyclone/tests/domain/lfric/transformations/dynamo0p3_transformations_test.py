@@ -3477,7 +3477,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import OMPDoDirective
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])

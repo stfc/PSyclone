@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,32 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
 
-''' Module containing pytest tests for the handling of the SIZE intrinsic
-in the PSyIR. '''
+''' This module contains the return node implementation'''
 
-from __future__ import absolute_import
+from psyclone.psyir.nodes import Node
 
-import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+class Return(Node):
+    '''
+    Node representing a Return statement (subroutine break without return
+    value).
 
+    :param parent: the parent node of this Return in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(Return, self).__init__(parent=parent)
 
-@pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
-                                        "n = SIZE(a(:,:,:), 3)"])
-def test_size(expression, parser):
-    ''' Basic test that the SIZE intrinsic is recognised and represented
-    in the PSyIR. '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(expression)
-    fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic], None)
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1], Literal)
+    def __str__(self):
+        return "Return[]\n"

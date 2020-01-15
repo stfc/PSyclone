@@ -276,7 +276,7 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
-        from psyclone.psyGen import UnaryOperation
+        from psyclone.psyir.nodes import UnaryOperation
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
@@ -349,7 +349,7 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each BinaryOperation.Operator
-        from psyclone.psyGen import BinaryOperation
+        from psyclone.psyir.nodes import BinaryOperation
         opmap = {
             BinaryOperation.Operator.ADD: ("+", operator_format),
             BinaryOperation.Operator.SUB: ("-", operator_format),

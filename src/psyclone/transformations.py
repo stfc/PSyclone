@@ -43,7 +43,8 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, InternalError, Kern, Schedule
+from psyclone.psyGen import Transformation, InternalError, Kern
+from psyclone.psyir.nodes import Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
@@ -131,7 +132,8 @@ class KernelTrans(Transformation):
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
-        from psyclone.psyGen import Reference, KernelSchedule
+        from psyclone.psyir.nodes import Reference
+        from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
             if not var.symbol(scope_limit=var.ancestor(KernelSchedule)):
                 raise TransformationError(
@@ -178,7 +180,7 @@ class LoopFuseTrans(Transformation):
         '''
 
         # Check that the supplied Node is a Loop
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
             raise TransformationError("Error in {0} transformation. "
                                       "At least one of the nodes is not "
@@ -659,7 +661,7 @@ class ParallelLoopTrans(Transformation):
 
         '''
         # Check that the supplied node is a Loop
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError(
                 "Cannot apply a parallel-loop directive to something that is "
@@ -1092,7 +1094,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
          '''
         # Check that the supplied Node is a Loop
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in {0} transformation. The "
                                       "node is not a loop.".format(self.name))
@@ -1347,7 +1349,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         # check node is a loop. Although this is not GOcean specific
         # it is required for the subsequent checks to function
         # correctly.
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The node is not a loop.")
@@ -1620,7 +1622,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
@@ -1837,10 +1839,11 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     '''
     from psyclone import psyGen
+    from psyclone.psyir import nodes
     # The types of node that this transformation can enclose
-    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.OMPDirective, psyGen.GlobalSum,
-                        psyGen.Literal, psyGen.Reference)
+                        nodes.Literal, nodes.Reference)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
@@ -1913,10 +1916,11 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
     '''
     from psyclone import psyGen
+    from psyclone.psyir import nodes
     valid_node_types = (
-        psyGen.Loop, psyGen.Kern, psyGen.IfBlock,
-        psyGen.ACCLoopDirective, psyGen.Assignment, psyGen.Reference,
-        psyGen.Literal, psyGen.BinaryOperation)
+        nodes.Loop, psyGen.Kern, nodes.IfBlock,
+        psyGen.ACCLoopDirective, nodes.Assignment, nodes.Reference,
+        nodes.Literal, nodes.BinaryOperation)
 
     def __init__(self):
         from psyclone.psyGen import ACCParallelDirective
@@ -2221,7 +2225,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         '''
         # check node is a loop
-        from psyclone.psyGen import Loop, Directive
+        from psyclone.psyGen import Directive
+        from psyclone.psyir.nodes import Loop
         from psyclone.dynamo0p3 import DynInvokeSchedule
         if not isinstance(node, Loop):
             raise TransformationError(
@@ -2439,7 +2444,7 @@ class GOLoopSwapTrans(Transformation):
                                      allow a loop swap to be done.
          '''
 
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         if not isinstance(node_outer, Loop):
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Given node '{0}' is not a loop."
@@ -3343,9 +3348,10 @@ class ACCKernelsTrans(RegionTrans):
 
     '''
     from psyclone import nemo, psyGen, dynamo0p3
-    valid_node_types = (psyGen.Loop, nemo.NemoKern, psyGen.IfBlock,
-                        psyGen.Operation, psyGen.Literal,
-                        psyGen.Assignment, psyGen.Reference,
+    from psyclone.psyir import nodes
+    valid_node_types = (nodes.Loop, nemo.NemoKern, nodes.IfBlock,
+                        nodes.Operation, nodes.Literal,
+                        nodes.Assignment, nodes.Reference,
                         dynamo0p3.DynLoop, dynamo0p3.DynKern, psyGen.BuiltIn)
 
     @property
@@ -3423,7 +3429,7 @@ class ACCKernelsTrans(RegionTrans):
         '''
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         # Check that the front-end is valid
         sched = node_list[0].root
         if not isinstance(sched, (NemoInvokeSchedule, DynInvokeSchedule)):
@@ -3467,10 +3473,11 @@ class ACCDataTrans(RegionTrans):
 
     '''
     from psyclone import psyGen
-    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, psyGen.IfBlock, psyGen.Literal,
-                        psyGen.Assignment, psyGen.Reference,
-                        psyGen.Operation)
+    from psyclone.psyir import nodes
+    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.Directive, nodes.IfBlock, nodes.Literal,
+                        nodes.Assignment, nodes.Reference,
+                        nodes.Operation)
 
     @property
     def name(self):

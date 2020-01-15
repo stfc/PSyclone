@@ -38,7 +38,8 @@ of an Invoke into a stand-alone application."
 '''
 
 from psyclone.configuration import Config
-from psyclone.psyGen import Kern, Schedule
+from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -57,10 +58,11 @@ class ExtractTrans(RegionTrans):
     Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
     functionality does not support distributed memory.
     '''
+    from psyclone.psyir import nodes
     from psyclone import psyGen
     # The types of node that this transformation can enclose
-    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, psyGen.Literal, psyGen.Reference)
+    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.Directive, nodes.Literal, nodes.Reference)
 
     def __str__(self):
         return ("Create a sub-tree of the PSyIR that has ExtractNode "

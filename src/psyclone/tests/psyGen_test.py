@@ -51,12 +51,13 @@ import re
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, OMPParallelDoDirective, \
-    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
+from psyclone.psyir.nodes import CodeBlock, Container, Loop, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Schedule, UnaryOperation, NaryOperation, Return, \
-    ACCEnterDataDirective, ACCKernelsDirective, Container, Loop
+    Schedule, UnaryOperation, NaryOperation, Return
+from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
+    NameSpaceFactory, OMPParallelDoDirective, KernelSchedule, \
+    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
+    ACCEnterDataDirective, ACCKernelsDirective
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
@@ -574,7 +575,7 @@ end module dummy_mod
 
 def test_sched_node_str():
     ''' Check the node_str method of the Schedule class'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     sched = Schedule()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in \
         sched.node_str()
@@ -623,7 +624,8 @@ def test_sched_can_be_printed():
 def test_invokeschedule_node_str():
     ''' Check the node_str method of the InvokeSchedule class. We need an
     Invoke object for this which we get using the dynamo0.3 API. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, InvokeSchedule
+    from psyclone.psyGen import InvokeSchedule
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -745,7 +747,7 @@ def test_kern_get_kernel_schedule():
 def test_codedkern_node_str():
     ''' Tests the node_str method in the CodedKern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
@@ -760,7 +762,7 @@ def test_codedkern_node_str():
 def test_kern_coloured_text():
     ''' Check that the coloured_name method of both CodedKern and
     BuiltIn return what we expect. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     # Use a Dynamo example that has both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -897,7 +899,7 @@ def test_ompdo_constructor():
 def test_ompdo_directive_class_node_str(dist_mem):
     '''Tests the node_str method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
 
@@ -935,7 +937,7 @@ def test_ompdo_directive_class_node_str(dist_mem):
 
 def test_acc_dir_node_str():
     ''' Test the node_str() method of OpenACC directives '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
@@ -981,7 +983,7 @@ def test_globalsum_node_str():
     '''test the node_str method in the GlobalSum class. The simplest way to do
     this is to use a dynamo0p3 builtin example which contains a scalar and
     then call node_str() on that.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     from psyclone import dynamo0p3
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
@@ -1681,7 +1683,7 @@ def test_haloexchange_can_be_printed():
 
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     # We have to use the dynamo0.3 API as that's currently the only one
     # that supports halo exchanges.
     _, invoke_info = parse(
@@ -2253,7 +2255,7 @@ def test_acckernelsdirective_node_str():
     as expected.
 
     '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
@@ -2887,7 +2889,7 @@ def test_node_abstract_methods():
 
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
     assert tnode.coloured_name(False) == "Node"
     # Check that we can change the name of the Node and the colour associated
@@ -2904,7 +2906,7 @@ def test_node_coloured_name():
 
 def test_node_str():
     ''' Tests for the Node.node_str method. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
     # Manually set the colour key for this node to something that will result
     # in coloured output (if requested *and* termcolor is installed).
@@ -3019,7 +3021,7 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 
 def test_codeblock_node_str():
     ''' Check the node_str method of the Code Block class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     cblock = CodeBlock([], "dummy")
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
     output = cblock.node_str()
@@ -3208,7 +3210,7 @@ def test_ifblock_invalid_annotation():
 
 def test_ifblock_node_str():
     ''' Check the node_str method of the IfBlock class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
 
     ifblock = IfBlock()
@@ -3223,7 +3225,7 @@ def test_ifblock_node_str():
 def test_ifblock_view_indices(capsys):
     ''' Check that the view method only displays indices on the nodes
     in the body (and else body) of an IfBlock. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
     colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
     colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -3398,7 +3400,7 @@ def test_ifblock_create_invalid():
 
 def test_assignment_node_str():
     ''' Check the node_str method of the Assignment class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     assignment = Assignment()
     coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
@@ -3473,7 +3475,7 @@ def test_assignment_create_invalid():
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
     assignment = Assignment(parent=kschedule)
@@ -3564,7 +3566,7 @@ def test_reference_symbol(monkeypatch):
 
 def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER,
                                           [DataSymbol.Extent.ATTRIBUTE]))
@@ -3653,7 +3655,7 @@ def test_binaryoperation_operator():
 
 def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
     op2 = Literal("1", DataType.INTEGER, parent=binary_operation)
@@ -3745,7 +3747,7 @@ def test_unaryoperation_operator():
 
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     ref1 = Reference("a", parent=unary_operation)
     unary_operation.addchild(ref1)
@@ -3799,7 +3801,7 @@ def test_unaryoperation_create_invalid():
 
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     nary_operation.addchild(Literal("1", DataType.INTEGER,
                                     parent=nary_operation))
@@ -3874,7 +3876,7 @@ def test_naryoperation_create_invalid():
 
 def test_return_node_str():
     ''' Check the node_str method of the Return class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     return_stmt = Return()
     coloredtext = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
     assert coloredtext+"[]" in return_stmt.node_str()
@@ -3922,7 +3924,7 @@ def test_container_symbol_table():
 
 def test_container_node_str():
     '''Check the node_str method of the Container class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     cont_stmt = Container("bin")
     coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
     assert coloredtext+"[bin]" in cont_stmt.node_str()
@@ -4000,7 +4002,7 @@ def test_container_create_invalid():
 
 def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
     assignment = Assignment()

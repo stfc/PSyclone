@@ -845,7 +845,7 @@ def test_offset_any_all_points(tmpdir):
 
 def test_goschedule_view(capsys):
     ''' Test that the GOInvokeSchedule::view() method works as expected '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),

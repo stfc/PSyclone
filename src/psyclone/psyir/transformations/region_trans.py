@@ -91,7 +91,7 @@ class RegionTrans(Transformation):
 
         '''
         # pylint: disable=too-many-branches
-        from psyclone.psyGen import IfBlock, Loop
+        from psyclone.psyir.nodes import IfBlock, Loop
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.psyir.transformations import TransformationError
         if not options:

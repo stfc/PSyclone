@@ -45,8 +45,9 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    InlinedKern, InternalError, NameSpaceFactory
+from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -405,7 +406,7 @@ class NemoKern(InlinedKern):
         :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from psyclone.psyGen import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock
         # This function is called with node being a Schedule.
         if not isinstance(node, Schedule):
             raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".

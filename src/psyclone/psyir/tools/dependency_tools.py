@@ -41,7 +41,7 @@ from __future__ import absolute_import, print_function
 
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import Loop
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
