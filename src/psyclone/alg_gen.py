@@ -76,18 +76,17 @@ class Alg(object):
     >>> alg = Alg(parse_tree, psy)
     >>> print(alg.gen)
 
-    :param parse_tree: An object containing a parse tree of the \
-    algorithm specification which was produced by the function \
-    :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm will \
-    be parsed by fparser2 and expects a valid program unit, program, \
-    module, subroutine or function.
-
+    :param parse_tree: an object containing a parse tree of the \
+        algorithm specification which was produced by the function \
+        :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm \
+        will be parsed by fparser2 and expects a valid program unit, \
+        program, module, subroutine or function.
     :type parse_tree: :py:class:`fparser.two.utils.Base`
-    :param psy: An object containing information about the PSy layer.
+    :param psy: an object containing information about the PSy layer.
     :type psy: :py:class:`psyclone.psyGen.PSy`
-    :param str invoke_name: The name that the algorithm layer uses to \
-    indicate an invoke call. This is an optional argument that \
-    defaults to the name "invoke".
+    :param str invoke_name: the name that the algorithm layer uses to \
+        indicate an invoke call. This is an optional argument that \
+        defaults to the name "invoke".
 
     '''
 
