@@ -31,7 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Assignment PSyIR node. '''
