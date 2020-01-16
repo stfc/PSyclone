@@ -36,10 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the literal node implementation'''
+''' This module contains the Literal node implementation.'''
 
 import six
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import DataType
 
 

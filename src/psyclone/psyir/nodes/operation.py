@@ -36,12 +36,13 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the operation node implementation'''
+''' This module contains the implementation of the Operation class and its
+sub-classes.'''
 
 import abc
 from enum import Enum
 import six
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -243,7 +244,7 @@ class BinaryOperation(Operation):
         :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a BinaryOperator instance.
-        :rtype: :py:class:`psyclone.psyGen.BinaryOperator`
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
@@ -303,7 +304,7 @@ class NaryOperation(Operation):
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an NaryOperator instance.
-        :rtype: :py:class:`psyclone.psyGen.NaryOperator`
+        :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.

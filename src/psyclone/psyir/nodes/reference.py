@@ -36,9 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the reference node implementation'''
+''' This module contains the implementation of the Reference and Array
+nodes.'''
 
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import SymbolError
 

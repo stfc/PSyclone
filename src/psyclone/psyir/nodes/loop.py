@@ -36,9 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the loop node implementation'''
+''' This module contains the Loop node implementation.'''
 
-from psyclone.psyir.nodes import Node, Schedule, Literal
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.core.access_info import AccessType
 
 

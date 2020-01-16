@@ -36,9 +36,9 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the codeblock node implementation'''
+''' This module contains the CodeBlock node implementation.'''
 
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 from enum import Enum
 
 

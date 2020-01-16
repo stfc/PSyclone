@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the abstract node implementation'''
+''' This module contains the abstract Node implementation.'''
 
 import abc
 

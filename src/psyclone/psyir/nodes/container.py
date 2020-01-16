@@ -36,9 +36,9 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the container node implementation'''
+''' This module contains the Container node implementation.'''
 
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import SymbolTable
 
 

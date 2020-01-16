@@ -36,10 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the assignment node implementation'''
+''' This module contains the Assignment node implementation.'''
 
 import re
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 

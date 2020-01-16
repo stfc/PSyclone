@@ -36,9 +36,9 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the ifblock node implementation'''
+''' This module contains the IfBlock node implementation.'''
 
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.node import Node
 
 
 class IfBlock(Node):

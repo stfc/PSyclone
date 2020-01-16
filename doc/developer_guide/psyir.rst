@@ -49,7 +49,7 @@ Nodes
 All nodes in the AST are sub-classes of the abstract `Node` base class, which
 provides the following common interface:
 
-.. autoclass:: psyclone.psyGen.Node
+.. autoclass:: psyclone.psyir.nodes.Node
     :members:
 
 .. _container-label:
@@ -435,7 +435,7 @@ of a node can be gathered by creating an object of type
 `psyclone.core.access_info.VariablesAccessInfo`, and then calling
 the function `reference_accesses()` for the node:
 
-.. autofunction:: psyclone.psyGen.Node.reference_accesses
+.. autofunction:: psyclone.psyir.nodes.Node.reference_accesses
 
 .. autoclass:: psyclone.core.access_info.VariablesAccessInfo
     :members:

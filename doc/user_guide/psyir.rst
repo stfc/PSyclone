@@ -161,7 +161,7 @@ through the tree and return objects of a given type. This is useful when the
 objective is to move down the tree to a specific node or list of nodes without
 information about the exact location.
 
-.. automethod:: psyclone.psyGen.Node.walk
+.. automethod:: psyclone.psyir.nodes.Node.walk
 
 
 .. _symbol-label:
