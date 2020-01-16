@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes import Node
 
+
 class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
@@ -91,6 +92,3 @@ class Schedule(Node):
         '''
         for child in self.children:
             child.gen_code(parent)
-
-
-

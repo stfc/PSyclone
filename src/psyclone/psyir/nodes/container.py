@@ -41,6 +41,7 @@
 from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import SymbolTable
 
+
 class Container(Node):
     '''Node representing a set of KernelSchedule and/or Container nodes,
     as well as a name and a SymbolTable. This construct can be used to
@@ -151,6 +152,3 @@ class Container(Node):
 
     def __str__(self):
         return "Container[{0}]\n".format(self.name)
-
-
-

@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes import Node
 
+
 class Return(Node):
     '''
     Node representing a Return statement (subroutine break without return

@@ -45,6 +45,7 @@ from psyclone.psyGen import GenerationError, KernelSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, check_links
 
+
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP

@@ -91,7 +91,6 @@ except ImportError:
         return text
 
 
-
 class Node(object):
     '''
     Base class for a node in the PSyIR (schedule).
@@ -760,8 +759,8 @@ class Node(object):
         return self.walk(Kern)
 
     def following(self):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in the
-        schedule. Ordering is depth first.
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in
+        the schedule. Ordering is depth first.
 
         :returns: a list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
@@ -772,8 +771,8 @@ class Node(object):
         return all_nodes[position+1:]
 
     def preceding(self, reverse=None):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me in the
-        schedule. Ordering is depth first. If the `reverse` argument
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me
+        in the schedule. Ordering is depth first. If the `reverse` argument
         is set to `True` then the node ordering is reversed
         i.e. returning the nodes closest to me first
 
@@ -889,6 +888,3 @@ class Node(object):
         else:
             sched.ast = ast
         return sched
-
-
-

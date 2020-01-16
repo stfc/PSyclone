@@ -96,8 +96,10 @@ class AccessInfo(object):
 
     @property
     def indices(self):
-        ''':returns: The indices used in this access. Can be None.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Node` instances, or None.
+        '''
+        :returns: The indices used in this access. Can be None.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Node` instances, \
+                or None.
         '''
         return self._indices
 

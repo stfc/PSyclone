@@ -43,15 +43,16 @@ from enum import Enum
 import six
 from psyclone.psyir.nodes import Node
 
+
 @six.add_metaclass(abc.ABCMeta)
 class Operation(Node):
     '''
     Abstract base class for PSyIR nodes representing operators.
 
     :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator` or \
-                    :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` or \
-                    :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
+    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator` \
+        or :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` or \
+        :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
     :param parent: the parent node of this Operation in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -232,7 +233,8 @@ class BinaryOperation(Operation):
         child instances.
 
         :param operator: the operator used in the operation.
-        :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
         :param lhs: the PSyIR node containing the left hand side of \
             the assignment.
         :type lhs: :py:class:`psyclone.psyir.nodes.Node`
@@ -330,5 +332,3 @@ class NaryOperation(Operation):
             child.parent = nary_op
         nary_op.children = children
         return nary_op
-
-

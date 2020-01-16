@@ -41,8 +41,8 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, Assignment, \
-    Literal, Reference, BinaryOperation, IfBlock
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
+    Assignment, Literal, Reference, BinaryOperation, IfBlock
 from psyclone.psyGen import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 

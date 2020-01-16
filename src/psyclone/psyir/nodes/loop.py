@@ -492,6 +492,7 @@ class Loop(Node):
 
         '''
         from psyclone.psyGen import zero_reduction_variables
+
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
 
@@ -534,6 +535,3 @@ class Loop(Node):
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self._variable_name])
             parent.add(my_decl)
-
-
-

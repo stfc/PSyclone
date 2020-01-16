@@ -169,8 +169,8 @@ class LoopFuseTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if one or both of the Nodes is/are \
-                                     not a :py:class:`psyclone.psyir.nodes.Loop`.
+        :raises TransformationError: if one or both of the Nodes is/are not \
+                                     a :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if one or both Nodes are not fully-formed.
         :raises TransformationError: if the Nodes do not have the same parent.
         :raises TransformationError: if the Nodes are not next to each \
@@ -657,7 +657,8 @@ class ParallelLoopTrans(Transformation):
         :raises TransformationError: if the node is not a \
                 :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if the \
-                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over colours.
+                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
+                colours.
 
         '''
         # Check that the supplied node is a Loop
@@ -3152,7 +3153,7 @@ class ACCEnterDataTrans(Transformation):
 
         :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
-                         (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
+            (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
         from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
@@ -3534,7 +3535,8 @@ class ACCDataTrans(RegionTrans):
 
         :param node_list: the proposed list of nodes to enclose in a data \
                           region.
-        :type node_list: list of subclasses of :py:class:`psyclone.psyir.nodes.Node`
+        :type node_list: list of subclasses of \
+                         :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 

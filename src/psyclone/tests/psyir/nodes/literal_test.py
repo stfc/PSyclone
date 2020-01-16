@@ -41,6 +41,7 @@ import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import DataType
 
+
 def test_literal_init():
     '''Test the initialisation Literal object.'''
     literal = Literal("1", DataType.INTEGER)

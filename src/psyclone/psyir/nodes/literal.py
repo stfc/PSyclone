@@ -131,6 +131,3 @@ class Literal(Node):
         '''
 
         return self.value == other.value
-
-
-

@@ -197,7 +197,6 @@ class Reference(Node):
         return None
 
 
-
 class Array(Reference):
     '''
     Node representing an Array reference. As such it has a reference and a
@@ -286,6 +285,3 @@ class Array(Reference):
             # The last entry in all_accesses is the one added above
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
-
-
-

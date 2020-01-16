@@ -185,6 +185,3 @@ class Assignment(Node):
         self.rhs.reference_accesses(var_accesses)
         var_accesses.merge(accesses_left)
         var_accesses.next_location()
-
-
-

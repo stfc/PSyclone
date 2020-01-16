@@ -45,6 +45,7 @@ from psyclone.psyGen import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
+
 def test_ifblock_invalid_annotation():
     ''' Test that initialising IfBlock with invalid annotations produce the
     expected error.'''

@@ -45,6 +45,7 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
+
 # Test BinaryOperation class
 def test_binaryoperation_initialization():
     ''' Check the initialization method of the BinaryOperation class works

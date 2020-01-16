@@ -41,13 +41,12 @@
 
 from __future__ import print_function, absolute_import
 import abc
-import re
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, SymbolError, DataType
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.nodes import Node, Schedule, Loop
 
 
@@ -4053,7 +4052,8 @@ class ACCKernelsDirective(ACCDirective):
 
     :param children: the PSyIR nodes to be enclosed in the Kernels region \
                      and which are therefore children of this node.
-    :type children: list of sub-classes of :py:class:`psyclone.psyir.nodes.Node`
+    :type children: list of sub-classes of \
+                    :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param bool default_present: whether or not to add the "default(present)" \
@@ -4269,7 +4269,3 @@ class KernelSchedule(Schedule):
             result += str(entity)
         result += "End KernelSchedule\n"
         return result
-
-
-__all__ = ['UnaryOperation', 'BinaryOperation', 'NaryOperation',
-           'Literal', 'Return', 'Container']

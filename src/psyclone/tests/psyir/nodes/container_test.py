@@ -44,6 +44,7 @@ from psyclone.psyGen import KernelSchedule, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
+
 def test_container_init():
     '''Test that a container is initialised as expected.'''
     container = Container("test")

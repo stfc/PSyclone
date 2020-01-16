@@ -120,6 +120,3 @@ class CodeBlock(Node):
 
     def __str__(self):
         return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
-
-
-

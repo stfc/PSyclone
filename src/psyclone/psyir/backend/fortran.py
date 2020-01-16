@@ -217,8 +217,8 @@ def _reverse_map(op_map):
     :type op_map: :py:class:`collections.OrderedDict`
 
     :returns: a mapping from PSyIR operation to the equivalent Fortran string.
-    :rtype: dict with :py:class:`psyclone.psyir.nodes.Operation.Operator` keys and
-            str values.
+    :rtype: dict with :py:class:`psyclone.psyir.nodes.Operation.Operator` \
+            keys and str values.
 
     '''
     mapping = {}
