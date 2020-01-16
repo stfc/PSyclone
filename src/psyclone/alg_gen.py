@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2014-2019, Science and Technology Facilities Council.
+# Copyright (c) 2014-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,8 +100,8 @@ class Alg(object):
     def gen(self):
         '''Return modified algorithm code.
 
-        :returns: The modified algorithm specification as an fparser2 \
-        parse tree.
+        :returns: the modified algorithm specification as an fparser2 \
+                  parse tree.
         :rtype: :py:class:`fparser.two.utils.Base`
 
         '''
@@ -151,14 +151,14 @@ def adduse(location, name, only=None, funcnames=None):
     f2pygen (which uses fparser1) but is kept here until this is
     developed, see issue #240.
 
-    :param location: The current location (node) in the parse tree to which \
-        to add a USE.
+    :param location: the current location (node) in the parse tree to which \
+                     to add a USE.
     :type location: :py:class:`fparser.two.utils.Base`
-    :param str name: The name of the use statement
-    :param bool only: Whether to include the 'only' clause in the use \
+    :param str name: the name of the use statement.
+    :param bool only: whether to include the 'only' clause in the use \
         statement or not. Defaults to None which will result in only being \
         added if funcnames has content and not being added otherwise.
-    :param funcnames: A list of names to include in the use statement's \
+    :param funcnames: a list of names to include in the use statement's \
         only list. If the list is empty or None then nothing is \
         added. Defaults to None.
     :type funcnames: list of str
@@ -214,13 +214,13 @@ def adduse(location, name, only=None, funcnames=None):
 
     # find the parent program statement containing the specified location
     parent_prog_statement = None
-    parent = location
-    while parent:
-        if isinstance(parent, (Main_Program, Module, Subroutine_Subprogram,
-                               Function_Subprogram)):
-            parent_prog_statement = parent
+    current = location
+    while current:
+        if isinstance(current, (Main_Program, Module, Subroutine_Subprogram,
+                                Function_Subprogram)):
+            parent_prog_statement = current
             break
-        parent = parent.parent
+        current = current.parent
     else:
         raise GenerationError(
             "The specified location is invalid as it has no parent in the "

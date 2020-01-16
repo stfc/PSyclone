@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -475,16 +475,14 @@ def get_parse_tree(code, parser):
 @pytest.mark.parametrize("location", [None, "lilliput"])
 def test_adduse_invalid_location(location):
     '''Test that the expected exception is raised when the specified
-    location is None. There is a check for this as the parse tree can
-    contain nodes with the value None.
+    location is invalid.
 
     '''
-    location = None
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
         adduse(location, name)
     assert ("Location argument must be a sub-class of fparser.two.utils.Base "
-            "but got: NoneType." in str(excinfo.value))
+            "but got: " in str(excinfo.value))
 
 
 def test_adduse_only_names1(parser):
