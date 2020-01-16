@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2014-2019, Science and Technology Facilities Council.
+# Copyright (c) 2014-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,18 +76,17 @@ class Alg(object):
     >>> alg = Alg(parse_tree, psy)
     >>> print(alg.gen)
 
-    :param parse_tree: An object containing a parse tree of the \
-    algorithm specification which was produced by the function \
-    :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm will \
-    be parsed by fparser2 and expects a valid program unit, program, \
-    module, subroutine or function.
-
+    :param parse_tree: an object containing a parse tree of the \
+        algorithm specification which was produced by the function \
+        :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm \
+        will be parsed by fparser2 and expects a valid program unit, \
+        program, module, subroutine or function.
     :type parse_tree: :py:class:`fparser.two.utils.Base`
-    :param psy: An object containing information about the PSy layer.
+    :param psy: an object containing information about the PSy layer.
     :type psy: :py:class:`psyclone.psyGen.PSy`
-    :param str invoke_name: The name that the algorithm layer uses to \
-    indicate an invoke call. This is an optional argument that \
-    defaults to the name "invoke".
+    :param str invoke_name: the name that the algorithm layer uses to \
+        indicate an invoke call. This is an optional argument that \
+        defaults to the name "invoke".
 
     '''
 
@@ -100,19 +99,19 @@ class Alg(object):
     def gen(self):
         '''Return modified algorithm code.
 
-        :returns: The modified algorithm specification as an fparser2 \
-        parse tree.
+        :returns: the modified algorithm specification as an fparser2 \
+                  parse tree.
         :rtype: :py:class:`fparser.two.utils.Base`
 
         '''
 
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         # pylint: disable=no-name-in-module
         from fparser.two.Fortran2003 import Call_Stmt, Section_Subscript_List
 
         idx = 0
         # Walk through all statements looking for procedure calls
-        for statement in walk_ast(self._ast.content, [Call_Stmt]):
+        for statement in walk(self._ast.content, Call_Stmt):
             # found a Fortran call statement
             call_name = str(statement.items[0])
             if call_name.lower() == self._invoke_name.lower():
@@ -130,7 +129,7 @@ class Alg(object):
                 # The PSy-layer generates a subroutine within a module
                 # so we need to add a 'use module_name, only :
                 # subroutine_name' to the algorithm layer.
-                adduse(self._ast, statement, self._psy.name, only=True,
+                adduse(statement, self._psy.name, only=True,
                        funcnames=[psy_invoke_info.name])
                 idx += 1
 
@@ -142,7 +141,7 @@ class Alg(object):
         return self._ast
 
 
-def adduse(parse_tree, location, name, only=None, funcnames=None):
+def adduse(location, name, only=None, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse
     tree. This will be added at the first valid location before the
     current location.
@@ -151,45 +150,38 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
     f2pygen (which uses fparser1) but is kept here until this is
     developed, see issue #240.
 
-    The 'parse_tree' argument is only required as fparser2 currently
-    does not connect a child to a parent. This will be addressed in
-    issue fparser:#102.
-
-    :param parse_tree: The full parse tree of the associated code
-    :type parse_tree: :py:class:`fparser.two.utils.Base`
-    :param location: The current location (node) in the parse tree \
-    provided in the parse_tree argument
+    :param location: the current location (node) in the parse tree to which \
+                     to add a USE.
     :type location: :py:class:`fparser.two.utils.Base`
-    :param str name: The name of the use statement
-    :param bool only: Whether to include the 'only' clause in the use \
-    statement or not. Defaults to None which will result in only being \
-    added if funcnames has content and not being added otherwise.
-    :param funcnames: A list of names to include in the use statement's \
-    only list. If the list is empty or None then nothing is \
-    added. Defaults to None.
+    :param str name: the name of the use statement.
+    :param bool only: whether to include the 'only' clause in the use \
+        statement or not. Defaults to None which will result in only being \
+        added if funcnames has content and not being added otherwise.
+    :param funcnames: a list of names to include in the use statement's \
+        only list. If the list is empty or None then nothing is \
+        added. Defaults to None.
     :type funcnames: list of str
 
-    :raises GenerationError: if the location is not part of the parse \
-    tree.
-    :raises GenerationError: if the location is not a valid location \
-    to add a use statement.
-    :raises NotImplementedError: if the type of parent node is not \
-    supported.
-    :raises InternalError: if the type of parent node does not have \
-    the expected structure.
-
+    :raises GenerationError: if no suitable enclosing program unit is found \
+                             for the provided location.
+    :raises NotImplementedError: if the type of parent node is not supported.
+    :raises InternalError: if the parent node does not have the expected \
+                           structure.
     '''
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-branches
-    from fparser.two.utils import walk_ast
     from fparser.two.Fortran2003 import Main_Program, Module, \
         Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
         Specification_Part
+    from fparser.two.utils import Base
     from psyclone.psyGen import GenerationError, InternalError
 
-    if location is None:
-        raise GenerationError("alg_gen.py:adduse: Location argument must "
-                              "not be None.")
+    if not isinstance(location, Base):
+        raise GenerationError(
+            "alg_gen.py:adduse: Location argument must be a sub-class of "
+            "fparser.two.utils.Base but got: {0}.".format(
+                type(location).__name__))
+
     if funcnames:
         # funcnames have been provided for the only clause.
         if only is False:
@@ -221,23 +213,18 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
 
     # find the parent program statement containing the specified location
     parent_prog_statement = None
-    found = False
-    for child in walk_ast(parse_tree.content):
-        if child == location:
-            found = True
+    current = location
+    while current:
+        if isinstance(current, (Main_Program, Module, Subroutine_Subprogram,
+                                Function_Subprogram)):
+            parent_prog_statement = current
             break
-        if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
-                              Function_Subprogram)):
-            parent_prog_statement = child
-
-    if not found:
-        raise GenerationError("alg_gen.py:adduse: The specified location is "
-                              "not in the parse tree.")
-    if not parent_prog_statement:
+        current = current.parent
+    else:
         raise GenerationError(
-            "alg_gen.py:adduse: The specified location is invalid as it has "
-            "no parent in the parse tree that is a program, module, "
-            "subroutine or function.")
+            "The specified location is invalid as it has no parent in the "
+            "parse tree that is a program, module, subroutine or function.")
+
     if not isinstance(parent_prog_statement,
                       (Main_Program, Subroutine_Subprogram,
                        Function_Subprogram)):
@@ -257,5 +244,3 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
     # part of the program
     spec_part = parent_prog_statement.content[1]
     spec_part.content.insert(0, use)
-
-    return parse_tree

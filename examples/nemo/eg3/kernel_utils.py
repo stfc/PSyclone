@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ def valid_kernel(node):
 
     '''
     from psyclone.psyGen import CodeBlock, IfBlock
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     from fparser.two import Fortran2003
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
@@ -65,7 +65,7 @@ def valid_kernel(node):
     # PGI deep-copy doesn't like them).
     # TODO #365 - this check should be part of our identification of valid
     # NEMO kernels.
-    if walk_ast([node.ast], [Fortran2003.Data_Ref]):
+    if walk(node.ast, Fortran2003.Data_Ref):
         return False
     return True
 

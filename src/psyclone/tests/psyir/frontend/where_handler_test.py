@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,9 +65,9 @@ def process_where(code, fparser_cls):
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
     if fparser_cls is Fortran2003.Execution_Part:
-        processor.process_nodes(sched, fparser2spec.content, None)
+        processor.process_nodes(sched, fparser2spec.content)
     else:
-        processor.process_nodes(sched, [fparser2spec], None)
+        processor.process_nodes(sched, [fparser2spec])
     return sched, fparser2spec
 
 
@@ -83,12 +83,12 @@ def test_where_broken_tree(parser):
     # Break the parse tree by removing the end-where statement
     del fparser2spec.content[-1]
     with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2spec], None)
+        processor.process_nodes(fake_parent, [fparser2spec])
     assert "Failed to find closing end where statement" in str(err.value)
     # Now remove the opening where statement
     del fparser2spec.content[0]
     with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2spec], None)
+        processor.process_nodes(fake_parent, [fparser2spec])
     assert "Failed to find opening where construct " in str(err.value)
 
 
@@ -154,16 +154,16 @@ def test_array_notation_rank(parser):
     processor = Fparser2Reader()
     reader = FortranStringReader("  z1_st(:, 2, :) = ptsu(:, :, 3)")
     fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    processor.process_nodes(fake_parent, [fparser2spec])
     assert processor._array_notation_rank(fake_parent[0].lhs) == 2
     reader = FortranStringReader("  z1_st(:, :, 2, :) = ptsu(:, :, :, 3)")
     fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    processor.process_nodes(fake_parent, [fparser2spec])
     assert processor._array_notation_rank(fake_parent[1].lhs) == 3
     # We don't support bounds on slices
     reader = FortranStringReader("  z1_st(:, 1:n, 2, :) = ptsu(:, :, :, 3)")
     fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec], None)
+    processor.process_nodes(fake_parent, [fparser2spec])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(fake_parent[2].lhs)
     assert "Bounds on array slices are not supported" in str(err.value)
@@ -183,6 +183,9 @@ def test_where_symbol_clash(parser):
     reader = FortranStringReader("module my_test\n"
                                  "contains\n"
                                  "subroutine widx1()\n"
+                                 "  logical, dimension(5,5,5) :: dry\n"
+                                 "  real, dimension(5,5,5) :: z1_st, ptsu\n"
+                                 "  real :: depth\n"
                                  "where (dry(:, :, :))\n"
                                  "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
                                  "end where\n"
@@ -284,12 +287,12 @@ def test_where_stmt_validity(parser):
     fparser2spec.items = (fparser2spec.items[0], "a string")
     processor = Fparser2Reader()
     with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2spec], None)
+        processor.process_nodes(fake_parent, [fparser2spec])
     assert "items tuple to be an Assignment_Stmt but found" in str(err.value)
     # Break it so that the tuple only contains one item
     fparser2spec.items = (fparser2spec.items[0], )
     with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2spec], None)
+        processor.process_nodes(fake_parent, [fparser2spec])
     assert ("Where_Stmt to have exactly two entries in 'items' but found 1"
             in str(err.value))
 
