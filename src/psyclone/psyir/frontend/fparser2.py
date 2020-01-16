@@ -614,6 +614,10 @@ class Fparser2Reader(object):
                         elif "intent(inout)" in normalized_string:
                             interface = ArgumentInterface(
                                 ArgumentInterface.Access.READWRITE)
+                        elif "save" in normalized_string:
+                            pass
+                            # TODO: needs #635 to check the parent
+                            # import pdb; pdb.set_trace()
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
