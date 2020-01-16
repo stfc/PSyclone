@@ -408,7 +408,7 @@ Available Kernel Transformations
 
 PSyclone currently provides just one kernel-specific transformation
 (although there are a number that can be applied to either or both the
-PSy-layer and Kernel-layer PSyiR):
+PSy-layer and Kernel-layer PSyIR):
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:

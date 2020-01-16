@@ -32,12 +32,12 @@ contains
     !            upsmsk(ji,jj)               ,      &
     !            zice                               &
     !            &                  ) * tmask(ji,jj,jk)
-    !            zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
+    !         zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
     !      END DO
     !   END DO
     !END DO
 
-    ! Not sure how to cope with implicit arrays in the SIR backend
+    ! Not sure how to cope with implicit loops in the SIR backend
     ! zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
@@ -49,7 +49,7 @@ contains
        END DO
     END DO
 
-    ! Not sure how to cope with implicit arrays in the SIR backend
+    ! Not sure how to cope with implicit loops in the SIR backend
     ! zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0 
 
     DO jk = 1, jpk-1

@@ -38,7 +38,9 @@
 
 ! Code extracted from the tra_adv benchmark making use of intrinsics
 ! MIN, ABS and SIGN. Literals have had the Fortran double precision
-! specification (e.g. 1.d0) removed.
+! specification (e.g. 1.d0) removed. This code is provided purely to
+! demonstrate the removal of intrinsics via PSyclone transformations,
+! it is not designed to be run.
 program test_intrinsics
 
   integer, parameter :: jpi=10, jpj=10, jpk=10

@@ -42,16 +42,12 @@ layer so all of the original code is captured in the invoke
 objects. Therefore by translating all of the invoke objects, all of
 the original code is translated.
 
-The min, abs and sign transformations are currently maintained within
-this script as the NEMO API does not yet support a symbol table and
-therefore the transformations are non-standard (requiring a symbol
-table object to be provided to each transformation).
-
 '''
 from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.nemo import NemoKern
-from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation
+from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
+    Operation
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import NemoAbsTrans, NemoSignTrans, \
     NemoMinTrans
@@ -91,21 +87,16 @@ def trans(psy):
             symbol_table = SymbolTable()
 
             kernel_schedule = kernel.get_kernel_schedule()
-            for oper in kernel_schedule.walk(UnaryOperation):
+            for oper in kernel_schedule.walk(Operation):
                 if oper.operator == UnaryOperation.Operator.ABS:
                     # Apply ABS transformation
                     abs_trans.apply(oper, symbol_table)
-            for oper in kernel_schedule.walk(BinaryOperation):
-                if oper.operator == BinaryOperation.Operator.SIGN:
+                elif oper.operator == BinaryOperation.Operator.SIGN:
                     # Apply SIGN transformation
                     sign_trans.apply(oper, symbol_table)
-            for oper in kernel_schedule.walk(BinaryOperation):
-                if oper.operator == BinaryOperation.Operator.MIN:
-                    # Apply (2-arg) MIN transformation
-                    min_trans.apply(oper, symbol_table)
-            for oper in kernel_schedule.walk(NaryOperation):
-                if oper.operator == NaryOperation.Operator.MIN:
-                    # Apply (n-arg) MIN transformation
+                elif oper.operator in [BinaryOperation.Operator.MIN,
+                                       NaryOperation.Operator.MIN]:
+                    # Apply (2-n arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
         kern = sir_writer(sched)
         print(kern)

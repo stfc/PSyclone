@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a NEMO-api-specific transformation from a PSyIR
+'''Module providing a NEMO-API-specific transformation from a PSyIR
 MIN operator to PSyIR code. This could be useful if the MIN operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
@@ -45,14 +45,14 @@ implemented the transformation can be modified to work for all APIs.
 '''
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
-    NemoOperatorTrans
+        NemoOperatorTrans
 from psyclone.psyGen import BinaryOperation, NaryOperation, Assignment, \
-    Reference, IfBlock
+        Reference, IfBlock
 from psyclone.psyir.symbols import DataType, DataSymbol
 
 
 class NemoMinTrans(NemoOperatorTrans):
-    '''Provides a NEMO-api-specific transformation from a PSyIR MIN
+    '''Provides a NEMO-API-specific transformation from a PSyIR MIN
     Operator node to equivalent code in a PSyIR tree. Validity checks
     are also performed.
 
@@ -91,11 +91,11 @@ class NemoMinTrans(NemoOperatorTrans):
 
         where A,B,C... could be arbitrarily complex expressions.
 
-        A symbol table is required as the NEMO api does not currently
+        A symbol table is required as the NEMO API does not currently
         contain a symbol table and one is required in order to create
         temporary variables whose names do not clash with existing
         code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO api.
+        transformation is currently limited to the NEMO API.
 
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
