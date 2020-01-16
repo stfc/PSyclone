@@ -199,16 +199,15 @@ def test_correct_nary():
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
-        "  real :: tmp_min\n"
-        "  real :: tmp_min_0\n\n"
+        "  real :: tmp_min\n\n"
         "  res_min=arg\n"
         "  tmp_min=arg_0\n"
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"
-        "  tmp_min_0=arg_1\n"
-        "  if (tmp_min_0 < res_min) then\n"
-        "    res_min=tmp_min_0\n"
+        "  tmp_min=arg_1\n"
+        "  if (tmp_min < res_min) then\n"
+        "    res_min=tmp_min\n"
         "  end if\n"
         "  psyir_tmp=res_min\n\n"
         "end subroutine min_example\n") in result
@@ -228,7 +227,7 @@ def test_invalid():
         _, _ = trans.apply(operation, operation.root.symbol_table)
     assert (
         "Error in NemoMinTrans transformation. This transformation only works "
-        "for the nemo api, but found 'dynamo0.3'" in str(excinfo.value))
+        "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
     # pylint: disable=protected-access
     Config._instance = None

@@ -223,10 +223,16 @@ can be found in the API-specific sections).
       :noindex:
 
 .. note:: As PSyIR created for the NEMO API does not currently include
-          a symbol table, this transformation is currently specialised
-          for the NEMO API (by passing in a symbol table as an
-          additional argument). Once the symbol table limitation is
-          removed this transformation will be made generic.
+          a symbol table (issue #500), this transformation is
+          currently specialised for the NEMO API (by passing in a
+          symbol table as an additional argument). Once the symbol
+          table limitation is removed this transformation will be made
+          generic.
+	  
+.. warning:: This transformation assumes that the ABS Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issues #500 and #658 are on master
+             then this limitation can be fixed.
 
 ####
 
@@ -240,6 +246,11 @@ can be found in the API-specific sections).
           additional argument). Once the symbol table limitation is
           removed this transformation will be made generic.
 
+.. warning:: This transformation assumes that the MIN Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issues #500 and #658 are on master
+             then this limitation can be fixed.
+
 ####
 
 .. autoclass:: psyclone.psyir.transformations.NemoSignTrans
@@ -251,6 +262,11 @@ can be found in the API-specific sections).
           for the NEMO API (by passing in a symbol table as an
           additional argument). Once the symbol table limitation is
           removed this transformation will be made generic.
+
+.. warning:: This transformation assumes that the SIGN Operator acts
+             on PSyIR Real scalar data and does not check that this is
+             not the case. Once issues #500 and #658 are on master
+             then this limitation can be fixed.
 
 ####
 

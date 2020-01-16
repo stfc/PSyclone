@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a NEMO-api-specific transformation from a PSyIR
+'''Module providing a NEMO-API-specific transformation from a PSyIR
 SIGN operator to PSyIR code. This could be useful if the SIGN operator
-is not supported by the back-end or if the performance in the inline
+is not supported by the back-end or if the performance of the inline
 code is better than the intrinsic.
 
 The implementation is NEMO-specific as NEMO code generation does not
@@ -53,16 +53,18 @@ from psyclone.psyir.symbols import DataType, DataSymbol
 
 
 class NemoSignTrans(NemoOperatorTrans):
-    '''Provides a NEMO-api-specific transformation from a PSyIR SIGN
+    '''Provides a NEMO-API-specific transformation from a PSyIR SIGN
     Operator node to equivalent code in a PSyIR tree. Validity checks
     are also performed.
 
     The transformation replaces `R=SIGN(A,B)` with the following logic:
 
-    `R=SIGN(A,B) => R=ABS(B); if A<0.0 R=R*-1.0`
+    `R=SIGN(A,B) => R=ABS(A); if B<0.0 R=R*-1.0`
 
-    Note, an alternative would be:
-    `if A<0 then (if B<0 R=B else R=B*-1) else ((if B>0 R=B else R=B*-1))`
+    i.e. the value of A with the sign of B
+
+    Note, an alternative implementation would be:
+    `if B<0 then (if A<0 R=A else R=A*-1) else ((if A>0 R=A else R=A*-1))`
 
     '''
     def __init__(self):
@@ -77,7 +79,7 @@ class NemoSignTrans(NemoOperatorTrans):
         BinaryOperation is converted to the following equivalent
         inline code:
 
-        R=SIGN(A,B) => R=ABS(B); if A<0.0 R=R*-1.0
+        R=SIGN(A,B) => R=ABS(A); if B<0.0 R=R*-1.0
 
         This is implemented as a transform from:
 
@@ -85,22 +87,22 @@ class NemoSignTrans(NemoOperatorTrans):
 
         to:
 
-        tmp_abs=B
+        tmp_abs=A
         IF (tmp_abs<0.0) res_abs=tmp_abs*-1.0 ELSE res_abs=tmp_abs
-        res_sign = res_abs
-        tmp_sign = A
+        res_sign=res_abs
+        tmp_sign=B
         if (tmp_sign<0.0) res_sign=res_sign*-1.0
         R= ... res_x ...
 
         where A and B could be an arbitrarily complex expressions and
-        where ABS is replaced with inline code by the NemoAbsTrans
-        transformation.
+        where ABS has been replaced with inline code by the
+        NemoAbsTrans transformation.
 
-        A symbol table is required as the NEMO api does not currently
+        A symbol table is required as the NEMO API does not currently
         contain a symbol table and one is required in order to create
         temporary variables whose names do not clash with existing
         code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO api.
+        transformation is currently limited to the NEMO API.
 
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
@@ -141,10 +143,10 @@ class NemoSignTrans(NemoOperatorTrans):
         oper_parent.children[node.position] = Reference(res_var,
                                                         parent=oper_parent)
 
-        # res_var=ABS(B)
+        # res_var=ABS(A)
         lhs = Reference(res_var)
         rhs = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                    node.children[1])
+                                    node.children[0])
         new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -153,13 +155,13 @@ class NemoSignTrans(NemoOperatorTrans):
         abs_trans = NemoAbsTrans()
         abs_trans.apply(rhs, symbol_table)
 
-        # tmp_var=A
+        # tmp_var=B
         lhs = Reference(tmp_var)
-        new_assignment = Assignment.create(lhs, node.children[0])
+        new_assignment = Assignment.create(lhs, node.children[1])
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
-        # if condition: tmp_var<0.0
+        # if_condition: tmp_var<0.0
         lhs = Reference(tmp_var)
         rhs = Literal("0.0", DataType.REAL)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
@@ -173,7 +175,7 @@ class NemoSignTrans(NemoOperatorTrans):
                                      lhs_child, rhs_child)
         then_body = [Assignment.create(lhs, rhs)]
 
-        # if [if condition] then [then_body]
+        # if [if_condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
         if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

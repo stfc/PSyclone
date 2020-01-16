@@ -132,7 +132,7 @@ def test_invalid():
         _, _ = trans.apply(operation, operation.root.symbol_table)
     assert (
         "Error in NemoAbsTrans transformation. This transformation only works "
-        "for the nemo api, but found 'dynamo0.3'" in str(excinfo.value))
+        "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
     # pylint: disable=protected-access
     Config._instance = None

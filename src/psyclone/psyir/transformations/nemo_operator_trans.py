@@ -48,10 +48,11 @@ from psyclone.psyir.symbols import SymbolTable
 
 @six.add_metaclass(abc.ABCMeta)
 class NemoOperatorTrans(Transformation):
-    '''Provides NEMO-api-specific support for transformations from PSyIR
+    '''Provides NEMO-API-specific support for transformations from PSyIR
     intrinsic Operator nodes to equivalent PSyIR code in a PSyIR
     tree. Such transformations can be useful when the intrinsic is not
-    supported or if it is more efficient to have explicit code.
+    supported by a particular backend or if it is more efficient to
+    have explicit code.
 
     '''
     def __init__(self):
@@ -88,9 +89,9 @@ class NemoOperatorTrans(Transformation):
             expected type.
         :raises TransformationError: if the symbol_table argument is not a \
             :py:class:`psyclone.psyir.symbols.SymbolTable`.
-        :raises TransformationError: if the api is not nemo.
+        :raises TransformationError: if the API is not nemo.
         :raises TransformationError: if the Operation node does \
-            not have an Assignement Node as an ancestor.
+            not have an Assignment Node as an ancestor.
 
         '''
         # Check that the node is one of the expected types.
@@ -111,12 +112,12 @@ class NemoOperatorTrans(Transformation):
                 "Error in {0} transformation. The supplied symbol_table "
                 "argument is not an a SymbolTable, found '{1}'."
                 "".format(self.name, type(symbol_table).__name__))
-        # Check that this is the nemo api.
+        # Check that this is the nemo API.
         from psyclone.configuration import Config
         if not Config.get().api == "nemo":
             raise TransformationError(
                 "Error in {0} transformation. This transformation only "
-                "works for the nemo api, but found '{1}'."
+                "works for the nemo API, but found '{1}'."
                 "".format(self.name, Config.get().api))
         # Check that there is an Assignment node that is an ancestor
         # of this Operation.
@@ -132,5 +133,5 @@ class NemoOperatorTrans(Transformation):
         more details.'''
         # pylint: disable=no-self-use
         schedule = None
-        momento = None
-        return schedule, momento
+        memento = None
+        return schedule, memento

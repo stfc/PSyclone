@@ -148,7 +148,7 @@ def test_validate():
     Config.get().api = "dynamo0.3"
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(operator, symbol_table)
-    assert ("This transformation only works for the nemo api, but found "
+    assert ("This transformation only works for the nemo API, but found "
             "'dynamo0.3'." in str(excinfo.value))
 
     # pylint: disable=protected-access

@@ -117,14 +117,14 @@ def test_correct():
         "  real :: tmp_sign\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs=arg_0\n"
+        "  tmp_abs=arg\n"
         "  if (tmp_abs > 0.0) then\n"
         "    res_abs=tmp_abs\n"
         "  else\n"
         "    res_abs=tmp_abs * -1.0\n"
         "  end if\n"
         "  res_sign=res_abs\n"
-        "  tmp_sign=arg\n"
+        "  tmp_sign=arg_0\n"
         "  if (tmp_sign < 0.0) then\n"
         "    res_sign=res_sign * -1.0\n"
         "  end if\n"
@@ -146,7 +146,7 @@ def test_invalid():
         _, _ = trans.apply(operation, operation.root.symbol_table)
     assert (
         "Error in NemoSignTrans transformation. This transformation only "
-        "works for the nemo api, but found 'dynamo0.3'"
+        "works for the nemo API, but found 'dynamo0.3'"
         in str(excinfo.value))
     # Remove the created config instance
     # pylint: disable=protected-access
