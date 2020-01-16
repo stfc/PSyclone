@@ -3885,5 +3885,15 @@ class KernelGlobalsToArguments(Transformation):
             current_arg_list.append(globalvar)
             symtab.specify_argument_list(current_arg_list)
 
+            # Convert PSyIR DataTypes to Gocean space
+            go_space = ""
+            if globalvar.datatype == DataType.REAL:
+                go_space = "go_r_scalar"
+            elif globalvar.datatype == DataType.INTEGER:
+                go_space = "go_i_scalar"
+            else:
+                raise TypeError()
+
+
             # Add the global variable in the call argument list
-            node.arguments.append(globalvar.name)
+            node.arguments.append(globalvar.name, go_space)

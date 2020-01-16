@@ -1468,10 +1468,11 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
-    def append(self, name):
+    def append(self, name, space):
         ''' Create and append a GOKernelArgument to the Argument list.
 
         :param str name: name of the appended argument.
+        :param str space: function space of the appended argument.
 
         :raises TypeError: if the given name is not a string.
         '''
@@ -1483,7 +1484,7 @@ class GOKernelArguments(Arguments):
                 "should be a string, but found '{0}' instead.".
                 format(type(name).__name__))
 
-        descriptor = Descriptor(None, "")  # Create a dummy descriptor
+        descriptor = Descriptor(None, space)  # Create a dummy descriptor
         arg = Arg("variable", name, name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
