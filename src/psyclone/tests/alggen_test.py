@@ -472,6 +472,7 @@ def get_parse_tree(code, parser):
 
 # function adduse tests These should be moved in #240.
 
+
 @pytest.mark.parametrize("location", [None, "lilliput"])
 def test_adduse_invalid_location(location):
     '''Test that the expected exception is raised when the specified

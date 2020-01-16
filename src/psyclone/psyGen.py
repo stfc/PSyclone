@@ -2209,7 +2209,7 @@ class Directive(Node):
                                                       data_movement))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
-        directive.parent=fp_parent
+        directive.parent = fp_parent
         fp_parent.content.insert(ast_start_index, directive)
 
         self.ast = directive
