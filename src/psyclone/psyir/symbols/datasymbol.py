@@ -412,7 +412,6 @@ class DataSymbol(Symbol):
         else:
             self._constant_value = None
 
-
     def __str__(self):
         from psyclone.psyGen import InternalError
         ret = self.name + ": <" + str(self.datatype) + ", "
