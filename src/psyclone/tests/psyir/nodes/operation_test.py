@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the Operation PSyIR node. '''
+''' Performs pytest tests on the Operation PSyIR node and its sub-classes. '''
 
 from __future__ import absolute_import
 import pytest
