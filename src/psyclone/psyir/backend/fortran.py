@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol
+    ContainerSymbol, DataType
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -354,7 +354,7 @@ class FortranWriter(PSyIRVisitor):
             result += ", parameter"
         result += " :: {0}".format(symbol.name)
         if symbol.is_constant:
-            result += " = {0}".format(symbol.constant_value)
+            result += " = {0}".format(self._visit(symbol.constant_value))
         result += "\n"
         return result
 
@@ -613,7 +613,11 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = node.value
+        # Booleans need to be converted to Fortran format
+        if node.datatype == DataType.BOOLEAN:
+            result = '.' + node.value + '.'
+        else:
+            result = node.value
         return result
 
     # pylint: enable=no-self-use

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
 
 # constants
@@ -187,7 +187,7 @@ def test_single_kern_eval(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # First, check the declarations
     expected_decl = (
@@ -253,14 +253,14 @@ def test_single_kern_eval(tmpdir):
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = "
         "f0_proxy%vspace%call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
@@ -269,7 +269,7 @@ def test_single_kern_eval(tmpdir):
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
         "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
     )
     assert expected_code in gen_code
@@ -291,7 +291,7 @@ def test_single_kern_eval_op(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
@@ -328,14 +328,14 @@ def test_single_kern_eval_op(tmpdir):
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
     )
     assert init_output in gen_code
     kern_call = (
@@ -345,7 +345,7 @@ def test_single_kern_eval_op(tmpdir):
         " op1_proxy%local_stencil, f1_proxy%data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO \n")
+        "      END DO\n")
     assert kern_call in gen_code
     dealloc = ("      DEALLOCATE (basis_w2_on_w0, diff_basis_w3_on_w0)\n")
     assert dealloc in gen_code
@@ -361,7 +361,7 @@ def test_two_qr(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -464,7 +464,7 @@ def test_two_qr(tmpdir):
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,g1_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, g1_proxy%data, g2_proxy%data, "
@@ -473,7 +473,7 @@ def test_two_qr(tmpdir):
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr2, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr2, diff_basis_w3_qr2, "
         "np_xy_qr2, np_z_qr2, weights_xy_qr2, weights_z_qr2)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
@@ -496,7 +496,7 @@ def test_two_identical_qr(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_init = (
         "      ! Look-up quadrature variables\n"
@@ -542,7 +542,7 @@ def test_two_identical_qr(tmpdir):
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,g1_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, g1_proxy%data, g2_proxy%data, "
@@ -550,7 +550,7 @@ def test_two_identical_qr(tmpdir):
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n")
+        "      END DO\n")
     assert expected_kern_call in gen_code
     expected_dealloc = (
         "DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
@@ -570,7 +570,7 @@ def test_anyw2(tmpdir):
         generated_code = str(psy.gen)
         print(generated_code)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
 
         output = (
             "      ! Initialise number of DoFs for any_w2\n"
@@ -614,7 +614,7 @@ def test_qr_plus_eval(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
@@ -691,14 +691,14 @@ def test_qr_plus_eval(tmpdir):
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      CALL qr%compute_function(BASIS, f1_proxy%vspace, "
         "dim_w1, ndf_w1, basis_w1_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
@@ -714,7 +714,7 @@ def test_qr_plus_eval(tmpdir):
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
         "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
@@ -722,7 +722,7 @@ def test_qr_plus_eval(tmpdir):
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n")
+        "      END DO\n")
     assert output_kern_call in gen_code
     output_dealloc = (
         "      DEALLOCATE (basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
@@ -740,7 +740,7 @@ def test_two_eval_same_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_init = (
         "      !\n"
@@ -764,14 +764,14 @@ def test_two_eval_same_space(tmpdir):
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
@@ -780,13 +780,13 @@ def test_two_eval_same_space(tmpdir):
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
         "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,f2_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_eval_code(nlayers, f2_proxy%data, "
         "f3_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
     )
     assert output_code in gen_code
 
@@ -801,7 +801,7 @@ def test_two_eval_diff_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
@@ -836,26 +836,26 @@ def test_two_eval_diff_space(tmpdir):
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
@@ -864,14 +864,14 @@ def test_two_eval_diff_space(tmpdir):
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
         "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
         "        !\n"
         "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
         " op1_proxy%local_stencil, f2_proxy%data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO \n")
+        "      END DO\n")
     assert expected_code in gen_code
 
 
@@ -886,7 +886,7 @@ def test_two_eval_same_var_same_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # We should only get one set of basis and diff-basis functions in the
     # generated code
@@ -898,16 +898,16 @@ def test_two_eval_same_var_same_space(tmpdir):
         "          basis_w0_on_any_discontinuous_space_1_f0(:,df_w0,df_nodal) "
         "= f1_proxy%vspace%call_function(BASIS,df_w0,"
         "nodes_any_discontinuous_space_1_f0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+        "        END DO\n"
+        "      END DO\n") == 1
     assert gen_code.count(
         "      DO df_nodal=1,ndf_any_discontinuous_space_1_f0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_any_discontinuous_space_1_f0"
         "(:,df_w1,df_nodal) = f2_proxy%vspace%call_function(DIFF_BASIS,"
         "df_w1,nodes_any_discontinuous_space_1_f0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+        "        END DO\n"
+        "      END DO\n") == 1
     assert gen_code.count(
         "DEALLOCATE (basis_w0_on_any_discontinuous_space_1_f0, "
         "diff_basis_w1_on_any_discontinuous_space_1_f0)") == 1
@@ -924,7 +924,7 @@ def test_two_eval_op_to_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # testkern_eval writes to W0. testkern_eval_op_to writes to W3.
     # testkern_eval requires basis fns on W0 and eval_op_to requires basis
@@ -967,32 +967,32 @@ def test_two_eval_op_to_space(tmpdir):
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w3(:,df_w3,df_nodal) = f2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w3(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n")
+        "        END DO\n"
+        "      END DO\n")
     assert basis_comp in gen_code
     kernel_calls = (
         "      DO cell=1,f0_proxy%vspace%get_ncell()\n"
@@ -1000,14 +1000,14 @@ def test_two_eval_op_to_space(tmpdir):
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
         "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,f2_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_eval_op_to_code(cell, nlayers, "
         "op1_proxy%ncell_3d, op1_proxy%local_stencil, f2_proxy%data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
-        "      END DO \n"
+        "      END DO\n"
     )
     assert kernel_calls in gen_code
 
@@ -1031,7 +1031,7 @@ def test_eval_diff_nodal_space(tmpdir):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_alloc = (
         "      nodes_w3 => f1_proxy%vspace%get_nodes()\n"
@@ -1055,38 +1055,38 @@ def test_eval_diff_nodal_space(tmpdir):
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w3(:,df_w3,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w3(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f0_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
     )
     assert expected_compute in gen_code
     expected_kern_call = (
@@ -1096,7 +1096,7 @@ def test_eval_diff_nodal_space(tmpdir):
         "op2_proxy%ncell_3d, op2_proxy%local_stencil, f1_proxy%data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,f2_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_eval_op_to_w0_code(cell, nlayers, "
@@ -1104,7 +1104,7 @@ def test_eval_diff_nodal_space(tmpdir):
         "f2_proxy%data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
         "ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO \n"
+        "      END DO\n"
     )
     assert expected_kern_call in gen_code
     expected_dealloc = (
@@ -1140,7 +1140,7 @@ def test_eval_2fs(tmpdir):
             "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_2eval_2fs(tmpdir):
@@ -1170,7 +1170,7 @@ def test_2eval_2fs(tmpdir):
             "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
             "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
             format(idx)) == 1
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_2eval_1qr_2fs(tmpdir):
@@ -1209,22 +1209,22 @@ def test_2eval_1qr_2fs(tmpdir):
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
         "f1_proxy%vspace%call_function(DIFF_BASIS,df_w1,nodes_w0(:,"
         "df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+        "        END DO\n"
+        "      END DO\n") == 1
     assert gen_code.count(
         "      DO df_nodal=1,ndf_w1\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w1(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+        "        END DO\n"
+        "      END DO\n") == 1
     assert gen_code.count(
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = m2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+        "        END DO\n"
+        "      END DO\n") == 1
 
     # 2nd kernel requires basis on W2 and diff-basis on W3, both evaluated
     # on W0 (the to-space of the operator that is written to)
@@ -1238,8 +1238,8 @@ def test_2eval_1qr_2fs(tmpdir):
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+        "        END DO\n"
+        "      END DO\n") == 1
 
     # 3rd kernel requires XYoZ quadrature: basis on W1, diff basis on W2 and
     # basis+diff basis on W3.
@@ -1256,14 +1256,14 @@ def test_2eval_1qr_2fs(tmpdir):
             "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, "
             "undf_w1, map_w1(:,cell), diff_basis_w1_on_w0, "
             "diff_basis_w1_on_w1)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
             "        !\n"
             "        CALL testkern_eval_op_code(cell, nlayers, "
             "op1_proxy%ncell_3d, op1_proxy%local_stencil, m2_proxy%data, "
             "ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell),"
             " diff_basis_w3_on_w0)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
             "        !\n"
             "        CALL testkern_qr_code(nlayers, f1_proxy%data, "
@@ -1273,14 +1273,14 @@ def test_2eval_1qr_2fs(tmpdir):
             "map_w3(:,cell), basis_w3_qr_data, diff_basis_w3_qr_data, "
             "np_xy_qr_data, np_z_qr_data, weights_xy_qr_data, "
             "weights_z_qr_data)\n"
-            "      END DO \n" in gen_code)
+            "      END DO\n" in gen_code)
 
     assert gen_code.count(
         "DEALLOCATE (basis_w1_qr_data, basis_w2_on_w0, basis_w3_qr_data, "
         "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, "
         "diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_eval_agglomerate(tmpdir):
@@ -1295,7 +1295,7 @@ def test_eval_agglomerate(tmpdir):
     # W0 and W1.
     assert gen_code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
     assert gen_code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 BASIS_EVAL = '''

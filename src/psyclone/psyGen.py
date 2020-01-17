@@ -2152,12 +2152,10 @@ class Directive(Node):
         # parse tree to find the node to which we will add directives as
         # children. (We do this because our parent PSyIR node may be a
         # directive which has no associated entry in the fparser2 parse tree.)
-        # TODO this should be simplified/improved once
-        # the fparser2 parse tree has parent information (fparser/#102).
         first_child = self.children[0][0]
         last_child = self.children[0][-1]
         content_ast = first_child.ast
-        fp_parent = content_ast._parent
+        fp_parent = content_ast.parent
 
         try:
             # Find the location of the AST of our first child node in the
@@ -2175,11 +2173,8 @@ class Directive(Node):
                 text = "!$" + self._PREFIX + " " + end_text
                 directive = Comment(FortranStringReader(text,
                                                         ignore_comments=False))
+                directive.parent = fp_parent
                 fp_parent.content.insert(ast_end_index+1, directive)
-                # Retro-fit parent information. # TODO remove/modify this once
-                # fparser/#102 is done (i.e. probably supply parent info as
-                # option to the Comment() constructor).
-                directive._parent = fp_parent
                 # Ensure this end directive is included with the set of
                 # statements belonging to this PSyIR node.
                 self.ast_end = directive
@@ -2214,11 +2209,8 @@ class Directive(Node):
                                                       data_movement))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
+        directive.parent = fp_parent
         fp_parent.content.insert(ast_start_index, directive)
-        # Retro-fit parent information. # TODO remove/modify this once
-        # fparser/#102 is done (i.e. probably supply parent info as option
-        # to the Comment() constructor).
-        directive._parent = fp_parent
 
         self.ast = directive
         self.dir_body.ast = directive
@@ -4508,7 +4500,7 @@ class CodedKern(Kern):
 
         :param str suffix: the string to insert into the quantity names.
         '''
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
 
         # Use the suffix we have determined to create a new kernel name.
         # This will conform to the PSyclone convention of ending in "_code"
@@ -4522,15 +4514,15 @@ class CodedKern(Kern):
         # contains the kernel subroutine as a type-bound procedure
         orig_type_name = ""
         new_type_name = ""
-        dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def])
+        dtypes = walk(self.ast.content, Fortran2003.Derived_Type_Def)
         for dtype in dtypes:
-            tbound_proc = walk_ast(dtype.content,
-                                   [Fortran2003.Type_Bound_Procedure_Part])
-            names = walk_ast(tbound_proc[0].content, [Fortran2003.Name])
+            tbound_proc = walk(dtype.content,
+                               Fortran2003.Type_Bound_Procedure_Part)
+            names = walk(tbound_proc[0].content, Fortran2003.Name)
             if str(names[-1]) == self.name:
                 # This is the derived type for this kernel. Now we need
                 # its name...
-                tnames = walk_ast(dtype.content, [Fortran2003.Type_Name])
+                tnames = walk(dtype.content, Fortran2003.Type_Name)
                 orig_type_name = str(tnames[0])
 
                 # The new name for the type containing kernel metadata will
@@ -4555,7 +4547,7 @@ class CodedKern(Kern):
                       orig_type_name: new_type_name}
 
         # Re-write the values in the AST
-        names = walk_ast(self.ast.content, [Fortran2003.Name])
+        names = walk(self.ast.content, Fortran2003.Name)
         for name in names:
             try:
                 new_value = rename_map[str(name)]
@@ -6581,8 +6573,7 @@ class Literal(Node):
     Node representing a Literal. The value and datatype properties of
     this node are immutable.
 
-    :param value: the value of the literal.
-    :type value: str (for numerical values) or bool
+    :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param parent: the parent node of this Literal in the PSyIR.
@@ -6592,10 +6583,9 @@ class Literal(Node):
                        :py:class:`psyclone.psyir.symbols.DataType`.
     :raises ValueError: if the datatype is not one of \
                         self.VALID_DATA_TYPES.
-    :raises TypeError: if this Literal is of BOOLEAN type and the \
-                       supplied value is not a bool.
-    :raises TypeError: if this Literal is not of BOOLEAN type and the \
-                       supplied value is not a string.
+    :raises TypeError: if the supplied value is not a string.
+    :raises ValueError: if the Literal is a BOOLEAN and the value is not \
+                        'true' or 'false'.
     '''
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
@@ -6613,19 +6603,18 @@ class Literal(Node):
             raise ValueError("The datatype of a Literal must be one of {0} "
                              "but got '{1}'".format(self.VALID_DATA_TYPES,
                                                     datatype))
-        self._datatype = datatype
+        if not isinstance(value, six.string_types):
+            raise TypeError("Literals must be supplied with "
+                            "a value encoded as a string but got: {0}".
+                            format(type(value).__name__))
 
-        # Checks for the value
-        if self.datatype is DataType.BOOLEAN:
-            if not isinstance(value, bool):
-                raise TypeError("A boolean Literal must be supplied with a "
-                                "value that is a bool but got: {0}".format(
-                                    type(value).__name__))
-        else:
-            if not isinstance(value, six.string_types):
-                raise TypeError("A non-boolean Literal must be supplied with "
-                                "a value encoded as a string but got: {0}".
-                                format(type(value).__name__))
+        if datatype is DataType.BOOLEAN:
+            if value not in ("true", "false"):
+                raise ValueError(
+                    "A DataType.BOOLEAN Literal can only be: 'true' or "
+                    "'false' but got '{0}' instead.".format(value))
+
+        self._datatype = datatype
         self._value = value
 
     @property
