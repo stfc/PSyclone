@@ -460,9 +460,8 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
 
-@pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
-                          "#323 will add support for Use statments.")
-def test_opencl_kernel_with_use(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_with_use():
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
     from psyclone.psyir.transformations import TransformationError
@@ -472,5 +471,5 @@ def test_opencl_kernel_with_use(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. PSyclone cannot currently"
+            "'global' scope: ['rdt']. All data accessed by an OpenCL kernel"
             in str(err.value))
