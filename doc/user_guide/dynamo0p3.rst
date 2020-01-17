@@ -201,7 +201,7 @@ kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
 A full example of CMA operator construction is available in
-``examples/dynamo/eg7``.
+``examples/lfric/eg7``.
 
 .. _dynamo0.3-quadrature:
 
@@ -303,7 +303,7 @@ In the above example ``field2`` and ``field3`` in ``kernel1`` and
 ``field3`` in ``kernel1`` and ``field4`` in ``kernel2`` will have the
 same ``direction`` value.
 
-An example of the use of stencils is available in ``examples/dynamo/eg5``.
+An example of the use of stencils is available in ``examples/lfric/eg5``.
 
 There is currently no attempt to perform type checking in PSyclone so
 any errors in the type and/or position of arguments will not be picked
@@ -900,7 +900,7 @@ need colouring so PSyclone does not perform it. If such attempt is made,
 PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
 transformation (see :ref:`dynamo0.3-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
-function space ``Wtheta`` is given in ``examples/dynamo/eg9``, with the
+function space ``Wtheta`` is given in ``examples/lfric/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
@@ -985,7 +985,7 @@ Below is an example of stencil information within the full kernel metadata.
        /)
 
 There is a full example of this distributed with PSyclone. It may
-be found in ``examples/dynamo/eg5``.
+be found in ``examples/lfric/eg5``.
 
 .. _dynamo0.3-intergrid-mdata:
 
@@ -2313,8 +2313,8 @@ The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
 Dynamo0.3 API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
-can be found in ``examples/dynamo/eg8`` and an example of asynchronous
-halo exchanges can be found in ``examples/dynamo/eg11``.
+can be found in ``examples/lfirc/eg8`` and an example of asynchronous
+halo exchanges can be found in ``examples/lfric/eg11``.
 
 The **Dynamo0p3KernelConstTrans** transformation is only valid for the
 Dynamo0.3 API. This is because the properties that it makes constant

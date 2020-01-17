@@ -338,7 +338,7 @@ There are 3 subdirectories (``dynamo``, ``gocean`` and
 PSyclone. In this case we are going to use one of the dynamo
 examples::
 
-   > cd <EGS_HOME>/examples/dynamo/eg1
+   > cd <EGS_HOME>/examples/lfric/eg1
    > psyclone -api dynamo0.1 \
    > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
@@ -379,14 +379,14 @@ API in action. This script contains::
 
 It can be run non-interactively as follows::
 
-   > cd <EGS_HOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/lfric/eg1
    > python runme.py
 
 However, to understand this example in more depth it is instructive to
 cut-and-paste from the ``runme.py`` file into your own, interactive python
 session::
 
-   > cd <EGS_HOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/lfric/eg1
    > python
 
 In addition to the ``runme.py`` script, there is also

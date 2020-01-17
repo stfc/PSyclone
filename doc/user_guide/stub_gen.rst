@@ -366,10 +366,10 @@ the number of the vector.
 The introduction of stencil operations on field arguments further complicates
 the argument list of a kernel. An example of the use of the stub generator
 for a kernel that performs stencil operations is provided in
-``examples/dynamo/eg5``.
+``examples/lfric/eg5``.
 ::
 
-  > genkernelstub ../../examples/dynamo/eg5/conservative_flux_kernel_mod.F90
+  > genkernelstub ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
 
 .. _stub-generation-errors:
 

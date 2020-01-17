@@ -449,8 +449,8 @@ with the new one. For example ...
     print psy.gen
 
 More examples of use of the interactive application of transformations
-can be found in the runme*.py files within the examples/dynamo/eg1 and
-examples/dynamo/eg2 directories. Some simple examples of the use of
+can be found in the runme*.py files within the examples/lfric/eg1 and
+examples/lfric/eg2 directories. Some simple examples of the use of
 transformations are also given in the previous section.
 
 .. _sec_transformations_script:
@@ -518,8 +518,8 @@ for a particular schedule and may apply transformations to all the
 schedules (i.e. invokes) contained within the PSy layer.
 
 Examples of the use of transformation scripts can be found in the
-examples/dynamo/eg3 and examples/dynamo/scripts directories. Please
-read the examples/dynamo/README file first as it explains how to run
+examples/lfric/eg3 and examples/lfric/scripts directories. Please
+read the examples/lfric/README file first as it explains how to run
 the examples (and see also the examples/check_examples script).
 
 OpenMP
@@ -707,7 +707,7 @@ gives free-reign to the compiler to automatically parallelise any
 suitable loops within the specified region. An example of the use of
 ``ACCDataTrans`` and ``ACCKernelsTrans`` may be found in
 PSyclone/examples/nemo/eg3 and an example of ``ACCKernelsTrans`` may
-be found in PSyclone/examples/dynamo/eg14.
+be found in PSyclone/examples/lfric/eg14.
 
 However, as with any "automatic" approach, a more performant solution
 can almost always be obtained by providing the compiler with more
@@ -715,7 +715,7 @@ explicit direction on how to parallelise the code.  The
 ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow the
 user to define thread-parallel regions and, within those, define which
 loops should be parallelised. For an example of their use please see
-PSyclone/examples/gocean/eg2 or PSyclone/examples/dynamo/eg14.
+PSyclone/examples/gocean/eg2 or PSyclone/examples/lfric/eg14.
 
 In order for a given section of code to be executed on a GPU, any
 routines called from within that section must also have been compiled
