@@ -58,10 +58,10 @@ class AccessInfo(object):
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param int location: A number used in ordering the accesses.
     :param indices: Indices used in the access, defaults to None
-    :type indices: list of :py:class:`psyclone.psyGen.Node` instances \
+    :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances \
         (e.g. Reference, ...)
     :param node: Node in PSyIR in which the access happens, defaults to None.
-    :type node: :py:class:`psyclone.psyGen.Node` instance.
+    :type node: :py:class:`psyclone.psyir.nodes.Node` instance.
 
     '''
     def __init__(self, access_type, location, node, indices=None):
@@ -96,8 +96,10 @@ class AccessInfo(object):
 
     @property
     def indices(self):
-        ''':returns: The indices used in this access. Can be None.
-        :rtype: List of :py:class:`psyclone.psyGen.Node` instances, or None.
+        '''
+        :returns: the indices used in this access. Can be None.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node` instances, \
+                or None.
         '''
         return self._indices
 
@@ -106,7 +108,7 @@ class AccessInfo(object):
         '''Sets the indices for this AccessInfo instance.
 
         :param indices: List of indices used in the access.
-        :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
         '''
         self._indices = indices[:]
 
@@ -127,7 +129,7 @@ class AccessInfo(object):
     @property
     def node(self):
         ''':returns: the PSyIR node at which this access happens.
-        :rtype: :py:class:`psyclone.psyGen.Node` '''
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
         return self._node
 
 
@@ -225,9 +227,9 @@ class VariableAccessInfo(object):
         :type location: int
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None
-        :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyGen.Node` instance.
+        :type node: :py:class:`psyclone.psyir.nodes.Node` instance.
         '''
         self._accesses.append(AccessInfo(access_type, location, node, indices))
 
@@ -327,10 +329,10 @@ class VariablesAccessInfo(dict):
         :param access_type: The type of access (READ, WRITE, ...)
         :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyGen.Node` instance.
+        :type node: :py:class:`psyclone.psyir.nodes.Node` instance.
         :param indicies: Indices used in the access (None if the variable \
             is not an array). Defaults to None.
-        :type indices: list of :py:class:`psyclone.psyGen.Node` instances.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node` instances.
 
         '''
         if var_name in self:
