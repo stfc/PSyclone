@@ -6344,7 +6344,9 @@ class BinaryOperation(Operation):
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Query Operators
-        'SIZE'
+        'SIZE',
+        # Vector and matrix multiply functions
+        'MATMUL'
         ])
 
     def __init__(self, operator, parent=None):

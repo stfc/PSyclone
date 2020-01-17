@@ -52,38 +52,38 @@ cd psyir
 python create.py
 cd -
 
-echo "Running examples dynamo/eg1"
-cd dynamo/eg1
+echo "Running examples lfric/eg1"
+cd lfric/eg1
 python runme.py
 python runme_openmp.py
 cd -
 
-echo "Running examples dynamo/eg2"
-cd dynamo/eg2
+echo "Running examples lfric/eg2"
+cd lfric/eg2
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 cd -
 
-echo "Running example dynamo/eg3"
-cd dynamo/eg3
+echo "Running example lfric/eg3"
+cd lfric/eg3
 ${PSYCLONE} solver_mod.x90
 ${PSYCLONE} -s ./colouring_and_omp.py -nodm solver_mod.x90
 cd -
 
-echo "Running example dynamo/eg4"
-cd dynamo/eg4
+echo "Running example lfric/eg4"
+cd lfric/eg4
 ${PSYCLONE} -nodm solver_mod.x90
 ${PSYCLONE} solver_mod.x90
 cd -
 
-echo "Running example dynamo/eg5"
-cd dynamo/eg5
+echo "Running example lfric/eg5"
+cd lfric/eg5
 ${PSYCLONE} alg.f90
 cd -
 
-echo "Running example dynamo/eg6"
-cd dynamo/eg6
+echo "Running example lfric/eg6"
+cd lfric/eg6
 ${PSYCLONE} -nodm alg.x90
 ${PSYCLONE} alg.x90
 ${PSYCLONE} -nodm -s ./omp_script.py alg.x90
@@ -91,35 +91,35 @@ ${PSYCLONE} -s ./omp_script.py alg.x90
 ${PSYCLONE} -s ./omp_reprod_script.py alg.x90
 cd -
 
-echo "Running example dynamo/eg7"
-cd dynamo/eg7
+echo "Running example lfric/eg7"
+cd lfric/eg7
 ${PSYCLONE} alg.x90
 cd -
 
-echo "Running example dynamo/eg8"
-cd dynamo/eg8
+echo "Running example lfric/eg8"
+cd lfric/eg8
 ${PSYCLONE} helmholtz_solver_alg_mod.x90
 ${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
 cd -
 
-echo "Running example dynamo/eg9"
-cd dynamo/eg9
+echo "Running example lfric/eg9"
+cd lfric/eg9
 ${PSYCLONE} advective_inc_alg_mod.x90
 ${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 cd -
 
-echo "Running example dynamo/eg10"
-cd dynamo/eg10
+echo "Running example lfric/eg10"
+cd lfric/eg10
 ${PSYCLONE} intergrid_3levels.x90
 cd -
 
-echo "Running example dynamo/eg11"
-cd dynamo/eg11
+echo "Running example lfric/eg11"
+cd lfric/eg11
 ${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
 cd -
 
-echo "Running example dynamo/eg12"
-cd dynamo/eg12
+echo "Running example lfric/eg12"
+cd lfric/eg12
 ${PSYCLONE} -nodm -s ./extract_nodes.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 ${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
@@ -127,16 +127,16 @@ ${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
 python find_kernel.py
 cd -
 
-echo "Running example dynamo/eg13"
-cd dynamo/eg13
+echo "Running example lfric/eg13"
+cd lfric/eg13
 ${PSYCLONE} -s ./kernel_constants.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg alg.f90 -opsy psy.f90
 rm *.f90
 cd -
 
-echo "Running example dynamo/eg14"
-cd dynamo/eg14
+echo "Running example lfric/eg14"
+cd lfric/eg14
 ${PSYCLONE} -s ./acc_kernels.py -nodm \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null
@@ -219,8 +219,8 @@ cd stub_generation
 ${KSTUBGEN} testkern_stencil_multi_mod.f90
 cd -
 
-echo "Testing dynamo scripts"
-cd dynamo/scripts
+echo "Testing lfric scripts"
+cd lfric/scripts
 for script in "colouring_and_omp.py" \
 		  "loop_fuse.py" \
 		  "redundant_dofs.py" \
