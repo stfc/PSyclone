@@ -51,10 +51,11 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Loop, CodedKern, Arguments, Argument, KernelArgument, \
+    CodedKern, Arguments, Argument, KernelArgument, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, AccessType, Literal, ACCEnterDataDirective, Schedule
+    KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.psyir.symbols import SymbolTable, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
@@ -654,10 +655,10 @@ class GOLoop(Loop):
         loop type).
 
         :returns: the PSyIR for the upper bound of this loop.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        from psyclone.psyGen import BinaryOperation
+        from psyclone.psyir.nodes import BinaryOperation
         schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             # Look for a child kernel in order to get the index offset.
@@ -742,7 +743,7 @@ class GOLoop(Loop):
         loop type).
 
         :returns: root of PSyIR sub-tree describing this lower bound.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         schedule = self.ancestor(GOInvokeSchedule)

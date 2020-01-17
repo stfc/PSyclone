@@ -227,7 +227,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
         # Add profiling nodes to schedule if automatic profiling has
         # been requested.
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         for invoke in psy.invokes.invoke_list:
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 

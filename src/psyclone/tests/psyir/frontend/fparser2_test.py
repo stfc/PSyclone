@@ -42,10 +42,11 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part
-from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
+from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, IfBlock, Reference, Array, KernelSchedule, \
-    Container, InternalError, GenerationError, Literal
+    NaryOperation, IfBlock, Reference, Array, Container, Literal
+from psyclone.psyGen import PSyFactory, Directive, KernelSchedule, \
+    InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
