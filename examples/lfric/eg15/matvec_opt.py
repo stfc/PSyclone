@@ -38,15 +38,15 @@
 optimisations to the matrix vector kernel to improve its performance
 on CPUs.
 
-The matrix vector kernel has been hand optimised for CPUs to the point
-where it is memory bound. This script will automate these hand
-optimisations.
+The matrix vector kernel has been hand optimised for CPUs. This script
+will automate these optimisations.
 
-At the moment the only automated optimisation possible is to make
-various kernel values constant.
+Optimising matvec in PSyclone is work in progress. At the moment the
+only automated optimisation possible is the kernel constant
+transformation (see eg13) and this does little to matvec as it stands.
 
-Below is a list of things that need doing to improve performance and
-are not yet supported as transformations in PSyclone.
+Below is a list of things that will be implemented to improve
+performance but are not yet supported as transformations in PSyclone.
 
 1) replace matmult with equivalent code
    a) get PSyIR to recognise array slice notation
@@ -57,30 +57,40 @@ are not yet supported as transformations in PSyclone.
 5) remove scatter and gather
 6) interchange k loop to make it inner
 7) re-order data-layout for matrix
-8) replicate kernel to support specific function spaces (psy-layer optimisation)
-9) add kernel constants for nlayers, ndf2, ndf1
+8) replicate kernel to support specific function spaces (psy-layer
+   optimisation)
+9) add kernel constants for nlayers, ndf2, ndf1 (existing transformation)
 
 This script can be applied via the '-s' option when running PSyclone:
 
 $ psyclone -s ./matvec_opt.py \
 ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
--oalg alg.f90 -opsy psy.f90
+-oalg /dev/null -opsy /dev/null
 
 '''
-
 from __future__ import print_function
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
-    the matvec kernel for many-core CPUs.
+    the matvec kernel for many-core CPUs. For the moment simply find
+    the first matvec kernel in the example and then print out its
+    PSyIR representation and output it as Fortran using the PSyIR
+    Fortran back-end.
 
     '''
+    fortran_writer = FortranWriter()
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
         for kernel in schedule.coded_kernels():
             if kernel.name.lower() == "matrix_vector_kernel_code":
                 kernel_schedule = kernel.get_kernel_schedule()
+                # optimisations will go here.
                 kernel_schedule.view()
+                result = fortran_writer(kernel_schedule)
+                print (result)
+                # Abort after the first matrix vector kernel for the
+                # time being.
                 exit(1)
     return psy

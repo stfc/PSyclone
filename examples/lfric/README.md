@@ -271,8 +271,7 @@ psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x
 
 This example shows how the LFRic matvec kernel can be optimised by
 PSyclone in the same way as it was hand optimised to run efficiently
-on a multi-core CPU. This is work in progress, see eg15/README.md for
-more details. To run:
+on a multi-core CPU. This is work in progress. To run:
 ```sh
 cd eg15/
 psyclone -s ./matvec_opt.py \
