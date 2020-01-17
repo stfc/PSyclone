@@ -175,18 +175,21 @@ The PSyIR has the `Range` node which represents a range of integer
 values with associated start, stop and step properties. e.g. the list
 of values [4, 6, 8, 10] would be represented by a `Range` with a start
 value of 4, a stop value of 10 and a step of 2 (all stored as `Literal`
-nodes).
+nodes). This class is intended to simplify the construction of Loop nodes
+as well as to support array slicing (see below). However, this
+functionality is under development and at this stage neither of those
+options have been implemented.
 
 The `Range` node must also provide support for array-slicing
-constructs where a user may wish to represent the entire range of
-possible index values for a given dimension of an array. e.g. in the
-following Fortran::
+constructs where a user may wish to represent either the entire range
+of possible index values for a given dimension of an array or a
+sub-set thereof. e.g. in the following Fortran::
 
     real, dimension(10, 5) :: my_array
     call some_routine(my_array(1, :))
 
 the argument to `some_routine` is specified using array syntax where
-the lone colon means *every* element in that dimension. In the PSyIR
+the lone colon means *every* element in that dimension. In the PSyIR,
 this argument would be represented by an `Array` node with the first
 entry in its `shape` being an integer `Literal` (with value 1) and the
 second entry being a `Range`. In this case the `Range` will have a
@@ -194,7 +197,7 @@ start value of `LBOUND(my_array, 1)`, a stop value of
 `UBOUND(my_array, 1)` and a step of `Literal("1")`. Note that `LBOUND`
 and `UBOUND` are not yet implemented (Issue #651) but will be
 instances of `BinaryOperation`. (For the particular code fragment
-given above, the values are in fact known (1 and 5, respectively) and
+given above, the values are in fact known [1 and 5, respectively] and
 could be obtained by querying the Symbol Table.)
 
 .. autoclass:: psyclone.psyir.nodes.ranges.Range

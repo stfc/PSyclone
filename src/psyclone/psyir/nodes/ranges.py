@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-''' Module containing definition of the Range node. '''
+''' Module containing the definition of the Range node. '''
 
 from psyclone.psyGen import Node, Literal, InternalError
 from psyclone.psyir.symbols import DataType
@@ -43,16 +44,20 @@ class Range(Node):
     has three children representing the start, stop and step
     expressions.
 
-    :param ast: the entry in the fparser2 parse tree representing the code \
-                contained within this directive or None.
-    :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
+    :param parse_node: the entry in the fparser2 parse tree representing the \
+                       code contained within this directive or None.
+    :type parse_node: :py:class:`fparser.two.Fortran2003.Base` or NoneType
     :param parent: PSyIR node that is the parent of this Range or None.
     :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
+    :param annotations: Tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags.
+    :type annotations: list of str
 
     '''
-    def __init__(self, ast=None, parent=None, annotations=None):
+    def __init__(self, parse_node=None, parent=None, annotations=None):
 
-        super(Range, self).__init__(ast, parent=parent,
+        super(Range, self).__init__(parse_node, parent=parent,
                                     annotations=annotations)
         # Initialise the list of children so that the start/stop/step setters
         # can be called in any order
@@ -71,6 +76,7 @@ class Range(Node):
         :param step: the PSyIR for the increment/step or None.
         :type step: :py:class:`psyclone.psyGen.Node` or NoneType
         :param parent: the parent node of this Range in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
 
         :returns: a fully-populated Range object.
         :rtype: :py:class:`psyclone.psyir.nodes.ranges.Range`
@@ -92,8 +98,8 @@ class Range(Node):
     @staticmethod
     def _check_valid_input(value, name):
         '''
-        Perform checks that the supplied value is valid as a child of an
-        Range.
+        Perform checks that the supplied value is valid as a child of a
+        Range node.
 
         :param object value: entity to check.
         :param str name: the name of the quantity for which this value has \
