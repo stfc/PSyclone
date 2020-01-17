@@ -608,7 +608,7 @@ release 1.5.0 3rd October 2017
         3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
 
-	4) #40 and PR #47 Update example dynamo/eg3 to use builtins and to
+	4) #40 and PR #47 Update example lfric/eg3 to use builtins and to
 	merge invokes together as much as possible
 
 	5) #45 and PR #49 Change of kernel metadata names from
@@ -911,7 +911,7 @@ release 1.1.0
 	argument ordering.
 
 	6) #364 OpenMP fix for update 1) (ticket #263). 'ncolour' variable
-	now declared. New dynamo/eg3 example added to demonstrate the use
+	now declared. New lfric/eg3 example added to demonstrate the use
 	of transformation scripts introduced in update 2) (ticket #292).
 
 	7) #361 Minor updates to the kernel-stub generator. Remove spurious
