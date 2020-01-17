@@ -44,7 +44,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke
 
 # Constants

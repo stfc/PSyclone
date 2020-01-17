@@ -39,8 +39,8 @@ in the PSyIR. '''
 from __future__ import absolute_import
 
 import pytest
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 @pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
@@ -49,7 +49,7 @@ def test_size(expression, parser):
     ''' Basic test that the SIZE intrinsic is recognised and represented
     in the PSyIR. '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import Schedule, Assignment, BinaryOperation, \
+    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
         Reference, Literal
     fake_parent = Schedule()
     processor = Fparser2Reader()

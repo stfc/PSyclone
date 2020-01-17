@@ -117,7 +117,7 @@ def test_do_while():
     ''' Check that do-while loops are put into CodeBlocks. Eventually we
     will need to recognise them as Nodes in the Schedule in their
     own right. '''
-    from psyclone.psyGen import CodeBlock
+    from psyclone.psyir.nodes import CodeBlock
     _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
     sched = invoke_info.schedule
     # Do while loops are not currently handled and thus are put into
@@ -185,7 +185,7 @@ def test_io_not_kernel():
 def test_fn_call_no_kernel(parser):
     ''' Check that we don't create a kernel if the loop body contains a
     function call. '''
-    from psyclone.psyGen import Assignment
+    from psyclone.psyir.nodes import Assignment
     reader = FortranStringReader("program fn_call\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -204,7 +204,7 @@ def test_fn_call_no_kernel(parser):
 def test_codeblock_no_kernel(parser, monkeypatch):
     ''' Check that we don't create a kernel if the loop body contains a
     CodeBlock. '''
-    from psyclone.psyGen import CodeBlock
+    from psyclone.psyir.nodes import CodeBlock
     reader = FortranStringReader("program fake_kern\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -280,7 +280,7 @@ def test_no_implicit_loop_in_kernel(parser):
 
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     sched_str = str(sched)
@@ -325,7 +325,7 @@ def test_schedule_view(capsys):
 
 def test_kern_inside_if():
     ''' Check that we identify kernels when they are within an if block. '''
-    from psyclone.psyGen import IfBlock
+    from psyclone.psyir.nodes import IfBlock
     _, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     sched = invoke_info.schedule
     kerns = sched.coded_kernels()

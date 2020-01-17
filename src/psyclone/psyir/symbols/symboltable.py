@@ -53,7 +53,7 @@ class SymbolTable(object):
 
     :param schedule: reference to the Schedule to which this symbol table \
         belongs.
-    :type schedule: :py:class:`psyclone.psyGen.Schedule` or NoneType
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule` or NoneType
     '''
     # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
     # NameSpace class functionality.

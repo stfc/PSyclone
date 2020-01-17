@@ -845,7 +845,7 @@ def test_offset_any_all_points(tmpdir):
 
 def test_goschedule_view(capsys):
     ''' Test that the GOInvokeSchedule::view() method works as expected '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -1531,7 +1531,7 @@ def test_gokernelargument_type():
     ''' Check the type property of the GOKernelArgument'''
     from psyclone.parse.algorithm import Arg
     from psyclone.parse.kernel import Descriptor
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
 
     # Create a dummy GOKernelArgument
     descriptor = Descriptor(None, "")
