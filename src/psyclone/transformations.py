@@ -3277,8 +3277,11 @@ class ACCRoutineTrans(KernelTrans):
 
         :raises TransformationError: if the target kernel is a built-in.
         :raises TransformationError: if any of the symbols in the kernel are \
-                                     accessed via a module use statement.
-
+                            accessed via a module use statement.
+        :raises TransformationError: if the target kernel has already been \
+                            transformed (since all other transformations work \
+                            on the PSyIR but this one still uses the fparser2 \
+                            parse tree (#490).
         '''
         from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
@@ -3291,6 +3294,11 @@ class ACCRoutineTrans(KernelTrans):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
+        if kern.modified:
+            raise TransformationError(
+                "Cannot transform kernel '{0}' because it has previously been "
+                "transformed and this transformation works on the fparser2 "
+                "parse tree rather than the PSyIR (#490).".format(kern.name))
 
         # Perform general validation checks. In particular this checks that
         # a PSyIR of the kernel body can be constructed.
@@ -3858,24 +3866,23 @@ class KernelGlobalsToArguments(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: tuple of the modified Schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
+        :returns: a record of the transformation.
+        :rtype: :py:class:`psyclone.undoredo.Memento`.
         '''
         from psyclone.psyir.symbols import ArgumentInterface
         from psyclone.psyir.symbols import DataType
 
         self.validate(node)
 
+        memento = Memento(node, self)
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
 
-        # Transform each global variable into an argument
+        # Transform each global variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no globals are found in the kernel.
-        for globalvar in kernel.symbol_table.global_datasymbols:
+        for globalvar in kernel.symbol_table.global_datasymbols[:]:
 
             # Resolve the data type information if it is not available
             if globalvar.datatype == DataType.DEFERRED:
@@ -3911,3 +3918,5 @@ class KernelGlobalsToArguments(Transformation):
             if not container.imported_symbols and \
                not container.has_wildcard_import:
                 kernel.symbol_table.remove(container.name)
+        node.modified = True
+        return node.root, memento
