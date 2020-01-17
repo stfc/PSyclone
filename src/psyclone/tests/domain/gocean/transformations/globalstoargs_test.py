@@ -33,7 +33,7 @@
 # ----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
 
-'''Tests the GlobalsToArgumentsTransformation for the  GOcean 1.0 API.'''
+''' Tests the GlobalsToArgumentsTransformation for the GOcean 1.0 API.'''
 
 from __future__ import absolute_import, print_function
 import os
@@ -118,6 +118,9 @@ def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
             "container 'model_mod'" in str(err.value))
 
 
+@pytest.mark.xfail(reason="Transformation does not set modified property "
+                   "of kernel - #663")
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoargumentstrans(monkeypatch):
     ''' Check the GlobalsToArguments transformation with a single kernel
     invoke and a global variable.'''
@@ -155,6 +158,8 @@ def test_globalstoargumentstrans(monkeypatch):
 
     # Test transforming a single kernel
     trans.apply(kernel)
+
+    assert kernel.modified
 
     # The transformation;
     # 1) Has imported the symbol into the InvokeSchedule
@@ -195,6 +200,7 @@ def test_globalstoargumentstrans(monkeypatch):
     assert "rdt" in invoke._name_space_manager._added_names
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoargumentstrans_constant(monkeypatch):
     ''' Check the GlobalsToArguments transformation when the global is
     also a constant value, in this case the argument should be read-only.'''
@@ -229,6 +235,7 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoarguments_multiple_kernels():
     ''' Check the KernelGlobalsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
@@ -286,6 +293,7 @@ def test_globalstoarguments_multiple_kernels():
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoarguments_noglobals():
     ''' Check the KernelGlobalsToArguments transformation can be applied to
     a kernel that does not contain any global without any effect '''
@@ -337,6 +345,7 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
         " by another symbol." in str(err.value)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
     ''' Check the GlobalsToArguments transformation adds the module and global
     variable names into the NameSpaceManager to prevent clashes'''
