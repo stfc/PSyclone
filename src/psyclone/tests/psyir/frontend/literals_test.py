@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ def test_handling_literal(code, dtype):
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [astmt], None)
+    processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
@@ -82,7 +82,7 @@ def test_handling_invalid_logic_literal():
     fake_parent = Node()
     processor = Fparser2Reader()
     with pytest.raises(GenerationError) as error:
-        processor.process_nodes(fake_parent, [astmt], None)
+        processor.process_nodes(fake_parent, [astmt])
     assert "Expected to find '.true.' or '.false.' as fparser2 logical " \
         "literal, but found 'invalid' instead." in str(error.value)
 

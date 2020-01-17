@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -805,8 +805,8 @@ def test_omp_transform():
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !$omp end do\n"
         "      !$omp end parallel\n"
         "      CALL ProfileEnd(profile)")
@@ -828,8 +828,8 @@ def test_omp_transform():
       DO j=2,jstop
         DO i=2,istop
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
-        END DO\x20
-      END DO\x20
+        END DO
+      END DO
       !$omp end do
       CALL ProfileEnd(profile_1)
       !$omp end parallel

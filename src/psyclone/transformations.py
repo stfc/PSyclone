@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3234,7 +3234,7 @@ class ACCRoutineTrans(KernelTrans):
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
 
         # Check that we can safely apply this transformation
@@ -3246,7 +3246,7 @@ class ACCRoutineTrans(KernelTrans):
         keep = Memento(kern, self)
         # Find the kernel subroutine in the fparser2 parse tree
         kern_sub = None
-        subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
+        subroutines = walk(ast.content, Subroutine_Subprogram)
         for sub in subroutines:
             for child in sub.content:
                 if isinstance(child, Subroutine_Stmt) and \
@@ -3256,7 +3256,7 @@ class ACCRoutineTrans(KernelTrans):
             if kern_sub:
                 break
         # Find the last declaration statement in the subroutine
-        spec = walk_ast(kern_sub.content, [Specification_Part])[0]
+        spec = walk(kern_sub.content, Specification_Part)[0]
         posn = -1
         for idx, node in enumerate(spec.content):
             if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
@@ -3632,7 +3632,7 @@ class NemoExplicitLoopTrans(Transformation):
 
         '''
         from fparser.two import Fortran2003
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
 
@@ -3642,8 +3642,7 @@ class NemoExplicitLoopTrans(Transformation):
         keep = Memento(loop, self)
 
         # Find all uses of array syntax in the statement
-        subsections = walk_ast(loop.ast.items,
-                               [Fortran2003.Section_Subscript_List])
+        subsections = walk(loop.ast.items, Fortran2003.Section_Subscript_List)
         # Create a list identifying which dimensions contain a range
         sliced_dimensions = []
         # A Section_Subscript_List is a tuple with each item the
@@ -3672,15 +3671,6 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # TODO (fparser/#102) since the fparser2 AST does not have parent
-        # information (and no other way of getting to the root node), it is
-        # currently not possible to cleanly insert a declaration in the correct
-        # location.
-        # For the moment, we can work around the fparser2 AST limitation
-        # by using the fact that we *can* get hold of the PSyclone Invoke
-        # object and that contains a reference to the root of the fparser2
-        # AST...
-
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
         nsm = invoke._name_space_manager
@@ -3702,26 +3692,25 @@ class NemoExplicitLoopTrans(Transformation):
         # Invoke._loop_vars.
         if loop._variable_name not in invoke._loop_vars:
             invoke._loop_vars.append(loop_var)
-
-            prog_unit = loop.root.invoke._ast
-            spec_list = walk_ast(prog_unit.content,
-                                 [Fortran2003.Specification_Part])
+            prog_unit = loop.ast.get_root()
+            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
             if not spec_list:
                 # Routine has no specification part so create one and add it
-                # in to the AST
+                # in to the parse tree
+                from psyclone.psyGen import object_index
+                exe_part = walk(prog_unit.content,
+                                Fortran2003.Execution_Part)[0]
+                idx = object_index(exe_part.parent.content, exe_part)
+
                 spec = Fortran2003.Specification_Part(
-                    FortranStringReader(
-                        "integer :: {0}".format(loop_var)))
-                spec._parent = prog_unit
-                for idx, child in enumerate(prog_unit.content):
-                    if isinstance(child, Fortran2003.Execution_Part):
-                        prog_unit.content.insert(idx, spec)
-                        break
+                    FortranStringReader("integer :: {0}".format(loop_var)))
+                spec.parent = exe_part.parent
+                exe_part.parent.content.insert(idx, spec)
             else:
                 spec = spec_list[0]
                 decln = Fortran2003.Type_Declaration_Stmt(
-                    FortranStringReader(
-                        "integer :: {0}".format(loop_var)))
+                    FortranStringReader("integer :: {0}".format(loop_var)))
+                decln.parent = spec
                 spec.content.append(decln)
 
         # Modify the line containing the implicit do by replacing every
@@ -3752,16 +3741,19 @@ class NemoExplicitLoopTrans(Transformation):
                                   loop_step))
         new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
-
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
-        parent_index = loop.ast._parent.content.index(loop.ast)
-        loop.ast._parent.content.insert(parent_index, new_loop)
+        parent_index = loop.ast.parent.content.index(loop.ast)
+        loop.ast.parent.content.insert(parent_index, new_loop)
+        # Ensure it has the correct parent information
+        new_loop.parent = loop.ast.parent
         # Replace the content of the loop with the (modified) implicit
         # loop
         new_loop.content[1] = loop.ast
         # Remove the implicit loop from its original parent in the AST
-        loop.ast._parent.content.remove(loop.ast)
+        loop.ast.parent.content.remove(loop.ast)
+        # Now set its parent to be the new loop instead
+        new_loop.content[1].parent = new_loop
 
         # Now we must update the PSyIR to reflect the new AST
         # First we update the parent of the loop we have transformed
@@ -3770,7 +3762,7 @@ class NemoExplicitLoopTrans(Transformation):
         # Next, we simply process the transformed fparser2 AST to generate
         # the new PSyIR of it
         astprocessor = nemo.NemoFparser2Reader()
-        astprocessor.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
+        astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
         loop = None

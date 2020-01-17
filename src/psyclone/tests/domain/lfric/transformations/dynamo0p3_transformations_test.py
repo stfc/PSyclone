@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -157,7 +157,7 @@ def test_colour_trans(tmpdir, dist_mem):
         # Check that we get the right number of set_dirty halo calls in
         # the correct location
         dirty_str = (
-            "      end do \n"
+            "      end do\n"
             "      !\n"
             "      ! set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -245,8 +245,8 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "map_any_space_1_afield(:,cmap(colour, cell)), "
         "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
         "cbanded_map_any_space_2_lma_op1)\n"
-        "        END DO \n"
-        "      END DO \n") in gen
+        "        END DO\n"
+        "      END DO\n") in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1240,7 +1240,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
         "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO \n"
+        "        END DO\n"
         "        !$omp end do\n"
         "        !$omp do schedule(static)\n"
         "        DO cell=1,mesh%{0}\n"
@@ -1252,10 +1252,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
         "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO \n"
+        "        END DO\n"
         "        !$omp end do\n"
         "        !$omp end parallel\n"
-        "      END DO \n".format(lookup))
+        "      END DO\n".format(lookup))
 
     assert output in code
 
@@ -1411,7 +1411,7 @@ def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1427,7 +1427,7 @@ def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,undf_any_space_1_f2\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do") in result
 
 
@@ -1455,7 +1455,7 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1467,7 +1467,7 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = 3.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1479,7 +1479,7 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1495,19 +1495,19 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,undf_any_space_1_f2\n"
             "        f2_proxy%data(df) = 3.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n") in result
 
 
@@ -1539,7 +1539,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1559,7 +1559,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end parallel do") in result
 
 
@@ -1592,7 +1592,7 @@ def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1612,7 +1612,7 @@ def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_any_space_1_f2\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in result
 
@@ -1646,7 +1646,7 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1659,7 +1659,7 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = 3.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1672,7 +1672,7 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1692,17 +1692,17 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_any_space_1_f2\n"
             "        f2_proxy%data(df) = 3.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel") in result
 
@@ -1742,7 +1742,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1766,7 +1766,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel") in result
 
@@ -1790,7 +1790,7 @@ def test_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in code
@@ -1801,7 +1801,7 @@ def test_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n") in code
 
 
@@ -1827,7 +1827,7 @@ def test_reduction_real_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      global_sum%value = asum\n"
@@ -1838,7 +1838,7 @@ def test_reduction_real_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
 
@@ -1868,7 +1868,7 @@ def test_multi_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n"
@@ -1881,7 +1881,7 @@ def test_multi_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in code
@@ -1893,7 +1893,7 @@ def test_multi_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Zero summation variables\n"
@@ -1904,7 +1904,7 @@ def test_multi_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n") in code
 
 
@@ -1944,7 +1944,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -1957,7 +1957,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      global_sum%value = asum\n"
@@ -1975,12 +1975,12 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel")
         assert expected_output in result
@@ -2025,7 +2025,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -2039,7 +2039,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -2047,7 +2047,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()")
@@ -2067,13 +2067,13 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -2081,7 +2081,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n")
         assert expected_output in result
 
@@ -2124,12 +2124,12 @@ def test_two_reductions_real_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static), reduction(+:bsum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      global_sum%value = asum\n"
@@ -2147,12 +2147,12 @@ def test_two_reductions_real_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static), reduction(+:bsum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel")
         assert expected_output in result
@@ -2202,13 +2202,13 @@ def test_two_reprod_reductions_real_do():
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
                 "f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -2216,11 +2216,11 @@ def test_two_reprod_reductions_real_do():
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      DO th_idx=1,nthreads\n"
                 "        bsum = bsum+l_bsum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_bsum)\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n"
@@ -2243,13 +2243,13 @@ def test_two_reprod_reductions_real_do():
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
                 "f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -2257,11 +2257,11 @@ def test_two_reprod_reductions_real_do():
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      DO th_idx=1,nthreads\n"
                 "        bsum = bsum+l_bsum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_bsum)")
         assert expected_output in result
 
@@ -2351,7 +2351,7 @@ def test_multi_different_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n"
@@ -2364,7 +2364,7 @@ def test_multi_different_reduction_real_pdo():
                 "schedule(static), reduction(+:bsum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = bsum\n"
                 "      bsum = global_sum%get_sum()\n") in code
@@ -2378,7 +2378,7 @@ def test_multi_different_reduction_real_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Zero summation variables\n"
@@ -2389,7 +2389,7 @@ def test_multi_different_reduction_real_pdo():
                 "schedule(static), reduction(+:bsum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n") in code
 
 
@@ -2425,7 +2425,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n"
@@ -2433,7 +2433,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
                 "schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -2453,13 +2453,13 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n") in result
 
 
@@ -2502,12 +2502,12 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -2533,12 +2533,12 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in result
 
@@ -2595,7 +2595,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                     "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                     "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                     "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end parallel do\n"
                     "      !\n"
                     "      ! Set halos dirty/clean for fields modified in the "
@@ -2616,7 +2616,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                     "      DO df=1,undf_any_space_1_f1\n"
                     "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                     "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end parallel do\n")
             assert code in result
 
@@ -2672,7 +2672,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
                     "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                     "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                     "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !\n"
                     "      ! Set halos dirty/clean for fields modified in the "
@@ -2694,7 +2694,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
                     "      DO df=1,undf_any_space_1_f1\n"
                     "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                     "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !$omp end parallel\n")
             assert code in result
@@ -2728,7 +2728,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
                 "schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -2745,7 +2745,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
@@ -2758,7 +2758,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
                 "schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Zero summation variables\n"
@@ -2769,7 +2769,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end parallel do\n") in result
 
 
@@ -2815,7 +2815,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
                     "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                     "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                     "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end parallel do\n"
                     "      !\n"
                     "      ! Set halos dirty/clean for fields modified in the "
@@ -2836,7 +2836,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
                     "      DO df=1,undf_any_space_1_f1\n"
                     "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                     "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end parallel do\n")
             assert code in result
 
@@ -2883,7 +2883,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                     "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                     "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !\n"
                     "      ! Set halos dirty/clean for fields modified in the "
@@ -2905,7 +2905,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "      DO df=1,undf_any_space_1_f1\n"
                     "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                     "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !$omp end parallel\n")
             assert code in result
@@ -2998,7 +2998,7 @@ def test_reprod_reduction_real_do():
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -3006,7 +3006,7 @@ def test_reprod_reduction_real_do():
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()") in code
@@ -3022,7 +3022,7 @@ def test_reprod_reduction_real_do():
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -3030,7 +3030,7 @@ def test_reprod_reduction_real_do():
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in code
 
 
@@ -3112,12 +3112,12 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -3133,7 +3133,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
@@ -3152,12 +3152,12 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
@@ -3165,7 +3165,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
 
@@ -3238,7 +3238,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                     "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                     "f1_proxy%data(df)*f2_proxy%data(df)\n"
                     "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !\n"
                     "      ! Set halos dirty/clean for fields modified in the "
@@ -3254,7 +3254,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                     "      !\n"
                     "      DO th_idx=1,nthreads\n"
                     "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      DEALLOCATE (l_asum)\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n") in result
@@ -3273,7 +3273,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                     "f1_proxy%data(df)"
                     "*f2_proxy%data(df)\n"
                     "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !$omp end parallel\n"
                     "      !\n"
@@ -3281,7 +3281,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                     "      !\n"
                     "      DO th_idx=1,nthreads\n"
                     "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      DEALLOCATE (l_asum)\n") in result
 
 
@@ -3333,7 +3333,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                     "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                     "f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !\n"
                     "      ! Set halos dirty/clean for fields modified in the "
@@ -3349,7 +3349,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "      !\n"
                     "      DO th_idx=1,nthreads\n"
                     "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      DEALLOCATE (l_asum)\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n") in result
@@ -3367,7 +3367,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                     "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                     "f1_proxy%data(df)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !$omp end parallel\n"
                     "      !\n"
@@ -3375,7 +3375,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "      !\n"
                     "      DO th_idx=1,nthreads\n"
                     "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      DEALLOCATE (l_asum)\n") in result
 
 
@@ -3422,7 +3422,7 @@ def test_repr_3_builtins_2_reductions_do():
                     "      DO df=1," + names["bounds"] + "\n"
                     "        " + names["lvar"] + "(1,th_idx) = " +
                     names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !$omp end parallel\n"
                     "      !\n"
@@ -3431,7 +3431,7 @@ def test_repr_3_builtins_2_reductions_do():
                     "      DO th_idx=1,nthreads\n"
                     "        " + names["var"] + " = " + names["var"] + "+" +
                     names["lvar"] + "(1,th_idx)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      DEALLOCATE (" + names["lvar"] + ")\n"
                     "      global_sum%value = " + names["var"] + "\n"
                     "      " + names["var"] + " = "
@@ -3456,7 +3456,7 @@ def test_repr_3_builtins_2_reductions_do():
                     "      DO df=1," + names["bounds"] + "\n"
                     "        " + names["lvar"] + "(1,th_idx) = " +
                     names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      !$omp end do\n"
                     "      !$omp end parallel\n"
                     "      !\n"
@@ -3465,7 +3465,7 @@ def test_repr_3_builtins_2_reductions_do():
                     "      DO th_idx=1,nthreads\n"
                     "        " + names["var"] + " = " + names["var"] + "+" +
                     names["lvar"] + "(1,th_idx)\n"
-                    "      END DO \n"
+                    "      END DO\n"
                     "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 
 
@@ -5307,15 +5307,15 @@ def test_rc_colour(tmpdir):
     assert (
         "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=2)\n"
-        "      END IF \n" in result)
+        "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
         "      DO colour=1,ncolour\n"
@@ -5355,15 +5355,15 @@ def test_rc_max_colour(tmpdir):
     assert (
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n" in result)
+        "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
         "      DO colour=1,ncolour\n"
@@ -5426,15 +5426,15 @@ def test_rc_then_colour(tmpdir):
     assert (
         "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=3)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=3)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=3)\n"
-        "      END IF \n" in result)
+        "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
         "      DO colour=1,ncolour\n"
@@ -5481,15 +5481,15 @@ def test_rc_then_colour2(tmpdir):
     assert (
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n" in result)
+        "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
         "      DO colour=1,ncolour\n"
@@ -5535,15 +5535,15 @@ def test_loop_fuse_then_rc(tmpdir):
     assert (
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
-        "      END IF \n" in result)
+        "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
         "      DO colour=1,ncolour\n"
@@ -6144,10 +6144,10 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             "(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
-            "        END DO \n"
+            "        END DO\n"
             "        !$omp end do\n"
             "        !$omp end parallel\n"
-            "      END DO \n".format(upper_bound) in gen)
+            "      END DO\n".format(upper_bound) in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6240,7 +6240,7 @@ def test_acckernelstrans():
         "      !$acc kernels\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n" in code)
     assert (
-        "      END DO \n"
+        "      END DO\n"
         "      !$acc end kernels\n" in code)
 
 # Class ACCKernelsTrans end
@@ -6273,7 +6273,7 @@ def test_accparalleltrans():
         "      !$acc parallel default(present)\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
     assert (
-        "      END DO \n"
+        "      END DO\n"
         "      !$acc end parallel\n") in code
 
 # Class ACCParallelTrans end
@@ -6307,7 +6307,7 @@ def test_acclooptrans():
         "      !$acc loop independent\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()") in code
     assert (
-        "      END DO \n"
+        "      END DO\n"
         "      !$acc end parallel\n") in code
 
 # Class ACCLoopTrans end
@@ -6373,11 +6373,11 @@ def test_async_hex(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange_start(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange_finish(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6407,19 +6407,19 @@ def test_async_hex_move_1(tmpdir):
     assert (
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange_start(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange_finish(depth=1)\n"
-        "      END IF \n") in result
+        "      END IF\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6513,7 +6513,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "        CALL testkern_any_space_3_code(cell, nlayers, "
         "op_proxy%ncell_3d, op_proxy%local_stencil, ndf_any_space_1_op, "
         "ndf_any_space_2_op)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      CALL f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6658,11 +6658,11 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     assert (
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
-        "      END IF \n") in result
+        "      END IF\n") in result
     assert (
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -6680,11 +6680,11 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     assert (
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
-        "      END IF \n") in result
+        "      END IF\n") in result
     assert (
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
-        "      END IF \n") in result
+        "      END IF\n") in result
     assert (
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -6702,11 +6702,11 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     assert (
         "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m2_proxy%halo_exchange_start(depth=3)\n"
-        "      END IF \n") in result
+        "      END IF\n") in result
     assert (
         "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m2_proxy%halo_exchange_finish(depth=3)\n"
-        "      END IF \n") in result
+        "      END IF\n") in result
     assert (
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -6785,11 +6785,11 @@ def test_vector_async_halo_exchange(tmpdir):
         assert (
             "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy({0})%halo_exchange_start(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy({0})%halo_exchange_finish(depth=1)\n"
-            "      END IF \n".format(index)) in result
+            "      END IF\n".format(index)) in result
     assert (
         "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
         "      !\n"

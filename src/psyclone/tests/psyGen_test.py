@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1792,7 +1792,7 @@ def test_acckernelsdirective_gencode(default_present):
         "      !$acc kernels{0}\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
     assert (
-        "      END DO \n"
+        "      END DO\n"
         "      !$acc end kernels\n" in code)
 
 

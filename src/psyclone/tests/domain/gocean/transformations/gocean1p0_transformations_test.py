@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -211,8 +211,8 @@ def test_omp_parallel_loop(tmpdir):
                 "        do i=2,istop+1\n"
                 "          call compute_cu_code(i, j, cu_fld%data, "
                 "p_fld%data, u_fld%data)\n"
-                "        end do \n"
-                "      end do \n"
+                "        end do\n"
+                "      end do\n"
                 "      !$omp end parallel do")
     assert expected in gen
 
@@ -227,8 +227,8 @@ def test_omp_parallel_loop(tmpdir):
         "        do i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
         "          call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        end do \n"
-        "      end do \n"
+        "        end do\n"
+        "      end do\n"
         "      !$omp end parallel do")
     assert expected in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1781,7 +1781,7 @@ def test_accloop(tmpdir):
       !$acc parallel default(present)
       !$acc loop independent
       DO j=2,jstop''' in gen
-    assert ("END DO \n"
+    assert ("END DO\n"
             "      !$acc loop independent\n"
             "      DO j=2,jstop+1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
