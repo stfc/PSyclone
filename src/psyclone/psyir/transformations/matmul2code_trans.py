@@ -42,7 +42,7 @@ transformation is limited to matrix vector multiply.
 
 '''
 from psyclone.undoredo import Memento
-from psyclone.psyGen import BinaryOperation, NaryOperation, Assignment, \
+from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock, Loop, Literal, Array
 from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyGen import Transformation
