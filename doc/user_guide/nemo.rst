@@ -219,7 +219,7 @@ we list the current, known limitations/issues:
  7. When generating new variable names, no attempt is made to avoid
     clashing with variables already present in the NEMO source. This
     needs to be resolved by querying the SymbolTable (#381);
- 8. The psyGen.Node base class now has an _ast property to hold a
+ 8. The psyir.nodes.Node base class now has an _ast property to hold a
     pointer into the associated fparser2 AST. However, the psyGen.Kern
     class already has an _fp2_ast property that points to the whole
     fparser2 AST of the kernel code. This will be rationalised in

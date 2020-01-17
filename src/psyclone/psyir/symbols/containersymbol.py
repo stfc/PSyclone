@@ -71,7 +71,7 @@ class ContainerSymbol(Symbol):
         the interface to import the container
 
         :returns: referenced container.
-        :rtype: :py:class:`psyclone.psyGen.Container`
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
         '''
         if not self._reference:
             self._reference = self._interface.import_container(self._name)
@@ -117,7 +117,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
         :param str name: name of the module to be imported.
 
         :returns: container associated with the given name.
-        :rtype: :py:class:`psyclone.psyGen.Container`
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises SymbolError: the given Fortran module is not found on the \
             import path.
