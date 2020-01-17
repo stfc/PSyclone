@@ -41,14 +41,16 @@ psyclone -api "gocean1.0" -s ./acc_transform.py alg.f90
 ```
 
 causes PSyclone to raise a `TransformationError`. This is because the
-`data_mod::gravity` variable read by `kern_use_var` is not available on
-the remote device. This problem is the subject of [Issue #323](https://github.com/stfc/PSyclone/issues/323) which
-proposes to extend PSyclone to convert any module data accessed by a
-kernel into a kernel argument. In addition, although the kernels
-named in the Invoke would be transformed, the other kernels that they
-then call have not and this means that they won't be compiled for
-execution on the OpenACC device. Support for recursive kernel
-transformation is the subject of [Issue #342](https://github.com/stfc/PSyclone/issues/342).
+ACCRoutineTrans still works with the fparser2 parse tree and not the
+PSyIR for the kernel (Issue #490). It therefore cannot be used in
+combination with the KernelGlobalsToArguments transformation (which is
+required because `kern_use_var` accesses `data_mod::gravity`.
+
+In addition, although the kernels named in the Invoke would be
+transformed, the other kernels that they then call have not and this
+means that they won't be compiled for execution on the OpenACC
+device. Support for recursive kernel transformation is the subject of
+[Issue #342](https://github.com/stfc/PSyclone/issues/342).
 
 ## Licence
 

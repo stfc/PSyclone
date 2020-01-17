@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,14 @@ Example 4: Kernels containing use statements
 Transforming kernels for use with either OpenACC or OpenCL requires
 that we handle those that access data and/or routines via module
 ``use`` statements. This example shows the various forms for which
-support is planned (Issues #323 and #342).
+support is being implemented. Although there is support for converting
+global-data accesses into kernel arguments, PSyclone does not yet support
+nested ``use`` of modules (i.e. data accessed via a module that in turn
+imports that symbol from another module) and kernels that call other
+kernels (Issue #342). In addition, the transformation that adds
+``!$ACC ROUTINE`` to kernel code still works with the fparser2 parse tree
+and therefore does not inter-operate with the other kernel transformations
+that work on the PSyIR (Issue #490).
 
 Dynamo
 ------

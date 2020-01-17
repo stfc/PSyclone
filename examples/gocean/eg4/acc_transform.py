@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,13 @@ def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations
     to the schedule of invoke_0 and return the new psy object '''
     from psyclone.transformations import ACCParallelTrans, \
-        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans
+        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
+        KernelGlobalsToArguments
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
+    g2localtrans = KernelGlobalsToArguments()
 
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
@@ -66,8 +68,14 @@ def trans(psy):
     # Add an enter-data directive
     newschedule, _ = dtrans.apply(schedule)
 
-    # Put an 'acc routine' directive inside each kernel
+    # Convert any accesses to global data into kernel arguments and then
+    # put an 'acc routine' directive inside each kernel
     for kern in schedule.coded_kernels():
+        if kern.name == "kern_use_var_code":
+            # TODO #490. This currently won't work because the
+            # KernelGlobalsToArguments transformation works on the PSyIR but
+            # the subsequent ACCRoutineTrans works on the fparser2 parse tree.
+            g2localtrans.apply(kern)
         _, _ = ktrans.apply(kern)
         # Ideally we would module-inline the kernel here (to save having to
         # rely on the compiler to do it) but this does not currently work

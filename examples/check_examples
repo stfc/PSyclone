@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -173,9 +173,12 @@ cd -
 echo "Running gocean/eg4"
 cd gocean/eg4
 ${PSYCLONE} -api "gocean1.0" alg.f90
-# The following fails because PSyclone spots that one of the kernels
-# accesses data from a module and therefore cannot be transformed. TODO #323.
-echo "TODO #323"
+# The following fails because PSyclone spots that one of the kernels has
+# already been transformed (to convert globals to arguments) and therefore
+# cannot be subsequently transformed using ACCRoutineTrans. TODO #490.
+# #342 also needs to be done in order to support nested 'use's and
+# kernels that call other kernels.
+echo "TODO #490 and #342"
 #${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
 cd -
 
