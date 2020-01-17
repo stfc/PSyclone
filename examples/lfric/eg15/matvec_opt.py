@@ -48,9 +48,9 @@ transformation (see eg13) and this does little to matvec as it stands.
 Below is a list of things that will be implemented to improve
 performance but are not yet supported as transformations in PSyclone.
 
-1) replace matmult with equivalent code
+1) replace matmul with equivalent code
    a) get PSyIR to recognise array slice notation
-   b) replace matmult with equivalent inline code
+   b) replace matmul with equivalent inline code
 2) loop fuse gather and matmul loop
 3) move indexing lookup before scatter loop
 4) loop fuse scatter loop and matmul loop
@@ -70,7 +70,8 @@ $ psyclone -s ./matvec_opt.py \
 '''
 from __future__ import print_function
 from psyclone.psyir.backend.fortran import FortranWriter
-
+from psyclone.psyGen import BinaryOperation
+from psyclone.psyir.transformations.matmul2code_trans import Matmul2CodeTrans
 
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
@@ -80,17 +81,21 @@ def trans(psy):
     Fortran back-end.
 
     '''
+    matmul2code_trans = Matmul2CodeTrans()
     fortran_writer = FortranWriter()
+
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
         for kernel in schedule.coded_kernels():
             if kernel.name.lower() == "matrix_vector_kernel_code":
                 kernel_schedule = kernel.get_kernel_schedule()
                 # optimisations will go here.
-                kernel_schedule.view()
-                result = fortran_writer(kernel_schedule)
-                print (result)
+                for bin_op in kernel_schedule.walk(BinaryOperation):
+                    if bin_op.operator is BinaryOperation.Operator.MATMUL:
+                        matmul2code_trans.apply(bin_op)
                 # Abort after the first matrix vector kernel for the
                 # time being.
                 exit(1)
+        fortran_writer(kernel)
+        exit(1)
     return psy
