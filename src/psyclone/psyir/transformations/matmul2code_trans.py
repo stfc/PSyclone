@@ -146,6 +146,8 @@ class Matmul2CodeTrans(Transformation):
                             [assign, jloop])
         iloop.parent = node.parent.parent
         node.parent.parent.children.insert(node.parent.position, iloop)
+        # remove original matmul
+        node.parent.parent.children.remove(node.parent)
         from psyclone.psyir.backend.fortran import FortranWriter
         fortran_writer = FortranWriter()
         code = fortran_writer(schedule)
