@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
-from psyclone.psyGen import Node, CodeBlock, Container
+from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
 from psyclone.tests.utilities import create_schedule
@@ -1037,3 +1037,25 @@ def test_fw_size(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "mysize=size(a, 2)" in result.lower()
+
+
+def test_fw_literal_node(fort_writer):
+    ''' Test the PSyIR literals are converted to the proper Fortran format
+    when necessary. '''
+
+    # By default literals are not modified
+    lit1 = Literal('a', DataType.CHARACTER)
+    result = fort_writer(lit1)
+    assert result == 'a'
+
+    lit1 = Literal('3.14', DataType.REAL)
+    result = fort_writer(lit1)
+    assert result == '3.14'
+
+    # Check that BOOLEANS use the FORTRAN formatting
+    lit1 = Literal('true', DataType.BOOLEAN)
+    result = fort_writer(lit1)
+    assert result == '.true.'
+    lit1 = Literal('false', DataType.BOOLEAN)
+    result = fort_writer(lit1)
+    assert result == '.false.'

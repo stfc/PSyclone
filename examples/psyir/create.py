@@ -45,9 +45,10 @@ C representation of the PSyIR.
 
 '''
 from __future__ import print_function
-from psyclone.psyGen import Reference, Literal, UnaryOperation, \
+from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    KernelSchedule, Container
+    Container
+from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
     ArgumentInterface, DataType
 from psyclone.psyir.backend.fortran import FortranWriter

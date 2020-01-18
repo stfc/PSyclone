@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -110,7 +110,8 @@ class Profiler():
         :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or \
                         derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
-        :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
+        :type loop_class: :py::class::`psyclone.psyir.nodes.Loop` or \
+                          derived class.
         '''
 
         from psyclone.psyir.transformations import ProfileTrans

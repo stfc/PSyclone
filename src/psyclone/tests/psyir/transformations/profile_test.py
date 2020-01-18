@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,9 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyGen import InternalError, Loop, NameSpace
 from psyclone.psyir.nodes import ProfileNode
-from psyclone.psyir.transformations import ProfileTrans, TransformationError
+from psyclone.psyir.nodes import Loop
+from psyclone.psyGen import InternalError, NameSpace
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
@@ -68,7 +68,7 @@ def teardown_function():
 def test_malformed_profile_node(monkeypatch):
     ''' Check that we raise the expected error if a ProfileNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
     pnode = ProfileNode()
     monkeypatch.setattr(pnode, "_children", [])
     with pytest.raises(InternalError) as err:
@@ -97,7 +97,7 @@ def test_profile_node_invalid_name(value):
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
@@ -629,7 +629,7 @@ End Schedule""")
     sched3.view()
     out, _ = capsys.readouterr()
 
-    from psyclone.psyGen import SCHEDULE_COLOUR_MAP, colored
+    from psyclone.psyir.nodes.node import SCHEDULE_COLOUR_MAP, colored
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -801,8 +801,8 @@ def test_omp_transform():
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !$omp end do\n"
         "      !$omp end parallel\n"
         "      CALL psy_data%PostEnd")
@@ -825,8 +825,8 @@ def test_omp_transform():
       DO j=2,jstop
         DO i=2,istop
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
-        END DO 
-      END DO 
+        END DO
+      END DO
       !$omp end do
       CALL psy_data_1%PostEnd
       !$omp end parallel

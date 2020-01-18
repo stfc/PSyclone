@@ -44,7 +44,7 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -217,8 +217,8 @@ def _reverse_map(op_map):
     :type op_map: :py:class:`collections.OrderedDict`
 
     :returns: a mapping from PSyIR operation to the equivalent Fortran string.
-    :rtype: dict with :py:class:`psyclone.psyGen.Operation.Operator` keys and
-            str values.
+    :rtype: dict with :py:class:`psyclone.psyir.nodes.Operation.Operator` \
+            keys and str values.
 
     '''
     mapping = {}
@@ -315,7 +315,7 @@ class FortranWriter(PSyIRVisitor):
             result += ", parameter"
         result += " :: {0}".format(symbol.name)
         if symbol.is_constant:
-            result += " = {0}".format(symbol.constant_value)
+            result += " = {0}".format(self._visit(symbol.constant_value))
         result += "\n"
         return result
 
@@ -385,7 +385,7 @@ class FortranWriter(PSyIRVisitor):
         A container node is mapped to a module in the Fortran back end.
 
         :param node: a Container PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -497,7 +497,7 @@ class FortranWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a BinaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -524,7 +524,7 @@ class FortranWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: an NaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.NaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -550,7 +550,7 @@ class FortranWriter(PSyIRVisitor):
         tree.
 
         :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.Array`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -568,13 +568,17 @@ class FortranWriter(PSyIRVisitor):
         tree.
 
         :param node: a Literal PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Literal`
+        :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: the Fortran code as a string.
         :rtype: str
 
         '''
-        result = node.value
+        # Booleans need to be converted to Fortran format
+        if node.datatype == DataType.BOOLEAN:
+            result = '.' + node.value + '.'
+        else:
+            result = node.value
         return result
 
     # pylint: enable=no-self-use
@@ -583,7 +587,7 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: an IfBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.IfBlock`
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -623,7 +627,7 @@ class FortranWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: a Loop PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: the loop node converted into a (language specific) string.
         :rtype: str
@@ -650,7 +654,7 @@ class FortranWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a UnaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -679,7 +683,7 @@ class FortranWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a Return PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Return`
+        :type node: :py:class:`psyclone.psyir.nodes.Return`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -700,13 +704,13 @@ class FortranWriter(PSyIRVisitor):
         #388.
 
         :param node: a CodeBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.CodeBlock`
+        :type node: :py:class:`psyclone.psyir.nodes.CodeBlock`
 
         :returns: the Fortran code as a string.
         :rtype: str
 
         '''
-        from psyclone.psyGen import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock
         result = ""
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required

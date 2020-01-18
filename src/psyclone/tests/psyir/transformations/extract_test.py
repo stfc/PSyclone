@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,8 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.psyir.nodes import ExtractNode, PSyDataNode
-from psyclone.psyGen import Loop, NameSpace
+from psyclone.psyir.nodes import ExtractNode, Loop, PSyDataNode
+from psyclone.psyGen import NameSpace
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
@@ -80,7 +80,8 @@ def test_extract_trans():
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyGen import Node, InternalError
+    from psyclone.psyir.nodes import Node
+    from psyclone.psyGen import InternalError
     enode = ExtractNode()
     monkeypatch.setattr(enode, "_children", [])
     with pytest.raises(InternalError) as err:
@@ -292,7 +293,7 @@ def test_extract_node_position():
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
     class: view, dag_name and __str__ produce the correct results. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
@@ -358,7 +359,7 @@ def test_single_node_dynamo0p3():
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, " + \
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
         """undf_w3, map_w3(:,cell))
-      END DO 
+      END DO
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("cell_post", cell)
       CALL psy_data%ProvideVariable("f1_post", f1)
@@ -393,15 +394,15 @@ def test_node_list_dynamo0p3():
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f5
         f5_proxy%data(df) = 0.0
-      END DO 
+      END DO
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
-      END DO 
+      END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
         CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
-      END DO 
+      END DO
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("cell_post", cell)
       CALL psy_data%ProvideVariable("df_post", df)
@@ -422,6 +423,7 @@ def test_dynamo0p3_builtin():
 
     schedule, _ = etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
+
     # Node that this code was manually created (see #646), and might need
     # adjustment to how the missing variables are actually stored.
     output = """! ExtractStart
@@ -445,15 +447,15 @@ def test_dynamo0p3_builtin():
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f5
         f5_proxy%data(df) = 0.0
-      END DO 
+      END DO
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
-      END DO 
+      END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
         CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
-      END DO 
+      END DO
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("cell_post", cell)
       CALL psy_data%ProvideVariable("df_post", df)
@@ -489,7 +491,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
-      END DO 
+      END DO
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("df_post", df)
       CALL psy_data%PostEnd
@@ -517,7 +519,7 @@ def test_extract_single_builtin_dynamo0p3():
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=1,undf_any_space_1_f1
         f1_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)
-      END DO 
+      END DO
       !$omp end parallel do
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("df_post", df)
@@ -552,12 +554,12 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
       CALL psy_data%PreEnd
       DO df=1,undf_any_space_1_f2
         f2_proxy%data(df) = 0.0
-      END DO 
+      END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
         CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
-      END DO 
+      END DO
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("cell_post", cell)
       CALL psy_data%ProvideVariable("df_post", df)
@@ -565,7 +567,7 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
-    print("code\n", code)
+
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -644,9 +646,9 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
               "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
               "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
               """np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
-        END DO 
+        END DO
         !$omp end parallel do
-      END DO 
+      END DO
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("b_post", b)
       CALL psy_data%ProvideVariable("cell_post", cell)

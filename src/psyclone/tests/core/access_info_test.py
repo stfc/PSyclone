@@ -40,7 +40,8 @@ import pytest
 from psyclone.core.access_info import AccessInfo, VariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import Node, InternalError
+from psyclone.psyGen import InternalError
+from psyclone.psyir.nodes import Node
 
 
 def test_access_info():

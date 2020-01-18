@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,7 @@ def setup():
 def test_check_intergrid():
     ''' Test that the check_intergrid utility does not raise an error if the
     supplied node has no children. '''
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
     from psyclone.transformations import check_intergrid
     tnode = Node()
     check_intergrid(tnode)
@@ -300,7 +300,7 @@ def test_field_prolong(tmpdir):
             expected = (
                 "      IF (field2_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL field2_proxy%halo_exchange(depth=1)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      DO cell=1,mesh_field2%get_last_halo_cell(1)\n")
             assert expected in gen_code
@@ -312,7 +312,7 @@ def test_field_prolong(tmpdir):
             "cell_map_field2(:,cell), ncpc_field1_field2, ncell_field1, "
             "field1_proxy%data, field2_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
-            "      END DO \n")
+            "      END DO\n")
         assert expected in gen_code
 
         if distmem:
@@ -406,11 +406,11 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
                     "      !\n"
                     "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
                     "        CALL field1_proxy%halo_exchange(depth=1)\n"
-                    "      END IF \n"
+                    "      END IF\n"
                     "      !\n"
                     "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
                     "        CALL field2_proxy%halo_exchange(depth=2)\n"
-                    "      END IF \n"
+                    "      END IF\n"
                     "      !\n"
                     "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
             else:
@@ -419,7 +419,7 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
                     "      !\n"
                     "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
                     "        CALL field2_proxy%halo_exchange(depth=2)\n"
-                    "      END IF \n"
+                    "      END IF\n"
                     "      !\n"
                     "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
             assert halo_exchs in output
@@ -434,7 +434,7 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
             "undf_any_space_1_field1, map_any_space_1_field1(:,cell), "
             "ndf_any_space_2_field2, undf_any_space_2_field2, "
             "map_any_space_2_field2)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n")
         assert kern_call in output
 
@@ -498,11 +498,11 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         expected = (
             "      IF (fld_m_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_m_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n")
         assert expected in output
@@ -518,7 +518,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      !\n"
             "      IF (fld_f_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_f_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
         assert expected in output
@@ -556,14 +556,14 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "(:,cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_m_proxy%data, "
             "fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
             "        !\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_f_proxy%data, "
             "fld_m_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
@@ -571,7 +571,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "fld_f_proxy%data, undf_any_space_1_fld_m, "
             "map_any_space_1_fld_m(:,cell), ndf_any_space_2_fld_f, "
             "undf_any_space_2_fld_f, map_any_space_2_fld_f)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_c"
@@ -641,7 +641,7 @@ def test_prolong_vector(tmpdir):
         assert (
             "      IF (field2_proxy({0})%is_dirty(depth=1)) THEN\n"
             "        CALL field2_proxy({0})%halo_exchange(depth=1)\n"
-            "      END IF \n".format(idx) in output)
+            "      END IF\n".format(idx) in output)
         assert ("field1_proxy({0}) = field1({0})%get_proxy()".format(idx) in
                 output)
         assert "CALL field1_proxy({0})%set_dirty()".format(idx) in output
@@ -713,7 +713,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "ndf_any_discontinuous_space_2_fld_f, "
         "undf_any_discontinuous_space_2_fld_f, "
         "map_any_discontinuous_space_2_fld_f)\n"
-        "      END DO \n")
+        "      END DO\n")
     assert expected in output
     assert "DO cell=1,mesh_fld_c%get_last_edge_cell()" in output
     assert "DO cell=1,mesh_fld_c%get_last_halo_cell(1)" in output

@@ -206,8 +206,8 @@ def test_single_node_ompparalleldo_gocean1p0():
       DO j=2,jstop+1
         DO i=2,istop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO 
-      END DO 
+        END DO
+      END DO
       !$omp end parallel do
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("cv_fld_post", cv_fld)
@@ -267,15 +267,15 @@ def test_node_list_ompparallel_gocean1p0():
       DO j=2,jstop
         DO i=2,istop+1
           CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO 
+        END DO
+      END DO
       !$omp end do
       !$omp do schedule(static)
       DO j=2,jstop+1
         DO i=2,istop
           CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO 
-      END DO 
+        END DO
+      END DO
       !$omp end do
       !$omp end parallel
       CALL psy_data%PostStart
@@ -377,7 +377,7 @@ def test_driver_creation(tmpdir):
 
 @pytest.mark.xfail(reason="Loop var should not be stored - #641 and #644")
 def test_driver_scalar(tmpdir):
-    '''Test that loop variables are not stored. ATM this test 
+    '''Test that loop variables are not stored. ATM this test
     also triggers #644 (scalars are considred to be arrays)
 
     '''

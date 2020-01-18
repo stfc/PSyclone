@@ -39,8 +39,8 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import Kern, Schedule
-from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import ExtractNode, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -64,10 +64,11 @@ class ExtractTrans(RegionTrans):
     :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode`
 
     '''
+    from psyclone.psyir import nodes
     from psyclone import psyGen
     # The types of node that this transformation can enclose
-    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, psyGen.Literal, psyGen.Reference)
+    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.Directive, nodes.Literal, nodes.Reference)
 
     def __init__(self, node_class=ExtractNode):
         super(ExtractTrans, self).__init__()
@@ -86,7 +87,7 @@ class ExtractTrans(RegionTrans):
         ''' Perform validation checks before applying the transformation
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -120,7 +121,8 @@ class ExtractTrans(RegionTrans):
 
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyGen import Loop, BuiltIn, Directive, \
+        from psyclone.psyir.nodes import Loop
+        from psyclone.psyGen import BuiltIn, Directive, \
             OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
@@ -162,7 +164,7 @@ class ExtractTrans(RegionTrans):
         within a single Extract region.
 
         :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`
+        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations. \
             This dictionary is passed on to the validate function and also \
             to the constructor of the node that is being inserted. This way \
@@ -175,14 +177,14 @@ class ExtractTrans(RegionTrans):
 
         :returns: tuple of the modified Schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`).
         '''
 
         # Check whether we've been passed a list of Nodes or just a
         # single Node. If the latter then we create ourselves a list
         # containing just that Node.
-        from psyclone.psyGen import Node
+        from psyclone.psyir.nodes import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):

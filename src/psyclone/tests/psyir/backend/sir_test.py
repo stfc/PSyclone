@@ -120,10 +120,10 @@ def get_assignment(parser, code):
     :param str code: the code as a string.
 
     :returns: an assignment node from the supplied code.
-    :rtype: :py:class:`psyclone.psyGen.Assignment`
+    :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    from psyclone.psyGen import Assignment
+    from psyclone.psyir.nodes import Assignment
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()
     assignment = kernel_schedule.children[0]
@@ -140,7 +140,7 @@ def get_lhs(parser, code):
     :param str code: the code as a string.
 
     :returns: an array node from the supplied code.
-    :rtype: subclass of :py:class:`psyclone.psyGen.Node`
+    :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     assignment = get_assignment(parser, code)
@@ -157,7 +157,7 @@ def get_rhs(parser, code):
 
     :returns: the right hand side of an assignment from the supplied \
     code.
-    :rtype: subclass of :py:class:`psyclone.psyGen.Node`
+    :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     assignment = get_assignment(parser, code)
@@ -253,7 +253,7 @@ def test_sirwriter_node_1(parser):
     True. Also check for SIR indentation.
 
     '''
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
     schedule = get_schedule(parser, CODE)
 
     # pylint: disable=abstract-method
@@ -904,7 +904,7 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
     creates the expected code by calling its children.
 
     '''
-    from psyclone.psyGen import Schedule
+    from psyclone.psyir.nodes import Schedule
     code = CODE.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
     kernel = get_kernel(parser, code)

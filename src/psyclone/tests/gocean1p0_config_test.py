@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -265,23 +265,23 @@ def test_valid_config_files():
     new_loop1 = '''      DO j=1,2
         DO i=3,4
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO '''   # nopep8
+        END DO
+      END DO'''   # nopep8
     assert new_loop1 in gen
 
     new_loop2 = '''      DO j=2,jstop
         DO i=1,istop+1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO '''   # nopep8
+        END DO
+      END DO'''   # nopep8
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
     new_loop3 = '''      DO j=2-2,1
         DO i=istop,istop+1
           CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO '''   # nopep8
+        END DO
+      END DO'''   # nopep8
     assert new_loop3 in gen
 
     # Note that this file can not be compiled, since the new iteration space
