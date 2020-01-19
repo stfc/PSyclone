@@ -41,6 +41,7 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
+from psyclone.psyir.symbols import Symbol
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
 from psyclone.psyir.symbols import DataType
@@ -260,12 +261,12 @@ class DynLoop(Loop):
             class to generate the code '''
         self.start_expr = Literal("1", DataType.INTEGER, parent=self)
         if self._loop_type == "colours":
-            self.stop_expr = Reference("ncolour", parent=self)
+            self.stop_expr = Reference(Symbol("ncolour"), parent=self)
         elif self._loop_type == "colour":
             self.stop_expr = Array("ncp_ncolour", parent=self)
-            self.stop_expr.addchild(Reference("colour"), parent=self.stop_expr)
+            self.stop_expr.addchild(Reference(Symbol("colour")), parent=self.stop_expr)
         else:
-            self.stop_expr = Reference(self.field_name+"%get_ncell()",
+            self.stop_expr = Reference(Symbol(self.field_name+"%get_ncell()"),
                                        parent=self)
         Loop.gen_code(self, parent)
 

@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, Reference
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -102,8 +102,8 @@ def test_binaryoperation_create():
     creates a BinaryOperation instance.
 
     '''
-    lhs = Reference("tmp1")
-    rhs = Reference("tmp2")
+    lhs = Reference(DataSymbol("tmp1", DataType.REAL))
+    rhs = Reference(DataSymbol("tmp2", DataType.REAL))
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, lhs, rhs)
     check_links(binaryoperation, [lhs, rhs])
@@ -116,8 +116,8 @@ def test_binaryoperation_create_invalid():
     expected exception if the provided input is invalid.
 
     '''
-    ref1 = Reference("tmp1")
-    ref2 = Reference("tmp2")
+    ref1 = Reference(DataSymbol("tmp1", DataType.REAL))
+    ref2 = Reference(DataSymbol("tmp2", DataType.REAL))
     add = BinaryOperation.Operator.ADD
 
     # oper not a BinaryOperation.Operator.
@@ -165,9 +165,9 @@ def test_unaryoperation_operator():
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    ref1 = Reference("a", parent=unary_operation)
-    unary_operation.addchild(ref1)
+    ref1 = Reference(DataSymbol("a", DataType.REAL))
+    unary_operation = UnaryOperation.create(UnaryOperation.Operator.MINUS,
+                                            ref1)
     coloredtext = colored("UnaryOperation",
                           SCHEDULE_COLOUR_MAP["Operation"])
     assert coloredtext+"[operator:'MINUS']" in unary_operation.node_str()
@@ -189,7 +189,7 @@ def test_unaryoperation_create():
     creates a UnaryOperation instance.
 
     '''
-    child = Reference("tmp")
+    child = Reference(DataSymbol("tmp", DataType.REAL))
     oper = UnaryOperation.Operator.SIN
     unaryoperation = UnaryOperation.create(oper, child)
     check_links(unaryoperation, [child])
@@ -204,7 +204,8 @@ def test_unaryoperation_create_invalid():
     '''
     # oper not a UnaryOperator.Operator.
     with pytest.raises(GenerationError) as excinfo:
-        _ = UnaryOperation.create("invalid", Reference("tmp"))
+        _ = UnaryOperation.create("invalid",
+                                  Reference(DataSymbol("tmp", DataType.REAL)))
     assert ("oper argument in create method of UnaryOperation class should "
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
@@ -254,7 +255,9 @@ def test_naryoperation_create():
     creates an NaryOperation instance.
 
     '''
-    children = [Reference("tmp1"), Reference("tmp2"), Reference("tmp3")]
+    children = [Reference(DataSymbol("tmp1", DataType.REAL)),
+                Reference(DataSymbol("tmp2", DataType.REAL)),
+                Reference(DataSymbol("tmp3", DataType.REAL))]
     oper = NaryOperation.Operator.MAX
     naryoperation = NaryOperation.create(oper, children)
     check_links(naryoperation, children)
@@ -283,7 +286,8 @@ def test_naryoperation_create_invalid():
     # contents of children list are not Node
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(NaryOperation.Operator.SUM,
-                                 [Reference("tmp1"), "invalid"])
+                                 [Reference(DataSymbol(
+                                     "tmp1", DataType.REAL)), "invalid"])
     assert (
         "child of children argument in create method of NaryOperation class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))

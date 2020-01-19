@@ -52,9 +52,10 @@ def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
+    symbol = DataSymbol("rname", DataType.INTEGER)
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    ref = Reference("rname", assignment)
+    ref = Reference(symbol, assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
     assert coloredtext+"[name:'rname']" in ref.node_str()
 
@@ -63,9 +64,10 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
+    symbol = DataSymbol("rname", DataType.INTEGER)
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    ref = Reference("rname", assignment)
+    ref = Reference(symbol, assignment)
     assert "Reference[name:'rname']" in str(ref)
 
 
@@ -74,7 +76,7 @@ def test_reference_optional_parent():
     argument is not supplied.
 
     '''
-    ref = Reference("rname")
+    ref = Reference(DataSymbol("rname", DataType.REAL))
     assert ref.parent is None
 
 
@@ -166,8 +168,12 @@ def test_array_create():
     creates an Array instance.
 
     '''
-    children = [Reference("i"), Reference("j"), Literal("1", DataType.REAL)]
-    array = Array.create("temp", children)
+    symbol_i = DataSymbol("i", DataType.INTEGER)
+    symbol_j = DataSymbol("j", DataType.INTEGER)
+    symbol_temp = DataSymbol("j", DataType.REAL)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", DataType.INTEGER)]
+    array = Array.create(symbol_tmp, children)
     check_links(array, children)
     result = FortranWriter().array_node(array)
     assert result == "temp(i,j,1)"

@@ -41,29 +41,46 @@ nodes.'''
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import Symbol, SymbolError
 
 
 class Reference(Node):
     '''
     Node representing a Reference Expression.
 
-    :param str reference_name: the name of the symbol being referenced.
+    :param symbol: the symbol being referenced.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    '''
-    def __init__(self, reference_name, parent=None):
-        super(Reference, self).__init__(parent=parent)
-        self._reference = reference_name
 
+    '''
+    def __init__(self, symbol, parent=None):
+        if not isinstance(symbol, Symbol):
+            raise TypeError("In Reference initialisation expectinG a symbol "
+                            "but found '{0}'".format(type(symbol).__name__))
+        super(Reference, self).__init__(parent=parent)
+        self._symbol = symbol
+
+
+    @property
+    def symbol(self):
+        ''' Return the referenced symbol.
+
+        :returns: the referenced symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        return self._symbol
+        
     @property
     def name(self):
         ''' Return the name of the referenced symbol.
 
         :returns: Name of the referenced symbol.
         :rtype: str
+
         '''
-        return self._reference
+        return self._symbol.name
 
     def node_str(self, colour=True):
         ''' Create a text description of this node in the schedule, optionally
@@ -74,7 +91,7 @@ class Reference(Node):
         :return: text description of this node.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[name:'" + self._reference + "']"
+        return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
     def __str__(self):
         return self.node_str(False)
@@ -99,13 +116,13 @@ class Reference(Node):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        var_accesses.add_access(self._reference, AccessType.READ, self)
+        var_accesses.add_access(self._symbol.name, AccessType.READ, self)
 
     def check_declared(self):
         '''Check whether this reference has an associated symbol table entry.
 
         raises SymbolError: if one or more ancestor symbol table(s) \
-        are found and the name of this reference is not found in any \
+        are found and the this reference is not found in any \
         of them.
 
         '''
@@ -208,17 +225,17 @@ class Array(Reference):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, reference_name, parent=None):
-        super(Array, self).__init__(reference_name, parent=parent)
+    def __init__(self, symbol, parent=None):
+        super(Array, self).__init__(symbol, parent=parent)
         self._text_name = "ArrayReference"
         self._colour_key = "Reference"
 
     @staticmethod
-    def create(name, children):
-        '''Create an Array instance given an array name and a list of Node
+    def create(symbol, children):
+        '''Create an Array instance given a symbol and a list of Node
         array indices.
 
-        :param str name: the name of the array.
+        :param strXXX name: XXXXXXXXXXXXXXXXX
         :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -230,15 +247,10 @@ class Array(Reference):
 
         '''
         from psyclone.psyGen import GenerationError
-        if not isinstance(name, str):
-            raise GenerationError(
-                "name argument in create method of Array class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
-        if not name:
-            raise GenerationError(
-                "name argument in create method of Array class "
-                "can't be an empty string.")
+        # ******* Check it is a symbol. Check numargs in symbol match children
+        from psyclone.psyir.symbols import Symbol
+        if not isinstance(symbol, Symbol):
+            raise GenerationError("XXX")
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Array class "
@@ -251,7 +263,7 @@ class Array(Reference):
                     "Array class should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
 
-        array = Array(name)
+        array = Array(symbol)
         for child in children:
             child.parent = array
         array.children = children
@@ -282,7 +294,7 @@ class Array(Reference):
             list_indices.append(child)
 
         if list_indices:
-            var_info = var_accesses[self._reference]
+            var_info = var_accesses[self.name]
             # The last entry in all_accesses is the one added above
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices

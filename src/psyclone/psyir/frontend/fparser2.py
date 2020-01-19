@@ -49,7 +49,7 @@ from psyclone.psyGen import Directive, KernelSchedule, InternalError, \
     GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType
+    DataType, Symbol
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -738,7 +738,8 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(array_name.string.lower(), parent=assignment)
+                    from psyclone.psyir.symbols import Symbol
+                    lhs = Array(Symbol(array_name.string.lower()), parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
@@ -1484,7 +1485,7 @@ class Fparser2Reader(object):
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                array.children[posn] = Reference(loop_vars[idx], parent=array)
+                array.children[posn] = Reference(Symbol(loop_vars[idx]), parent=array)
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -1611,7 +1612,7 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            size_node.addchild(Reference(arrays[0].name, parent=size_node))
+            size_node.addchild(Reference(Symbol(arrays[0].name), parent=size_node))
             size_node.addchild(Literal(str(idx), DataType.INTEGER,
                                        parent=size_node))
             # Add loop increment
@@ -1893,7 +1894,7 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        reference = Reference(node.string, parent)
+        reference = Reference(Symbol(node.string), parent)
         reference.check_declared()
         return reference
 
@@ -1935,7 +1936,7 @@ class Fparser2Reader(object):
         '''
         reference_name = node.items[0].string.lower()
 
-        array = Array(reference_name, parent)
+        array = Array(Symbol(reference_name), parent)
         array.check_declared()
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array

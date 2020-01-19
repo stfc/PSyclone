@@ -941,7 +941,7 @@ def test_handling_name():
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
-    assert new_node._reference == "x"
+    assert new_node.name == "x"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -986,7 +986,7 @@ def test_handling_part_ref():
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
+    assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
     # Parse a complex array expression
@@ -1000,7 +1000,7 @@ def test_handling_part_ref():
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
+    assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
 
 
