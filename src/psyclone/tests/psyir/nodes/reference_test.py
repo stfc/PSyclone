@@ -97,7 +97,7 @@ def test_reference_symbol(monkeypatch):
     field_old = references[0]
     assert field_old.name == "field_old"
     assert isinstance(field_old.symbol(), DataSymbol)
-    assert field_old.symbol().name == field_old.name
+    assert field_old.symbol() in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
     assert isinstance(field_old.symbol(scope_limit=kernel_schedule),
@@ -111,14 +111,15 @@ def test_reference_symbol(monkeypatch):
     alpha = references[6]
     assert alpha.name == "alpha"
     assert isinstance(alpha.symbol(), DataSymbol)
-    assert alpha.symbol().name == alpha.name
+    container = kernel_schedule.root
+    assert isinstance(container, Container)
+    assert alpha.symbol() in container.symbol_table.symbols
 
     # Symbol in Container SymbolTable with KernelSchedule scope
     assert alpha.symbol(scope_limit=kernel_schedule) is None
 
     # Symbol in Container SymbolTable with Container scope
-    assert isinstance(kernel_schedule.root, Container)
-    assert alpha.symbol(scope_limit=kernel_schedule.root).name == alpha.name
+    assert alpha.symbol(scope_limit=container).name == alpha.name
 
     # Symbol method with invalid scope type
     with pytest.raises(TypeError) as excinfo:
@@ -135,8 +136,10 @@ def test_reference_symbol(monkeypatch):
 
     # Symbol not in any container (rename alpha to something that is
     # not defined)
-    monkeypatch.setattr(alpha, "_reference", "not_defined")
-    assert not alpha.symbol()
+    # DOES NOT MAKE SENSE WITH CURRENT LOGIC AS symbol() returns the
+    # local symbol and does not do a lookup.
+    # ????? monkeypatch.setattr(alpha, "_reference", "not_defined")
+    # ????? assert not alpha.symbol()
 
 # Test Array class
 
@@ -145,10 +148,11 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER,
-                                          [DataSymbol.Extent.ATTRIBUTE]))
+    symbol = DataSymbol("aname", DataType.INTEGER,
+                        [DataSymbol.Extent.ATTRIBUTE])
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    array = Array("aname", parent=assignment)
+    array = Array(symbol, parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
     assert coloredtext+"[name:'aname']" in array.node_str()
 
@@ -157,9 +161,10 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER))
+    symbol = DataSymbol("aname", DataType.INTEGER)
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    array = Array("aname", assignment)
+    array = Array(symbol, assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
 
 
@@ -170,10 +175,10 @@ def test_array_create():
     '''
     symbol_i = DataSymbol("i", DataType.INTEGER)
     symbol_j = DataSymbol("j", DataType.INTEGER)
-    symbol_temp = DataSymbol("j", DataType.REAL)
+    symbol_temp = DataSymbol("temp", DataType.REAL)
     children = [Reference(symbol_i), Reference(symbol_j),
                 Literal("1", DataType.INTEGER)]
-    array = Array.create(symbol_tmp, children)
+    array = Array.create(symbol_temp, children)
     check_links(array, children)
     result = FortranWriter().array_node(array)
     assert result == "temp(i,j,1)"
@@ -188,7 +193,7 @@ def test_array_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create([], [])
     assert ("name argument in create method of Array class should "
-            "be a string but found 'list'."
+            "be a Symbol but found 'list'."
             in str(excinfo.value))
 
     # name is an empty string
@@ -199,14 +204,15 @@ def test_array_create_invalid():
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create("temp", "invalid")
+        _ = Array.create(DataSymbol("temp", DataType.REAL), "invalid")
     assert ("children argument in create method of Array class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create("temp",
-                         [Reference("i"), "invalid"])
+        _ = Array.create(DataSymbol("temp", DataType.REAL),
+                         [Reference(DataSymbol("i", DataType.INTEGER)),
+                          "invalid"])
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))

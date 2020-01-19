@@ -146,6 +146,7 @@ class Reference(Node):
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(self.name))
 
+    # ?????????????????? NO LONGER REQUIRED ??????????????????????
     def symbol(self, scope_limit=None):
         '''Returns the symbol from a symbol table associated with this
         reference or None is it is not found. The scope_limit variable
@@ -250,7 +251,9 @@ class Array(Reference):
         # ******* Check it is a symbol. Check numargs in symbol match children
         from psyclone.psyir.symbols import Symbol
         if not isinstance(symbol, Symbol):
-            raise GenerationError("XXX")
+            raise GenerationError(
+                "name argument in create method of Array class should be a "
+                "Symbol but found '{0}'.".format(type(symbol).__name__))
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Array class "
