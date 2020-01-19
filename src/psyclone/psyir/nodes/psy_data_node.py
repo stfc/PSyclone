@@ -375,12 +375,12 @@ class PSyDataNode(Node):
         # pylint: enable=protected-access
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
-        node_list = walk([ptree], [Fortran2003.Main_Program,
+        node_list = walk([ptree], (Fortran2003.Main_Program,
                                    Fortran2003.Subroutine_Stmt,
                                    Fortran2003.Function_Stmt,
                                    Fortran2003.Specification_Part,
                                    Fortran2003.Use_Stmt,
-                                   Fortran2003.Name])
+                                   Fortran2003.Name))
         if self._module_name:
             routine_name = self._module_name
         else:
@@ -388,7 +388,7 @@ class PSyDataNode(Node):
                 if isinstance(node, (Fortran2003.Main_Program,
                                      Fortran2003.Subroutine_Stmt,
                                      Fortran2003.Function_Stmt)):
-                    names = walk([node], [Fortran2003.Name])
+                    names = walk([node], Fortran2003.Name)
                     routine_name = str(names[0]).lower()
                     break
 
@@ -421,7 +421,7 @@ class PSyDataNode(Node):
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
                 # list of nodes.
-                names = walk([node], [Fortran2003.Name])
+                names = walk([node], Fortran2003.Name)
                 for name in names:
                     node_list.remove(name)
 
@@ -497,7 +497,7 @@ class PSyDataNode(Node):
         content_ast = self.psy_data_body.children[0].ast
         # Now store the parent of this region
         # pylint: disable=protected-access
-        fp_parent = content_ast._parent
+        fp_parent = content_ast.parent
         # pylint: enable=protected-access
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
