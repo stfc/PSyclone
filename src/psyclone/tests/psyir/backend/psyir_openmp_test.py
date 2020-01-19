@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab.
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''

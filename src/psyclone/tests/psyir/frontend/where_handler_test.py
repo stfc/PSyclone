@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
