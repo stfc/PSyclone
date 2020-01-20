@@ -205,7 +205,7 @@ def test_invalid_config_files(tmpdir):
     assert "Expression '4+' is not a valid do loop boundary" in str(err.value)
 
     # Test invalid field properties - too many fields
-    content = _CONFIG_CONTENT + "field-properties = a: {0}%%b:c:d"
+    content = _CONFIG_CONTENT + "grid-properties = a: {0}%%b:c:d"
     config_file = tmpdir.join("config1")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -218,7 +218,7 @@ def test_invalid_config_files(tmpdir):
                in str(err.value)
 
     # Test invalid field properties - not enough fields
-    content = _CONFIG_CONTENT + "field-properties = a:b"
+    content = _CONFIG_CONTENT + "grid-properties = a:b"
     config_file = tmpdir.join("config1")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -231,7 +231,7 @@ def test_invalid_config_files(tmpdir):
                in str(err.value)
 
     # Test missing required values
-    content = _CONFIG_CONTENT + "field-properties = a:b:c"
+    content = _CONFIG_CONTENT + "grid-properties = a:b:c"
     config_file = tmpdir.join("config1")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)

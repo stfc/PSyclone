@@ -790,7 +790,7 @@ class GOceanConfig(APISpecificConfig):
         # a property, and the type (as string). Example value:
         # ("{0}%%grid%%dx_t", "array")
         # These values are taken from the psyclone config file.
-        self._field_properties = {}
+        self._grid_properties = {}
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -809,27 +809,28 @@ class GOceanConfig(APISpecificConfig):
             elif key == "access_mapping":
                 # Handled in the base class APISpecificConfig
                 pass
-            elif key == "field-properties":
+            elif key == "grid-properties":
                 # Field properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array,
                 # First the name, then the Fortran code to access the property
                 # then the type ("array" or "scalar")
                 all_props = self.create_dict_from_string(section[key])
-                for field_prop in all_props:
+                for grid_property in all_props:
                     try:
-                        access, field_type = all_props[field_prop].split(":")
+                        access, field_type = all_props[grid_property]\
+                                            .split(":")
                     except ValueError:
                         # Raised when the string does not contain exactly
                         # two values separated by ":"
                         error = "Invalid property \"{0}\" found with value " \
                                 "\"{1}\" in \"{2}\". It must have exactly " \
                                 "two ':'' separated values." \
-                                .format(field_prop, all_props[field_prop],
+                                .format(property, all_props[grid_property],
                                         config.filename)
                         raise ConfigurationError(error)
                     # Make sure to remove the spaces which the config
                     # file might contain
-                    self._field_properties[field_prop] = \
+                    self._grid_properties[grid_property] = \
                         (access.strip(), field_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
@@ -843,7 +844,7 @@ class GOceanConfig(APISpecificConfig):
                                  "go_grid_whole_inner_stop",
                                  "go_grid_whole_outer_start",
                                  "go_grid_whole_outer_stop"]:
-                    if required not in self._field_properties:
+                    if required not in self._grid_properties:
                         error = "The config file {0} does not contain " \
                                 "values for \"{1}\".".format(config.filename,
                                                              required)
@@ -858,7 +859,7 @@ class GOceanConfig(APISpecificConfig):
         ''':returns: the dictionary containing the field properties.
         :type: a dictionary with values of pairs (dereference-format, type)
         '''
-        return self._field_properties
+        return self._grid_properties
 
 
 # =============================================================================

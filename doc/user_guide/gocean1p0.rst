@@ -844,7 +844,7 @@ For example, given the iteration-spaces declaration above, a kernel declared wit
 
 Grid Properties
 +++++++++++++++
-Various grid properties can be specified as parameter for a kernel.
+Various grid properties can be specified as parameters to a kernel.
 The actual names and meaning of these properties depend on the
 infrastructure library used. By default PSyclone provides settings
 for the dl_esm_inf infrastructure library. But the user or a library
@@ -852,36 +852,37 @@ developer can change or add definitions to the configuration file as
 required.
 
 The grid properties are specified as values for the key
-``field-properties``. They consist of three entries, separated by ":".
+``grid-properties``. They consist of three entries, separated by ":".
 
-- The first entry is the name of the property used in a kernel declaration.
+- The first entry is the name of the property as used in kernel metadata.
 
 - The next entry is the way of dereferencing the corresponding value in
   Fortran. The expression ``{0}`` is replaced with the field name that
   is used. Note that any ``%`` must be replaced with ``%%`` (due to the
-  way python is reading in configuration files).
+  way Python reads in configuration files).
 
-- The last entry specifies if the value is an ``array`` or a ``scalar``. 
+- The last entry specifies whether the value is an ``array`` or a ``scalar``. 
 
-Here an excerpt from the configuration files file that is distributed
+Below an excerpt from the configuration file that is distributed
 with PSyclone:
 
 .. highlight:: none
 
 ::
 
-    field-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
-                       go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
-                       go_grid_data: {0}%%data: array,
-                       go_grid_internal_inner_stop: {0}%%internal%%xstop: scalar,
-                       go_grid_internal_outer_stop: {0}%%internal%%ystop: scalar,
-                       go_grid_whole_inner_stop: {0}%%whole%%xstop: scalar,
-                       go_grid_whole_outer_stop: {0}%%whole%%ystop: scalar,
+    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
+                      go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
+                      go_grid_data: {0}%%data: array,
+                      go_grid_internal_inner_stop: {0}%%internal%%xstop: scalar,
+                      go_grid_internal_outer_stop: {0}%%internal%%ystop: scalar,
+                      go_grid_whole_inner_stop: {0}%%whole%%xstop: scalar,
+                      go_grid_whole_outer_stop: {0}%%whole%%ystop: scalar,
     ...
 
 .. highlight:: fortran
 
-Most of the properties can be set arbitrarily by the user, but PSyclone relies on a
+Most of the property names can be set arbitrarily by the user (to match whatever
+infrastructure library is being used), but PSyclone relies on a
 small number of properties that must be defined with the right name:
 
 +-------------------------------+--------------------------------------------------+
@@ -892,7 +893,7 @@ small number of properties that must be defined with the right name:
 | go_grid_xstop,                | These values specify the upper loop boundary     |
 | go_grid_ystop                 | when computing the constant loop boundaries.     |
 +-------------------------------+--------------------------------------------------+
-| | go_grid_{internal,external} | These all in all 8 values are required to        |
+| | go_grid_{internal,external} | These eight values are required to               |
 | | _{inner,outer}_{start,stop} | specify the loop boundaries depending on the     |
 |                               | field space.                                     |
 +-------------------------------+--------------------------------------------------+
