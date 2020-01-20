@@ -265,6 +265,7 @@ class Node(object):
         try:
             graph = gv.Digraph(format=file_format)
         except ValueError:
+            from psyclone.psyGen import GenerationError
             raise GenerationError(
                 "unsupported graphviz file format '{0}' provided".
                 format(file_format))
@@ -339,6 +340,7 @@ class Node(object):
             graph.edge(remote_name, local_name, color="blue")
         # now call any children so they can add their information to
         # the graph
+        from psyclone.psyir.nodes import Loop
         if isinstance(self, Loop):
             # In case of a loop only loop at the body (the other part
             # of the tree contain start, stop, step values):
