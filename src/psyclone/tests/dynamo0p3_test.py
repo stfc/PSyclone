@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -529,7 +529,7 @@ def test_field(tmpdir):
         "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
@@ -626,15 +626,15 @@ def test_field_deref(tmpdir, dist_mem):
             "      !\n"
             "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      DO cell=1,mesh%get_last_halo_cell(1)\n")
         assert output in generated_code
@@ -650,7 +650,7 @@ def test_field_deref(tmpdir, dist_mem):
         "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO \n")
+        "      END DO\n")
     assert output in generated_code
     if dist_mem:
         output = (
@@ -793,39 +793,39 @@ def test_field_fs(tmpdir):
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f4_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m3_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m4_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f5_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m5_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -838,7 +838,7 @@ def test_field_fs(tmpdir):
         "map_w2h(:,cell), ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_w2broken, "
         "undf_w2broken, map_w2broken(:,cell), ndf_w2trace, undf_w2trace, "
         "map_w2trace(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -918,15 +918,15 @@ def test_real_scalar(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1004,15 +1004,15 @@ def test_int_scalar(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1090,15 +1090,15 @@ def test_two_real_scalars(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1174,15 +1174,15 @@ def test_two_int_scalars(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1267,15 +1267,15 @@ def test_two_scalars(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -2824,7 +2824,7 @@ def test_halo_dirty_1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     expected = (
-        "     END DO \n"
+        "     END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -2839,7 +2839,7 @@ def test_halo_dirty_2():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     expected = (
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -2870,7 +2870,7 @@ def test_halo_dirty_4():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     expected = (
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -2913,7 +2913,7 @@ def test_halo_exchange():
     output1 = (
         "     IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n")
     assert output1 in generated_code
     output2 = ("      DO cell=1,mesh%get_last_halo_cell(1)\n")
@@ -2938,34 +2938,34 @@ def test_halo_exchange_inc(monkeypatch, annexed):
     output0 = (
         "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL a_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n")
     output1 = (
         "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL b_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL d_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     output2 = (
         "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output1 in result
@@ -3040,7 +3040,7 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed):
             assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
         expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
                     "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
-                    "      END IF \n"
+                    "      END IF\n"
                     "      !\n"
                     "      DO cell=1,mesh%get_last_halo_cell(1)\n")
         assert expected in result
@@ -3073,7 +3073,7 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
     expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) "
                 "THEN\n"
                 "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
@@ -3091,15 +3091,15 @@ def test_halo_exchange_depths():
     result = str(psy.gen)
     expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f2_proxy%halo_exchange(depth=extent)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      IF (f3_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f3_proxy%halo_exchange(depth=extent)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f4_proxy%halo_exchange(depth=extent)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_edge_cell()\n")
     assert expected in result
@@ -3125,20 +3125,20 @@ def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
     expected1 = (
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n")
     expected2 = (
         "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
         "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
         "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     if not annexed:
@@ -3207,7 +3207,7 @@ def test_fs_anyspace_and_readwrite_error():
 
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3592,11 +3592,11 @@ def test_single_stencil_xory1d(dist_mem):
         "      IF (f2_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f2_extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (f2_direction .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,f2_extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n"
         "      !\n")
@@ -3647,7 +3647,7 @@ def test_single_stencil_literal(dist_mem):
         output5 = (
             "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=2)\n"
-            "      END IF \n")
+            "      END IF\n")
         assert output5 in result
     output6 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
@@ -3704,11 +3704,11 @@ def test_single_stencil_xory1d_literal(dist_mem):
         "      IF (x_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (x_direction .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n"
         "      !\n")
@@ -3717,7 +3717,7 @@ def test_single_stencil_xory1d_literal(dist_mem):
         output5 = (
             "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=3)\n"
-            "      END IF \n")
+            "      END IF\n")
         assert output5 in result
     output6 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
@@ -3760,11 +3760,11 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
         "      IF (x_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (x_direction .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n"
         "      !\n")
@@ -3773,7 +3773,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
         output5 = (
             "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=3)\n"
-            "      END IF \n")
+            "      END IF\n")
         assert output5 in result
     output6 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
@@ -3832,11 +3832,11 @@ def test_multiple_stencils(dist_mem):
         "      IF (f3_direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f3_extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (f3_direction .eq. y_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,f3_extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
         "      f3_stencil_size = f3_stencil_map%get_size()\n"
         "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
@@ -3849,11 +3849,11 @@ def test_multiple_stencils(dist_mem):
         output6 = (
             "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
             "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
-            "      END IF \n")
+            "      END IF\n")
         assert output6 in result
     output7 = (
         "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
@@ -3908,11 +3908,11 @@ def test_multiple_stencil_same_name(dist_mem):
         "      IF (f3_direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (f3_direction .eq. y_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
         "      f3_stencil_size = f3_stencil_map%get_size()\n"
         "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
@@ -3970,31 +3970,31 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "      IF (direction .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (direction .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n"
         "      IF (direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (direction .eq. y_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
         "      f3_stencil_size = f3_stencil_map%get_size()\n"
         "      IF (direction .eq. x_direction) THEN\n"
         "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (direction .eq. y_direction) THEN\n"
         "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
         "      f4_stencil_size = f4_stencil_map%get_size()\n"
         "      !\n")
@@ -4313,21 +4313,21 @@ def test_stencils_same_field_literal_direct(dist_mem):
         "      IF (x_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (x_direction .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n"
         "      IF (y_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (y_direction .eq. y_direction) THEN\n"
         "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap_1 => "
         "f2_stencil_map_1%get_whole_dofmap()\n"
         "      f2_stencil_size_1 = f2_stencil_map_1%get_size()\n"
@@ -4452,11 +4452,11 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
         "      IF (direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (direction .eq. y_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
         "      f3_stencil_size = f3_stencil_map%get_size()\n"
         "      !\n")
@@ -4650,11 +4650,11 @@ def test_stencil_args_unique_1(dist_mem):
         "      IF (nlayers .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f2_stencil_size)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (nlayers .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,f2_stencil_size)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size_1 = f2_stencil_map%get_size()")
     assert output6 in result
@@ -4691,21 +4691,21 @@ def test_stencil_args_unique_2(dist_mem):
         "      IF (f2_info_1 .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f2_info)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (f2_info_1 .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,f2_info)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n"
         "      IF (f2_info_3 .eq. x_direction) THEN\n"
         "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f2_info_2)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (f2_info_3 .eq. y_direction) THEN\n"
         "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,f2_info_2)\n"
-        "      END IF ")
+        "      END IF")
     assert output3 in result
     output4 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
@@ -4835,11 +4835,11 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         "      IF (f2_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
         "(STENCIL_1DX,f2_extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      IF (f2_direction .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
         "(STENCIL_1DY,f2_extent)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size = f2_stencil_map%get_size()\n") \
         in result
@@ -5351,18 +5351,18 @@ def test_multi_anyw2():
                 "      !\n"
                 "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL f2_proxy%halo_exchange(depth=1)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL f3_proxy%halo_exchange(depth=1)\n"
-                "      END IF \n"
+                "      END IF\n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n"
                 "        !\n"
                 "        CALL testkern_multi_anyw2_code(nlayers, "
                 "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
                 "undf_any_w2, map_any_w2(:,cell))\n"
-                "      END DO \n"
+                "      END DO\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
@@ -5388,7 +5388,7 @@ def test_multi_anyw2():
                 "        CALL testkern_multi_anyw2_code(nlayers, "
                 "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
                 "undf_any_w2, map_any_w2(:,cell))\n"
-                "      END DO ")
+                "      END DO")
             assert output in generated_code
 
 

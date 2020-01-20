@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,11 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part
-from psyclone.psyGen import PSyFactory, Node, Directive, Schedule, \
+from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, IfBlock, Reference, Array, KernelSchedule, \
-    Container, InternalError, GenerationError, Literal
+    NaryOperation, IfBlock, Reference, Array, Container, Literal
+from psyclone.psyGen import PSyFactory, Directive, KernelSchedule, \
+    InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -877,14 +878,14 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
 
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
-        of the implemented handling in the walk_ast method caller.'''
+        of the implemented handling in the walk method caller.'''
         class Invalid(object):
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
         newobject = Invalid()
         return [newobject]
 
-    monkeypatch.setattr(fparser.two.utils, 'walk_ast', walk_ast_return)
+    monkeypatch.setattr(fparser.two.utils, 'walk', walk_ast_return)
 
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
@@ -906,7 +907,7 @@ def test_handling_assignment_stmt():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2assignment], None)
+    processor.process_nodes(fake_parent, [fparser2assignment])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -929,11 +930,11 @@ def test_handling_name():
     # If one of the ancestors has a symbol table then process_nodes()
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
-        processor.process_nodes(fake_parent, [fparser2name], None)
+        processor.process_nodes(fake_parent, [fparser2name])
     assert "Undeclared reference 'x' found." in str(error.value)
 
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
-    processor.process_nodes(fake_parent, [fparser2name], None)
+    processor.process_nodes(fake_parent, [fparser2name])
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
@@ -951,7 +952,7 @@ def test_handling_parenthesis():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2parenthesis], None)
+    processor.process_nodes(fake_parent, [fparser2parenthesis])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -974,11 +975,11 @@ def test_handling_part_ref():
     # If one of the ancestors has a symbol table then process_nodes()
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
-        processor.process_nodes(fake_parent, [fparser2part_ref], None)
+        processor.process_nodes(fake_parent, [fparser2part_ref])
     assert "Undeclared reference 'x' found." in str(error.value)
 
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
-    processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    processor.process_nodes(fake_parent, [fparser2part_ref])
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
@@ -991,7 +992,7 @@ def test_handling_part_ref():
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
-    processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    processor.process_nodes(fake_parent, [fparser2part_ref])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -1042,7 +1043,7 @@ def test_handling_intrinsics():
         fake_parent = Node()
         reader = FortranStringReader(code)
         fp2node = Execution_Part.match(reader)[0][0].items[2]
-        processor.process_nodes(fake_parent, [fp2node], None)
+        processor.process_nodes(fake_parent, [fp2node])
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], expected_type), \
             "Fails when parsing '" + code + "'"
@@ -1148,14 +1149,14 @@ def test_handling_nested_intrinsic():
         "   &  / MAX( 1.e-20, SUM( e1t(:,:) * e2t(:,:) * wmask (:,:,jk) * "
         "tmask_i(:,:) ) )")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
-    processor.process_nodes(fake_parent, [fp2node], None)
+    processor.process_nodes(fake_parent, [fp2node])
     array_refs = fake_parent.walk(Reference)
     assert "sum" not in [str(ref.name) for ref in array_refs]
     reader = FortranStringReader(
         "zccc = SQRT(MAX(zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0.0))")
     fp2node = Execution_Part(reader)
     # Check that the frontend does not produce any CodeBlocks
-    processor.process_nodes(fake_parent, fp2node.content, None)
+    processor.process_nodes(fake_parent, fp2node.content)
     cblocks = fake_parent.children[1].walk(CodeBlock)
     assert not cblocks
 
@@ -1171,7 +1172,7 @@ def test_handling_array_product():
     reader = FortranStringReader(
         "ze_z(:,:) = e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk)")
     fp2node = Execution_Part.match(reader)
-    processor.process_nodes(fake_parent, [fp2node[0][0]], None)
+    processor.process_nodes(fake_parent, [fp2node[0][0]])
     fake_parent.children[0].view()
     assert not fake_parent.walk(CodeBlock)
 
@@ -1187,7 +1188,7 @@ def test_handling_if_stmt():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2if_stmt], None)
+    processor.process_nodes(fake_parent, [fparser2if_stmt])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -1214,7 +1215,7 @@ def test_handling_if_construct():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    processor.process_nodes(fake_parent, [fparser2if_construct])
 
     # Check a new node was properly generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -1266,7 +1267,7 @@ def test_handling_if_construct_errors():
     fparser2if_construct = Execution_Part.match(reader)[0][0]
     del fparser2if_construct.content[0]
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+        processor.process_nodes(fake_parent, [fparser2if_construct])
     assert "Failed to find opening if then statement in:" in str(error.value)
 
     reader = FortranStringReader(
@@ -1278,7 +1279,7 @@ def test_handling_if_construct_errors():
     fparser2if_construct = Execution_Part.match(reader)[0][0]
     del fparser2if_construct.content[-1]
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+        processor.process_nodes(fake_parent, [fparser2if_construct])
     assert "Failed to find closing end if statement in:" in str(error.value)
 
     reader = FortranStringReader(
@@ -1292,7 +1293,7 @@ def test_handling_if_construct_errors():
     children = fparser2if_construct.content
     children[1], children[2] = children[2], children[1]  # Swap clauses
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+        processor.process_nodes(fake_parent, [fparser2if_construct])
     assert ("Else clause should only be found next to last clause, but "
             "found") in str(error.value)
 
@@ -1307,7 +1308,7 @@ def test_handling_if_construct_errors():
     children = fparser2if_construct.content
     children[1] = children[-1]  # Add extra End_If_Stmt
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+        processor.process_nodes(fake_parent, [fparser2if_construct])
     assert ("Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt are "
             "expected, but found") in str(error.value)
 
@@ -1333,7 +1334,7 @@ def test_handling_complex_if_construct():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    processor.process_nodes(fake_parent, [fparser2if_construct])
 
     elseif = fake_parent.children[0].children[2].children[0]
     assert 'was_elseif' in elseif.annotations
@@ -1362,7 +1363,7 @@ def test_handling_case_construct():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    processor.process_nodes(fake_parent, [fparser2case_construct])
 
     # Check a new node was properly generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -1406,7 +1407,7 @@ def test_case_default():
 
         fake_parent = Node()
         processor = Fparser2Reader()
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+        processor.process_nodes(fake_parent, [fparser2case_construct])
         assigns = fake_parent.walk(Assignment)
         # Check that the assignment to 'branch 3' (in the default clause) is
         # the deepest in the tree
@@ -1437,7 +1438,7 @@ def test_handling_case_list():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
@@ -1469,7 +1470,7 @@ def test_handling_case_range():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
@@ -1496,7 +1497,7 @@ def test_handling_case_range_list():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
@@ -1530,7 +1531,7 @@ def test_handling_invalid_case_construct():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    processor.process_nodes(fake_parent, [fparser2case_construct])
     assert isinstance(fake_parent.children[0], IfBlock)
 
     # Test with no opening Select_Case_Stmt
@@ -1544,7 +1545,7 @@ def test_handling_invalid_case_construct():
     fparser2case_construct = Execution_Part.match(reader)[0][0]
     del fparser2case_construct.content[0]
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+        processor.process_nodes(fake_parent, [fparser2case_construct])
     assert "Failed to find opening case statement in:" in str(error.value)
 
     # Test with no closing End_Select_Stmt
@@ -1558,7 +1559,7 @@ def test_handling_invalid_case_construct():
     fparser2case_construct = Execution_Part.match(reader)[0][0]
     del fparser2case_construct.content[-1]
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+        processor.process_nodes(fake_parent, [fparser2case_construct])
     assert "Failed to find closing case statement in:" in str(error.value)
 
     # Test when one clause is not of the expected type
@@ -1572,7 +1573,7 @@ def test_handling_invalid_case_construct():
     fparser2case_construct = Execution_Part.match(reader)[0][0]
     fparser2case_construct.content[1].items = (Name("Fake"), None)
     with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+        processor.process_nodes(fake_parent, [fparser2case_construct])
     assert "to be a Case_Selector but got" in str(error.value)
 
 
@@ -1587,7 +1588,7 @@ def test_handling_binaryopbase():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fp2binaryop], None)
+    processor.process_nodes(fake_parent, [fp2binaryop])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -1624,7 +1625,7 @@ def test_handling_binaryopbase():
                              fp2binaryop.items[2])
         # And then translate it to PSyIR again.
         fake_parent = Node()
-        processor.process_nodes(fake_parent, [fp2binaryop], None)
+        processor.process_nodes(fake_parent, [fp2binaryop])
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], BinaryOperation), \
             "Fails when parsing '" + opstring + "'"
@@ -1635,7 +1636,7 @@ def test_handling_binaryopbase():
     fake_parent = Node()
     fp2binaryop.items = (fp2binaryop.items[0], 'unsupported',
                          fp2binaryop.items[2])
-    processor.process_nodes(fake_parent, [fp2binaryop], None)
+    processor.process_nodes(fake_parent, [fp2binaryop])
     assert len(fake_parent.children) == 1
     assert isinstance(fake_parent.children[0], CodeBlock)
 
@@ -1652,7 +1653,7 @@ def test_handling_unaryopbase():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fp2unaryop], None)
+    processor.process_nodes(fake_parent, [fp2unaryop])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -1672,7 +1673,7 @@ def test_handling_unaryopbase():
         fp2unaryop.items = (opstring, fp2unaryop.items[1])
         # And then translate it to PSyIR again.
         fake_parent = Node()
-        processor.process_nodes(fake_parent, [fp2unaryop], None)
+        processor.process_nodes(fake_parent, [fp2unaryop])
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent.children[0], UnaryOperation), \
             "Fails when parsing '" + opstring + "'"
@@ -1682,7 +1683,7 @@ def test_handling_unaryopbase():
     # Test that an unsupported unary operator creates a CodeBlock
     fp2unaryop.items = ('unsupported', fp2unaryop.items[1])
     fake_parent = Node()
-    processor.process_nodes(fake_parent, [fp2unaryop], None)
+    processor.process_nodes(fake_parent, [fp2unaryop])
 
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -1701,7 +1702,7 @@ def test_handling_return_stmt():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [return_stmt], None)
+    processor.process_nodes(fake_parent, [return_stmt])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -1722,7 +1723,7 @@ def test_handling_end_do_stmt():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2enddo], None)
+    processor.process_nodes(fake_parent, [fparser2enddo])
     assert not fake_parent.children  # No new children created
 
 
@@ -1738,7 +1739,7 @@ def test_handling_end_subroutine_stmt():
 
     fake_parent = Node()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2endsub], None)
+    processor.process_nodes(fake_parent, [fparser2endsub])
     assert not fake_parent.children  # No new children created
 
 
@@ -1756,7 +1757,7 @@ def test_do_construct():
     fparser2do = Execution_Part.match(reader)[0][0]
     processor = Fparser2Reader()
     fake_parent = Node()
-    processor.process_nodes(fake_parent, [fparser2do], None)
+    processor.process_nodes(fake_parent, [fparser2do])
     assert fake_parent.children[0]
     new_loop = fake_parent.children[0]
     assert isinstance(new_loop, Loop)
@@ -1780,7 +1781,7 @@ def test_do_construct_while():
     fparser2while = Execution_Part.match(reader)[0][0]
     processor = Fparser2Reader()
     fake_parent = Node()
-    processor.process_nodes(fake_parent, [fparser2while], None)
+    processor.process_nodes(fake_parent, [fparser2while])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -1866,7 +1867,7 @@ def test_nodes_to_code_block_4():
 def test_missing_loop_control(monkeypatch):
     ''' Check that encountering a loop in the fparser parse tree that is
     missing a Loop_Control element raises an InternalError. '''
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     reader = FortranStringReader('''
         do while(a .gt. b)\n
             c = c + 1\n
@@ -1877,7 +1878,7 @@ def test_missing_loop_control(monkeypatch):
 
     # We have to break the fparser2 parse tree in order to trigger the
     # internal error
-    ctrl = walk_ast(fparser2while.content[0].items, [Fortran2003.Loop_Control])
+    ctrl = walk(fparser2while.content[0].items, Fortran2003.Loop_Control)
     # 'items' is a tuple and therefore immutable so make a new list
     item_list = list(fparser2while.content[0].items)
     # Create a new tuple for the items member without the Loop_Control
@@ -1887,6 +1888,6 @@ def test_missing_loop_control(monkeypatch):
 
     fake_parent = Node()
     with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2while], None)
+        processor.process_nodes(fake_parent, [fparser2while])
     assert "Unrecognised form of DO loop - failed to find Loop_Control " \
         "element in the node '<fparser2while>'." in str(err.value)

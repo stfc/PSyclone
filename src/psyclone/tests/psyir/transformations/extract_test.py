@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ import pytest
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.extractor import ExtractNode
-from psyclone.psyGen import Loop
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
@@ -72,7 +72,8 @@ def test_extract_trans():
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyGen import Node, InternalError
+    from psyclone.psyir.nodes import Node
+    from psyclone.psyGen import InternalError
     enode = ExtractNode()
     monkeypatch.setattr(enode, "_children", [])
     with pytest.raises(InternalError) as err:
@@ -362,7 +363,7 @@ def test_extract_node_position():
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
     class: view, dag_name and __str__ produce the correct results. '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
@@ -412,7 +413,7 @@ def test_single_node_dynamo0p3():
         "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! ExtractEnd\n")
     assert output in code
@@ -434,15 +435,15 @@ def test_node_list_dynamo0p3():
         "      !\n"
         "      DO df=1,undf_any_space_1_f5\n"
         "        f5_proxy%data(df) = 0.0\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO df=1,undf_any_space_1_f2\n"
         "        f2_proxy%data(df) = 0.0\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,f3_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_code_w2_only(nlayers, f3_proxy%data, "
         "f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! ExtractEnd\n")
     assert output in code
@@ -479,8 +480,8 @@ def test_single_node_ompparalleldo_gocean1p0():
         "        DO i=2,istop\n"
         "          CALL compute_cv_code(i, j, cv_fld%data, "
         "p_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !$omp end parallel do\n"
         "      !\n"
         "      ! ExtractEnd\n")
@@ -522,16 +523,16 @@ def test_node_list_ompparallel_gocean1p0():
         "        DO i=2,istop+1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, "
         "p_fld%data, u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !$omp end do\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop+1\n"
         "        DO i=2,istop\n"
         "          CALL compute_cv_code(i, j, cv_fld%data, "
         "p_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !$omp end do\n"
         "      !$omp end parallel\n"
         "      !\n"
@@ -559,7 +560,7 @@ def test_extract_single_builtin_dynamo0p3():
         "      !\n"
         "      DO df=1,undf_any_space_1_f2\n"
         "        f2_proxy%data(df) = 0.0\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! ExtractEnd\n")
     assert output in code
@@ -581,7 +582,7 @@ def test_extract_single_builtin_dynamo0p3():
         "      DO df=1,undf_any_space_1_f1\n"
         "        f1_proxy%data(df) = 0.5*f1_proxy%data(df) + "
         "f2_proxy%data(df)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !$omp end parallel do\n"
         "      !\n"
         "      ! ExtractEnd\n")
@@ -605,12 +606,12 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
         "      !\n"
         "      DO df=1,undf_any_space_1_f2\n"
         "        f2_proxy%data(df) = 0.0\n"
-        "      END DO \n"
+        "      END DO\n"
         "      DO cell=1,f3_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_code_w2_only(nlayers, f3_proxy%data, "
         "f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! ExtractEnd\n")
     assert output in code
@@ -673,9 +674,9 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
         "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
         "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO \n"
+        "        END DO\n"
         "        !$omp end parallel do\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! ExtractEnd\n")
     assert output in code

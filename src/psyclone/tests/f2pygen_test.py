@@ -41,6 +41,7 @@ from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
 from psyclone.psyGen import InternalError
+from psyclone.psyir.nodes import Node
 from psyclone.tests.utilities import Compile, count_lines, line_number
 
 # Fortran we have to add to some of the generated code in order to
@@ -561,7 +562,6 @@ def test_subgen_args():
 def test_directive_wrong_type():
     ''' Check that we raise an error if we request a Directive of
     unrecognised type '''
-    from psyclone.psyGen import Node
     parent = Node()
     with pytest.raises(RuntimeError) as err:
         _ = DirectiveGen(parent,
@@ -573,7 +573,6 @@ def test_directive_wrong_type():
 def test_ompdirective_wrong():
     ''' Check that we raise an error if we request an OMP Directive of
     unrecognised type '''
-    from psyclone.psyGen import Node
     parent = Node()
     with pytest.raises(RuntimeError) as err:
         _ = DirectiveGen(parent,
@@ -585,7 +584,6 @@ def test_ompdirective_wrong():
 def test_ompdirective_wrong_posn():
     ''' Check that we raise an error if we request an OMP Directive with
     an invalid position '''
-    from psyclone.psyGen import Node
     parent = Node()
     with pytest.raises(RuntimeError) as err:
         _ = DirectiveGen(parent,
@@ -596,7 +594,6 @@ def test_ompdirective_wrong_posn():
 
 def test_ompdirective_type():
     ''' Check that we can query the type of an OMP Directive '''
-    from psyclone.psyGen import Node
     parent = Node()
     dirgen = DirectiveGen(parent,
                           "omp", "begin", "do",
@@ -608,7 +605,6 @@ def test_ompdirective_type():
 def test_basegen_add_auto():
     ''' Check that attempting to call add on BaseGen raises an error if
     position is "auto"'''
-    from psyclone.psyGen import Node
     from psyclone.f2pygen import BaseGen
     parent = Node()
     bgen = BaseGen(parent, parent)
@@ -621,7 +617,6 @@ def test_basegen_add_auto():
 def test_basegen_add_invalid_posn():
     '''Check that attempting to call add on BaseGen with an invalid
     position argument raises an error'''
-    from psyclone.psyGen import Node
     from psyclone.f2pygen import BaseGen
     parent = Node()
     bgen = BaseGen(parent, parent)

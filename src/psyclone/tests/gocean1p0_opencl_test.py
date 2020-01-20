@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -128,7 +128,7 @@ def test_psy_init(kernel_outputdir):
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF \n"
+        "      END IF\n"
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
@@ -153,7 +153,7 @@ def test_psy_init(kernel_outputdir):
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF \n"
+        "      END IF\n"
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code

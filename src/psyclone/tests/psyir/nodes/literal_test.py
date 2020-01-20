@@ -31,15 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyGen import Literal
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import DataType
+
 
 def test_literal_init():
     '''Test the initialisation Literal object.'''
@@ -101,7 +104,7 @@ def test_literal_value():
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     literal = Literal("1", DataType.INTEGER)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert coloredtext+"[value:'1', DataType.INTEGER]" in literal.node_str()

@@ -125,7 +125,7 @@ class CWriter(PSyIRVisitor):
         tree.
 
         :param node: An Array PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.Array`
 
         :returns: The C code as a string.
         :rtype: str
@@ -164,7 +164,7 @@ class CWriter(PSyIRVisitor):
         tree.
 
         :param node: A Literal PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Literal`
+        :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: The C code as a string.
         :rtype: str
@@ -181,7 +181,7 @@ class CWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: An IfBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.IfBlock`
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :returns: The C code as a string.
         :rtype: str
@@ -228,7 +228,7 @@ class CWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: A UnaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :returns: The C code as a string.
         :rtype: str
@@ -276,7 +276,7 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
-        from psyclone.psyGen import UnaryOperation
+        from psyclone.psyir.nodes import UnaryOperation
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
@@ -309,7 +309,7 @@ class CWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: A BinaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :returns: The C code as a string.
         :rtype: str
@@ -349,7 +349,7 @@ class CWriter(PSyIRVisitor):
 
         # Define a map with the operator string and the formatter function
         # associated with each BinaryOperation.Operator
-        from psyclone.psyGen import BinaryOperation
+        from psyclone.psyir.nodes import BinaryOperation
         opmap = {
             BinaryOperation.Operator.ADD: ("+", operator_format),
             BinaryOperation.Operator.SUB: ("-", operator_format),
@@ -387,7 +387,7 @@ class CWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: A Return PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Return`
+        :type node: :py:class:`psyclone.psyir.nodes.Return`
 
         :returns: The C code as a string.
         :rtype: str
@@ -411,7 +411,7 @@ class CWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: a Loop PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Loop`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: the loop node converted into a (language specific) string.
         :rtype: str
