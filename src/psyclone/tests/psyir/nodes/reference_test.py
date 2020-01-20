@@ -82,8 +82,8 @@ def test_reference_optional_parent():
 
 def test_reference_symbol(monkeypatch):
     '''Test that the symbol method in a Reference Node instance returns
-    the associated symbol if there is one and None if not. Also test
-    for an incorrect scope argument.
+    the associated symbol if there is one and raises an exception if
+    not. Also test for an incorrect scope argument.
 
     '''
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
@@ -145,7 +145,11 @@ def test_reference_symbol(monkeypatch):
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
     # Symbol not in any container (rename alpha to something that is
-    # not defined)????
+    # not defined)
+    alpha._symbol._name = "undefined"
+    with pytest.raises(SymbolError) as excinfo:
+        _ = Reference.get_symbol(alpha.name, alpha)
+    assert "Undeclared reference 'undefined' found." in str(excinfo.value)
 
 # Test Array class
 

@@ -84,10 +84,8 @@ def test_assignment(parser):
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo()
     array_assignment.reference_accesses(var_accesses)
-    assert str(var_accesses) == ("c: WRITE, d: READ, e: READ, "
-                                 "f: READ, i: READ, j: READ, x: READ, "
-                                 "y: READ")
-
+    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
+                                "i: READ, j: READ, x: READ, y: READ"
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)

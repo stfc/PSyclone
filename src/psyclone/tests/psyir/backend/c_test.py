@@ -46,8 +46,7 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType, \
-    Symbol
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
 
 
 def test_cw_gen_declaration():
