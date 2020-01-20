@@ -63,6 +63,51 @@ def test_range_getter_errors(prop):
             "Node" in str(err.value))
 
 
+def test_range_init(parser):
+    ''' Check that the Range constructor behaves as intended. '''
+    from fparser.common.readfortran import FortranStringReader
+    from psyclone.psyGen import Node
+    # When no arguments are provided
+    erange = Range()
+    assert erange.children == [None, None, None]
+    assert erange.parent is None
+    assert erange.annotations == []
+    assert erange.ast is None
+    # When arguments are provided
+    parent = Node()
+    reader = FortranStringReader("program hello\nend program hello\n")
+    prog = parser(reader)
+    erange2 = Range(parse_node=prog, parent=parent)
+    assert erange2.parent is parent
+    assert erange2.ast is prog
+    with pytest.raises(InternalError) as err:
+        _ = Range(annotations=["was-where"])
+    # TODO correct US spelling of unrecognized!
+    assert "unrecognized annotation 'was-where'" in str(err.value)
+
+
+def test_range_create():
+    ''' Check that the Range.create() method behaves as intended. '''
+    from psyclone.psyGen import Node
+    parent = Node()
+    start = Literal("1", DataType.INTEGER)
+    stop = Literal("10", DataType.INTEGER)
+    # No parent and no step
+    erange = Range.create(start, stop)
+    assert erange.children[0] is start
+    assert erange.children[1] is stop
+    assert erange.parent is None
+    # Parent but no step
+    erange2 = Range.create(start, stop, parent=parent)
+    assert erange2.parent is parent
+    assert erange2.children[2].value == "1"
+    # Parent and step supplied
+    erange3 = Range.create(start, stop, step=Literal("5", DataType.INTEGER),
+                           parent=parent)
+    assert erange3.parent is parent
+    assert erange3.children[2].value == "5"
+
+
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
 def test_range_setter_errors(prop):
     ''' Check that the various setters reject values that are not sub-classes
