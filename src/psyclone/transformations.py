@@ -135,7 +135,10 @@ class KernelTrans(Transformation):
         from psyclone.psyir.nodes import Reference
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
-            if not var.symbol(scope_limit=var.ancestor(KernelSchedule)):
+            try:
+                Reference.get_symbol(var.name, var,
+                                     scope_limit=var.ancestor(KernelSchedule))
+            except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
                     "that are not captured in the PSyIR Symbol Table(s) "

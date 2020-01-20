@@ -53,10 +53,12 @@ class Reference(Node):
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
+    :raises TypeError: if the symbol argument is not of type Symbol.
+
     '''
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):
-            raise TypeError("In Reference initialisation expectinG a symbol "
+            raise TypeError("In Reference initialisation expecting a symbol "
                             "but found '{0}'".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
@@ -140,15 +142,58 @@ class Reference(Node):
         # found_symbol_table boolean variable and update the doc
         # string when SymbolTables are suppported in the NEMO API, see
         # issue #500. After this change has been made this method could
-        # make use of the symbol method to determine
+        # make use of the get_symbol method to determine
         # whether the reference has been declared (or not).
         if found_symbol_table:
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(self.name))
 
     @staticmethod
-    def get_symbol(name, node):
-        ''' return symbol with name. Raise exception if not found.'''
+    def get_symbol(name, node, scope_limit=None):
+        '''Returns the symbol from a symbol table associated with this
+        reference or raises an exception is it is not found. The
+        scope_limit variable limits the symbol table search to nodes
+        within the scope.
+
+        :param str name: the name of the symbol.
+        :param node: the PSyIR tree to search.
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole scope \
+            (all \ symbol tables in ancestor nodes) is searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or `None`
+
+        :returns: the matching symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises SymbolError: if no matching symbol is found.
+
+        '''
+        if scope_limit:
+
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}' provided to the symbol "
+                    "method, is not of type `Node`."
+                    "".format(str(scope_limit)))
+
+            # Check that the scope_limit Node is an ancestor of this
+            # Reference Node and raise an exception if not.
+            found = False
+            mynode = node.parent
+            while mynode is not None:
+                if mynode is scope_limit:
+                    found = True
+                    break
+                mynode = mynode.parent
+            if not found:
+                # The scope_limit node is not an ancestor of the
+                # supplied node so raise an exception.
+                raise ValueError(
+                    "The scope_limit node '{0}' provided to the symbol "
+                    "method, is not an ancestor of the supplied node '{1}'."
+                    "".format(str(scope_limit), str(node)))
         test_node = node
         # Iterate over ancestor Nodes of this Node.
         while test_node:
@@ -166,81 +211,16 @@ class Reference(Node):
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable.
                     pass
-            # Move on to the next ancestor.
-            test_node = test_node.parent
-        # all Nodes have been checked (up to the root Node) but there
-        # has been no match so raise an exception.
-        raise SymbolError(
-            "Undeclared reference '{0}' found.".format(name))
-        
-    # ?????????????????? NO LONGER REQUIRED ??????????????????????
-    def symbol(self, scope_limit=None):
-        '''Returns the symbol from a symbol table associated with this
-        reference or None is it is not found. The scope_limit variable
-        limits the symbol table search to nodes within the scope.
-
-        :param scope_limit: optional Node which limits the symbol \
-        search space to the symbol tables of the nodes within the \
-        given scope. If it is None (the default), the whole scope (all \
-        symbol tables in ancestor nodes) is searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or `None`
-
-        :returns: the Symbol associated with this reference if one is \
-        found or None if not.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` or `None`
-
-        '''
-        if scope_limit:
-
-            if not isinstance(scope_limit, Node):
-                raise TypeError(
-                    "The scope_limit argument '{0}' provided to the symbol "
-                    "method, is not of type `Node`."
-                    "".format(str(scope_limit), str(self)))
-
-            # Check that the scope_limit Node is an ancestor of this
-            # Reference Node and raise an exception if not.
-            found = False
-            mynode = self.parent
-            while mynode is not None:
-                if mynode is scope_limit:
-                    found = True
-                    break
-                mynode = mynode.parent
-            if not found:
-                # The scope_limit node is not an ancestor of this reference
-                # so raise an exception.
-                raise ValueError(
-                    "The scope_limit node '{0}' provided to the symbol "
-                    "method, is not an ancestor of this reference node '{1}'."
-                    "".format(str(scope_limit), str(self)))
-        test_node = self.parent
-        # Iterate over ancestor Nodes of this Reference Node.
-        while test_node:
-            # For simplicity, test every Node for the existence of a
-            # SymbolTable (rather than checking for the particular
-            # Node types which we know to have SymbolTables).
-            if hasattr(test_node, 'symbol_table'):
-                # This Node does have a SymbolTable.
-                symbol_table = test_node.symbol_table
-                try:
-                    # If the reference matches a Symbol in this
-                    # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(self.name)
-                except KeyError:
-                    # The Reference Node does not match any Symbols in
-                    # this SymbolTable.
-                    pass
             if test_node is scope_limit:
                 # The ancestor scope Node has been reached and nothing
-                # has matched so return with None.
-                return None
+                # has matched so raise an exception.
+                break
             # Move on to the next ancestor.
             test_node = test_node.parent
-        # scope has not been set and all Nodes have been checked (up
-        # to the root Node) but there has been no match so return with
-        # None.
-        return None
+        # all requested Nodes have been checked but there has been no
+        # match so raise an exception.
+        raise SymbolError(
+            "Undeclared reference '{0}' found.".format(name))
 
 
 class Array(Reference):

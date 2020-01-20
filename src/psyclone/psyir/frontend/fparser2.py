@@ -49,7 +49,7 @@ from psyclone.psyGen import Directive, KernelSchedule, InternalError, \
     GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, Symbol
+    DataType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
