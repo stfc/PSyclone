@@ -1893,16 +1893,25 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        try:
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        has_symbol_table = False
+        current = parent
+        while current:
+            if hasattr(current, "symbol_table"):
+                has_symbol_table = True
+                break
+            current = current.parent
+        if has_symbol_table:
             symbol = Reference.get_symbol(parent, node.string)
-            return Reference(symbol, parent)
-        except SymbolError:
+        else:
             # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Note, this will also mask undeclared
-            # symbols in other APIs. Use Symbol rather than DataSymbol
-            # as we don't know what the datatype is. Remove this code
-            # when issue #500 is addressed.
-            return Reference(Symbol(node.string), parent)
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is. Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(node.string, DataType.REAL)
+        return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1940,16 +1949,25 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
         '''
-        try:
-            reference_name = node.items[0].string.lower()
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        reference_name = node.items[0].string.lower()
+        has_symbol_table = False
+        current = parent
+        while current:
+            if hasattr(current, "symbol_table"):
+                has_symbol_table = True
+                break
+            current = current.parent
+        if has_symbol_table:
             symbol = Array.get_symbol(parent, reference_name)
-        except SymbolError:
+        else:
             # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Note, this will also mask undeclared
-            # symbols in other APIs. Use Symbol rather than DataSymbol
-            # as we don't know what the datatype is. Remove this code
-            # when issue #500 is addressed.
-            symbol = Symbol(node.string)
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is.  Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(reference_name, DataType.REAL)
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array

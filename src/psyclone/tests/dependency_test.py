@@ -84,8 +84,8 @@ def test_assignment(parser):
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo()
     array_assignment.reference_accesses(var_accesses)
-    assert str(var_accesses) == ("c(i,j): WRITE, d(i,j+1): READ, e: READ, "
-                                 "f(x,y): READ, i: READ, j: READ, x: READ, "
+    assert str(var_accesses) == ("c: WRITE, d: READ, e: READ, "
+                                 "f: READ, i: READ, j: READ, x: READ, "
                                  "y: READ")
 
     # Increment operation: c(i) = c(i)+1
@@ -93,14 +93,14 @@ def test_assignment(parser):
     assert isinstance(increment_access, Assignment)
     var_accesses = VariablesAccessInfo()
     increment_access.reference_accesses(var_accesses)
-    assert str(var_accesses) == "c(i): READ+WRITE, i: READ"
+    assert str(var_accesses) == "c: READ+WRITE, i: READ"
 
     # Using an intrinsic:
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
     var_accesses = VariablesAccessInfo()
     sqrt_access.reference_accesses(var_accesses)
-    assert str(var_accesses) == "d(i,j): WRITE, e(i,j): READ, i: READ, j: READ"
+    assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
 
 
 def test_indirect_addressing(parser):
