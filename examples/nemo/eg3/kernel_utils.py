@@ -130,7 +130,7 @@ def try_kernels_trans(nodes, default_present):
                           DEFAULT(PRESENT) clause to ACC KERNELS directives.
 
     '''
-    from psyclone.psyGen import InternalError
+    from psyclone.errors import InternalError
     from psyclone.transformations import TransformationError, ACCKernelsTrans
     try:
         _, _ = ACCKernelsTrans().apply(nodes,
