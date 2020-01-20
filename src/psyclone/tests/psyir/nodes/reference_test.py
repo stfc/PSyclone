@@ -43,7 +43,8 @@ import pytest
 from psyclone.psyir.nodes import Reference, Array, Assignment, Container, \
     Literal
 from psyclone.psyir.symbols import DataSymbol, DataType
-from psyclone.psyGen import GenerationError, KernelSchedule, Kern
+from psyclone.psyGen import KernelSchedule, Kern
+from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, check_links
 

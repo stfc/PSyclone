@@ -39,6 +39,7 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
+from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -120,7 +121,6 @@ class Node(object):
     valid_annotations = tuple()
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        from psyclone.psyGen import InternalError
         if not children:
             self._children = []
         else:
@@ -458,7 +458,6 @@ class Node(object):
         :rtype: bool
 
         '''
-        from psyclone.psyGen import GenerationError
         # First perform correctness checks
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
@@ -615,7 +614,6 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found
         '''
         from psyclone.psyir.nodes import Schedule
-        from psyclone.psyGen import InternalError
         if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
@@ -635,7 +633,6 @@ class Node(object):
         :rtype: int
         :raises InternalError: if the starting position is < 0
         '''
-        from psyclone.psyGen import InternalError
         if position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "

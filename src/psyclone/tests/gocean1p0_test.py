@@ -43,7 +43,8 @@ import re
 import pytest
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InternalError
+from psyclone.errors import InternalError
+from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
     GOKernelArgument, GOKernelArguments

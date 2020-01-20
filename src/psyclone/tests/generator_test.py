@@ -763,7 +763,7 @@ def test_write_utf_file(tmpdir, monkeypatch):
     ''' Unit tests for the write_unicode_file utility routine. '''
     import six
     import io
-    from psyclone.psyGen import InternalError
+    from psyclone.errors import InternalError
     from psyclone.generator import write_unicode_file
 
     # First for plain ASCII

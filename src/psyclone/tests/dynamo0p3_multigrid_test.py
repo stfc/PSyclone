@@ -611,7 +611,7 @@ def test_prolong_with_gp_error():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.3_intergrid_plus_general.f90"),
                            api=API)
-    from psyclone.psyGen import GenerationError
+    from psyclone.errors import GenerationError
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory(API).create(invoke_info)
     assert ("no other kernel types but kernels 'testkern_code_w2_only' in "

@@ -174,7 +174,7 @@ def adduse(location, name, only=None, funcnames=None):
         Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
         Specification_Part
     from fparser.two.utils import Base
-    from psyclone.psyGen import GenerationError, InternalError
+    from psyclone.errors import GenerationError, InternalError
 
     if not isinstance(location, Base):
         raise GenerationError(

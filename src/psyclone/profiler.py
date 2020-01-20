@@ -41,8 +41,8 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, InternalError
+from psyclone.psyGen import Kern, NameSpace, NameSpaceFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Node
 
 

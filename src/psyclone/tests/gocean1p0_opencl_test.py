@@ -43,7 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyGen import GenerationError
+from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
 from psyclone.tests.utilities import Compile, get_invoke
 

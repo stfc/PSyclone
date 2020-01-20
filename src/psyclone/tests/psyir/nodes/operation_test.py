@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, Reference
 from psyclone.psyir.symbols import DataType
-from psyclone.psyGen import GenerationError
+from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
