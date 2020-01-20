@@ -47,7 +47,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern, NameSpaceFactory
-from psyclone.error import InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
