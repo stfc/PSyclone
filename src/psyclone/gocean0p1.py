@@ -276,8 +276,8 @@ class GOLoop(Loop):
             self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
                                              parent=self)
             self.stop_expr.addchild(
-                Reference(DataSymbol(self.field_name, DataType.INTEGER)),
-                parent=self.stop_expr)
+                Reference(DataSymbol(self.field_name, DataType.INTEGER),
+                          parent=self.stop_expr))
             self.stop_expr.addchild(Literal(index, DataType.INTEGER,
                                             parent=self.stop_expr))
 
