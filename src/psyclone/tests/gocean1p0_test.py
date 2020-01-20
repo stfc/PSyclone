@@ -1219,7 +1219,7 @@ def test_invalid_access_type():
     # Note that the error message looks slightly different between
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
-                     str(err.value))
+                     str(err.value)) is not None
 
 
 def test_compile_with_dependency(tmpdir):
@@ -1429,12 +1429,29 @@ def test07_kernel_wrong_gridpt_type():
 def test08_kernel_invalid_grid_property():
     ''' Check that the parser raises an error if a kernel's meta-data
     specifies an unrecognised grid property '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test08_invoke_kernel_invalid_grid_property.f90"),
               api="gocean1.0")
+    assert "Meta-data error in kernel compute_cu: un-recognised grid " \
+           "property 'grid_area_wrong' requested." in str(err.value)
+
+    # GOKernelGridArgument contains also a test for the validity of
+    # a grid property. It's easier to create a dummy class to test this:
+    class DummyDescriptor(object):
+        '''Dummy class to test error handling.'''
+        def __init__(self):
+            self.access = "read"
+            self.grid_prop = "does not exist"
+    descriptor = DummyDescriptor()
+    from psyclone.gocean1p0 import GOKernelGridArgument
+    with pytest.raises(GenerationError) as err:
+        GOKernelGridArgument(descriptor)
+    assert re.search("Unrecognised grid property specified. Expected one "
+                     "of.* but found 'does not exist'", str(err.value)) \
+        is not None
 
 
 def test08p1_kernel_without_fld_args():
