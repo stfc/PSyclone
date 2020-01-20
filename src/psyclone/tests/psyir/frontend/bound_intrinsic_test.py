@@ -46,7 +46,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 @pytest.mark.usefixtures("parser")
 @pytest.mark.parametrize("bound", ["ubound", "lbound"])
 @pytest.mark.parametrize("expression", ["n = {0}(a, 3)",
-                                        "n = {0}(a(:,:,:), 3)"])
+                                        "n = {0}(a(:,:,:), 3)",
+                                        "n = {0}(a, idx1 + 3)"])
 def test_size(bound, expression):
     ''' Basic test that the UBOUND and LBROUND intrinsics are recognised
     and represented in the PSyIR. '''
@@ -61,4 +62,5 @@ def test_size(bound, expression):
     assert isinstance(fake_parent[0], Assignment)
     assert isinstance(fake_parent[0].rhs, BinaryOperation)
     assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1], Literal)
+    assert isinstance(fake_parent[0].rhs.children[1],
+                      (Literal, BinaryOperation))
