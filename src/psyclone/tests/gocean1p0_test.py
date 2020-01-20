@@ -1508,13 +1508,13 @@ def test_gokernelarguments_append():
 
     # Try append a non-string value
     with pytest.raises(TypeError) as err:
-        argument_list.append(3)
+        argument_list.append(3, "space")
     assert "The name parameter given to GOKernelArguments.append method " \
            "should be a string, but found 'int' instead." in str(err.value)
 
     # Append strings
-    argument_list.append("var1")
-    argument_list.append("var2")
+    argument_list.append("var1", "go_r_scalar")
+    argument_list.append("var2", "go_i_scalar")
 
     assert isinstance(kernelcall.args[-1], GOKernelArgument)
     assert isinstance(kernelcall.args[-2], GOKernelArgument)

@@ -304,10 +304,14 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # add the subroutine argument declarations for real scalars
-        if self.unique_args_rscalars:
+        global_names = [sym.name for sym in
+                        self.schedule.symbol_table.global_datasymbols]
+        real_decls = list(filter(lambda x: x not in global_names,
+                                 self.unique_args_rscalars))
+        if real_decls:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
-                                       entity_decls=self.unique_args_rscalars)
+                                       entity_decls=real_decls)
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
         if self.unique_args_iscalars:

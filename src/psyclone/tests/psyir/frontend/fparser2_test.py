@@ -482,10 +482,7 @@ def test_process_not_supported_declarations():
 
     reader = FortranStringReader("integer, save :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
+    # TODO: This should fail depending on where the declaration is
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
