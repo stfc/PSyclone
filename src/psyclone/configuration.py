@@ -825,7 +825,8 @@ class GOceanConfig(APISpecificConfig):
                         error = "Invalid property \"{0}\" found with value " \
                                 "\"{1}\" in \"{2}\". It must have exactly " \
                                 "two ':'' separated values." \
-                                .format(property, all_props[grid_property],
+                                .format(grid_property,
+                                        all_props[grid_property],
                                         config.filename)
                         raise ConfigurationError(error)
                     # Make sure to remove the spaces which the config
