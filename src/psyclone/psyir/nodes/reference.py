@@ -147,7 +147,7 @@ class Reference(Node):
                 "Undeclared reference '{0}' found.".format(self.name))
 
     @staticmethod
-    def get_symbol(node, name):
+    def get_symbol(name, node):
         ''' return symbol with name. Raise exception if not found.'''
         test_node = node
         # Iterate over ancestor Nodes of this Node.

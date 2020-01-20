@@ -1479,12 +1479,30 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            has_symbol_table = False
+            current = parent
+            while current:
+                if hasattr(current, "symbol_table"):
+                    has_symbol_table = True
+                    break
+                current = current.parent
             # Replace the CodeBlocks containing the Subscript_Triplets with
             # the index expressions
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                array.children[posn] = Reference(Symbol(loop_vars[idx]), parent=array)
+                if has_symbol_table:
+                    symbol = Reference.get_symbol(loop_vars[idx], array)
+                else:
+                    # The NEMO API does not generate symbol tables, so
+                    # create a new Symbol. Choose a datatype as we
+                    # don't know what it is. Remove this code when
+                    # issue #500 is addressed.
+                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
+                array.children[posn] = Reference(symbol, parent=array)
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -1611,7 +1629,26 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            size_node.addchild(Reference(Symbol(arrays[0].name), parent=size_node))
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            has_symbol_table = False
+            current = parent
+            while current:
+                if hasattr(current, "symbol_table"):
+                    has_symbol_table = True
+                    break
+                current = current.parent
+            if has_symbol_table:
+                symbol = Reference.get_symbol(arrays[0].name, size_node)
+            else:
+                # The NEMO API does not generate symbol tables, so
+                # create a new Symbol. Choose a datatype as we
+                # don't know what it is. Remove this code when
+                # issue #500 is addressed.
+                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+
+            size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), DataType.INTEGER,
                                        parent=size_node))
             # Add loop increment
@@ -1904,7 +1941,7 @@ class Fparser2Reader(object):
                 break
             current = current.parent
         if has_symbol_table:
-            symbol = Reference.get_symbol(parent, node.string)
+            symbol = Reference.get_symbol(node.string, parent)
         else:
             # The NEMO API does not generate symbol tables, so create
             # a new Symbol. Randomly choose a datatype as we don't
@@ -1961,7 +1998,7 @@ class Fparser2Reader(object):
                 break
             current = current.parent
         if has_symbol_table:
-            symbol = Array.get_symbol(parent, reference_name)
+            symbol = Array.get_symbol(reference_name, parent)
         else:
             # The NEMO API does not generate symbol tables, so create
             # a new Symbol. Randomly choose a datatype as we don't
