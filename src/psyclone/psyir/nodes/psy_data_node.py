@@ -231,7 +231,7 @@ class PSyDataNode(Node):
         :param options["post-var-list"]: a list of variables to be extracted \
             after the last child.
         :type options["post-var-list"]: list of str
-        :type str options['pre-far-postfix]: an optional postfix that will \
+        :type str options['pre-var-postfix]: an optional postfix that will \
             be added to each variable name in the pre-var-list.
         :type str options['post-var-postfix]: an optional postfix that will \
             be added to each variable name in the post-var-list.
