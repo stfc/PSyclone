@@ -738,8 +738,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    from psyclone.psyir.symbols import Symbol
-                    lhs = Array(Symbol(array_name.string.lower()), parent=assignment)
+                    lhs = Array(symbol, parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
@@ -1883,7 +1882,7 @@ class Fparser2Reader(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation. If the node
+        Transforms an fparser2 Name to the PSyIR representation. If the parent
         is connected to a SymbolTable, it checks the reference has been
         previously declared.
 
@@ -1894,9 +1893,16 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        reference = Reference(Symbol(node.string), parent)
-        reference.check_declared()
-        return reference
+        try:
+            symbol = Reference.get_symbol(parent, node.string)
+            return Reference(symbol, parent)
+        except SymbolError:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Note, this will also mask undeclared
+            # symbols in other APIs. Use Symbol rather than DataSymbol
+            # as we don't know what the datatype is. Remove this code
+            # when issue #500 is addressed.
+            return Reference(Symbol(node.string), parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1934,10 +1940,17 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
         '''
-        reference_name = node.items[0].string.lower()
-
-        array = Array(Symbol(reference_name), parent)
-        array.check_declared()
+        try:
+            reference_name = node.items[0].string.lower()
+            symbol = Array.get_symbol(parent, reference_name)
+        except SymbolError:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Note, this will also mask undeclared
+            # symbols in other APIs. Use Symbol rather than DataSymbol
+            # as we don't know what the datatype is. Remove this code
+            # when issue #500 is addressed.
+            symbol = Symbol(node.string)
+        array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
 

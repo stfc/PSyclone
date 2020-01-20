@@ -146,6 +146,33 @@ class Reference(Node):
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(self.name))
 
+    @staticmethod
+    def get_symbol(node, name):
+        ''' return symbol with name. Raise exception if not found.'''
+        test_node = node
+        # Iterate over ancestor Nodes of this Node.
+        while test_node:
+            # For simplicity, test every Node for the existence of a
+            # SymbolTable (rather than checking for the particular
+            # Node types which we know to have SymbolTables).
+            if hasattr(test_node, 'symbol_table'):
+                # This Node does have a SymbolTable.
+                symbol_table = test_node.symbol_table
+                try:
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
+                    return symbol_table.lookup(name)
+                except KeyError:
+                    # The Reference Node does not match any Symbols in
+                    # this SymbolTable.
+                    pass
+            # Move on to the next ancestor.
+            test_node = test_node.parent
+        # all Nodes have been checked (up to the root Node) but there
+        # has been no match so raise an exception.
+        raise SymbolError(
+            "Undeclared reference '{0}' found.".format(name))
+        
     # ?????????????????? NO LONGER REQUIRED ??????????????????????
     def symbol(self, scope_limit=None):
         '''Returns the symbol from a symbol table associated with this
