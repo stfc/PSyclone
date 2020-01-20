@@ -348,7 +348,7 @@ The generated code is now:
 
 .. note::
 
-    At this stage biultins are not fully supported, resulting in ``f2`` 
+    At this stage builtins are not fully supported, resulting in ``f2``
     being incorrectly detected as an input parameters, and not as an
     output parameter. This issue is tracked in #637.
 
@@ -356,3 +356,28 @@ The generated code is now:
 Examples in ``examples/dynamo/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
 (see :ref:`examples` section for more information).
+
+.. _psyke_netcdf:
+
+NetCDF Extraction Example
+-------------------------
+PSyclone comes with an example NetCDF based extraction library in
+``lib/extract/netcdf``. This library implements the full PSyData API
+for the use with the GOcean 1.0 dl_esm_inf infrastructure library.
+In order to compile this library, you must have NetCDF installed.
+When running the code, it will create a NetCDF file for the instrumented
+code region. It includes all variables that are read before the code
+is executed, and all variables that have been modified. The output
+variables have the postfix ``_post`` attached to the NetCDF names,
+e.g. a variable ``xyz`` that is read and written will be stored
+with the name ``xyz`` containing the input values, and the name
+``xyz_post`` containing the output values. Arrays have their size
+stored as NetCDF dimensions: again the variable ``xyz`` will have its
+sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
+and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
+
+The output file only stores the values used in the subroutine,
+e.g. any GOcean grid properties (see :ref:`gocean1.0-grid-props`)
+will not be stored automatically. That means that a driver program
+that reads the input variables, executes the code region 5 and then
+validates the results can be implemented independent of dl_esm_inf.
