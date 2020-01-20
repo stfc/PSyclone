@@ -49,7 +49,7 @@ Nodes
 All nodes in the AST are sub-classes of the abstract `Node` base class, which
 provides the following common interface:
 
-.. autoclass:: psyclone.psyGen.Node
+.. autoclass:: psyclone.psyir.nodes.Node
     :members:
 
 .. _container-label:
@@ -69,7 +69,7 @@ KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
 specified in a Container is visible to all Containers and
 KernelSchedules within it and their descendents.
 
-.. autoclass:: psyclone.psyGen.Container
+.. autoclass:: psyclone.psyir.nodes.Container
     :members:
 
 Schedule
@@ -82,7 +82,7 @@ invokes and kernel subroutines. This makes them the starting points for any
 walking of the PSyIR tree in PSyclone transformation scripts and a common
 target for the application of transformations.
 
-.. autoclass:: psyclone.psyGen.Schedule
+.. autoclass:: psyclone.psyir.nodes.Schedule
     :members:
 
 
@@ -90,7 +90,7 @@ InvokeSchedule
 --------------
 
 The `InvokeSchedule` is a PSyIR node that represents an invoke subroutine in
-the PSy-layer. It extends the `psyclone.psyGen.Schedule` functionality
+the PSy-layer. It extends the `psyclone.psyir.nodes.Schedule` functionality
 with a `psyclone.psyGen.NameSpace` and a reference to its associated
 `psyclone.psyGen.Invoke` object.
 
@@ -103,7 +103,7 @@ KernelSchedule
 ---------------
 
 The `KernelSchedule` is a PSyIR node that represents a kernel
-subroutine. It extends the `psyclone.psyGen.Schedule` functionality
+subroutine. It extends the `psyclone.psyir.nodes.Schedule` functionality
 with a SymbolTable (`psyclone.psyGen.psyir.symbols.SymbolTable`) that
 keeps a record of the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`)
 used in the kernel scope (see :ref:`user_guide:symbol-label`).
@@ -158,14 +158,14 @@ Annotation         Node types         Origin
 Branching construct
 -------------------
 
-.. autoclass:: psyclone.psyGen.IfBlock
+.. autoclass:: psyclone.psyir.nodes.IfBlock
     :members:
 
 
 Iteration construct
 -------------------
 
-.. autoclass:: psyclone.psyGen.Loop
+.. autoclass:: psyclone.psyir.nodes.Loop
     :members:
 
 Ranges
@@ -209,36 +209,36 @@ Operation Nodes
 Arithmetic operations and various intrinsic/query functions are represented
 in the PSyIR by sub-classes of the `Operation` node:
 
-.. autoclass:: psyclone.psyGen.Operation
+.. autoclass:: psyclone.psyir.nodes.Operation
    :members:
 
 The operations are classified according to the number of operands:
 those having one operand are represented by
-`psyclone.psyGen.UnaryOperation` nodes, those having two by
-`psyclone.psyGen.BinaryOperation` and those having more than two by
-`psyclone.psyGen.NaryOperation`. Note that where an intrinsic (such as
+`psyclone.psyir.nodes.UnaryOperation` nodes, those having two by
+`psyclone.psyir.nodes.BinaryOperation` and those having more than two by
+`psyclone.psyir.nodes.NaryOperation`. Note that where an intrinsic (such as
 Fortran's `MAX`) can have a variable number of arguments, the class
 used to represent it in the PSyIR is determined by the actual number
 of arguments in a particular instance. e.g. `MAX(var1, var2)` would be
-represented by a `psyclone.psyGen.BinaryOperation` but `MAX(var1,
+represented by a `psyclone.psyir.nodes.BinaryOperation` but `MAX(var1,
 var2, var3)` would be represented by a
-`psyclone.psyGen.NaryOperation`.
+`psyclone.psyir.nodes.NaryOperation`.
 
 The operations supported by the `UnaryOperation` are:
 
-.. autoclass:: psyclone.psyGen.UnaryOperation.Operator
+.. autoclass:: psyclone.psyir.nodes.UnaryOperation.Operator
    :members:
    :undoc-members:
 
 The operations supported by the `BinaryOperation` are:
 
-.. autoclass:: psyclone.psyGen.BinaryOperation.Operator
+.. autoclass:: psyclone.psyir.nodes.BinaryOperation.Operator
    :members:
    :undoc-members:
 
 The operations supported by the `NaryOperation` are:
 
-.. autoclass:: psyclone.psyGen.NaryOperation.Operator
+.. autoclass:: psyclone.psyir.nodes.NaryOperation.Operator
    :members:
    :undoc-members:
 
@@ -256,7 +256,7 @@ concepts that are relevant for performance, not all aspects of a code,
 therefore it is likely that that CodeBlocks will continue to be an
 important part of the PSyIR.
 
-.. autoclass:: psyclone.psyGen.CodeBlock
+.. autoclass:: psyclone.psyir.nodes.CodeBlock
    :members:
    :undoc-members:
 
@@ -469,7 +469,7 @@ of a node can be gathered by creating an object of type
 `psyclone.core.access_info.VariablesAccessInfo`, and then calling
 the function `reference_accesses()` for the node:
 
-.. autofunction:: psyclone.psyGen.Node.reference_accesses
+.. autofunction:: psyclone.psyir.nodes.Node.reference_accesses
 
 .. autoclass:: psyclone.core.access_info.VariablesAccessInfo
     :members:

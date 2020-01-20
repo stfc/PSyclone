@@ -38,8 +38,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.psyGen import InternalError, Literal, Reference
+from psyclone.psyir.nodes import Range, Literal, Reference, Node
+from psyclone.psyGen import InternalError
 
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
@@ -66,7 +66,6 @@ def test_range_getter_errors(prop):
 def test_range_init(parser):
     ''' Check that the Range constructor behaves as intended. '''
     from fparser.common.readfortran import FortranStringReader
-    from psyclone.psyGen import Node
     # When no arguments are provided
     erange = Range()
     assert erange.children == [None, None, None]
@@ -88,7 +87,6 @@ def test_range_init(parser):
 
 def test_range_create():
     ''' Check that the Range.create() method behaves as intended. '''
-    from psyclone.psyGen import Node
     parent = Node()
     start = Literal("1", DataType.INTEGER)
     stop = Literal("10", DataType.INTEGER)
@@ -148,7 +146,8 @@ def test_range_literals_props():
 def test_range_references_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are references or expressions. '''
-    from psyclone.psyGen import KernelSchedule, BinaryOperation
+    from psyclone.psyGen import KernelSchedule
+    from psyclone.psyir.nodes import BinaryOperation
     from psyclone.psyir.symbols import DataSymbol
     sched = KernelSchedule("test_sched")
     sym_table = sched.symbol_table
@@ -189,7 +188,8 @@ def test_range_str():
 def test_range_view(capsys):
     ''' Check that calling view() on an array with a child Range works
     as expected. '''
-    from psyclone.psyGen import Array, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes import Array
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", DataType.INTEGER),
                           Literal("10", DataType.INTEGER))

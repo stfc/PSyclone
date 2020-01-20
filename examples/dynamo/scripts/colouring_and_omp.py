@@ -41,7 +41,7 @@ the -s option in the "psyclone" script. '''
 from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
-from psyclone.psyGen import Loop
+from psyclone.psyir.nodes import Loop
 from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,3 +31,41 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+
+''' PSyIR nodes package module '''
+
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.return_stmt import Return
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
+    BinaryOperation, NaryOperation
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.reference import Reference, Array
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.ranges import Range
+
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.psyir.nodes import Literal'
+__all__ = [
+        'Node',
+        'Schedule',
+        'Return',
+        'Assignment',
+        'Operation',
+        'UnaryOperation',
+        'BinaryOperation',
+        'NaryOperation',
+        'Range',
+        'Reference',
+        'Array',
+        'IfBlock',
+        'Loop',
+        'CodeBlock',
+        'Container',
+        'Literal']

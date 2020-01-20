@@ -35,7 +35,7 @@
 
 ''' Module containing the definition of the Range node. '''
 
-from psyclone.psyGen import Node, Literal, InternalError
+from psyclone.psyir.nodes import Node, Literal
 from psyclone.psyir.symbols import DataType
 
 
@@ -126,6 +126,8 @@ class Range(Node):
         :raises InternalError: if any of the children are not sub-classes \
                                of Node.
         '''
+        from psyclone.psyGen import InternalError
+
         if len(self._children) != 3:
             raise InternalError(
                 "Malformed Range: should have three children but "
