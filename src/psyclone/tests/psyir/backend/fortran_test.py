@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -552,7 +552,9 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
 # within previous tests
 
 
-def test_fw_binaryoperator(fort_writer):
+@pytest.mark.parametrize("binary_intrinsic", ["mod", "matmul", "max", "min",
+                                              "sign", "sum"])
+def test_fw_binaryoperator(fort_writer, binary_intrinsic):
     '''Check the FortranWriter class binary_operation method correctly
     prints out the Fortran representation of an intrinsic. Uses sign
     as the example.
@@ -565,14 +567,14 @@ def test_fw_binaryoperator(fort_writer):
         "subroutine tmp(a,n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
-        "    a = sign(1.0,1.0)\n"
+        "    a = {0}(1.0,1.0)\n"
         "end subroutine tmp\n"
-        "end module test")
+        "end module test").format(binary_intrinsic)
     schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=SIGN(1.0, 1.0)" in result
+    assert "a={0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
 
 
 def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):

@@ -48,9 +48,9 @@ transformation (see eg13) and this does little to matvec as it stands.
 Below is a list of things that will be implemented to improve
 performance but are not yet supported as transformations in PSyclone.
 
-1) replace matmult with equivalent code
+1) replace Fortran MATMUL intrinsic with equivalent code
    a) get PSyIR to recognise array slice notation
-   b) replace matmult with equivalent inline code
+   b) replace MATMUL with equivalent inline code
 2) loop fuse gather and matmul loop
 3) move indexing lookup before scatter loop
 4) loop fuse scatter loop and matmul loop
@@ -89,8 +89,10 @@ def trans(psy):
                 # optimisations will go here.
                 kernel_schedule.view()
                 result = fortran_writer(kernel_schedule)
-                print (result)
+                print(result)
                 # Abort after the first matrix vector kernel for the
-                # time being.
+                # time being.]
+                print ("Aborting to view the modifications to the matrix "
+                       "vector kernel")
                 exit(1)
     return psy

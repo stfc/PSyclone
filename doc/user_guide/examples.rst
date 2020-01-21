@@ -96,7 +96,7 @@ that we handle those that access data and/or routines via module
 ``use`` statements. This example shows the various forms for which
 support is planned (Issues #323 and #342).
 
-Dynamo
+LFRic
 ------
 
 Examples 1 and 2 are for the (deprecated) Dynamo 0.1 API. The remaining
@@ -248,6 +248,24 @@ computed beforehand) 3) set_dirty and set_clean calls are placed
 within an OpenACC Parallel directive and 4) there are no checks on
 whether loops are parallel or not, it is just assumed they are -
 i.e. support for colouring or locking is not yet implemented.
+
+Example 15: CPU Optimisation of Matvec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of optimising the LFRic matvec kernel for CPUs. This is work
+in progress with the idea being that PSyclone transformations will be
+able to reproduce hand-optimised code.
+
+There is one script which, when run
+
+::
+   > psyclone ./matvec_opt.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+
+will print out the modified matvec kernel code. At the moment no
+transformations are included (as they are work-in-progress) so the
+code that is output is the same as the original (but looks different
+as it has been translated to PSyIR and then output by the PSyIR
+fortran back-end).
 
 NEMO
 ----

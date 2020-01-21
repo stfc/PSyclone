@@ -1030,7 +1030,6 @@ def test_handling_intrinsics():
         ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
         ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
         ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-        ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
         ('x = matmul(a, b)', BinaryOperation,
          BinaryOperation.Operator.MATMUL),
         ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
