@@ -59,7 +59,7 @@ class Reference(Node):
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):
             raise TypeError("In Reference initialisation expecting a symbol "
-                            "but found '{0}'".format(type(symbol).__name__))
+                            "but found '{0}'.".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
 

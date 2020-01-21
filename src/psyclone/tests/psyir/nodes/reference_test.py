@@ -42,10 +42,23 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Reference, Array, Assignment, Container, \
     Literal
-from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError
+from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError, \
+    SymbolTable
 from psyclone.psyGen import GenerationError, KernelSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, check_links
+
+
+def test_reference_bad_init():
+    '''Check that the __init__ method of the Reference class raises the
+    expected exception if the symbol argument is not of the right
+    type.
+
+    '''
+    with pytest.raises(TypeError) as excinfo:
+        ref = Reference("hello")
+    assert ("In Reference initialisation expecting a symbol but found 'str'."
+            in str(excinfo.value))
 
 
 def test_reference_node_str():
@@ -226,3 +239,22 @@ def test_array_create_invalid():
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
+
+def test_reference_check_declared():
+    '''Test that the check_declared method in the Reference class raises
+    an exception if the associated symbol does not exist in a symbol
+    table associated with an ancestor node. Note, this exception is
+    only raised if a symbol table exists. If one does not exist then
+    it silently returns (to support the NEMO API which does not have
+    symbol tables see issue #500).
+
+    '''
+    ref = Reference(DataSymbol("rname", DataType.REAL))
+    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
+    kernel_schedule = KernelSchedule.create("test", SymbolTable(),
+                                            [assignment])
+    with pytest.raises(SymbolError) as excinfo:
+        ref.check_declared()
+    assert "Undeclared reference 'rname' found." in str(excinfo.value)
+    
