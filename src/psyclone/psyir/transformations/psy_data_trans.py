@@ -99,7 +99,7 @@ class PSyDataTrans(RegionTrans):
             applies.
         '''
         from fparser.two import Fortran2003
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from psyclone.nemo import NemoInvoke
         from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
 
@@ -123,7 +123,7 @@ class PSyDataTrans(RegionTrans):
         ptree = invoke._ast
         # pylint: enable=protected-access
         # Search for the Specification_Part
-        if not walk_ast([ptree], [Fortran2003.Specification_Part]):
+        if not walk([ptree], Fortran2003.Specification_Part):
             raise TransformationError(
                 "For the NEMO API, PSyData can only be added to routines "
                 "which contain existing variable declarations (i.e. a "
@@ -150,7 +150,6 @@ class PSyDataTrans(RegionTrans):
         '''
         # Check whether we've been passed a list of nodes or just a
         # single node.
-        from psyclone.psyGen import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):

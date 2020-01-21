@@ -39,7 +39,6 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import ExtractNode, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -122,7 +121,7 @@ class ExtractTrans(RegionTrans):
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
         from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import BuiltIn, Directive, \
+        from psyclone.psyGen import BuiltIn, Directive, Kern, \
             OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:

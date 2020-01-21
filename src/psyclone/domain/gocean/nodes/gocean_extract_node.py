@@ -43,7 +43,6 @@ output files.
 
 from __future__ import absolute_import, print_function
 from psyclone.configuration import Config
-from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import ExtractNode
 
 
@@ -220,6 +219,7 @@ class GOceanExtractNode(ExtractNode):
         props = api_config.field_properties
         old_data_property = props["go_grid_data"]
         props["go_grid_data"] = ("{0}", "array")
+        from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
             # Clear cached data in all kernels, which will
             # mean the new value for go_grid_data will be used:

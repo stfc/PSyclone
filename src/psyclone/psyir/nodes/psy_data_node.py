@@ -37,9 +37,8 @@
 ''' This module provides support accessing. '''
 
 from __future__ import absolute_import, print_function
+from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import InternalError, Kern, NameSpace, \
-     NameSpaceFactory
 from psyclone.psyir.nodes import Node
 
 
@@ -83,15 +82,13 @@ class PSyDataNode(Node):
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
 
-    # A namespace manager to make sure we get unique region names
-    _namespace = NameSpace()
-
     def __init__(self, ast=None, children=None, parent=None, name=None):
 
         # Store the name of the PSyData variable that is used for this
         # PSyData name. This allows to show the variable name in __str__
         # (and also if we would call create_name in gen(), the name would
         # change every time gen() is called).
+        from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
         if not children:
@@ -250,6 +247,7 @@ class PSyDataNode(Node):
             # this particular invoke region). Use the invoke name as a
             # starting point.
             region_name = self.root.invoke.name
+            from psyclone.psyGen import Kern
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
