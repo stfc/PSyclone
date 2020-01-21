@@ -197,7 +197,9 @@ class BinaryOperation(Operation):
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Query Operators
-        'SIZE'
+        'SIZE',
+        # Matrix and Vector Operators
+        'MATMUL'
         ])
 
     def __init__(self, operator, parent=None):
