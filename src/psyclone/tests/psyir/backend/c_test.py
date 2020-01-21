@@ -223,7 +223,7 @@ def test_cw_ifblock():
            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference(DataSymbol('a',DataType.REAL), parent=ifblock))
+    ifblock.addchild(Reference(DataSymbol('a', DataType.REAL), parent=ifblock))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert("IfBlock malformed or incomplete. It should have "

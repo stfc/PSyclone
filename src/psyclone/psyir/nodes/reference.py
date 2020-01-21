@@ -63,7 +63,6 @@ class Reference(Node):
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
 
-
     @property
     def symbol(self):
         ''' Return the referenced symbol.
@@ -73,7 +72,7 @@ class Reference(Node):
 
         '''
         return self._symbol
-        
+
     @property
     def name(self):
         ''' Return the name of the referenced symbol.
@@ -161,7 +160,7 @@ class Reference(Node):
         :param scope_limit: optional Node which limits the symbol \
             search space to the symbol tables of the nodes within the \
             given scope. If it is None (the default), the whole scope \
-            (all \ symbol tables in ancestor nodes) is searched.
+            (all symbol tables in ancestor nodes) is searched.
         :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or `None`
 
         :returns: the matching symbol.
@@ -243,7 +242,8 @@ class Array(Reference):
         '''Create an Array instance given a symbol and a list of Node
         array indices.
 
-        :param strXXX name: XXXXXXXXXXXXXXXXX
+        :param symbol: the symbol that this reference is associated with.
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -255,12 +255,11 @@ class Array(Reference):
 
         '''
         from psyclone.psyGen import GenerationError
-        # ******* Check it is a symbol. Check numargs in symbol match children
-        from psyclone.psyir.symbols import Symbol
-        if not isinstance(symbol, Symbol):
+        from psyclone.psyir.symbols import DataSymbol
+        if not isinstance(symbol, DataSymbol):
             raise GenerationError(
                 "name argument in create method of Array class should be a "
-                "Symbol but found '{0}'.".format(type(symbol).__name__))
+                "DataSymbol but found '{0}'.".format(type(symbol).__name__))
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Array class "
@@ -272,6 +271,12 @@ class Array(Reference):
                     "child of children argument in create method of "
                     "Array class should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
+        if not symbol.is_array or len(symbol.shape) != len(children):
+            raise GenerationError(
+                "the symbol should be an array with the same number of "
+                "dimensions as indices (provided in the 'children' argument). "
+                "Expecting '{0}' but found '{1}'.".format(
+                    len(children), len(symbol.shape)))
 
         array = Array(symbol)
         for child in children:

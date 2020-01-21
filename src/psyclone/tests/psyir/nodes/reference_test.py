@@ -196,9 +196,9 @@ def test_array_create():
     creates an Array instance.
 
     '''
+    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10,10,10])
     symbol_i = DataSymbol("i", DataType.INTEGER)
     symbol_j = DataSymbol("j", DataType.INTEGER)
-    symbol_temp = DataSymbol("temp", DataType.REAL)
     children = [Reference(symbol_i), Reference(symbol_j),
                 Literal("1", DataType.INTEGER)]
     array = Array.create(symbol_temp, children)
@@ -207,7 +207,42 @@ def test_array_create():
     assert result == "temp(i,j,1)"
 
 
-def test_array_create_invalid():
+def test_array_create_invalid1():
+    '''Test that the create method in the Array class raises an exception
+    if the provided symbol is not an array.
+
+    '''
+    symbol_i = DataSymbol("i", DataType.INTEGER)
+    symbol_j = DataSymbol("j", DataType.INTEGER)
+    symbol_temp = DataSymbol("temp", DataType.REAL)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", DataType.INTEGER)]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create(symbol_temp, children)
+    assert ("the symbol should be an array with the same number of dimensions "
+            "as indices (provided in the 'children' argument). Expecting '3' "
+            "but found '0'." in str(excinfo.value))
+
+
+def test_array_create_invalid2():
+    '''Test that the create method in the Array class raises an exception
+    if the number of dimension in the provided symbol is different to
+    the number of indices provided to the create method.
+
+    '''
+    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10])
+    symbol_i = DataSymbol("i", DataType.INTEGER)
+    symbol_j = DataSymbol("j", DataType.INTEGER)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", DataType.INTEGER)]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create(symbol_temp, children)
+    assert ("the symbol should be an array with the same number of dimensions "
+            "as indices (provided in the 'children' argument). Expecting '3' "
+            "but found '1'." in str(excinfo.value))
+
+
+def test_array_create_invalid3():
     '''Test that the create method in an Array class raises the expected
     exception if the provided input is invalid.
 
@@ -216,7 +251,7 @@ def test_array_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create([], [])
     assert ("name argument in create method of Array class should "
-            "be a Symbol but found 'list'."
+            "be a DataSymbol but found 'list'."
             in str(excinfo.value))
 
     # name is an empty string
@@ -257,4 +292,3 @@ def test_reference_check_declared():
     with pytest.raises(SymbolError) as excinfo:
         ref.check_declared()
     assert "Undeclared reference 'rname' found." in str(excinfo.value)
-    

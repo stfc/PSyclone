@@ -111,7 +111,7 @@ def test_ifblock_children_region():
     # Construct a valid IfBlock
     condition = Reference(DataSymbol('condition', DataType.INTEGER))
     ifblock = IfBlock.create(condition, [], [])
-    
+
     # Attempt to put all of the children of the IfBlock into a region. This
     # is an error because the first child is the conditional part of the
     # IfBlock.
