@@ -41,7 +41,10 @@
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
-        code generation. '''
+    code generation.
+
+    :param str value: the message associated with the error.
+    '''
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Generation Error: "+value
@@ -52,7 +55,10 @@ class GenerationError(Exception):
 
 class FieldNotFoundError(Exception):
     ''' Provides a PSyclone-specific error class when a field with the
-    requested property/ies is not found '''
+    requested property/ies is not found.
+
+    :param str value: the message associated with the error.
+    '''
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Field not found error: "+value

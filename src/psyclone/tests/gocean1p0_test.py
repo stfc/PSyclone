@@ -45,7 +45,7 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.generator import ParseError
+from psyclone.parse.utils import ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
     GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
