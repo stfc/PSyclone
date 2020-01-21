@@ -40,6 +40,7 @@ Deals with reading the config file and storing default settings.
 '''
 
 from __future__ import absolute_import, print_function
+from collections import namedtuple
 import os
 
 
@@ -783,6 +784,7 @@ class GOceanConfig(APISpecificConfig):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
+        # pylint: disable=too-many-locals
         super(GOceanConfig, self).__init__(section)
         # Setup the mapping for the field properties. This dictionary stores
         # the name of the field property as grid (e.g. ) go_grid_dx_t),
@@ -791,6 +793,7 @@ class GOceanConfig(APISpecificConfig):
         # ("{0}%%grid%%dx_t", "array")
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
+        Property = namedtuple("Property", "property type")
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -832,7 +835,7 @@ class GOceanConfig(APISpecificConfig):
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
-                        (access.strip(), field_type.strip())
+                        Property(access.strip(), field_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
                 for required in ["go_grid_xstop", "go_grid_ystop",
