@@ -279,6 +279,7 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
+        from psyclone.psyir.nodes.loop import Loop
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
