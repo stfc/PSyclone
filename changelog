@@ -54,6 +54,9 @@
         18) #657 towards #474. Moves various node classes out of psyGen
 	and into the psyclone.psyir.nodes module.
 
+	19) #669 towards #474. Move those error/exception classes that
+	were in psyGen into a new 'errors' module.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
