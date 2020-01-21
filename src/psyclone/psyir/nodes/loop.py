@@ -41,6 +41,7 @@
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.core.access_info import AccessType
+from psyclone.errors import InternalError, GenerationError
 
 
 class Loop(Node):
@@ -75,7 +76,6 @@ class Loop(Node):
 
     def __init__(self, parent=None, variable_name="", valid_loop_types=None,
                  annotations=None):
-        from psyclone.psyGen import InternalError
         Node.__init__(self, parent=parent, annotations=annotations)
 
         # Although the base class checks on the annotations individually, we
@@ -138,7 +138,6 @@ class Loop(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(var_name, str):
             raise GenerationError(
                 "var_name argument in create method of Loop class "
@@ -183,7 +182,6 @@ class Loop(Node):
         # We cannot just do str(self) in this routine we can end up being
         # called as a result of str(self) higher up the call stack
         # (because loop bounds are evaluated dynamically).
-        from psyclone.psyGen import InternalError
         if len(self.children) < 4:
             raise InternalError(
                 "Loop malformed or incomplete. It should have exactly 4 "
@@ -315,7 +313,6 @@ class Loop(Node):
         :raises GenerationError: if the specified value is not a recognised \
                                  loop type.
         '''
-        from psyclone.psyGen import GenerationError
         if value not in self._valid_loop_types:
             raise GenerationError(
                 "Error, loop_type value ({0}) is invalid. Must be one of "

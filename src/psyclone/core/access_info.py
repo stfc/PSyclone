@@ -39,6 +39,7 @@
 from __future__ import print_function, absolute_import
 
 from psyclone.core.access_type import AccessType
+from psyclone.errors import InternalError
 
 
 class AccessInfo(object):
@@ -89,7 +90,6 @@ class AccessInfo(object):
             READ access.
         '''
         if self._access_type != AccessType.READ:
-            from psyclone.psyGen import InternalError
             raise InternalError("Trying to change variable to 'WRITE' "
                                 "which does not have 'READ' access.")
         self._access_type = AccessType.WRITE
@@ -242,14 +242,12 @@ class VariableAccessInfo(object):
         one entry for the variable.
          '''
         if len(self._accesses) != 1:
-            from psyclone.psyGen import InternalError
             raise InternalError("Variable '{0}' had {1} accesses listed, "
                                 "not one in change_read_to_write.".
                                 format(self._var_name,
                                        len(self._accesses)))
 
         if self._accesses[0].access_type != AccessType.READ:
-            from psyclone.psyGen import InternalError
             raise InternalError("Trying to change variable '{0}' to 'WRITE' "
                                 "which does not have 'READ' access."
                                 .format(self.var_name))

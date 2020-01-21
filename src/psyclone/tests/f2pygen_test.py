@@ -40,7 +40,7 @@ import pytest
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node
 from psyclone.tests.utilities import Compile, count_lines, line_number
 

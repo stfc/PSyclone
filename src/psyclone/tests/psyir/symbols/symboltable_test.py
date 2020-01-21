@@ -43,7 +43,7 @@ import re
 import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 def test_new_symbol_name_1():

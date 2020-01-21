@@ -46,7 +46,8 @@ import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
 

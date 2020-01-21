@@ -46,7 +46,10 @@ from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import ProfileNode
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import InternalError, NameSpace
+from psyclone.psyGen import NameSpace
+from psyclone.errors import InternalError
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
