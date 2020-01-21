@@ -41,7 +41,7 @@ import pytest
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone import psyir
-from psyclone.psyGen import GenerationError, InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild

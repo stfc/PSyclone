@@ -42,6 +42,7 @@ import re
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
+from psyclone.errors import InternalError, GenerationError
 
 
 class Assignment(Node):
@@ -66,7 +67,6 @@ class Assignment(Node):
 
         :raises InternalError: Node has fewer children than expected.
         '''
-        from psyclone.psyGen import InternalError
         if not self._children:
             raise InternalError(
                 "Assignment '{0}' malformed or incomplete. It "
@@ -83,7 +83,6 @@ class Assignment(Node):
 
         :raises InternalError: Node has fewer children than expected.
         '''
-        from psyclone.psyGen import InternalError
         if len(self._children) < 2:
             raise InternalError(
                 "Assignment '{0}' malformed or incomplete. It "
@@ -109,7 +108,6 @@ class Assignment(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
@@ -138,7 +136,6 @@ class Assignment(Node):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        from psyclone.psyGen import InternalError
 
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there

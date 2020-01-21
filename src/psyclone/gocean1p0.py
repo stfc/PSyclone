@@ -53,9 +53,9 @@ from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    CodedKern, Arguments, Argument, KernelArgument, \
-    GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, AccessType, ACCEnterDataDirective
+    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
+    NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr

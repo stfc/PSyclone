@@ -43,6 +43,7 @@ import abc
 from enum import Enum
 import six
 from psyclone.psyir.nodes.node import Node
+from psyclone.errors import GenerationError
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -158,7 +159,6 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of UnaryOperation class "
@@ -252,7 +252,6 @@ class BinaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of BinaryOperation class "
@@ -312,7 +311,6 @@ class NaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, NaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of NaryOperation class "

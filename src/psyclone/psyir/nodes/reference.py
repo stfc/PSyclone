@@ -42,6 +42,7 @@ nodes.'''
 from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import SymbolError
+from psyclone.errors import GenerationError
 
 
 class Reference(Node):
@@ -229,7 +230,6 @@ class Array(Reference):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(name, str):
             raise GenerationError(
                 "name argument in create method of Array class "

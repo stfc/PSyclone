@@ -45,8 +45,8 @@ from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, Array, Node
-from psyclone.psyGen import Directive, KernelSchedule, InternalError, \
-    GenerationError
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType
