@@ -53,7 +53,7 @@ from fparser import api as fpapi
 from fparser.one import parsefortran
 
 import psyclone.expression as expr
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_line_length, ParseError
 

@@ -98,7 +98,7 @@ class ExtractNode(Node):
                                its child.
         '''
         from psyclone.psyir.nodes import Schedule
-        from psyclone.psyGen import InternalError
+        from psyclone.errors import InternalError
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(

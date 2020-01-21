@@ -73,7 +73,7 @@ def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
     a single Schedule node as its child. '''
     from psyclone.psyir.nodes import Node
-    from psyclone.psyGen import InternalError
+    from psyclone.errors import InternalError
     enode = ExtractNode()
     monkeypatch.setattr(enode, "_children", [])
     with pytest.raises(InternalError) as err:

@@ -75,7 +75,7 @@ def test_handling_literal(code, dtype):
 def test_handling_invalid_logic_literal():
     ''' Test that a logic fparser2 literal with an invalid value produces
     an error.'''
-    from psyclone.psyGen import GenerationError
+    from psyclone.errors import GenerationError
     reader = FortranStringReader("x = .true.")
     astmt = Fortran2003.Assignment_Stmt(reader)
     astmt.items[2].items = ('invalid', None)
