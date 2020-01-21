@@ -328,3 +328,30 @@ def test_where_ordering(parser):
     assert isinstance(fake_parent[1], Loop)
     assert isinstance(fake_parent[2], CodeBlock)
     assert isinstance(fake_parent[3], Loop)
+
+
+def test_where_with_symboltable(f2008_parser):
+    '''Tests that the code works as expected when the PSyIR has a symbol
+    table.
+
+    '''
+    reader = FortranStringReader(
+        "module my_test\n"
+        "contains\n"
+        "subroutine my_sub()\n"
+        "  logical, dimension(5,5) :: mask\n"
+        "  real, dimension(5,5) :: value\n"
+        "  where (mask(:,:))\n"
+        "    value(:,:) = 0.0\n"
+        "  end where\n"
+        "end subroutine my_sub\n"
+        "end module my_test\n")
+    fparser2spec = f2008_parser(reader)
+    processor = Fparser2Reader()
+    result = processor.generate_schedule("my_sub", fparser2spec)
+    from psyclone.psyir.backend.fortran import FortranWriter
+    writer = FortranWriter()
+    # Check that the temporary variables are stored in the symbol
+    # table and generated.
+    assert "integer :: widx1" in writer
+    assert "integer :: widx2" in writer

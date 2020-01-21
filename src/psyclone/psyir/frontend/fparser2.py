@@ -1605,6 +1605,15 @@ class Fparser2Reader(object):
         all_names = {str(name) for name in name_list}
         # pylint: enable=protected-access
 
+        # find the first symbol table attached to an ancestor
+        symbol_table = None
+        current = parent
+        while current:
+            if hasattr(current, "symbol_table"):
+                symbol_table = current.symbol_table
+                break
+            current = current.parent
+
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
@@ -1618,6 +1627,9 @@ class Fparser2Reader(object):
                     "Cannot create Loop with variable '{0}' because code "
                     "already contains a symbol with that name.".format(
                         loop_vars[idx-1]))
+            if symbol_table:
+                symbol_table.add(DataSymbol(loop_vars[idx-1],
+                                            DataType.INTEGER))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
