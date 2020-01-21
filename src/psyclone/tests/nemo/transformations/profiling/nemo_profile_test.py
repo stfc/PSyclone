@@ -378,7 +378,8 @@ def test_profiling_no_spec_part(parser, monkeypatch):
 def test_profiling_missing_end(parser):
     ''' Check that we raise the expected error if we are unable to find
     the end of the profiled code section in the parse tree. '''
-    from psyclone.psyGen import Loop, InternalError
+    from psyclone.psyGen import Loop
+    from psyclone.errors import InternalError
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "real :: sto_tmp(jpj)\n"
