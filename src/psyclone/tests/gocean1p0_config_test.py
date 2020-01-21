@@ -43,7 +43,7 @@ import pytest
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 @pytest.fixture(scope="function", autouse=True)

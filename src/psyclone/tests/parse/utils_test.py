@@ -43,7 +43,7 @@ import pytest
 import six
 
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 # function check_line_length() tests
 

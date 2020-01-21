@@ -55,9 +55,9 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
+    Arguments, KernelArgument, NameSpaceFactory, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType
 
