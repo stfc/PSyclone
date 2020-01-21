@@ -349,9 +349,8 @@ def test_where_with_symboltable(f2008_parser):
     fparser2spec = f2008_parser(reader)
     processor = Fparser2Reader()
     result = processor.generate_schedule("my_sub", fparser2spec)
-    from psyclone.psyir.backend.fortran import FortranWriter
-    writer = FortranWriter()
     # Check that the temporary variables are stored in the symbol
-    # table and generated.
-    assert "integer :: widx1" in writer
-    assert "integer :: widx2" in writer
+    # table.
+    symbol_table = result.symbol_table
+    assert symbol_table.lookup("widx1")
+    assert symbol_table.lookup("widx2")
