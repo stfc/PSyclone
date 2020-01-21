@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -2215,10 +2215,10 @@ the field arguments were on a vector function space (one of ``W1``,
 of the ability to apply boundary conditions to operators this functionality
 is no longer required and has been removed.
 
-Example ``eg4`` in the ``examples/dynamo`` directory includes a call
+Example ``eg4`` in the ``examples/lfric`` directory includes a call
 to ``enforce_bc_kernel_type`` so can be used to see the boundary condition
 code that is added by PSyclone. See the ``README`` in the
-``examples/dynamo`` directory for instructions on how to run this
+``examples/lfric`` directory for instructions on how to run this
 example.
 
 An example of applying boundary conditions to an operator is the kernel
@@ -2324,7 +2324,7 @@ The Dynamo0.3-API-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
 that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
-all versions of the Dynamo0.3 API.
+all versions of the Dynamo API.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
           supported for loops that contain inter-grid kernels. Attempting

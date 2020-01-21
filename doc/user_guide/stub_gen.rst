@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ Kernels
 -------
 
 Any Dynamo0.3 kernel can be used as input to the stub generator.
-Example Kernels can be found in the ``examples/dynamo`` repository or,
+Example Kernels can be found in the ``examples/lfric`` repository or,
 for more simple cases, in the ``tests/test_files/dynamo0p3`` directory.
 These directories are located in the ``<PSYCLONEHOME>/src/psyclone``
 directory where ``<PSYCLONEHOME>`` refers to the location where you
