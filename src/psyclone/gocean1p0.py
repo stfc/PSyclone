@@ -677,6 +677,10 @@ class GOLoop(Loop):
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
             api_config = Config.get().api_conf("gocean1.0")
+            # Use the data property to access the member of the field that
+            # contains the actual grid points. The property value is a
+            # string with a placeholder ({0}) where the name of the field
+            # must go.
             data = api_config.field_properties["go_grid_data"].property \
                 .format(self.field_name)
             stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
@@ -1563,14 +1567,14 @@ class GOKernelGridArgument(Argument):
         return self._name
 
     def dereference(self, fld_name):
-        '''Returns a Fortran string to dereference a property of the
+        '''Returns a Fortran string to dereference a grid property of the
         specified field. E.g."name%grid%dx". The stored value of
         self._dereference_name is a format string, where {0} represents
         the field name.
 
-        :returns: the dereference string required to access a property in \
-            a dl_esm field (e.g. "subdomain%internal%xstart"). The name must \
-            contains a "{0}" which is replaced by the field name.
+        :returns: the dereference string required to access a grid property
+            in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
+            must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
         return self._dereference_name.format(fld_name)
 
@@ -1584,7 +1588,7 @@ class GOKernelGridArgument(Argument):
     def is_scalar(self):
         ''':return: If this variable is a scalar variable or not.
         :rtype: bool'''
-        # The constructur guarantees that _pro_name is a valid key!
+        # The constructor guarantees that _property_name is a valid key!
         api_config = Config.get().api_conf("gocean1.0")
         return api_config.field_properties[self._property_name].type \
             == "scalar"
