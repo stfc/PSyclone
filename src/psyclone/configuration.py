@@ -793,7 +793,7 @@ class GOceanConfig(APISpecificConfig):
         # a property, and 'type' is a string.
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
-        Property = namedtuple("Property", "property type")
+        Property = namedtuple("Property", "fortran type")
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.

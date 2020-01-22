@@ -296,9 +296,9 @@ class GOInvoke(Invoke):
             # Look-up the loop bounds using the first field object in the
             # list
             api_config = Config.get().api_conf("gocean1.0")
-            xstop = api_config.field_properties["go_grid_xstop"].property \
+            xstop = api_config.field_properties["go_grid_xstop"].fortran \
                 .format(self.unique_args_arrays[0])
-            ystop = api_config.field_properties["go_grid_ystop"].property \
+            ystop = api_config.field_properties["go_grid_ystop"].fortran \
                 .format(self.unique_args_arrays[0])
             position = invoke_sub.last_declaration()
             invoke_sub.add(CommentGen(invoke_sub, ""),
@@ -681,7 +681,7 @@ class GOLoop(Loop):
             # contains the actual grid points. The property value is a
             # string with a placeholder ({0}) where the name of the field
             # must go.
-            data = api_config.field_properties["go_grid_data"].property \
+            data = api_config.field_properties["go_grid_data"].fortran \
                 .format(self.field_name)
             stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
             if self._loop_type == "inner":
@@ -709,7 +709,7 @@ class GOLoop(Loop):
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
         stop_format = props["go_grid_{0}_{1}_stop"
-                            .format(key, self._loop_type)].property
+                            .format(key, self._loop_type)].fortran
         stop = stop_format.format(self.field_name)
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
@@ -785,7 +785,7 @@ class GOLoop(Loop):
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
         start_format = props["go_grid_{0}_{1}_start"
-                             .format(key, self._loop_type)].property
+                             .format(key, self._loop_type)].fortran
         start = start_format.format(self.field_name)
         # TODO 363 - update once the PSyIR supports derived types
         return Literal(start, DataType.INTEGER, self)
@@ -1037,9 +1037,9 @@ class GOKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
-        num_x = api_config.field_properties["go_grid_nx"].property\
+        num_x = api_config.field_properties["go_grid_nx"].fortran\
             .format(garg.name)
-        num_y = api_config.field_properties["go_grid_ny"].property\
+        num_y = api_config.field_properties["go_grid_ny"].fortran\
             .format(garg.name)
         parent.add(AssignGen(parent, lhs=glob_size,
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
@@ -1207,7 +1207,7 @@ class GOKern(CodedKern):
                     condition = ".NOT. {0}%data_on_device".format(arg.name)
                     device_buff = "{0}%device_ptr".format(arg.name)
                     host_buff = api_config.field_properties["go_grid_data"]\
-                        .property.format(arg.name)
+                        .fortran.format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
                     # they are just arrays) so we check whether the device
@@ -1233,8 +1233,8 @@ class GOKern(CodedKern):
                                    entity_decls=[wevent]))
                 api_config = Config.get().api_conf("gocean1.0")
                 props = api_config.field_properties
-                num_x = props["go_grid_nx"].property.format(grid_arg.name)
-                num_y = props["go_grid_ny"].property.format(grid_arg.name)
+                num_x = props["go_grid_nx"].fortran.format(grid_arg.name)
+                num_y = props["go_grid_ny"].fortran.format(grid_arg.name)
                 # Use c_sizeof() on first element of array to be copied over in
                 # order to cope with the fact that some grid properties are
                 # integer.
@@ -1361,7 +1361,7 @@ class GOKernelArguments(Arguments):
             elif arg.type == "field":
                 # Field objects are Fortran derived-types
                 api_config = Config.get().api_conf("gocean1.0")
-                data = api_config.field_properties["go_grid_data"].property\
+                data = api_config.field_properties["go_grid_data"].fortran\
                     .format(arg.name)
                 arguments.append(data)
             elif arg.type == "grid_property":
@@ -1431,7 +1431,7 @@ class GOKernelArguments(Arguments):
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         api_config = Config.get().api_conf("gocean1.0")
-        data_fmt = api_config.field_properties["go_grid_data"].property
+        data_fmt = api_config.field_properties["go_grid_data"].fortran
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
         for arg in self._args:
             if arg.type == "scalar":
@@ -1540,7 +1540,7 @@ class GOKernelGridArgument(Argument):
 
         api_config = Config.get().api_conf("gocean1.0")
         try:
-            deref_name = api_config.field_properties[arg.grid_prop].property
+            deref_name = api_config.field_properties[arg.grid_prop].fortran
         except KeyError:
             all_keys = str(api_config.field_properties.keys())
             raise GenerationError("Unrecognised grid property specified. "
