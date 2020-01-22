@@ -786,11 +786,11 @@ class GOceanConfig(APISpecificConfig):
     def __init__(self, config, section):
         # pylint: disable=too-many-locals
         super(GOceanConfig, self).__init__(section)
-        # Setup the mapping for the field properties. This dictionary stores
-        # the name of the field property as grid (e.g. ) go_grid_dx_t),
-        # and the value is a pair specifying a format string to dereference
-        # a property, and the type (as string). Example value:
-        # ("{0}%%grid%%dx_t", "array")
+        # Setup the mapping for the grid properties. This dictionary stores
+        # the name of the grid property as key (e.g. ``go_grid_dx_t``),
+        # with the value being a named tuple with an entry for 'property'
+        # and 'type'. The 'property' is a format string to dereference
+        # a property, and 'type' is a string.
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
         Property = namedtuple("Property", "property type")
@@ -827,7 +827,8 @@ class GOceanConfig(APISpecificConfig):
                         # two values separated by ":"
                         error = "Invalid property \"{0}\" found with value " \
                                 "\"{1}\" in \"{2}\". It must have exactly " \
-                                "two ':'' separated values." \
+                                "two ':'-delimited separated values: the " \
+                                "property and the type." \
                                 .format(grid_property,
                                         all_props[grid_property],
                                         config.filename)
@@ -850,8 +851,9 @@ class GOceanConfig(APISpecificConfig):
                                  "go_grid_whole_outer_stop"]:
                     if required not in self._grid_properties:
                         error = "The config file {0} does not contain " \
-                                "values for \"{1}\".".format(config.filename,
-                                                             required)
+                                "values for the following, mandatory grid " \
+                                "property: \"{1}\".".format(config.filename,
+                                                            required)
                         raise ConfigurationError(error)
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "

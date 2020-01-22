@@ -525,8 +525,11 @@ go_grid_y_min_index Minimum Y index                Integer, scalar
 go_grid_y_max_index Maximum Y index                Integer, scalar
 =================== =============================  ====================
 
-These are stored in a dictionary named ``GRID_PROPERTY_DICT`` at the
-top of the ``gocean1p0.py`` file. All of the rank-two arrays have the
+These are defined in the psyclone config file (see
+:ref:`gocean1.0-configuration`), and the user or infrastructure
+library developer can provide additional entries if required.
+PSyclone will query PSyclone's Configuration class to get the
+properties required. All of the rank-two arrays have the
 first rank as longitude (*x*) and the second as latitude (*y*).
 
 Scalars and fields contain a third argument-metadata entry which
@@ -893,7 +896,7 @@ small number of properties that must be defined with the right name:
 | go_grid_xstop,                | These values specify the upper loop boundary     |
 | go_grid_ystop                 | when computing the constant loop boundaries.     |
 +-------------------------------+--------------------------------------------------+
-| | go_grid_{internal,external} | These eight values are required to               |
+| | go_grid_{internal,whole}    | These eight values are required to               |
 | | _{inner,outer}_{start,stop} | specify the loop boundaries depending on the     |
 |                               | field space.                                     |
 +-------------------------------+--------------------------------------------------+

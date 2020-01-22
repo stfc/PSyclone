@@ -241,8 +241,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         # The config file {0} does not contain values for "..."
-        assert "does not contain values for \"go_grid_xstop\"" \
-            in str(err.value)
+        assert "does not contain values for the following, mandatory grid " \
+            "property: \"go_grid_xstop\"" in str(err.value)
 
 
 # =============================================================================
