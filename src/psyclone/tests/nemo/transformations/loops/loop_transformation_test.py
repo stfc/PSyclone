@@ -40,7 +40,8 @@ from __future__ import print_function, absolute_import
 import pytest
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo, InternalError
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo

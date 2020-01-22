@@ -44,7 +44,8 @@ import pytest
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
 from psyclone.psyir.symbols import DataType
-from psyclone.psyGen import InternalError, GenerationError, PSyFactory
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, check_links
 from psyclone.parse.algorithm import parse
