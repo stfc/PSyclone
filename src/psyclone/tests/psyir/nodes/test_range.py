@@ -81,8 +81,7 @@ def test_range_init(parser):
     assert erange2.ast is prog
     with pytest.raises(InternalError) as err:
         _ = Range(annotations=["was-where"])
-    # TODO correct US spelling of unrecognized!
-    assert "unrecognized annotation 'was-where'" in str(err.value)
+    assert "unrecognised annotation 'was-where'" in str(err.value)
 
 
 def test_range_create():

@@ -179,7 +179,7 @@ def test_node_annotations():
     with pytest.raises(InternalError) as excinfo:
         _ = Node(annotations=["invalid"])
     assert (
-        "Node with unrecognized annotation 'invalid', valid annotations are: "
+        "Node with unrecognised annotation 'invalid', valid annotations are: "
         "()." in str(excinfo.value))
 
 

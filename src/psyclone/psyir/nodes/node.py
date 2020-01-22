@@ -140,7 +140,7 @@ class Node(object):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "{0} with unrecognized annotation '{1}', valid "
+                        "{0} with unrecognised annotation '{1}', valid "
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
