@@ -54,14 +54,16 @@ def test_create():
             "abstract methods apply" in str(excinfo.value))
 
 
+class DummyTrans(NemoOperatorTrans):
+    '''Dummy transformation class used to test NemoOperatorTrans
+    methods.'''
+    # pylint: disable=arguments-differ, no-method-argument
+    def apply():
+        '''Dummy apply method.'''
+
+
 def test_init():
     '''Check that internal variables are initialised as expected.'''
-    class DummyTrans(NemoOperatorTrans):
-        '''Dummy transformation class used to test NemoOperatorTrans
-        methods.'''
-        # pylint: disable=arguments-differ, no-method-argument
-        def apply():
-            '''Dummy apply method.'''
 
     dummy = DummyTrans()
     # pylint: disable=protected-access
@@ -74,19 +76,13 @@ def test_init():
 def test_str_name():
     '''Check that str and name methods behave as expected.'''
 
-    class DummyTrans(NemoOperatorTrans):
-        '''Dummy transformation class used to test NemoOperatorTrans
-        methods.'''
-        def __init__(self):
-            '''Initialise required internal variable.'''
-            super(DummyTrans, self).__init__()
-            self._operator_name = "hello"
-
-        # pylint: disable=arguments-differ, no-method-argument
-        def apply():
-            '''Dummy apply method'''
-
     dummy = DummyTrans()
+    # operator_name is usually set by the Transformation's __init__
+    # method but set it manually here to avoid creating multiple
+    # implementations of DummyTrans.
+    # pylint: disable=protected-access
+    dummy._operator_name = "hello"
+    # pylint: enable=protected-access
     assert (str(dummy) == "Convert the PSyIR HELLO intrinsic to equivalent "
             "PSyIR code.")
     assert dummy.name == "NemoHelloTrans"
@@ -95,22 +91,18 @@ def test_str_name():
 def test_validate():
     '''Check that the validate method raises exceptions as expected.'''
 
-    class DummyTrans(NemoOperatorTrans):
-        '''Dummy transformation class used to test the NemoOperatorTrans
-        validate method.'''
-        def __init__(self):
-            '''Initialise required internal variables.'''
-            super(DummyTrans, self).__init__()
-            self._operator_name = "hello"
-            self._classes = (UnaryOperation,)
-            self._operators = (UnaryOperation.Operator.ABS,)
-
-        # pylint: disable=arguments-differ, no-method-argument
-        def apply():
-            '''Dummy apply method'''
-
     Config.get().api = "nemo"
+
     dummy = DummyTrans()
+    # operator_name, classes and operators are usually set by the
+    # Transformation's __init__ method but set them manually here to
+    # avoid creating multiple implementations of DummyTrans.
+    # pylint: disable=protected-access
+    dummy._operator_name = "hello"
+    dummy._classes = (UnaryOperation,)
+    dummy._operators = (UnaryOperation.Operator.ABS,)
+    # pylint: enable=protected-access
+
     symbol_table = SymbolTable()
     var = Literal("0.0", DataType.REAL)
     operator = UnaryOperation(UnaryOperation.Operator.ABS, var)
