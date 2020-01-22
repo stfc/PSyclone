@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,14 +47,14 @@ def valid_kernel(node):
     enclosed within an OpenACC KERNELS directive.
 
     :param node: the node in the PSyIR to check.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: True if the sub-tree can be enclosed in a KERNELS region.
     :rtype: bool
 
     '''
-    from psyclone.psyGen import CodeBlock, IfBlock
-    from fparser.two.utils import walk_ast
+    from psyclone.psyir.nodes import CodeBlock, IfBlock
+    from fparser.two.utils import walk
     from fparser.two import Fortran2003
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
@@ -65,7 +65,7 @@ def valid_kernel(node):
     # PGI deep-copy doesn't like them).
     # TODO #365 - this check should be part of our identification of valid
     # NEMO kernels.
-    if walk_ast([node.ast], [Fortran2003.Data_Ref]):
+    if walk(node.ast, Fortran2003.Data_Ref):
         return False
     return True
 
@@ -76,7 +76,7 @@ def have_loops(nodes):
     their sub-trees.
 
     :param nodes: list of PSyIR nodes to check for Loops.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :returns: True if a Loop is found, False otherwise.
     :rtype: bool
 
@@ -95,7 +95,7 @@ def add_kernels(children, default_present=True):
 
     :param children: list of sibling Nodes in PSyIR that are candidates for \
                      inclusion in an ACC KERNELS region.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param bool default_present: whether or not to supply the \
                           DEFAULT(PRESENT) clause to ACC KERNELS directives.
 
@@ -125,12 +125,12 @@ def try_kernels_trans(nodes, default_present):
     reported but execution continues.
 
     :param nodes: list of Nodes to enclose within a Kernels region.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param bool default_present: whether or not to supply the \
                           DEFAULT(PRESENT) clause to ACC KERNELS directives.
 
     '''
-    from psyclone.psyGen import InternalError
+    from psyclone.errors import InternalError
     from psyclone.transformations import TransformationError, ACCKernelsTrans
     try:
         _, _ = ACCKernelsTrans().apply(nodes,
