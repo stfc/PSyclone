@@ -41,7 +41,8 @@ functionality required by transformations of PSyIR intrinsic operators
 
 import abc
 import six
-from psyclone.psyGen import Transformation, Assignment
+from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations.transformation_error import TransformationError
 from psyclone.psyir.symbols import SymbolTable
 

@@ -47,7 +47,7 @@ from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans
 from psyclone.psyir.transformations import NemoAbsTrans
-from psyclone.psyGen import UnaryOperation, BinaryOperation, Assignment, \
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
     Reference, Literal, IfBlock
 from psyclone.psyir.symbols import DataType, DataSymbol
 

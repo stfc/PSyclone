@@ -35,14 +35,14 @@
 
 '''Module containing tests for the nemo abs transformation.'''
 
+import pytest
 from psyclone.psyir.transformations import NemoSignTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
     ArgumentInterface
-from psyclone.psyGen import Reference, BinaryOperation, Assignment, \
-    KernelSchedule
+from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
-import pytest
 
 
 def test_initialise():

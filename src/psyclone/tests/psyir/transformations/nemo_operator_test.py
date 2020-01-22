@@ -37,12 +37,12 @@
 provides common functionality for the intrinsic operator
 transformations (such as MIN, ABS and SIGN).'''
 
+import pytest
 from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataType
-from psyclone.psyGen import Reference, UnaryOperation, Assignment, Literal
+from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
 from psyclone.configuration import Config
-import pytest
 
 
 def test_create():
@@ -62,7 +62,6 @@ def test_init():
         # pylint: disable=arguments-differ, no-method-argument
         def apply():
             '''Dummy apply method.'''
-            pass
 
     dummy = DummyTrans()
     # pylint: disable=protected-access
@@ -86,7 +85,6 @@ def test_str_name():
         # pylint: disable=arguments-differ, no-method-argument
         def apply():
             '''Dummy apply method'''
-            pass
 
     dummy = DummyTrans()
     assert (str(dummy) == "Convert the PSyIR HELLO intrinsic to equivalent "
@@ -110,7 +108,6 @@ def test_validate():
         # pylint: disable=arguments-differ, no-method-argument
         def apply():
             '''Dummy apply method'''
-            pass
 
     Config.get().api = "nemo"
     dummy = DummyTrans()

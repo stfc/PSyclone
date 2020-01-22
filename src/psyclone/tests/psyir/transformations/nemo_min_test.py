@@ -35,14 +35,15 @@
 
 '''Module containing tests for the nemo MIN transformation.'''
 
+import pytest
 from psyclone.psyir.transformations import NemoMinTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
     ArgumentInterface
-from psyclone.psyGen import Reference, BinaryOperation, NaryOperation, \
-    Assignment, KernelSchedule
+from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
+    Assignment
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
-import pytest
 
 
 def test_initialise():

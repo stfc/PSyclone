@@ -46,7 +46,7 @@ implemented the transformation can be modified to work for all APIs.
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
         NemoOperatorTrans
-from psyclone.psyGen import BinaryOperation, NaryOperation, Assignment, \
+from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock
 from psyclone.psyir.symbols import DataType, DataSymbol
 
