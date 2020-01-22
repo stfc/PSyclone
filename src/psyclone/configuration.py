@@ -813,14 +813,14 @@ class GOceanConfig(APISpecificConfig):
                 # Handled in the base class APISpecificConfig
                 pass
             elif key == "grid-properties":
-                # Field properties have the format:
+                # Grid properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array,
-                # First the name, then the Fortran code to access the property
-                # then the type ("array" or "scalar")
+                # First the name, then the Fortran code to access the property,
+                # followed by the type ("array" or "scalar")
                 all_props = self.create_dict_from_string(section[key])
                 for grid_property in all_props:
                     try:
-                        access, field_type = all_props[grid_property]\
+                        fortran, variable_type = all_props[grid_property]\
                                             .split(":")
                     except ValueError:
                         # Raised when the string does not contain exactly
@@ -836,7 +836,7 @@ class GOceanConfig(APISpecificConfig):
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
-                        Property(access.strip(), field_type.strip())
+                        Property(fortran.strip(), variable_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
                 for required in ["go_grid_xstop", "go_grid_ystop",
@@ -861,8 +861,8 @@ class GOceanConfig(APISpecificConfig):
                                                            config.filename))
     # ---------------------------------------------------------------------
     @property
-    def field_properties(self):
-        ''':returns: the dictionary containing the field properties.
+    def grid_properties(self):
+        ''':returns: the dictionary containing the grid properties.
         :type: a dictionary with values of pairs (dereference-format, type)
         '''
         return self._grid_properties
