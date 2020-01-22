@@ -67,7 +67,7 @@ def example_psyir(create_expression):
     intrinsic operator and returns the operator.
 
     :param function create_expresssion: function used to create the \
-        content of the ABS argument.
+        content of the ABS operator.
 
     :returns: PSyIR ABS operator instance.
     :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
@@ -101,7 +101,6 @@ def test_correct(func, output):
     expresssion.
 
     '''
-
     Config.get().api = "nemo"
     operation = example_psyir(func)
     writer = FortranWriter()
@@ -129,6 +128,111 @@ def test_correct(func, output):
         "  end if\n"
         "  psyir_tmp=res_abs\n\n"
         "end subroutine abs_example\n".format(output)) in result
+    # Remove the created config instance
+    # pylint: disable=protected-access
+    Config._instance = None
+    # pylint: enable=protected-access
+
+
+def test_correct_expr():
+    '''Check that a valid example produces the expected output when ABS()
+    is part of an expression.
+
+    '''
+    Config.get().api = "nemo"
+    operation = example_psyir(
+        lambda arg: BinaryOperation.create(
+            BinaryOperation.Operator.MUL, arg,
+            Literal("3.14", DataType.REAL)))
+    assignment = operation.parent
+    op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 Literal("1.0", DataType.REAL), operation)
+    op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 op1, Literal("2.0", DataType.REAL))
+    op2.parent = assignment
+    assignment.children[1] = op2
+    writer = FortranWriter()
+    result = writer(operation.root)
+    assert (
+        "subroutine abs_example(arg)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=1.0 + ABS(arg * 3.14) + 2.0\n\n"
+        "end subroutine abs_example\n") in result
+    trans = NemoAbsTrans()
+    _, _ = trans.apply(operation, operation.root.symbol_table)
+    result = writer(operation.root)
+    assert (
+        "subroutine abs_example(arg)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real :: psyir_tmp\n"
+        "  real :: res_abs\n"
+        "  real :: tmp_abs\n\n"
+        "  tmp_abs=arg * 3.14\n"
+        "  if (tmp_abs > 0.0) then\n"
+        "    res_abs=tmp_abs\n"
+        "  else\n"
+        "    res_abs=tmp_abs * -1.0\n"
+        "  end if\n"
+        "  psyir_tmp=1.0 + res_abs + 2.0\n\n"
+        "end subroutine abs_example\n") in result
+    # Remove the created config instance
+    # pylint: disable=protected-access
+    Config._instance = None
+    # pylint: enable=protected-access
+
+
+def test_correct_2abs():
+    '''Check that a valid example produces the expected output when there
+    is more than one ABS() in an expression.
+
+    '''
+    Config.get().api = "nemo"
+    operation = example_psyir(
+        lambda arg: BinaryOperation.create(
+            BinaryOperation.Operator.MUL, arg,
+            Literal("3.14", DataType.REAL)))
+    assignment = operation.parent
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
+                                   Literal("1.0", DataType.REAL))
+    op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 operation, abs_op)
+    op1.parent = assignment
+    assignment.children[1] = op1
+    writer = FortranWriter()
+    result = writer(operation.root)
+    assert (
+        "subroutine abs_example(arg)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=ABS(arg * 3.14) + ABS(1.0)\n\n"
+        "end subroutine abs_example\n") in result
+    trans = NemoAbsTrans()
+    _, _ = trans.apply(operation, operation.root.symbol_table)
+    _, _ = trans.apply(abs_op, operation.root.symbol_table)
+    result = writer(operation.root)
+    assert (
+        "subroutine abs_example(arg)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real :: psyir_tmp\n"
+        "  real :: res_abs\n"
+        "  real :: tmp_abs\n"
+        "  real :: res_abs_0\n"
+        "  real :: tmp_abs_0\n\n"
+        "  tmp_abs=arg * 3.14\n"
+        "  if (tmp_abs > 0.0) then\n"
+        "    res_abs=tmp_abs\n"
+        "  else\n"
+        "    res_abs=tmp_abs * -1.0\n"
+        "  end if\n"
+        "  tmp_abs_0=1.0\n"
+        "  if (tmp_abs_0 > 0.0) then\n"
+        "    res_abs_0=tmp_abs_0\n"
+        "  else\n"
+        "    res_abs_0=tmp_abs_0 * -1.0\n"
+        "  end if\n"
+        "  psyir_tmp=res_abs + res_abs_0\n\n"
+        "end subroutine abs_example\n") in result
     # Remove the created config instance
     # pylint: disable=protected-access
     Config._instance = None
