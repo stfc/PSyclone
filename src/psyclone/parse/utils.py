@@ -93,8 +93,6 @@ def check_line_length(filename):
     :raises ParseError: if one of more lines are longer than the 132 \
                         line length limit.
     '''
-    from psyclone.psyGen import InternalError
-
     fll = FortLineLength()
     try:
         with io.open(filename, "r", encoding='utf8') as myfile:
