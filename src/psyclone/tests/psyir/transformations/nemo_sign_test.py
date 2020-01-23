@@ -39,7 +39,8 @@ import pytest
 from psyclone.psyir.transformations import NemoSignTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
     ArgumentInterface
-from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment
+from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
+    Literal
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
@@ -61,9 +62,12 @@ def test_initialise():
     assert trans.name == "NemoSignTrans"
 
 
-def example_psyir():
+def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing a SIGN
     intrinsic operator and returns the operator.
+
+    :param function create_expresssion: function used to create the \
+        content of the first argument of the SIGN operator.
 
     :returns: PSyIR SIGN operator instance.
     :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
@@ -85,17 +89,25 @@ def example_psyir():
     var2 = Reference(name2)
     var3 = Reference(name3)
     oper = BinaryOperation.Operator.SIGN
-    operation = BinaryOperation.create(oper, var1, var2)
+    operation = BinaryOperation.create(oper, create_expression(var1), var2)
     assign = Assignment.create(var3, operation)
     _ = KernelSchedule.create("sign_example", symbol_table, [assign])
     return operation
 
 
-def test_correct():
-    '''Check that a valid example produces the expected output.'''
+@pytest.mark.parametrize("func,output",
+                         [(lambda arg: arg, "arg"),
+                          (lambda arg: BinaryOperation.create(
+                              BinaryOperation.Operator.MUL, arg,
+                              Literal("3.14", DataType.REAL)), "arg * 3.14")])
+def test_correct(func, output):
+    '''Check that a valid example produces the expected output when the
+    first argument to SIGN is a simple argument and when it is an
+    expression.
 
+    '''
     Config.get().api = "nemo"
-    operation = example_psyir()
+    operation = example_psyir(func)
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
@@ -103,8 +115,8 @@ def test_correct():
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_0\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=SIGN(arg, arg_0)\n\n"
-        "end subroutine sign_example\n") in result
+        "  psyir_tmp=SIGN({0}, arg_0)\n\n"
+        "end subroutine sign_example\n".format(output)) in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
@@ -117,7 +129,7 @@ def test_correct():
         "  real :: tmp_sign\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs=arg\n"
+        "  tmp_abs={0}\n"
         "  if (tmp_abs > 0.0) then\n"
         "    res_abs=tmp_abs\n"
         "  else\n"
@@ -129,7 +141,7 @@ def test_correct():
         "    res_sign=res_sign * -1.0\n"
         "  end if\n"
         "  psyir_tmp=res_sign\n\n"
-        "end subroutine sign_example\n") in result
+        "end subroutine sign_example\n".format(output)) in result
     # Remove the created config instance
     # pylint: disable=protected-access
     Config._instance = None
@@ -140,7 +152,7 @@ def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
     Config.get().api = "dynamo0.3"
-    operation = example_psyir()
+    operation = example_psyir(lambda arg: arg)
     trans = NemoSignTrans()
     with pytest.raises(TransformationError) as excinfo:
         _, _ = trans.apply(operation, operation.root.symbol_table)
