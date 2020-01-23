@@ -60,6 +60,8 @@
 	20) #656 towards #412. Add PSyIR Range node to support array slice
 	accesses. This could also be used for loop indices.
 
+	21) #672 for #651. Add PSyIR lbound and ubound BinaryOperations.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
