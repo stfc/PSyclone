@@ -1512,7 +1512,7 @@ def test_gokernelarguments_append():
     assert "The name parameter given to GOKernelArguments.append method " \
            "should be a string, but found 'int' instead." in str(err.value)
 
-    # Append strings
+    # Append well-constructed arguments
     argument_list.append("var1", "go_r_scalar")
     argument_list.append("var2", "go_i_scalar")
 

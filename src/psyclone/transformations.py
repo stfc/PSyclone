@@ -3886,15 +3886,18 @@ class KernelGlobalsToArguments(Transformation):
             current_arg_list.append(globalvar)
             symtab.specify_argument_list(current_arg_list)
 
-            # Convert PSyIR DataTypes to Gocean space
+            # Convert PSyIR DataTypes to Gocean VALID_SCALAR_TYPES
             go_space = ""
             if globalvar.datatype == DataType.REAL:
                 go_space = "go_r_scalar"
             elif globalvar.datatype == DataType.INTEGER:
                 go_space = "go_i_scalar"
             else:
-                raise TypeError()
-
+                raise TypeError(
+                    "The global variable '{0}' could not be promoted to an "
+                    "argument because the GOcean infrastructure does not have"
+                    " any scalar type equivalent to the PSyIR {1} type.".
+                    format(globalvar.name, globalvar.datatype))
 
             # Add the global variable in the call argument list
             node.arguments.append(globalvar.name, go_space)

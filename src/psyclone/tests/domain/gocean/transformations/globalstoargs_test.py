@@ -182,6 +182,37 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
+def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
+    ''' Check the GlobalsToArguments transformation when the global is
+    a type not supported by the GOcean infrastructure raises an Error'''
+    from psyclone.transformations import KernelGlobalsToArguments
+    from psyclone.psyir.symbols import DataSymbol
+
+    trans = KernelGlobalsToArguments()
+
+    # Construct a testing InvokeSchedule
+    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
+                                        "single_invoke_kern_with_use.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+
+    # Monkeypatch resolve_deferred to avoid module searching and importing
+    # in this test. In this case we assume it is a constant INTEGER
+    def set_to_char(variable):
+        variable._datatype = DataType.CHARACTER
+    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_char)
+
+    # Test transforming a single kernel
+    with pytest.raises(TypeError) as err:
+        trans.apply(kernel)
+    assert "The global variable 'rdt' could not be promoted to an argument " \
+        "because the GOcean infrastructure does not have any scalar type " \
+        "equivalent to the PSyIR DataType.CHARACTER type." in str(err.value)
+
+
+
 def test_globalstoarguments_multiple_kernels():
     ''' Check the KernelGlobalsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
