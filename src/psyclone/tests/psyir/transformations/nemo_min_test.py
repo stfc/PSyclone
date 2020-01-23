@@ -40,7 +40,7 @@ from psyclone.psyir.transformations import NemoMinTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
     ArgumentInterface
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
-    Assignment
+    Assignment, Literal
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
@@ -69,9 +69,12 @@ def test_str_name():
     assert trans.name == "NemoMinTrans"
 
 
-def example_psyir_binary():
+def example_psyir_binary(create_expression):
     '''Utility function that creates a PSyIR tree containing a binary MIN
     intrinsic operator and returns the operator.
+
+    :param function create_expresssion: function used to create the \
+        content of the first argument of the MIN operator.
 
     :returns: PSyIR MIN operator instance.
     :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
@@ -93,7 +96,7 @@ def example_psyir_binary():
     var2 = Reference(name2)
     var3 = Reference(name3)
     oper = BinaryOperation.Operator.MIN
-    operation = BinaryOperation.create(oper, var1, var2)
+    operation = BinaryOperation.create(oper, create_expression(var1), var2)
     assign = Assignment.create(var3, operation)
     _ = KernelSchedule.create("min_example", symbol_table, [assign])
     return operation
@@ -134,13 +137,19 @@ def example_psyir_nary():
     return operation
 
 
-def test_correct_binary():
-    '''Check that a valid example with a binary MIN produces the expected
-    output.
+@pytest.mark.parametrize("func,output",
+                         [(lambda arg: arg, "arg"),
+                          (lambda arg: BinaryOperation.create(
+                              BinaryOperation.Operator.MUL, arg,
+                              Literal("3.14", DataType.REAL)), "arg * 3.14")])
+def test_correct_binary(func, output):
+    '''Check that a valid example produces the expected output when the
+    first argument to MIN is a simple argument and when it is an
+    expression.
 
     '''
     Config.get().api = "nemo"
-    operation = example_psyir_binary()
+    operation = example_psyir_binary(func)
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
@@ -148,7 +157,54 @@ def test_correct_binary():
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_0\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN(arg, arg_0)\n\n"
+        "  psyir_tmp=MIN({0}, arg_0)\n\n"
+        "end subroutine min_example\n".format(output)) in result
+    trans = NemoMinTrans()
+    _, _ = trans.apply(operation, operation.root.symbol_table)
+    result = writer(operation.root)
+    assert (
+        "subroutine min_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n"
+        "  real :: res_min\n"
+        "  real :: tmp_min\n\n"
+        "  res_min={0}\n"
+        "  tmp_min=arg_0\n"
+        "  if (tmp_min < res_min) then\n"
+        "    res_min=tmp_min\n"
+        "  end if\n"
+        "  psyir_tmp=res_min\n\n"
+        "end subroutine min_example\n".format(output)) in result
+    # Remove the created config instance
+    # pylint: disable=protected-access
+    Config._instance = None
+    # pylint: enable=protected-access
+
+
+def test_correct_expr():
+    '''Check that a valid example produces the expected output when MIN()
+    is part of an expression.
+
+    '''
+    Config.get().api = "nemo"
+    operation = example_psyir_binary(lambda arg: arg)
+    assignment = operation.parent
+    op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 Literal("1.0", DataType.REAL), operation)
+    op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 op1, Literal("2.0", DataType.REAL))
+    op2.parent = assignment
+    assignment.children[1] = op2
+
+    writer = FortranWriter()
+    result = writer(operation.root)
+    assert (
+        "subroutine min_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=1.0 + MIN(arg, arg_0) + 2.0\n\n"
         "end subroutine min_example\n") in result
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
@@ -165,7 +221,63 @@ def test_correct_binary():
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"
-        "  psyir_tmp=res_min\n\n"
+        "  psyir_tmp=1.0 + res_min + 2.0\n\n"
+        "end subroutine min_example\n") in result
+    # Remove the created config instance
+    # pylint: disable=protected-access
+    Config._instance = None
+    # pylint: enable=protected-access
+
+
+def test_correct_2min():
+    '''Check that a valid example produces the expected output when there
+    is more than one MIN() in an expression.
+
+    '''
+    Config.get().api = "nemo"
+    operation = example_psyir_binary(lambda arg: arg)
+    assignment = operation.parent
+    min_op = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                    Literal("1.0", DataType.REAL),
+                                    Literal("2.0", DataType.REAL))
+    op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 min_op, operation)
+    op1.parent = assignment
+    assignment.children[1] = op1
+
+    writer = FortranWriter()
+    result = writer(operation.root)
+    assert (
+        "subroutine min_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=MIN(1.0, 2.0) + MIN(arg, arg_0)\n\n"
+        "end subroutine min_example\n") in result
+    trans = NemoMinTrans()
+    _, _ = trans.apply(operation, operation.root.symbol_table)
+    _, _ = trans.apply(min_op, operation.root.symbol_table)
+    result = writer(operation.root)
+    assert (
+        "subroutine min_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n"
+        "  real :: res_min\n"
+        "  real :: tmp_min\n"
+        "  real :: res_min_0\n"
+        "  real :: tmp_min_0\n\n"
+        "  res_min=arg\n"
+        "  tmp_min=arg_0\n"
+        "  if (tmp_min < res_min) then\n"
+        "    res_min=tmp_min\n"
+        "  end if\n"
+        "  res_min_0=1.0\n"
+        "  tmp_min_0=2.0\n"
+        "  if (tmp_min_0 < res_min_0) then\n"
+        "    res_min_0=tmp_min_0\n"
+        "  end if\n"
+        "  psyir_tmp=res_min_0 + res_min\n\n"
         "end subroutine min_example\n") in result
     # Remove the created config instance
     # pylint: disable=protected-access
@@ -222,7 +334,7 @@ def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
     Config.get().api = "dynamo0.3"
-    operation = example_psyir_binary()
+    operation = example_psyir_binary(lambda arg: arg)
     trans = NemoMinTrans()
     with pytest.raises(TransformationError) as excinfo:
         _, _ = trans.apply(operation, operation.root.symbol_table)
