@@ -110,6 +110,7 @@ class Node(object):
     :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
+    # pylint: disable=too-many-public-methods
     # Define two class constants: START_DEPTH and START_POSITION
     # START_DEPTH is used to calculate depth of all Nodes in the tree
     # (1 for main Nodes and increasing for their descendants).
@@ -265,7 +266,6 @@ class Node(object):
         try:
             graph = gv.Digraph(format=file_format)
         except ValueError:
-            from psyclone.psyGen import GenerationError
             raise GenerationError(
                 "unsupported graphviz file format '{0}' provided".
                 format(file_format))
@@ -280,6 +280,7 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
+        # pylint: disable=too-many-branches
         from psyclone.psyir.nodes.loop import Loop
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
@@ -341,7 +342,6 @@ class Node(object):
             graph.edge(remote_name, local_name, color="blue")
         # now call any children so they can add their information to
         # the graph
-        from psyclone.psyir.nodes import Loop
         if isinstance(self, Loop):
             # In case of a loop only look at the body (the other part
             # of the tree contain start, stop, step values):
@@ -505,18 +505,17 @@ class Node(object):
             if not prev_dep_node:
                 # There are no backward dependencies so the move is valid
                 return True
-            else:
-                # return (is the dependent node before the new_position?)
-                return prev_dep_node.position < new_position
-        else:  # new_node.position > self.position
-            # the new_node is after this node in the schedule
-            next_dep_node = self.forward_dependence()
-            if not next_dep_node:
-                # There are no forward dependencies so the move is valid
-                return True
-            else:
-                # return (is the dependent node after the new_position?)
-                return next_dep_node.position > new_position
+            # return (is the dependent node before the new_position?)
+            return prev_dep_node.position < new_position
+
+        # Now new_node.position > self.position
+        # the new_node is after this node in the schedule
+        next_dep_node = self.forward_dependence()
+        if not next_dep_node:
+            # There are no forward dependencies so the move is valid
+            return True
+        # return (is the dependent node after the new_position?)
+        return next_dep_node.position > new_position
 
     @property
     def depth(self):
