@@ -212,36 +212,34 @@ in the PSyIR by sub-classes of the `Operation` node:
 .. autoclass:: psyclone.psyir.nodes.Operation
    :members:
 
-The operations are classified according to the number of operands:
-those having one operand are represented by
-`psyclone.psyir.nodes.UnaryOperation` nodes, those having two by
-`psyclone.psyir.nodes.BinaryOperation` and those having more than two by
-`psyclone.psyir.nodes.NaryOperation`. Note that where an intrinsic (such as
+The operations are classified according to the number of operands.
+Those having one operand are represented by
+`psyclone.psyir.nodes.UnaryOperation` nodes:
+
+.. autoclass:: psyclone.psyir.nodes.UnaryOperation.Operator
+   :members:
+   :undoc-members:
+
+those having two operands are represented by
+`psyclone.psyir.nodes.BinaryOperation` nodes:
+
+.. autoclass:: psyclone.psyir.nodes.BinaryOperation
+   :members: Operator
+
+and those having more than two by `psyclone.psyir.nodes.NaryOperation`
+nodes:
+
+.. autoclass:: psyclone.psyir.nodes.NaryOperation.Operator
+   :members:
+   :undoc-members:
+
+Note that where an intrinsic (such as
 Fortran's `MAX`) can have a variable number of arguments, the class
 used to represent it in the PSyIR is determined by the actual number
 of arguments in a particular instance. e.g. `MAX(var1, var2)` would be
 represented by a `psyclone.psyir.nodes.BinaryOperation` but `MAX(var1,
 var2, var3)` would be represented by a
 `psyclone.psyir.nodes.NaryOperation`.
-
-The operations supported by the `UnaryOperation` are:
-
-.. autoclass:: psyclone.psyir.nodes.UnaryOperation.Operator
-   :members:
-   :undoc-members:
-
-The operations supported by the `BinaryOperation` are:
-
-.. autoclass:: psyclone.psyir.nodes.BinaryOperation.Operator
-   :members:
-   :undoc-members:
-
-The operations supported by the `NaryOperation` are:
-
-.. autoclass:: psyclone.psyir.nodes.NaryOperation.Operator
-   :members:
-   :undoc-members:
-
 
 CodeBlock Node
 ==============
