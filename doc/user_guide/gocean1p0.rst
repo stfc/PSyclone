@@ -902,8 +902,8 @@ small number of properties that must be defined with the right name:
 +-------------------------------+--------------------------------------------------+
 | go_grid_nx,                   | These properties are only required when OpenCL   |
 | go_grid_ny                    | is enabled. They specify the overall array       |
-|                               | array size (including any padding that the       |
-|                               | infrastructure library might implement.          |
+|                               | size (including any padding that the             |
+|                               | infrastructure library might implement).         |
 +-------------------------------+--------------------------------------------------+
 
 
