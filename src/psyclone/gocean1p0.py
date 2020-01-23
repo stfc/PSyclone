@@ -308,8 +308,8 @@ class GOInvoke(Invoke):
         global_names = [sym.name for sym in
                         self.schedule.symbol_table.global_datasymbols]
 
-        # add the subroutine argument declarations for real scalars that
-        # are not a global symbol
+        # add the subroutine argument declarations for real scalars which
+        # are not global symbols
         real_decls = list(filter(lambda x: x not in global_names,
                                  self.unique_args_rscalars))
         if real_decls:
@@ -319,7 +319,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_rscalars)
 
         # add the subroutine argument declarations for integer scalars
-        # are not a global symbol
+        # which are not global symbols
         int_decls = list(filter(lambda x: x not in global_names,
                                 self.unique_args_iscalars))
         if int_decls:
@@ -1480,11 +1480,11 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
-    def append(self, name, space):
+    def append(self, name, argument_type):
         ''' Create and append a GOKernelArgument to the Argument list.
 
         :param str name: name of the appended argument.
-        :param str space: function space of the appended argument.
+        :param str argument_type: type of the appended argument.
 
         :raises TypeError: if the given name is not a string.
         '''
@@ -1496,7 +1496,10 @@ class GOKernelArguments(Arguments):
                 "should be a string, but found '{0}' instead.".
                 format(type(name).__name__))
 
-        descriptor = Descriptor(None, space)  # Create a dummy descriptor
+        # Create a descriptor with the given type
+        descriptor = Descriptor(None, argument_type)
+
+        # Create the argument and append it to the argument list
         arg = Arg("variable", name, name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
