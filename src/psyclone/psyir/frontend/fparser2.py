@@ -609,9 +609,10 @@ class Fparser2Reader(object):
                             # SAVE'd (see Fortran specification 8.5.16.4) so it
                             # is valid to ignore the attribute in these
                             # situations.
-                            if not isinstance(decl.parent.parent,
-                                              (Fortran2003.Module,
-                                               Fortran2003.Main_Program)):
+                            if not (decl.parent and
+                                    isinstance(decl.parent.parent,
+                                               (Fortran2003.Module,
+                                                Fortran2003.Main_Program))):
                                 raise NotImplementedError(
                                     "Could not process {0}. The 'SAVE' "\
                                     "attribute is not yet supported when it is"

@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Specification_Part
+from fparser.two.Fortran2003 import Specification_Part, Type_Declaration_Stmt
 from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, IfBlock, Reference, Array, Container, Literal
@@ -507,7 +507,18 @@ def test_process_save_attribute_declarations(parser):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    # Test with no context about where the declaration is
+    # Test with no context about where the declaration. Not even that is
+    # in the Specification_Part.
+    reader = FortranStringReader("integer, save :: var1")
+    fparser2spec = Type_Declaration_Stmt(reader)
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
+        " of a module, submodule or main_program specification part." \
+        in str(error.value)
+
+    # Test with no context about where the declaration is.
     reader = FortranStringReader("integer, save :: var1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
@@ -517,7 +528,7 @@ def test_process_save_attribute_declarations(parser):
         " of a module, submodule or main_program specification part." \
         in str(error.value)
 
-    # Test with a subroutine
+    # Test with a subroutine.
     reader = FortranStringReader(
         "subroutine name()\n"
         "integer, save :: var1\n"
@@ -530,7 +541,7 @@ def test_process_save_attribute_declarations(parser):
         " of a module, submodule or main_program specification part." \
         in str(error.value)
 
-    # Test with a module
+    # Test with a module.
     reader = FortranStringReader(
         "module modulename\n"
         "integer, save :: var1\n"
