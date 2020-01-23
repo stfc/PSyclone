@@ -35,6 +35,7 @@
 
 '''Module containing tests for the nemo MIN transformation.'''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoMinTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
@@ -52,12 +53,10 @@ def test_initialise():
 
     '''
     trans = NemoMinTrans()
-    # pylint: disable=protected-access
     assert trans._operator_name == "MIN"
     assert trans._classes == (BinaryOperation, NaryOperation)
     assert trans._operators == (BinaryOperation.Operator.MIN,
                                 NaryOperation.Operator.MIN)
-    # pylint: enable=protected-access
 
 
 def test_str_name():
@@ -177,9 +176,7 @@ def test_correct_binary(func, output):
         "  psyir_tmp=res_min\n\n"
         "end subroutine min_example\n".format(output)) in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_expr():
@@ -224,9 +221,7 @@ def test_correct_expr():
         "  psyir_tmp=1.0 + res_min + 2.0\n\n"
         "end subroutine min_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_2min():
@@ -280,9 +275,7 @@ def test_correct_2min():
         "  psyir_tmp=res_min_0 + res_min\n\n"
         "end subroutine min_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_nary():
@@ -325,9 +318,7 @@ def test_correct_nary():
         "  psyir_tmp=res_min\n\n"
         "end subroutine min_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_invalid():
@@ -342,6 +333,4 @@ def test_invalid():
         "Error in NemoMinTrans transformation. This transformation only works "
         "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access

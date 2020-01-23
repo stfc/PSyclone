@@ -35,6 +35,7 @@
 
 '''Module containing tests for the nemo abs transformation.'''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoAbsTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
@@ -52,11 +53,9 @@ def test_initialise():
 
     '''
     trans = NemoAbsTrans()
-    # pylint: disable=protected-access
     assert trans._operator_name == "ABS"
     assert trans._classes == (UnaryOperation,)
     assert trans._operators == (UnaryOperation.Operator.ABS,)
-    # pylint: enable=protected-access
     assert (str(trans) == "Convert the PSyIR ABS intrinsic to equivalent "
             "PSyIR code.")
     assert trans.name == "NemoAbsTrans"
@@ -129,9 +128,7 @@ def test_correct(func, output):
         "  psyir_tmp=res_abs\n\n"
         "end subroutine abs_example\n".format(output)) in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_expr():
@@ -177,9 +174,7 @@ def test_correct_expr():
         "  psyir_tmp=1.0 + res_abs + 2.0\n\n"
         "end subroutine abs_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_2abs():
@@ -234,9 +229,7 @@ def test_correct_2abs():
         "  psyir_tmp=res_abs + res_abs_0\n\n"
         "end subroutine abs_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_invalid():
@@ -251,6 +244,4 @@ def test_invalid():
         "Error in NemoAbsTrans transformation. This transformation only works "
         "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access

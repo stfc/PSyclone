@@ -35,6 +35,7 @@
 
 '''Module containing tests for the nemo abs transformation.'''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoSignTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
@@ -52,11 +53,9 @@ def test_initialise():
 
     '''
     trans = NemoSignTrans()
-    # pylint: disable=protected-access
     assert trans._operator_name == "SIGN"
     assert trans._classes == (BinaryOperation,)
     assert trans._operators == (BinaryOperation.Operator.SIGN,)
-    # pylint: enable=protected-access
     assert (str(trans) == "Convert the PSyIR SIGN intrinsic to equivalent "
             "PSyIR code.")
     assert trans.name == "NemoSignTrans"
@@ -143,9 +142,7 @@ def test_correct(func, output):
         "  psyir_tmp=res_sign\n\n"
         "end subroutine sign_example\n".format(output)) in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_expr():
@@ -200,9 +197,7 @@ def test_correct_expr():
         "  psyir_tmp=1.0 + res_sign + 2.0\n\n"
         "end subroutine sign_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_correct_2sign():
@@ -274,9 +269,7 @@ def test_correct_2sign():
         "  psyir_tmp=res_sign_0 + res_sign\n\n"
         "end subroutine sign_example\n") in result
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
 
 
 def test_invalid():
@@ -292,6 +285,4 @@ def test_invalid():
         "works for the nemo API, but found 'dynamo0.3'"
         in str(excinfo.value))
     # Remove the created config instance
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access
