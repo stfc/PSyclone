@@ -553,11 +553,12 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
 
 
 @pytest.mark.parametrize("binary_intrinsic", ["mod", "matmul", "max", "min",
-                                              "sign", "sum"])
+                                              "sign"])
 def test_fw_binaryoperator(fort_writer, binary_intrinsic):
     '''Check the FortranWriter class binary_operation method correctly
-    prints out the Fortran representation of an intrinsic. Uses sign
-    as the example.
+    prints out the Fortran representation of an intrinsic. Tests all
+    of the binary operators, apart from sum (as it requires different
+    data types so is tested separately).
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -575,6 +576,30 @@ def test_fw_binaryoperator(fort_writer, binary_intrinsic):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a={0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
+
+
+def test_fw_binaryoperator_sum(fort_writer):
+    '''Check the FortranWriter class binary_operation method with the sum
+    operator correctly prints out the Fortran representation of an
+    intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(array,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: array(n)\n"
+        "  integer :: a\n"
+        "    a = sum(array,dim=1)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    assert "a=SUM(array, dim = 1)" in result
 
 
 def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):

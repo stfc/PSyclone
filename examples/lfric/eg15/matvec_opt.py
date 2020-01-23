@@ -91,7 +91,7 @@ def trans(psy):
                 result = fortran_writer(kernel_schedule)
                 print(result)
                 # Abort after the first matrix vector kernel for the
-                # time being.]
+                # time being.
                 print ("Aborting to view the modifications to the matrix "
                        "vector kernel")
                 exit(1)

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -256,9 +256,10 @@ Example of optimising the LFRic matvec kernel for CPUs. This is work
 in progress with the idea being that PSyclone transformations will be
 able to reproduce hand-optimised code.
 
-There is one script which, when run
+There is one script which, when run:
+  
+.. code-block:: bash
 
-::
    > psyclone ./matvec_opt.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 will print out the modified matvec kernel code. At the moment no
