@@ -148,6 +148,137 @@ def test_correct(func, output):
     # pylint: enable=protected-access
 
 
+def test_correct_expr():
+    '''Check that a valid example produces the expected output when SIGN
+    is part of an expression.
+
+    '''
+    Config.get().api = "nemo"
+    operation = example_psyir(
+        lambda arg: BinaryOperation.create(
+            BinaryOperation.Operator.MUL, arg,
+            Literal("3.14", DataType.REAL)))
+    assignment = operation.parent
+    op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 Literal("1.0", DataType.REAL), operation)
+    op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 op1, Literal("2.0", DataType.REAL))
+    op2.parent = assignment
+    assignment.children[1] = op2
+    writer = FortranWriter()
+    result = writer(operation.root)
+    assert (
+        "subroutine sign_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=1.0 + SIGN(arg * 3.14, arg_0) + 2.0\n\n"
+        "end subroutine sign_example\n") in result
+    trans = NemoSignTrans()
+    _, _ = trans.apply(operation, operation.root.symbol_table)
+    result = writer(operation.root)
+    assert (
+        "subroutine sign_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n"
+        "  real :: res_sign\n"
+        "  real :: tmp_sign\n"
+        "  real :: res_abs\n"
+        "  real :: tmp_abs\n\n"
+        "  tmp_abs=arg * 3.14\n"
+        "  if (tmp_abs > 0.0) then\n"
+        "    res_abs=tmp_abs\n"
+        "  else\n"
+        "    res_abs=tmp_abs * -1.0\n"
+        "  end if\n"
+        "  res_sign=res_abs\n"
+        "  tmp_sign=arg_0\n"
+        "  if (tmp_sign < 0.0) then\n"
+        "    res_sign=res_sign * -1.0\n"
+        "  end if\n"
+        "  psyir_tmp=1.0 + res_sign + 2.0\n\n"
+        "end subroutine sign_example\n") in result
+    # Remove the created config instance
+    # pylint: disable=protected-access
+    Config._instance = None
+    # pylint: enable=protected-access
+
+
+def test_correct_2sign():
+    '''Check that a valid example produces the expected output when there
+    is more than one SIGN in an expression.
+
+    '''
+    Config.get().api = "nemo"
+    operation = example_psyir(
+        lambda arg: BinaryOperation.create(
+            BinaryOperation.Operator.MUL, arg,
+            Literal("3.14", DataType.REAL)))
+    assignment = operation.parent
+    sign_op = BinaryOperation.create(
+        BinaryOperation.Operator.SIGN, Literal("1.0", DataType.REAL),
+        Literal("1.0", DataType.REAL))
+    op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                 sign_op, operation)
+    op1.parent = assignment
+    assignment.children[1] = op1
+    writer = FortranWriter()
+    result = writer(operation.root)
+    assert (
+        "subroutine sign_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_0)\n\n"
+        "end subroutine sign_example\n") in result
+    trans = NemoSignTrans()
+    _, _ = trans.apply(operation, operation.root.symbol_table)
+    _, _ = trans.apply(sign_op, operation.root.symbol_table)
+    result = writer(operation.root)
+    assert (
+        "subroutine sign_example(arg,arg_0)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_0\n"
+        "  real :: psyir_tmp\n"
+        "  real :: res_sign\n"
+        "  real :: tmp_sign\n"
+        "  real :: res_abs\n"
+        "  real :: tmp_abs\n"
+        "  real :: res_sign_0\n"
+        "  real :: tmp_sign_0\n"
+        "  real :: res_abs_0\n"
+        "  real :: tmp_abs_0\n\n"
+        "  tmp_abs=arg * 3.14\n"
+        "  if (tmp_abs > 0.0) then\n"
+        "    res_abs=tmp_abs\n"
+        "  else\n"
+        "    res_abs=tmp_abs * -1.0\n"
+        "  end if\n"
+        "  res_sign=res_abs\n"
+        "  tmp_sign=arg_0\n"
+        "  if (tmp_sign < 0.0) then\n"
+        "    res_sign=res_sign * -1.0\n"
+        "  end if\n"
+        "  tmp_abs_0=1.0\n"
+        "  if (tmp_abs_0 > 0.0) then\n"
+        "    res_abs_0=tmp_abs_0\n"
+        "  else\n"
+        "    res_abs_0=tmp_abs_0 * -1.0\n"
+        "  end if\n"
+        "  res_sign_0=res_abs_0\n"
+        "  tmp_sign_0=1.0\n"
+        "  if (tmp_sign_0 < 0.0) then\n"
+        "    res_sign_0=res_sign_0 * -1.0\n"
+        "  end if\n"
+        "  psyir_tmp=res_sign_0 + res_sign\n\n"
+        "end subroutine sign_example\n") in result
+    # Remove the created config instance
+    # pylint: disable=protected-access
+    Config._instance = None
+    # pylint: enable=protected-access
+
+
 def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
