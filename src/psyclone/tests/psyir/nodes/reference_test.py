@@ -113,55 +113,53 @@ def test_reference_symbol(monkeypatch):
     assert field_old.symbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(Reference.get_symbol(field_old.name, field_old,
-                                           scope_limit=kernel_schedule),
+    assert isinstance(field_old.find_symbol(field_old.name,
+                                            scope_limit=kernel_schedule),
                       DataSymbol)
     assert field_old.symbol.name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope
     with pytest.raises(SymbolError) as excinfo:
-        _ = Reference.get_symbol(field_old.name, field_old,
-                                 scope_limit=field_old.parent)
+        _ = field_old.find_symbol(field_old.name, scope_limit=field_old.parent)
     assert "Undeclared reference 'field_old' found." in str(excinfo.value)
 
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    assert isinstance(Reference.get_symbol(alpha.name, alpha), DataSymbol)
+    assert isinstance(alpha.find_symbol(alpha.name), DataSymbol)
     container = kernel_schedule.root
     assert isinstance(container, Container)
-    assert (Reference.get_symbol(alpha.name, alpha) in
+    assert (alpha.find_symbol(alpha.name) in
             container.symbol_table.symbols)
 
     # Symbol in Container SymbolTable with KernelSchedule scope
     with pytest.raises(SymbolError) as excinfo:
-        _ = Reference.get_symbol(alpha.name, alpha,
-                                 scope_limit=kernel_schedule)
+        _ = alpha.find_symbol(alpha.name, scope_limit=kernel_schedule)
     assert "Undeclared reference 'alpha' found." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
-    assert (Reference.get_symbol(
-        alpha.name, alpha, scope_limit=container).name == alpha.name)
+    assert (alpha.find_symbol(
+        alpha.name, scope_limit=container).name == alpha.name)
 
     # Symbol method with invalid scope type
     with pytest.raises(TypeError) as excinfo:
-        _ = Reference.get_symbol(alpha.name, alpha, scope_limit="hello")
+        _ = alpha.find_symbol(alpha.name, scope_limit="hello")
     assert ("The scope_limit argument 'hello' provided to the symbol method, "
             "is not of type `Node`." in str(excinfo.value))
 
     # Symbol method with invalid scope location
     with pytest.raises(ValueError) as excinfo:
-        _ = Reference.get_symbol(alpha.name, alpha, scope_limit=alpha)
+        _ = alpha.find_symbol(alpha.name, scope_limit=alpha)
     print (str(excinfo.value))
     assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
-            "symbol method, is not an ancestor of the supplied node "
+            "symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
     # Symbol not in any container (rename alpha to something that is
     # not defined)
     alpha._symbol._name = "undefined"
     with pytest.raises(SymbolError) as excinfo:
-        _ = Reference.get_symbol(alpha.name, alpha)
+        _ = alpha.find_symbol(alpha.name)
     assert "Undeclared reference 'undefined' found." in str(excinfo.value)
 
 # Test Array class

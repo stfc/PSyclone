@@ -49,7 +49,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule, \
     InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, _get_symbol_table
 
 
 def process_declarations(code):
@@ -1894,3 +1894,35 @@ def test_missing_loop_control(monkeypatch):
         processor.process_nodes(fake_parent, [fparser2while])
     assert "Unrecognised form of DO loop - failed to find Loop_Control " \
         "element in the node '<fparser2while>'." in str(err.value)
+
+
+def test_get_symbol_table():
+    '''Test that the utility function _get_symbol_table() works and fails
+    as expected. '''
+    # invalid argument
+    with pytest.raises(TypeError) as excinfo:
+        _ = _get_symbol_table("invalid")
+    assert ("node argument to _get_symbol_table() should be of type Node, "
+            "but found 'str'." in str(excinfo.value))
+
+    # no symbol table
+    lhs = Reference(DataSymbol("x", DataType.REAL))
+    rhs = Literal("1.0", DataType.REAL)
+    assignment = Assignment.create(lhs, rhs)
+    for node in [lhs, rhs, assignment]:
+        assert not _get_symbol_table(node)
+
+    # symbol table
+    symbol_table = SymbolTable()
+    kernel_schedule = KernelSchedule.create("test", symbol_table, [assignment])
+    for node in [lhs, rhs, assignment, kernel_schedule]:
+        assert _get_symbol_table(node) is symbol_table
+
+    # expected symbol table
+    symbol_table2 = SymbolTable()
+    container = Container.create("test_container", symbol_table2,
+                                 [kernel_schedule])
+    assert symbol_table is not symbol_table2
+    for node in [lhs, rhs, assignment, kernel_schedule]:
+        assert _get_symbol_table(node) is symbol_table
+    assert _get_symbol_table(container) is symbol_table2

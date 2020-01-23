@@ -39,6 +39,7 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
+from psyclone.psyir.symbols import SymbolError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -888,3 +889,78 @@ class Node(object):
         else:
             sched.ast = ast
         return sched
+
+    
+    def find_symbol(self, name, scope_limit=None):
+        '''Returns the symbol from a symbol table associated with this node or one of its ancestors.
+***************************************
+        raises an exception is it is not found. The scope_limit
+        variable limits the symbol table search to nodes within the
+        scope.
+
+        :param str name: the name of the symbol.
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole scope \
+            (all symbol tables in ancestor nodes) is searched \
+            otherwise the search is limited to the specified node and \
+            its children.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or `None`
+
+        :returns: the matching symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises SymbolError: if no matching symbol is found.
+
+        '''
+        if scope_limit:
+
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}' provided to the symbol "
+                    "method, is not of type `Node`."
+                    "".format(str(scope_limit)))
+
+            # Check that the scope_limit Node is an ancestor of this
+            # Reference Node and raise an exception if not.
+            found = False
+            mynode = self.parent
+            while mynode is not None:
+                if mynode is scope_limit:
+                    found = True
+                    break
+                mynode = mynode.parent
+            if not found:
+                # The scope_limit node is not an ancestor of the
+                # supplied node so raise an exception.
+                raise ValueError(
+                    "The scope_limit node '{0}' provided to the symbol "
+                    "method, is not an ancestor of this node '{1}'."
+                    "".format(str(scope_limit), str(self)))
+        test_node = self
+        # Iterate over ancestor Nodes of this Node.
+        while test_node:
+            # For simplicity, test every Node for the existence of a
+            # SymbolTable (rather than checking for the particular
+            # Node types which we know to have SymbolTables).
+            if hasattr(test_node, 'symbol_table'):
+                # This Node does have a SymbolTable.
+                symbol_table = test_node.symbol_table
+                try:
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
+                    return symbol_table.lookup(name)
+                except KeyError:
+                    # The Reference Node does not match any Symbols in
+                    # this SymbolTable.
+                    pass
+            if test_node is scope_limit:
+                # The ancestor scope Node has been reached and nothing
+                # has matched so raise an exception.
+                break
+            # Move on to the next ancestor.
+            test_node = test_node.parent
+        # all requested Nodes have been checked but there has been no
+        # match so raise an exception.
+        raise SymbolError(
+            "Undeclared reference '{0}' found.".format(name))

@@ -136,8 +136,8 @@ class KernelTrans(Transformation):
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
             try:
-                Reference.get_symbol(var.name, var,
-                                     scope_limit=var.ancestor(KernelSchedule))
+                _ = var.find_symbol(var.name,
+                                    scope_limit=var.ancestor(KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "

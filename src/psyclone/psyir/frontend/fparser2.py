@@ -63,6 +63,35 @@ TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
                          "real": DataType.REAL}
 
 
+def _get_symbol_table(node):
+    '''Find a symbol table associated with an ancestor of Node 'node' (or
+    the node itself). If there is more than one symbol table, then the
+    symbol table closest in ancestory to 'node' is returned. If no
+    symbol table is found then None is returned.
+
+    :param node: a PSyIR Node.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+    :returns: a symbol table associated with node or one of its \
+    ancestors or None is one is not found.
+    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+    :raises TypeError: if the node argument is not a Node.
+
+    '''
+    if not isinstance(node, Node):
+        raise TypeError(
+            "node argument to _get_symbol_table() should be of type Node, but "
+            "found '{0}'.".format(type(node).__name__))
+    current = node
+    while current:
+        if hasattr(current, "symbol_table"):
+            return current.symbol_table
+            break
+        current = current.parent
+    return None
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -1482,20 +1511,14 @@ class Fparser2Reader(object):
             # Once #667 is implemented we can simplify this logic by
             # checking for the NEMO API. i.e. if api=="nemo": add local
             # symbol else: add symbol from symbol table.
-            has_symbol_table = False
-            current = parent
-            while current:
-                if hasattr(current, "symbol_table"):
-                    has_symbol_table = True
-                    break
-                current = current.parent
+            symbol_table = _get_symbol_table(parent)
             # Replace the CodeBlocks containing the Subscript_Triplets with
             # the index expressions
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                if has_symbol_table:
-                    symbol = Reference.get_symbol(loop_vars[idx], array)
+                if symbol_table:
+                    symbol = array.find_symbol(loop_vars[idx])
                 else:
                     # The NEMO API does not generate symbol tables, so
                     # create a new Symbol. Choose a datatype as we
@@ -1644,15 +1667,9 @@ class Fparser2Reader(object):
             # Once #667 is implemented we can simplify this logic by
             # checking for the NEMO API. i.e. if api=="nemo": add local
             # symbol else: add symbol from symbol table.
-            has_symbol_table = False
-            current = parent
-            while current:
-                if hasattr(current, "symbol_table"):
-                    has_symbol_table = True
-                    break
-                current = current.parent
-            if has_symbol_table:
-                symbol = Reference.get_symbol(arrays[0].name, size_node)
+            symbol_table = _get_symbol_table(parent)
+            if symbol_table:
+                symbol = size_node.find_symbol(arrays[0].name)
             else:
                 # The NEMO API does not generate symbol tables, so
                 # create a new Symbol. Choose a datatype as we
@@ -1945,15 +1962,9 @@ class Fparser2Reader(object):
         # Once #667 is implemented we can simplify this logic by
         # checking for the NEMO API. i.e. if api=="nemo": add local
         # symbol else: add symbol from symbol table.
-        has_symbol_table = False
-        current = parent
-        while current:
-            if hasattr(current, "symbol_table"):
-                has_symbol_table = True
-                break
-            current = current.parent
-        if has_symbol_table:
-            symbol = Reference.get_symbol(node.string, parent)
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(node.string)
         else:
             # The NEMO API does not generate symbol tables, so create
             # a new Symbol. Randomly choose a datatype as we don't
@@ -1998,19 +2009,13 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
         '''
+        reference_name = node.items[0].string.lower()
         # Once #667 is implemented we can simplify this logic by
         # checking for the NEMO API. i.e. if api=="nemo": add local
         # symbol else: add symbol from symbol table.
-        reference_name = node.items[0].string.lower()
-        has_symbol_table = False
-        current = parent
-        while current:
-            if hasattr(current, "symbol_table"):
-                has_symbol_table = True
-                break
-            current = current.parent
-        if has_symbol_table:
-            symbol = Array.get_symbol(reference_name, parent)
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(reference_name)
         else:
             # The NEMO API does not generate symbol tables, so create
             # a new Symbol. Randomly choose a datatype as we don't
