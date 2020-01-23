@@ -31,40 +31,35 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-''' Module containing pytest tests for the handling of the U/LBOUND intrinsics
-in the PSyIR. '''
+''' pytest module for the U/LBOUND intrinsic PSyIR operators. '''
 
 from __future__ import absolute_import
-
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import BinaryOperation, Literal, Array
+from psyclone.psyir.symbols import DataType
 
 
-@pytest.mark.usefixtures("parser")
-@pytest.mark.parametrize("bound", ["ubound", "lbound"])
-@pytest.mark.parametrize("expression", ["n = {0}(a, 3)",
-                                        "n = {0}(a(:,:,:), 3)",
-                                        "n = {0}(a, idx1 + 3)"])
-def test_bound_intrinsics(bound, expression):
-    ''' Basic test that the UBOUND and LBROUND intrinsics are recognised
-    and represented in the PSyIR. '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(expression.format(bound))
-    fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic])
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
-    if bound == "ubound":
-        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.UBOUND
-    else:
-        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.LBOUND
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1],
-                      (Literal, BinaryOperation))
+@pytest.mark.xfail(reason="#677 the create() method does not check that the "
+                   "types of the Nodes it is passed are correct for the "
+                   "provided operator.")
+@pytest.mark.parametrize("bound", [BinaryOperation.Operator.LBOUND,
+                                   BinaryOperation.Operator.UBOUND])
+def test_bound_intrinsic_wrong_type(bound):
+    ''' Check that attempting to create an L/UBOUND intrinsic operator
+    with the wrong type of arguments raises the expected error. '''
+    with pytest.raises(TypeError) as err:
+        # First argument must be an Array
+        _ = BinaryOperation.create(bound,
+                                   Literal("1", DataType.INTEGER),
+                                   Literal("1", DataType.INTEGER))
+    assert "must be an Array but got: 'Literal" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        # Second argument cannot be a real literal
+        _ = BinaryOperation.create(bound,
+                                   Array("array"),
+                                   Literal("1.0", DataType.REAL))
+    assert ("must be an integer but got a Literal of type REAL" in
+            str(err.value))
