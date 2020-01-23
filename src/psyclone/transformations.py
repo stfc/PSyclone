@@ -43,7 +43,8 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, InternalError, Kern
+from psyclone.psyGen import Transformation, Kern
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
@@ -107,7 +108,7 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.psyGen import GenerationError
+        from psyclone.errors import GenerationError
         from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
@@ -781,7 +782,8 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
@@ -948,7 +950,8 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
@@ -1812,7 +1815,8 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
@@ -2184,44 +2188,44 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :param int options["depth"]: the depth of the stencil if the value \
                      is provided and None if not.
 
-        :raises GenerationError: if the node is not a\
+        :raises TransformationError: if the node is not a\
             :py:class:`psyclone.psyir.nodes.Loop`.
-        :raises GenerationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyGen.Directive`.
-        :raises GenerationError: if the parent of the loop is not a\
+        :raises TransformationError: if the parent of the loop is not a\
             :py:class:`psyclone.psyir.nodes.Loop` or a\
             :py:class:`psyclone.psyGen.DynInvokeSchedule`.
-        :raises GenerationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
             not iterate over 'colour'.
-        :raises GenerationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
-        :raises GenerationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
             not a :py:class:`psyclone.psyGen.DynInvokeSchedule`.
-        :raises GenerationError: if this transformation is applied\
+        :raises TransformationError: if this transformation is applied\
             when distributed memory is not switched on.
-        :raises GenerationError: if the loop does not iterate over\
+        :raises TransformationError: if the loop does not iterate over\
             cells, dofs or colour.
-        :raises GenerationError: if the transformation is setting the\
+        :raises TransformationError: if the transformation is setting the\
             loop to the maximum halo depth but the loop already computes\
             to the maximum halo depth.
-        :raises GenerationError: if the transformation is setting the\
+        :raises TransformationError: if the transformation is setting the\
             loop to the maximum halo depth but the loop contains a stencil\
             access (as this would result in the field being accessed\
             beyond the halo depth).
-        :raises GenerationError: if the supplied depth value is not an\
+        :raises TransformationError: if the supplied depth value is not an\
             integer.
-        :raises GenerationError: if the supplied depth value is less\
+        :raises TransformationError: if the supplied depth value is less\
             than 1.
-        :raises GenerationError: if the supplied depth value is not\
+        :raises TransformationError: if the supplied depth value is not\
             greater than 1 when a continuous loop is modified as this is\
             the minimum valid value.
-        :raises GenerationError: if the supplied depth value is not\
+        :raises TransformationError: if the supplied depth value is not\
             greater than the existing depth value, as we should not need\
             to undo existing transformations.
-        :raises GenerationError: if a depth value has been supplied\
+        :raises TransformationError: if a depth value has been supplied\
             but the loop has already been set to the maximum halo depth.
 
         '''

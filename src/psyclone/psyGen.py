@@ -48,6 +48,7 @@ from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.nodes import Node, Schedule, Loop
+from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -168,43 +169,6 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
                 continue
         arguments.append(argument)
     return arguments
-
-
-class GenerationError(Exception):
-    ''' Provides a PSyclone specific error class for errors found during PSy
-        code generation. '''
-    def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Generation Error: "+value
-
-    def __str__(self):
-        return str(self.value)
-
-
-class FieldNotFoundError(Exception):
-    ''' Provides a PSyclone-specific error class when a field with the
-    requested property/ies is not found '''
-    def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Field not found error: "+value
-
-    def __str__(self):
-        return str(self.value)
-
-
-class InternalError(Exception):
-    '''
-    PSyclone-specific exception for use when an internal error occurs (i.e.
-    something that 'should not happen').
-
-    :param str value: the message associated with the error.
-    '''
-    def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "PSyclone internal error: "+value
-
-    def __str__(self):
-        return str(self.value)
 
 
 class PSyFactory(object):

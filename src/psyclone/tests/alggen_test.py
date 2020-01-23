@@ -42,7 +42,7 @@ import pytest
 from psyclone.alg_gen import NoInvokesError, adduse
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 @pytest.fixture(scope="module", autouse=True)

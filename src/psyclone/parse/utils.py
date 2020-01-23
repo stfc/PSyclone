@@ -42,7 +42,7 @@ import io
 
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.utils import FortranSyntaxError

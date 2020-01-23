@@ -47,7 +47,8 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 
 # Constants

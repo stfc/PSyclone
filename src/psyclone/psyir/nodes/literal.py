@@ -96,7 +96,7 @@ class Literal(Node):
     def datatype(self):
         '''
         :returns: the type of this Literal.
-        :rtype: :py:class:`psyclone.psyGen.DataType`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         return self._datatype
 

@@ -44,8 +44,8 @@ import os
 import re
 import pytest
 from psyclone.psyir.nodes import Node, Schedule
-from psyclone.psyGen import PSyFactory, InternalError, OMPDoDirective, Kern, \
-    GenerationError
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
