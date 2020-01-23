@@ -604,7 +604,7 @@ class Fparser2Reader(object):
                             interface = ArgumentInterface(
                                 ArgumentInterface.Access.READWRITE)
                         elif "save" in normalized_string:
-                            # Variables declared with SAVE attribute inside a 
+                            # Variables declared with SAVE attribute inside a
                             # module, submodule or main program are implicitly
                             # SAVE'd (see Fortran specification 8.5.16.4) so it
                             # is valid to ignore the attribute in these

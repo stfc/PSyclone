@@ -3891,6 +3891,8 @@ class KernelGlobalsToArguments(Transformation):
             symtab.specify_argument_list(current_arg_list)
 
             # Convert PSyIR DataTypes to Gocean VALID_SCALAR_TYPES
+            # TODO #678: Ideally this strings should be provided by the GOcean
+            # API configuration.
             go_space = ""
             if globalvar.datatype == DataType.REAL:
                 go_space = "go_r_scalar"

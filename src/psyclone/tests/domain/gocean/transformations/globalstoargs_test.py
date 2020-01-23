@@ -198,8 +198,8 @@ def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
-    # in this test. In this case we assume it is a constant INTEGER
+    # In this case we set it to be of type CHARACTER as that is not supported
+    # in the GOcean infrastructure.
     def set_to_char(variable):
         variable._datatype = DataType.CHARACTER
     monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_char)
