@@ -45,7 +45,8 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
-from psyclone.generator import generate, GenerationError, main
+from psyclone.generator import generate, main
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
 
@@ -763,7 +764,6 @@ def test_write_utf_file(tmpdir, monkeypatch):
     ''' Unit tests for the write_unicode_file utility routine. '''
     import six
     import io
-    from psyclone.psyGen import InternalError
     from psyclone.generator import write_unicode_file
 
     # First for plain ASCII

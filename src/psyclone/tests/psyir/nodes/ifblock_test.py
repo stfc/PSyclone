@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
     Return, Assignment
 from psyclone.psyir.symbols import DataType
-from psyclone.psyGen import InternalError, GenerationError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
