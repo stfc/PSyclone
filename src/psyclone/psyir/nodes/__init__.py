@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
@@ -48,6 +49,7 @@ from psyclone.psyir.nodes.reference import Reference, Array
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.ranges import Range
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
@@ -60,6 +62,7 @@ __all__ = [
         'UnaryOperation',
         'BinaryOperation',
         'NaryOperation',
+        'Range',
         'Reference',
         'Array',
         'IfBlock',
