@@ -917,8 +917,8 @@ class Node(object):
 
             if not isinstance(scope_limit, Node):
                 raise TypeError(
-                    "The scope_limit argument '{0}' provided to the symbol "
-                    "method, is not of type `Node`."
+                    "The scope_limit argument '{0}' provided to the "
+                    "find_symbol method, is not of type `Node`."
                     "".format(str(scope_limit)))
 
             # Check that the scope_limit Node is an ancestor of this
@@ -934,7 +934,7 @@ class Node(object):
                 # The scope_limit node is not an ancestor of the
                 # supplied node so raise an exception.
                 raise ValueError(
-                    "The scope_limit node '{0}' provided to the symbol "
+                    "The scope_limit node '{0}' provided to the find_symbol "
                     "method, is not an ancestor of this node '{1}'."
                     "".format(str(scope_limit), str(self)))
         test_node = self

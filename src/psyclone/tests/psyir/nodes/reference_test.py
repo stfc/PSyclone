@@ -40,13 +40,12 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, Array, Assignment, Container, \
-    Literal
+from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
 from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError, \
     SymbolTable
-from psyclone.psyGen import GenerationError, KernelSchedule, Kern
+from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import check_links
 
 
 def test_reference_bad_init():
@@ -56,7 +55,7 @@ def test_reference_bad_init():
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        ref = Reference("hello")
+        _ = Reference("hello")
     assert ("In Reference initialisation expecting a symbol but found 'str'."
             in str(excinfo.value))
 
@@ -93,75 +92,6 @@ def test_reference_optional_parent():
     assert ref.parent is None
 
 
-def test_reference_symbol(monkeypatch):
-    '''Test that the symbol method in a Reference Node instance returns
-    the associated symbol if there is one and raises an exception if
-    not. Also test for an incorrect scope argument.
-
-    '''
-    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kernel_schedule = kernels[0].get_kernel_schedule()
-    references = kernel_schedule.walk(Reference)
-
-    # Symbol in KernelSchedule SymbolTable
-    field_old = references[0]
-    assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol, DataSymbol)
-    assert field_old.symbol in kernel_schedule.symbol_table.symbols
-
-    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.find_symbol(field_old.name,
-                                            scope_limit=kernel_schedule),
-                      DataSymbol)
-    assert field_old.symbol.name == field_old.name
-
-    # Symbol in KernelSchedule SymbolTable with parent scope
-    with pytest.raises(SymbolError) as excinfo:
-        _ = field_old.find_symbol(field_old.name, scope_limit=field_old.parent)
-    assert "Undeclared reference 'field_old' found." in str(excinfo.value)
-
-    # Symbol in Container SymbolTable
-    alpha = references[6]
-    assert alpha.name == "alpha"
-    assert isinstance(alpha.find_symbol(alpha.name), DataSymbol)
-    container = kernel_schedule.root
-    assert isinstance(container, Container)
-    assert (alpha.find_symbol(alpha.name) in
-            container.symbol_table.symbols)
-
-    # Symbol in Container SymbolTable with KernelSchedule scope
-    with pytest.raises(SymbolError) as excinfo:
-        _ = alpha.find_symbol(alpha.name, scope_limit=kernel_schedule)
-    assert "Undeclared reference 'alpha' found." in str(excinfo.value)
-
-    # Symbol in Container SymbolTable with Container scope
-    assert (alpha.find_symbol(
-        alpha.name, scope_limit=container).name == alpha.name)
-
-    # Symbol method with invalid scope type
-    with pytest.raises(TypeError) as excinfo:
-        _ = alpha.find_symbol(alpha.name, scope_limit="hello")
-    assert ("The scope_limit argument 'hello' provided to the symbol method, "
-            "is not of type `Node`." in str(excinfo.value))
-
-    # Symbol method with invalid scope location
-    with pytest.raises(ValueError) as excinfo:
-        _ = alpha.find_symbol(alpha.name, scope_limit=alpha)
-    print (str(excinfo.value))
-    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
-            "symbol method, is not an ancestor of this node "
-            "'Reference[name:'alpha']'." in str(excinfo.value))
-
-    # Symbol not in any container (rename alpha to something that is
-    # not defined)
-    alpha._symbol._name = "undefined"
-    with pytest.raises(SymbolError) as excinfo:
-        _ = alpha.find_symbol(alpha.name)
-    assert "Undeclared reference 'undefined' found." in str(excinfo.value)
-
 # Test Array class
 
 
@@ -194,7 +124,7 @@ def test_array_create():
     creates an Array instance.
 
     '''
-    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10,10,10])
+    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10, 10, 10])
     symbol_i = DataSymbol("i", DataType.INTEGER)
     symbol_j = DataSymbol("j", DataType.INTEGER)
     children = [Reference(symbol_i), Reference(symbol_j),
@@ -285,8 +215,8 @@ def test_reference_check_declared():
     '''
     ref = Reference(DataSymbol("rname", DataType.REAL))
     assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
-    kernel_schedule = KernelSchedule.create("test", SymbolTable(),
-                                            [assignment])
+    _ = KernelSchedule.create("test", SymbolTable(),
+                              [assignment])
     with pytest.raises(SymbolError) as excinfo:
         ref.check_declared()
     assert "Undeclared reference 'rname' found." in str(excinfo.value)
