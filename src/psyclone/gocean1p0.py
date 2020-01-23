@@ -1361,6 +1361,7 @@ class GOKernelArguments(Arguments):
             elif arg.type == "field":
                 # Field objects are Fortran derived-types
                 api_config = Config.get().api_conf("gocean1.0")
+                # TODO: #676 go_grid_data is actually a field property
                 data = api_config.grid_properties["go_grid_data"].fortran\
                     .format(arg.name)
                 arguments.append(data)
@@ -1431,6 +1432,7 @@ class GOKernelArguments(Arguments):
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         api_config = Config.get().api_conf("gocean1.0")
+        # TODO: #676 go_grid_data is actually a field property
         data_fmt = api_config.grid_properties["go_grid_data"].fortran
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
         for arg in self._args:
